@@ -48,9 +48,9 @@ io.on("connection", (socket) => {
   });
 
   // Krpano hotspot click
-  socket.on("hotspot", (data) => {
+  socket.on("krpano_action", (data) => {
     if (!sessionId) return;
-    socket.to(sessionId).emit("hotspot", data);
+    socket.to(sessionId).emit("krpano_action", data);
     console.log(`[${sessionId}] hotspot -> ${data.name}`);
   });
 
