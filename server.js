@@ -12,6 +12,15 @@ const io = new Server(httpServer, {
 
 const sessions = {};
 
+function getClientCount(sessionId) {
+  if (!sessions[sessionId]) return 0;
+  return sessions[sessionId].clients.size;
+}
+
+function broadcastClientCount(sessionId) {
+  io.to(sessionId).emit("client_count", { count: getClientCount(sessionId) });
+}
+
 io.on("connection", (socket) => {
   let sessionId = null;
   let role = null;
@@ -21,11 +30,23 @@ io.on("connection", (socket) => {
     role = as;
     socket.join(sessionId);
     if (!sessions[sessionId]) {
-      sessions[sessionId] = { broker: null, client: null, control: "client" };
+      sessions[sessionId] = { broker: null, clients: new Set(), control: "client" };
     }
-    sessions[sessionId][role] = socket.id;
+    if (as === "broker") {
+      sessions[sessionId].broker = socket.id;
+    } else {
+      sessions[sessionId].clients.add(socket.id);
+    }
     socket.emit("control_state", { control: sessions[sessionId].control });
-    console.log(`[${sessionId}] ${role} connected`);
+    broadcastClientCount(sessionId);
+    console.log(`[${sessionId}] ${role} connected — clients: ${getClientCount(sessionId)}`);
+  });
+
+  // Reaction — broadcast to everyone in session
+  socket.on("reaction", ({ emoji }) => {
+    if (!sessionId) return;
+    io.to(sessionId).emit("reaction", { emoji });
+    console.log(`[${sessionId}] reaction: ${emoji}`);
   });
 
   // Camera
@@ -63,12 +84,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    if (!sessionId) return;
-    if (sessions[sessionId]) {
-      sessions[sessionId][role] = null;
-      socket.to(sessionId).emit("peer_disconnected", { role });
+    if (!sessionId || !sessions[sessionId]) return;
+    if (role === "broker") {
+      sessions[sessionId].broker = null;
+    } else {
+      sessions[sessionId].clients.delete(socket.id);
     }
-    console.log(`[${sessionId}] ${role} disconnected`);
+    socket.to(sessionId).emit("peer_disconnected", { role });
+    broadcastClientCount(sessionId);
+    console.log(`[${sessionId}] ${role} disconnected — clients: ${getClientCount(sessionId)}`);
   });
 });
 
