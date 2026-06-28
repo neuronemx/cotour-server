@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 
 const httpServer = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CoTour Server v13 OK");
+  res.end("CoTour Server v14 OK");
 });
 
 const io = new Server(httpServer, {
@@ -38,8 +38,9 @@ io.on("connection", (socket) => {
       sessions[sessionId] = {
         broker: null,
         brokerCamera: null,
-        brokerScene: null,       // current broker scene
-        brokerSceneOnRelease: null, // scene when broker released control
+        brokerScene: null,          // current broker scene
+        brokerCameraOnRelease: null, // camera when broker released control
+        brokerSceneOnRelease: null,  // scene when broker released control
         clients: new Map(),
         control: "client",
         watchingClient: null
@@ -51,12 +52,14 @@ io.on("connection", (socket) => {
     if (as === "broker") {
       s.broker = socket.id;
       socket.emit("control_state", { control: s.control });
+      socket.to(sessionId).emit("broker_connected");
       broadcastClientCount(sessionId);
     } else {
       clientId = `C${++clientCounter}`;
       s.clients.set(clientId, { socketId: socket.id, camera: null, scene: null });
       socket.emit("control_state", { control: s.control });
       socket.emit("your_client_id", { clientId });
+      socket.emit(s.broker ? "broker_connected" : "broker_disconnected");
 
       // FIX: sync new client to broker's current scene and camera immediately
       if (s.brokerScene)  socket.emit("scene",  { name: s.brokerScene });
@@ -144,23 +147,25 @@ io.on("connection", (socket) => {
     if (!sessionId || role !== "broker" || !sessions[sessionId]) return;
     const s = sessions[sessionId];
 
-    // FIX: save scene when releasing control
+    // Save the broker's exact pause point before handing control to clients.
     if (control === "client") {
       s.brokerSceneOnRelease = s.brokerScene;
+      s.brokerCameraOnRelease = s.brokerCamera;
     }
 
     s.control = control;
     io.to(sessionId).emit("control_state", { control });
 
-    // FIX: when retaking control, go to scene where broker WAS when released
+    // When retaking control, restore everyone — broker included — to the pause point.
     if (control === "broker") {
       const targetScene = s.brokerSceneOnRelease || s.brokerScene;
+      const targetCamera = s.brokerCameraOnRelease || s.brokerCamera;
       if (targetScene) {
-        socket.to(sessionId).emit("scene", { name: targetScene });
+        io.to(sessionId).emit("scene", { name: targetScene, restore: true });
       }
-      if (s.brokerCamera) {
+      if (targetCamera) {
         setTimeout(() => {
-          socket.to(sessionId).emit("camera", s.brokerCamera);
+          io.to(sessionId).emit("camera", targetCamera);
         }, 600);
       }
     }
@@ -173,6 +178,9 @@ io.on("connection", (socket) => {
     const s = sessions[sessionId];
     if (role === "broker") {
       s.broker = null;
+      s.control = "client";
+      socket.to(sessionId).emit("broker_disconnected");
+      socket.to(sessionId).emit("control_state", { control: s.control });
     } else if (clientId) {
       s.clients.delete(clientId);
       if (s.watchingClient === clientId) {
@@ -188,4 +196,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`CoTour server v13 running on port ${PORT}`));
+httpServer.listen(PORT, () => console.log(`CoTour server v14 running on port ${PORT}`));
