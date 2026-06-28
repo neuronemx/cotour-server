@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 
 const httpServer = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CoTour Server v14.2 OK");
+  res.end("CoTour Server v14.3 OK");
 });
 
 const io = new Server(httpServer, {
@@ -56,16 +56,13 @@ io.on("connection", (socket) => {
       broadcastClientCount(sessionId);
     } else {
       clientId = `C${++clientCounter}`;
-      s.clients.set(clientId, { socketId: socket.id, camera: null, scene: null });
-      socket.emit("control_state", { control: s.control });
+      s.clients.set(clientId, { socketId: socket.id, camera: null, scene: null, ready: false });
+
+      // v14.3: A new client starts local/free so the visitor can press the welcome/OK
+      // button inside KRPano. Only after client_ready do we sync to the broker.
+      socket.emit("control_state", { control: s.control === "broker" ? "client" : s.control, awaiting_ready: s.control === "broker" });
       socket.emit("your_client_id", { clientId });
       socket.emit(s.broker ? "broker_connected" : "broker_disconnected");
-
-      // FIX: sync new client to broker's current scene and camera immediately
-      if (s.brokerScene)  socket.emit("scene",  { name: s.brokerScene });
-      if (s.brokerCamera) {
-        setTimeout(() => socket.emit("camera", s.brokerCamera), 600);
-      }
 
       // Notify broker
       if (s.broker) io.to(s.broker).emit("new_client", { clientId });
@@ -73,6 +70,25 @@ io.on("connection", (socket) => {
     }
 
     console.log(`[${sessionId}] ${role}${clientId ? ' '+clientId : ''} connected — clients: ${s.clients.size}`);
+  });
+
+  // Client is ready to be synchronized after pressing the OK button inside KRPano.
+  socket.on("client_ready", () => {
+    if (!sessionId || role !== "client" || !clientId || !sessions[sessionId]) return;
+    const s = sessions[sessionId];
+    const cd = s.clients.get(clientId);
+    if (cd) cd.ready = true;
+
+    socket.emit("control_state", { control: s.control });
+
+    if (s.control === "broker") {
+      const targetScene = s.brokerSceneOnRelease || s.brokerScene;
+      const targetCamera = s.brokerCameraOnRelease || s.brokerCamera;
+      if (targetScene) socket.emit("scene", { name: targetScene, restore: true });
+      if (targetCamera) setTimeout(() => socket.emit("camera", targetCamera), 600);
+    }
+
+    console.log(`[${sessionId}] ${clientId} ready for sync`);
   });
 
   // Camera
@@ -88,7 +104,7 @@ io.on("connection", (socket) => {
     } else if (role === "client" && clientId) {
       const cd = s.clients.get(clientId);
       if (cd) cd.camera = data;
-      if (s.broker && s.watchingClient === clientId) {
+      if (cd?.ready && s.broker && s.watchingClient === clientId) {
         io.to(s.broker).emit("camera", data);
       }
     }
@@ -107,7 +123,7 @@ io.on("connection", (socket) => {
     } else if (role === "client" && clientId) {
       const cd = s.clients.get(clientId);
       if (cd) cd.scene = data.name;
-      if (s.broker && s.watchingClient === clientId) {
+      if (cd?.ready && s.broker && s.watchingClient === clientId) {
         io.to(s.broker).emit("scene", data);
       }
     }
@@ -197,4 +213,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`CoTour server v14.2 running on port ${PORT}`));
+httpServer.listen(PORT, () => console.log(`CoTour server v14.3 running on port ${PORT}`));
