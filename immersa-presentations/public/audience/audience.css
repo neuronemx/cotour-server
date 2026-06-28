@@ -1,0 +1,9 @@
+:root { color-scheme: dark; font-family: Inter, "Segoe UI", Arial, sans-serif; background: #030406; color: #fff; }
+* { box-sizing: border-box; } body { margin: 0; min-height: 100vh; background: #030406; overflow: hidden; }
+.audience { width: 100vw; height: 100dvh; display: grid; place-items: center; position: relative; background: radial-gradient(circle at 50% 20%, rgba(99,213,199,.1), transparent 35%), #030406; }
+#slide { width: 100vw; height: calc(100dvh - 78px); object-fit: contain; align-self: start; display: block; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; height: 78px; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(5,6,9,.82); border-top: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(18px); }
+button { width: 58px; height: 52px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(255,255,255,.08); color: #fff; font-size: 26px; cursor: pointer; }
+button:active { transform: scale(.94); background: rgba(243,210,122,.22); }
+.disconnect { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); width: min(92vw, 420px); padding: 12px 14px; text-align: center; border-radius: 8px; background: rgba(12,12,12,.76); border: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.88); backdrop-filter: blur(14px); }
+.hidden { display: none !important; }
