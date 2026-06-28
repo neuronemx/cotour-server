@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 
 const httpServer = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CoTour Server v14 OK");
+  res.end("CoTour Server v14.1 OK");
 });
 
 const io = new Server(httpServer, {
@@ -196,4 +196,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`CoTour server v14 running on port ${PORT}`));
+httpServer.listen(PORT, () => console.log(`CoTour server v14.1 running on port ${PORT}`));
