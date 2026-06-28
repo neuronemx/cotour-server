@@ -1,0 +1,10 @@
+{
+  "deckId": "demo",
+  "title": "Immersa Demo",
+  "ratio": "16:9",
+  "slides": [
+    { "id": "slide-001", "src": "slides/slide-001.svg", "title": "Una presentación" },
+    { "id": "slide-002", "src": "slides/slide-002.svg", "title": "Cien pantallas" },
+    { "id": "slide-003", "src": "slides/slide-003.svg", "title": "Todos en primera fila" }
+  ]
+}
