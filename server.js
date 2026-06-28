@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 
 const httpServer = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CoTour Server v12 OK");
+  res.end("CoTour Server v13 OK");
 });
 
 const io = new Server(httpServer, {
@@ -13,13 +13,12 @@ const io = new Server(httpServer, {
 const sessions = {};
 let clientCounter = 0;
 
-function getClientCount(sessionId) {
-  if (!sessions[sessionId]) return 0;
-  return sessions[sessionId].clients.size;
+function getSession(sessionId) {
+  return sessions[sessionId];
 }
 
 function broadcastClientCount(sessionId) {
-  const s = sessions[sessionId];
+  const s = getSession(sessionId);
   if (!s || !s.broker) return;
   const clientIds = Array.from(s.clients.keys());
   io.to(s.broker).emit("client_count", { count: clientIds.length, clientIds });
@@ -39,7 +38,8 @@ io.on("connection", (socket) => {
       sessions[sessionId] = {
         broker: null,
         brokerCamera: null,
-        brokerScene: null,        // FIX: track broker scene
+        brokerScene: null,       // current broker scene
+        brokerSceneOnRelease: null, // scene when broker released control
         clients: new Map(),
         control: "client",
         watchingClient: null
@@ -51,7 +51,6 @@ io.on("connection", (socket) => {
     if (as === "broker") {
       s.broker = socket.id;
       socket.emit("control_state", { control: s.control });
-      // Send current count to broker immediately
       broadcastClientCount(sessionId);
     } else {
       clientId = `C${++clientCounter}`;
@@ -59,14 +58,18 @@ io.on("connection", (socket) => {
       socket.emit("control_state", { control: s.control });
       socket.emit("your_client_id", { clientId });
 
-      // Notify broker of new client
-      if (s.broker) {
-        io.to(s.broker).emit("new_client", { clientId });
+      // FIX: sync new client to broker's current scene and camera immediately
+      if (s.brokerScene)  socket.emit("scene",  { name: s.brokerScene });
+      if (s.brokerCamera) {
+        setTimeout(() => socket.emit("camera", s.brokerCamera), 600);
       }
+
+      // Notify broker
+      if (s.broker) io.to(s.broker).emit("new_client", { clientId });
       broadcastClientCount(sessionId);
     }
 
-    console.log(`[${sessionId}] ${role}${clientId ? ' '+clientId : ''} connected — clients: ${getClientCount(sessionId)}`);
+    console.log(`[${sessionId}] ${role}${clientId ? ' '+clientId : ''} connected — clients: ${s.clients.size}`);
   });
 
   // Camera
@@ -76,14 +79,12 @@ io.on("connection", (socket) => {
 
     if (role === "broker") {
       s.brokerCamera = data;
-      // Only forward to clients when broker is in control
       if (s.control === "broker") {
         socket.to(sessionId).emit("camera", data);
       }
     } else if (role === "client" && clientId) {
       const cd = s.clients.get(clientId);
       if (cd) cd.camera = data;
-      // Forward to broker ONLY if broker is watching this specific client
       if (s.broker && s.watchingClient === clientId) {
         io.to(s.broker).emit("camera", data);
       }
@@ -96,14 +97,13 @@ io.on("connection", (socket) => {
     const s = sessions[sessionId];
 
     if (role === "broker") {
-      s.brokerScene = data.name;   // FIX: save broker scene
+      s.brokerScene = data.name;
       if (s.control === "broker") {
         socket.to(sessionId).emit("scene", data);
       }
     } else if (role === "client" && clientId) {
       const cd = s.clients.get(clientId);
       if (cd) cd.scene = data.name;
-      // Forward scene to broker only if watching this client
       if (s.broker && s.watchingClient === clientId) {
         io.to(s.broker).emit("scene", data);
       }
@@ -116,8 +116,8 @@ io.on("connection", (socket) => {
     const s = sessions[sessionId];
     s.watchingClient = targetId;
     const cd = s.clients.get(targetId);
-    if (cd?.camera) io.to(s.broker).emit("camera", cd.camera);
-    if (cd?.scene)  io.to(s.broker).emit("scene", { name: cd.scene });
+    if (cd?.scene)  io.to(s.broker).emit("scene",  { name: cd.scene });
+    if (cd?.camera) setTimeout(() => io.to(s.broker).emit("camera", cd.camera), 400);
     console.log(`[${sessionId}] broker watching ${targetId}`);
   });
 
@@ -133,7 +133,7 @@ io.on("connection", (socket) => {
     socket.to(sessionId).emit("krpano_action", data);
   });
 
-  // Reaction — broadcast to everyone
+  // Reaction
   socket.on("reaction", ({ emoji }) => {
     if (!sessionId) return;
     io.to(sessionId).emit("reaction", { emoji });
@@ -143,20 +143,28 @@ io.on("connection", (socket) => {
   socket.on("request_control", ({ control }) => {
     if (!sessionId || role !== "broker" || !sessions[sessionId]) return;
     const s = sessions[sessionId];
+
+    // FIX: save scene when releasing control
+    if (control === "client") {
+      s.brokerSceneOnRelease = s.brokerScene;
+    }
+
     s.control = control;
     io.to(sessionId).emit("control_state", { control });
 
-    // FIX: when broker retakes control, send broker's SCENE first, then camera
+    // FIX: when retaking control, go to scene where broker WAS when released
     if (control === "broker") {
-      if (s.brokerScene) {
-        socket.to(sessionId).emit("scene", { name: s.brokerScene });
+      const targetScene = s.brokerSceneOnRelease || s.brokerScene;
+      if (targetScene) {
+        socket.to(sessionId).emit("scene", { name: targetScene });
       }
       if (s.brokerCamera) {
         setTimeout(() => {
           socket.to(sessionId).emit("camera", s.brokerCamera);
-        }, 600); // wait for scene to load
+        }, 600);
       }
     }
+
     console.log(`[${sessionId}] control -> ${control}`);
   });
 
@@ -169,16 +177,15 @@ io.on("connection", (socket) => {
       s.clients.delete(clientId);
       if (s.watchingClient === clientId) {
         s.watchingClient = null;
-        // Auto-watch next available client
         const next = s.clients.keys().next().value;
         if (next) s.watchingClient = next;
       }
     }
     socket.to(sessionId).emit("peer_disconnected", { role, clientId });
     broadcastClientCount(sessionId);
-    console.log(`[${sessionId}] ${role} disconnected — clients: ${getClientCount(sessionId)}`);
+    console.log(`[${sessionId}] ${role} disconnected — clients: ${s.clients.size}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`CoTour server v12 running on port ${PORT}`));
+httpServer.listen(PORT, () => console.log(`CoTour server v13 running on port ${PORT}`));
