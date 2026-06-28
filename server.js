@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 
 const httpServer = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CoTour Server v14.1 OK");
+  res.end("CoTour Server v14.2 OK");
 });
 
 const io = new Server(httpServer, {
@@ -113,10 +113,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Broker watches a specific client
+  // Broker watches a specific client only while control is open to clients.
   socket.on("watch_client", ({ clientId: targetId }) => {
     if (!sessionId || role !== "broker" || !sessions[sessionId]) return;
     const s = sessions[sessionId];
+    if (s.control !== "client") return;
     s.watchingClient = targetId;
     const cd = s.clients.get(targetId);
     if (cd?.scene)  io.to(s.broker).emit("scene",  { name: cd.scene });
@@ -196,4 +197,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`CoTour server v14.1 running on port ${PORT}`));
+httpServer.listen(PORT, () => console.log(`CoTour server v14.2 running on port ${PORT}`));
