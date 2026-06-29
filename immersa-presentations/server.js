@@ -28,7 +28,6 @@ function createSession(deckId) {
       qrVisible: false,
       messageVisible: false,
       messageText: "",
-      standbyMode: false,
       selectedQuestion: null,
       questionVisible: false
     }
@@ -81,6 +80,7 @@ function setPresenterSlide(session, nextIndex) {
 
 function emitReaction(sessionId, session, emoji) {
   if (!allowedReactions.has(emoji)) return;
+  io.to(sessionId).emit("reaction", { emoji, target: "audience", at: Date.now() });
   io.to(sessionId).emit("reaction", { emoji, target: "presenter", at: Date.now() });
   if (session.overlays.reactionsOnScreen) {
     io.to(sessionId).emit("reaction", { emoji, target: "screen", at: Date.now() });
@@ -160,13 +160,6 @@ io.on("connection", (socket) => {
     emitReaction(currentSessionId, getSession(currentSessionId), emoji);
   });
 
-  socket.on("reaction_burst", ({ emoji, count }) => {
-    if (!currentSessionId || currentRole !== "audience") return;
-    const session = getSession(currentSessionId);
-    const total = Math.max(1, Math.min(Number(count) || 8, 24));
-    for (let i = 0; i < total; i++) setTimeout(() => emitReaction(currentSessionId, session, emoji), i * 80);
-  });
-
   socket.on("overlay_update", ({ overlays }) => {
     if (!currentSessionId || currentRole !== "stage") return;
     const session = getSession(currentSessionId);
@@ -186,15 +179,7 @@ io.on("connection", (socket) => {
   socket.on("clear_screen", () => {
     if (!currentSessionId || currentRole !== "stage") return;
     const session = getSession(currentSessionId);
-    session.overlays = { ...session.overlays, standbyMode: true, messageVisible: false, messageText: "", qrVisible: false };
-    io.to(currentSessionId).emit("overlay_update", session.overlays);
-    emitState(currentSessionId, session);
-  });
-
-  socket.on("clear_overlays", () => {
-    if (!currentSessionId || currentRole !== "stage") return;
-    const session = getSession(currentSessionId);
-    session.overlays = { ...session.overlays, reactionsOnScreen: false, qrVisible: false, messageVisible: false, messageText: "", standbyMode: false, selectedQuestion: null, questionVisible: false };
+    session.overlays = { ...session.overlays, qrVisible: false, messageVisible: false, messageText: "", selectedQuestion: null, questionVisible: false };
     io.to(currentSessionId).emit("clear_overlays");
     io.to(currentSessionId).emit("overlay_update", session.overlays);
     emitState(currentSessionId, session);

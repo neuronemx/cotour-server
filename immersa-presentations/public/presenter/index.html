@@ -7,37 +7,32 @@
   <link rel="stylesheet" href="/presenter/presenter.css">
 </head>
 <body>
-  <main class="shell">
-    <section class="preview-panel">
-      <div class="topline"><span>Immersa Presentations</span><strong id="status">Conectando</strong></div>
-      <div class="live-row"><span id="transmissionState">Transmitiendo</span><button id="playPause" class="secondary" type="button">Pausar transmisión</button></div>
-      <div class="slide-frame"><img id="slide" alt="Slide actual"></div>
-      <div id="thumbs" class="thumbs" aria-label="Miniaturas"></div>
-      <div class="controls">
-        <button id="prev" type="button">Anterior</button>
-        <div class="slide-count"><span id="current">1</span>/<span id="total">3</span></div>
-        <button id="next" type="button">Siguiente</button>
-      </div>
-      <form id="goForm" class="go-form">
-        <label for="goInput">Ir al slide</label>
-        <input id="goInput" type="number" min="1" value="1">
-        <button type="submit">Ir</button>
-      </form>
+  <main class="presenter-shell">
+    <header class="presenter-header">
+      <div class="brand">IMMERSA</div>
+      <div class="audience-stat">Audiencia: <span id="audience">0</span></div>
+    </header>
+
+    <section class="stream-area">
+      <img id="slide" alt="Slide actual">
+      <div id="reactions" class="reaction-layer"></div>
     </section>
-    <aside class="side-panel">
-      <div class="metric"><span>Audiencia</span><strong id="audience">0</strong></div>
-      <label class="switch-row"><input id="localReactions" type="checkbox" checked><span>Ver reacciones aquí</span></label>
-      <div class="links">
-        <h1>URLs de sala</h1>
-        <label>Screen<input id="screenUrl" readonly></label>
-        <label>Stage<input id="stageUrl" readonly></label>
-        <label>Audience<input id="audienceUrl" readonly></label>
-      </div>
-      <div class="reaction-card">
-        <h2>Reacciones</h2>
-        <div id="reactions" class="reaction-stream"></div>
-      </div>
-    </aside>
+
+    <nav id="thumbs" class="thumbs" aria-label="Miniaturas"></nav>
+
+    <section class="main-controls" aria-label="Controles principales">
+      <button id="prev" class="nav-button" type="button" aria-label="Anterior">‹</button>
+      <label class="reaction-toggle"><input id="localReactions" type="checkbox" checked><span>Ver reacciones</span></label>
+      <div class="slide-count"><span id="current">1</span>/<span id="total">3</span></div>
+      <button id="playPause" class="play-button" type="button">⏸ Pausar</button>
+      <button id="next" class="nav-button" type="button" aria-label="Siguiente">›</button>
+    </section>
+
+    <section class="links-panel" aria-label="URLs de sala">
+      <label>Screen<input id="screenUrl" readonly></label>
+      <label>Stage<input id="stageUrl" readonly></label>
+      <label>Audience<input id="audienceUrl" readonly></label>
+    </section>
   </main>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/presenter/presenter.js"></script>
