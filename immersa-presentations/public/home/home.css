@@ -1,0 +1,39 @@
+:root { color-scheme: dark; font-family: Inter, "Segoe UI", Arial, sans-serif; background: #06070a; color: #f7f2e8; }
+* { box-sizing: border-box; }
+html, body { width: 100%; max-width: 100vw; min-height: 100%; overflow-x: hidden; }
+body { margin: 0; background: radial-gradient(circle at 78% 8%, rgba(99,213,199,.15), transparent 30%), linear-gradient(135deg, #06070a, #10141a 62%, #0c0b08); }
+.home-shell { width: 100%; max-width: 1180px; min-height: 100vh; margin: 0 auto; padding: 28px; display: grid; gap: 28px; align-content: start; }
+.hero { display: flex; justify-content: space-between; align-items: end; gap: 20px; padding-top: 10px; }
+h1 { margin: 0; font-size: clamp(36px, 7vw, 76px); letter-spacing: .14em; line-height: .95; }
+p { margin: 10px 0 0; color: #c8d2ce; font-size: clamp(17px, 2.4vw, 24px); }
+button { border: 0; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 850; }
+.upload-soon { min-height: 54px; padding: 0 18px; color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); cursor: not-allowed; white-space: nowrap; }
+.workspace { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.setup-panel, .links-panel { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.055); border-radius: 8px; padding: 20px; display: grid; gap: 18px; }
+.section-title { display: flex; justify-content: space-between; align-items: center; color: #aeb8b3; text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.section-title strong { color: #68d8cc; font-size: 13px; }
+.deck-list { display: grid; gap: 10px; }
+.deck-option { width: 100%; text-align: left; padding: 16px; background: rgba(0,0,0,.24); border: 1px solid rgba(255,255,255,.12); color: #f7f2e8; }
+.deck-option.active { border-color: #f3d27a; box-shadow: 0 0 0 1px rgba(243,210,122,.55) inset; }
+.deck-option strong { display: block; font-size: 20px; }
+.deck-option span { display: block; margin-top: 6px; color: #aeb8b3; font-size: 13px; }
+.field { display: grid; gap: 8px; color: #c8d2ce; }
+.field input { width: 100%; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(0,0,0,.28); color: #fff; padding: 15px 14px; font-size: 19px; }
+.session-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.session-actions button, .audience-card button { min-height: 50px; padding: 0 16px; background: #68d8cc; color: #07100f; }
+#normalizedHint { color: #aeb8b3; font-size: 14px; }
+.links-list { display: grid; gap: 12px; }
+.role-link { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 12px; border-radius: 8px; background: rgba(0,0,0,.24); border: 1px solid rgba(255,255,255,.1); }
+.role-link strong { color: #f7f2e8; }
+.role-link input { min-width: 0; width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(255,255,255,.06); color: #dfe7e3; padding: 12px; }
+.role-link button, .role-link a { min-height: 42px; display: inline-grid; place-items: center; padding: 0 12px; border-radius: 8px; text-decoration: none; color: #111; background: #f3d27a; font-weight: 850; white-space: nowrap; }
+.role-link button { background: #d8dde0; }
+.audience-card { display: grid; justify-items: center; gap: 12px; padding-top: 8px; }
+.qr-code { width: min(260px, 74vw); aspect-ratio: 1; padding: 14px; background: #fff; border-radius: 8px; display: grid; place-items: center; }
+.qr-code canvas, .qr-code img { display: block; width: 100%; max-width: 220px; height: auto; }
+.qr-code.fallback { grid-template-columns: repeat(29, 1fr); grid-template-rows: repeat(29, 1fr); place-items: stretch; }
+.qr-code.fallback span { display: block; }
+.qr-code.fallback .dark { background: #050505; }
+.audience-card p { margin: 0; font-size: 16px; color: #f7f2e8; }
+.copied { background: #68d8cc !important; color: #07100f !important; }
+@media (max-width: 860px) { .home-shell { padding: 18px; } .hero { align-items: start; flex-direction: column; } .workspace { grid-template-columns: 1fr; } .role-link { grid-template-columns: 1fr; } .role-link a, .role-link button { width: 100%; } .upload-soon { width: 100%; } }
