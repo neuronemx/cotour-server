@@ -6,6 +6,7 @@ body { margin: 0; background: radial-gradient(circle at 78% 6%, rgba(99,213,199,
 .presenter-header { flex: 0 0 auto; width: 100%; max-width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 38px; color: #f7f2e8; }
 .brand { font-size: 20px; font-weight: 900; letter-spacing: .12em; }
 .audience-stat { color: #c8d2ce; font-size: 17px; font-weight: 750; white-space: nowrap; }
+.deck-notice { flex: 0 0 auto; margin: -2px 0 0; padding: 9px 12px; border-radius: 8px; border: 1px solid rgba(243,210,122,.26); background: rgba(243,210,122,.08); color: #f3d27a; font-size: 13px; font-weight: 700; text-align: center; }
 .stream-area { flex: 1 1 auto; min-height: 0; position: relative; width: 100%; max-width: 100%; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #010203; }
 .stream-area img { position: absolute; inset: 0; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
 .reaction-layer { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
