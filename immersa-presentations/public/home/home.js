@@ -46,6 +46,21 @@ function isPendingDeck(deck) {
   return deck && (deck.status === "uploaded" || deck.conversionStatus === "pending");
 }
 
+function isFailedDeck(deck) {
+  return deck && (deck.status === "conversion_failed" || deck.conversionStatus === "failed");
+}
+
+function isConvertedDeck(deck) {
+  return deck && (deck.status === "converted" || deck.conversionStatus === "completed");
+}
+
+function deckStatusLabel(deck) {
+  if (isConvertedDeck(deck)) return "Convertido";
+  if (isFailedDeck(deck)) return "Conversión fallida";
+  if (isPendingDeck(deck)) return deck.conversionStatus === "pending" ? "Convirtiendo..." : "Conversión pendiente";
+  return "";
+}
+
 function roleUrl(role) {
   return window.location.origin + "/" + role + "?session=" + encodeURIComponent(currentSession()) + "&deck=" + encodeURIComponent(activeDeck);
 }
@@ -57,20 +72,26 @@ function renderDecks() {
   decks.forEach((deck) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "deck-option" + (deck.deckId === activeDeck ? " active" : "") + (isPendingDeck(deck) ? " pending" : "");
+    button.className = "deck-option" + (deck.deckId === activeDeck ? " active" : "") + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "");
 
     const title = document.createElement("strong");
     title.textContent = deck.title;
 
     const meta = document.createElement("span");
-    const slideLabel = isPendingDeck(deck) ? "pendiente" : (deck.slideCount ?? deck.slides ?? 0);
+    const slideLabel = isPendingDeck(deck) || isFailedDeck(deck) ? "pendiente" : (deck.slideCount ?? deck.slides ?? 0);
     meta.textContent = "ID: " + deck.deckId + " · Slides: " + slideLabel + " · Ratio: " + deck.ratio;
 
     button.append(title, meta);
-    if (isPendingDeck(deck)) {
+    const statusLabel = deckStatusLabel(deck);
+    if (statusLabel) {
       const badge = document.createElement("em");
-      badge.textContent = "Conversión pendiente";
+      badge.textContent = statusLabel;
       button.appendChild(badge);
+    }
+    if (isFailedDeck(deck) && deck.conversionMessage) {
+      const error = document.createElement("small");
+      error.textContent = deck.conversionMessage;
+      button.appendChild(error);
     }
     button.addEventListener("click", () => {
       activeDeck = deck.deckId;
@@ -80,7 +101,9 @@ function renderDecks() {
   });
 
   const deck = activeDeckMeta();
-  deckNotice.hidden = !isPendingDeck(deck);
+  deckNotice.hidden = !(isPendingDeck(deck) || isFailedDeck(deck));
+  if (isFailedDeck(deck)) deckNotice.textContent = deck.conversionMessage || "La conversión falló. Verás una pantalla provisional.";
+  else deckNotice.textContent = "Este deck aún no ha sido convertido. Verás una pantalla provisional.";
 }
 
 function drawFallbackQr(text) {
@@ -211,7 +234,7 @@ uploadForm.addEventListener("submit", async (event) => {
 
   const formData = new FormData(uploadForm);
   uploadButton.disabled = true;
-  setUploadStatus("Subiendo...", "loading");
+  setUploadStatus("Subiendo y convirtiendo...", "loading");
 
   try {
     const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
@@ -219,7 +242,9 @@ uploadForm.addEventListener("submit", async (event) => {
     if (!res.ok) throw new Error(data.error || "No se pudo subir el PPTX");
 
     uploadForm.reset();
-    setUploadStatus("PPTX cargado correctamente. Presentación cargada. La conversión de slides se agregará en el siguiente paso.", "success");
+    if (data.conversionStatus === "completed") setUploadStatus("PPTX convertido correctamente.", "success");
+    else if (data.conversionStatus === "failed") setUploadStatus("PPTX cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
+    else setUploadStatus("PPTX cargado. Convirtiendo...", "loading");
     await loadDecks(data.deckId);
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
