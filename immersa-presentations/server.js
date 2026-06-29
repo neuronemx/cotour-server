@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -10,6 +11,30 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
+
+async function listDecks() {
+  const decksDir = path.join(PUBLIC_DIR, "decks");
+  const entries = await fs.promises.readdir(decksDir, { withFileTypes: true });
+  const decks = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = path.join(decksDir, entry.name, "manifest.json");
+    try {
+      const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+      decks.push({
+        deckId: manifest.deckId || entry.name,
+        title: manifest.title || entry.name,
+        slides: Array.isArray(manifest.slides) ? manifest.slides.length : 0,
+        ratio: manifest.ratio || "16:9"
+      });
+    } catch (error) {
+      console.warn("Skipping deck manifest", manifestPath, error.message);
+    }
+  }
+
+  return decks.sort((a, b) => a.title.localeCompare(b.title));
+}
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 
 function createSession(deckId) {
@@ -88,6 +113,16 @@ function emitReaction(sessionId, session, emoji) {
 }
 
 app.use(express.static(PUBLIC_DIR));
+app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+app.get("/api/decks", async (_req, res) => {
+  try {
+    res.json(await listDecks());
+  } catch (error) {
+    console.error("Unable to list decks", error);
+    res.status(500).json({ error: "Unable to list decks" });
+  }
+});
 app.get("/presenter", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
 app.get("/screen", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
