@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Immersa Stage</title><link rel="stylesheet" href="/stage/stage.css"></head>
 <body>
-  <main class="stage"><header><span>Immersa Stage</span><strong id="status">Conectando</strong></header><section class="readouts"><div><span>Slide en vivo</span><strong><b id="current">1</b>/<b id="total">3</b></strong></div><div><span>Audiencia</span><strong id="audience">0</strong></div></section><section class="panel"><label class="switch"><input id="reactionsToggle" type="checkbox"><span></span>Mostrar reacciones en pantalla</label><label class="switch"><input id="qrToggle" type="checkbox"><span></span>Mostrar QR de audiencia</label><form id="messageForm" class="message-form"><label for="messageInput">Mensaje en Screen</label><input id="messageInput" maxlength="90" placeholder="Escribe un mensaje breve"><button type="submit">Mostrar mensaje</button></form><div class="actions"><button id="clearMessage" type="button">Limpiar mensaje</button><button id="clearScreen" type="button">Limpiar pantalla</button><button id="clear" type="button">Restaurar pantalla</button></div></section><section class="preview"><img id="slide" alt="Slide en vivo"></section></main>
+  <main class="stage">
+    <section class="stats" aria-label="Estado">
+      <div><span>Audiencia</span><strong id="audience">0</strong></div>
+      <div><span>Presenter</span><strong id="presenterStatus">Desconectado</strong></div>
+      <div><span>Slide actual</span><strong><b id="current">1</b>/<b id="total">3</b></strong></div>
+      <div><span>Stream</span><strong id="streamStatus">Activo</strong></div>
+      <div><span>Reacciones</span><strong id="reactionsStatus">Off</strong></div>
+      <div><span>QR</span><strong id="qrStatus">Oculto</strong></div>
+    </section>
+
+    <section class="preview" aria-label="Preview de pantalla"><img id="slide" alt="Slide en vivo"></section>
+
+    <section class="controls" aria-label="Controles de pantalla">
+      <form id="messageForm" class="message-form"><label for="messageInput">Mensaje en pantalla</label><div class="message-row"><input id="messageInput" maxlength="90" placeholder="Escribe un mensaje breve"><button type="submit">Mostrar en Screen</button><button id="clearMessage" type="button">Limpiar mensaje</button></div></form>
+      <div class="switches"><label class="switch"><input id="reactionsToggle" type="checkbox"><span></span>Mostrar reacciones en Screen</label><label class="switch"><input id="qrToggle" type="checkbox"><span></span>Mostrar QR</label><button id="clearScreen" type="button">Limpiar pantalla</button></div>
+    </section>
+  </main>
   <script src="/socket.io/socket.io.js"></script><script src="/stage/stage.js"></script>
 </body></html>
