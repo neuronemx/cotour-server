@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Immersa Presentations</title>
+  <link rel="stylesheet" href="/home/home.css">
+</head>
+<body>
+  <main class="home-shell">
+    <header class="hero">
+      <div>
+        <h1>IMMERSA</h1>
+        <p>Una presentación. Cien pantallas. Todos en primera fila.</p>
+      </div>
+      <button class="upload-soon" type="button" disabled>Subir PPTX - próximamente</button>
+    </header>
+
+    <section class="workspace">
+      <section class="setup-panel" aria-label="Configurar sesión">
+        <div class="section-title">
+          <span>Deck</span>
+          <strong id="deckCount">Cargando</strong>
+        </div>
+        <div id="deckList" class="deck-list"></div>
+
+        <label class="field">
+          <span>Código de sesión</span>
+          <input id="sessionInput" autocomplete="off" spellcheck="false" placeholder="demo01">
+        </label>
+        <div class="session-actions">
+          <button id="generateSession" type="button">Generar sesión</button>
+          <span id="normalizedHint">demo01</span>
+        </div>
+      </section>
+
+      <section class="links-panel" aria-label="Links generados">
+        <div class="section-title">
+          <span>Links</span>
+          <strong id="activeSession">demo01</strong>
+        </div>
+        <div id="linksList" class="links-list"></div>
+
+        <section class="audience-card" aria-label="QR Audience">
+          <div id="qrCode" class="qr-code"></div>
+          <p>Escanea para participar</p>
+          <button id="copyAudience" type="button">Copiar link Audience</button>
+        </section>
+      </section>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/home/home.js"></script>
+</body>
+</html>
