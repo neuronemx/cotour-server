@@ -10,13 +10,18 @@ const total = document.getElementById("total");
 const audience = document.getElementById("audience");
 const playPause = document.getElementById("playPause");
 const localReactions = document.getElementById("localReactions");
+const deckNotice = document.getElementById("deckNotice");
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
+function renderDeckNotice() {
+  const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
+  deckNotice.hidden = !pending;
+}
 function roleUrl(role) { return location.origin + "/" + role + "?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 document.getElementById("screenUrl").value = roleUrl("screen");
 document.getElementById("stageUrl").value = roleUrl("stage");
 document.getElementById("audienceUrl").value = roleUrl("audience");
-async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); total.textContent = manifest.slides.length; renderThumbs(); }
+async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; renderThumbs(); }
 function slideSrc(index) { return "/decks/" + deckId + "/" + manifest.slides[index].src; }
 function renderThumbs() { const thumbs = document.getElementById("thumbs"); thumbs.innerHTML = ""; manifest.slides.forEach((item, index) => { const button = document.createElement("button"); button.type = "button"; button.className = "thumb"; button.innerHTML = '<img alt="" src="' + slideSrc(index) + '"><strong>' + (index + 1) + '. ' + item.title + '</strong>'; button.addEventListener("click", () => socket.emit("slide_go", { slideIndex: index })); thumbs.appendChild(button); }); }
 function render(state) { currentState = state; const index = state.presenterSlideIndex ?? state.slideIndex; slide.src = slideSrc(index); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = state.transmissionPaused ? "Reanudar transmisión" : "Pausar transmisión"; playPause.setAttribute("aria-label", playPause.title); document.querySelectorAll(".thumb").forEach((node, i) => { node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
