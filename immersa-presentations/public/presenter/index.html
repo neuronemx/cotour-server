@@ -10,11 +10,13 @@
   <main class="shell">
     <section class="preview-panel">
       <div class="topline"><span>Immersa Presentations</span><strong id="status">Conectando</strong></div>
+      <div class="live-row"><span id="transmissionState">Transmitiendo</span><button id="playPause" class="secondary" type="button">Pausar transmisión</button></div>
       <div class="slide-frame"><img id="slide" alt="Slide actual"></div>
+      <div id="thumbs" class="thumbs" aria-label="Miniaturas"></div>
       <div class="controls">
-        <button id="prev">Anterior</button>
+        <button id="prev" type="button">Anterior</button>
         <div class="slide-count"><span id="current">1</span>/<span id="total">3</span></div>
-        <button id="next">Siguiente</button>
+        <button id="next" type="button">Siguiente</button>
       </div>
       <form id="goForm" class="go-form">
         <label for="goInput">Ir al slide</label>
@@ -24,6 +26,7 @@
     </section>
     <aside class="side-panel">
       <div class="metric"><span>Audiencia</span><strong id="audience">0</strong></div>
+      <label class="switch-row"><input id="localReactions" type="checkbox" checked><span>Ver reacciones aquí</span></label>
       <div class="links">
         <h1>URLs de sala</h1>
         <label>Screen<input id="screenUrl" readonly></label>
