@@ -13,8 +13,30 @@
         <h1>IMMERSA</h1>
         <p>Una presentación. Cien pantallas. Todos en primera fila.</p>
       </div>
-      <button class="upload-soon" type="button" disabled>Subir PPTX - próximamente</button>
     </header>
+
+    <section class="upload-panel" aria-label="Subir presentación">
+      <div class="section-title">
+        <span>Subir presentación</span>
+        <strong>PPTX</strong>
+      </div>
+      <form id="uploadForm" class="upload-form">
+        <label class="field">
+          <span>Título de presentación</span>
+          <input id="uploadTitle" name="title" autocomplete="off" placeholder="Nombre del deck">
+        </label>
+        <label class="field">
+          <span>Código de deck opcional</span>
+          <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="mi-presentacion">
+        </label>
+        <label class="field file-field">
+          <span>Archivo .pptx</span>
+          <input id="pptxFile" name="pptx" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+        </label>
+        <button id="uploadButton" type="submit">Subir PPTX</button>
+      </form>
+      <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
+    </section>
 
     <section class="workspace">
       <section class="setup-panel" aria-label="Configurar sesión">
@@ -23,6 +45,7 @@
           <strong id="deckCount">Cargando</strong>
         </div>
         <div id="deckList" class="deck-list"></div>
+        <p id="deckNotice" class="deck-notice" hidden>Este deck aún no ha sido convertido. Verás una pantalla provisional.</p>
 
         <label class="field">
           <span>Código de sesión</span>

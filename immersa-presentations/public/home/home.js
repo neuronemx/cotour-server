@@ -5,12 +5,16 @@ let activeDeck = "demo";
 
 const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
+const deckNotice = document.getElementById("deckNotice");
 const sessionInput = document.getElementById("sessionInput");
 const normalizedHint = document.getElementById("normalizedHint");
 const activeSession = document.getElementById("activeSession");
 const linksList = document.getElementById("linksList");
 const qrCode = document.getElementById("qrCode");
 const copyAudience = document.getElementById("copyAudience");
+const uploadForm = document.getElementById("uploadForm");
+const uploadButton = document.getElementById("uploadButton");
+const uploadStatus = document.getElementById("uploadStatus");
 
 function normalizeSession(value) {
   return value
@@ -34,6 +38,14 @@ function currentSession() {
   return normalized || "demo01";
 }
 
+function activeDeckMeta() {
+  return decks.find((deck) => deck.deckId === activeDeck);
+}
+
+function isPendingDeck(deck) {
+  return deck && (deck.status === "uploaded" || deck.conversionStatus === "pending");
+}
+
 function roleUrl(role) {
   return window.location.origin + "/" + role + "?session=" + encodeURIComponent(currentSession()) + "&deck=" + encodeURIComponent(activeDeck);
 }
@@ -45,7 +57,7 @@ function renderDecks() {
   decks.forEach((deck) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "deck-option" + (deck.deckId === activeDeck ? " active" : "");
+    button.className = "deck-option" + (deck.deckId === activeDeck ? " active" : "") + (isPendingDeck(deck) ? " pending" : "");
 
     const title = document.createElement("strong");
     title.textContent = deck.title;
@@ -54,12 +66,20 @@ function renderDecks() {
     meta.textContent = "ID: " + deck.deckId + " · Slides: " + deck.slides + " · Ratio: " + deck.ratio;
 
     button.append(title, meta);
+    if (isPendingDeck(deck)) {
+      const badge = document.createElement("em");
+      badge.textContent = "Conversión pendiente";
+      button.appendChild(badge);
+    }
     button.addEventListener("click", () => {
       activeDeck = deck.deckId;
       renderAll();
     });
     deckList.appendChild(button);
   });
+
+  const deck = activeDeckMeta();
+  deckNotice.hidden = !isPendingDeck(deck);
 }
 
 function drawFallbackQr(text) {
@@ -154,6 +174,25 @@ function renderAll() {
   renderLinks();
 }
 
+async function loadDecks(selectedDeckId = activeDeck) {
+  try {
+    const res = await fetch("/api/decks");
+    if (!res.ok) throw new Error("No se pudo cargar la lista de decks");
+    const data = await res.json();
+    decks = data.length ? data : [{ deckId: "demo", title: "Immersa Demo", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready" }];
+    activeDeck = decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : decks[0].deckId;
+  } catch (_error) {
+    decks = [{ deckId: "demo", title: "Immersa Demo", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready" }];
+    activeDeck = "demo";
+  }
+  renderAll();
+}
+
+function setUploadStatus(message, type = "") {
+  uploadStatus.textContent = message;
+  uploadStatus.className = "upload-status" + (type ? " " + type : "");
+}
+
 document.getElementById("generateSession").addEventListener("click", () => {
   sessionInput.value = generateSessionCode();
   renderAll();
@@ -162,16 +201,31 @@ sessionInput.addEventListener("input", renderLinks);
 sessionInput.addEventListener("blur", renderAll);
 copyAudience.addEventListener("click", (event) => copyText(roleUrl("audience"), event.currentTarget));
 
-fetch("/api/decks")
-  .then((res) => res.json())
-  .then((data) => {
-    decks = data.length ? data : [{ deckId: "demo", title: "Immersa Demo", slides: 3, ratio: "16:9" }];
-    activeDeck = decks[0].deckId;
-    sessionInput.value = "demo01";
-    renderAll();
-  })
-  .catch(() => {
-    decks = [{ deckId: "demo", title: "Immersa Demo", slides: 3, ratio: "16:9" }];
-    sessionInput.value = "demo01";
-    renderAll();
-  });
+uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const fileInput = document.getElementById("pptxFile");
+  const file = fileInput.files[0];
+  if (!file) return setUploadStatus("Selecciona un archivo .pptx", "error");
+  if (!file.name.toLowerCase().endsWith(".pptx")) return setUploadStatus("Error: solo se aceptan archivos .pptx", "error");
+
+  const formData = new FormData(uploadForm);
+  uploadButton.disabled = true;
+  setUploadStatus("Subiendo...", "loading");
+
+  try {
+    const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo subir el PPTX");
+
+    uploadForm.reset();
+    setUploadStatus("PPTX cargado correctamente. Presentación cargada. La conversión de slides se agregará en el siguiente paso.", "success");
+    await loadDecks(data.deckId);
+  } catch (error) {
+    setUploadStatus("Error: " + error.message, "error");
+  } finally {
+    uploadButton.disabled = false;
+  }
+});
+
+sessionInput.value = "demo01";
+loadDecks("demo");

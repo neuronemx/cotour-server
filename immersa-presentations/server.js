@@ -2,6 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const http = require("http");
+const multer = require("multer");
 const { Server } = require("socket.io");
 
 const app = express();
@@ -9,24 +10,103 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
+const DECKS_DIR = path.join(PUBLIC_DIR, "decks");
+const UPLOADS_DIR = path.join(__dirname, "uploads", "original-pptx");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }
+});
+
+function normalizeId(value, fallback = "deck") {
+  const normalized = String(value || fallback)
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\.[^/.]+$/, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || fallback;
+}
+
+async function uniqueDeckId(baseId) {
+  const base = normalizeId(baseId);
+  let candidate = base;
+  let suffix = 2;
+
+  while (fs.existsSync(path.join(DECKS_DIR, candidate))) {
+    candidate = base + "-" + suffix;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+async function uniqueUploadName(originalName) {
+  const ext = path.extname(originalName).toLowerCase();
+  const base = normalizeId(path.basename(originalName, ext), "presentacion");
+  let candidate = base + ext;
+  let suffix = 2;
+
+  while (fs.existsSync(path.join(UPLOADS_DIR, candidate))) {
+    candidate = base + "-" + suffix + ext;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+function placeholderSvg(title) {
+  const safeTitle = String(title || "Presentación cargada")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="PPTX cargado, conversión pendiente">',
+    '  <defs>',
+    '    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">',
+    '      <stop offset="0" stop-color="#06070a"/>',
+    '      <stop offset="0.58" stop-color="#111820"/>',
+    '      <stop offset="1" stop-color="#0b0d0f"/>',
+    '    </linearGradient>',
+    '    <radialGradient id="glow" cx="72%" cy="20%" r="58%">',
+    '      <stop offset="0" stop-color="#68d8cc" stop-opacity="0.22"/>',
+    '      <stop offset="1" stop-color="#68d8cc" stop-opacity="0"/>',
+    '    </radialGradient>',
+    '  </defs>',
+    '  <rect width="1600" height="900" fill="url(#bg)"/>',
+    '  <rect width="1600" height="900" fill="url(#glow)"/>',
+    '  <rect x="120" y="110" width="1360" height="680" rx="28" fill="none" stroke="#ffffff" stroke-opacity="0.12"/>',
+    '  <text x="160" y="178" fill="#f3d27a" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="7">IMMERSA</text>',
+    '  <text x="800" y="382" fill="#f7f2e8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="74" font-weight="850" text-anchor="middle">PPTX cargado</text>',
+    '  <text x="800" y="468" fill="#68d8cc" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="38" font-weight="700" text-anchor="middle">Conversión pendiente</text>',
+    '  <text x="800" y="548" fill="#c8d2ce" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="28" text-anchor="middle">' + safeTitle + '</text>',
+    '</svg>',
+    ''
+  ].join("\n");
+}
 
 async function listDecks() {
-  const decksDir = path.join(PUBLIC_DIR, "decks");
-  const entries = await fs.promises.readdir(decksDir, { withFileTypes: true });
+  const entries = await fs.promises.readdir(DECKS_DIR, { withFileTypes: true });
   const decks = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const manifestPath = path.join(decksDir, entry.name, "manifest.json");
+    const manifestPath = path.join(DECKS_DIR, entry.name, "manifest.json");
     try {
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
       decks.push({
         deckId: manifest.deckId || entry.name,
         title: manifest.title || entry.name,
         slides: Array.isArray(manifest.slides) ? manifest.slides.length : 0,
-        ratio: manifest.ratio || "16:9"
+        ratio: manifest.ratio || "16:9",
+        status: manifest.status || "ready",
+        conversionStatus: manifest.conversion?.status || "ready"
       });
     } catch (error) {
       console.warn("Skipping deck manifest", manifestPath, error.message);
@@ -122,6 +202,73 @@ app.get("/api/decks", async (_req, res) => {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
   }
+});
+app.post("/api/upload-pptx", (req, res) => {
+  upload.single("pptx")(req, res, async (error) => {
+    if (error) {
+      const message = error.code === "LIMIT_FILE_SIZE" ? "El archivo supera el límite de 100 MB" : "No se pudo recibir el archivo";
+      return res.status(400).json({ error: message });
+    }
+
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "Falta el archivo PPTX" });
+    if (path.extname(file.originalname).toLowerCase() !== ".pptx") {
+      return res.status(400).json({ error: "Solo se aceptan archivos .pptx" });
+    }
+
+    try {
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      await fs.promises.mkdir(DECKS_DIR, { recursive: true });
+
+      const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
+      const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
+      const storedFilename = await uniqueUploadName(file.originalname);
+      const deckDir = path.join(DECKS_DIR, deckId);
+      const slidesDir = path.join(deckDir, "slides");
+
+      await fs.promises.mkdir(slidesDir, { recursive: true });
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, storedFilename), file.buffer);
+
+      const title = String(sourceTitle || deckId).trim() || deckId;
+      const manifest = {
+        deckId,
+        title,
+        ratio: "16:9",
+        status: "uploaded",
+        source: {
+          type: "pptx",
+          filename: file.originalname
+        },
+        slides: [
+          {
+            id: "placeholder",
+            src: "slides/placeholder.svg",
+            title: "Presentación cargada"
+          }
+        ],
+        conversion: {
+          status: "pending",
+          message: "Conversión PPTX pendiente"
+        }
+      };
+
+      await fs.promises.writeFile(path.join(deckDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+      await fs.promises.writeFile(path.join(slidesDir, "placeholder.svg"), placeholderSvg(title));
+      deckSlideCounts[deckId] = 1;
+
+      return res.status(201).json({
+        deckId,
+        title,
+        slides: 1,
+        ratio: "16:9",
+        status: "uploaded",
+        conversionStatus: "pending"
+      });
+    } catch (writeError) {
+      console.error("Unable to store PPTX", writeError);
+      return res.status(500).json({ error: "No se pudo guardar la presentación" });
+    }
+  });
 });
 app.get("/presenter", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
 app.get("/screen", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
