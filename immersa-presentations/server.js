@@ -10,11 +10,15 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
+const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 
 function createSession(deckId) {
   return {
     deckId,
     slideIndex: 0,
+    presenterSlideIndex: 0,
+    liveSlideIndex: 0,
+    transmissionPaused: false,
     presenterConnected: false,
     screenConnected: false,
     stageConnected: false,
@@ -22,9 +26,11 @@ function createSession(deckId) {
     overlays: {
       reactionsOnScreen: false,
       qrVisible: false,
+      messageVisible: false,
+      messageText: "",
+      standbyMode: false,
       selectedQuestion: null,
-      questionVisible: false,
-      standbyMode: false
+      questionVisible: false
     }
   };
 }
@@ -35,6 +41,8 @@ function getSession(sessionId, deckId = "demo") {
   if (deckId && session.deckId !== deckId) {
     session.deckId = deckId;
     session.slideIndex = 0;
+    session.presenterSlideIndex = 0;
+    session.liveSlideIndex = 0;
   }
   return session;
 }
@@ -43,6 +51,9 @@ function publicState(session) {
   return {
     deckId: session.deckId,
     slideIndex: session.slideIndex,
+    presenterSlideIndex: session.presenterSlideIndex,
+    liveSlideIndex: session.liveSlideIndex,
+    transmissionPaused: session.transmissionPaused,
     presenterConnected: session.presenterConnected,
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
@@ -60,6 +71,20 @@ function clampSlide(deckId, slideIndex) {
   const lastSlide = (deckSlideCounts[deckId] || 1) - 1;
   const numeric = Number.isFinite(slideIndex) ? slideIndex : 0;
   return Math.max(0, Math.min(numeric, lastSlide));
+}
+
+function setPresenterSlide(session, nextIndex) {
+  session.presenterSlideIndex = clampSlide(session.deckId, nextIndex);
+  session.slideIndex = session.presenterSlideIndex;
+  if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
+}
+
+function emitReaction(sessionId, session, emoji) {
+  if (!allowedReactions.has(emoji)) return;
+  io.to(sessionId).emit("reaction", { emoji, target: "presenter", at: Date.now() });
+  if (session.overlays.reactionsOnScreen) {
+    io.to(sessionId).emit("reaction", { emoji, target: "screen", at: Date.now() });
+  }
 }
 
 app.use(express.static(PUBLIC_DIR));
@@ -93,34 +118,53 @@ io.on("connection", (socket) => {
     emitState(sessionId, session);
   });
 
+  socket.on("transmission_pause", () => {
+    if (!currentSessionId || currentRole !== "presenter") return;
+    const session = getSession(currentSessionId);
+    session.transmissionPaused = true;
+    emitState(currentSessionId, session);
+  });
+
+  socket.on("transmission_play", () => {
+    if (!currentSessionId || currentRole !== "presenter") return;
+    const session = getSession(currentSessionId);
+    session.transmissionPaused = false;
+    session.liveSlideIndex = session.presenterSlideIndex;
+    session.slideIndex = session.presenterSlideIndex;
+    emitState(currentSessionId, session);
+  });
+
   socket.on("slide_next", () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    session.slideIndex = clampSlide(session.deckId, session.slideIndex + 1);
+    setPresenterSlide(session, session.presenterSlideIndex + 1);
     emitState(currentSessionId, session);
   });
 
   socket.on("slide_prev", () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    session.slideIndex = clampSlide(session.deckId, session.slideIndex - 1);
+    setPresenterSlide(session, session.presenterSlideIndex - 1);
     emitState(currentSessionId, session);
   });
 
   socket.on("slide_go", ({ slideIndex }) => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    session.slideIndex = clampSlide(session.deckId, Number(slideIndex));
+    setPresenterSlide(session, Number(slideIndex));
     emitState(currentSessionId, session);
   });
 
   socket.on("reaction", ({ emoji }) => {
     if (!currentSessionId || currentRole !== "audience") return;
+    emitReaction(currentSessionId, getSession(currentSessionId), emoji);
+  });
+
+  socket.on("reaction_burst", ({ emoji, count }) => {
+    if (!currentSessionId || currentRole !== "audience") return;
     const session = getSession(currentSessionId);
-    const allowed = new Set(["❤️", "👏", "🔥"]);
-    if (!allowed.has(emoji)) return;
-    io.to(currentSessionId).emit("reaction", { emoji, target: "presenter", at: Date.now() });
-    if (session.overlays.reactionsOnScreen) io.to(currentSessionId).emit("reaction", { emoji, target: "screen", at: Date.now() });
+    const total = Math.max(1, Math.min(Number(count) || 8, 24));
+    for (let i = 0; i < total; i++) setTimeout(() => emitReaction(currentSessionId, session, emoji), i * 80);
   });
 
   socket.on("overlay_update", ({ overlays }) => {
@@ -131,10 +175,26 @@ io.on("connection", (socket) => {
     emitState(currentSessionId, session);
   });
 
+  socket.on("clear_message", () => {
+    if (!currentSessionId || currentRole !== "stage") return;
+    const session = getSession(currentSessionId);
+    session.overlays = { ...session.overlays, messageVisible: false, messageText: "" };
+    io.to(currentSessionId).emit("overlay_update", session.overlays);
+    emitState(currentSessionId, session);
+  });
+
+  socket.on("clear_screen", () => {
+    if (!currentSessionId || currentRole !== "stage") return;
+    const session = getSession(currentSessionId);
+    session.overlays = { ...session.overlays, standbyMode: true, messageVisible: false, messageText: "", qrVisible: false };
+    io.to(currentSessionId).emit("overlay_update", session.overlays);
+    emitState(currentSessionId, session);
+  });
+
   socket.on("clear_overlays", () => {
     if (!currentSessionId || currentRole !== "stage") return;
     const session = getSession(currentSessionId);
-    session.overlays = { ...session.overlays, reactionsOnScreen: false, qrVisible: false, selectedQuestion: null, questionVisible: false, standbyMode: false };
+    session.overlays = { ...session.overlays, reactionsOnScreen: false, qrVisible: false, messageVisible: false, messageText: "", standbyMode: false, selectedQuestion: null, questionVisible: false };
     io.to(currentSessionId).emit("clear_overlays");
     io.to(currentSessionId).emit("overlay_update", session.overlays);
     emitState(currentSessionId, session);
