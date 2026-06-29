@@ -22,9 +22,14 @@ button:disabled { cursor: wait; opacity: .7; }
 .deck-option { width: 100%; text-align: left; padding: 16px; background: rgba(0,0,0,.24); border: 1px solid rgba(255,255,255,.12); color: #f7f2e8; }
 .deck-option.active { border-color: #f3d27a; box-shadow: 0 0 0 1px rgba(243,210,122,.55) inset; }
 .deck-option.pending { border-color: rgba(104,216,204,.35); }
+.deck-option.converted { border-color: rgba(104,216,204,.5); }
+.deck-option.failed { border-color: rgba(255,143,163,.48); }
 .deck-option strong { display: block; font-size: 20px; }
 .deck-option span { display: block; margin-top: 6px; color: #aeb8b3; font-size: 13px; }
 .deck-option em { display: inline-block; margin-top: 10px; padding: 5px 8px; border-radius: 999px; background: rgba(104,216,204,.14); color: #68d8cc; font-size: 12px; font-style: normal; }
+.deck-option.failed em { background: rgba(255,143,163,.14); color: #ff8fa3; }
+.deck-option.converted em { background: rgba(104,216,204,.18); color: #68d8cc; }
+.deck-option small { display: block; margin-top: 8px; color: #ffb4c0; font-size: 12px; line-height: 1.35; }
 .deck-notice { margin: -4px 0 0; padding: 12px; border-radius: 8px; border: 1px solid rgba(243,210,122,.28); background: rgba(243,210,122,.08); color: #f3d27a; font-size: 14px; }
 .field { display: grid; gap: 8px; color: #c8d2ce; }
 .field input { width: 100%; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(0,0,0,.28); color: #fff; padding: 15px 14px; font-size: 19px; }
