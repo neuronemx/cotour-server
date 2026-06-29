@@ -63,7 +63,8 @@ function renderDecks() {
     title.textContent = deck.title;
 
     const meta = document.createElement("span");
-    meta.textContent = "ID: " + deck.deckId + " · Slides: " + deck.slides + " · Ratio: " + deck.ratio;
+    const slideLabel = isPendingDeck(deck) ? "pendiente" : (deck.slideCount ?? deck.slides ?? 0);
+    meta.textContent = "ID: " + deck.deckId + " · Slides: " + slideLabel + " · Ratio: " + deck.ratio;
 
     button.append(title, meta);
     if (isPendingDeck(deck)) {
