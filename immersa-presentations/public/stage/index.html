@@ -7,7 +7,7 @@
       <div><span>Presenter</span><strong id="presenterStatus">Desconectado</strong></div>
       <div><span>Slide actual</span><strong><b id="current">1</b>/<b id="total">3</b></strong></div>
       <div><span>Stream</span><strong id="streamStatus">Activo</strong></div>
-      <div><span>Reacciones</span><strong id="reactionsStatus">Off</strong></div>
+      <div><span>Reacciones</span><strong id="reactionsStatus">On</strong></div>
       <div><span>QR</span><strong id="qrStatus">Oculto</strong></div>
     </section>
 
@@ -15,7 +15,7 @@
 
     <section class="controls" aria-label="Controles de pantalla">
       <form id="messageForm" class="message-form"><label for="messageInput">Mensaje en pantalla</label><div class="message-row"><input id="messageInput" maxlength="90" placeholder="Escribe un mensaje breve"><button type="submit">Mostrar en Screen</button><button id="clearMessage" type="button">Limpiar mensaje</button></div></form>
-      <div class="switches"><label class="switch"><input id="reactionsToggle" type="checkbox"><span></span>Mostrar reacciones en Screen</label><label class="switch"><input id="qrToggle" type="checkbox"><span></span>Mostrar QR</label><button id="clearScreen" type="button">Limpiar pantalla</button></div>
+      <div class="switches"><label class="switch"><input id="reactionsToggle" type="checkbox" checked><span></span>Mostrar reacciones en Screen</label><label class="switch"><input id="qrToggle" type="checkbox"><span></span>Mostrar QR</label><button id="clearScreen" type="button">Limpiar pantalla</button></div>
     </section>
   </main>
   <script src="/socket.io/socket.io.js"></script><script src="/stage/stage.js"></script>
