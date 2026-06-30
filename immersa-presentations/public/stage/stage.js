@@ -5,6 +5,7 @@ const socket = io();
 let manifest = null;
 let overlays = normalizeOverlayState();
 const slide = document.getElementById("slide");
+const preview = document.querySelector(".preview");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
 const audience = document.getElementById("audience");
@@ -19,7 +20,8 @@ async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manif
 function audienceUrl() { return window.location.origin + "/audience?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 function setToggles() { overlays = normalizeOverlayState(overlays); reactionsToggle.checked = overlays.showReactions; qrToggle.checked = overlays.showAudienceQr; reactionsStatus.textContent = overlays.showReactions ? "On" : "Off"; qrStatus.textContent = overlays.showAudienceQr ? "Visible" : "Oculto"; }
-function render(state) { overlays = normalizeOverlayState(state.overlays || overlays); setToggles(); const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; slide.src = "/decks/" + deckId + "/" + item.src; current.textContent = index + 1; audience.textContent = state.audienceCount || 0; presenterStatus.textContent = state.presenterConnected ? "Conectado" : "Desconectado"; streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo"; }
+function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; preview.classList.toggle("portrait-slide", portrait); if (portrait) preview.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else preview.style.removeProperty("--slide-bg"); }
+function render(state) { overlays = normalizeOverlayState(state.overlays || overlays); setToggles(); const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; const src = "/decks/" + deckId + "/" + item.src; slide.src = src; applySlideOrientation(item, src); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; presenterStatus.textContent = state.presenterConnected ? "Conectado" : "Desconectado"; streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo"; }
 function updateOverlay(patch) { overlays = normalizeOverlayState({ ...overlays, ...patch }); socket.emit("overlay_update", { overlays }); }
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked, showReactions: reactionsToggle.checked }));
 qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: audienceUrl() }));
