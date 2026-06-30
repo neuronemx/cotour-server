@@ -194,8 +194,8 @@ async function readManifest(deckId) {
   return JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
 }
 
-async function refreshDeckSlideCount(deckId) {
-  if (!deckId) return deckSlideCounts.demo || 1;
+async function getDeckSlideCount(deckId) {
+  if (!deckId) return 1;
   try {
     const manifest = await readManifest(deckId);
     const slideCount = Array.isArray(manifest.slides) && manifest.slides.length ? manifest.slides.length : 1;
@@ -204,6 +204,16 @@ async function refreshDeckSlideCount(deckId) {
   } catch (_error) {
     return deckSlideCounts[deckId] || 1;
   }
+}
+
+async function refreshSessionDeck(session, deckId = session.deckId) {
+  if (deckId && session.deckId !== deckId) session.deckId = deckId;
+  const slideCount = await getDeckSlideCount(session.deckId);
+  session.slideCount = slideCount;
+  session.presenterSlideIndex = clampSlide(session, session.presenterSlideIndex);
+  session.slideIndex = session.presenterSlideIndex;
+  session.liveSlideIndex = clampSlide(session, session.liveSlideIndex);
+  return slideCount;
 }
 
 async function writeManifest(deckDir, manifest) {
@@ -408,9 +418,10 @@ async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
 }
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 
-function createSession(deckId) {
+function createSession(deckId, slideCount = deckSlideCounts[deckId] || 1) {
   return {
     deckId,
+    slideCount,
     slideIndex: 0,
     presenterSlideIndex: 0,
     liveSlideIndex: 0,
@@ -430,11 +441,12 @@ function createSession(deckId) {
   };
 }
 
-function getSession(sessionId, deckId = "demo") {
-  if (!sessions.has(sessionId)) sessions.set(sessionId, createSession(deckId));
+function getSession(sessionId, deckId) {
+  if (!sessions.has(sessionId)) sessions.set(sessionId, createSession(deckId || "demo"));
   const session = sessions.get(sessionId);
   if (deckId && session.deckId !== deckId) {
     session.deckId = deckId;
+    session.slideCount = deckSlideCounts[deckId] || 1;
     session.slideIndex = 0;
     session.presenterSlideIndex = 0;
     session.liveSlideIndex = 0;
@@ -448,6 +460,7 @@ function publicState(session) {
     slideIndex: session.slideIndex,
     presenterSlideIndex: session.presenterSlideIndex,
     liveSlideIndex: session.liveSlideIndex,
+    slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
     presenterConnected: session.presenterConnected,
     screenConnected: session.screenConnected,
@@ -462,15 +475,18 @@ function emitState(sessionId, session) {
   io.to(sessionId).emit("audience_count", session.audience.size);
 }
 
-function clampSlide(deckId, slideIndex) {
-  const lastSlide = (deckSlideCounts[deckId] || 1) - 1;
+function clampSlide(session, slideIndex) {
+  const lastSlide = Math.max(0, (session.slideCount || 1) - 1);
   const numeric = Number.isFinite(slideIndex) ? slideIndex : 0;
   return Math.max(0, Math.min(numeric, lastSlide));
 }
 
-async function setPresenterSlide(session, nextIndex) {
-  await refreshDeckSlideCount(session.deckId);
-  session.presenterSlideIndex = clampSlide(session.deckId, nextIndex);
+async function setPresenterSlide(sessionId, session, nextIndex) {
+  const requestedIndex = Number.isFinite(nextIndex) ? nextIndex : 0;
+  const slideCount = await refreshSessionDeck(session);
+  const clampedIndex = clampSlide(session, requestedIndex);
+  console.log("[navigate]", sessionId, "requested", requestedIndex, "clamped", clampedIndex, "slideCount", slideCount);
+  session.presenterSlideIndex = clampedIndex;
   session.slideIndex = session.presenterSlideIndex;
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
 }
@@ -593,7 +609,8 @@ io.on("connection", (socket) => {
     currentSessionId = sessionId;
     currentRole = role;
     const session = getSession(sessionId, deckId || "demo");
-    await refreshDeckSlideCount(session.deckId);
+    const slideCount = await refreshSessionDeck(session, deckId || session.deckId);
+    if (role === "presenter") console.log("[session]", sessionId, "deck", session.deckId, "slideCount", slideCount);
     socket.join(sessionId);
 
     if (role === "presenter") {
@@ -628,21 +645,21 @@ io.on("connection", (socket) => {
   socket.on("slide_next", async () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    await setPresenterSlide(session, session.presenterSlideIndex + 1);
+    await setPresenterSlide(currentSessionId, session, session.presenterSlideIndex + 1);
     emitState(currentSessionId, session);
   });
 
   socket.on("slide_prev", async () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    await setPresenterSlide(session, session.presenterSlideIndex - 1);
+    await setPresenterSlide(currentSessionId, session, session.presenterSlideIndex - 1);
     emitState(currentSessionId, session);
   });
 
   socket.on("slide_go", async ({ slideIndex }) => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    await setPresenterSlide(session, Number(slideIndex));
+    await setPresenterSlide(currentSessionId, session, Number(slideIndex));
     emitState(currentSessionId, session);
   });
 
