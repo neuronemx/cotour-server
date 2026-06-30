@@ -17,7 +17,6 @@ const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
-const disconnect = document.getElementById("disconnect");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
@@ -25,7 +24,7 @@ function slideUrl(index) { const item = manifest.slides[index]; return "/decks/"
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); }
 function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
-function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; slide.src = slideUrl(currentSlideIndex); disconnect.classList.toggle("hidden", state.presenterConnected); }
+function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; slide.src = slideUrl(currentSlideIndex); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
 function takeSnapshot() { if (!manifest) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
@@ -46,8 +45,6 @@ viewport.addEventListener("pointermove", handlePointerMove);
 viewport.addEventListener("pointerup", handlePointerUp);
 viewport.addEventListener("pointercancel", handlePointerUp);
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
-socket.on("presenter_disconnected", () => disconnect.classList.remove("hidden"));
-socket.on("presenter_connected", () => disconnect.classList.add("hidden"));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
 applyTransform();
 loadDeck().then(() => socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience" }));
