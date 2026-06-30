@@ -21,6 +21,18 @@ const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 
+function normalizeSessionId(sessionId) {
+  return String(sessionId || "demo01");
+}
+
+function normalizeDeckId(deckId) {
+  return String(deckId || "demo");
+}
+
+function getRoomKey(sessionId, deckId) {
+  return normalizeSessionId(sessionId) + "::" + normalizeDeckId(deckId);
+}
+
 async function ensureDataDirs() {
   await fs.promises.mkdir(DATA_DECKS_DIR, { recursive: true });
   await fs.promises.mkdir(DATA_TMP_DIR, { recursive: true });
@@ -194,8 +206,9 @@ async function getDeckSlideCount(deckId) {
   }
 }
 
-function createSession(deckId, slideCount = deckSlideCounts[deckId] || 1) {
+function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] || 1) {
   return {
+    sessionId,
     deckId,
     slideCount,
     slideIndex: 0,
@@ -218,16 +231,15 @@ function createSession(deckId, slideCount = deckSlideCounts[deckId] || 1) {
 }
 
 function getSession(sessionId, deckId) {
-  if (!sessions.has(sessionId)) sessions.set(sessionId, createSession(deckId || "demo"));
-  const session = sessions.get(sessionId);
-  if (deckId && session.deckId !== deckId) {
-    session.deckId = deckId;
-    session.slideCount = deckSlideCounts[deckId] || 1;
-    session.slideIndex = 0;
-    session.presenterSlideIndex = 0;
-    session.liveSlideIndex = 0;
-  }
-  return session;
+  const normalizedSessionId = normalizeSessionId(sessionId);
+  const normalizedDeckId = normalizeDeckId(deckId);
+  const roomKey = getRoomKey(normalizedSessionId, normalizedDeckId);
+  if (!sessions.has(roomKey)) sessions.set(roomKey, createSession(normalizedSessionId, normalizedDeckId));
+  return sessions.get(roomKey);
+}
+
+function getSessionByRoomKey(roomKey) {
+  return sessions.get(roomKey);
 }
 
 function clampSlide(session, slideIndex) {
@@ -237,7 +249,7 @@ function clampSlide(session, slideIndex) {
 }
 
 async function refreshSessionDeck(session, deckId = session.deckId) {
-  if (deckId && session.deckId !== deckId) session.deckId = deckId;
+  if (deckId && session.deckId !== deckId) session.deckId = normalizeDeckId(deckId);
   const slideCount = await getDeckSlideCount(session.deckId);
   session.slideCount = slideCount;
   session.presenterSlideIndex = clampSlide(session, session.presenterSlideIndex);
@@ -262,27 +274,27 @@ function publicState(session) {
   };
 }
 
-function emitState(sessionId, session) {
-  io.to(sessionId).emit("presentation_state", publicState(session));
-  io.to(sessionId).emit("audience_count", session.audience.size);
+function emitState(roomKey, session) {
+  io.to(roomKey).emit("presentation_state", publicState(session));
+  io.to(roomKey).emit("audience_count", session.audience.size);
 }
 
-async function setPresenterSlide(sessionId, session, nextIndex) {
+async function setPresenterSlide(roomKey, session, nextIndex) {
   const requestedIndex = Number.isFinite(nextIndex) ? nextIndex : 0;
   const slideCount = await refreshSessionDeck(session);
   const clampedIndex = clampSlide(session, requestedIndex);
-  console.log("[navigate]", sessionId, "requested", requestedIndex, "clamped", clampedIndex, "slideCount", slideCount);
+  console.log("[navigate]", roomKey, "requested", requestedIndex, "clamped", clampedIndex, "slideCount", slideCount);
   session.presenterSlideIndex = clampedIndex;
   session.slideIndex = session.presenterSlideIndex;
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
 }
 
-function emitReaction(sessionId, session, emoji) {
+function emitReaction(roomKey, session, emoji) {
   if (!allowedReactions.has(emoji)) return;
-  io.to(sessionId).emit("reaction", { emoji, target: "audience", at: Date.now() });
-  io.to(sessionId).emit("reaction", { emoji, target: "presenter", at: Date.now() });
+  io.to(roomKey).emit("reaction", { emoji, target: "audience", at: Date.now() });
+  io.to(roomKey).emit("reaction", { emoji, target: "presenter", at: Date.now() });
   if (session.overlays.reactionsOnScreen) {
-    io.to(sessionId).emit("reaction", { emoji, target: "screen", at: Date.now() });
+    io.to(roomKey).emit("reaction", { emoji, target: "screen", at: Date.now() });
   }
 }
 
@@ -314,22 +326,24 @@ app.get("/stage", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "in
 app.get("/audience", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
 
 io.on("connection", (socket) => {
-  let currentSessionId = null;
+  let currentRoomKey = null;
   let currentRole = null;
   let currentAudienceId = null;
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role }) => {
-    if (!sessionId || !role) return;
-    currentSessionId = sessionId;
+    if (!role) return;
+    const joinedSessionId = normalizeSessionId(sessionId);
+    const joinedDeckId = normalizeDeckId(deckId);
+    currentRoomKey = getRoomKey(joinedSessionId, joinedDeckId);
     currentRole = role;
-    const session = getSession(sessionId, deckId || "demo");
-    const slideCount = await refreshSessionDeck(session, deckId || session.deckId);
-    if (role === "presenter") console.log("[session]", sessionId, "deck", session.deckId, "slideCount", slideCount);
-    socket.join(sessionId);
+    const session = getSession(joinedSessionId, joinedDeckId);
+    const slideCount = await refreshSessionDeck(session, joinedDeckId);
+    if (role === "presenter") console.log("[session]", joinedSessionId, "deck", session.deckId, "room", currentRoomKey, "slideCount", slideCount);
+    socket.join(currentRoomKey);
 
     if (role === "presenter") {
       session.presenterConnected = true;
-      io.to(sessionId).emit("presenter_connected");
+      io.to(currentRoomKey).emit("presenter_connected");
     }
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
@@ -337,87 +351,98 @@ io.on("connection", (socket) => {
       currentAudienceId = socket.id;
       session.audience.set(socket.id, { joinedAt: Date.now() });
     }
-    emitState(sessionId, session);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_pause", () => {
-    if (!currentSessionId || currentRole !== "presenter") return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     session.transmissionPaused = true;
-    emitState(currentSessionId, session);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_play", () => {
-    if (!currentSessionId || currentRole !== "presenter") return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     session.transmissionPaused = false;
     session.liveSlideIndex = session.presenterSlideIndex;
     session.slideIndex = session.presenterSlideIndex;
-    emitState(currentSessionId, session);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("slide_next", async () => {
-    if (!currentSessionId || currentRole !== "presenter") return;
-    const session = getSession(currentSessionId);
-    await setPresenterSlide(currentSessionId, session, session.presenterSlideIndex + 1);
-    emitState(currentSessionId, session);
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("slide_prev", async () => {
-    if (!currentSessionId || currentRole !== "presenter") return;
-    const session = getSession(currentSessionId);
-    await setPresenterSlide(currentSessionId, session, session.presenterSlideIndex - 1);
-    emitState(currentSessionId, session);
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("slide_go", async ({ slideIndex }) => {
-    if (!currentSessionId || currentRole !== "presenter") return;
-    const session = getSession(currentSessionId);
-    await setPresenterSlide(currentSessionId, session, Number(slideIndex));
-    emitState(currentSessionId, session);
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
+    emitState(currentRoomKey, session);
   });
 
   socket.on("reaction", ({ emoji }) => {
-    if (!currentSessionId || currentRole !== "audience") return;
-    emitReaction(currentSessionId, getSession(currentSessionId), emoji);
+    if (!currentRoomKey || currentRole !== "audience") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    emitReaction(currentRoomKey, session, emoji);
   });
 
   socket.on("overlay_update", ({ overlays }) => {
-    if (!currentSessionId || currentRole !== "stage") return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey || currentRole !== "stage") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     session.overlays = { ...session.overlays, ...overlays };
-    io.to(currentSessionId).emit("overlay_update", session.overlays);
-    emitState(currentSessionId, session);
+    io.to(currentRoomKey).emit("overlay_update", session.overlays);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("clear_message", () => {
-    if (!currentSessionId || currentRole !== "stage") return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey || currentRole !== "stage") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     session.overlays = { ...session.overlays, messageVisible: false, messageText: "" };
-    io.to(currentSessionId).emit("overlay_update", session.overlays);
-    emitState(currentSessionId, session);
+    io.to(currentRoomKey).emit("overlay_update", session.overlays);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("clear_screen", () => {
-    if (!currentSessionId || currentRole !== "stage") return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey || currentRole !== "stage") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     session.overlays = { ...session.overlays, qrVisible: false, messageVisible: false, messageText: "", selectedQuestion: null, questionVisible: false };
-    io.to(currentSessionId).emit("clear_overlays");
-    io.to(currentSessionId).emit("overlay_update", session.overlays);
-    emitState(currentSessionId, session);
+    io.to(currentRoomKey).emit("clear_overlays");
+    io.to(currentRoomKey).emit("overlay_update", session.overlays);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("disconnect", () => {
-    if (!currentSessionId) return;
-    const session = getSession(currentSessionId);
+    if (!currentRoomKey) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
     if (currentRole === "presenter") {
       session.presenterConnected = false;
-      socket.to(currentSessionId).emit("presenter_disconnected");
+      socket.to(currentRoomKey).emit("presenter_disconnected");
     }
     if (currentRole === "screen") session.screenConnected = false;
     if (currentRole === "stage") session.stageConnected = false;
     if (currentRole === "audience" && currentAudienceId) session.audience.delete(currentAudienceId);
-    emitState(currentSessionId, session);
+    emitState(currentRoomKey, session);
   });
 });
 
