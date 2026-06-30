@@ -229,8 +229,12 @@ uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const fileInput = document.getElementById("pptxFile");
   const file = fileInput.files[0];
-  if (!file) return setUploadStatus("Selecciona un archivo .pptx", "error");
-  if (!file.name.toLowerCase().endsWith(".pptx")) return setUploadStatus("Error: solo se aceptan archivos .pptx", "error");
+  if (!file) return setUploadStatus("Selecciona un archivo .pptx o .pdf", "error");
+  const lowerName = file.name.toLowerCase();
+  const isPdf = lowerName.endsWith(".pdf");
+  const isPptx = lowerName.endsWith(".pptx");
+  if (!isPdf && !isPptx) return setUploadStatus("Error: solo se aceptan archivos .pptx o .pdf", "error");
+  const sourceLabel = isPdf ? "PDF" : "PPTX";
 
   const formData = new FormData(uploadForm);
   uploadButton.disabled = true;
@@ -239,12 +243,12 @@ uploadForm.addEventListener("submit", async (event) => {
   try {
     const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "No se pudo subir el PPTX");
+    if (!res.ok) throw new Error(data.error || "No se pudo subir el archivo");
 
     uploadForm.reset();
-    if (data.conversionStatus === "completed") setUploadStatus("PPTX convertido correctamente.", "success");
-    else if (data.conversionStatus === "failed") setUploadStatus("PPTX cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
-    else setUploadStatus("PPTX cargado. Convirtiendo...", "loading");
+    if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
+    else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
+    else setUploadStatus(sourceLabel + " cargado. Convirtiendo...", "loading");
     await loadDecks(data.deckId);
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
