@@ -16,11 +16,12 @@ const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); total.textContent = manifest.slides.length; }
+function audienceUrl() { return window.location.origin + "/audience?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 function setToggles() { reactionsToggle.checked = !!overlays.reactionsOnScreen; qrToggle.checked = !!overlays.qrVisible; reactionsStatus.textContent = overlays.reactionsOnScreen ? "On" : "Off"; qrStatus.textContent = overlays.qrVisible ? "Visible" : "Oculto"; }
 function render(state) { overlays = state.overlays || overlays; setToggles(); const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; slide.src = "/decks/" + deckId + "/" + item.src; current.textContent = index + 1; audience.textContent = state.audienceCount || 0; presenterStatus.textContent = state.presenterConnected ? "Conectado" : "Desconectado"; streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo"; }
 function updateOverlay(patch) { socket.emit("overlay_update", { overlays: { ...overlays, ...patch } }); }
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked }));
-qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked }));
+qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, audienceUrl: audienceUrl() }));
 document.getElementById("messageForm").addEventListener("submit", (event) => { event.preventDefault(); const text = messageInput.value.trim(); if (text) updateOverlay({ messageVisible: true, messageText: text }); });
 document.getElementById("clearMessage").addEventListener("click", () => { messageInput.value = ""; socket.emit("clear_message"); });
 document.getElementById("clearScreen").addEventListener("click", () => { messageInput.value = ""; socket.emit("clear_screen"); });
