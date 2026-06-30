@@ -18,7 +18,7 @@
     <section class="upload-panel" aria-label="Subir presentación">
       <div class="section-title">
         <span>Subir presentación</span>
-        <strong>PPTX</strong>
+        <strong>PPTX / PDF</strong>
       </div>
       <form id="uploadForm" class="upload-form">
         <label class="field">
@@ -30,10 +30,10 @@
           <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="mi-presentacion">
         </label>
         <label class="field file-field">
-          <span>Archivo .pptx</span>
-          <input id="pptxFile" name="pptx" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+          <span>Archivo .pptx o .pdf</span>
+          <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
         </label>
-        <button id="uploadButton" type="submit">Subir PPTX</button>
+        <button id="uploadButton" type="submit">Subir archivo</button>
       </form>
       <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
     </section>
