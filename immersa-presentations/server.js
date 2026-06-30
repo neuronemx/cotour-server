@@ -194,6 +194,18 @@ async function readManifest(deckId) {
   return JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
 }
 
+async function refreshDeckSlideCount(deckId) {
+  if (!deckId) return deckSlideCounts.demo || 1;
+  try {
+    const manifest = await readManifest(deckId);
+    const slideCount = Array.isArray(manifest.slides) && manifest.slides.length ? manifest.slides.length : 1;
+    deckSlideCounts[deckId] = slideCount;
+    return slideCount;
+  } catch (_error) {
+    return deckSlideCounts[deckId] || 1;
+  }
+}
+
 async function writeManifest(deckDir, manifest) {
   await fs.promises.writeFile(path.join(deckDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 }
@@ -456,7 +468,8 @@ function clampSlide(deckId, slideIndex) {
   return Math.max(0, Math.min(numeric, lastSlide));
 }
 
-function setPresenterSlide(session, nextIndex) {
+async function setPresenterSlide(session, nextIndex) {
+  await refreshDeckSlideCount(session.deckId);
   session.presenterSlideIndex = clampSlide(session.deckId, nextIndex);
   session.slideIndex = session.presenterSlideIndex;
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
@@ -580,12 +593,7 @@ io.on("connection", (socket) => {
     currentSessionId = sessionId;
     currentRole = role;
     const session = getSession(sessionId, deckId || "demo");
-    if (deckId) {
-      try {
-        const manifest = await readManifest(deckId);
-        deckSlideCounts[deckId] = Array.isArray(manifest.slides) ? manifest.slides.length : 1;
-      } catch (_error) {}
-    }
+    await refreshDeckSlideCount(session.deckId);
     socket.join(sessionId);
 
     if (role === "presenter") {
@@ -617,24 +625,24 @@ io.on("connection", (socket) => {
     emitState(currentSessionId, session);
   });
 
-  socket.on("slide_next", () => {
+  socket.on("slide_next", async () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    setPresenterSlide(session, session.presenterSlideIndex + 1);
+    await setPresenterSlide(session, session.presenterSlideIndex + 1);
     emitState(currentSessionId, session);
   });
 
-  socket.on("slide_prev", () => {
+  socket.on("slide_prev", async () => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    setPresenterSlide(session, session.presenterSlideIndex - 1);
+    await setPresenterSlide(session, session.presenterSlideIndex - 1);
     emitState(currentSessionId, session);
   });
 
-  socket.on("slide_go", ({ slideIndex }) => {
+  socket.on("slide_go", async ({ slideIndex }) => {
     if (!currentSessionId || currentRole !== "presenter") return;
     const session = getSession(currentSessionId);
-    setPresenterSlide(session, Number(slideIndex));
+    await setPresenterSlide(session, Number(slideIndex));
     emitState(currentSessionId, session);
   });
 
