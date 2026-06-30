@@ -1,0 +1,14 @@
+# Railway/Nixpacks runtime packages required for Immersa PPTX conversion.
+# PPTX -> PDF uses LibreOffice; PDF -> JPG uses Poppler's pdftoppm.
+
+[phases.setup]
+aptPkgs = [
+  "libreoffice",
+  "poppler-utils",
+  "fonts-dejavu",
+  "fonts-liberation"
+]
+cmds = [
+  "echo \"LibreOffice version:\" && (libreoffice --version || soffice --version || true)",
+  "echo \"pdftoppm version:\" && (pdftoppm -v 2>&1 | head -n 1 || true)"
+]
