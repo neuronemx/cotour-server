@@ -16,8 +16,12 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
-const DECKS_DIR = path.join(PUBLIC_DIR, "decks");
-const UPLOADS_DIR = path.join(__dirname, "uploads", "original-pptx");
+const STATIC_DECKS_DIR = path.join(PUBLIC_DIR, "decks");
+const DATA_DIR = process.env.IMMERSA_DATA_DIR
+  ? path.resolve(process.env.IMMERSA_DATA_DIR)
+  : path.join(__dirname, "data");
+const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
+const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 
@@ -110,12 +114,22 @@ function normalizeId(value, fallback = "deck") {
   return normalized || fallback;
 }
 
+async function ensureDataDirs() {
+  await fs.promises.mkdir(DATA_DECKS_DIR, { recursive: true });
+  await fs.promises.mkdir(DATA_TMP_DIR, { recursive: true });
+}
+
+function deckDirectoryExists(deckId) {
+  return fs.existsSync(path.join(STATIC_DECKS_DIR, deckId)) || fs.existsSync(path.join(DATA_DECKS_DIR, deckId));
+}
+
 async function uniqueDeckId(baseId) {
+  await ensureDataDirs();
   const base = normalizeId(baseId);
   let candidate = base;
   let suffix = 2;
 
-  while (fs.existsSync(path.join(DECKS_DIR, candidate))) {
+  while (deckDirectoryExists(candidate)) {
     candidate = base + "-" + suffix;
     suffix += 1;
   }
@@ -123,18 +137,17 @@ async function uniqueDeckId(baseId) {
   return candidate;
 }
 
-async function uniqueUploadName(originalName) {
-  const ext = path.extname(originalName).toLowerCase();
-  const base = normalizeId(path.basename(originalName, ext), "presentacion");
-  let candidate = base + ext;
-  let suffix = 2;
-
-  while (fs.existsSync(path.join(UPLOADS_DIR, candidate))) {
-    candidate = base + "-" + suffix + ext;
-    suffix += 1;
+async function findDeckDir(deckId) {
+  const candidates = [path.join(DATA_DECKS_DIR, deckId), path.join(STATIC_DECKS_DIR, deckId)];
+  for (const candidate of candidates) {
+    try {
+      await fs.promises.access(path.join(candidate, "manifest.json"), fs.constants.R_OK);
+      return candidate;
+    } catch (_error) {
+      // Try the next storage location.
+    }
   }
-
-  return candidate;
+  throw new Error("Deck manifest not found: " + deckId);
 }
 
 function placeholderSvg(title) {
@@ -190,8 +203,8 @@ function manifestSummary(manifest) {
 }
 
 async function readManifest(deckId) {
-  const manifestPath = path.join(DECKS_DIR, deckId, "manifest.json");
-  return JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  const deckDir = await findDeckDir(deckId);
+  return JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
 }
 
 async function getDeckSlideCount(deckId) {
@@ -220,20 +233,38 @@ async function writeManifest(deckDir, manifest) {
   await fs.promises.writeFile(path.join(deckDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 }
 
-async function listDecks() {
-  const entries = await fs.promises.readdir(DECKS_DIR, { withFileTypes: true });
-  const decks = [];
+async function readDecksFrom(rootDir, seen) {
+  let entries = [];
+  try {
+    entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
 
+  const decks = [];
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const manifestPath = path.join(DECKS_DIR, entry.name, "manifest.json");
+    if (!entry.isDirectory() || seen.has(entry.name)) continue;
+    const manifestPath = path.join(rootDir, entry.name, "manifest.json");
     try {
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+      seen.add(entry.name);
       decks.push(manifestSummary({ ...manifest, deckId: manifest.deckId || entry.name, title: manifest.title || entry.name }));
     } catch (error) {
       console.warn("Skipping deck manifest", manifestPath, error.message);
     }
   }
+
+  return decks;
+}
+
+async function listDecks() {
+  await ensureDataDirs();
+  const seen = new Set();
+  const decks = [
+    ...(await readDecksFrom(STATIC_DECKS_DIR, seen)),
+    ...(await readDecksFrom(DATA_DECKS_DIR, seen))
+  ];
 
   return decks.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -368,7 +399,7 @@ async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
   const libreOffice = await findLibreOffice();
   await assertPdftoppm();
 
-  const workDir = path.join(deckDir, ".conversion");
+  const workDir = path.join(DATA_TMP_DIR, manifest.deckId || path.basename(deckDir));
   const pdfDir = path.join(workDir, "pdf");
   const fullRawDir = path.join(workDir, "full");
   const thumbRawDir = path.join(workDir, "thumbs");
@@ -500,6 +531,8 @@ function emitReaction(sessionId, session, emoji) {
   }
 }
 
+ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
+app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use(express.static(PUBLIC_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -533,18 +566,15 @@ app.post("/api/upload-pptx", (req, res) => {
     }
 
     try {
-      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-      await fs.promises.mkdir(DECKS_DIR, { recursive: true });
+      await ensureDataDirs();
 
       const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
       const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
-      const storedFilename = await uniqueUploadName(file.originalname);
-      const deckDir = path.join(DECKS_DIR, deckId);
+      const deckDir = path.join(DATA_DECKS_DIR, deckId);
       const slidesDir = path.join(deckDir, "slides");
       const originalPath = path.join(deckDir, "original.pptx");
 
       await fs.promises.mkdir(slidesDir, { recursive: true });
-      await fs.promises.writeFile(path.join(UPLOADS_DIR, storedFilename), file.buffer);
       await fs.promises.writeFile(originalPath, file.buffer);
 
       const title = String(sourceTitle || deckId).trim() || deckId;
@@ -576,7 +606,7 @@ app.post("/api/upload-pptx", (req, res) => {
       try {
         manifest = await convertDeckPptx({ deckDir, pptxPath: originalPath, manifest });
       } catch (conversionError) {
-        await fs.promises.rm(path.join(deckDir, ".conversion"), { recursive: true, force: true });
+        await fs.promises.rm(path.join(DATA_TMP_DIR, deckId), { recursive: true, force: true });
         manifest.status = "conversion_failed";
         manifest.conversion = {
           status: "failed",

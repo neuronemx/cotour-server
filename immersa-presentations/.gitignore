@@ -1,0 +1,8 @@
+node_modules/
+data/
+uploads/
+tmp/
+*.log
+npm-debug.log
+public/decks/*/
+!public/decks/demo/
