@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
-const Module = require('module');
 
 const APP_DIR = __dirname;
 const PUBLIC_DECKS_DIR = path.join(APP_DIR, 'public', 'decks');
@@ -330,22 +329,9 @@ function createUploadHandler() {
   };
 }
 
-function patchExpress(express) {
-  if (express.__immersaPdfUploadSupport) return express;
-  express.__immersaPdfUploadSupport = true;
-  const originalPost = express.application.post;
-  express.application.post = function patchedPost(route, ...handlers) {
-    if (route === '/api/upload-pptx') {
-      return originalPost.call(this, route, createUploadHandler());
-    }
-    return originalPost.call(this, route, ...handlers);
-  };
-  return express;
-}
-
-const originalLoad = Module._load;
-Module._load = function patchedLoad(request, parent, isMain) {
-  const loaded = originalLoad.apply(this, arguments);
-  if (request === 'express') return patchExpress(loaded);
-  return loaded;
+module.exports = {
+  createUploadHandler,
+  convertDeckPdf,
+  convertDeckPptx,
+  convertPdfToSlides
 };
