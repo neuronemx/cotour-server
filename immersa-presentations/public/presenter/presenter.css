@@ -8,8 +8,11 @@ body { margin: 0; background: radial-gradient(circle at 78% 6%, rgba(99,213,199,
 .audience-stat { color: #c8d2ce; font-size: 17px; font-weight: 750; white-space: nowrap; }
 .deck-notice { flex: 0 0 auto; margin: -2px 0 0; padding: 9px 12px; border-radius: 8px; border: 1px solid rgba(243,210,122,.26); background: rgba(243,210,122,.08); color: #f3d27a; font-size: 13px; font-weight: 700; text-align: center; }
 .stream-area { flex: 1 1 auto; min-height: 0; position: relative; width: 100%; max-width: 100%; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #010203; }
-.stream-area img { position: absolute; inset: 0; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
-.reaction-layer { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
+.stream-area::before, .stream-area::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.stream-area.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(28px); transform: scale(1.08); opacity: .58; }
+.stream-area.portrait-slide::after { background: rgba(0,0,0,.42); opacity: 1; }
+.stream-area img { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+.reaction-layer { pointer-events: none; position: absolute; z-index: 2; inset: 0; overflow: hidden; }
 .reaction { position: absolute; left: 50%; bottom: 16%; font-size: clamp(34px, 5vw, 68px); filter: drop-shadow(0 14px 28px rgba(0,0,0,.36)); animation: floatReaction 2.8s ease-out forwards; }
 @keyframes floatReaction { from { transform: translate(-50%, 0) scale(.84); opacity: 0; } 14% { opacity: 1; } to { transform: translate(calc(-50% + var(--x)), -42vh) scale(1.32); opacity: 0; } }
 .thumbs { flex: 0 0 auto; width: 100%; max-width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, 142px); gap: 8px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; padding: 2px 2px 6px; scrollbar-width: thin; }
