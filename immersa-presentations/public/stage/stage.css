@@ -6,8 +6,11 @@
 .stats div { min-height: 82px; padding: 14px; display: grid; align-content: space-between; }
 .stats span { color: #aeb8b3; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 .stats strong { color: #fff; font-size: clamp(18px, 2vw, 28px); line-height: 1; }
-.preview { display: grid; place-items: center; overflow: hidden; background: #020304; min-height: 280px; }
-.preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.preview { position: relative; display: grid; place-items: center; overflow: hidden; background: #020304; min-height: 280px; }
+.preview::before, .preview::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.preview.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(24px); transform: scale(1.08); opacity: .55; }
+.preview.portrait-slide::after { background: rgba(0,0,0,.42); opacity: 1; }
+.preview img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; display: block; }
 .controls { padding: 18px; display: grid; gap: 16px; }
 .message-form { display: grid; gap: 10px; color: #aeb8b3; }
 .message-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 10px; }
