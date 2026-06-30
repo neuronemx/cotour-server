@@ -230,16 +230,26 @@ function execFileAsync(command, args, options = {}) {
   });
 }
 
-async function commandAvailable(command) {
+async function commandAvailable(command, args = ["--version"]) {
   try {
-    await execFileAsync(command, ["--version"], { timeout: 10000 });
+    await execFileAsync(command, args, { timeout: 10000 });
     return true;
   } catch (_error) {
     return false;
   }
 }
 
-async function findLibreOffice() {
+async function commandExists(command) {
+  const lookupCommand = process.platform === "win32" ? "where" : "which";
+  try {
+    await execFileAsync(lookupCommand, [command], { timeout: 10000 });
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function findLibreOfficeCommand() {
   const candidates = [
     process.env.LIBREOFFICE_PATH,
     "libreoffice",
@@ -251,12 +261,52 @@ async function findLibreOffice() {
     if (await commandAvailable(candidate)) return candidate;
   }
 
+  return null;
+}
+
+async function findLibreOffice() {
+  const command = await findLibreOfficeCommand();
+  if (command) return command;
   throw new Error("LibreOffice no está disponible. La conversión no pudo completarse.");
 }
 
+async function detectPdftoppm() {
+  const exists = await commandExists("pdftoppm");
+  if (!exists) return false;
+
+  try {
+    await execFileAsync("pdftoppm", ["-v"], { timeout: 10000 });
+    return true;
+  } catch (error) {
+    const output = String(error.stdout || "") + String(error.stderr || "");
+    return !/command not found|not recognized|no such file/i.test(output);
+  }
+}
+
 async function assertPdftoppm() {
-  if (await commandAvailable("pdftoppm")) return;
+  if (await detectPdftoppm()) return;
   throw new Error("pdftoppm no está disponible. La conversión no pudo completarse.");
+}
+
+async function conversionHealth() {
+  const libreOfficeCommand = await findLibreOfficeCommand();
+  const pdftoppmAvailable = await detectPdftoppm();
+  return {
+    libreOfficeAvailable: Boolean(libreOfficeCommand),
+    libreOfficeCommand: libreOfficeCommand && libreOfficeCommand.includes(path.sep) ? path.basename(libreOfficeCommand) : libreOfficeCommand,
+    pdftoppmAvailable,
+    pdftoppmCommand: pdftoppmAvailable ? "pdftoppm" : null
+  };
+}
+
+async function logConversionHealth() {
+  try {
+    const health = await conversionHealth();
+    console.log("Conversion health: LibreOffice command found: " + (health.libreOfficeCommand || "none"));
+    console.log("Conversion health: pdftoppm available: " + health.pdftoppmAvailable);
+  } catch (error) {
+    console.warn("Conversion health check failed", error.message);
+  }
 }
 
 function naturalSlideNumber(fileName) {
@@ -430,6 +480,14 @@ app.get("/api/decks", async (_req, res) => {
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
+  }
+});
+app.get("/api/conversion-health", async (_req, res) => {
+  try {
+    res.json(await conversionHealth());
+  } catch (error) {
+    console.error("Unable to check conversion health", error);
+    res.status(500).json({ error: "Unable to check conversion health" });
   }
 });
 app.post("/api/upload-pptx", (req, res) => {
@@ -626,4 +684,5 @@ io.on("connection", (socket) => {
 
 server.listen(PORT, () => {
   console.log("Immersa Presentations running at http://localhost:" + PORT);
+  logConversionHealth();
 });
