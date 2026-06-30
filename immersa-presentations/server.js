@@ -2,7 +2,13 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const http = require("http");
-const multer = require("multer");
+const { execFile } = require("child_process");
+let multer;
+try {
+  multer = require("multer");
+} catch (_error) {
+  multer = null;
+}
 const { Server } = require("socket.io");
 
 const app = express();
@@ -14,10 +20,81 @@ const DECKS_DIR = path.join(PUBLIC_DIR, "decks");
 const UPLOADS_DIR = path.join(__dirname, "uploads", "original-pptx");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }
-});
+
+function splitMultipart(buffer, boundary) {
+  const delimiter = Buffer.from("--" + boundary);
+  const parts = [];
+  let start = buffer.indexOf(delimiter);
+
+  while (start !== -1) {
+    start += delimiter.length;
+    if (buffer[start] === 45 && buffer[start + 1] === 45) break;
+    if (buffer[start] === 13 && buffer[start + 1] === 10) start += 2;
+    let end = buffer.indexOf(delimiter, start);
+    if (end === -1) break;
+    let part = buffer.subarray(start, end);
+    if (part.length >= 2 && part[part.length - 2] === 13 && part[part.length - 1] === 10) part = part.subarray(0, part.length - 2);
+    parts.push(part);
+    start = end;
+  }
+
+  return parts;
+}
+
+function createFallbackUpload(limitBytes) {
+  return {
+    single(fieldName) {
+      return (req, _res, next) => {
+        const contentType = req.headers["content-type"] || "";
+        const boundaryMatch = contentType.match(/boundary=(?:(?:"([^"]+)")|([^;]+))/);
+        const boundary = boundaryMatch?.[1] || boundaryMatch?.[2];
+        if (!boundary) return next(new Error("Invalid multipart request"));
+
+        const chunks = [];
+        let size = 0;
+        req.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > limitBytes) {
+            const error = new Error("File too large");
+            error.code = "LIMIT_FILE_SIZE";
+            req.destroy(error);
+            return;
+          }
+          chunks.push(chunk);
+        });
+        req.on("error", next);
+        req.on("end", () => {
+          try {
+            req.body = {};
+            const buffer = Buffer.concat(chunks);
+            for (const part of splitMultipart(buffer, boundary.trim())) {
+              const headerEnd = part.indexOf(Buffer.from("\r\n\r\n"));
+              if (headerEnd === -1) continue;
+              const headers = part.subarray(0, headerEnd).toString("latin1");
+              const body = part.subarray(headerEnd + 4);
+              const disposition = headers.match(/content-disposition:[^\r\n]+/i)?.[0] || "";
+              const name = disposition.match(/name="([^"]+)"/)?.[1];
+              const filename = disposition.match(/filename="([^"]*)"/)?.[1];
+              if (!name) continue;
+              if (name === fieldName && filename) {
+                req.file = { fieldname: name, originalname: filename, buffer: body, size: body.length };
+              } else {
+                req.body[name] = body.toString("utf8");
+              }
+            }
+            next();
+          } catch (error) {
+            next(error);
+          }
+        });
+      };
+    }
+  };
+}
+
+const upload = multer
+  ? multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } })
+  : createFallbackUpload(100 * 1024 * 1024);
 
 function normalizeId(value, fallback = "deck") {
   const normalized = String(value || fallback)
@@ -91,6 +168,36 @@ function placeholderSvg(title) {
   ].join("\n");
 }
 
+function manifestSummary(manifest) {
+  const slides = Array.isArray(manifest.slides) ? manifest.slides.length : 0;
+  const status = manifest.status || "ready";
+  const conversionStatus = manifest.conversion?.status || "ready";
+  const converted = status === "converted" && conversionStatus === "completed";
+  const ready = status === "ready" && conversionStatus === "ready";
+  const realSlideCount = converted || ready;
+
+  return {
+    deckId: manifest.deckId,
+    title: manifest.title,
+    slides,
+    slideCount: realSlideCount ? slides : null,
+    placeholderSlides: realSlideCount ? 0 : slides,
+    ratio: manifest.ratio || "16:9",
+    status,
+    conversionStatus,
+    conversionMessage: manifest.conversion?.message || ""
+  };
+}
+
+async function readManifest(deckId) {
+  const manifestPath = path.join(DECKS_DIR, deckId, "manifest.json");
+  return JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+}
+
+async function writeManifest(deckDir, manifest) {
+  await fs.promises.writeFile(path.join(deckDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+}
+
 async function listDecks() {
   const entries = await fs.promises.readdir(DECKS_DIR, { withFileTypes: true });
   const decks = [];
@@ -100,20 +207,142 @@ async function listDecks() {
     const manifestPath = path.join(DECKS_DIR, entry.name, "manifest.json");
     try {
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
-      decks.push({
-        deckId: manifest.deckId || entry.name,
-        title: manifest.title || entry.name,
-        slides: Array.isArray(manifest.slides) ? manifest.slides.length : 0,
-        ratio: manifest.ratio || "16:9",
-        status: manifest.status || "ready",
-        conversionStatus: manifest.conversion?.status || "ready"
-      });
+      decks.push(manifestSummary({ ...manifest, deckId: manifest.deckId || entry.name, title: manifest.title || entry.name }));
     } catch (error) {
       console.warn("Skipping deck manifest", manifestPath, error.message);
     }
   }
 
   return decks.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function execFileAsync(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, { windowsHide: true, maxBuffer: 1024 * 1024 * 8, ...options }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+async function commandAvailable(command) {
+  try {
+    await execFileAsync(command, ["--version"], { timeout: 10000 });
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function findLibreOffice() {
+  const candidates = [
+    process.env.LIBREOFFICE_PATH,
+    "libreoffice",
+    "soffice",
+    process.platform === "win32" ? "C:\\Program Files\\LibreOffice\\program\\soffice.exe" : null
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (await commandAvailable(candidate)) return candidate;
+  }
+
+  throw new Error("LibreOffice no está disponible. La conversión no pudo completarse.");
+}
+
+async function assertPdftoppm() {
+  if (await commandAvailable("pdftoppm")) return;
+  throw new Error("pdftoppm no está disponible. La conversión no pudo completarse.");
+}
+
+function naturalSlideNumber(fileName) {
+  const match = fileName.match(/-(\d+)\.jpe?g$/i) || fileName.match(/(\d+)\.jpe?g$/i);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+async function normalizeRenderedImages(sourceDir, targetDir) {
+  const files = (await fs.promises.readdir(sourceDir))
+    .filter((file) => /\.jpe?g$/i.test(file))
+    .sort((a, b) => naturalSlideNumber(a) - naturalSlideNumber(b));
+
+  const normalized = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const nextName = "slide-" + String(index + 1).padStart(3, "0") + ".jpg";
+    await fs.promises.copyFile(path.join(sourceDir, files[index]), path.join(targetDir, nextName));
+    normalized.push(nextName);
+  }
+
+  return normalized;
+}
+
+async function renderPdf(pdfPath, outputDir, prefix, width, quality) {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  await execFileAsync("pdftoppm", [
+    "-jpeg",
+    "-r", "150",
+    "-scale-to-x", String(width),
+    "-scale-to-y", "-1",
+    "-jpegopt", "quality=" + quality,
+    pdfPath,
+    path.join(outputDir, prefix)
+  ], { timeout: 120000 });
+}
+
+async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
+  const libreOffice = await findLibreOffice();
+  await assertPdftoppm();
+
+  const workDir = path.join(deckDir, ".conversion");
+  const pdfDir = path.join(workDir, "pdf");
+  const fullRawDir = path.join(workDir, "full");
+  const thumbRawDir = path.join(workDir, "thumbs");
+  const slidesDir = path.join(deckDir, "slides");
+  const thumbsDir = path.join(deckDir, "thumbs");
+
+  await fs.promises.rm(workDir, { recursive: true, force: true });
+  await fs.promises.rm(thumbsDir, { recursive: true, force: true });
+  await fs.promises.mkdir(pdfDir, { recursive: true });
+  await fs.promises.mkdir(slidesDir, { recursive: true });
+  await fs.promises.mkdir(thumbsDir, { recursive: true });
+
+  await execFileAsync(libreOffice, ["--headless", "--convert-to", "pdf", "--outdir", pdfDir, pptxPath], { timeout: 120000 });
+  const pdfFiles = (await fs.promises.readdir(pdfDir)).filter((file) => file.toLowerCase().endsWith(".pdf"));
+  if (!pdfFiles.length) throw new Error("No se generó PDF desde el PPTX.");
+  const pdfPath = path.join(pdfDir, pdfFiles[0]);
+
+  await renderPdf(pdfPath, fullRawDir, "slide", 1920, 85);
+  await renderPdf(pdfPath, thumbRawDir, "slide", 320, 75);
+
+  const slideFiles = await normalizeRenderedImages(fullRawDir, slidesDir);
+  const thumbFiles = await normalizeRenderedImages(thumbRawDir, thumbsDir);
+  if (!slideFiles.length) throw new Error("No se generaron imágenes JPG desde el PDF.");
+
+  const count = Math.min(slideFiles.length, thumbFiles.length || slideFiles.length);
+  manifest.status = "converted";
+  manifest.source = { type: "pptx", filename: "original.pptx" };
+  manifest.slides = Array.from({ length: count }, (_item, index) => {
+    const fileName = slideFiles[index];
+    return {
+      id: fileName.replace(/\.jpg$/i, ""),
+      src: "slides/" + fileName,
+      thumb: "thumbs/" + (thumbFiles[index] || fileName),
+      title: "Slide " + (index + 1)
+    };
+  });
+  manifest.conversion = {
+    status: "completed",
+    message: "Conversión completada",
+    format: "jpg",
+    slideResolution: "1920x1080",
+    thumbResolution: "320x180"
+  };
+
+  await fs.promises.rm(workDir, { recursive: true, force: true });
+  return manifest;
 }
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 
@@ -225,19 +454,21 @@ app.post("/api/upload-pptx", (req, res) => {
       const storedFilename = await uniqueUploadName(file.originalname);
       const deckDir = path.join(DECKS_DIR, deckId);
       const slidesDir = path.join(deckDir, "slides");
+      const originalPath = path.join(deckDir, "original.pptx");
 
       await fs.promises.mkdir(slidesDir, { recursive: true });
       await fs.promises.writeFile(path.join(UPLOADS_DIR, storedFilename), file.buffer);
+      await fs.promises.writeFile(originalPath, file.buffer);
 
       const title = String(sourceTitle || deckId).trim() || deckId;
-      const manifest = {
+      let manifest = {
         deckId,
         title,
         ratio: "16:9",
         status: "uploaded",
         source: {
           type: "pptx",
-          filename: file.originalname
+          filename: "original.pptx"
         },
         slides: [
           {
@@ -248,22 +479,28 @@ app.post("/api/upload-pptx", (req, res) => {
         ],
         conversion: {
           status: "pending",
-          message: "Conversión PPTX pendiente"
+          message: "Convirtiendo PPTX"
         }
       };
 
-      await fs.promises.writeFile(path.join(deckDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
       await fs.promises.writeFile(path.join(slidesDir, "placeholder.svg"), placeholderSvg(title));
-      deckSlideCounts[deckId] = 1;
+      await writeManifest(deckDir, manifest);
 
-      return res.status(201).json({
-        deckId,
-        title,
-        slides: 1,
-        ratio: "16:9",
-        status: "uploaded",
-        conversionStatus: "pending"
-      });
+      try {
+        manifest = await convertDeckPptx({ deckDir, pptxPath: originalPath, manifest });
+      } catch (conversionError) {
+        await fs.promises.rm(path.join(deckDir, ".conversion"), { recursive: true, force: true });
+        manifest.status = "conversion_failed";
+        manifest.conversion = {
+          status: "failed",
+          message: conversionError.message || "La conversión no pudo completarse"
+        };
+      }
+
+      await writeManifest(deckDir, manifest);
+      deckSlideCounts[deckId] = Array.isArray(manifest.slides) ? manifest.slides.length : 1;
+
+      return res.status(201).json(manifestSummary(manifest));
     } catch (writeError) {
       console.error("Unable to store PPTX", writeError);
       return res.status(500).json({ error: "No se pudo guardar la presentación" });
@@ -280,11 +517,17 @@ io.on("connection", (socket) => {
   let currentRole = null;
   let currentAudienceId = null;
 
-  socket.on("join_presentation", ({ session: sessionId, deck: deckId, role }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role }) => {
     if (!sessionId || !role) return;
     currentSessionId = sessionId;
     currentRole = role;
     const session = getSession(sessionId, deckId || "demo");
+    if (deckId) {
+      try {
+        const manifest = await readManifest(deckId);
+        deckSlideCounts[deckId] = Array.isArray(manifest.slides) ? manifest.slides.length : 1;
+      } catch (_error) {}
+    }
     socket.join(sessionId);
 
     if (role === "presenter") {
