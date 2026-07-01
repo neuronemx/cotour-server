@@ -27,9 +27,9 @@ function showScreenUi() {
   screenRoot.classList.add("ui-visible");
   clearTimeout(screenUiTimer);
   screenUiTimer = setTimeout(() => {
-    if (document.activeElement === fullscreenToggle) return;
     screenRoot.classList.remove("ui-visible");
-  }, 2400);
+    if (fullscreenToggle) fullscreenToggle.blur();
+  }, 2200);
 }
 async function toggleFullscreen() {
   try {
@@ -39,6 +39,7 @@ async function toggleFullscreen() {
     console.warn("Fullscreen request failed", error);
   } finally {
     updateFullscreenButton();
+    if (fullscreenToggle) fullscreenToggle.blur();
     showScreenUi();
   }
 }

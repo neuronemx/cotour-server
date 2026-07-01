@@ -21,5 +21,5 @@
 .reactions { pointer-events: none; position: fixed; z-index: 4; inset: 0; overflow: hidden; }
 .reaction { position: absolute; bottom: 42px; left: 50%; font-size: 54px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); animation: rise 3s ease-out forwards; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 0) scale(.8); } 12% { opacity: 1; } to { opacity: 0; transform: translate(calc(-50% + var(--x)), -62vh) scale(1.45); } }
-@media (pointer: coarse) { .fullscreen-toggle { opacity: .72; transform: translateY(0); pointer-events: auto; } .screen:not(.ui-visible) .fullscreen-toggle { opacity: .18; } }
+@media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }
 @media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(210px, 44vw); } }
