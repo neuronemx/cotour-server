@@ -10,33 +10,42 @@
   <main class="home-shell">
     <header class="topbar" aria-label="Navegación principal">
       <a class="brand" href="/home" aria-label="Immersa Home">
-        <img class="brand-mark" src="/home/M-Immersa2.png" alt="" onerror="this.style.display='none'">
-        <span>Immersa</span>
+        <img class="brand-logo" src="/home/Logo-Immersa.png" alt="Immersa" onerror="this.src='/home/M-Immersa2.png'; this.classList.add('mark-only')">
       </a>
+
       <nav class="main-nav" aria-label="Secciones">
-        <a class="active" href="#inicio">Inicio</a>
-        <a href="#presentaciones">Presentaciones</a>
-        <a href="#sesion">Sesiones</a>
+        <a class="active" href="#inicio" aria-current="page"><span aria-hidden="true">⌂</span>Inicio</a>
+        <a href="#presentaciones"><span aria-hidden="true">▱</span>Presentaciones</a>
+        <a href="#sesion"><span aria-hidden="true">◌</span>Sesiones</a>
       </nav>
-      <div class="topbar-actions">
-        <span class="live-dot" aria-hidden="true"></span>
-        <span>Administrador</span>
+
+      <div class="topbar-actions" aria-label="Accesos de cuenta">
+        <a href="#precios" class="text-link">Precios</a>
+        <a href="#login" class="text-link">Login</a>
+        <a href="#registro" class="register-link">Registro</a>
+        <div class="admin-pill" aria-label="Perfil de administrador">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>Administrador</span>
+        </div>
       </div>
     </header>
 
-    <section id="inicio" class="hero-grid">
+    <section id="inicio" class="hero-band" aria-label="Inicio Immersa">
       <div class="hero-copy">
-        <p class="eyebrow">Administrador de presentaciones sincronizadas</p>
-        <h1>Tus presentaciones,<br>listas para entrar en escena.</h1>
-        <p class="hero-subtitle">Crea, abre y gestiona experiencias para Presenter, Screen, Audience y Stage desde un solo lugar.</p>
-        <div class="hero-stats" aria-label="Resumen">
+        <p class="eyebrow">Bienvenido a Immersa</p>
+        <h1>Tus presentaciones,<br>listas para entrar en <span>escena.</span></h1>
+        <p class="hero-subtitle">Crea, abre y gestiona presentaciones sincronizadas desde un solo lugar.</p>
+
+        <div class="hero-stats" aria-label="Resumen de presentaciones">
           <article>
+            <span class="stat-icon" aria-hidden="true">▱</span>
             <strong id="deckCountHero">0</strong>
-            <span>Presentaciones</span>
+            <small>Presentaciones<br>en total</small>
           </article>
           <article>
+            <span class="stat-icon live" aria-hidden="true">◌</span>
             <strong>1</strong>
-            <span>Sesión lista</span>
+            <small>Sesión<br>lista</small>
           </article>
         </div>
       </div>
@@ -46,14 +55,14 @@
           <div class="panel-heading">
             <div class="heading-icon" aria-hidden="true">↥</div>
             <div>
-              <p class="eyebrow">Crear nueva presentación</p>
-              <h2>Comienza arrastrando tu archivo</h2>
+              <h2>Crear nueva presentación</h2>
+              <p>Es tan fácil como arrastrar y soltar.</p>
             </div>
           </div>
 
           <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
             <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
-            <span class="upload-cloud" aria-hidden="true">☁</span>
+            <span class="upload-cloud" aria-hidden="true">↑</span>
             <strong>Arrastra tu archivo aquí</strong>
             <span>o <u>selecciónalo</u> desde tu equipo</span>
             <em>PPTX, PDF o imágenes</em>
@@ -79,54 +88,96 @@
       <aside class="open-panel" aria-label="Abrir presentación existente">
         <div class="folder-icon" aria-hidden="true">▱</div>
         <h2>Abrir presentación existente</h2>
-        <p>Selecciona una presentación guardada y lanza sus modos de operación.</p>
-        <a class="ghost-action" href="#presentaciones">Ver presentaciones</a>
+        <p>Busca una presentación guardada y lanza sus modos de operación.</p>
+        <a class="ghost-action" href="#presentaciones">Explorar</a>
       </aside>
     </section>
 
-    <section class="content-grid">
+    <section class="dashboard-grid">
       <section id="presentaciones" class="presentations-panel" aria-label="Mis presentaciones">
         <div class="section-header">
           <div>
-            <p class="eyebrow">Mis presentaciones</p>
-            <h2>Lista de trabajo</h2>
+            <h2>Mis presentaciones</h2>
+            <p>Lista de trabajo</p>
           </div>
-          <strong id="deckCount">Cargando</strong>
+          <a href="#presentaciones" class="view-all"><span id="deckCount">Cargando</span> ›</a>
         </div>
         <div id="deckList" class="deck-list"></div>
         <p id="deckNotice" class="deck-notice" hidden>Este deck aún no ha sido convertido. Verás una pantalla provisional.</p>
       </section>
 
-      <aside id="sesion" class="session-panel" aria-label="Sesión activa">
-        <div class="section-header compact-header">
-          <div>
-            <p class="eyebrow">Sesión activa</p>
-            <h2 id="activeSession">demo01</h2>
-          </div>
-          <span class="session-state">Lista</span>
+      <aside class="activity-panel" aria-label="Actividad reciente">
+        <div class="section-header simple">
+          <h2>Actividad reciente</h2>
         </div>
-
-        <label class="field session-field">
-          <span>Código de sesión</span>
-          <input id="sessionInput" autocomplete="off" spellcheck="false" placeholder="demo01">
-        </label>
-        <div class="session-actions">
-          <button id="generateSession" type="button">Generar código</button>
-          <span id="normalizedHint">demo01</span>
+        <div class="activity-list">
+          <article>
+            <span class="activity-icon live" aria-hidden="true">◌</span>
+            <div>
+              <strong>Sesión lista</strong>
+              <small><span id="activityDeckName">Immersa Demo</span></small>
+            </div>
+            <time>Ahora</time>
+          </article>
+          <article>
+            <span class="activity-icon upload" aria-hidden="true">↑</span>
+            <div>
+              <strong>Archivo actualizado</strong>
+              <small>Última presentación</small>
+            </div>
+            <time>Hoy</time>
+          </article>
+          <article>
+            <span class="activity-icon audience" aria-hidden="true">◎</span>
+            <div>
+              <strong>Audience preparado</strong>
+              <small>QR y links activos</small>
+            </div>
+            <time>Hoy</time>
+          </article>
+          <article>
+            <span class="activity-icon stage" aria-hidden="true">▣</span>
+            <div>
+              <strong>Stage disponible</strong>
+              <small>Consola de producción</small>
+            </div>
+            <time>Hoy</time>
+          </article>
         </div>
-
-        <div class="links-panel" aria-label="Accesos de operación">
-          <div id="linksList" class="links-list"></div>
-        </div>
-
-        <section class="audience-card" aria-label="QR Audience">
-          <div id="qrCode" class="qr-code"></div>
-          <p>Escanea para entrar como Audience</p>
-          <button id="copyAudience" type="button">Copiar link Audience</button>
-        </section>
       </aside>
     </section>
+
+    <section id="sesion" class="session-strip" aria-label="Sesión activa">
+      <div class="session-copy">
+        <span class="spark" aria-hidden="true">✦</span>
+        <div>
+          <h2>Sesión activa</h2>
+          <p>Define el código y abre Presenter, Screen, Audience o Stage para la presentación seleccionada.</p>
+        </div>
+      </div>
+
+      <label class="field session-field">
+        <span>Código de sesión</span>
+        <input id="sessionInput" autocomplete="off" spellcheck="false" placeholder="demo01">
+      </label>
+
+      <div class="session-actions">
+        <button id="generateSession" type="button">Generar</button>
+        <span id="normalizedHint">demo01</span>
+      </div>
+
+      <div id="linksList" class="quick-links" aria-label="Accesos de operación"></div>
+
+      <section class="audience-card" aria-label="QR Audience">
+        <div id="qrCode" class="qr-code"></div>
+        <div>
+          <p>Audience</p>
+          <button id="copyAudience" type="button">Copiar link</button>
+        </div>
+      </section>
+    </section>
   </main>
+
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/home/home.js"></script>
 </body>

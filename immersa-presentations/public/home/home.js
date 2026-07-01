@@ -9,7 +9,6 @@ const deckCountHero = document.getElementById("deckCountHero");
 const deckNotice = document.getElementById("deckNotice");
 const sessionInput = document.getElementById("sessionInput");
 const normalizedHint = document.getElementById("normalizedHint");
-const activeSession = document.getElementById("activeSession");
 const linksList = document.getElementById("linksList");
 const qrCode = document.getElementById("qrCode");
 const copyAudience = document.getElementById("copyAudience");
@@ -19,6 +18,7 @@ const uploadStatus = document.getElementById("uploadStatus");
 const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
+const activityDeckName = document.getElementById("activityDeckName");
 
 function normalizeSession(value) {
   return value
@@ -59,10 +59,18 @@ function isConvertedDeck(deck) {
 }
 
 function deckStatusLabel(deck) {
+  if (deck?.isLive || deck?.status === "live") return "En vivo";
   if (isConvertedDeck(deck) || deck?.status === "ready" || deck?.conversionStatus === "ready") return "Lista";
   if (isFailedDeck(deck)) return "Falló";
   if (isPendingDeck(deck)) return deck.conversionStatus === "pending" ? "Convirtiendo" : "Pendiente";
   return "Borrador";
+}
+
+function deckBadgeClass(deck) {
+  const label = deckStatusLabel(deck).toLowerCase();
+  if (label.includes("vivo")) return " live";
+  if (label.includes("borrador") || label.includes("pendiente")) return " draft";
+  return "";
 }
 
 function deckSlideLabel(deck) {
@@ -74,42 +82,94 @@ function roleUrl(role, deckId = activeDeck) {
   return window.location.origin + "/" + role + "?session=" + encodeURIComponent(currentSession()) + "&deck=" + encodeURIComponent(deckId);
 }
 
+function firstSlideThumbnail(deck) {
+  const direct = deck.thumbnail || deck.thumbnailUrl || deck.cover || deck.coverUrl || deck.firstSlide || deck.firstSlideUrl || deck.slide1 || deck.slide1Url;
+  if (direct) return direct;
+  if (Array.isArray(deck.slideImages) && deck.slideImages[0]) return deck.slideImages[0];
+  if (Array.isArray(deck.slides) && typeof deck.slides[0] === "string") return deck.slides[0];
+  if (deck.deckId && deck.deckId !== "demo") return "/decks/" + encodeURIComponent(deck.deckId) + "/slide-1.png";
+  return "";
+}
+
+function niceTitle(title = "Presentación") {
+  return title.replace(/[-_]+/g, " ").trim() || "Presentación";
+}
+
+function renderThumb(deck) {
+  const thumb = document.createElement("div");
+  thumb.className = "deck-thumb";
+
+  const imgSrc = firstSlideThumbnail(deck);
+  if (imgSrc) {
+    const img = document.createElement("img");
+    img.alt = "Thumbnail de " + niceTitle(deck.title);
+    img.src = imgSrc;
+    img.loading = "lazy";
+    img.addEventListener("error", () => img.classList.add("is-hidden"));
+    thumb.appendChild(img);
+  }
+
+  const title = document.createElement("span");
+  title.className = "thumb-title";
+  title.textContent = niceTitle(deck.title || deck.deckId || "Immersa").slice(0, 28);
+
+  const subtitle = document.createElement("span");
+  subtitle.className = "thumb-subtitle";
+  subtitle.textContent = "Slide 1";
+
+  thumb.append(title, subtitle);
+  return thumb;
+}
+
 function renderDecks() {
   const countLabel = decks.length + " presentación" + (decks.length === 1 ? "" : "es");
   deckCount.textContent = countLabel;
   if (deckCountHero) deckCountHero.textContent = decks.length;
   deckList.innerHTML = "";
 
-  decks.forEach((deck) => {
+  decks.slice(0, 3).forEach((deck) => {
     const card = document.createElement("article");
     card.className = "deck-option" + (deck.deckId === activeDeck ? " active" : "") + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "");
+
+    const thumb = renderThumb(deck);
+
+    const main = document.createElement("div");
+    main.className = "deck-main";
 
     const head = document.createElement("div");
     head.className = "deck-head";
 
     const title = document.createElement("strong");
-    title.textContent = deck.title || "Presentación sin título";
+    title.textContent = niceTitle(deck.title || deck.deckId || "Presentación");
 
     const badge = document.createElement("em");
-    badge.className = "deck-badge";
+    badge.className = "deck-badge" + deckBadgeClass(deck);
     badge.textContent = deckStatusLabel(deck);
 
-    head.append(title, badge);
+    const menu = document.createElement("span");
+    menu.className = "deck-menu";
+    menu.textContent = "⋮";
+    menu.setAttribute("aria-hidden", "true");
+
+    head.append(title, badge, menu);
 
     const body = document.createElement("div");
     body.className = "deck-body";
 
     const updated = document.createElement("span");
-    updated.textContent = "Actualizada recientemente";
+    updated.textContent = deck.updatedLabel || "Actualizada recientemente";
 
     const meta = document.createElement("span");
-    meta.textContent = "ID: " + deck.deckId + " · Slides: " + deckSlideLabel(deck) + " · Ratio: " + (deck.ratio || "16:9");
+    meta.textContent = "Slides: " + deckSlideLabel(deck) + " · Ratio: " + (deck.ratio || "16:9");
+
+    const codeLabel = document.createElement("span");
+    codeLabel.textContent = "Código de sesión";
 
     const sessionCode = document.createElement("span");
     sessionCode.className = "deck-code";
-    sessionCode.textContent = currentSession();
+    sessionCode.textContent = currentSession().toUpperCase();
 
-    body.append(updated, meta, sessionCode);
+    body.append(updated, meta, codeLabel, sessionCode);
 
     if (isFailedDeck(deck) && deck.conversionMessage) {
       const error = document.createElement("span");
@@ -117,6 +177,8 @@ function renderDecks() {
       error.textContent = deck.conversionMessage;
       body.appendChild(error);
     }
+
+    main.append(head, body);
 
     const actions = document.createElement("div");
     actions.className = "deck-actions";
@@ -131,7 +193,7 @@ function renderDecks() {
       actions.appendChild(link);
     });
 
-    card.append(head, body, actions);
+    card.append(thumb, main, actions);
     card.addEventListener("click", (event) => {
       if (event.target.closest("a")) return;
       activeDeck = deck.deckId;
@@ -141,9 +203,10 @@ function renderDecks() {
   });
 
   const deck = activeDeckMeta();
+  if (activityDeckName && deck) activityDeckName.textContent = niceTitle(deck.title || deck.deckId || "Immersa Demo");
   deckNotice.hidden = !(isPendingDeck(deck) || isFailedDeck(deck));
   if (isFailedDeck(deck)) deckNotice.textContent = deck.conversionMessage || "La conversión falló. Verás una pantalla provisional.";
-  else deckNotice.textContent = "Este deck aún no ha sido convertido. Verás una pantalla provisional.";
+  else deckNotice.textContent = "Esta presentación aún no ha sido convertida. Verás una pantalla provisional.";
 }
 
 function drawFallbackQr(text) {
@@ -176,8 +239,8 @@ function drawQr(text) {
   if (window.QRCode) {
     new window.QRCode(qrCode, {
       text,
-      width: 178,
-      height: 178,
+      width: 52,
+      height: 52,
       colorDark: "#050505",
       colorLight: "#ffffff",
       correctLevel: window.QRCode.CorrectLevel.M
@@ -201,32 +264,17 @@ async function copyText(text, button) {
 
 function renderLinks() {
   const session = currentSession();
-  activeSession.textContent = session;
   normalizedHint.textContent = session;
   linksList.innerHTML = "";
 
   roles.forEach((role) => {
     const url = roleUrl(role);
-    const row = document.createElement("article");
-    const title = document.createElement("strong");
-    const input = document.createElement("input");
-    const open = document.createElement("a");
-    const copy = document.createElement("button");
-
-    row.className = "role-link";
-    title.textContent = labels[role];
-    input.readOnly = true;
-    input.value = url;
-    open.href = url;
-    open.target = "_blank";
-    open.rel = "noopener";
-    open.textContent = "Abrir";
-    copy.type = "button";
-    copy.textContent = "Copiar";
-    copy.addEventListener("click", (event) => copyText(url, event.currentTarget));
-
-    row.append(title, input, open, copy);
-    linksList.appendChild(row);
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = labels[role];
+    linksList.appendChild(link);
   });
 
   drawQr(roleUrl("audience"));
@@ -238,16 +286,24 @@ function renderAll() {
   renderLinks();
 }
 
+function fallbackDecks() {
+  return [
+    { deckId: "bodilla", title: "Bodilla", slides: 15, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 2 horas" },
+    { deckId: "gig", title: "GIG", slides: 14, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 1 día" },
+    { deckId: "demo", title: "Immersa Demo", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 2 días" }
+  ];
+}
+
 async function loadDecks(selectedDeckId = activeDeck) {
   try {
     const res = await fetch("/api/decks");
     if (!res.ok) throw new Error("No se pudo cargar la lista de presentaciones");
     const data = await res.json();
-    decks = data.length ? data : [{ deckId: "demo", title: "Demo Immersa", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready" }];
+    decks = Array.isArray(data) && data.length ? data : fallbackDecks();
     activeDeck = decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : decks[0].deckId;
   } catch (_error) {
-    decks = [{ deckId: "demo", title: "Demo Immersa", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready" }];
-    activeDeck = "demo";
+    decks = fallbackDecks();
+    activeDeck = decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : "demo";
   }
   renderAll();
 }
@@ -258,31 +314,41 @@ function setUploadStatus(message, type = "") {
 }
 
 function updateSelectedFileName() {
-  const file = fileInput.files && fileInput.files[0];
+  const file = fileInput.files[0];
   selectedFileName.textContent = file ? file.name : "Ningún archivo seleccionado";
-}
-
-function assignDroppedFiles(files) {
-  if (!files || !files.length) return;
-  const dataTransfer = new DataTransfer();
-  dataTransfer.items.add(files[0]);
-  fileInput.files = dataTransfer.files;
-  updateSelectedFileName();
-  setUploadStatus("Archivo listo para crear presentación.");
 }
 
 document.getElementById("generateSession").addEventListener("click", () => {
   sessionInput.value = generateSessionCode();
   renderAll();
 });
-
-sessionInput.addEventListener("input", () => {
-  renderLinks();
-  renderDecks();
-});
+sessionInput.addEventListener("input", renderLinks);
 sessionInput.addEventListener("blur", renderAll);
 copyAudience.addEventListener("click", (event) => copyText(roleUrl("audience"), event.currentTarget));
 fileInput.addEventListener("change", updateSelectedFileName);
+
+["dragenter", "dragover"].forEach((eventName) => {
+  fileDrop.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    fileDrop.classList.add("dragging");
+  });
+});
+
+["dragleave", "drop"].forEach((eventName) => {
+  fileDrop.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    fileDrop.classList.remove("dragging");
+  });
+});
+
+fileDrop.addEventListener("drop", (event) => {
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  fileInput.files = transfer.files;
+  updateSelectedFileName();
+});
 
 fileDrop.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
@@ -291,33 +357,18 @@ fileDrop.addEventListener("keydown", (event) => {
   }
 });
 
-["dragenter", "dragover"].forEach((eventName) => {
-  fileDrop.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    fileDrop.classList.add("is-dragging");
-  });
-});
-
-["dragleave", "drop"].forEach((eventName) => {
-  fileDrop.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    fileDrop.classList.remove("is-dragging");
-  });
-});
-
-fileDrop.addEventListener("drop", (event) => assignDroppedFiles(event.dataTransfer.files));
-
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const file = fileInput.files[0];
-  if (!file) return setUploadStatus("Arrastra o selecciona un archivo PPTX, PDF o imagen.", "error");
+  if (!file) return setUploadStatus("Arrastra o selecciona un archivo para crear la presentación.", "error");
+
   const lowerName = file.name.toLowerCase();
   const isPdf = lowerName.endsWith(".pdf");
   const isPptx = lowerName.endsWith(".pptx");
   const isImage = /\.(png|jpe?g|webp)$/.test(lowerName);
-  if (!isPdf && !isPptx && !isImage) return setUploadStatus("Error: solo se aceptan archivos PPTX, PDF o imágenes.", "error");
-  const sourceLabel = isPdf ? "PDF" : isPptx ? "PPTX" : "Imagen";
+  if (!isPdf && !isPptx && !isImage) return setUploadStatus("Error: se aceptan PPTX, PDF o imágenes.", "error");
 
+  const sourceLabel = isPdf ? "PDF" : isPptx ? "PPTX" : "Imagen";
   const formData = new FormData(uploadForm);
   uploadButton.disabled = true;
   setUploadStatus("Subiendo y preparando presentación...", "loading");
@@ -331,7 +382,7 @@ uploadForm.addEventListener("submit", async (event) => {
     updateSelectedFileName();
     if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
     else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
-    else setUploadStatus(sourceLabel + " cargado. Convirtiendo...", "loading");
+    else setUploadStatus(sourceLabel + " cargado. Preparando presentación...", "loading");
     await loadDecks(data.deckId);
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
