@@ -3,73 +3,128 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Immersa Presentations</title>
+  <title>Immersa</title>
   <link rel="stylesheet" href="/home/home.css">
 </head>
 <body>
   <main class="home-shell">
-    <header class="hero">
-      <div>
-        <h1>IMMERSA</h1>
-        <p>Una presentación. Cien pantallas. Todos en primera fila.</p>
+    <header class="topbar" aria-label="Navegación principal">
+      <a class="brand" href="/home" aria-label="Immersa Home">
+        <img class="brand-mark" src="/home/M-Immersa2.png" alt="" onerror="this.style.display='none'">
+        <span>Immersa</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a class="active" href="#inicio">Inicio</a>
+        <a href="#presentaciones">Presentaciones</a>
+        <a href="#sesion">Sesiones</a>
+      </nav>
+      <div class="topbar-actions">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span>Administrador</span>
       </div>
     </header>
 
-    <section class="upload-panel" aria-label="Subir presentación">
-      <div class="section-title">
-        <span>Subir presentación</span>
-        <strong>PPTX / PDF</strong>
+    <section id="inicio" class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Administrador de presentaciones sincronizadas</p>
+        <h1>Tus presentaciones,<br>listas para entrar en escena.</h1>
+        <p class="hero-subtitle">Crea, abre y gestiona experiencias para Presenter, Screen, Audience y Stage desde un solo lugar.</p>
+        <div class="hero-stats" aria-label="Resumen">
+          <article>
+            <strong id="deckCountHero">0</strong>
+            <span>Presentaciones</span>
+          </article>
+          <article>
+            <strong>1</strong>
+            <span>Sesión lista</span>
+          </article>
+        </div>
       </div>
-      <form id="uploadForm" class="upload-form">
-        <label class="field">
-          <span>Título de presentación</span>
-          <input id="uploadTitle" name="title" autocomplete="off" placeholder="Nombre del deck">
-        </label>
-        <label class="field">
-          <span>Código de deck opcional</span>
-          <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="mi-presentacion">
-        </label>
-        <label class="field file-field">
-          <span>Archivo .pptx o .pdf</span>
-          <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
-        </label>
-        <button id="uploadButton" type="submit">Subir archivo</button>
-      </form>
-      <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
+
+      <section class="create-panel" aria-label="Crear nueva presentación">
+        <form id="uploadForm" class="upload-form">
+          <div class="panel-heading">
+            <div class="heading-icon" aria-hidden="true">↥</div>
+            <div>
+              <p class="eyebrow">Crear nueva presentación</p>
+              <h2>Comienza arrastrando tu archivo</h2>
+            </div>
+          </div>
+
+          <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
+            <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+            <span class="upload-cloud" aria-hidden="true">☁</span>
+            <strong>Arrastra tu archivo aquí</strong>
+            <span>o <u>selecciónalo</u> desde tu equipo</span>
+            <em>PPTX, PDF o imágenes</em>
+            <small id="selectedFileName">Ningún archivo seleccionado</small>
+          </label>
+
+          <div class="upload-meta">
+            <label class="field compact">
+              <span>Título</span>
+              <input id="uploadTitle" name="title" autocomplete="off" placeholder="Nombre de la presentación">
+            </label>
+            <label class="field compact">
+              <span>Código opcional</span>
+              <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="mi-presentacion">
+            </label>
+          </div>
+
+          <button id="uploadButton" class="primary-action" type="submit">Crear presentación</button>
+          <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <aside class="open-panel" aria-label="Abrir presentación existente">
+        <div class="folder-icon" aria-hidden="true">▱</div>
+        <h2>Abrir presentación existente</h2>
+        <p>Selecciona una presentación guardada y lanza sus modos de operación.</p>
+        <a class="ghost-action" href="#presentaciones">Ver presentaciones</a>
+      </aside>
     </section>
 
-    <section class="workspace">
-      <section class="setup-panel" aria-label="Configurar sesión">
-        <div class="section-title">
-          <span>Deck</span>
+    <section class="content-grid">
+      <section id="presentaciones" class="presentations-panel" aria-label="Mis presentaciones">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Mis presentaciones</p>
+            <h2>Lista de trabajo</h2>
+          </div>
           <strong id="deckCount">Cargando</strong>
         </div>
         <div id="deckList" class="deck-list"></div>
         <p id="deckNotice" class="deck-notice" hidden>Este deck aún no ha sido convertido. Verás una pantalla provisional.</p>
+      </section>
 
-        <label class="field">
+      <aside id="sesion" class="session-panel" aria-label="Sesión activa">
+        <div class="section-header compact-header">
+          <div>
+            <p class="eyebrow">Sesión activa</p>
+            <h2 id="activeSession">demo01</h2>
+          </div>
+          <span class="session-state">Lista</span>
+        </div>
+
+        <label class="field session-field">
           <span>Código de sesión</span>
           <input id="sessionInput" autocomplete="off" spellcheck="false" placeholder="demo01">
         </label>
         <div class="session-actions">
-          <button id="generateSession" type="button">Generar sesión</button>
+          <button id="generateSession" type="button">Generar código</button>
           <span id="normalizedHint">demo01</span>
         </div>
-      </section>
 
-      <section class="links-panel" aria-label="Links generados">
-        <div class="section-title">
-          <span>Links</span>
-          <strong id="activeSession">demo01</strong>
+        <div class="links-panel" aria-label="Accesos de operación">
+          <div id="linksList" class="links-list"></div>
         </div>
-        <div id="linksList" class="links-list"></div>
 
         <section class="audience-card" aria-label="QR Audience">
           <div id="qrCode" class="qr-code"></div>
-          <p>Escanea para participar</p>
+          <p>Escanea para entrar como Audience</p>
           <button id="copyAudience" type="button">Copiar link Audience</button>
         </section>
-      </section>
+      </aside>
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
