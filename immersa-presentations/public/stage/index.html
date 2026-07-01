@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa Stage</title>
-  <link rel="stylesheet" href="/stage/stage.css">
+  <link rel="stylesheet" href="/stage/stage.css?v=21">
 </head>
 <body>
   <main class="stage">
@@ -23,11 +23,18 @@
 
     <section class="stats" aria-label="Estado">
       <div><span>Audiencia</span><strong id="audience">0</strong></div>
-      <div><span>Presenter</span><strong id="presenterStatus">Desconectado</strong></div>
+      <div><span>Speaker</span><strong id="presenterStatus">Desconectado</strong></div>
       <div><span>Lámina</span><strong><b id="current">1</b>/<b id="total">3</b></strong></div>
       <div><span>Stream</span><strong id="streamStatus">Activo</strong></div>
       <div><span>Reacciones</span><strong id="reactionsStatus">On</strong></div>
       <div><span>QR</span><strong id="qrStatus">Oculto</strong></div>
+    </section>
+
+    <section class="stage-actions" aria-label="Controles superiores">
+      <label class="switch"><input id="reactionsToggle" type="checkbox" checked><span></span><em>Reacciones</em></label>
+      <label class="switch"><input id="qrToggle" type="checkbox"><span></span><em>QR Público</em></label>
+      <button id="clearScreen" class="clear-action" type="button">Limpiar Screen</button>
+      <button id="liveTextButton" class="live-text-action" type="button" aria-haspopup="dialog">Texto en vivo</button>
     </section>
 
     <section class="preview-card" aria-label="Preview de pantalla">
@@ -35,27 +42,43 @@
         <span>Screen preview</span>
         <strong id="previewStatus">Live</strong>
       </div>
-      <div class="preview" aria-label="Preview de slide"><img id="slide" alt="Slide en vivo"></div>
-    </section>
-
-    <section class="controls" aria-label="Controles de pantalla">
-      <form id="messageForm" class="message-form">
-        <label for="messageInput">Mensaje en pantalla</label>
-        <div class="message-row">
-          <input id="messageInput" maxlength="90" placeholder="Escribe un mensaje breve">
-          <button class="primary-action" type="submit">Mostrar</button>
-          <button id="clearMessage" class="soft-action" type="button">Limpiar</button>
+      <div class="preview" aria-label="Preview de slide">
+        <img id="slide" alt="Slide en vivo">
+        <div class="floating-slide-controls" aria-label="Control de slides">
+          <button id="prevSlide" class="slide-float-btn prev" type="button" aria-label="Slide anterior">‹</button>
+          <button id="nextSlide" class="slide-float-btn next" type="button" aria-label="Siguiente slide">›</button>
         </div>
-      </form>
-
-      <div class="switches">
-        <label class="switch"><input id="reactionsToggle" type="checkbox" checked><span></span><em>Reacciones</em></label>
-        <label class="switch"><input id="qrToggle" type="checkbox"><span></span><em>QR Audience</em></label>
-        <button id="clearScreen" class="clear-action" type="button">Limpiar Screen</button>
+        <form id="jumpForm" class="jump-pill" aria-label="Ir a lámina">
+          <label for="jumpInput">Ir a</label>
+          <input id="jumpInput" type="number" min="1" value="1" inputmode="numeric">
+          <span>/</span>
+          <strong id="totalControl">3</strong>
+          <button type="submit">Ir</button>
+        </form>
       </div>
     </section>
   </main>
+
+  <div id="textModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="textModalTitle">
+      <div class="modal-head">
+        <span>Stage</span>
+        <strong id="textModalTitle">Texto en vivo</strong>
+      </div>
+      <form id="messageForm" class="message-form">
+        <label for="messageInput">Mensaje en pantalla</label>
+        <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
+        <small>Úsalo solo cuando quieras interrumpir o enfatizar algo en pantalla.</small>
+        <div class="modal-actions">
+          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
+          <button class="primary-action" type="submit">Mostrar texto</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/stage/stage.js"></script>
+  <script src="/stage/stage.js?v=21"></script>
 </body>
 </html>
