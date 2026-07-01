@@ -9,26 +9,29 @@
 <body>
   <main class="presenter-shell">
     <header class="presenter-header">
-      <div class="brand">IMMERSA</div>
-      <div class="audience-stat">Audiencia: <span id="audience">0</span></div>
+      <div class="brand-lockup" aria-label="Immersa Presenter">
+        <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
+        <span class="brand-mode">Presenter</span>
+      </div>
+      <div class="audience-stat" aria-label="Audiencia conectada"><span class="audience-icon">👥</span><span id="audience">0</span></div>
     </header>
 
-    <p id="deckNotice" class="deck-notice" hidden>Este deck aún no ha sido convertido. Verás una pantalla provisional.</p>
+    <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
 
     <section class="stream-area">
-      <img id="slide" alt="Slide actual">
+      <img id="slide" alt="Lámina actual">
       <div id="reactions" class="reaction-layer"></div>
     </section>
 
     <nav id="thumbs" class="thumbs" aria-label="Miniaturas"></nav>
 
     <section class="main-controls" aria-label="Controles principales">
-      <button id="prev" class="nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
-      <label class="reaction-toggle" aria-label="Ver reacciones"><input id="localReactions" type="checkbox" checked><span>👏</span></label>
+      <button id="prev" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
+      <label class="control-button reaction-toggle" aria-label="Ver reacciones en Presenter"><input id="localReactions" type="checkbox" checked><span>👏</span></label>
       <div class="slide-count"><span id="current">1</span><span class="slide-divider"> / </span><span id="total">3</span></div>
-      <button id="playPause" class="play-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
-      <button id="audienceQr" class="reaction-toggle thumb qr-button" type="button" aria-pressed="false" title="Mostrar QR de audiencia">QR</button>
-      <button id="next" class="nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
+      <button id="playPause" class="control-button play-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
+      <button id="audienceQr" class="control-button qr-button" type="button" aria-pressed="false" title="Mostrar QR de audiencia">QR</button>
+      <button id="next" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
     </section>
 
     <section class="links-panel" aria-label="URLs de sala">
