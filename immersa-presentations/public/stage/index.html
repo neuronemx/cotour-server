@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa Stage</title>
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v2">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v3">
 </head>
 <body>
   <main class="stage-shell">
@@ -14,12 +14,14 @@
         <strong>Stage</strong>
       </div>
 
+      <div class="presentation-name" aria-label="Presentación activa">
+        <span id="stageDeckLabel">Presentación</span>
+      </div>
+
       <div class="toolbar-status" aria-label="Estado de sesión">
-        <span class="status-pill deck"><em id="stageDeckLabel">Presentación</em><strong id="stageSessionLabel">Sesión</strong></span>
         <span class="status-pill"><em>Público</em><strong id="audience">0</strong></span>
         <span class="status-pill"><em>Speaker</em><strong id="presenterStatus">Off</strong></span>
         <span class="status-pill"><em>Slide</em><strong><b id="current">1</b>/<b id="total">3</b></strong></span>
-        <span class="status-pill"><em>Live</em><strong id="streamStatus">Activo</strong></span>
       </div>
 
       <div class="toolbar-actions" aria-label="Controles de pantalla">
@@ -41,11 +43,8 @@
       <div class="screen-frame">
         <img id="slide" alt="Slide en vivo">
 
-        <div class="slide-nav" aria-label="Navegación de slides">
-          <button id="prevSlide" class="nav-button" type="button" aria-label="Slide anterior">‹</button>
-          <span class="nav-counter"><b id="currentControl">1</b><em>/</em><b id="totalControl">3</b></span>
-          <button id="nextSlide" class="nav-button" type="button" aria-label="Siguiente slide">›</button>
-        </div>
+        <button id="prevSlide" class="slide-arrow slide-arrow-prev" type="button" aria-label="Slide anterior">‹</button>
+        <button id="nextSlide" class="slide-arrow slide-arrow-next" type="button" aria-label="Siguiente slide">›</button>
       </div>
     </section>
   </main>
@@ -62,6 +61,7 @@
         <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
         <small>Este mensaje aparece sobre la experiencia en vivo.</small>
         <div class="modal-actions">
+          <button id="displayLinkButton" class="soft-action" type="button">Display link</button>
           <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
           <button class="primary-action" type="submit">Mostrar texto</button>
         </div>
@@ -70,6 +70,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/stage/stage.js?v=stage-v2"></script>
+  <script src="/stage/stage.js?v=stage-v3"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 const params = new URLSearchParams(location.search);
-const sessionId = params.get("session") || "demo01";
+const sessionId = params.get("session") || "auto";
 const deckId = params.get("deck") || "demo";
 const socket = io();
 
@@ -13,36 +13,32 @@ const slide = document.getElementById("slide");
 const screenFrame = document.querySelector(".screen-frame");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
-const currentControl = document.getElementById("currentControl");
-const totalControl = document.getElementById("totalControl");
 const audience = document.getElementById("audience");
 const presenterStatus = document.getElementById("presenterStatus");
-const streamStatus = document.getElementById("streamStatus");
 const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
 const stageDeckLabel = document.getElementById("stageDeckLabel");
-const stageSessionLabel = document.getElementById("stageSessionLabel");
 const prevSlide = document.getElementById("prevSlide");
 const nextSlide = document.getElementById("nextSlide");
 const liveTextButton = document.getElementById("liveTextButton");
 const textModal = document.getElementById("textModal");
 const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
+const displayLinkButton = document.getElementById("displayLinkButton");
 
 async function loadDeck() {
   const res = await fetch("/decks/" + deckId + "/manifest.json");
   manifest = await res.json();
   const slideCount = manifest.slides.length;
   total.textContent = slideCount;
-  totalControl.textContent = slideCount;
-  stageDeckLabel.textContent = manifest.title || deckId;
-  stageSessionLabel.textContent = sessionId;
+  stageDeckLabel.textContent = manifest.title || "Presentación";
   updateSlideControls();
+  setToggles();
 }
 
-function audienceUrl() {
-  return "https://immersa.mx/" + encodeURIComponent(sessionId);
+function publicUrl() {
+  return "https://show.immersa.mx/" + encodeURIComponent(sessionId);
 }
 
 function normalizeOverlayState(next = {}) {
@@ -54,7 +50,7 @@ function normalizeOverlayState(next = {}) {
     reactionsOnScreen: showReactions,
     showAudienceQr,
     qrVisible: showAudienceQr,
-    audienceUrl: next.audienceUrl || audienceUrl(),
+    audienceUrl: next.audienceUrl || publicUrl(),
     messageVisible: Boolean(next.messageVisible),
     messageText: next.messageText || ""
   };
@@ -62,8 +58,8 @@ function normalizeOverlayState(next = {}) {
 
 function setToggles() {
   overlays = normalizeOverlayState(overlays);
-  reactionsToggle.checked = overlays.showReactions;
-  qrToggle.checked = overlays.showAudienceQr;
+  reactionsToggle.checked = Boolean(overlays.showReactions);
+  qrToggle.checked = Boolean(overlays.showAudienceQr);
   liveTextButton.classList.toggle("is-live", overlays.messageVisible);
   liveTextButton.textContent = overlays.messageVisible ? "Apagar texto" : "Texto en vivo";
 }
@@ -84,9 +80,7 @@ function updateSlideControls() {
   const slideCount = manifest?.slides?.length || 0;
   const displayIndex = slideCount ? currentSlideIndex + 1 : 0;
   current.textContent = displayIndex;
-  currentControl.textContent = displayIndex;
   total.textContent = slideCount || 0;
-  totalControl.textContent = slideCount || 0;
   prevSlide.disabled = !slideCount || currentSlideIndex <= 0;
   nextSlide.disabled = !slideCount || currentSlideIndex >= slideCount - 1;
 }
@@ -105,7 +99,6 @@ function render(state) {
 
   audience.textContent = state.audienceCount || 0;
   presenterStatus.textContent = state.presenterConnected ? "On" : "Off";
-  streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo";
   updateSlideControls();
 }
 
@@ -159,7 +152,12 @@ function clearLiveText() {
 prevSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex - 1));
 nextSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex + 1));
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked, showReactions: reactionsToggle.checked }));
-qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: audienceUrl() }));
+qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: publicUrl() }));
+
+displayLinkButton.addEventListener("click", () => {
+  messageInput.value = publicUrl();
+  messageInput.focus();
+});
 
 liveTextButton.addEventListener("click", () => {
   if (overlays.messageVisible) clearLiveText();
@@ -180,7 +178,7 @@ textModal.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeTextModal();
-  if (event.target.matches("input, textarea, select")) return;
+  if (event.target.matches("input, textarea, select, button")) return;
   if (event.key === "ArrowLeft") emitStageSlide(currentSlideIndex - 1);
   if (event.key === "ArrowRight") emitStageSlide(currentSlideIndex + 1);
 });
@@ -189,4 +187,7 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (next) => { overlays = normalizeOverlayState(next); setToggles(); });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 
-loadDeck().then(() => socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" }));
+loadDeck().then(() => {
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
+  updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl: publicUrl() });
+});
