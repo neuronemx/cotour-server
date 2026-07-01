@@ -16,12 +16,21 @@ const qrStatus = document.getElementById("qrStatus");
 const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
-async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); total.textContent = manifest.slides.length; }
+const stageDeckLabel = document.getElementById("stageDeckLabel");
+const stageSessionLabel = document.getElementById("stageSessionLabel");
+const previewStatus = document.getElementById("previewStatus");
+async function loadDeck() {
+  const res = await fetch("/decks/" + deckId + "/manifest.json");
+  manifest = await res.json();
+  total.textContent = manifest.slides.length;
+  stageDeckLabel.textContent = manifest.title || deckId;
+  stageSessionLabel.textContent = sessionId + " · " + deckId;
+}
 function audienceUrl() { return window.location.origin + "/audience?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 function setToggles() { overlays = normalizeOverlayState(overlays); reactionsToggle.checked = overlays.showReactions; qrToggle.checked = overlays.showAudienceQr; reactionsStatus.textContent = overlays.showReactions ? "On" : "Off"; qrStatus.textContent = overlays.showAudienceQr ? "Visible" : "Oculto"; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; preview.classList.toggle("portrait-slide", portrait); if (portrait) preview.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else preview.style.removeProperty("--slide-bg"); }
-function render(state) { overlays = normalizeOverlayState(state.overlays || overlays); setToggles(); const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; const src = "/decks/" + deckId + "/" + item.src; slide.src = src; applySlideOrientation(item, src); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; presenterStatus.textContent = state.presenterConnected ? "Conectado" : "Desconectado"; streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo"; }
+function render(state) { overlays = normalizeOverlayState(state.overlays || overlays); setToggles(); const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; const src = "/decks/" + deckId + "/" + item.src; slide.src = src; applySlideOrientation(item, src); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; presenterStatus.textContent = state.presenterConnected ? "Conectado" : "Desconectado"; streamStatus.textContent = state.transmissionPaused ? "Pausado" : "Activo"; previewStatus.textContent = state.transmissionPaused ? "Pausado" : "Live"; }
 function updateOverlay(patch) { overlays = normalizeOverlayState({ ...overlays, ...patch }); socket.emit("overlay_update", { overlays }); }
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked, showReactions: reactionsToggle.checked }));
 qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: audienceUrl() }));
