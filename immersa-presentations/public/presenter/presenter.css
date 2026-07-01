@@ -253,3 +253,147 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .qr-button { width: 35px; min-width: 35px; }
 }
+
+/* Immersa Presenter premium v4 refinements */
+.brand-lockup {
+  width: 58px;
+  height: 58px;
+  padding: 8px;
+  border-radius: 20px;
+  overflow: visible;
+  background: rgba(4, 6, 10, .48);
+  border: 1px solid rgba(255,255,255,.11);
+  box-shadow:
+    0 16px 36px rgba(0,0,0,.34),
+    0 0 30px rgba(104,216,204,.18),
+    0 0 34px rgba(155,76,255,.20),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  object-fit: cover;
+  filter: drop-shadow(0 0 11px rgba(104,216,204,.24));
+}
+.thumbs {
+  grid-auto-columns: minmax(82px, 116px);
+  gap: 10px;
+  padding: 2px 4px 5px;
+}
+.thumb {
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  opacity: .74;
+}
+.thumb img {
+  border-radius: 9px;
+  background: #020304;
+  box-shadow: 0 7px 16px rgba(0,0,0,.28);
+  transition: box-shadow .16s ease, transform .16s ease, opacity .16s ease, filter .16s ease;
+}
+.thumb-number {
+  top: 6px;
+  left: 7px;
+  min-width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255,255,255,.82);
+  font-size: 11px;
+  font-weight: 950;
+  text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.8);
+  backdrop-filter: none;
+}
+.thumb.active {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+.thumb.active img {
+  box-shadow:
+    0 0 0 2px rgba(104,216,204,.95),
+    0 0 24px rgba(104,216,204,.30),
+    0 12px 25px rgba(0,0,0,.34);
+  filter: brightness(1.04) saturate(1.05);
+}
+.thumb.active .thumb-number {
+  color: #eafffb;
+  background: transparent;
+  border: 0;
+  text-shadow: 0 1px 5px rgba(0,0,0,1), 0 0 12px rgba(104,216,204,.55);
+}
+.thumb.live {
+  outline: 0;
+}
+.thumb.live::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(104,216,204,.88);
+  box-shadow: 0 0 12px rgba(104,216,204,.55);
+}
+.thumb.active.live::after {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .thumb:hover {
+    opacity: .96;
+    transform: translateY(-2px);
+    background: transparent;
+    border-color: transparent;
+  }
+  .thumb:hover img {
+    box-shadow: 0 0 0 1px rgba(234,255,251,.22), 0 12px 24px rgba(0,0,0,.34);
+  }
+}
+@media (max-width: 760px) {
+  .brand-lockup {
+    width: 46px;
+    height: 46px;
+    padding: 6px;
+    border-radius: 16px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+  .thumbs {
+    grid-auto-columns: minmax(76px, 26vw);
+    gap: 9px;
+  }
+  .thumb-number {
+    font-size: 10px;
+    top: 5px;
+    left: 6px;
+  }
+}
+@media (max-width: 390px), (max-height: 640px) {
+  .brand-lockup {
+    width: 42px;
+    height: 42px;
+    padding: 5px;
+    border-radius: 15px;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .thumbs {
+    grid-auto-columns: minmax(70px, 98px);
+    gap: 8px;
+  }
+}
