@@ -558,3 +558,57 @@ button:disabled { cursor: wait; opacity: .68; }
   .activity-list article { grid-template-columns: 42px 1fr; }
   .activity-list time { grid-column: 2; }
 }
+
+/* v5: hero copy is no longer a card; the create/upload block is the only hero panel. */
+.hero-band {
+  grid-template-columns: minmax(340px, .72fr) minmax(560px, 1fr);
+  gap: clamp(24px, 4vw, 54px);
+  align-items: center;
+  padding: clamp(12px, 2.5vw, 30px) 10px clamp(6px, 1.5vw, 18px);
+}
+.hero-copy {
+  min-height: auto;
+  padding: clamp(18px, 3.2vw, 42px) 0 clamp(18px, 3.2vw, 42px) clamp(2px, 1vw, 12px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.hero-copy::after {
+  width: min(720px, 120%);
+  height: 42%;
+  left: -24%;
+  right: auto;
+  bottom: -8%;
+  opacity: .72;
+}
+.hero-title {
+  max-width: 760px;
+}
+.hero-subtitle {
+  max-width: 600px;
+}
+.hero-line {
+  box-shadow: none;
+}
+.create-panel {
+  min-height: 540px;
+}
+.upload-form {
+  align-content: center;
+}
+
+@media (max-width: 1320px) {
+  .hero-band {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding-inline: 0;
+  }
+  .hero-copy {
+    padding: 24px 4px 4px;
+  }
+  .create-panel {
+    min-height: auto;
+  }
+}

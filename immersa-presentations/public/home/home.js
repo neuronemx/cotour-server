@@ -1,5 +1,5 @@
 const roles = ["presenter", "screen", "audience", "stage"];
-const labels = { presenter: "Presentar", screen: "Pantalla", audience: "Audiencia", stage: "Producción" };
+const labels = { presenter: "Presentar", screen: "Pantalla", audience: "Audiencia", stage: "Stage" };
 const rotatingTerms = ["presentaciones", "lanzamientos", "visiones", "ideas", "historias"];
 let rotatingIndex = 0;
 let decks = [];
