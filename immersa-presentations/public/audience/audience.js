@@ -36,7 +36,13 @@ function handlePointerDown(event) { viewport.setPointerCapture(event.pointerId);
 function handlePointerMove(event) { if (!pointers.has(event.pointerId)) return; pointers.set(event.pointerId, event); const active = pointerList(); if (active.length >= 2 && startDistance > 0) { const nextCenter = center(active[0], active[1]); zoom = clamp(startZoom * (distance(active[0], active[1]) / startDistance), 1, 3); panX = startPanX + (nextCenter.x - startCenter.x); panY = startPanY + (nextCenter.y - startCenter.y); if (zoom === 1) { panX = 0; panY = 0; } applyTransform(); return; } if (active.length === 1 && zoom > 1 && startCenter) { panX = startPanX + (active[0].clientX - startCenter.x); panY = startPanY + (active[0].clientY - startCenter.y); applyTransform(); } }
 function handlePointerUp(event) { pointers.delete(event.pointerId); if (pointers.size) beginGesture(); const now = Date.now(); if (now - lastTapAt < 280) { resetZoom(); lastTapAt = 0; } else { lastTapAt = now; } }
 async function toggleFullscreen() { try { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (viewer.requestFullscreen) { await viewer.requestFullscreen(); if (screen.orientation?.lock) screen.orientation.lock("landscape").catch(() => {}); } } catch (_error) {} }
-function updateFullscreenButton() { fullscreen.textContent = document.fullscreenElement ? "×" : "⛶"; fullscreen.setAttribute("aria-label", document.fullscreenElement ? "Salir de pantalla completa" : "Pantalla completa"); }
+function updateFullscreenButton() {
+  const active = Boolean(document.fullscreenElement);
+  fullscreen.textContent = active ? "×" : "⛶";
+  fullscreen.classList.toggle("is-active", active);
+  fullscreen.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
+  fullscreen.title = active ? "Salir de pantalla completa" : "Pantalla completa";
+}
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
