@@ -2,6 +2,7 @@ node_modules/
 data/
 uploads/
 tmp/
+backups/
 *.log
 npm-debug.log
 public/decks/*/
