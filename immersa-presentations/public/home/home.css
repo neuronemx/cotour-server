@@ -785,3 +785,79 @@ button:disabled { cursor: wait; opacity: .68; }
   .deck-list-rows .deck-thumb { width: 100%; min-height: auto; }
   .deck-list-rows .deck-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* v9: roles como links copiables, eliminación y corrección del carrete */
+.rotator-wrap {
+  display: inline-block;
+  width: var(--rotator-width, 13ch) !important;
+  min-width: var(--rotator-width, 13ch) !important;
+  max-width: none !important;
+  overflow: visible;
+  white-space: nowrap;
+}
+.rotating-word { white-space: nowrap; }
+.deck-list-rows .deck-row {
+  grid-template-columns: 152px minmax(220px, 1fr) minmax(120px, 170px) minmax(360px, auto) auto;
+}
+.deck-actions button,
+.quick-links button {
+  min-width: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.72);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.deck-actions button:nth-child(1), .quick-links button:nth-child(1) { color: var(--purple); }
+.deck-actions button:nth-child(2), .quick-links button:nth-child(2) { color: #1389ff; }
+.deck-actions button:nth-child(3), .quick-links button:nth-child(3) { color: #029b71; }
+.deck-actions button:nth-child(4), .quick-links button:nth-child(4) { color: var(--pink); }
+.deck-actions button.copied {
+  color: #0a965d !important;
+  border-color: rgba(43,207,130,.28);
+  background: rgba(43,207,130,.12);
+}
+.deck-list-rows .deck-actions button {
+  min-height: 36px;
+  min-width: 76px;
+  padding: 0 11px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.deck-delete {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(223,50,98,.2);
+  border-radius: 11px;
+  background: rgba(223,50,98,.06);
+  color: #c92b58;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.deck-delete:hover { background: rgba(223,50,98,.1); }
+@media (max-width: 1180px) {
+  .deck-list-rows .deck-row { grid-template-columns: 140px minmax(220px, 1fr) minmax(300px, auto) auto; }
+}
+@media (max-width: 900px) {
+  .deck-list-rows .deck-row { grid-template-columns: 132px minmax(0, 1fr) auto; }
+  .deck-list-rows .deck-actions { grid-column: 1 / -1; }
+  .deck-delete { grid-column: 1 / -1; width: fit-content; justify-self: end; }
+}
+@media (max-width: 620px) {
+  .deck-list-rows .deck-row { grid-template-columns: 1fr; }
+  .deck-delete { justify-self: stretch; width: 100%; }
+}

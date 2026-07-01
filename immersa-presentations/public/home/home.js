@@ -1,5 +1,5 @@
-const roles = ["presenter", "screen", "audience", "stage"];
-const labels = { presenter: "Presentar", screen: "Pantalla", audience: "Audiencia", stage: "Stage" };
+const roles = ["presenter", "audience", "screen", "stage"];
+const labels = { presenter: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
 const rotatingTerms = ["presentaciones", "lanzamientos", "visiones", "ideas", "historias"];
 let rotatingIndex = 0;
 let decks = [];
@@ -72,6 +72,49 @@ function deckSlideLabel(deck) {
 
 function roleUrl(role, deck) {
   return window.location.origin + "/" + role + "?session=" + encodeURIComponent(deckSession(deck)) + "&deck=" + encodeURIComponent(deck.deckId || "demo");
+}
+
+async function copyRoleLink(role, deck, button) {
+  const label = labels[role] || role;
+  const url = roleUrl(role, deck);
+  try {
+    await navigator.clipboard.writeText(url);
+    const original = button.textContent;
+    button.textContent = "Link " + label + " copiado";
+    button.classList.add("copied");
+    window.setTimeout(() => {
+      button.textContent = original;
+      button.classList.remove("copied");
+    }, 1400);
+  } catch (_error) {
+    window.prompt("Copia el link " + label + ":", url);
+  }
+}
+
+async function deleteDeck(deck) {
+  const title = niceTitle(deck.title || deck.deckId || "esta presentación");
+  const confirmed = window.confirm('¿Eliminar "' + title + '"?\n\nEsta acción no se puede deshacer.');
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch("/api/decks/" + encodeURIComponent(deck.deckId), { method: "DELETE" });
+    if (!res.ok) {
+      let message = "No se pudo eliminar la presentación.";
+      try {
+        const data = await res.json();
+        message = data.error || data.message || message;
+      } catch (_error) {}
+      throw new Error(message);
+    }
+
+    decks = decks.filter((item) => item.deckId !== deck.deckId);
+    activeDeck = decks[0]?.deckId || "demo";
+    if (!decks.length) await loadDecks("demo");
+    else renderAll();
+    setUploadStatus("Presentación eliminada.", "success");
+  } catch (error) {
+    setUploadStatus("Error: " + error.message, "error");
+  }
 }
 
 function absoluteOrRoot(path) {
@@ -225,18 +268,29 @@ function renderDecks() {
     actions.className = "deck-actions";
 
     roles.forEach((role) => {
-      const link = document.createElement("a");
-      link.href = roleUrl(role, deck);
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = labels[role];
-      link.addEventListener("click", () => { activeDeck = deck.deckId; });
-      actions.appendChild(link);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = labels[role];
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        activeDeck = deck.deckId;
+        copyRoleLink(role, deck, event.currentTarget);
+      });
+      actions.appendChild(button);
     });
 
-    row.append(thumb, info, linkName, actions);
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "deck-delete";
+    deleteButton.textContent = "Eliminar";
+    deleteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteDeck(deck);
+    });
+
+    row.append(thumb, info, linkName, actions, deleteButton);
     row.addEventListener("click", (event) => {
-      if (event.target.closest("a")) return;
+      if (event.target.closest("button")) return;
       activeDeck = deck.deckId;
       renderDecks();
     });
@@ -294,7 +348,7 @@ function initRotator() {
 
   function updateWidth() {
     measure.textContent = rotatingTerms.reduce((longest, term) => term.length > longest.length ? term : longest, "");
-    const width = Math.ceil(measure.getBoundingClientRect().width);
+    const width = Math.ceil(measure.getBoundingClientRect().width) + 18;
     rotatingWord.parentElement.style.setProperty("--rotator-width", width + "px");
   }
 
