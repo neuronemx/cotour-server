@@ -9,7 +9,7 @@ const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
 const deckNotice = document.getElementById("deckNotice");
 const uploadForm = document.getElementById("uploadForm");
-const uploadButton = document.getElementById("uploadButton");
+const uploadButton = document.getElementById("uploadButton"); // Puede no existir: el flujo abre el modal al seleccionar archivo.
 const uploadStatus = document.getElementById("uploadStatus");
 const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
@@ -492,7 +492,7 @@ if (nameForm) {
     formData.append("sessionId", newSessionId);
     formData.append("deckId", newSessionId); // Compatibilidad temporal con el backend actual.
 
-    uploadButton.disabled = true;
+    if (uploadButton) uploadButton.disabled = true;
     closeNameModal(false);
     setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
 
@@ -511,7 +511,7 @@ if (nameForm) {
     } catch (error) {
       setUploadStatus("Error: " + error.message, "error");
     } finally {
-      uploadButton.disabled = false;
+      if (uploadButton) uploadButton.disabled = false;
     }
   });
 }
