@@ -7,6 +7,11 @@
 #slide { position: relative; z-index: 1; width: 100vw; height: 100vh; object-fit: contain; display: block; }
 .disconnect { position: fixed; top: 22px; right: 22px; padding: 10px 14px; border-radius: 999px; background: rgba(10,10,10,.62); color: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.14); font-size: 13px; backdrop-filter: blur(12px); }
 .hidden { display: none !important; }
+.fullscreen-toggle { position: fixed; z-index: 8; top: 18px; right: 18px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(8,10,14,.38); color: rgba(255,255,255,.78); font-size: 22px; line-height: 1; cursor: pointer; opacity: 0; transform: translateY(-4px); pointer-events: none; backdrop-filter: blur(16px); box-shadow: 0 18px 48px rgba(0,0,0,.28); transition: opacity .22s ease, transform .22s ease, background .22s ease, border-color .22s ease, color .22s ease, box-shadow .22s ease; }
+.screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.fullscreen-toggle:hover { background: rgba(104,216,204,.16); border-color: rgba(104,216,204,.48); color: #eafffb; box-shadow: 0 0 0 1px rgba(104,216,204,.18) inset, 0 20px 60px rgba(0,0,0,.34); }
+.fullscreen-toggle:active { transform: translateY(0) scale(.96); }
+.fullscreen-toggle.is-active { background: rgba(104,216,204,.2); border-color: rgba(104,216,204,.68); color: #68d8cc; box-shadow: 0 0 0 1px rgba(104,216,204,.24) inset, 0 0 34px rgba(104,216,204,.2); }
 .message { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(82vw, 980px); padding: 34px 42px; border-radius: 8px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.18); color: #f8f4ea; text-align: center; font-size: clamp(34px, 5vw, 72px); font-weight: 800; line-height: 1.08; backdrop-filter: blur(14px); box-shadow: 0 22px 90px rgba(0,0,0,.5); }
 .qr { position: fixed; z-index: 3; right: 32px; bottom: 32px; width: 220px; padding: 14px; display: grid; gap: 10px; border-radius: 8px; background: rgba(248,244,234,.94); color: #111; box-shadow: 0 18px 70px rgba(0,0,0,.38); }
 .qr-pattern { width: 100%; aspect-ratio: 1; background: #fff; display: grid; place-items: center; overflow: hidden; }
@@ -16,3 +21,5 @@
 .reactions { pointer-events: none; position: fixed; z-index: 4; inset: 0; overflow: hidden; }
 .reaction { position: absolute; bottom: 42px; left: 50%; font-size: 54px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); animation: rise 3s ease-out forwards; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 0) scale(.8); } 12% { opacity: 1; } to { opacity: 0; transform: translate(calc(-50% + var(--x)), -62vh) scale(1.45); } }
+@media (pointer: coarse) { .fullscreen-toggle { opacity: .72; transform: translateY(0); pointer-events: auto; } .screen:not(.ui-visible) .fullscreen-toggle { opacity: .18; } }
+@media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(210px, 44vw); } }
