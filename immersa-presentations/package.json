@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "backup:decks": "node scripts/backup-decks.js",
+    "flush:test-decks": "node scripts/flush-test-decks.js"
   },
   "dependencies": {
     "express": "^4.19.2",
