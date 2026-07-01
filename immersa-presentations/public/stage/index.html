@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa Stage</title>
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v3">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v4">
 </head>
 <body>
   <main class="stage-shell">
@@ -21,7 +21,6 @@
       <div class="toolbar-status" aria-label="Estado de sesión">
         <span class="status-pill"><em>Público</em><strong id="audience">0</strong></span>
         <span class="status-pill"><em>Speaker</em><strong id="presenterStatus">Off</strong></span>
-        <span class="status-pill"><em>Slide</em><strong><b id="current">1</b>/<b id="total">3</b></strong></span>
       </div>
 
       <div class="toolbar-actions" aria-label="Controles de pantalla">
@@ -42,9 +41,15 @@
     <section class="screen-stage" aria-label="Slide en vivo">
       <div class="screen-frame">
         <img id="slide" alt="Slide en vivo">
+        <div id="stageLiveText" class="live-text-overlay" hidden></div>
 
-        <button id="prevSlide" class="slide-arrow slide-arrow-prev" type="button" aria-label="Slide anterior">‹</button>
-        <button id="nextSlide" class="slide-arrow slide-arrow-next" type="button" aria-label="Siguiente slide">›</button>
+        <section class="main-controls" aria-label="Controles principales">
+          <button id="prevSlide" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
+          <div class="slide-status" aria-label="Lámina actual">
+            <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
+          </div>
+          <button id="nextSlide" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
+        </section>
       </div>
     </section>
   </main>
@@ -70,6 +75,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/stage/stage.js?v=stage-v3"></script>
+  <script src="/stage/stage.js?v=stage-v4"></script>
 </body>
 </html>

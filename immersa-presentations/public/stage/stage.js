@@ -26,6 +26,7 @@ const textModal = document.getElementById("textModal");
 const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
 const displayLinkButton = document.getElementById("displayLinkButton");
+const stageLiveText = document.getElementById("stageLiveText");
 
 async function loadDeck() {
   const res = await fetch("/decks/" + deckId + "/manifest.json");
@@ -38,7 +39,7 @@ async function loadDeck() {
 }
 
 function publicUrl() {
-  return "https://show.immersa.mx/" + encodeURIComponent(sessionId);
+  return "https://immersa.mx/" + encodeURIComponent(sessionId);
 }
 
 function normalizeOverlayState(next = {}) {
@@ -62,6 +63,14 @@ function setToggles() {
   qrToggle.checked = Boolean(overlays.showAudienceQr);
   liveTextButton.classList.toggle("is-live", overlays.messageVisible);
   liveTextButton.textContent = overlays.messageVisible ? "Apagar texto" : "Texto en vivo";
+  renderLiveTextOverlay();
+}
+
+function renderLiveTextOverlay() {
+  if (!stageLiveText) return;
+  const visible = Boolean(overlays.messageVisible && overlays.messageText);
+  stageLiveText.hidden = !visible;
+  stageLiveText.textContent = visible ? overlays.messageText : "";
 }
 
 function clampSlideIndex(index) {
