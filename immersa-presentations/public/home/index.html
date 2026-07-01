@@ -60,17 +60,6 @@
             <small id="selectedFileName">Ningún archivo seleccionado</small>
           </label>
 
-          <div class="upload-meta">
-            <label class="field compact">
-              <span>Título</span>
-              <input id="uploadTitle" name="title" autocomplete="off" placeholder="Nombre de la presentación">
-            </label>
-            <label class="field compact">
-              <span>Nombre link <small>(opcional)</small></span>
-              <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="ventas">
-            </label>
-          </div>
-
           <button id="uploadButton" class="primary-action" type="submit">Crear presentación</button>
           <div class="create-secondary" aria-label="Abrir presentación existente">
             <span>¿Ya tienes una presentación guardada?</span>
@@ -93,6 +82,24 @@
       <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
     </section>
   </main>
+
+  <div id="nameModal" class="modal-backdrop" hidden aria-hidden="true">
+    <section class="name-modal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+      <form id="nameForm" class="name-form">
+        <div class="modal-icon" aria-hidden="true">✦</div>
+        <h2 id="nameModalTitle">Nombra tu presentación</h2>
+        <p>¿Cómo quieres identificar esta presentación en Immersa?</p>
+        <label class="field modal-field">
+          <span>Nombre de la presentación</span>
+          <input id="presentationName" name="presentationName" autocomplete="off" placeholder="Presentación para evento de ventas" required>
+        </label>
+        <div class="modal-actions">
+          <button id="cancelName" class="secondary-action" type="button">Cancelar</button>
+          <button id="confirmName" class="primary-action" type="submit">Crear presentación</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <script src="/home/home.js"></script>
 </body>

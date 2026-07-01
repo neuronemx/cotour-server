@@ -15,6 +15,11 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const rotatingWord = document.getElementById("rotatingWord");
+const nameModal = document.getElementById("nameModal");
+const nameForm = document.getElementById("nameForm");
+const presentationName = document.getElementById("presentationName");
+const cancelName = document.getElementById("cancelName");
+let pendingFile = null;
 
 function normalizeSlug(value) {
   return String(value || "")
@@ -26,6 +31,49 @@ function normalizeSlug(value) {
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function sessionId() {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  let value = "";
+  const cryptoObj = window.crypto || window.msCrypto;
+  if (cryptoObj?.getRandomValues) {
+    const bytes = new Uint8Array(8);
+    cryptoObj.getRandomValues(bytes);
+    bytes.forEach((byte) => value += alphabet[byte % alphabet.length]);
+  } else {
+    for (let i = 0; i < 8; i += 1) value += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return value;
+}
+
+function titleFromFile(file) {
+  return String(file?.name || "")
+    .replace(/\.(pptx|pdf)$/i, "")
+    .replace(/[-_]+/g, " ")
+    .trim();
+}
+
+function openNameModal(file) {
+  if (!nameModal || !presentationName) return;
+  pendingFile = file || fileInput.files[0] || null;
+  presentationName.value = titleFromFile(pendingFile);
+  nameModal.hidden = false;
+  nameModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => presentationName.focus(), 20);
+}
+
+function closeNameModal(clearFile = false) {
+  if (!nameModal) return;
+  nameModal.hidden = true;
+  nameModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  if (clearFile) {
+    pendingFile = null;
+    uploadForm.reset();
+    updateSelectedFileName(false);
+  }
 }
 
 function deckSession(deck) {
@@ -336,9 +384,10 @@ function setUploadStatus(message, type = "") {
   uploadStatus.className = "upload-status" + (type ? " " + type : "");
 }
 
-function updateSelectedFileName() {
+function updateSelectedFileName(askName = false) {
   const file = fileInput.files[0];
   selectedFileName.textContent = file ? file.name : "Ningún archivo seleccionado";
+  if (askName && file) openNameModal(file);
 }
 
 function initRotator() {
@@ -367,7 +416,7 @@ function initRotator() {
   }, 2200);
 }
 
-fileInput.addEventListener("change", updateSelectedFileName);
+fileInput.addEventListener("change", () => updateSelectedFileName(true));
 
 ["dragenter", "dragover"].forEach((eventName) => {
   fileDrop.addEventListener(eventName, (event) => {
@@ -389,7 +438,7 @@ fileDrop.addEventListener("drop", (event) => {
   const transfer = new DataTransfer();
   transfer.items.add(file);
   fileInput.files = transfer.files;
-  updateSelectedFileName();
+  updateSelectedFileName(true);
 });
 
 fileDrop.addEventListener("keydown", (event) => {
@@ -399,38 +448,73 @@ fileDrop.addEventListener("keydown", (event) => {
   }
 });
 
-uploadForm.addEventListener("submit", async (event) => {
+uploadForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const file = fileInput.files[0];
   if (!file) return setUploadStatus("Arrastra o selecciona un archivo para crear la presentación.", "error");
-
-  const lowerName = file.name.toLowerCase();
-  const isPdf = lowerName.endsWith(".pdf");
-  const isPptx = lowerName.endsWith(".pptx");
-  if (!isPdf && !isPptx) return setUploadStatus("Error: solo se aceptan archivos PPTX o PDF.", "error");
-
-  const sourceLabel = isPdf ? "PDF" : "PPTX";
-  const formData = new FormData(uploadForm);
-  uploadButton.disabled = true;
-  setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
-
-  try {
-    const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "No se pudo subir el archivo");
-
-    uploadForm.reset();
-    updateSelectedFileName();
-    if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
-    else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
-    else setUploadStatus(sourceLabel + " cargado. Convirtiendo presentación...", "loading");
-    await loadDecks(data.deckId);
-  } catch (error) {
-    setUploadStatus("Error: " + error.message, "error");
-  } finally {
-    uploadButton.disabled = false;
-  }
+  openNameModal(file);
 });
+
+if (cancelName) {
+  cancelName.addEventListener("click", () => closeNameModal(true));
+}
+
+if (nameModal) {
+  nameModal.addEventListener("click", (event) => {
+    if (event.target === nameModal) closeNameModal(false);
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && nameModal && !nameModal.hidden) closeNameModal(false);
+});
+
+if (nameForm) {
+  nameForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const file = pendingFile || fileInput.files[0];
+    if (!file) {
+      closeNameModal(true);
+      return setUploadStatus("Arrastra o selecciona un archivo para crear la presentación.", "error");
+    }
+
+    const lowerName = file.name.toLowerCase();
+    const isPdf = lowerName.endsWith(".pdf");
+    const isPptx = lowerName.endsWith(".pptx");
+    if (!isPdf && !isPptx) return setUploadStatus("Error: solo se aceptan archivos PPTX o PDF.", "error");
+
+    const title = presentationName.value.trim() || titleFromFile(file) || "Nueva presentación";
+    const newSessionId = sessionId();
+    const sourceLabel = isPdf ? "PDF" : "PPTX";
+    const formData = new FormData();
+    formData.append("pptx", file);
+    formData.append("title", title);
+    formData.append("sessionId", newSessionId);
+    formData.append("deckId", newSessionId); // Compatibilidad temporal con el backend actual.
+
+    uploadButton.disabled = true;
+    closeNameModal(false);
+    setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
+
+    try {
+      const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo subir el archivo");
+
+      uploadForm.reset();
+      pendingFile = null;
+      updateSelectedFileName(false);
+      if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
+      else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
+      else setUploadStatus(sourceLabel + " cargado. Convirtiendo presentación...", "loading");
+      await loadDecks(data.deckId || newSessionId);
+    } catch (error) {
+      setUploadStatus("Error: " + error.message, "error");
+    } finally {
+      uploadButton.disabled = false;
+    }
+  });
+}
 
 initRotator();
 loadDecks("demo");
