@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa Stage</title>
-  <link rel="stylesheet" href="/stage/stage.css?v=20">
+  <link rel="stylesheet" href="/stage/stage.css">
 </head>
 <body>
   <main class="stage">
@@ -23,7 +23,7 @@
 
     <section class="stats" aria-label="Estado">
       <div><span>Audiencia</span><strong id="audience">0</strong></div>
-      <div><span>Speaker</span><strong id="presenterStatus">Desconectado</strong></div>
+      <div><span>Presenter</span><strong id="presenterStatus">Desconectado</strong></div>
       <div><span>Lámina</span><strong><b id="current">1</b>/<b id="total">3</b></strong></div>
       <div><span>Stream</span><strong id="streamStatus">Activo</strong></div>
       <div><span>Reacciones</span><strong id="reactionsStatus">On</strong></div>
@@ -39,26 +39,6 @@
     </section>
 
     <section class="controls" aria-label="Controles de pantalla">
-      <section class="slide-controls" aria-label="Control de slides">
-        <div class="slide-control-head">
-          <span>Control de slides</span>
-          <strong id="controlStatus">Stage listo</strong>
-        </div>
-        <div class="slide-control-main">
-          <button id="prevSlide" class="nav-action" type="button">← Anterior</button>
-          <div class="slide-control-counter">
-            <span>Lámina</span>
-            <strong><b id="currentControl">1</b>/<b id="totalControl">3</b></strong>
-          </div>
-          <button id="nextSlide" class="nav-action" type="button">Siguiente →</button>
-        </div>
-        <form id="jumpForm" class="jump-form">
-          <label for="jumpInput">Ir a lámina</label>
-          <input id="jumpInput" type="number" min="1" value="1" inputmode="numeric">
-          <button class="soft-action" type="submit">Ir</button>
-        </form>
-      </section>
-
       <form id="messageForm" class="message-form">
         <label for="messageInput">Mensaje en pantalla</label>
         <div class="message-row">
@@ -70,12 +50,12 @@
 
       <div class="switches">
         <label class="switch"><input id="reactionsToggle" type="checkbox" checked><span></span><em>Reacciones</em></label>
-        <label class="switch"><input id="qrToggle" type="checkbox"><span></span><em>QR Público</em></label>
+        <label class="switch"><input id="qrToggle" type="checkbox"><span></span><em>QR Audience</em></label>
         <button id="clearScreen" class="clear-action" type="button">Limpiar Screen</button>
       </div>
     </section>
   </main>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/stage/stage.js?v=20"></script>
+  <script src="/stage/stage.js"></script>
 </body>
 </html>
