@@ -16,7 +16,6 @@
       <nav class="main-nav" aria-label="Secciones">
         <a class="active" href="#inicio" aria-current="page"><span aria-hidden="true">⌂</span>Inicio</a>
         <a href="#presentaciones"><span aria-hidden="true">▱</span>Presentaciones</a>
-        <a href="#sesion"><span aria-hidden="true">◌</span>Sesiones</a>
       </nav>
 
       <div class="topbar-actions" aria-label="Cuenta">
@@ -35,7 +34,7 @@
           <span class="rotator-wrap"><span id="rotatingWord" class="rotating-word">presentaciones</span></span><br>
           <span class="gradient-text">se vivan.</span>
         </h1>
-        <p class="hero-subtitle">Crea, abre y gestiona experiencias sincronizadas que suceden frente a todos y en las manos de cada persona.</p>
+        <p class="hero-subtitle">Crea y administra experiencias sincronizadas para presentar frente a todos y en las manos de cada persona.</p>
         <p class="hero-line">Toda tu audiencia en primera fila.</p>
       </div>
 
@@ -82,68 +81,19 @@
       </section>
     </section>
 
-    <section class="dashboard-grid">
-      <section id="presentaciones" class="presentations-panel" aria-label="Mis presentaciones">
-        <div class="section-header">
-          <div>
-            <h2>Mis presentaciones</h2>
-            <p>Tus experiencias listas para presentar, compartir o producir.</p>
-          </div>
-          <a href="#presentaciones" class="view-all"><span id="deckCount">Cargando</span> ›</a>
-        </div>
-        <div id="deckList" class="deck-list"></div>
-        <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
-      </section>
-
-      <aside class="join-panel" aria-label="Entrada de audiencia">
-        <div class="section-header simple">
-          <h2>Entrada de audiencia</h2>
-        </div>
-        <div class="join-card">
-          <span class="join-icon" aria-hidden="true">◎</span>
-          <p>Tu audiencia puede entrar sin QR.</p>
-          <strong id="audienceCodeDisplay">demo01</strong>
-          <small>Di: “Entren a immersa.mx e ingresen este código”.</small>
-          <div class="join-actions">
-            <button id="copyJoinInstruction" type="button">Copiar instrucción</button>
-            <button id="copyAudienceCode" type="button">Copiar código</button>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section id="sesion" class="session-strip" aria-label="Sesión activa">
-      <div class="session-copy">
-        <span class="spark" aria-hidden="true">✦</span>
+    <section id="presentaciones" class="presentations-panel presentations-list-panel" aria-label="Mis presentaciones">
+      <div class="section-header">
         <div>
-          <h2>Sesión activa</h2>
-          <p>Un mismo código abre la presentación, la pantalla, la audiencia y Stage.</p>
+          <h2>Mis presentaciones</h2>
+          <p>Tus experiencias listas para presentar, abrir en pantalla, compartir con audiencia o controlar desde Stage.</p>
         </div>
+        <a href="#presentaciones" class="view-all"><span id="deckCount">Cargando</span> ›</a>
       </div>
-
-      <label class="field session-field">
-        <span>Código de sesión</span>
-        <input id="sessionInput" autocomplete="off" spellcheck="false" placeholder="demo01">
-      </label>
-
-      <div class="session-actions">
-        <button id="generateSession" type="button">Generar</button>
-        <span id="normalizedHint">demo01</span>
-      </div>
-
-      <div id="linksList" class="quick-links" aria-label="Accesos de operación"></div>
-
-      <section class="audience-card" aria-label="QR Audiencia">
-        <div id="qrCode" class="qr-code"></div>
-        <div>
-          <p>Audiencia</p>
-          <button id="copyAudience" type="button">Copiar link</button>
-        </div>
-      </section>
+      <div id="deckList" class="deck-list deck-list-rows"></div>
+      <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
     </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/home/home.js"></script>
 </body>
 </html>

@@ -640,93 +640,148 @@ button:disabled { cursor: wait; opacity: .68; }
   .hero-title { font-size: clamp(40px, 8vw, 70px); }
 }
 
-/* v7: show.immersa.mx is the app Home; audience code replaces decorative activity. */
+/* v7 revised: show.immersa.mx remains purely operational; audience code entry belongs on immersa.mx landing. */
+.dashboard-grid {
+  grid-template-columns: 1fr;
+}
 .topbar-actions {
   justify-content: end;
 }
-.dashboard-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-}
-.join-panel {
-  min-width: 0;
-  padding: 22px;
+
+/* v8: Home operativo sin sesión activa y con Mis presentaciones en lista horizontal */
+.dashboard-grid { display: block; }
+.presentations-list-panel {
+  padding: 24px;
   border: 1px solid var(--line);
   border-radius: 28px;
-  background: var(--panel);
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(24px);
   box-shadow: var(--soft-shadow);
-  backdrop-filter: blur(18px);
 }
-.join-card {
+.deck-list-rows {
   display: grid;
-  justify-items: start;
-  gap: 13px;
-  margin-top: 14px;
-  padding: 20px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(255,255,255,.82), rgba(246,250,255,.74));
-  border: 1px solid rgba(82,109,255,.12);
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
-.join-icon {
-  width: 48px;
-  height: 48px;
+.deck-list-rows .deck-row {
+  min-height: 106px;
   display: grid;
-  place-items: center;
-  border-radius: 15px;
-  color: #058d99;
-  background: rgba(32,212,222,.12);
-  font-size: 21px;
-}
-.join-card p {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 15px;
-  line-height: 1.35;
-  font-weight: 400;
-}
-.join-card strong {
-  display: block;
-  width: 100%;
-  padding: 14px 16px;
+  grid-template-columns: 152px minmax(220px, 1fr) minmax(120px, 170px) minmax(360px, auto);
+  grid-template-rows: auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px 12px 12px;
   border-radius: 18px;
-  color: #10142f;
-  background: #fff;
-  border: 1px solid rgba(82,109,255,.14);
-  font-size: clamp(30px, 3vw, 42px);
-  line-height: 1;
-  letter-spacing: .06em;
-  font-weight: 650;
-  text-align: center;
-  text-transform: lowercase;
+  box-shadow: 0 10px 26px rgba(31,38,89,.055);
 }
-.join-card small {
+.deck-list-rows .deck-thumb {
+  grid-row: auto;
+  width: 152px;
+  min-height: 86px;
+  aspect-ratio: 16 / 9;
+  padding: 10px;
+  border-radius: 12px;
+}
+.deck-list-rows .thumb-fallback {
+  max-width: 16ch;
+  font-size: 12px;
+}
+.deck-info {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.deck-title-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.deck-title-line strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0d1231;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+.deck-meta-line {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
   font-weight: 400;
 }
-.join-actions {
-  width: 100%;
+.deck-link-name {
+  min-width: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 9px;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 400;
 }
-.join-actions button {
-  min-height: 40px;
-  border-radius: 13px;
-  color: var(--blue);
-  background: rgba(82,109,255,.08);
-  border: 1px solid rgba(82,109,255,.1);
-  font-size: 13px;
+.deck-link-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #10142f;
+  font-size: 16px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.deck-list-rows .deck-actions {
+  grid-column: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.deck-list-rows .deck-actions a {
+  min-height: 36px;
+  min-width: 76px;
+  padding: 0 11px;
+  border-radius: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
-.join-actions button:first-child {
-  color: #fff;
-  background: linear-gradient(135deg, var(--purple), var(--blue), var(--cyan));
-  border-color: transparent;
+.deck-list-rows .deck-badge {
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 500;
 }
-@media (max-width: 1320px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
+.main-nav a[href="#sesion"] { display: none; }
+.session-strip { display: none !important; }
+
+@media (max-width: 1180px) {
+  .deck-list-rows .deck-row {
+    grid-template-columns: 140px minmax(220px, 1fr) minmax(300px, auto);
+  }
+  .deck-link-name { display: none; }
+}
+@media (max-width: 900px) {
+  .deck-list-rows .deck-row {
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .deck-list-rows .deck-thumb { width: 132px; min-height: 74px; }
+  .deck-list-rows .deck-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 @media (max-width: 620px) {
-  .join-actions { grid-template-columns: 1fr; }
+  .presentations-list-panel { padding: 18px; border-radius: 24px; }
+  .deck-list-rows .deck-row { grid-template-columns: 1fr; }
+  .deck-list-rows .deck-thumb { width: 100%; min-height: auto; }
+  .deck-list-rows .deck-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
