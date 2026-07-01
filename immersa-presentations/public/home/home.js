@@ -19,7 +19,9 @@ const uploadStatus = document.getElementById("uploadStatus");
 const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
-const activityDeckName = document.getElementById("activityDeckName");
+const audienceCodeDisplay = document.getElementById("audienceCodeDisplay");
+const copyAudienceCode = document.getElementById("copyAudienceCode");
+const copyJoinInstruction = document.getElementById("copyJoinInstruction");
 const rotatingWord = document.getElementById("rotatingWord");
 
 function normalizeSession(value) {
@@ -35,8 +37,10 @@ function normalizeSession(value) {
 }
 
 function generateSessionCode() {
-  const prefixes = ["demo", "evento", "immersa", "show"];
-  return prefixes[Math.floor(Math.random() * prefixes.length)] + "-" + Math.floor(1000 + Math.random() * 9000);
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return code;
 }
 
 function currentSession() {
@@ -263,7 +267,6 @@ function renderDecks() {
   });
 
   const deck = activeDeckMeta();
-  if (activityDeckName && deck) activityDeckName.textContent = niceTitle(deck.title || deck.deckId || "Immersa Demo");
   deckNotice.hidden = !(isPendingDeck(deck) || isFailedDeck(deck));
   if (isFailedDeck(deck)) deckNotice.textContent = deck.conversionMessage || "La conversión falló. Verás una pantalla provisional.";
   else deckNotice.textContent = "Esta presentación aún no ha sido convertida. Verás una pantalla provisional.";
@@ -322,6 +325,7 @@ async function copyText(text, button) {
 function renderLinks() {
   const session = currentSession();
   normalizedHint.textContent = session;
+  if (audienceCodeDisplay) audienceCodeDisplay.textContent = session;
   linksList.innerHTML = "";
 
   roles.forEach((role) => {
@@ -408,6 +412,12 @@ document.getElementById("generateSession").addEventListener("click", () => {
 sessionInput.addEventListener("input", renderLinks);
 sessionInput.addEventListener("blur", renderAll);
 copyAudience.addEventListener("click", (event) => copyText(roleUrl("audience"), event.currentTarget));
+if (copyAudienceCode) copyAudienceCode.addEventListener("click", (event) => copyText(currentSession(), event.currentTarget));
+if (copyJoinInstruction) {
+  copyJoinInstruction.addEventListener("click", (event) => {
+    copyText("Entren a immersa.mx e ingresen el código: " + currentSession(), event.currentTarget);
+  });
+}
 fileInput.addEventListener("change", updateSelectedFileName);
 
 ["dragenter", "dragover"].forEach((eventName) => {

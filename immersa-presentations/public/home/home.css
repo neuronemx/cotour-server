@@ -612,3 +612,121 @@ button:disabled { cursor: wait; opacity: .68; }
     min-height: auto;
   }
 }
+
+
+/* v6: copy/overflow and compact action refinements */
+.hero-copy, .create-panel { min-width: 0; }
+.hero-title { max-width: 100%; overflow-wrap: normal; }
+.rotator-wrap { min-width: 0; max-width: 100%; }
+.hero-subtitle { max-width: min(520px, 100%); }
+.field span small { color: var(--muted-2); font-size: .95em; font-weight: 400; }
+#uploadDeckId::placeholder { color: #8a92ab; }
+.deck-actions { gap: 6px; }
+.deck-actions a {
+  min-height: 34px;
+  padding: 0 7px;
+  border-radius: 11px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+.quick-links a { font-size: 12px; }
+@media (min-width: 1321px) {
+  .hero-band { grid-template-columns: minmax(0, .66fr) minmax(580px, 1fr); }
+  .hero-copy { padding-right: 8px; }
+}
+@media (max-width: 1100px) {
+  .hero-title { font-size: clamp(40px, 8vw, 70px); }
+}
+
+/* v7: show.immersa.mx is the app Home; audience code replaces decorative activity. */
+.topbar-actions {
+  justify-content: end;
+}
+.dashboard-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+}
+.join-panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--soft-shadow);
+  backdrop-filter: blur(18px);
+}
+.join-card {
+  display: grid;
+  justify-items: start;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 20px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255,255,255,.82), rgba(246,250,255,.74));
+  border: 1px solid rgba(82,109,255,.12);
+}
+.join-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #058d99;
+  background: rgba(32,212,222,.12);
+  font-size: 21px;
+}
+.join-card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+.join-card strong {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  color: #10142f;
+  background: #fff;
+  border: 1px solid rgba(82,109,255,.14);
+  font-size: clamp(30px, 3vw, 42px);
+  line-height: 1;
+  letter-spacing: .06em;
+  font-weight: 650;
+  text-align: center;
+  text-transform: lowercase;
+}
+.join-card small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+.join-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.join-actions button {
+  min-height: 40px;
+  border-radius: 13px;
+  color: var(--blue);
+  background: rgba(82,109,255,.08);
+  border: 1px solid rgba(82,109,255,.1);
+  font-size: 13px;
+  font-weight: 500;
+}
+.join-actions button:first-child {
+  color: #fff;
+  background: linear-gradient(135deg, var(--purple), var(--blue), var(--cyan));
+  border-color: transparent;
+}
+@media (max-width: 1320px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .join-actions { grid-template-columns: 1fr; }
+}

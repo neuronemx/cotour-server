@@ -19,10 +19,7 @@
         <a href="#sesion"><span aria-hidden="true">◌</span>Sesiones</a>
       </nav>
 
-      <div class="topbar-actions" aria-label="Accesos de cuenta">
-        <a href="#precios" class="text-link">Precios</a>
-        <a href="#login" class="text-link">Login</a>
-        <a href="#registro" class="register-link">Registro</a>
+      <div class="topbar-actions" aria-label="Cuenta">
         <div class="admin-pill" aria-label="Perfil de administrador">
           <span class="live-dot" aria-hidden="true"></span>
           <span>Administrador</span>
@@ -34,7 +31,8 @@
       <div class="hero-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
         <h1 class="hero-title">
-          Haz que tus <span class="rotator-wrap"><span id="rotatingWord" class="rotating-word">presentaciones</span></span><br>
+          Haz que tus<br>
+          <span class="rotator-wrap"><span id="rotatingWord" class="rotating-word">presentaciones</span></span><br>
           <span class="gradient-text">se vivan.</span>
         </h1>
         <p class="hero-subtitle">Crea, abre y gestiona experiencias sincronizadas que suceden frente a todos y en las manos de cada persona.</p>
@@ -69,8 +67,8 @@
               <input id="uploadTitle" name="title" autocomplete="off" placeholder="Nombre de la presentación">
             </label>
             <label class="field compact">
-              <span>Código opcional</span>
-              <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="mi-presentacion">
+              <span>Nombre link <small>(opcional)</small></span>
+              <input id="uploadDeckId" name="deckId" autocomplete="off" spellcheck="false" placeholder="ventas">
             </label>
           </div>
 
@@ -97,43 +95,19 @@
         <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
       </section>
 
-      <aside class="activity-panel" aria-label="Actividad reciente">
+      <aside class="join-panel" aria-label="Entrada de audiencia">
         <div class="section-header simple">
-          <h2>Actividad reciente</h2>
+          <h2>Entrada de audiencia</h2>
         </div>
-        <div class="activity-list">
-          <article>
-            <span class="activity-icon live" aria-hidden="true">◌</span>
-            <div>
-              <strong>Sesión lista</strong>
-              <small><span id="activityDeckName">Immersa Demo</span></small>
-            </div>
-            <time>Ahora</time>
-          </article>
-          <article>
-            <span class="activity-icon upload" aria-hidden="true">↑</span>
-            <div>
-              <strong>Archivo actualizado</strong>
-              <small>Última presentación</small>
-            </div>
-            <time>Hoy</time>
-          </article>
-          <article>
-            <span class="activity-icon audience" aria-hidden="true">◎</span>
-            <div>
-              <strong>Audiencia preparada</strong>
-              <small>QR y links activos</small>
-            </div>
-            <time>Hoy</time>
-          </article>
-          <article>
-            <span class="activity-icon stage" aria-hidden="true">▣</span>
-            <div>
-              <strong>Stage disponible</strong>
-              <small>Consola Stage</small>
-            </div>
-            <time>Hoy</time>
-          </article>
+        <div class="join-card">
+          <span class="join-icon" aria-hidden="true">◎</span>
+          <p>Tu audiencia puede entrar sin QR.</p>
+          <strong id="audienceCodeDisplay">demo01</strong>
+          <small>Di: “Entren a immersa.mx e ingresen este código”.</small>
+          <div class="join-actions">
+            <button id="copyJoinInstruction" type="button">Copiar instrucción</button>
+            <button id="copyAudienceCode" type="button">Copiar código</button>
+          </div>
         </div>
       </aside>
     </section>
@@ -143,7 +117,7 @@
         <span class="spark" aria-hidden="true">✦</span>
         <div>
           <h2>Sesión activa</h2>
-          <p>Define el código y abre Presentar, Pantalla, Audiencia o Stage para la presentación seleccionada.</p>
+          <p>Un mismo código abre la presentación, la pantalla, la audiencia y Stage.</p>
         </div>
       </div>
 
