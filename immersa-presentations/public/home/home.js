@@ -1,11 +1,12 @@
 const roles = ["presenter", "screen", "audience", "stage"];
-const labels = { presenter: "Presenter", screen: "Screen", audience: "Audience", stage: "Stage" };
+const labels = { presenter: "Presentar", screen: "Pantalla", audience: "Audiencia", stage: "Producción" };
+const rotatingTerms = ["presentaciones", "lanzamientos", "visiones", "ideas", "historias"];
+let rotatingIndex = 0;
 let decks = [];
 let activeDeck = "demo";
 
 const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
-const deckCountHero = document.getElementById("deckCountHero");
 const deckNotice = document.getElementById("deckNotice");
 const sessionInput = document.getElementById("sessionInput");
 const normalizedHint = document.getElementById("normalizedHint");
@@ -19,6 +20,7 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const activityDeckName = document.getElementById("activityDeckName");
+const rotatingWord = document.getElementById("rotatingWord");
 
 function normalizeSession(value) {
   return value
@@ -75,56 +77,114 @@ function deckBadgeClass(deck) {
 
 function deckSlideLabel(deck) {
   if (isPendingDeck(deck) || isFailedDeck(deck)) return "pendiente";
-  return deck.slideCount ?? deck.slides ?? 0;
+  return deck.slideCount ?? deck.slidesCount ?? (Array.isArray(deck.slides) ? deck.slides.length : deck.slides) ?? 0;
 }
 
 function roleUrl(role, deckId = activeDeck) {
   return window.location.origin + "/" + role + "?session=" + encodeURIComponent(currentSession()) + "&deck=" + encodeURIComponent(deckId);
 }
 
-function firstSlideThumbnail(deck) {
-  const direct = deck.thumbnail || deck.thumbnailUrl || deck.cover || deck.coverUrl || deck.firstSlide || deck.firstSlideUrl || deck.slide1 || deck.slide1Url;
-  if (direct) return direct;
-  if (Array.isArray(deck.slideImages) && deck.slideImages[0]) return deck.slideImages[0];
-  if (Array.isArray(deck.slides) && typeof deck.slides[0] === "string") return deck.slides[0];
-  if (deck.deckId && deck.deckId !== "demo") return "/decks/" + encodeURIComponent(deck.deckId) + "/slide-1.png";
-  return "";
+function absoluteOrRoot(path) {
+  if (!path || typeof path !== "string") return "";
+  if (/^(https?:)?\/\//.test(path) || path.startsWith("data:")) return path;
+  return path.startsWith("/") ? path : "/" + path;
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function firstSlideThumbnailCandidates(deck) {
+  const direct = [
+    deck.thumbnail,
+    deck.thumbnailUrl,
+    deck.cover,
+    deck.coverUrl,
+    deck.firstSlide,
+    deck.firstSlideUrl,
+    deck.slide1,
+    deck.slide1Url,
+    deck.thumbnailPath,
+    deck.coverPath
+  ];
+
+  if (Array.isArray(deck.slideImages) && deck.slideImages[0]) direct.push(deck.slideImages[0]);
+  if (Array.isArray(deck.slides) && deck.slides[0]) {
+    if (typeof deck.slides[0] === "string") direct.push(deck.slides[0]);
+    else direct.push(
+      deck.slides[0].thumbnail,
+      deck.slides[0].thumbnailUrl,
+      deck.slides[0].image,
+      deck.slides[0].imageUrl,
+      deck.slides[0].url,
+      deck.slides[0].path
+    );
+  }
+
+  const id = deck.deckId ? encodeURIComponent(deck.deckId) : "";
+  const derived = id ? [
+    `/decks/${id}/slide-1.png`,
+    `/decks/${id}/slide-1.jpg`,
+    `/decks/${id}/slide1.png`,
+    `/decks/${id}/slide1.jpg`,
+    `/decks/${id}/slides/slide-1.png`,
+    `/decks/${id}/slides/slide-1.jpg`,
+    `/decks/${id}/slides/slide-001.png`,
+    `/decks/${id}/slides/slide-001.jpg`,
+    `/decks/${id}/slides/1.png`,
+    `/decks/${id}/slides/1.jpg`,
+    `/uploads/decks/${id}/slide-1.png`,
+    `/uploads/decks/${id}/slides/slide-1.png`,
+    `/api/decks/${id}/thumbnail`,
+    `/api/decks/${id}/slide/1/thumbnail`
+  ] : [];
+
+  return unique([...direct.map(absoluteOrRoot), ...derived]);
 }
 
 function niceTitle(title = "Presentación") {
-  return title.replace(/[-_]+/g, " ").trim() || "Presentación";
+  return String(title).replace(/[-_]+/g, " ").trim() || "Presentación";
+}
+
+function attachImageWithFallback(img, thumb, candidates, index = 0) {
+  if (!candidates[index]) return;
+  img.src = candidates[index];
+  img.addEventListener("load", () => thumb.classList.add("has-image"), { once: true });
+  img.addEventListener("error", () => {
+    const nextIndex = index + 1;
+    if (candidates[nextIndex]) attachImageWithFallback(img, thumb, candidates, nextIndex);
+    else img.remove();
+  }, { once: true });
 }
 
 function renderThumb(deck) {
   const thumb = document.createElement("div");
   thumb.className = "deck-thumb";
 
-  const imgSrc = firstSlideThumbnail(deck);
-  if (imgSrc) {
+  const candidates = firstSlideThumbnailCandidates(deck);
+  if (candidates.length) {
     const img = document.createElement("img");
-    img.alt = "Thumbnail de " + niceTitle(deck.title);
-    img.src = imgSrc;
+    img.alt = "Slide 1 de " + niceTitle(deck.title || deck.deckId);
     img.loading = "lazy";
-    img.addEventListener("error", () => img.classList.add("is-hidden"));
     thumb.appendChild(img);
+    attachImageWithFallback(img, thumb, candidates);
   }
 
-  const title = document.createElement("span");
-  title.className = "thumb-title";
-  title.textContent = niceTitle(deck.title || deck.deckId || "Immersa").slice(0, 28);
+  const fallback = document.createElement("span");
+  fallback.className = "thumb-fallback";
+  fallback.textContent = "Slide 1 no disponible";
 
   const subtitle = document.createElement("span");
   subtitle.className = "thumb-subtitle";
-  subtitle.textContent = "Slide 1";
+  subtitle.textContent = "Thumbnail real";
 
-  thumb.append(title, subtitle);
+  thumb.append(fallback, subtitle);
   return thumb;
 }
 
 function renderDecks() {
   const countLabel = decks.length + " presentación" + (decks.length === 1 ? "" : "es");
   deckCount.textContent = countLabel;
-  if (deckCountHero) deckCountHero.textContent = decks.length;
   deckList.innerHTML = "";
 
   decks.slice(0, 3).forEach((deck) => {
@@ -220,10 +280,7 @@ function drawFallbackQr(text) {
       const finder = (row < 7 && col < 7) || (row < 7 && col > 21) || (row > 21 && col < 7);
       const finderInner = finder && (
         (row % 22 > 1 && row % 22 < 5 && col % 22 > 1 && col % 22 < 5) ||
-        row % 22 === 0 ||
-        row % 22 === 6 ||
-        col % 22 === 0 ||
-        col % 22 === 6
+        row % 22 === 0 || row % 22 === 6 || col % 22 === 0 || col % 22 === 6
       );
       const bit = ((seed >> ((row + col) % 24)) ^ row * 7 ^ col * 13 ^ (row * col)) & 1;
       if (finderInner || (!finder && bit)) cell.className = "dark";
@@ -318,6 +375,32 @@ function updateSelectedFileName() {
   selectedFileName.textContent = file ? file.name : "Ningún archivo seleccionado";
 }
 
+function initRotator() {
+  if (!rotatingWord) return;
+
+  const measure = document.createElement("span");
+  measure.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit;";
+  rotatingWord.parentElement.appendChild(measure);
+
+  function updateWidth() {
+    measure.textContent = rotatingTerms.reduce((longest, term) => term.length > longest.length ? term : longest, "");
+    const width = Math.ceil(measure.getBoundingClientRect().width);
+    rotatingWord.parentElement.style.setProperty("--rotator-width", width + "px");
+  }
+
+  updateWidth();
+  window.addEventListener("resize", updateWidth);
+
+  setInterval(() => {
+    rotatingWord.classList.add("is-changing");
+    window.setTimeout(() => {
+      rotatingIndex = (rotatingIndex + 1) % rotatingTerms.length;
+      rotatingWord.textContent = rotatingTerms[rotatingIndex];
+      rotatingWord.classList.remove("is-changing");
+    }, 220);
+  }, 2200);
+}
+
 document.getElementById("generateSession").addEventListener("click", () => {
   sessionInput.value = generateSessionCode();
   renderAll();
@@ -365,13 +448,12 @@ uploadForm.addEventListener("submit", async (event) => {
   const lowerName = file.name.toLowerCase();
   const isPdf = lowerName.endsWith(".pdf");
   const isPptx = lowerName.endsWith(".pptx");
-  const isImage = /\.(png|jpe?g|webp)$/.test(lowerName);
-  if (!isPdf && !isPptx && !isImage) return setUploadStatus("Error: se aceptan PPTX, PDF o imágenes.", "error");
+  if (!isPdf && !isPptx) return setUploadStatus("Error: solo se aceptan archivos PPTX o PDF.", "error");
 
-  const sourceLabel = isPdf ? "PDF" : isPptx ? "PPTX" : "Imagen";
+  const sourceLabel = isPdf ? "PDF" : "PPTX";
   const formData = new FormData(uploadForm);
   uploadButton.disabled = true;
-  setUploadStatus("Subiendo y preparando presentación...", "loading");
+  setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
 
   try {
     const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
@@ -382,7 +464,7 @@ uploadForm.addEventListener("submit", async (event) => {
     updateSelectedFileName();
     if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
     else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
-    else setUploadStatus(sourceLabel + " cargado. Preparando presentación...", "loading");
+    else setUploadStatus(sourceLabel + " cargado. Convirtiendo presentación...", "loading");
     await loadDecks(data.deckId);
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
@@ -392,4 +474,5 @@ uploadForm.addEventListener("submit", async (event) => {
 });
 
 sessionInput.value = "demo01";
+initRotator();
 loadDecks("demo");
