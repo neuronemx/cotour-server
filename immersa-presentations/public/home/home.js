@@ -71,7 +71,9 @@ function deckSlideLabel(deck) {
 }
 
 function roleUrl(role, deck) {
-  return window.location.origin + "/" + role + "?session=" + encodeURIComponent(deckSession(deck)) + "&deck=" + encodeURIComponent(deck.deckId || "demo");
+  // La sesión ya resuelve internamente qué deck debe abrir.
+  // El link público solo necesita ID de sesión + rol.
+  return window.location.origin + "/" + role + "?session=" + encodeURIComponent(deckSession(deck));
 }
 
 async function copyRoleLink(role, deck, button) {
@@ -262,7 +264,7 @@ function renderDecks() {
 
     const linkName = document.createElement("div");
     linkName.className = "deck-link-name";
-    linkName.innerHTML = `<span>Nombre link</span><strong>${deckSession(deck)}</strong>`;
+    linkName.innerHTML = `<span>ID sesión</span><strong>${deckSession(deck)}</strong>`;
 
     const actions = document.createElement("div");
     actions.className = "deck-actions";
@@ -348,7 +350,7 @@ function initRotator() {
 
   function updateWidth() {
     measure.textContent = rotatingTerms.reduce((longest, term) => term.length > longest.length ? term : longest, "");
-    const width = Math.ceil(measure.getBoundingClientRect().width) + 18;
+    const width = Math.ceil(measure.getBoundingClientRect().width) + 56;
     rotatingWord.parentElement.style.setProperty("--rotator-width", width + "px");
   }
 

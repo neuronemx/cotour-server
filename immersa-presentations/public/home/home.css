@@ -861,3 +861,24 @@ button:disabled { cursor: wait; opacity: .68; }
   .deck-list-rows .deck-row { grid-template-columns: 1fr; }
   .deck-delete { justify-self: stretch; width: 100%; }
 }
+
+
+/* v10: links simplificados por sesión + rol y corrección definitiva del carrete */
+.rotator-wrap {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: calc(var(--rotator-width, 13ch) + .75em) !important;
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  padding-right: .28em;
+  margin-right: -.28em;
+}
+.rotating-word {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  padding-right: .22em;
+  margin-right: -.22em;
+}
+.deck-link-name span { text-transform: none; }
