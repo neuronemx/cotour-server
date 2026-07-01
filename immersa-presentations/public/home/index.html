@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa</title>
-  <link rel="stylesheet" href="/home/home.css?v=14">
+  <link rel="stylesheet" href="/home/home.css?v=16">
 </head>
 <body>
   <main class="home-shell">
     <header class="topbar" aria-label="Navegación principal">
       <a class="brand" href="/home" aria-label="Immersa Home">
-        <img class="brand-logo" src="/home/Logo-Immersa.png" alt="Immersa" onerror="this.src='/home/M-Immersa2.png'; this.classList.add('mark-only')">
+        <img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png" alt="Immersa" onerror="this.src='/home/M-Immersa2.png'; this.classList.add('mark-only')">
+        <img class="brand-logo-mark" src="/home/M-Immersa2.png" alt="Immersa" aria-hidden="true">
       </a>
 
       <nav class="main-nav" aria-label="Secciones">
@@ -21,7 +22,7 @@
       <div class="topbar-actions" aria-label="Cuenta">
         <div class="admin-pill" aria-label="Perfil de administrador">
           <span class="live-dot" aria-hidden="true"></span>
-          <span>Administrador</span>
+          <span class="admin-label"><span class="admin-full">Administrador</span><span class="admin-short">Admin</span></span>
         </div>
       </div>
     </header>
@@ -100,6 +101,6 @@
     </section>
   </div>
 
-  <script src="/home/home.js?v=14"></script>
+  <script src="/home/home.js?v=16"></script>
 </body>
 </html>

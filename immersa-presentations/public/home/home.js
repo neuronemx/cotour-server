@@ -327,23 +327,13 @@ function renderDecks() {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         activeDeck = deck.deckId;
+        if (role === "presenter") {
+          window.open(roleUrl(role, deck), "_blank", "noopener");
+          return;
+        }
         copyRoleLink(role, deck, event.currentTarget);
       });
       roleAction.appendChild(button);
-
-      if (role === "presenter") {
-        const openLink = document.createElement("a");
-        openLink.className = "speaker-open";
-        openLink.href = roleUrl(role, deck);
-        openLink.target = "_blank";
-        openLink.rel = "noopener";
-        openLink.textContent = "Abrir";
-        openLink.addEventListener("click", (event) => {
-          event.stopPropagation();
-          activeDeck = deck.deckId;
-        });
-        roleAction.appendChild(openLink);
-      }
 
       actions.appendChild(roleAction);
     });

@@ -1499,3 +1499,158 @@ body.modal-open { overflow: hidden; }
   .role-action { min-height: 42px !important; }
   .deck-delete { width: 100% !important; justify-self: stretch !important; }
 }
+
+
+/* v15: nav móvil en una sola línea y Speaker abre directo */
+.role-action {
+  min-height: 34px !important;
+  align-content: center !important;
+}
+.role-action .speaker-open {
+  display: none !important;
+}
+.deck-list-rows .deck-actions {
+  align-items: center !important;
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 10px !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topbar::-webkit-scrollbar { display: none; }
+  .brand {
+    flex: 0 0 auto !important;
+  }
+  .brand-logo {
+    width: 102px !important;
+    max-width: none !important;
+  }
+  .main-nav,
+  .topbar-actions {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .main-nav a,
+  .admin-pill {
+    flex: 0 0 auto !important;
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    font-size: 12px !important;
+    border-radius: 11px !important;
+  }
+  .main-nav a span {
+    font-size: 14px !important;
+  }
+  .admin-pill {
+    gap: 7px !important;
+  }
+  .live-dot {
+    width: 7px !important;
+    height: 7px !important;
+  }
+  .role-action {
+    min-height: 34px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-logo { width: 94px !important; }
+  .main-nav a,
+  .admin-pill {
+    min-height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 11.5px !important;
+  }
+  .main-nav a span { font-size: 13px !important; }
+}
+
+
+/* v16: nav móvil con isologo y Admin compacto */
+.brand-logo-mark {
+  display: none;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.admin-short { display: none; }
+
+@media (max-width: 700px) {
+  .topbar {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+    padding: 9px 10px !important;
+    min-height: 52px !important;
+    border-radius: 18px !important;
+  }
+  .brand {
+    flex: 0 0 auto !important;
+    width: 36px !important;
+    min-width: 36px !important;
+  }
+  .brand-logo-full {
+    display: none !important;
+  }
+  .brand-logo-mark {
+    display: block !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .main-nav {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    overflow: visible !important;
+  }
+  .topbar-actions {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  .main-nav a,
+  .admin-pill {
+    min-height: 32px !important;
+    padding: 0 8px !important;
+    font-size: 12px !important;
+    border-radius: 11px !important;
+    gap: 6px !important;
+  }
+  .main-nav a span { font-size: 13px !important; }
+  .admin-full { display: none !important; }
+  .admin-short { display: inline !important; }
+  .admin-pill { padding: 0 9px !important; }
+}
+
+@media (max-width: 390px) {
+  .main-nav a,
+  .admin-pill {
+    padding: 0 7px !important;
+    font-size: 11.5px !important;
+    gap: 5px !important;
+  }
+  .main-nav a span { font-size: 12px !important; }
+}
