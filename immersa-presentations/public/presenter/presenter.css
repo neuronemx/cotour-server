@@ -305,10 +305,14 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: rgba(255,255,255,.82);
+  color: rgba(255,255,255,.86);
   font-size: 11px;
-  font-weight: 950;
-  text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.8);
+  font-weight: 650;
+  letter-spacing: .01em;
+  text-shadow:
+    0 2px 4px rgba(0,0,0,1),
+    0 0 10px rgba(0,0,0,.96),
+    0 0 2px rgba(0,0,0,1);
   backdrop-filter: none;
 }
 .thumb.active {
@@ -328,7 +332,11 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   color: #eafffb;
   background: transparent;
   border: 0;
-  text-shadow: 0 1px 5px rgba(0,0,0,1), 0 0 12px rgba(104,216,204,.55);
+  font-weight: 700;
+  text-shadow:
+    0 2px 5px rgba(0,0,0,1),
+    0 0 12px rgba(0,0,0,1),
+    0 0 10px rgba(104,216,204,.28);
 }
 .thumb.live {
   outline: 0;
