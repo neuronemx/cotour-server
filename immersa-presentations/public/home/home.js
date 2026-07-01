@@ -318,6 +318,9 @@ function renderDecks() {
     actions.className = "deck-actions";
 
     roles.forEach((role) => {
+      const roleAction = document.createElement("div");
+      roleAction.className = "role-action role-" + role;
+
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = labels[role];
@@ -326,7 +329,23 @@ function renderDecks() {
         activeDeck = deck.deckId;
         copyRoleLink(role, deck, event.currentTarget);
       });
-      actions.appendChild(button);
+      roleAction.appendChild(button);
+
+      if (role === "presenter") {
+        const openLink = document.createElement("a");
+        openLink.className = "speaker-open";
+        openLink.href = roleUrl(role, deck);
+        openLink.target = "_blank";
+        openLink.rel = "noopener";
+        openLink.textContent = "Abrir";
+        openLink.addEventListener("click", (event) => {
+          event.stopPropagation();
+          activeDeck = deck.deckId;
+        });
+        roleAction.appendChild(openLink);
+      }
+
+      actions.appendChild(roleAction);
     });
 
     const deleteButton = document.createElement("button");

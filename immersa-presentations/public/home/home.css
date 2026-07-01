@@ -1012,3 +1012,259 @@ body.modal-open { overflow: hidden; }
   contain: none !important;
   letter-spacing: -.035em !important;
 }
+
+/* v13: escala más compacta y acceso directo discreto para Speaker */
+.home-shell {
+  width: min(1280px, calc(100% - 44px));
+  gap: 18px;
+  padding-top: 18px;
+}
+.topbar {
+  min-height: 64px;
+  padding: 10px 16px;
+  border-radius: 22px;
+  gap: 18px;
+}
+.brand-logo { width: 148px; max-width: 34vw; }
+.main-nav a,
+.admin-pill {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.main-nav a span { font-size: 16px; }
+.hero-band {
+  grid-template-columns: minmax(0, .68fr) minmax(500px, .92fr);
+  gap: clamp(20px, 3.2vw, 42px);
+  padding-top: clamp(8px, 1.8vw, 22px);
+}
+.eyebrow {
+  margin-bottom: 18px;
+  font-size: 13px;
+  letter-spacing: .2em;
+}
+.hero-title {
+  font-size: clamp(40px, 4.2vw, 60px) !important;
+  line-height: .96;
+  letter-spacing: -.038em !important;
+  max-width: 640px;
+}
+.rotator-wrap,
+.rotating-word {
+  letter-spacing: -.025em !important;
+  padding-right: .3em !important;
+  max-width: 100% !important;
+}
+.hero-subtitle {
+  max-width: 500px;
+  margin-top: 24px;
+  font-size: clamp(17px, 1.55vw, 23px);
+  line-height: 1.48;
+}
+.hero-line {
+  min-height: 44px;
+  margin-top: 24px;
+  padding: 0 20px;
+  font-size: 16px;
+}
+.create-panel {
+  min-height: 430px;
+  padding: clamp(18px, 2.6vw, 30px);
+  border-radius: 28px;
+}
+.upload-form { gap: 14px; }
+.panel-heading { gap: 14px; }
+.heading-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  font-size: 26px;
+}
+.panel-heading h2 {
+  font-size: clamp(22px, 2.3vw, 30px);
+  line-height: 1.05;
+}
+.panel-heading p {
+  margin-top: 5px;
+  font-size: 15px;
+}
+.drop-zone {
+  min-height: 205px;
+  gap: 7px;
+  padding: 22px;
+  border-radius: 22px;
+}
+.upload-cloud {
+  width: 60px;
+  height: 50px;
+  border-radius: 17px;
+  font-size: 31px;
+}
+.drop-zone strong { font-size: clamp(19px, 1.6vw, 23px); }
+.drop-zone span { font-size: 15px; }
+.format-pill {
+  min-height: 30px;
+  font-size: 12px !important;
+}
+.format-pill i {
+  min-width: 22px;
+  height: 20px;
+  font-size: 8px;
+}
+.create-secondary {
+  font-size: 13px;
+}
+.ghost-action {
+  min-height: 36px;
+  font-size: 13px;
+}
+.presentations-list-panel {
+  padding: 20px;
+  border-radius: 24px;
+}
+.section-header h2 { font-size: 22px; }
+.section-header p { font-size: 14px; }
+.deck-list-rows .deck-row {
+  min-height: 92px;
+  grid-template-columns: 132px minmax(220px, 1fr) minmax(104px, 150px) minmax(340px, auto) auto;
+  gap: 12px;
+  padding: 10px 12px 10px 10px;
+  border-radius: 16px;
+}
+.deck-list-rows .deck-thumb {
+  width: 132px;
+  min-height: 74px;
+  border-radius: 11px;
+}
+.deck-title-line strong { font-size: 16px; }
+.deck-meta-line { font-size: 12px; gap: 7px 11px; }
+.deck-link-name strong { font-size: 14px; }
+.deck-list-rows .deck-actions {
+  gap: 6px;
+  align-items: start;
+}
+.role-action {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+.role-action button {
+  width: 100%;
+}
+.role-action .speaker-open {
+  min-height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--purple) !important;
+  font-size: 11px !important;
+  line-height: 1.1;
+  font-weight: 600;
+  text-decoration: none;
+}
+.role-action .speaker-open:hover { text-decoration: underline; }
+.deck-delete {
+  min-height: 34px;
+  font-size: 11px;
+}
+
+@media (max-width: 1320px) {
+  .home-shell { width: min(1120px, calc(100% - 36px)); }
+  .hero-band { grid-template-columns: 1fr; gap: 18px; }
+  .hero-copy { padding-top: 18px; }
+}
+
+@media (max-width: 900px) {
+  .home-shell {
+    width: min(100% - 24px, 760px);
+    gap: 16px;
+    padding-top: 12px;
+  }
+  .topbar {
+    min-height: auto;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+  .brand-logo { width: 136px; max-width: 50vw; }
+  .main-nav a,
+  .admin-pill {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 14px;
+    border-radius: 13px;
+  }
+  .hero-copy { padding: 18px 0 0; }
+  .eyebrow { margin-bottom: 14px; font-size: 12px; }
+  .hero-title {
+    font-size: clamp(36px, 9.1vw, 46px) !important;
+    line-height: .98;
+    letter-spacing: -.03em !important;
+    max-width: calc(100vw - 44px);
+  }
+  .rotator-wrap,
+  .rotating-word {
+    padding-right: 0 !important;
+    letter-spacing: -.018em !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 44px) !important;
+  }
+  .hero-subtitle {
+    margin-top: 20px;
+    max-width: 95%;
+    font-size: 20px;
+    line-height: 1.45;
+  }
+  .hero-line {
+    min-height: 40px;
+    margin-top: 18px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+  .create-panel,
+  .presentations-list-panel {
+    border-radius: 22px;
+  }
+  .create-panel { padding: 16px; }
+  .panel-heading {
+    grid-template-columns: 52px 1fr;
+    gap: 12px;
+  }
+  .heading-icon { width: 52px; height: 52px; font-size: 24px; }
+  .panel-heading h2 { font-size: 28px; }
+  .panel-heading p { font-size: 15px; line-height: 1.35; }
+  .drop-zone {
+    min-height: 178px;
+    padding: 18px 14px;
+  }
+  .upload-cloud { width: 54px; height: 44px; font-size: 28px; }
+  .drop-zone strong { font-size: 20px; }
+  .drop-zone span { font-size: 14px; }
+  .deck-list-rows .deck-row { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .deck-list-rows .deck-thumb { width: 112px; min-height: 63px; }
+  .deck-list-rows .deck-actions { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .home-shell { width: min(100% - 24px, 520px); }
+  .topbar { padding: 12px; }
+  .brand-logo { width: 128px; }
+  .hero-title {
+    font-size: clamp(32px, 8.9vw, 40px) !important;
+    max-width: calc(100vw - 48px);
+  }
+  .hero-subtitle { font-size: 18px; }
+  .hero-line { width: 100%; justify-content: center; }
+  .panel-heading h2 { font-size: 25px; }
+  .panel-heading p { font-size: 14px; }
+  .drop-zone { min-height: 160px; }
+  .create-secondary { display: none; }
+  .presentations-list-panel { padding: 15px; }
+  .deck-list-rows .deck-row { grid-template-columns: 1fr; }
+  .deck-list-rows .deck-thumb { width: 100%; }
+  .deck-list-rows .deck-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
