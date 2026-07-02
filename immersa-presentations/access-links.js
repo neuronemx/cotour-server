@@ -299,8 +299,9 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
   }
 
   function openRole(requiredRole, route) {
-    return async (req, res) => {
+    return async (req, res, next) => {
       const accessToken = String(req.params.access_token || '').trim();
+      if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return next();
 
       try {
         const result = await findActiveAccessLink(accessToken);
