@@ -338,6 +338,7 @@ app.get("/api/decks", async (_req, res) => {
 });
 app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
+app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/conversion-health", async (_req, res) => {
   try {
     res.json(await conversionHealth());
