@@ -1,8 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
 const roles = ["presenter", "audience", "screen", "stage"];
 const labels = { presenter: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
-const rotatingTerms = ["presentaciones", "lanzamientos", "visiones", "ideas", "historias"];
-let rotatingIndex = 0;
 let decks = [];
 let activeDeck = null;
 
@@ -15,7 +13,6 @@ const uploadStatus = document.getElementById("uploadStatus");
 const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
-const rotatingWord = document.getElementById("rotatingWord");
 const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
@@ -268,18 +265,20 @@ function renderThumb(deck) {
 
 function renderEmptyDecks() {
   const empty = document.createElement("article");
-  empty.className = "deck-option deck-row empty";
-  const info = document.createElement("div");
-  info.className = "deck-info";
+  empty.className = "deck-empty-state";
+
+  const icon = document.createElement("div");
+  icon.className = "empty-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "↥";
+
   const title = document.createElement("strong");
   title.textContent = "Aún no hay presentaciones";
-  const metaLine = document.createElement("div");
-  metaLine.className = "deck-meta-line";
-  const hint = document.createElement("span");
-  hint.textContent = "Sube un PPTX o PDF para crear la primera.";
-  metaLine.appendChild(hint);
-  info.append(title, metaLine);
-  empty.appendChild(info);
+
+  const hint = document.createElement("p");
+  hint.textContent = "Sube un PPTX o PDF para crear tu primera experiencia Immersa.";
+
+  empty.append(icon, title, hint);
   deckList.appendChild(empty);
 }
 
@@ -420,32 +419,6 @@ function updateSelectedFileName(askName = false) {
   if (askName && file) openNameModal(file);
 }
 
-function initRotator() {
-  if (!rotatingWord) return;
-
-  const measure = document.createElement("span");
-  measure.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit;";
-  rotatingWord.parentElement.appendChild(measure);
-
-  function updateWidth() {
-    measure.textContent = rotatingTerms.reduce((longest, term) => term.length > longest.length ? term : longest, "");
-    const width = Math.ceil(measure.getBoundingClientRect().width) + 56;
-    rotatingWord.parentElement.style.setProperty("--rotator-width", width + "px");
-  }
-
-  updateWidth();
-  window.addEventListener("resize", updateWidth);
-
-  setInterval(() => {
-    rotatingWord.classList.add("is-changing");
-    window.setTimeout(() => {
-      rotatingIndex = (rotatingIndex + 1) % rotatingTerms.length;
-      rotatingWord.textContent = rotatingTerms[rotatingIndex];
-      rotatingWord.classList.remove("is-changing");
-    }, 220);
-  }, 2200);
-}
-
 fileInput.addEventListener("change", () => updateSelectedFileName(true));
 
 ["dragenter", "dragover"].forEach((eventName) => {
@@ -546,5 +519,4 @@ if (nameForm) {
   });
 }
 
-initRotator();
 loadDecks();
