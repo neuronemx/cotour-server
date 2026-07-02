@@ -4,7 +4,7 @@ const path = require('path');
 
 const ACCESS_TOKEN_PATTERN = /^a_[a-z0-9]{10}$/;
 const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'viewer']);
+const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'screen', 'viewer']);
 const ROLE_ACCESS_COOKIE = 'immersa_role_access';
 const ROLE_ACCESS_TTL_SECONDS = 120;
 const ROLE_GUARD_SECRET = process.env.IMMERSA_ROUTE_GUARD_SECRET || process.env.SESSION_SECRET || process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');

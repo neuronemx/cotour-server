@@ -342,7 +342,8 @@ app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presen
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
 app.get("/audience/:access_token", accessLinkHandlers.openRole("audience", "audience"));
-app.get("/viewer/:access_token", accessLinkHandlers.openRole("viewer", "screen"));
+app.get("/screen/:access_token", accessLinkHandlers.openRole("screen", "screen"));
+app.get("/viewer/:access_token", accessLinkHandlers.openRole("viewer", "viewer"));
 app.get("/api/conversion-health", async (_req, res) => {
   try {
     res.json(await conversionHealth());
@@ -353,8 +354,8 @@ app.get("/api/conversion-health", async (_req, res) => {
 });
 app.post("/api/upload-pptx", createUploadHandler());
 app.get("/presenter", accessLinkHandlers.guardLegacyRoute("speaker", "presenter"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
-app.get("/screen", accessLinkHandlers.guardLegacyRoute("viewer", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
-app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
+app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
+app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "viewer"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", accessLinkHandlers.guardLegacyRoute("stage", "stage"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
 app.get("/audience", accessLinkHandlers.guardLegacyRoute("audience", "audience"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
 app.use(express.static(PUBLIC_DIR));

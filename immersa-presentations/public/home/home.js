@@ -1,6 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
-const roles = ["speaker", "stage", "audience", "viewer"];
-const labels = { speaker: "Speaker", stage: "Stage", audience: "Audience", viewer: "Viewer" };
+const roles = ["speaker", "audience", "screen", "stage"];
+const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
 let decks = [];
 let activeDeck = null;
 
