@@ -22,7 +22,8 @@ const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
-  dataDecksDir: DATA_DECKS_DIR
+  dataDecksDir: DATA_DECKS_DIR,
+  publicDir: PUBLIC_DIR
 });
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
