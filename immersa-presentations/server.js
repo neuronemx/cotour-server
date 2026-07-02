@@ -5,6 +5,7 @@ const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler } = require("./pdf-upload-support");
+const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 
 const app = express();
 const server = http.createServer(app);
@@ -62,6 +63,7 @@ function manifestSummary(manifest) {
   return {
     deckId: manifest.deckId,
     title: manifest.title,
+    session_id: manifestSessionId(manifest),
     slides,
     slideCount: realSlideCount ? slides : null,
     placeholderSlides: realSlideCount ? 0 : slides,
@@ -77,7 +79,21 @@ async function readManifest(deckId) {
   return JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
 }
 
-async function readDecksFrom(rootDir, seen) {
+async function ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersist) {
+  const existingSessionId = manifestSessionId(manifest);
+  if (existingSessionId) {
+    usedSessionIds.add(existingSessionId);
+    return manifest;
+  }
+
+  const migratedManifest = { ...manifest, session_id: generateUniqueSessionId(usedSessionIds) };
+  if (canPersist) {
+    await fs.promises.writeFile(manifestPath, JSON.stringify(migratedManifest, null, 2) + "\n");
+  }
+  return migratedManifest;
+}
+
+async function readDecksFrom(rootDir, seen, usedSessionIds, canPersistSessionId = false) {
   let entries = [];
   try {
     entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
@@ -92,8 +108,9 @@ async function readDecksFrom(rootDir, seen) {
     const manifestPath = path.join(rootDir, entry.name, "manifest.json");
     try {
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+      const manifestWithSessionId = await ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersistSessionId);
       seen.add(entry.name);
-      decks.push(manifestSummary({ ...manifest, deckId: manifest.deckId || entry.name, title: manifest.title || entry.name }));
+      decks.push(manifestSummary({ ...manifestWithSessionId, deckId: manifestWithSessionId.deckId || entry.name, title: manifestWithSessionId.title || entry.name }));
     } catch (error) {
       console.warn("Skipping deck manifest", manifestPath, error.message);
     }
@@ -105,9 +122,10 @@ async function readDecksFrom(rootDir, seen) {
 async function listDecks() {
   await ensureDataDirs();
   const seen = new Set();
+  const usedSessionIds = new Set();
   const decks = [
-    ...(await readDecksFrom(STATIC_DECKS_DIR, seen)),
-    ...(await readDecksFrom(DATA_DECKS_DIR, seen))
+    ...(await readDecksFrom(STATIC_DECKS_DIR, seen, usedSessionIds, false)),
+    ...(await readDecksFrom(DATA_DECKS_DIR, seen, usedSessionIds, true))
   ];
   return decks.sort((a, b) => a.title.localeCompare(b.title));
 }
