@@ -4,7 +4,7 @@ const labels = { presenter: "Speaker", audience: "Público", screen: "Screen", s
 const rotatingTerms = ["presentaciones", "lanzamientos", "visiones", "ideas", "historias"];
 let rotatingIndex = 0;
 let decks = [];
-let activeDeck = "demo";
+let activeDeck = null;
 
 const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
@@ -78,8 +78,8 @@ function closeNameModal(clearFile = false) {
 }
 
 function deckSession(deck) {
-  const value = deck?.sessionCode || deck?.session || deck?.linkName || deck?.publicCode || deck?.deckId || "demo01";
-  return normalizeSlug(value) || "demo01";
+  const value = deck?.sessionCode || deck?.session || deck?.linkName || deck?.publicCode || deck?.deckId || "";
+  return normalizeSlug(value) || "";
 }
 
 function activeDeckMeta() {
@@ -164,9 +164,8 @@ async function deleteDeck(deck) {
     }
 
     decks = decks.filter((item) => item.deckId !== deck.deckId);
-    activeDeck = decks[0]?.deckId || "demo";
-    if (!decks.length) await loadDecks("demo");
-    else renderAll();
+    activeDeck = decks[0]?.deckId || null;
+    renderAll();
     setUploadStatus("Presentación eliminada.", "success");
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
@@ -267,10 +266,34 @@ function renderThumb(deck) {
   return thumb;
 }
 
+function renderEmptyDecks() {
+  const empty = document.createElement("article");
+  empty.className = "deck-option deck-row empty";
+  const info = document.createElement("div");
+  info.className = "deck-info";
+  const title = document.createElement("strong");
+  title.textContent = "Aún no hay presentaciones";
+  const metaLine = document.createElement("div");
+  metaLine.className = "deck-meta-line";
+  const hint = document.createElement("span");
+  hint.textContent = "Sube un PPTX o PDF para crear la primera.";
+  metaLine.appendChild(hint);
+  info.append(title, metaLine);
+  empty.appendChild(info);
+  deckList.appendChild(empty);
+}
+
 function renderDecks() {
   const countLabel = decks.length + " presentación" + (decks.length === 1 ? "" : "es");
   deckCount.textContent = countLabel;
   deckList.innerHTML = "";
+
+  if (!decks.length) {
+    activeDeck = null;
+    deckNotice.hidden = true;
+    renderEmptyDecks();
+    return;
+  }
 
   decks.forEach((deck) => {
     const row = document.createElement("article");
@@ -372,24 +395,16 @@ function renderAll() {
   renderDecks();
 }
 
-function fallbackDecks() {
-  return [
-    { deckId: "bodilla", linkName: "ventas", title: "Bodilla", slides: 15, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 2 horas" },
-    { deckId: "gig", linkName: "gig2026", title: "GIG", slides: 14, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 1 día" },
-    { deckId: "demo", linkName: "demo01", title: "Immersa Demo", slides: 3, ratio: "16:9", status: "ready", conversionStatus: "ready", updatedLabel: "Actualizada hace 2 días" }
-  ];
-}
-
 async function loadDecks(selectedDeckId = activeDeck) {
   try {
     const res = await fetch("/api/decks");
     if (!res.ok) throw new Error("No se pudo cargar la lista de presentaciones");
     const data = await res.json();
-    decks = Array.isArray(data) && data.length ? data : fallbackDecks();
-    activeDeck = decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : decks[0].deckId;
+    decks = Array.isArray(data) ? data : [];
+    activeDeck = decks.length && decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : decks[0]?.deckId || null;
   } catch (_error) {
-    decks = fallbackDecks();
-    activeDeck = decks.some((deck) => deck.deckId === selectedDeckId) ? selectedDeckId : "demo";
+    decks = [];
+    activeDeck = null;
   }
   renderAll();
 }
@@ -532,4 +547,4 @@ if (nameForm) {
 }
 
 initRotator();
-loadDecks("demo");
+loadDecks();
