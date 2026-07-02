@@ -1,6 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
-const roles = ["presenter", "audience", "screen", "stage"];
-const labels = { presenter: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
+const roles = ["speaker", "stage", "audience", "viewer"];
+const labels = { speaker: "Speaker", stage: "Stage", audience: "Audience", viewer: "Viewer" };
 let decks = [];
 let activeDeck = null;
 
@@ -116,31 +116,59 @@ function deckSlideLabel(deck) {
   return deck.slideCount ?? deck.slidesCount ?? (Array.isArray(deck.slides) ? deck.slides.length : deck.slides) ?? 0;
 }
 
-function roleUrl(role, deck) {
-  // Público no debe ver ni intuir roles: recibe un link limpio con solo el ID de sesión.
-  const session = encodeURIComponent(deckSession(deck));
-  if (role === "audience") return PUBLIC_ORIGIN + "/" + session;
+function accessRoute(role) {
+  return role === "speaker" ? "speaker" : role;
+}
 
-  // Los roles operativos viven en show.immersa.mx y siguen usando session + rol.
-  const route = role === "presenter" ? "speaker" : role;
-  return window.location.origin + "/" + route + "?session=" + session;
+async function createAccessLink(role, deck) {
+  const sessionIdValue = String(deck?.session_id || "").trim();
+  if (!sessionIdValue) throw new Error("Esta presentación aún no tiene session_id.");
+
+  const res = await fetch("/api/access-links", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionIdValue, role })
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (_error) {}
+
+  if (!res.ok) throw new Error(data?.error || "No se pudo generar el link.");
+  if (!data?.access_token) throw new Error("El backend no devolvió access_token.");
+  return window.location.origin + "/" + accessRoute(role) + "/" + data.access_token;
+}
+
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+  window.prompt("Copia este link:", value);
+  return false;
 }
 
 async function copyRoleLink(role, deck, button) {
   const label = labels[role] || role;
-  const url = roleUrl(role, deck);
-  const feedback = role === "audience" ? "Link público copiado" : "Link " + label + " copiado";
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generando";
+
   try {
-    await navigator.clipboard.writeText(url);
-    const original = button.textContent;
-    button.textContent = feedback;
+    const url = await createAccessLink(role, deck);
+    const copied = await copyText(url);
+    button.textContent = copied ? "Link copiado" : "Link listo";
     button.classList.add("copied");
+  } catch (error) {
+    button.textContent = "No se pudo copiar";
+    setUploadStatus("Error: " + (error.message || "No se pudo generar el link " + label + "."), "error");
+  } finally {
     window.setTimeout(() => {
       button.textContent = original;
       button.classList.remove("copied");
-    }, 1400);
-  } catch (_error) {
-    window.prompt("Copia el link " + label + ":", url);
+      button.disabled = false;
+    }, 1600);
   }
 }
 
@@ -355,10 +383,6 @@ function renderDecks() {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         activeDeck = deck.deckId;
-        if (role === "presenter") {
-          window.open(roleUrl(role, deck), "_blank", "noopener");
-          return;
-        }
         copyRoleLink(role, deck, event.currentTarget);
       });
       roleAction.appendChild(button);
