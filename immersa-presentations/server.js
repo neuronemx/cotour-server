@@ -325,7 +325,6 @@ function emitReaction(roomKey, session, emoji) {
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
 app.use(express.json({ limit: "32kb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
-app.use(express.static(PUBLIC_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/api/decks", async (_req, res) => {
@@ -358,6 +357,7 @@ app.get("/screen", accessLinkHandlers.guardLegacyRoute("viewer", "screen"), (_re
 app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", accessLinkHandlers.guardLegacyRoute("stage", "stage"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
 app.get("/audience", accessLinkHandlers.guardLegacyRoute("audience", "audience"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
+app.use(express.static(PUBLIC_DIR));
 
 io.on("connection", (socket) => {
   let currentRoomKey = null;
