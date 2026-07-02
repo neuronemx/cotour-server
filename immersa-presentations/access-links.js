@@ -45,7 +45,19 @@ async function saveAccessLinks(storePath, accessLinks) {
   await writeJsonFile(storePath, accessLinks);
 }
 
-async function findDeckBySessionId(sessionId, deckDirs) {
+function publicDeckFromManifest(manifest, entryName) {
+  const deckId = manifest.deckId || entryName;
+  return {
+    deckId,
+    title: manifest.title || entryName,
+    session_id: manifest.session_id,
+    ratio: manifest.ratio || '16:9',
+    status: manifest.status || 'ready',
+    conversionStatus: manifest.conversion?.status || 'ready'
+  };
+}
+
+async function findDeckManifestBySessionId(sessionId, deckDirs) {
   for (const rootDir of deckDirs) {
     let entries = [];
     try {
@@ -61,14 +73,7 @@ async function findDeckBySessionId(sessionId, deckDirs) {
       try {
         const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
         if (manifest.session_id !== sessionId) continue;
-        return {
-          deckId: manifest.deckId || entry.name,
-          title: manifest.title || entry.name,
-          session_id: manifest.session_id,
-          ratio: manifest.ratio || '16:9',
-          status: manifest.status || 'ready',
-          conversionStatus: manifest.conversion?.status || 'ready'
-        };
+        return { manifest, deck: publicDeckFromManifest(manifest, entry.name) };
       } catch (error) {
         if (error.code !== 'ENOENT') console.warn('Skipping deck manifest', manifestPath, error.message);
       }
@@ -76,6 +81,11 @@ async function findDeckBySessionId(sessionId, deckDirs) {
   }
 
   return null;
+}
+
+async function findDeckBySessionId(sessionId, deckDirs) {
+  const result = await findDeckManifestBySessionId(sessionId, deckDirs);
+  return result?.deck || null;
 }
 
 function publicAccessLink(accessLink, deck = null) {
@@ -89,9 +99,56 @@ function publicAccessLink(accessLink, deck = null) {
   };
 }
 
+function presentationOpenResponse(accessLink, manifest, deck) {
+  const slides = Array.isArray(manifest.slides) ? manifest.slides : [];
+  const status = manifest.status || 'ready';
+  const conversionStatus = manifest.conversion?.status || 'ready';
+  const realSlideCount = (status === 'converted' && conversionStatus === 'completed') || (status === 'ready' && conversionStatus === 'ready');
+  const manifestUrl = '/decks/' + encodeURIComponent(deck.deckId) + '/manifest.json';
+
+  return {
+    access_token: accessLink.access_token,
+    session_id: accessLink.session_id,
+    role: accessLink.role,
+    active: accessLink.active,
+    deckId: deck.deckId,
+    title: deck.title,
+    ratio: manifest.ratio || '16:9',
+    status,
+    conversionStatus,
+    conversionMessage: manifest.conversion?.message || '',
+    slides,
+    slideCount: realSlideCount ? slides.length : null,
+    placeholderSlides: realSlideCount ? 0 : slides.length,
+    manifestUrl,
+    manifest: {
+      deckId: deck.deckId,
+      title: deck.title,
+      session_id: accessLink.session_id,
+      ratio: manifest.ratio || '16:9',
+      status,
+      source: manifest.source,
+      slides,
+      conversion: manifest.conversion,
+      url: manifestUrl
+    },
+    deck
+  };
+}
+
 function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
+
+  async function findActiveAccessLink(accessToken) {
+    if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return { status: 404, error: 'Access link not found' };
+
+    const accessLinks = await loadAccessLinks(storePath);
+    const accessLink = accessLinks.find((link) => link.access_token === accessToken);
+    if (!accessLink) return { status: 404, error: 'Access link not found' };
+    if (accessLink.active === false) return { status: 403, error: 'Access link inactive' };
+    return { accessLink };
+  }
 
   async function createAccessLink(req, res) {
     const sessionId = String(req.body?.session_id || '').trim();
@@ -128,23 +185,37 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
 
   async function resolveAccessLink(req, res) {
     const accessToken = String(req.params.access_token || '').trim();
-    if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return res.status(404).json({ error: 'Access link not found' });
 
     try {
-      const accessLinks = await loadAccessLinks(storePath);
-      const accessLink = accessLinks.find((link) => link.access_token === accessToken);
-      if (!accessLink) return res.status(404).json({ error: 'Access link not found' });
-      if (accessLink.active === false) return res.status(403).json({ error: 'Access link inactive' });
+      const result = await findActiveAccessLink(accessToken);
+      if (result.error) return res.status(result.status).json({ error: result.error });
 
-      const deck = await findDeckBySessionId(accessLink.session_id, deckDirs);
-      return res.json(publicAccessLink(accessLink, deck));
+      const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+      return res.json(publicAccessLink(result.accessLink, deck));
     } catch (error) {
       console.error('Unable to resolve access link', error);
       return res.status(500).json({ error: 'Unable to resolve access link' });
     }
   }
 
-  return { createAccessLink, resolveAccessLink };
+  async function openPresentation(req, res) {
+    const accessToken = String(req.params.access_token || '').trim();
+
+    try {
+      const result = await findActiveAccessLink(accessToken);
+      if (result.error) return res.status(result.status).json({ error: result.error });
+
+      const deckResult = await findDeckManifestBySessionId(result.accessLink.session_id, deckDirs);
+      if (!deckResult) return res.status(404).json({ error: 'Presentation not found' });
+
+      return res.json(presentationOpenResponse(result.accessLink, deckResult.manifest, deckResult.deck));
+    } catch (error) {
+      console.error('Unable to open presentation', error);
+      return res.status(500).json({ error: 'Unable to open presentation' });
+    }
+  }
+
+  return { createAccessLink, resolveAccessLink, openPresentation };
 }
 
 module.exports = {
