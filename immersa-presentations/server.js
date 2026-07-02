@@ -339,6 +339,11 @@ app.get("/api/decks", async (_req, res) => {
 app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
+app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
+app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
+app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
+app.get("/audience/:access_token", accessLinkHandlers.openRole("audience", "audience"));
+app.get("/viewer/:access_token", accessLinkHandlers.openRole("viewer", "screen"));
 app.get("/api/conversion-health", async (_req, res) => {
   try {
     res.json(await conversionHealth());
