@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { generateUniqueSessionId, manifestSessionId } = require('./session-id');
 
 const APP_DIR = __dirname;
 const PUBLIC_DECKS_DIR = path.join(APP_DIR, 'public', 'decks');
@@ -57,6 +58,36 @@ async function uniqueDeckId(baseId) {
   return candidate;
 }
 
+async function collectUsedSessionIds(rootDirs = [PUBLIC_DECKS_DIR, DATA_DECKS_DIR]) {
+  const usedSessionIds = new Set();
+  for (const rootDir of rootDirs) {
+    let entries = [];
+    try {
+      entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      try {
+        const manifest = JSON.parse(await fs.promises.readFile(path.join(rootDir, entry.name, 'manifest.json'), 'utf8'));
+        const sessionId = manifestSessionId(manifest);
+        if (sessionId) usedSessionIds.add(sessionId);
+      } catch (_error) {
+        // Ignore incomplete or invalid deck folders while reserving IDs for valid manifests.
+      }
+    }
+  }
+  return usedSessionIds;
+}
+
+function ensureManifestHasSessionId(manifest, sessionId) {
+  if (manifestSessionId(manifest)) return manifest;
+  return { ...manifest, session_id: sessionId };
+}
+
 function placeholderSvg(title, sourceType) {
   const sourceLabel = sourceType === 'pdf' ? 'PDF' : 'PPTX';
   const safeTitle = String(title || 'Presentacion cargada')
@@ -84,6 +115,7 @@ function manifestSummary(manifest) {
   return {
     deckId: manifest.deckId,
     title: manifest.title,
+    session_id: manifestSessionId(manifest),
     slides,
     slideCount: realSlideCount ? slides : null,
     placeholderSlides: realSlideCount ? 0 : slides,
@@ -94,8 +126,10 @@ function manifestSummary(manifest) {
   };
 }
 
-async function writeManifest(deckDir, manifest) {
-  await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+async function writeManifest(deckDir, manifest, sessionId) {
+  const manifestToWrite = sessionId ? ensureManifestHasSessionId(manifest, sessionId) : manifest;
+  await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify(manifestToWrite, null, 2) + '\n');
+  return manifestToWrite;
 }
 
 async function commandExists(command) {
@@ -288,6 +322,7 @@ function createUploadHandler() {
         await ensureDataDirs();
         const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
         const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
+        const session_id = generateUniqueSessionId(await collectUsedSessionIds());
         const deckDir = path.join(DATA_DECKS_DIR, deckId);
         const slidesDir = path.join(deckDir, 'slides');
         const sourceFilename = sourceType === 'pdf' ? 'original.pdf' : 'original.pptx';
@@ -299,6 +334,7 @@ function createUploadHandler() {
         let manifest = {
           deckId,
           title,
+          session_id,
           ratio: sourceType === 'pdf' ? 'mixed' : '16:9',
           status: 'uploaded',
           source: { type: sourceType, filename: sourceFilename },
@@ -307,7 +343,7 @@ function createUploadHandler() {
         };
 
         await fs.promises.writeFile(path.join(slidesDir, 'placeholder.svg'), placeholderSvg(title, sourceType));
-        await writeManifest(deckDir, manifest);
+        manifest = await writeManifest(deckDir, manifest, session_id);
 
         try {
           manifest = sourceType === 'pdf'
@@ -319,7 +355,7 @@ function createUploadHandler() {
           manifest.conversion = { status: 'failed', message: conversionError.message || 'La conversion no pudo completarse' };
         }
 
-        await writeManifest(deckDir, manifest);
+        manifest = await writeManifest(deckDir, manifest, session_id);
         return res.status(201).json(manifestSummary(manifest));
       } catch (writeError) {
         console.error('Unable to store presentation', writeError);
