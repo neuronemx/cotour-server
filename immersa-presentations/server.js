@@ -5,6 +5,7 @@ const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler } = require("./pdf-upload-support");
+const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 
 const app = express();
@@ -18,6 +19,11 @@ const DATA_DIR = process.env.IMMERSA_DATA_DIR
   : path.join(__dirname, "data");
 const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
+const accessLinkHandlers = createAccessLinkHandlers({
+  dataDir: DATA_DIR,
+  staticDecksDir: STATIC_DECKS_DIR,
+  dataDecksDir: DATA_DECKS_DIR
+});
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
@@ -317,6 +323,7 @@ function emitReaction(roomKey, session, emoji) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
+app.use(express.json({ limit: "32kb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use(express.static(PUBLIC_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -329,6 +336,8 @@ app.get("/api/decks", async (_req, res) => {
     res.status(500).json({ error: "Unable to list decks" });
   }
 });
+app.post("/api/access-links", accessLinkHandlers.createAccessLink);
+app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/conversion-health", async (_req, res) => {
   try {
     res.json(await conversionHealth());
