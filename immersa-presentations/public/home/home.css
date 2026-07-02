@@ -1951,3 +1951,51 @@ body.modal-open { overflow: hidden; }
   text-shadow: 0 1px 8px rgba(8, 13, 43, .18) !important;
 }
 .drop-zone .upload-cloud::selection { background: transparent; }
+
+/* v23: mobile vertical nav uses only the isologo */
+@media (max-width: 700px) {
+  .topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    overflow: hidden !important;
+  }
+  .brand {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    overflow: hidden !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .brand-logo-full {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    max-width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  .brand-logo-mark {
+    display: block !important;
+    visibility: visible !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    object-fit: contain !important;
+    opacity: 1 !important;
+  }
+  .main-nav {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+  .topbar-actions {
+    flex: 0 0 auto !important;
+  }
+}
