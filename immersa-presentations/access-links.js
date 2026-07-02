@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ACCESS_TOKEN_PATTERN = /^a_[a-z0-9]{10}$/;
-const PUBLIC_ID_PATTERN = /^p_[a-z0-9]{8}$/;
+const PUBLIC_ID_PATTERN = /^p_[a-z0-9]+$/;
 const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'screen', 'viewer']);
 const ROLE_ACCESS_COOKIE = 'immersa_role_access';
@@ -261,6 +261,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     const accessLinks = await loadAccessLinks(storePath);
     const accessLink = accessLinks.find((link) => link.public_id === publicId);
     if (!accessLink) return { status: 404, error: 'Public link not found' };
+    if (!ACCESS_TOKEN_PATTERN.test(String(accessLink.access_token || ''))) return { status: 404, error: 'Public link not found' };
     if (accessLink.role !== 'audience') return { status: 403, error: 'Public link role is not allowed' };
     if (accessLink.active === false) return { status: 403, error: 'Public link inactive' };
     return { accessLink };
