@@ -144,7 +144,7 @@ function roleRedirectUrl(route, accessLink, deck) {
     session: accessLink.session_id,
     deck: deck.deckId
   });
-  return '/' + route + '?' + params.toString();
+  return '/' + route + '/?' + params.toString();
 }
 
 function base64UrlEncode(value) {
