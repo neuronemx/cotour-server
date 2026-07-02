@@ -120,6 +120,15 @@ function accessRoute(role) {
   return role === "speaker" ? "speaker" : role;
 }
 
+function accessUrl(role, data) {
+  if (role === "audience") {
+    if (!data?.public_id) throw new Error("El backend no devolvió public_id.");
+    return window.location.origin + "/" + data.public_id;
+  }
+  if (!data?.access_token) throw new Error("El backend no devolvió access_token.");
+  return window.location.origin + "/" + accessRoute(role) + "/" + data.access_token;
+}
+
 async function createAccessLink(role, deck) {
   const sessionIdValue = String(deck?.session_id || "").trim();
   if (!sessionIdValue) throw new Error("Esta presentación aún no tiene session_id.");
@@ -136,8 +145,7 @@ async function createAccessLink(role, deck) {
   } catch (_error) {}
 
   if (!res.ok) throw new Error(data?.error || "No se pudo generar el link.");
-  if (!data?.access_token) throw new Error("El backend no devolvió access_token.");
-  return window.location.origin + "/" + accessRoute(role) + "/" + data.access_token;
+  return accessUrl(role, data);
 }
 
 async function copyText(value) {
