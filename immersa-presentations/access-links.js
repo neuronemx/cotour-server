@@ -230,9 +230,20 @@ function serializeCookie(name, value, req) {
   return parts.join('; ');
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
+function injectPublicAudienceContext(html, accessLink, deck) {
+  const context = JSON.stringify({
+    session: accessLink.session_id,
+    deck: deck.deckId
+  }).replace(/</g, '\\u003c');
+  const script = '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
+  if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
+  return script + '\n' + html;
+}
+
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
+  const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
 
   async function findActiveAccessLink(accessToken) {
     if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return { status: 404, error: 'Access link not found' };
@@ -249,7 +260,8 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
 
     const accessLinks = await loadAccessLinks(storePath);
     const accessLink = accessLinks.find((link) => link.public_id === publicId);
-    if (!accessLink || accessLink.role !== 'audience') return { status: 404, error: 'Public link not found' };
+    if (!accessLink) return { status: 404, error: 'Public link not found' };
+    if (accessLink.role !== 'audience') return { status: 403, error: 'Public link role is not allowed' };
     if (accessLink.active === false) return { status: 403, error: 'Public link inactive' };
     return { accessLink };
   }
@@ -358,9 +370,11 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
 
       const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+      if (!audienceIndexPath) return res.status(500).json({ error: 'Audience experience is not configured' });
 
+      const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
       res.setHeader('Set-Cookie', serializeCookie(ROLE_ACCESS_COOKIE, createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
-      return res.redirect(302, roleRedirectUrl('audience', result.accessLink, deck));
+      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck));
     } catch (error) {
       console.error('Unable to open public audience link', error);
       return res.status(500).json({ error: 'Unable to open public audience link' });
