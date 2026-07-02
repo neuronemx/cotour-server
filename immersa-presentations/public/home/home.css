@@ -1943,3 +1943,11 @@ body.modal-open { overflow: hidden; }
   .hero-word { white-space: normal !important; }
   .drop-zone { min-height: 144px !important; }
 }
+
+
+/* v22: flecha del drop en blanco y contraste del ícono */
+.drop-zone .upload-cloud {
+  color: #ffffff !important;
+  text-shadow: 0 1px 8px rgba(8, 13, 43, .18) !important;
+}
+.drop-zone .upload-cloud::selection { background: transparent; }
