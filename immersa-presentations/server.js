@@ -358,6 +358,7 @@ app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_re
 app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "viewer"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", accessLinkHandlers.guardLegacyRoute("stage", "stage"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
 app.get("/audience", accessLinkHandlers.guardLegacyRoute("audience", "audience"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
+app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
 io.on("connection", (socket) => {
