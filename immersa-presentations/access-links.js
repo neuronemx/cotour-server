@@ -136,6 +136,14 @@ function presentationOpenResponse(accessLink, manifest, deck) {
   };
 }
 
+function roleRedirectUrl(route, accessLink, deck) {
+  const params = new URLSearchParams({
+    session: accessLink.session_id,
+    deck: deck.deckId
+  });
+  return '/' + route + '?' + params.toString();
+}
+
 function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
@@ -215,7 +223,27 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
     }
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation };
+  function openRole(requiredRole, route) {
+    return async (req, res) => {
+      const accessToken = String(req.params.access_token || '').trim();
+
+      try {
+        const result = await findActiveAccessLink(accessToken);
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        if (result.accessLink.role !== requiredRole) return res.status(403).json({ error: 'Role not allowed for this experience' });
+
+        const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+        if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+
+        return res.redirect(302, roleRedirectUrl(route, result.accessLink, deck));
+      } catch (error) {
+        console.error('Unable to open role experience', error);
+        return res.status(500).json({ error: 'Unable to open role experience' });
+      }
+    };
+  }
+
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole };
 }
 
 module.exports = {
