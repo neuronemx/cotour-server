@@ -5,6 +5,9 @@ const path = require('path');
 const ACCESS_TOKEN_PATTERN = /^a_[a-z0-9]{10}$/;
 const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'viewer']);
+const ROLE_ACCESS_COOKIE = 'immersa_role_access';
+const ROLE_ACCESS_TTL_SECONDS = 120;
+const ROLE_GUARD_SECRET = process.env.IMMERSA_ROUTE_GUARD_SECRET || process.env.SESSION_SECRET || process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
 
 function generateAccessToken() {
   const bytes = crypto.randomBytes(10);
@@ -144,6 +147,78 @@ function roleRedirectUrl(route, accessLink, deck) {
   return '/' + route + '?' + params.toString();
 }
 
+function base64UrlEncode(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+function base64UrlDecode(value) {
+  return Buffer.from(value, 'base64url').toString('utf8');
+}
+
+function signRoleAccessPayload(payload) {
+  return crypto.createHmac('sha256', ROLE_GUARD_SECRET).update(payload).digest('base64url');
+}
+
+function createRoleAccessValue({ accessLink, deck, route }) {
+  const payload = JSON.stringify({
+    access_token: accessLink.access_token,
+    session_id: accessLink.session_id,
+    deckId: deck.deckId,
+    role: accessLink.role,
+    route,
+    exp: Date.now() + ROLE_ACCESS_TTL_SECONDS * 1000
+  });
+  const encodedPayload = base64UrlEncode(payload);
+  return encodedPayload + '.' + signRoleAccessPayload(encodedPayload);
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = new Map();
+  for (const part of String(cookieHeader || '').split(';')) {
+    const index = part.indexOf('=');
+    if (index === -1) continue;
+    const name = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (name) cookies.set(name, decodeURIComponent(value));
+  }
+  return cookies;
+}
+
+function timingSafeEqualString(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function parseRoleAccessCookie(cookieHeader) {
+  const cookieValue = parseCookies(cookieHeader).get(ROLE_ACCESS_COOKIE);
+  if (!cookieValue) return null;
+
+  const [encodedPayload, signature] = cookieValue.split('.');
+  if (!encodedPayload || !signature) return null;
+  if (!timingSafeEqualString(signature, signRoleAccessPayload(encodedPayload))) return null;
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    if (!payload || Number(payload.exp) < Date.now()) return null;
+    return payload;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function serializeCookie(name, value, req) {
+  const parts = [
+    name + '=' + encodeURIComponent(value),
+    'Max-Age=' + ROLE_ACCESS_TTL_SECONDS,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax'
+  ];
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') parts.push('Secure');
+  return parts.join('; ');
+}
+
 function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
@@ -235,6 +310,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
         const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
+        res.setHeader('Set-Cookie', serializeCookie(ROLE_ACCESS_COOKIE, createRoleAccessValue({ accessLink: result.accessLink, deck, route }), req));
         return res.redirect(302, roleRedirectUrl(route, result.accessLink, deck));
       } catch (error) {
         console.error('Unable to open role experience', error);
@@ -243,7 +319,37 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
     };
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole };
+  function guardLegacyRoute(requiredRole, route) {
+    return async (req, res, next) => {
+      const sessionId = String(req.query?.session || '').trim();
+      const deckId = String(req.query?.deck || '').trim();
+      if (!sessionId && !deckId) return next();
+      if (!sessionId || !deckId) return res.status(403).json({ error: 'Access token required' });
+
+      const payload = parseRoleAccessCookie(req.headers.cookie);
+      if (!payload) return res.status(403).json({ error: 'Access token required' });
+      if (payload.session_id !== sessionId || payload.deckId !== deckId || payload.role !== requiredRole || payload.route !== route) {
+        return res.status(403).json({ error: 'Access token required' });
+      }
+
+      try {
+        const result = await findActiveAccessLink(String(payload.access_token || ''));
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        if (result.accessLink.session_id !== sessionId || result.accessLink.role !== requiredRole) {
+          return res.status(403).json({ error: 'Access token required' });
+        }
+
+        const deck = await findDeckBySessionId(sessionId, deckDirs);
+        if (!deck || deck.deckId !== deckId) return res.status(404).json({ error: 'Presentation not found' });
+        return next();
+      } catch (error) {
+        console.error('Unable to validate legacy route access', error);
+        return res.status(500).json({ error: 'Unable to validate route access' });
+      }
+    };
+  }
+
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole, guardLegacyRoute };
 }
 
 module.exports = {
