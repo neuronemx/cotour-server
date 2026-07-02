@@ -83,6 +83,11 @@ async function collectUsedSessionIds(rootDirs = [PUBLIC_DECKS_DIR, DATA_DECKS_DI
   return usedSessionIds;
 }
 
+function ensureManifestHasSessionId(manifest, sessionId) {
+  if (manifestSessionId(manifest)) return manifest;
+  return { ...manifest, session_id: sessionId };
+}
+
 function placeholderSvg(title, sourceType) {
   const sourceLabel = sourceType === 'pdf' ? 'PDF' : 'PPTX';
   const safeTitle = String(title || 'Presentacion cargada')
@@ -121,8 +126,10 @@ function manifestSummary(manifest) {
   };
 }
 
-async function writeManifest(deckDir, manifest) {
-  await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+async function writeManifest(deckDir, manifest, sessionId) {
+  const manifestToWrite = sessionId ? ensureManifestHasSessionId(manifest, sessionId) : manifest;
+  await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify(manifestToWrite, null, 2) + '\n');
+  return manifestToWrite;
 }
 
 async function commandExists(command) {
@@ -336,7 +343,7 @@ function createUploadHandler() {
         };
 
         await fs.promises.writeFile(path.join(slidesDir, 'placeholder.svg'), placeholderSvg(title, sourceType));
-        await writeManifest(deckDir, manifest);
+        manifest = await writeManifest(deckDir, manifest, session_id);
 
         try {
           manifest = sourceType === 'pdf'
@@ -348,7 +355,7 @@ function createUploadHandler() {
           manifest.conversion = { status: 'failed', message: conversionError.message || 'La conversion no pudo completarse' };
         }
 
-        await writeManifest(deckDir, manifest);
+        manifest = await writeManifest(deckDir, manifest, session_id);
         return res.status(201).json(manifestSummary(manifest));
       } catch (writeError) {
         console.error('Unable to store presentation', writeError);
