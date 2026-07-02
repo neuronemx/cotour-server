@@ -3,17 +3,26 @@ const fs = require('fs');
 const path = require('path');
 
 const ACCESS_TOKEN_PATTERN = /^a_[a-z0-9]{10}$/;
+const PUBLIC_ID_PATTERN = /^p_[a-z0-9]{8}$/;
 const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'screen', 'viewer']);
 const ROLE_ACCESS_COOKIE = 'immersa_role_access';
 const ROLE_ACCESS_TTL_SECONDS = 120;
 const ROLE_GUARD_SECRET = process.env.IMMERSA_ROUTE_GUARD_SECRET || process.env.SESSION_SECRET || process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
 
-function generateAccessToken() {
-  const bytes = crypto.randomBytes(10);
+function randomTokenSuffix(length) {
+  const bytes = crypto.randomBytes(length);
   let suffix = '';
   for (const byte of bytes) suffix += TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length];
-  return 'a_' + suffix;
+  return suffix;
+}
+
+function generateAccessToken() {
+  return 'a_' + randomTokenSuffix(10);
+}
+
+function generatePublicId() {
+  return 'p_' + randomTokenSuffix(8);
 }
 
 function isValidRole(role) {
@@ -94,6 +103,7 @@ async function findDeckBySessionId(sessionId, deckDirs) {
 function publicAccessLink(accessLink, deck = null) {
   return {
     access_token: accessLink.access_token,
+    public_id: accessLink.public_id,
     session_id: accessLink.session_id,
     role: accessLink.role,
     created_at: accessLink.created_at,
@@ -111,6 +121,7 @@ function presentationOpenResponse(accessLink, manifest, deck) {
 
   return {
     access_token: accessLink.access_token,
+    public_id: accessLink.public_id,
     session_id: accessLink.session_id,
     role: accessLink.role,
     active: accessLink.active,
@@ -233,6 +244,16 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
     return { accessLink };
   }
 
+  async function findActivePublicAudienceLink(publicId) {
+    if (!PUBLIC_ID_PATTERN.test(publicId)) return { status: 404, error: 'Public link not found' };
+
+    const accessLinks = await loadAccessLinks(storePath);
+    const accessLink = accessLinks.find((link) => link.public_id === publicId);
+    if (!accessLink || accessLink.role !== 'audience') return { status: 404, error: 'Public link not found' };
+    if (accessLink.active === false) return { status: 403, error: 'Public link inactive' };
+    return { accessLink };
+  }
+
   async function createAccessLink(req, res) {
     const sessionId = String(req.body?.session_id || '').trim();
     const role = String(req.body?.role || '').trim();
@@ -246,6 +267,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
 
       const accessLinks = await loadAccessLinks(storePath);
       const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));
+      const usedPublicIds = new Set(accessLinks.map((link) => link.public_id).filter(Boolean));
       let accessToken = generateAccessToken();
       while (usedTokens.has(accessToken)) accessToken = generateAccessToken();
 
@@ -256,6 +278,12 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
         created_at: new Date().toISOString(),
         active: true
       };
+
+      if (role === 'audience') {
+        let publicId = generatePublicId();
+        while (usedPublicIds.has(publicId)) publicId = generatePublicId();
+        accessLink.public_id = publicId;
+      }
 
       accessLinks.push(accessLink);
       await saveAccessLinks(storePath, accessLinks);
@@ -320,6 +348,25 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
     };
   }
 
+  async function openPublicAudience(req, res, next) {
+    const publicId = String(req.params.public_id || '').trim();
+    if (!PUBLIC_ID_PATTERN.test(publicId)) return next();
+
+    try {
+      const result = await findActivePublicAudienceLink(publicId);
+      if (result.error) return res.status(result.status).json({ error: result.error });
+
+      const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+      if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+
+      res.setHeader('Set-Cookie', serializeCookie(ROLE_ACCESS_COOKIE, createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
+      return res.redirect(302, roleRedirectUrl('audience', result.accessLink, deck));
+    } catch (error) {
+      console.error('Unable to open public audience link', error);
+      return res.status(500).json({ error: 'Unable to open public audience link' });
+    }
+  }
+
   function guardLegacyRoute(requiredRole, route) {
     return async (req, res, next) => {
       const sessionId = String(req.query?.session || '').trim();
@@ -350,7 +397,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir }) {
     };
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole, guardLegacyRoute };
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute };
 }
 
 module.exports = {
