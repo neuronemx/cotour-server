@@ -1,6 +1,8 @@
 const params = new URLSearchParams(location.search);
 const sessionId = params.get("session") || "auto";
 const deckId = params.get("deck") || "demo";
+const publicId = params.get("public_id") || "";
+const screenAccessToken = params.get("screen_access_token") || "";
 const socket = io();
 
 let manifest = null;
@@ -39,7 +41,15 @@ async function loadDeck() {
 }
 
 function publicUrl() {
-  return "https://immersa.mx/" + encodeURIComponent(sessionId);
+  return publicId ? window.location.origin + "/" + encodeURIComponent(publicId) : "";
+}
+
+function screenUrl() {
+  return screenAccessToken ? window.location.origin + "/screen/" + encodeURIComponent(screenAccessToken) : "";
+}
+
+function displayUrl() {
+  return screenUrl() || publicUrl();
 }
 
 function normalizeOverlayState(next = {}) {
@@ -126,19 +136,7 @@ function emitStageSlide(targetIndex) {
   const slideIndex = clampSlideIndex(targetIndex);
   currentSlideIndex = slideIndex;
   updateSlideControls();
-
-  const payload = {
-    session: sessionId,
-    deck: deckId,
-    role: "stage",
-    source: "stage",
-    slideIndex,
-    liveSlideIndex: slideIndex,
-    timestamp: now
-  };
-
-  socket.emit("slide_change", payload);
-  socket.emit("stage_slide_control", payload);
+  socket.emit("slide_go", { slideIndex });
 }
 
 function openTextModal() {
@@ -164,7 +162,9 @@ reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScre
 qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: publicUrl() }));
 
 displayLinkButton.addEventListener("click", () => {
-  messageInput.value = publicUrl();
+  const url = displayUrl();
+  if (!url) return;
+  messageInput.value = url;
   messageInput.focus();
 });
 
@@ -198,5 +198,6 @@ socket.on("audience_count", (count) => { audience.textContent = count; });
 
 loadDeck().then(() => {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
-  updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl: publicUrl() });
+  const audienceUrl = publicUrl();
+  if (audienceUrl) updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl });
 });
