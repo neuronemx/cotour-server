@@ -21,13 +21,15 @@ const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 const connectionNotice = document.getElementById("connectionNotice");
+const liveMessage = document.getElementById("liveMessage");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); }
 function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
-function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); }
+function applyLiveMessage(overlays = {}) { if (!liveMessage) return; const text = overlays.messageText || ""; const visible = Boolean(overlays.messageVisible && text); liveMessage.textContent = visible ? text : ""; liveMessage.classList.toggle("hidden", !visible); }
+function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); applyLiveMessage(state.overlays || {}); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
 function takeSnapshot() { if (!manifest) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
@@ -67,6 +69,8 @@ socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience();
 socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect_failed", () => setConnectionNotice(true));
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
+socket.on("overlay_update", applyLiveMessage);
+socket.on("clear_overlays", () => applyLiveMessage({ messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
 applyTransform();
 loadDeck().then(joinAudience);
