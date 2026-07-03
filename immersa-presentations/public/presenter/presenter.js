@@ -1,9 +1,7 @@
 const params = new URLSearchParams(location.search);
-const sessionId = params.get("session") || "demo01";
-const deckId = params.get("deck") || "demo";
-const publicId = params.get("public_id") || "";
-const screenAccessToken = params.get("screen_access_token") || "";
-const stageAccessToken = params.get("stage_access_token") || "";
+const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
+const sessionId = params.get("session") || roleOpenContext.session || "demo01";
+const deckId = params.get("deck") || roleOpenContext.deck || "demo";
 const socket = io();
 const overlaySocket = io();
 let overlaySocketJoined = false;
@@ -28,9 +26,9 @@ function renderDeckNotice() {
 }
 function legacyRoleUrl(role) { return location.origin + "/" + role + "?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 function roleUrl(role) {
-  if (role === "audience" && publicId) return location.origin + "/" + encodeURIComponent(publicId);
-  if (role === "screen" && screenAccessToken) return location.origin + "/screen/" + encodeURIComponent(screenAccessToken);
-  if (role === "stage" && stageAccessToken) return location.origin + "/stage/" + encodeURIComponent(stageAccessToken);
+  if (role === "audience" && roleOpenContext.public_url) return roleOpenContext.public_url;
+  if (role === "screen" && roleOpenContext.screen_url) return roleOpenContext.screen_url;
+  if (role === "stage" && roleOpenContext.stage_url) return roleOpenContext.stage_url;
   return legacyRoleUrl(role);
 }
 function audienceQrVisible(state) { return Boolean(state?.overlays?.showAudienceQr ?? state?.overlays?.qrVisible); }

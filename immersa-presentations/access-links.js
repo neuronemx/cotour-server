@@ -154,15 +154,59 @@ function findRelatedAccessLink(accessLinks, sessionId, role) {
   return accessLinks.find((link) => link.session_id === sessionId && link.role === role && link.active !== false) || null;
 }
 
-function roleRedirectUrl(route, accessLink, deck, relatedLinks = {}) {
-  const params = new URLSearchParams({
+function ensureAudienceAccessLink(accessLinks, sessionId) {
+  const current = findRelatedAccessLink(accessLinks, sessionId, 'audience');
+  if (current) return { accessLink: current, created: false };
+
+  const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));
+  const usedPublicIds = new Set(accessLinks.map((link) => link.public_id).filter(Boolean));
+  let accessToken = generateAccessToken();
+  while (usedTokens.has(accessToken)) accessToken = generateAccessToken();
+  let publicId = generatePublicId();
+  while (usedPublicIds.has(publicId)) publicId = generatePublicId();
+
+  const accessLink = {
+    access_token: accessToken,
+    public_id: publicId,
+    session_id: sessionId,
+    role: 'audience',
+    created_at: new Date().toISOString(),
+    active: true
+  };
+  accessLinks.push(accessLink);
+  return { accessLink, created: true };
+}
+
+function absoluteUrl(req, pathname) {
+  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  return protocol + '://' + req.get('host') + pathname;
+}
+
+function relatedRoleContext(req, accessLink, deck, relatedLinks = {}) {
+  const publicPath = relatedLinks.audience?.public_id ? '/' + relatedLinks.audience.public_id : '';
+  const screenPath = relatedLinks.screen?.access_token ? '/screen/' + relatedLinks.screen.access_token : '';
+  const stagePath = relatedLinks.stage?.access_token ? '/stage/' + relatedLinks.stage.access_token : '';
+  return {
     session: accessLink.session_id,
-    deck: deck.deckId
-  });
-  if (relatedLinks.audience?.public_id) params.set('public_id', relatedLinks.audience.public_id);
-  if (relatedLinks.screen?.access_token) params.set('screen_access_token', relatedLinks.screen.access_token);
-  if (relatedLinks.stage?.access_token) params.set('stage_access_token', relatedLinks.stage.access_token);
-  return '/' + route + '/?' + params.toString();
+    deck: deck.deckId,
+    role: accessLink.role,
+    public_id: relatedLinks.audience?.public_id || '',
+    public_url: publicPath ? absoluteUrl(req, publicPath) : '',
+    screen_url: screenPath ? absoluteUrl(req, screenPath) : '',
+    stage_url: stagePath ? absoluteUrl(req, stagePath) : ''
+  };
+}
+
+function roleIndexPath(publicDir, route) {
+  const page = route === 'viewer' ? 'screen' : route;
+  return path.join(publicDir, page, 'index.html');
+}
+
+function injectRoleContext(html, context) {
+  const safeContext = JSON.stringify(context).replace(/</g, '\\u003c');
+  const script = '<script>window.IMMERSA_ROLE_OPEN = ' + safeContext + ';</script>';
+  if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
+  return script + '\n' + html;
 }
 
 function base64UrlEncode(value) {
@@ -364,14 +408,18 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
         const accessLinks = await loadAccessLinks(storePath);
+        const audienceResult = ensureAudienceAccessLink(accessLinks, result.accessLink.session_id);
+        if (audienceResult.created) await saveAccessLinks(storePath, accessLinks);
         const relatedLinks = {
-          audience: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'audience'),
+          audience: audienceResult.accessLink,
           screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen'),
           stage: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
         };
+        const html = await fs.promises.readFile(roleIndexPath(publicDir, route), 'utf8');
+        const context = relatedRoleContext(req, result.accessLink, deck, relatedLinks);
 
         res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: result.accessLink, deck, route }), req));
-        return res.redirect(302, roleRedirectUrl(route, result.accessLink, deck, relatedLinks));
+        return res.type('html').send(injectRoleContext(html, context));
       } catch (error) {
         console.error('Unable to open role experience', error);
         return res.status(500).json({ error: 'Unable to open role experience' });
