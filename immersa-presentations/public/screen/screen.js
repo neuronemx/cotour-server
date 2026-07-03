@@ -1,6 +1,7 @@
 const params = new URLSearchParams(location.search);
 const sessionId = params.get("session") || "demo01";
 const deckId = params.get("deck") || "demo";
+const publicId = params.get("public_id") || "";
 const socket = io();
 let manifest = null;
 let overlays = normalizeOverlayState();
@@ -10,7 +11,7 @@ let screenUiTimer = null;
 const slide = document.getElementById("slide");
 const qr = document.getElementById("qr");
 const message = document.getElementById("message");
-const audienceUrl = location.origin + "/audience?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId);
+const audienceUrl = publicId ? location.origin + "/" + encodeURIComponent(publicId) : location.origin + "/audience?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId);
 let activeAudienceUrl = audienceUrl;
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
