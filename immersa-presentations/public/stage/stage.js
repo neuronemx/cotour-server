@@ -1,8 +1,7 @@
 const params = new URLSearchParams(location.search);
-const sessionId = params.get("session") || "auto";
-const deckId = params.get("deck") || "demo";
-const publicId = params.get("public_id") || "";
-const screenAccessToken = params.get("screen_access_token") || "";
+const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
+const sessionId = params.get("session") || roleOpenContext.session || "auto";
+const deckId = params.get("deck") || roleOpenContext.deck || "demo";
 const socket = io();
 
 let manifest = null;
@@ -41,15 +40,7 @@ async function loadDeck() {
 }
 
 function publicUrl() {
-  return publicId ? window.location.origin + "/" + encodeURIComponent(publicId) : "";
-}
-
-function screenUrl() {
-  return screenAccessToken ? window.location.origin + "/screen/" + encodeURIComponent(screenAccessToken) : "";
-}
-
-function displayUrl() {
-  return screenUrl() || publicUrl();
+  return roleOpenContext.public_url || "";
 }
 
 function normalizeOverlayState(next = {}) {
@@ -162,7 +153,7 @@ reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScre
 qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: publicUrl() }));
 
 displayLinkButton.addEventListener("click", () => {
-  const url = displayUrl();
+  const url = publicUrl();
   if (!url) return;
   messageInput.value = url;
   messageInput.focus();
