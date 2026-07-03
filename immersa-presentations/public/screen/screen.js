@@ -4,7 +4,6 @@ const sessionId = params.get("session") || roleOpenContext.session || roleOpenCo
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 let manifest = null;
-let overlays = normalizeOverlayState();
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 let screenUiTimer = null;
@@ -13,6 +12,7 @@ const qr = document.getElementById("qr");
 const message = document.getElementById("message");
 const audienceUrl = roleOpenContext.public_url || "";
 let activeAudienceUrl = audienceUrl;
+let overlays = normalizeOverlayState();
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 

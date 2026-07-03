@@ -351,8 +351,13 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
       const accessLinks = await loadAccessLinks(storePath);
+      if (role === 'audience') {
+        const audienceResult = ensureAudienceAccessLink(accessLinks, sessionId);
+        if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
+        return res.status(audienceResult.changed ? 201 : 200).json(publicAccessLink(audienceResult.accessLink, deck));
+      }
+
       const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));
-      const usedPublicIds = new Set(accessLinks.map((link) => link.public_id).filter(Boolean));
       let accessToken = generateAccessToken();
       while (usedTokens.has(accessToken)) accessToken = generateAccessToken();
 
@@ -363,12 +368,6 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         created_at: new Date().toISOString(),
         active: true
       };
-
-      if (role === 'audience') {
-        let publicId = generatePublicId();
-        while (usedPublicIds.has(publicId)) publicId = generatePublicId();
-        accessLink.public_id = publicId;
-      }
 
       accessLinks.push(accessLink);
       await saveAccessLinks(storePath, accessLinks);

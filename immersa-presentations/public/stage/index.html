@@ -47,6 +47,11 @@
       <div class="screen-frame">
         <img id="slide" alt="Slide en vivo">
         <div id="stageLiveText" class="live-text-overlay" hidden></div>
+        <div id="stageQr" class="stage-qr-overlay" hidden>
+          <div id="stageQrPattern" class="stage-qr-pattern" aria-label="QR Immersa Live"></div>
+          <strong>Immersa Live</strong>
+          <span id="stageQrUrl"></span>
+        </div>
 
         <section class="main-controls" aria-label="Controles principales">
           <button id="prevSlide" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
@@ -80,6 +85,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/stage/stage.js?v=stage-v4"></script>
 </body>
 </html>

@@ -279,6 +279,58 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
 }
 .live-text-overlay[hidden] { display: none; }
 
+.stage-qr-overlay {
+  position: absolute;
+  z-index: 6;
+  right: 28px;
+  bottom: 92px;
+  width: 220px;
+  padding: 14px;
+  display: grid;
+  gap: 9px;
+  border-radius: 18px;
+  color: #111111;
+  background: rgba(248, 244, 234, .95);
+  border: 1px solid rgba(255,255,255,.58);
+  box-shadow: 0 24px 60px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.74);
+  text-align: center;
+}
+.stage-qr-overlay[hidden] { display: none; }
+.stage-qr-pattern {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #ffffff;
+}
+.stage-qr-pattern canvas,
+.stage-qr-pattern img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.stage-qr-pattern.qr-fallback {
+  padding: 10px;
+  align-items: center;
+  color: #111111;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.stage-qr-overlay strong {
+  color: #111111;
+  font-size: 16px;
+  line-height: 1.1;
+}
+.stage-qr-overlay span {
+  color: rgba(0,0,0,.68);
+  font-size: 10.5px;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
 .main-controls {
   position: absolute;
   z-index: 7;
@@ -467,6 +519,9 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .stage-brand strong { display: none; }
   .presentation-name { min-width: 130px; max-width: 210px; }
   .screen-frame { min-height: 58vh; border-radius: 20px; }
+  .stage-qr-overlay { right: 14px; bottom: 80px; width: min(190px, calc(100% - 28px)); padding: 11px; border-radius: 15px; }
+  .stage-qr-overlay strong { font-size: 14px; }
+  .stage-qr-overlay span { font-size: 9.5px; }
   .main-controls { bottom: 10px; gap: 5px; padding: 6px; max-width: calc(100% - 18px); }
   .control-button { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
   .nav-button { width: 45px; min-width: 45px; height: 45px; min-height: 45px; }

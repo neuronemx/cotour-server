@@ -8,6 +8,7 @@ let manifest = null;
 let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let lastStageCommandAt = 0;
+let renderedStageQrUrl = "";
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 
 const slide = document.getElementById("slide");
@@ -28,6 +29,9 @@ const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
 const displayLinkButton = document.getElementById("displayLinkButton");
 const stageLiveText = document.getElementById("stageLiveText");
+const stageQr = document.getElementById("stageQr");
+const stageQrPattern = document.getElementById("stageQrPattern");
+const stageQrUrl = document.getElementById("stageQrUrl");
 
 async function loadDeck() {
   const res = await fetch("/decks/" + deckId + "/manifest.json");
@@ -65,6 +69,7 @@ function setToggles() {
   liveTextButton.classList.toggle("is-live", overlays.messageVisible);
   liveTextButton.textContent = overlays.messageVisible ? "Apagar texto" : "Texto en vivo";
   renderLiveTextOverlay();
+  renderStageQr();
 }
 
 function renderLiveTextOverlay() {
@@ -72,6 +77,24 @@ function renderLiveTextOverlay() {
   const visible = Boolean(overlays.messageVisible && overlays.messageText);
   stageLiveText.hidden = !visible;
   stageLiveText.textContent = visible ? overlays.messageText : "";
+}
+
+function renderStageQr() {
+  if (!stageQr || !stageQrPattern || !stageQrUrl) return;
+  const url = overlays.showAudienceQr ? (overlays.audienceUrl || publicUrl()) : "";
+  stageQr.hidden = !url;
+  stageQrUrl.textContent = url;
+  if (!url || renderedStageQrUrl === url) return;
+
+  renderedStageQrUrl = url;
+  stageQrPattern.innerHTML = "";
+  stageQrPattern.classList.remove("qr-fallback");
+  if (window.QRCode) {
+    new window.QRCode(stageQrPattern, { text: url, width: 188, height: 188, colorDark: "#111111", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M });
+    return;
+  }
+  stageQrPattern.textContent = url;
+  stageQrPattern.classList.add("qr-fallback");
 }
 
 function clampSlideIndex(index) {

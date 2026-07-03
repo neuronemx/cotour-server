@@ -20,6 +20,7 @@ const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
+const connectionNotice = document.getElementById("connectionNotice");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
@@ -44,6 +45,14 @@ function updateFullscreenButton() {
   fullscreen.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
   fullscreen.title = active ? "Salir de pantalla completa" : "Pantalla completa";
 }
+function setConnectionNotice(visible) {
+  if (!connectionNotice) return;
+  connectionNotice.classList.toggle("hidden", !visible);
+}
+function joinAudience() {
+  if (!manifest) return;
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience" });
+}
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
@@ -52,7 +61,12 @@ viewport.addEventListener("pointerdown", handlePointerDown);
 viewport.addEventListener("pointermove", handlePointerMove);
 viewport.addEventListener("pointerup", handlePointerUp);
 viewport.addEventListener("pointercancel", handlePointerUp);
+socket.on("connect", () => { setConnectionNotice(false); joinAudience(); });
+socket.on("disconnect", () => setConnectionNotice(true));
+socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience(); });
+socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));
+socket.io?.on?.("reconnect_failed", () => setConnectionNotice(true));
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
 applyTransform();
-loadDeck().then(() => socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience" }));
+loadDeck().then(joinAudience);
