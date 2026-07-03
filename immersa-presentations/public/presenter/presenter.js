@@ -1,6 +1,9 @@
 const params = new URLSearchParams(location.search);
 const sessionId = params.get("session") || "demo01";
 const deckId = params.get("deck") || "demo";
+const publicId = params.get("public_id") || "";
+const screenAccessToken = params.get("screen_access_token") || "";
+const stageAccessToken = params.get("stage_access_token") || "";
 const socket = io();
 const overlaySocket = io();
 let overlaySocketJoined = false;
@@ -23,7 +26,13 @@ function renderDeckNotice() {
   const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
   deckNotice.hidden = !pending;
 }
-function roleUrl(role) { return location.origin + "/" + role + "?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
+function legacyRoleUrl(role) { return location.origin + "/" + role + "?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
+function roleUrl(role) {
+  if (role === "audience" && publicId) return location.origin + "/" + encodeURIComponent(publicId);
+  if (role === "screen" && screenAccessToken) return location.origin + "/screen/" + encodeURIComponent(screenAccessToken);
+  if (role === "stage" && stageAccessToken) return location.origin + "/stage/" + encodeURIComponent(stageAccessToken);
+  return legacyRoleUrl(role);
+}
 function audienceQrVisible(state) { return Boolean(state?.overlays?.showAudienceQr ?? state?.overlays?.qrVisible); }
 function updateAudienceQrButton(state) { const active = audienceQrVisible(state); audienceQr.classList.toggle("is-active", active); audienceQr.classList.toggle("active", active); audienceQr.setAttribute("aria-pressed", String(active)); audienceQr.title = active ? "Ocultar QR de audiencia" : "Mostrar QR de audiencia"; }
 function publishAudienceQr(visible) { if (!overlaySocketJoined) { overlaySocket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" }); overlaySocketJoined = true; } overlaySocket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl: roleUrl("audience") } }); }
