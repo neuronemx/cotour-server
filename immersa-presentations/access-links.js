@@ -154,27 +154,41 @@ function findRelatedAccessLink(accessLinks, sessionId, role) {
   return accessLinks.find((link) => link.session_id === sessionId && link.role === role && link.active !== false) || null;
 }
 
-function ensureAudienceAccessLink(accessLinks, sessionId) {
-  const current = findRelatedAccessLink(accessLinks, sessionId, 'audience');
-  if (current) return { accessLink: current, created: false };
-
+function nextUniqueAccessToken(accessLinks) {
   const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));
-  const usedPublicIds = new Set(accessLinks.map((link) => link.public_id).filter(Boolean));
   let accessToken = generateAccessToken();
   while (usedTokens.has(accessToken)) accessToken = generateAccessToken();
+  return accessToken;
+}
+
+function nextUniquePublicId(accessLinks) {
+  const usedPublicIds = new Set(accessLinks.map((link) => link.public_id).filter(Boolean));
   let publicId = generatePublicId();
   while (usedPublicIds.has(publicId)) publicId = generatePublicId();
+  return publicId;
+}
+
+function ensureAudienceAccessLink(accessLinks, sessionId) {
+  const readyAudience = accessLinks.find((link) => link.session_id === sessionId && link.role === 'audience' && link.active !== false && PUBLIC_ID_PATTERN.test(String(link.public_id || '')) && ACCESS_TOKEN_PATTERN.test(String(link.access_token || '')));
+  if (readyAudience) return { accessLink: readyAudience, changed: false };
+
+  const current = findRelatedAccessLink(accessLinks, sessionId, 'audience');
+  if (current) {
+    if (!ACCESS_TOKEN_PATTERN.test(String(current.access_token || ''))) current.access_token = nextUniqueAccessToken(accessLinks);
+    if (!PUBLIC_ID_PATTERN.test(String(current.public_id || ''))) current.public_id = nextUniquePublicId(accessLinks);
+    return { accessLink: current, changed: true };
+  }
 
   const accessLink = {
-    access_token: accessToken,
-    public_id: publicId,
+    access_token: nextUniqueAccessToken(accessLinks),
+    public_id: nextUniquePublicId(accessLinks),
     session_id: sessionId,
     role: 'audience',
     created_at: new Date().toISOString(),
     active: true
   };
   accessLinks.push(accessLink);
-  return { accessLink, created: true };
+  return { accessLink, changed: true };
 }
 
 function absoluteUrl(req, pathname) {
@@ -187,8 +201,11 @@ function relatedRoleContext(req, accessLink, deck, relatedLinks = {}) {
   const screenPath = relatedLinks.screen?.access_token ? '/screen/' + relatedLinks.screen.access_token : '';
   const stagePath = relatedLinks.stage?.access_token ? '/stage/' + relatedLinks.stage.access_token : '';
   return {
+    access_token: accessLink.access_token,
     session: accessLink.session_id,
+    session_id: accessLink.session_id,
     deck: deck.deckId,
+    deckId: deck.deckId,
     role: accessLink.role,
     public_id: relatedLinks.audience?.public_id || '',
     public_url: publicPath ? absoluteUrl(req, publicPath) : '',
@@ -409,7 +426,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
 
         const accessLinks = await loadAccessLinks(storePath);
         const audienceResult = ensureAudienceAccessLink(accessLinks, result.accessLink.session_id);
-        if (audienceResult.created) await saveAccessLinks(storePath, accessLinks);
+        if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
         const relatedLinks = {
           audience: audienceResult.accessLink,
           screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen'),

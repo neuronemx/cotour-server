@@ -1,7 +1,7 @@
 const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
-const sessionId = params.get("session") || roleOpenContext.session || "demo01";
-const deckId = params.get("deck") || roleOpenContext.deck || "demo";
+const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
+const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 const overlaySocket = io();
 let overlaySocketJoined = false;
@@ -26,14 +26,19 @@ function renderDeckNotice() {
 }
 function legacyRoleUrl(role) { return location.origin + "/" + role + "?session=" + encodeURIComponent(sessionId) + "&deck=" + encodeURIComponent(deckId); }
 function roleUrl(role) {
-  if (role === "audience" && roleOpenContext.public_url) return roleOpenContext.public_url;
+  if (role === "audience") return roleOpenContext.public_url || "";
   if (role === "screen" && roleOpenContext.screen_url) return roleOpenContext.screen_url;
   if (role === "stage" && roleOpenContext.stage_url) return roleOpenContext.stage_url;
   return legacyRoleUrl(role);
 }
 function audienceQrVisible(state) { return Boolean(state?.overlays?.showAudienceQr ?? state?.overlays?.qrVisible); }
-function updateAudienceQrButton(state) { const active = audienceQrVisible(state); audienceQr.classList.toggle("is-active", active); audienceQr.classList.toggle("active", active); audienceQr.setAttribute("aria-pressed", String(active)); audienceQr.title = active ? "Ocultar QR de audiencia" : "Mostrar QR de audiencia"; }
-function publishAudienceQr(visible) { if (!overlaySocketJoined) { overlaySocket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" }); overlaySocketJoined = true; } overlaySocket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl: roleUrl("audience") } }); }
+function updateAudienceQrButton(state) { const active = audienceQrVisible(state); audienceQr.classList.toggle("is-active", active); audienceQr.classList.toggle("active", active); audienceQr.setAttribute("aria-pressed", String(active)); audienceQr.title = active ? "Ocultar QR de público" : "Mostrar QR de público"; }
+function publishAudienceQr(visible) {
+  const audienceUrl = roleUrl("audience");
+  if (visible && !audienceUrl) return;
+  if (!overlaySocketJoined) { overlaySocket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" }); overlaySocketJoined = true; }
+  overlaySocket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl } });
+}
 
 function getFullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 function isFullscreen() { return Boolean(getFullscreenElement()); }

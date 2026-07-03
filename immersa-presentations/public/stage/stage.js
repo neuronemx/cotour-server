@@ -1,7 +1,7 @@
 const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
-const sessionId = params.get("session") || roleOpenContext.session || "auto";
-const deckId = params.get("deck") || roleOpenContext.deck || "demo";
+const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
+const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 
 let manifest = null;
@@ -61,7 +61,7 @@ function normalizeOverlayState(next = {}) {
 function setToggles() {
   overlays = normalizeOverlayState(overlays);
   reactionsToggle.checked = Boolean(overlays.showReactions);
-  qrToggle.checked = Boolean(overlays.showAudienceQr);
+  qrToggle.checked = Boolean(overlays.showAudienceQr && publicUrl());
   liveTextButton.classList.toggle("is-live", overlays.messageVisible);
   liveTextButton.textContent = overlays.messageVisible ? "Apagar texto" : "Texto en vivo";
   renderLiveTextOverlay();
@@ -150,7 +150,14 @@ function clearLiveText() {
 prevSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex - 1));
 nextSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex + 1));
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked, showReactions: reactionsToggle.checked }));
-qrToggle.addEventListener("change", () => updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl: publicUrl() }));
+qrToggle.addEventListener("change", () => {
+  const audienceUrl = publicUrl();
+  if (qrToggle.checked && !audienceUrl) {
+    qrToggle.checked = false;
+    return;
+  }
+  updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl });
+});
 
 displayLinkButton.addEventListener("click", () => {
   const url = publicUrl();
@@ -190,5 +197,5 @@ socket.on("audience_count", (count) => { audience.textContent = count; });
 loadDeck().then(() => {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
   const audienceUrl = publicUrl();
-  if (audienceUrl) updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl });
+  updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl });
 });
