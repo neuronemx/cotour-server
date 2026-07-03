@@ -14,6 +14,7 @@ let startPanX = 0;
 let startPanY = 0;
 let startDistance = 0;
 let startCenter = null;
+let drawingOverlay = null;
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -26,10 +27,10 @@ async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manif
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
-function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); }
+function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }
 function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
 function applyLiveMessage(overlays = {}) { if (!liveMessage) return; const text = overlays.messageText || ""; const visible = Boolean(overlays.messageVisible && text); liveMessage.textContent = visible ? text : ""; liveMessage.classList.toggle("hidden", !visible); }
-function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); applyLiveMessage(state.overlays || {}); }
+function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); applyLiveMessage(state.overlays || {}); drawingOverlay?.refresh(); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
 function takeSnapshot() { if (!manifest) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
@@ -55,6 +56,7 @@ function joinAudience() {
   if (!manifest) return;
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience" });
 }
+function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
@@ -72,5 +74,6 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", applyLiveMessage);
 socket.on("clear_overlays", () => applyLiveMessage({ messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
+socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
 applyTransform();
-loadDeck().then(joinAudience);
+loadDeck().then(() => { initDrawingOverlay(); joinAudience(); });
