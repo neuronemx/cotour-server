@@ -6,7 +6,7 @@ const ACCESS_TOKEN_PATTERN = /^a_[a-z0-9]{10}$/;
 const PUBLIC_ID_PATTERN = /^p_[a-z0-9]+$/;
 const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'screen', 'viewer']);
-const ROLE_ACCESS_COOKIE = 'immersa_role_access';
+const ROLE_ACCESS_COOKIE_PREFIX = 'immersa_role_access_';
 const ROLE_ACCESS_TTL_SECONDS = 120;
 const ROLE_GUARD_SECRET = process.env.IMMERSA_ROUTE_GUARD_SECRET || process.env.SESSION_SECRET || process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
 
@@ -150,11 +150,18 @@ function presentationOpenResponse(accessLink, manifest, deck) {
   };
 }
 
-function roleRedirectUrl(route, accessLink, deck) {
+function findRelatedAccessLink(accessLinks, sessionId, role) {
+  return accessLinks.find((link) => link.session_id === sessionId && link.role === role && link.active !== false) || null;
+}
+
+function roleRedirectUrl(route, accessLink, deck, relatedLinks = {}) {
   const params = new URLSearchParams({
     session: accessLink.session_id,
     deck: deck.deckId
   });
+  if (relatedLinks.audience?.public_id) params.set('public_id', relatedLinks.audience.public_id);
+  if (relatedLinks.screen?.access_token) params.set('screen_access_token', relatedLinks.screen.access_token);
+  if (relatedLinks.stage?.access_token) params.set('stage_access_token', relatedLinks.stage.access_token);
   return '/' + route + '/?' + params.toString();
 }
 
@@ -168,6 +175,10 @@ function base64UrlDecode(value) {
 
 function signRoleAccessPayload(payload) {
   return crypto.createHmac('sha256', ROLE_GUARD_SECRET).update(payload).digest('base64url');
+}
+
+function roleAccessCookieName(role) {
+  return ROLE_ACCESS_COOKIE_PREFIX + String(role || '').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
 }
 
 function createRoleAccessValue({ accessLink, deck, route }) {
@@ -201,8 +212,8 @@ function timingSafeEqualString(a, b) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-function parseRoleAccessCookie(cookieHeader) {
-  const cookieValue = parseCookies(cookieHeader).get(ROLE_ACCESS_COOKIE);
+function parseRoleAccessCookie(cookieHeader, role) {
+  const cookieValue = parseCookies(cookieHeader).get(roleAccessCookieName(role));
   if (!cookieValue) return null;
 
   const [encodedPayload, signature] = cookieValue.split('.');
@@ -352,8 +363,15 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
-        res.setHeader('Set-Cookie', serializeCookie(ROLE_ACCESS_COOKIE, createRoleAccessValue({ accessLink: result.accessLink, deck, route }), req));
-        return res.redirect(302, roleRedirectUrl(route, result.accessLink, deck));
+        const accessLinks = await loadAccessLinks(storePath);
+        const relatedLinks = {
+          audience: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'audience'),
+          screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen'),
+          stage: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
+        };
+
+        res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: result.accessLink, deck, route }), req));
+        return res.redirect(302, roleRedirectUrl(route, result.accessLink, deck, relatedLinks));
       } catch (error) {
         console.error('Unable to open role experience', error);
         return res.status(500).json({ error: 'Unable to open role experience' });
@@ -374,7 +392,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       if (!audienceIndexPath) return res.status(500).json({ error: 'Audience experience is not configured' });
 
       const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
-      res.setHeader('Set-Cookie', serializeCookie(ROLE_ACCESS_COOKIE, createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
+      res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName('audience'), createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
       return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck));
     } catch (error) {
       console.error('Unable to open public audience link', error);
@@ -389,7 +407,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       if (!sessionId && !deckId) return next();
       if (!sessionId || !deckId) return res.status(403).json({ error: 'Access token required' });
 
-      const payload = parseRoleAccessCookie(req.headers.cookie);
+      const payload = parseRoleAccessCookie(req.headers.cookie, requiredRole);
       if (!payload) return res.status(403).json({ error: 'Access token required' });
       if (payload.session_id !== sessionId || payload.deckId !== deckId || payload.role !== requiredRole || payload.route !== route) {
         return res.status(403).json({ error: 'Access token required' });
