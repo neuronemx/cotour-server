@@ -62,6 +62,6 @@ showScreenUi();
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
-socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
+socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });
 makeQrPattern(activeAudienceUrl);
 loadDeck().then(() => socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" }));
