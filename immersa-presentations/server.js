@@ -410,7 +410,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("slide_next", async () => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
@@ -418,7 +418,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("slide_prev", async () => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
@@ -426,7 +426,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("slide_go", async ({ slideIndex }) => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
