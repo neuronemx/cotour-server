@@ -1,6 +1,6 @@
 (function () {
-  const DEFAULT_COLOR = "#6ff7e8";
-  const DEFAULT_WIDTH = 0.006;
+  const DEFAULT_COLOR = "#b20de9";
+  const DEFAULT_WIDTH = 0.009;
   const DEFAULT_TTL = 4200;
   const FADE_MS = 1000;
 
