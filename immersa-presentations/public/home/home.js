@@ -18,6 +18,13 @@ const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
 const cancelName = document.getElementById("cancelName");
 const conversionOverlay = document.getElementById("conversionOverlay");
+const conversionCard = conversionOverlay?.querySelector(".conversion-card");
+const conversionTitle = document.getElementById("conversionTitle");
+const conversionMessage = document.getElementById("conversionMessage");
+const conversionPercent = document.getElementById("conversionPercent");
+const conversionBarFill = document.getElementById("conversionBarFill");
+let conversionProgressTimer = null;
+let conversionProgressValue = 0;
 let pendingFile = null;
 
 function normalizeSlug(value) {
@@ -137,11 +144,59 @@ function deckConversionMeta(deck) {
   return deckConversionDate(deck);
 }
 
-function setConversionOverlay(visible) {
+function setConversionProgress(value) {
+  conversionProgressValue = Math.max(0, Math.min(100, Math.round(value || 0)));
+  if (conversionPercent) conversionPercent.textContent = conversionProgressValue + "%";
+  if (conversionBarFill) conversionBarFill.style.width = conversionProgressValue + "%";
+}
+
+function setConversionOverlay(visible, options = {}) {
   if (!conversionOverlay) return;
-  conversionOverlay.hidden = !visible;
-  conversionOverlay.setAttribute("aria-hidden", visible ? "false" : "true");
-  document.body.classList.toggle("conversion-open", visible);
+
+  if (!visible) {
+    window.clearInterval(conversionProgressTimer);
+    conversionProgressTimer = null;
+    conversionOverlay.hidden = true;
+    conversionOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("conversion-open");
+    conversionCard?.classList.remove("success", "error");
+    return;
+  }
+
+  const state = options.state || "loading";
+  conversionOverlay.hidden = false;
+  conversionOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("conversion-open");
+  conversionCard?.classList.toggle("success", state === "success");
+  conversionCard?.classList.toggle("error", state === "error");
+
+  if (conversionTitle) conversionTitle.textContent = options.title || "Convirtiendo tu presentación";
+  if (conversionMessage) conversionMessage.textContent = options.message || "Preparando slides y archivos para Immersa.";
+  setConversionProgress(options.percent ?? conversionProgressValue);
+}
+
+function startConversionProgress() {
+  window.clearInterval(conversionProgressTimer);
+  conversionProgressTimer = null;
+  setConversionProgress(0);
+
+  conversionProgressTimer = window.setInterval(() => {
+    const next = conversionProgressValue < 72
+      ? conversionProgressValue + 4
+      : conversionProgressValue < 90
+        ? conversionProgressValue + 2
+        : conversionProgressValue < 96
+          ? conversionProgressValue + 1
+          : conversionProgressValue;
+    setConversionProgress(Math.min(next, 96));
+  }, 260);
+}
+
+function finishConversionOverlay(state, title, message, hold = 1600) {
+  window.clearInterval(conversionProgressTimer);
+  conversionProgressTimer = null;
+  setConversionOverlay(true, { state, title, message, percent: 100 });
+  window.setTimeout(() => setConversionOverlay(false), hold);
 }
 
 function accessRoute(role) {
@@ -565,8 +620,14 @@ if (nameForm) {
 
     if (uploadButton) uploadButton.disabled = true;
     closeNameModal(false);
-    setConversionOverlay(true);
-    setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
+    startConversionProgress();
+    setConversionOverlay(true, {
+      state: "loading",
+      title: "Convirtiendo tu presentación",
+      message: "Subiendo archivo y preparando slides para Immersa.",
+      percent: 0
+    });
+    setUploadStatus("", "");
 
     try {
       const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
@@ -576,14 +637,18 @@ if (nameForm) {
       uploadForm.reset();
       pendingFile = null;
       updateSelectedFileName(false);
-      if (data.conversionStatus === "completed") setUploadStatus(sourceLabel + " convertido correctamente.", "success");
-      else if (data.conversionStatus === "failed") setUploadStatus(sourceLabel + " cargado, pero la conversión falló: " + (data.conversionMessage || "verás una pantalla provisional"), "error");
-      else setUploadStatus(sourceLabel + " cargado. Convirtiendo presentación...", "loading");
       await loadDecks(data.deckId || newSessionId);
+
+      if (data.conversionStatus === "completed") {
+        finishConversionOverlay("success", "Presentación lista", sourceLabel + " convertido correctamente.");
+      } else if (data.conversionStatus === "failed") {
+        finishConversionOverlay("error", "La conversión falló", data.conversionMessage || "Verás una pantalla provisional.", 2400);
+      } else {
+        finishConversionOverlay("success", "Archivo recibido", sourceLabel + " cargado. La conversión continúa en segundo plano.", 2200);
+      }
     } catch (error) {
-      setUploadStatus("Error: " + error.message, "error");
+      finishConversionOverlay("error", "No se pudo convertir", error.message || "Intenta subir el archivo nuevamente.", 2600);
     } finally {
-      setConversionOverlay(false);
       if (uploadButton) uploadButton.disabled = false;
     }
   });
