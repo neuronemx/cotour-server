@@ -496,9 +496,12 @@ body.modal-open { overflow: hidden; }
 
   .create-panel {
     justify-self: end;
-    width: min(430px, 42vw);
-    max-width: 430px;
-    padding: 24px;
+    width: min(390px, 36vw);
+    max-width: 390px;
+    margin-right: clamp(96px, 12vw, 180px);
+    margin-bottom: -92px;
+    padding: 22px;
+    transform: translateY(-112px);
   }
 }
 
