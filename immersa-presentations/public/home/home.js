@@ -356,21 +356,29 @@ function niceTitle(title = "Presentación") {
 }
 
 function attachImageWithFallback(img, thumb, candidates, index = 0) {
-  if (!candidates[index]) return;
-  img.src = candidates[index];
-  img.addEventListener("load", () => thumb.classList.add("has-image"), { once: true });
-  img.addEventListener("error", () => {
-    const nextIndex = index + 1;
-    if (candidates[nextIndex]) attachImageWithFallback(img, thumb, candidates, nextIndex);
-    else img.remove();
-  }, { once: true });
+  const candidate = candidates[index];
+  if (!candidate) {
+    img.remove();
+    thumb.classList.remove("is-loading");
+    thumb.classList.add("has-fallback");
+    return;
+  }
+
+  img.onload = () => {
+    thumb.classList.remove("is-loading", "has-fallback");
+    thumb.classList.add("has-image");
+  };
+  img.onerror = () => {
+    attachImageWithFallback(img, thumb, candidates, index + 1);
+  };
+  img.src = candidate;
 }
 
 function renderThumb(deck) {
   const thumb = document.createElement("div");
-  thumb.className = "deck-thumb";
-
   const candidates = firstSlideThumbnailCandidates(deck);
+  thumb.className = "deck-thumb" + (candidates.length ? " is-loading" : " has-fallback");
+
   if (candidates.length) {
     const img = document.createElement("img");
     img.alt = "Slide 1 de " + niceTitle(deck.title || deck.deckId);
