@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="stylesheet" href="/presenter/presenter.css">
+  <link rel="stylesheet" href="/presenter/drawing-control.css">
 </head>
 <body>
   <main class="presenter-shell">
@@ -32,11 +33,18 @@
       <section class="main-controls" aria-label="Controles principales">
         <button id="prev" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
         <label class="control-button muted-button reaction-toggle" aria-label="Ver reacciones en Presenter"><input id="localReactions" type="checkbox" checked><span>👏</span></label>
+        <button id="drawToggle" class="control-button muted-button drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
+          <svg class="marker-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path class="marker-body" d="M17.7 3.8 28.2 14.3 16.1 26.4 5.6 15.9z"></path>
+            <path class="marker-tip" d="M5.6 15.9 2.9 20.7 11.3 29.1 16.1 26.4z"></path>
+            <path class="marker-cut" d="M8.9 19.2c1.5 1.5 1.5 3.9 0 5.4l2.4 2.4c1.5-1.5 3.9-1.5 5.4 0l1.6-1.6L10.5 17.6z"></path>
+          </svg>
+          <span>Trazo vivo</span>
+        </button>
         <div class="slide-status" aria-label="Estado de transmisión">
           <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
           <button id="playPause" class="status-pause-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
         </div>
-        <button id="drawToggle" class="control-button muted-button drawing-button" type="button" aria-pressed="false" title="Dibujar sobre slide">Dibujar</button>
         <button id="audienceQr" class="control-button muted-button qr-button" type="button" aria-pressed="false" title="Mostrar QR de público">QR</button>
         <button id="next" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
       </section>
