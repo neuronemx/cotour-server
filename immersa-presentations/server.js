@@ -334,8 +334,8 @@ function normalizeDrawingStroke(session, stroke) {
   return {
     slideIndex,
     points: normalizedPoints,
-    color: "#6ff7e8",
-    width: Math.max(0.003, Math.min(0.02, Number(stroke?.width) || 0.006)),
+    color: "#b20de9",
+    width: Math.max(0.003, Math.min(0.02, Number(stroke?.width) || 0.009)),
     createdAt: Date.now(),
     ttl: Math.max(3000, Math.min(5000, Number(stroke?.ttl) || 4200))
   };
