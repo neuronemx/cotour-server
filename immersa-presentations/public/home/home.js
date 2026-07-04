@@ -17,6 +17,7 @@ const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
 const cancelName = document.getElementById("cancelName");
+const conversionOverlay = document.getElementById("conversionOverlay");
 let pendingFile = null;
 
 function normalizeSlug(value) {
@@ -116,6 +117,33 @@ function deckSlideLabel(deck) {
   return deck.slideCount ?? deck.slidesCount ?? (Array.isArray(deck.slides) ? deck.slides.length : deck.slides) ?? 0;
 }
 
+function deckConversionDate(deck) {
+  const raw = deck?.convertedAt || deck?.conversionCompletedAt || deck?.conversionFinishedAt || deck?.completedAt || deck?.converted_at || deck?.updatedAt || deck?.updated_at || deck?.createdAt || deck?.created_at || "";
+  if (!raw) return "Fecha de conversión no disponible";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Fecha de conversión no disponible";
+  return "Convertida: " + new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date).replace(",", " ·");
+}
+
+function deckConversionMeta(deck) {
+  if (isPendingDeck(deck)) return "Convirtiendo presentación";
+  if (isFailedDeck(deck)) return "Conversión fallida";
+  return deckConversionDate(deck);
+}
+
+function setConversionOverlay(visible) {
+  if (!conversionOverlay) return;
+  conversionOverlay.hidden = !visible;
+  conversionOverlay.setAttribute("aria-hidden", visible ? "false" : "true");
+  document.body.classList.toggle("conversion-open", visible);
+}
+
 function accessRoute(role) {
   return role === "speaker" ? "speaker" : role;
 }
@@ -161,15 +189,20 @@ async function copyRoleLink(role, deck, button) {
   const label = labels[role] || role;
   const original = button.textContent;
   button.disabled = true;
-  button.textContent = "Generando";
+  button.textContent = role === "speaker" ? "Abriendo" : "Generando";
 
   try {
     const url = await createAccessLink(role, deck);
-    const copied = await copyText(url);
-    button.textContent = copied ? "Link copiado" : "Link listo";
-    button.classList.add("copied");
+    if (role === "speaker") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      button.textContent = "Speaker abierto";
+    } else {
+      const copied = await copyText(url);
+      button.textContent = copied ? "Link copiado" : "Link listo";
+      button.classList.add("copied");
+    }
   } catch (error) {
-    button.textContent = "No se pudo copiar";
+    button.textContent = role === "speaker" ? "No se pudo abrir" : "No se pudo copiar";
     setUploadStatus("Error: " + (error.message || "No se pudo generar el link " + label + "."), "error");
   } finally {
     window.setTimeout(() => {
@@ -345,25 +378,25 @@ function renderDecks() {
     const title = document.createElement("strong");
     title.textContent = niceTitle(deck.title || deck.deckId || "Presentación");
 
-    const badge = document.createElement("em");
-    badge.className = "deck-badge" + deckBadgeClass(deck);
-    badge.textContent = deckStatusLabel(deck);
+    titleLine.append(title);
 
-    titleLine.append(title, badge);
+    if (!isConvertedDeck(deck) || deck?.isLive || deck?.status === "live") {
+      const badge = document.createElement("em");
+      badge.className = "deck-badge" + deckBadgeClass(deck);
+      badge.textContent = deckStatusLabel(deck);
+      titleLine.appendChild(badge);
+    }
 
     const metaLine = document.createElement("div");
     metaLine.className = "deck-meta-line";
 
-    const updated = document.createElement("span");
-    updated.textContent = deck.updatedLabel || deck.updatedAtLabel || "Actualizada recientemente";
+    const convertedAt = document.createElement("span");
+    convertedAt.textContent = deckConversionMeta(deck);
 
     const slides = document.createElement("span");
-    slides.textContent = "Slides: " + deckSlideLabel(deck);
+    slides.textContent = deckSlideLabel(deck) + " slides";
 
-    const ratio = document.createElement("span");
-    ratio.textContent = "Ratio: " + (deck.ratio || "16:9");
-
-    metaLine.append(updated, slides, ratio);
+    metaLine.append(convertedAt, slides);
 
     info.append(titleLine, metaLine);
 
@@ -387,7 +420,8 @@ function renderDecks() {
 
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = labels[role];
+      button.textContent = role === "speaker" ? "Abrir Speaker" : "Copiar " + (labels[role] || role);
+      button.title = role === "speaker" ? "Abrir Speaker" : "Copiar link de " + (labels[role] || role);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         activeDeck = deck.deckId;
@@ -401,13 +435,15 @@ function renderDecks() {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "deck-delete";
-    deleteButton.textContent = "Eliminar";
+    deleteButton.setAttribute("aria-label", "Eliminar presentación");
+    deleteButton.title = "Eliminar presentación";
+    deleteButton.textContent = "🗑";
     deleteButton.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteDeck(deck);
     });
 
-    row.append(thumb, info, linkName, actions, deleteButton);
+    row.append(thumb, info, actions, deleteButton);
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
       activeDeck = deck.deckId;
@@ -529,6 +565,7 @@ if (nameForm) {
 
     if (uploadButton) uploadButton.disabled = true;
     closeNameModal(false);
+    setConversionOverlay(true);
     setUploadStatus("Subiendo y convirtiendo presentación...", "loading");
 
     try {
@@ -546,6 +583,7 @@ if (nameForm) {
     } catch (error) {
       setUploadStatus("Error: " + error.message, "error");
     } finally {
+      setConversionOverlay(false);
       if (uploadButton) uploadButton.disabled = false;
     }
   });

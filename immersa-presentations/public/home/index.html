@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=32">
+  <link rel="stylesheet" href="/home/home.css?v=33">
 </head>
 <body>
 
@@ -64,8 +64,8 @@
           <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
           <span class="upload-cloud" aria-hidden="true">↑</span>
           <span class="drop-zone-copy">
-            <strong>Arrastra tu archivo aquí</strong>
-            <span>o <u>selecciónalo</u> desde tu equipo</span>
+            <strong>Arrastra PPTX o PDF</strong>
+            <span>o <u>selecciona archivo</u></span>
             <span class="format-pills" aria-label="Formatos aceptados">
               <span class="format-pill"><i aria-hidden="true">PP</i>PPTX</span>
               <span class="format-pill"><i aria-hidden="true">PDF</i>PDF</span>
@@ -113,6 +113,18 @@
     </section>
   </div>
 
-  <script src="/home/home.js?v=31"></script>
+  <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
+    <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación">
+      <div class="conversion-orb" aria-hidden="true"></div>
+      <div class="conversion-copy">
+        <strong>Convirtiendo tu presentación</strong>
+        <span>Preparando slides y archivos para Immersa.</span>
+      </div>
+      <div class="conversion-bar" aria-hidden="true"><span></span></div>
+    </section>
+  </div>
+
+
+  <script src="/home/home.js?v=32"></script>
 </body>
 </html>
