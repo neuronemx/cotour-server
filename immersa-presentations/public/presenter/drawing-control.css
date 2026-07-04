@@ -1,0 +1,84 @@
+.drawing-button {
+  width: auto;
+  min-width: 118px;
+  gap: 7px;
+  padding: 0 13px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+.drawing-button .marker-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.drawing-button .marker-body,
+.drawing-button .marker-tip {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.drawing-button .marker-cut {
+  fill: #ffffff;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.drawing-button.is-active,
+.drawing-button.active {
+  color: #07100f;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  border-color: rgba(255,255,255,.36);
+  box-shadow: 0 0 0 5px rgba(104,216,204,.14), 0 0 32px rgba(104,216,204,.48), inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+.drawing-button.is-active .marker-body,
+.drawing-button.active .marker-body,
+.drawing-button.is-active .marker-tip,
+.drawing-button.active .marker-tip {
+  fill: #b20de9;
+  stroke: #050608;
+  stroke-width: 2.8;
+}
+
+.drawing-button.is-active .marker-cut,
+.drawing-button.active .marker-cut {
+  fill: #ffffff;
+  stroke: #050608;
+  stroke-width: 2.8;
+}
+
+@media (max-width: 760px) {
+  .drawing-button {
+    min-width: 104px;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .drawing-button .marker-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .drawing-button {
+    min-width: 94px;
+    padding: 0 9px;
+    font-size: 9px;
+  }
+
+  .drawing-button .marker-icon {
+    width: 17px;
+    height: 17px;
+  }
+}
