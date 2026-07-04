@@ -1,84 +1,72 @@
 .drawing-button {
-  width: auto;
-  min-width: 118px;
-  gap: 7px;
-  padding: 0 13px;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .01em;
-  white-space: nowrap;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.drawing-button .marker-icon {
-  width: 20px;
-  height: 20px;
+.drawing-icon {
+  width: 28px;
+  height: auto;
+  max-height: 28px;
+  object-fit: contain;
   display: block;
   flex: 0 0 auto;
-  overflow: visible;
 }
 
-.drawing-button .marker-body,
-.drawing-button .marker-tip {
-  fill: currentColor;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linejoin: round;
-}
-
-.drawing-button .marker-cut {
-  fill: #ffffff;
-  stroke: #ffffff;
-  stroke-width: 2.2;
-  stroke-linejoin: round;
+.drawing-icon-on {
+  display: none;
 }
 
 .drawing-button.is-active,
-.drawing-button.active {
+.drawing-button.active,
+.drawing-button[aria-pressed="true"] {
   color: #07100f;
   background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(104,216,204,.14), 0 0 32px rgba(104,216,204,.48), inset 0 1px 0 rgba(255,255,255,.25);
 }
 
-.drawing-button.is-active .marker-body,
-.drawing-button.active .marker-body,
-.drawing-button.is-active .marker-tip,
-.drawing-button.active .marker-tip {
-  fill: #b20de9;
-  stroke: #050608;
-  stroke-width: 2.8;
+.drawing-button.is-active .drawing-icon-off,
+.drawing-button.active .drawing-icon-off,
+.drawing-button[aria-pressed="true"] .drawing-icon-off {
+  display: none;
 }
 
-.drawing-button.is-active .marker-cut,
-.drawing-button.active .marker-cut {
-  fill: #ffffff;
-  stroke: #050608;
-  stroke-width: 2.8;
+.drawing-button.is-active .drawing-icon-on,
+.drawing-button.active .drawing-icon-on,
+.drawing-button[aria-pressed="true"] .drawing-icon-on {
+  display: block;
 }
 
 @media (max-width: 760px) {
   .drawing-button {
-    min-width: 104px;
-    gap: 6px;
-    padding: 0 10px;
-    font-size: 10px;
+    width: 37px;
+    min-width: 37px;
+    height: 37px;
+    min-height: 37px;
   }
 
-  .drawing-button .marker-icon {
-    width: 18px;
-    height: 18px;
+  .drawing-icon {
+    width: 27px;
+    max-height: 27px;
   }
 }
 
 @media (max-width: 390px), (max-height: 640px) {
   .drawing-button {
-    min-width: 94px;
-    padding: 0 9px;
-    font-size: 9px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
   }
 
-  .drawing-button .marker-icon {
-    width: 17px;
-    height: 17px;
+  .drawing-icon {
+    width: 26px;
+    max-height: 26px;
   }
 }
