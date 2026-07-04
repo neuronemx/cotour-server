@@ -101,6 +101,7 @@ body {
   border-color: rgba(255,255,255,.32);
   box-shadow: 0 0 0 4px rgba(104,216,204,.12), 0 0 28px rgba(104,216,204,.42), inset 0 1px 0 rgba(255,255,255,.24), 0 12px 28px rgba(0,0,0,.25);
 }
+.thumbs-toggle { display: none; }
 .reaction-layer { pointer-events: none; position: absolute; z-index: 3; inset: 0; overflow: hidden; }
 .reaction { position: absolute; left: 50%; bottom: 16%; font-size: clamp(34px, 5vw, 68px); filter: drop-shadow(0 14px 28px rgba(0,0,0,.36)); animation: floatReaction 2.8s ease-out forwards; }
 @keyframes floatReaction { from { transform: translate(-50%, 0) scale(.84); opacity: 0; } 14% { opacity: 1; } to { transform: translate(calc(-50% + var(--x)), -42vh) scale(1.32); opacity: 0; } }
@@ -439,5 +440,44 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .thumbs {
     grid-auto-columns: minmax(70px, 98px);
     gap: 8px;
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .thumbs-toggle {
+    display: inline-flex;
+  }
+
+  .thumbs {
+    position: fixed;
+    z-index: 9;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(66px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    grid-auto-columns: minmax(86px, 124px);
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid rgba(234,255,251,.16);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(14,18,22,.72), rgba(5,7,10,.58));
+    box-shadow: 0 18px 44px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter: blur(22px) saturate(1.25);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+  }
+
+  .presenter-shell.thumbs-panel-open .thumbs {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .thumb {
+    opacity: .86;
   }
 }
