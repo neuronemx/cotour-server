@@ -13,6 +13,8 @@ const message = document.getElementById("message");
 const audienceUrl = roleOpenContext.public_url || "";
 let activeAudienceUrl = audienceUrl;
 let overlays = normalizeOverlayState();
+let currentSlideIndex = 0;
+let drawingOverlay = null;
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 
@@ -49,8 +51,9 @@ function makeQrPattern(text) { const grid = document.getElementById("qrPattern")
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; screenRoot.classList.toggle("portrait-slide", portrait); if (portrait) screenRoot.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else screenRoot.style.removeProperty("--slide-bg"); }
 function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); message.textContent = overlays.messageText || ""; message.classList.toggle("hidden", !overlays.messageVisible || !overlays.messageText); }
-function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const item = manifest.slides[index]; const src = "/decks/" + deckId + "/" + item.src; slide.src = src; applySlideOrientation(item, src); applyOverlays(state.overlays || {}); }
+function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = "/decks/" + deckId + "/" + item.src; slide.src = src; applySlideOrientation(item, src); applyOverlays(state.overlays || {}); drawingOverlay?.refresh(); }
 function popReaction(emoji) { if (!overlays.showReactions) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(18 + Math.random() * 64) + "vw"; node.style.setProperty("--x", Math.round(Math.random() * 220 - 110) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 3100); }
+function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenRoot, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
@@ -63,5 +66,6 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });
+socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
 makeQrPattern(activeAudienceUrl);
-loadDeck().then(() => socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" }));
+loadDeck().then(() => { initDrawingOverlay(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" }); });

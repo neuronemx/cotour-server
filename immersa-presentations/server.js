@@ -323,6 +323,24 @@ function emitReaction(roomKey, session, emoji) {
   }
 }
 
+function normalizeDrawingStroke(session, stroke) {
+  const points = Array.isArray(stroke?.points) ? stroke.points : [];
+  if (points.length < 2) return null;
+  const normalizedPoints = points.slice(0, 240).map((point) => ({
+    x: Math.max(0, Math.min(1, Number(point?.x) || 0)),
+    y: Math.max(0, Math.min(1, Number(point?.y) || 0))
+  }));
+  const slideIndex = clampSlide(session, Number(stroke?.slideIndex));
+  return {
+    slideIndex,
+    points: normalizedPoints,
+    color: "#b20de9",
+    width: Math.max(0.003, Math.min(0.02, Number(stroke?.width) || 0.009)),
+    createdAt: Date.now(),
+    ttl: Math.max(3000, Math.min(5000, Number(stroke?.ttl) || 4200))
+  };
+}
+
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
 app.use(express.json({ limit: "32kb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
@@ -438,6 +456,15 @@ io.on("connection", (socket) => {
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     emitReaction(currentRoomKey, session, emoji);
+  });
+
+  socket.on("drawing_stroke", (stroke) => {
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const normalizedStroke = normalizeDrawingStroke(session, stroke);
+    if (!normalizedStroke) return;
+    io.to(currentRoomKey).emit("drawing_stroke", normalizedStroke);
   });
 
   socket.on("overlay_update", ({ overlays }) => {

@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="stylesheet" href="/presenter/presenter.css">
+  <link rel="stylesheet" href="/presenter/drawing-control.css">
 </head>
 <body>
   <main class="presenter-shell">
@@ -32,6 +33,10 @@
       <section class="main-controls" aria-label="Controles principales">
         <button id="prev" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
         <label class="control-button muted-button reaction-toggle" aria-label="Ver reacciones en Presenter"><input id="localReactions" type="checkbox" checked><span>👏</span></label>
+        <button id="drawToggle" class="control-button muted-button drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
+          <img class="drawing-icon drawing-icon-off" src="/assets/icons/Marcador_off.png" alt="" aria-hidden="true">
+          <img class="drawing-icon drawing-icon-on" src="/assets/icons/Marcador_on.png" alt="" aria-hidden="true">
+        </button>
         <div class="slide-status" aria-label="Estado de transmisión">
           <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
           <button id="playPause" class="status-pause-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
@@ -50,6 +55,7 @@
     </section>
   </main>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared/drawing-overlay.js"></script>
   <script src="/presenter/presenter.js"></script>
 </body>
 </html>

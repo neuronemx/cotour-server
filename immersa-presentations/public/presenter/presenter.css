@@ -43,6 +43,7 @@ body {
     inset 0 -90px 130px rgba(0,0,0,.24),
     0 22px 64px rgba(0,0,0,.4);
 }
+.stream-area.is-drawing { touch-action: none; }
 .stream-area::before, .stream-area::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .stream-area.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(30px); transform: scale(1.09); opacity: .58; }
 .stream-area.portrait-slide::after { background: rgba(0,0,0,.44); opacity: 1; }
@@ -217,14 +218,15 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   animation: pulsePaused 1.25s ease-in-out infinite;
 }
 @keyframes pulsePaused { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.055); } }
-.qr-button {
-  width: 44px; min-width: 44px; font-size: 11px; font-weight: 950; letter-spacing: .08em;
-}
+.drawing-button.is-active, .drawing-button.active,
 .qr-button.is-active, .qr-button.active {
   color: #210d02;
   background: linear-gradient(180deg, rgba(255,179,92,1), rgba(255,128,38,.98));
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(255,157,61,.14), 0 0 32px rgba(255,157,61,.52), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.qr-button {
+  width: 44px; min-width: 44px; font-size: 11px; font-weight: 950; letter-spacing: .08em;
 }
 .links-panel { flex: 0 0 auto; width: 100%; max-width: 100%; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; color: #aeb8b3; font-size: 12px; overflow: hidden; }
 .links-panel label { min-width: 0; display: grid; gap: 6px; }

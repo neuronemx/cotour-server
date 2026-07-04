@@ -9,6 +9,7 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
+let drawingOverlay = null;
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 
 const slide = document.getElementById("slide");
@@ -129,6 +130,7 @@ function render(state) {
   const src = "/decks/" + deckId + "/" + item.src;
   slide.src = src;
   applySlideOrientation(item, src);
+  drawingOverlay?.refresh();
 
   audience.textContent = state.audienceCount || 0;
   presenterStatus.textContent = state.presenterConnected ? "On" : "Off";
@@ -168,6 +170,11 @@ function clearLiveText() {
   messageInput.value = "";
   updateOverlay({ messageVisible: false, messageText: "" });
   socket.emit("clear_message");
+}
+
+function initDrawingOverlay() {
+  if (drawingOverlay || !window.ImmersaDrawingOverlay) return;
+  drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenFrame, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 });
 }
 
 prevSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex - 1));
@@ -216,8 +223,10 @@ document.addEventListener("keydown", (event) => {
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (next) => { overlays = normalizeOverlayState(next); setToggles(); });
 socket.on("audience_count", (count) => { audience.textContent = count; });
+socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
 
 loadDeck().then(() => {
+  initDrawingOverlay();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
   const audienceUrl = publicUrl();
   updateOverlay({ showReactions: true, reactionsOnScreen: true, audienceUrl });
