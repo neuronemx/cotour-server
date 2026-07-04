@@ -34,12 +34,8 @@
         <button id="prev" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
         <label class="control-button muted-button reaction-toggle" aria-label="Ver reacciones en Presenter"><input id="localReactions" type="checkbox" checked><span>👏</span></label>
         <button id="drawToggle" class="control-button muted-button drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
-          <svg class="marker-icon" viewBox="0 0 32 32" aria-hidden="true">
-            <path class="marker-body" d="M17.7 3.8 28.2 14.3 16.1 26.4 5.6 15.9z"></path>
-            <path class="marker-tip" d="M5.6 15.9 2.9 20.7 11.3 29.1 16.1 26.4z"></path>
-            <path class="marker-cut" d="M8.9 19.2c1.5 1.5 1.5 3.9 0 5.4l2.4 2.4c1.5-1.5 3.9-1.5 5.4 0l1.6-1.6L10.5 17.6z"></path>
-          </svg>
-          <span>Trazo vivo</span>
+          <img class="drawing-icon drawing-icon-off" src="/assets/icons/Marcador_off.png" alt="" aria-hidden="true">
+          <img class="drawing-icon drawing-icon-on" src="/assets/icons/Marcador_on.png" alt="" aria-hidden="true">
         </button>
         <div class="slide-status" aria-label="Estado de transmisión">
           <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
