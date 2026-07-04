@@ -86,6 +86,46 @@ async function readManifest(deckId) {
   return JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
 }
 
+function resolveDataDeckDirForDelete(deckId) {
+  const normalizedDeckId = String(deckId || "").trim();
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(normalizedDeckId)) {
+    const error = new Error("Invalid deck id");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const dataDecksRoot = path.resolve(DATA_DECKS_DIR);
+  const deckDir = path.resolve(dataDecksRoot, normalizedDeckId);
+  const relativePath = path.relative(dataDecksRoot, deckDir);
+  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    const error = new Error("Invalid deck id");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return { deckId: normalizedDeckId, deckDir };
+}
+
+async function deleteDataDeck(deckId) {
+  const resolved = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(resolved.deckDir, "manifest.json");
+
+  try {
+    await fs.promises.access(manifestPath, fs.constants.R_OK);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      const notFound = new Error("Deck not found");
+      notFound.statusCode = 404;
+      throw notFound;
+    }
+    throw error;
+  }
+
+  await fs.promises.rm(resolved.deckDir, { recursive: true, force: true });
+  delete deckSlideCounts[resolved.deckId];
+  return resolved.deckId;
+}
+
 async function ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersist) {
   const existingSessionId = manifestSessionId(manifest);
   if (existingSessionId) {
@@ -352,6 +392,16 @@ app.get("/api/decks", async (_req, res) => {
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
+  }
+});
+app.delete("/api/decks/:deckId", async (req, res) => {
+  try {
+    const deckId = await deleteDataDeck(req.params.deckId);
+    res.json({ ok: true, deckId });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    if (statusCode >= 500) console.error("Unable to delete deck", error);
+    res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : statusCode === 400 ? "Invalid deck id" : "Unable to delete deck" });
   }
 });
 app.post("/api/access-links", accessLinkHandlers.createAccessLink);
