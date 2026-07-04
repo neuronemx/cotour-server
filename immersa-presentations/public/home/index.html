@@ -4,59 +4,66 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Immersa</title>
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <link rel="stylesheet" href="/home/home.css?v=23">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/home/home.css?v=32">
 </head>
 <body>
-  <main class="home-shell">
-    <header class="topbar" aria-label="Navegación principal">
-      <a class="brand" href="/home" aria-label="Immersa Home">
-        <img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png" alt="Immersa" onerror="this.src='/home/M-Immersa2.png'; this.classList.add('mark-only')">
-        <img class="brand-logo-mark" src="/home/M-Immersa2.png" alt="Immersa" aria-hidden="true">
-      </a>
 
-      <nav class="main-nav" aria-label="Secciones">
-        <a class="active" href="#inicio" aria-current="page"><span aria-hidden="true">⌂</span>Inicio</a>
-        <a href="#presentaciones"><span aria-hidden="true">▱</span>Presentaciones</a>
-      </nav>
+  <!-- Banda oscura a sangre completa: header + hero fusionados, sin caja, sin nav en pastilla -->
+  <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
+    <span class="orbit-ring r1" aria-hidden="true"></span>
+    <span class="orbit-ring r2" aria-hidden="true"></span>
+    <span class="orbit-ring r3" aria-hidden="true"></span>
 
-      <div class="topbar-actions" aria-label="Cuenta">
+    <div class="stage-inner">
+      <header class="stage-header">
+        <a class="brand" href="/home" aria-label="Immersa Home">
+          <img class="brand-logo brand-logo-full" src="/home/M-Immersa2.png" alt="" aria-hidden="true">
+          <span class="brand-word">immersa</span>
+        </a>
         <div class="admin-pill" aria-label="Perfil de administrador">
           <span class="live-dot" aria-hidden="true"></span>
           <span class="admin-label"><span class="admin-full">Administrador</span><span class="admin-short">Admin</span></span>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <section id="inicio" class="hero-band" aria-label="Inicio Immersa">
-      <div class="hero-copy">
+      <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
         <h1 class="hero-title">
-          Haz que tus<br>
-          <span class="hero-word">presentaciones</span><br>
+          Haz que tus presentaciones<br>
           <span class="gradient-text">se vivan.</span>
         </h1>
         <p class="hero-subtitle">Crea y administra experiencias sincronizadas para presentar frente a todos y en las manos de cada persona.</p>
-        <p class="hero-line">Toda tu audiencia en primera fila.</p>
+
+        <div class="role-strip" aria-hidden="true">
+          <span class="role-chip role-chip-presenter">Speaker</span>
+          <span class="role-chip role-chip-audience">Público</span>
+          <span class="role-chip role-chip-screen">Screen</span>
+          <span class="role-chip role-chip-stage">Stage</span>
+        </div>
       </div>
+    </div>
+  </section>
 
-      <section class="create-panel" aria-label="Crear nueva presentación">
-        <form id="uploadForm" class="upload-form">
-          <div class="panel-heading">
-            <div class="heading-icon" aria-hidden="true">↥</div>
-            <div>
-              <h2>Crear nueva presentación</h2>
-              <p>Arrastra tu PPTX o PDF y conviértelo en una experiencia Immersa.</p>
-            </div>
+  <main class="home-shell">
+
+    <!-- Panel de carga: flota sobre la costura entre la banda oscura y el contenido -->
+    <section class="create-panel" aria-label="Crear nueva presentación">
+      <form id="uploadForm" class="upload-form">
+        <div class="panel-heading">
+          <div class="heading-icon" aria-hidden="true">↥</div>
+          <div>
+            <h2>Crear nueva presentación</h2>
+            <p>Arrastra tu PPTX o PDF y conviértelo en una experiencia Immersa.</p>
           </div>
+        </div>
 
-          <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
-            <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
-            <span class="upload-cloud" aria-hidden="true">↑</span>
+        <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
+          <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+          <span class="upload-cloud" aria-hidden="true">↑</span>
+          <span class="drop-zone-copy">
             <strong>Arrastra tu archivo aquí</strong>
             <span>o <u>selecciónalo</u> desde tu equipo</span>
             <span class="format-pills" aria-label="Formatos aceptados">
@@ -64,11 +71,16 @@
               <span class="format-pill"><i aria-hidden="true">PDF</i>PDF</span>
             </span>
             <small id="selectedFileName">Ningún archivo seleccionado</small>
-          </label>
-          <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
-        </form>
-      </section>
+          </span>
+        </label>
+        <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
+      </form>
     </section>
+
+    <nav class="content-tabs" aria-label="Secciones">
+      <a class="active" href="#inicio" aria-current="page">Inicio</a>
+      <a href="#presentaciones">Presentaciones</a>
+    </nav>
 
     <section id="presentaciones" class="presentations-panel presentations-list-panel" aria-label="Mis presentaciones">
       <div class="section-header">
@@ -101,6 +113,6 @@
     </section>
   </div>
 
-  <script src="/home/home.js?v=26"></script>
+  <script src="/home/home.js?v=31"></script>
 </body>
 </html>
