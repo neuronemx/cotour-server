@@ -59,7 +59,53 @@ async function findDeckDir(deckId) {
   throw new Error("Deck manifest not found: " + deckId);
 }
 
-function manifestSummary(manifest) {
+function dateInfo(value) {
+  if (!value) return null;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return null;
+  return { iso: new Date(time).toISOString(), time };
+}
+
+function firstDateInfo(values) {
+  for (const value of values) {
+    const info = dateInfo(value);
+    if (info) return info;
+  }
+  return null;
+}
+
+function manifestTimestamps(manifest, manifestStats) {
+  const converted = firstDateInfo([
+    manifest.conversion?.completedAt,
+    manifest.conversion?.convertedAt,
+    manifest.convertedAt,
+    manifest.conversionCompletedAt,
+    manifest.conversionFinishedAt,
+    manifest.completedAt,
+    manifest.converted_at
+  ]);
+  const updated = firstDateInfo([
+    manifest.updatedAt,
+    manifest.updated_at,
+    manifest.conversion?.updatedAt
+  ]);
+  const created = firstDateInfo([
+    manifest.createdAt,
+    manifest.created_at,
+    manifest.conversion?.createdAt
+  ]);
+  const fallback = manifestStats?.mtimeMs ? { iso: new Date(manifestStats.mtimeMs).toISOString(), time: manifestStats.mtimeMs } : null;
+  const sort = converted || updated || created || fallback;
+
+  return {
+    convertedAt: converted?.iso || "",
+    updatedAt: updated?.iso || fallback?.iso || "",
+    createdAt: created?.iso || "",
+    sortTimestamp: sort?.time || 0
+  };
+}
+
+function manifestSummary(manifest, manifestStats = null) {
   const slides = Array.isArray(manifest.slides) ? manifest.slides.length : 0;
   const status = manifest.status || "ready";
   const conversionStatus = manifest.conversion?.status || "ready";
@@ -77,7 +123,8 @@ function manifestSummary(manifest) {
     ratio: manifest.ratio || "16:9",
     status,
     conversionStatus,
-    conversionMessage: manifest.conversion?.message || ""
+    conversionMessage: manifest.conversion?.message || "",
+    ...manifestTimestamps(manifest, manifestStats)
   };
 }
 
@@ -154,10 +201,11 @@ async function readDecksFrom(rootDir, seen, usedSessionIds, canPersistSessionId 
     if (!entry.isDirectory() || seen.has(entry.name)) continue;
     const manifestPath = path.join(rootDir, entry.name, "manifest.json");
     try {
+      const manifestStats = await fs.promises.stat(manifestPath);
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
       const manifestWithSessionId = await ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersistSessionId);
       seen.add(entry.name);
-      decks.push(manifestSummary({ ...manifestWithSessionId, deckId: manifestWithSessionId.deckId || entry.name, title: manifestWithSessionId.title || entry.name }));
+      decks.push(manifestSummary({ ...manifestWithSessionId, deckId: manifestWithSessionId.deckId || entry.name, title: manifestWithSessionId.title || entry.name }, manifestStats));
     } catch (error) {
       console.warn("Skipping deck manifest", manifestPath, error.message);
     }
@@ -174,7 +222,7 @@ async function listDecks() {
     ...(await readDecksFrom(STATIC_DECKS_DIR, seen, usedSessionIds, false)),
     ...(await readDecksFrom(DATA_DECKS_DIR, seen, usedSessionIds, true))
   ];
-  return decks.sort((a, b) => a.title.localeCompare(b.title));
+  return decks.sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
 }
 
 function execFileAsync(command, args, options = {}) {
