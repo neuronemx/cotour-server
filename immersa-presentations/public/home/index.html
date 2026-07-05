@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=42">
+  <link rel="stylesheet" href="/home/home.css?v=43">
   <style>
     /* Estilos del modal de detalle de presentación (thumbnail grande + acciones de rol) */
     .deck-detail-modal {
@@ -155,7 +155,12 @@
 
         <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
           <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
-          <span class="upload-cloud" aria-hidden="true">↑</span>
+          <span class="upload-cloud" aria-hidden="true">
+            <svg class="upload-cloud-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M12 19V6" />
+              <path d="M7 11l5-5 5 5" />
+            </svg>
+          </span>
           <span class="drop-zone-copy">
             <strong>Arrastra PPTX o PDF</strong>
             <span>o <u>selecciona archivo</u></span>
@@ -217,7 +222,7 @@
         <div class="deck-detail-copy">
           <h2 id="detailTitle">Presentación</h2>
           <div class="deck-detail-meta">
-            <span id="detailDate">Fecha no disponible</span>
+            <span id="detailDate">Convertida: fecha no disponible</span>
             <span id="detailSlides">0 slides</span>
           </div>
         </div>
@@ -242,6 +247,6 @@
   </div>
 
 
-  <script src="/home/home.js?v=42"></script>
+  <script src="/home/home.js?v=43"></script>
 </body>
 </html>
