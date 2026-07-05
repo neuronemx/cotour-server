@@ -160,7 +160,7 @@ function formatDeckDate(date) {
 
 function deckConversionDate(deck) {
   const date = parseDeckDate(deck);
-  return date ? "Convertida: " + formatDeckDate(date) : "Convertida: fecha no disponible";
+  return date ? formatDeckDate(date) : "Fecha no disponible";
 }
 
 function deckConversionMeta(deck) {
