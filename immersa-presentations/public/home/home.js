@@ -3,6 +3,7 @@ const roles = ["speaker", "audience", "screen", "stage"];
 const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
 let decks = [];
 let activeDeck = null;
+let detailDeck = null;
 
 const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
@@ -17,6 +18,15 @@ const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
 const cancelName = document.getElementById("cancelName");
+const deckDetailModal = document.getElementById("deckDetailModal");
+const closeDeckDetail = document.getElementById("closeDeckDetail");
+const detailThumb = document.getElementById("detailThumb");
+const detailTitle = document.getElementById("detailTitle");
+const detailDate = document.getElementById("detailDate");
+const detailSlides = document.getElementById("detailSlides");
+const detailStatus = document.getElementById("detailStatus");
+const detailActions = document.getElementById("detailActions");
+const detailDelete = document.getElementById("detailDelete");
 const conversionOverlay = document.getElementById("conversionOverlay");
 const conversionCard = conversionOverlay?.querySelector(".conversion-card");
 const conversionTitle = document.getElementById("conversionTitle");
@@ -74,7 +84,7 @@ function closeNameModal(clearFile = false) {
   if (!nameModal) return;
   nameModal.hidden = true;
   nameModal.setAttribute("aria-hidden", "true");
-  document.body.classList.remove("modal-open");
+  if (!deckDetailModal || deckDetailModal.hidden) document.body.classList.remove("modal-open");
   if (clearFile) {
     pendingFile = null;
     uploadForm.reset();
@@ -100,12 +110,12 @@ function isFailedDeck(deck) {
 }
 
 function isConvertedDeck(deck) {
-  return deck && (deck.status === "converted" || deck.conversionStatus === "completed");
+  return deck && (deck.status === "converted" || deck.conversionStatus === "completed" || deck.status === "ready" || deck.conversionStatus === "ready");
 }
 
 function deckStatusLabel(deck) {
   if (deck?.isLive || deck?.status === "live") return "En vivo";
-  if (isConvertedDeck(deck) || deck?.status === "ready" || deck?.conversionStatus === "ready") return "Lista";
+  if (isConvertedDeck(deck)) return "Lista";
   if (isFailedDeck(deck)) return "Falló";
   if (isPendingDeck(deck)) return deck.conversionStatus === "pending" ? "Convirtiendo" : "Pendiente";
   return "Borrador";
@@ -114,22 +124,32 @@ function deckStatusLabel(deck) {
 function deckBadgeClass(deck) {
   const label = deckStatusLabel(deck).toLowerCase();
   if (label.includes("vivo")) return " live";
-  if (label.includes("borrador") || label.includes("pendiente")) return " draft";
+  if (label.includes("borrador") || label.includes("pendiente") || label.includes("convirtiendo")) return " draft";
   if (label.includes("fall")) return " failed";
   return "";
 }
 
-function deckSlideLabel(deck) {
-  if (isPendingDeck(deck) || isFailedDeck(deck)) return "pendiente";
-  return deck.slideCount ?? deck.slidesCount ?? (Array.isArray(deck.slides) ? deck.slides.length : deck.slides) ?? 0;
+function deckSlideCount(deck) {
+  const value = deck?.slideCount ?? deck?.slidesCount ?? (Array.isArray(deck?.slides) ? deck.slides.length : deck?.slides);
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
 }
 
-function deckConversionDate(deck) {
+function deckSlideLabel(deck) {
+  const count = deckSlideCount(deck);
+  if (!count) return "Slides pendientes";
+  return count + " slide" + (count === 1 ? "" : "s");
+}
+
+function parseDeckDate(deck) {
   const raw = deck?.convertedAt || deck?.conversionCompletedAt || deck?.conversionFinishedAt || deck?.completedAt || deck?.converted_at || deck?.updatedAt || deck?.updated_at || deck?.createdAt || deck?.created_at || "";
-  if (!raw) return "Fecha de conversión no disponible";
+  if (!raw) return null;
   const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "Fecha de conversión no disponible";
-  return "Convertida: " + new Intl.DateTimeFormat("es-MX", {
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDeckDate(date) {
+  return new Intl.DateTimeFormat("es-MX", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -138,8 +158,13 @@ function deckConversionDate(deck) {
   }).format(date).replace(",", " ·");
 }
 
+function deckConversionDate(deck) {
+  const date = parseDeckDate(deck);
+  return date ? "Convertida: " + formatDeckDate(date) : "Convertida: fecha no disponible";
+}
+
 function deckConversionMeta(deck) {
-  if (isPendingDeck(deck)) return "Convirtiendo presentación";
+  if (isPendingDeck(deck)) return "Convirtiendo…";
   if (isFailedDeck(deck)) return "Conversión fallida";
   return deckConversionDate(deck);
 }
@@ -285,6 +310,7 @@ async function deleteDeck(deck) {
     }
 
     decks = decks.filter((item) => item.deckId !== deck.deckId);
+    if (detailDeck?.deckId === deck.deckId) closeDeckModal();
     activeDeck = decks[0]?.deckId || null;
     renderAll();
     setUploadStatus("Presentación eliminada.", "success");
@@ -356,21 +382,29 @@ function niceTitle(title = "Presentación") {
 }
 
 function attachImageWithFallback(img, thumb, candidates, index = 0) {
-  if (!candidates[index]) return;
-  img.src = candidates[index];
-  img.addEventListener("load", () => thumb.classList.add("has-image"), { once: true });
-  img.addEventListener("error", () => {
-    const nextIndex = index + 1;
-    if (candidates[nextIndex]) attachImageWithFallback(img, thumb, candidates, nextIndex);
-    else img.remove();
-  }, { once: true });
+  const candidate = candidates[index];
+  if (!candidate) {
+    img.remove();
+    thumb.classList.remove("is-loading");
+    thumb.classList.add("has-fallback");
+    return;
+  }
+
+  img.onload = () => {
+    thumb.classList.remove("is-loading", "has-fallback");
+    thumb.classList.add("has-image");
+  };
+  img.onerror = () => {
+    attachImageWithFallback(img, thumb, candidates, index + 1);
+  };
+  img.src = candidate;
 }
 
-function renderThumb(deck) {
+function renderThumb(deck, className = "deck-thumb") {
   const thumb = document.createElement("div");
-  thumb.className = "deck-thumb";
-
   const candidates = firstSlideThumbnailCandidates(deck);
+  thumb.className = className + (candidates.length ? " is-loading" : " has-fallback");
+
   if (candidates.length) {
     const img = document.createElement("img");
     img.alt = "Slide 1 de " + niceTitle(deck.title || deck.deckId);
@@ -420,7 +454,10 @@ function renderDecks() {
 
   decks.forEach((deck) => {
     const row = document.createElement("article");
-    row.className = "deck-option deck-row" + (deck.deckId === activeDeck ? " active" : "") + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "");
+    row.className = "deck-option deck-row" + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "");
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", "Ver detalles de " + niceTitle(deck.title || deck.deckId || "Presentación"));
 
     const thumb = renderThumb(deck);
 
@@ -449,7 +486,7 @@ function renderDecks() {
     convertedAt.textContent = deckConversionMeta(deck);
 
     const slides = document.createElement("span");
-    slides.textContent = deckSlideLabel(deck) + " slides";
+    slides.textContent = deckSlideLabel(deck);
 
     metaLine.append(convertedAt, slides);
 
@@ -462,47 +499,26 @@ function renderDecks() {
       info.appendChild(error);
     }
 
-    const linkName = document.createElement("div");
-    linkName.className = "deck-link-name";
-    linkName.innerHTML = `<span>ID sesión</span><strong>${deckSession(deck)}</strong>`;
-
-    const actions = document.createElement("div");
-    actions.className = "deck-actions";
-
-    roles.forEach((role) => {
-      const roleAction = document.createElement("div");
-      roleAction.className = "role-action role-" + role;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = role === "speaker" ? "Abrir Speaker" : "Copiar " + (labels[role] || role);
-      button.title = role === "speaker" ? "Abrir Speaker" : "Copiar link de " + (labels[role] || role);
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        activeDeck = deck.deckId;
-        copyRoleLink(role, deck, event.currentTarget);
-      });
-      roleAction.appendChild(button);
-
-      actions.appendChild(roleAction);
-    });
-
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "deck-delete";
     deleteButton.setAttribute("aria-label", "Eliminar presentación");
     deleteButton.title = "Eliminar presentación";
-    deleteButton.textContent = "🗑";
+    deleteButton.textContent = "×";
     deleteButton.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteDeck(deck);
     });
 
-    row.append(thumb, info, actions, deleteButton);
+    row.append(thumb, info, deleteButton);
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
-      activeDeck = deck.deckId;
-      renderDecks();
+      openDeckModal(deck);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openDeckModal(deck);
     });
     deckList.appendChild(row);
   });
@@ -511,6 +527,56 @@ function renderDecks() {
   deckNotice.hidden = !(isPendingDeck(deck) || isFailedDeck(deck));
   if (isFailedDeck(deck)) deckNotice.textContent = deck.conversionMessage || "La conversión falló. Verás una pantalla provisional.";
   else deckNotice.textContent = "Esta presentación aún no ha sido convertida. Verás una pantalla provisional.";
+}
+
+function renderDetailActions(deck) {
+  if (!detailActions) return;
+  detailActions.innerHTML = "";
+
+  roles.forEach((role) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "detail-role-action role-" + role;
+    button.textContent = role === "speaker" ? "Abrir Speaker" : "Copiar " + (labels[role] || role);
+    button.title = role === "speaker" ? "Abrir Speaker en nueva pestaña" : "Copiar link de " + (labels[role] || role);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copyRoleLink(role, deck, event.currentTarget);
+    });
+    detailActions.appendChild(button);
+  });
+}
+
+function openDeckModal(deck) {
+  if (!deckDetailModal || !deck) return;
+  detailDeck = deck;
+  activeDeck = deck.deckId;
+
+  if (detailThumb) {
+    detailThumb.innerHTML = "";
+    detailThumb.appendChild(renderThumb(deck, "deck-detail-thumb"));
+  }
+  if (detailTitle) detailTitle.textContent = niceTitle(deck.title || deck.deckId || "Presentación");
+  if (detailDate) detailDate.textContent = deckConversionMeta(deck);
+  if (detailSlides) detailSlides.textContent = deckSlideLabel(deck);
+  if (detailStatus) {
+    detailStatus.textContent = deckStatusLabel(deck);
+    detailStatus.className = "deck-detail-status" + deckBadgeClass(deck);
+  }
+  renderDetailActions(deck);
+
+  deckDetailModal.hidden = false;
+  deckDetailModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => closeDeckDetail?.focus(), 20);
+}
+
+function closeDeckModal() {
+  if (!deckDetailModal) return;
+  deckDetailModal.hidden = true;
+  deckDetailModal.setAttribute("aria-hidden", "true");
+  detailDeck = null;
+  if (!nameModal || nameModal.hidden) document.body.classList.remove("modal-open");
 }
 
 function renderAll() {
@@ -591,8 +657,27 @@ if (nameModal) {
   });
 }
 
+if (closeDeckDetail) {
+  closeDeckDetail.addEventListener("click", closeDeckModal);
+}
+
+if (deckDetailModal) {
+  deckDetailModal.addEventListener("click", (event) => {
+    if (event.target === deckDetailModal) closeDeckModal();
+  });
+}
+
+if (detailDelete) {
+  detailDelete.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (detailDeck) deleteDeck(detailDeck);
+  });
+}
+
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && nameModal && !nameModal.hidden) closeNameModal(false);
+  if (event.key !== "Escape") return;
+  if (deckDetailModal && !deckDetailModal.hidden) return closeDeckModal();
+  if (nameModal && !nameModal.hidden) closeNameModal(false);
 });
 
 if (nameForm) {
