@@ -42,6 +42,21 @@
     min-height: 46px;
   }
 
+  .nav-cluster,
+  .fx-module {
+    padding: 4px;
+    gap: 3px;
+  }
+
+  .fx-btn,
+  .qr-button,
+  .reaction-toggle {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
   .slide-status {
     height: 38px;
     min-height: 38px;

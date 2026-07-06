@@ -136,20 +136,29 @@ body {
 .thumb.active .thumb-number { background: rgba(234,255,251,.96); color: #0d1113; border-color: rgba(255,255,255,.34); }
 .thumb.live { outline: 2px solid rgba(104,216,204,.9); outline-offset: 1px; }
 .main-controls {
-  position: absolute; z-index: 7; left: 50%; bottom: 16px; transform: translateX(-50%);
-  width: auto; max-width: calc(100% - 24px);
-  display: flex; justify-content: center; align-items: center; gap: 7px;
-  padding: 8px; overflow: visible; border-radius: 999px;
+  position: absolute; z-index: 7; inset: 0;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 16px 16px;
+  pointer-events: none;
+}
+.main-controls > * { pointer-events: auto; }
+
+.nav-cluster,
+.fx-module {
+  display: flex; align-items: center; gap: 4px;
+  padding: 7px; border-radius: 999px;
   background:
     linear-gradient(180deg, rgba(38,43,47,.48), rgba(7,9,12,.68)),
     radial-gradient(circle at 50% 0%, rgba(104,216,204,.13), transparent 54%);
   border: 1px solid rgba(234,255,251,.16);
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.38),
-    inset 0 1px 0 rgba(255,255,255,.11),
-    inset 0 -1px 0 rgba(0,0,0,.5);
+  box-shadow: 0 18px 48px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.11), inset 0 -1px 0 rgba(0,0,0,.5);
   backdrop-filter: blur(24px) saturate(1.32);
 }
+.nav-divider { width: 1px; height: 26px; background: rgba(255,255,255,.16); flex: 0 0 auto; }
+
+.fx-module { flex-direction: column-reverse; gap: 8px; }
+.fx-btn { border: 0; }
+
 button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; }
 .control-button {
   flex: 0 0 auto; width: 42px; min-width: 42px; height: 42px; min-height: 42px;
@@ -219,16 +228,17 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   animation: pulsePaused 1.25s ease-in-out infinite;
 }
 @keyframes pulsePaused { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.055); } }
-.drawing-button.is-active, .drawing-button.active,
 .qr-button.is-active, .qr-button.active {
   color: #210d02;
   background: linear-gradient(180deg, rgba(255,179,92,1), rgba(255,128,38,.98));
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(255,157,61,.14), 0 0 32px rgba(255,157,61,.52), inset 0 1px 0 rgba(255,255,255,.25);
 }
-.qr-button {
-  width: 44px; min-width: 44px; font-size: 11px; font-weight: 950; letter-spacing: .08em;
+.fx-btn, .qr-button, .reaction-toggle {
+  width: 46px; min-width: 46px; height: 46px; min-height: 46px;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
+.qr-button svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .links-panel { flex: 0 0 auto; width: 100%; max-width: 100%; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; color: #aeb8b3; font-size: 12px; overflow: hidden; }
 .links-panel label { min-width: 0; display: grid; gap: 6px; }
 .links-panel input { width: 100%; min-width: 0; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.28); color: #f7f2e8; padding: 10px; }
@@ -246,7 +256,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .floating-action { width: 30px; min-width: 30px; height: 30px; min-height: 30px; }
   .floating-action svg { width: 15px; height: 15px; }
   .thumbs { grid-auto-columns: minmax(78px, 27vw); gap: 7px; padding-bottom: 3px; }
-  .main-controls { bottom: 10px; gap: 5px; padding: 6px; max-width: calc(100% - 18px); }
+  .main-controls { padding: 0 10px 10px; }
+  .nav-cluster, .fx-module { gap: 3px; padding: 5px; }
   .control-button { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
   .nav-button { width: 45px; min-width: 45px; height: 45px; min-height: 45px; }
   .nav-button svg { width: 25px; height: 25px; }
@@ -255,7 +266,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .status-pause-button { width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
   .status-pause-button svg { width: 17px; height: 17px; }
   .reaction-toggle { font-size: 18px; }
-  .qr-button { width: 38px; min-width: 38px; font-size: 10px; }
+  .fx-btn, .qr-button, .reaction-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
+  .qr-button svg { width: 19px; height: 19px; }
 }
 @media (max-width: 390px) {
   .presenter-shell { padding: 7px; gap: 6px; }
@@ -264,7 +276,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .audience-stat { height: 28px; min-width: 46px; padding: 0 9px; font-size: 12px; }
   .floating-action { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .thumbs { grid-auto-columns: minmax(72px, 30vw); }
-  .main-controls { gap: 4px; padding: 5px; }
+  .main-controls { padding: 0 8px 8px; }
+  .nav-cluster, .fx-module { gap: 3px; padding: 4px; }
   .control-button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
   .nav-button { width: 42px; min-width: 42px; height: 42px; min-height: 42px; }
   .nav-button svg { width: 23px; height: 23px; }
@@ -272,7 +285,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; padding: 0 7px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .status-pause-button svg { width: 16px; height: 16px; }
-  .qr-button { width: 35px; min-width: 35px; font-size: 9px; }
+  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .qr-button svg { width: 17px; height: 17px; }
 }
 @media (max-height: 640px) {
   .presenter-shell { gap: 6px; padding-top: 7px; padding-bottom: 7px; }
@@ -281,14 +295,14 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .audience-stat { height: 28px; min-width: 46px; font-size: 12px; }
   .floating-action { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .thumbs { grid-auto-columns: minmax(70px, 98px); }
-  .main-controls { bottom: 8px; }
+  .main-controls { padding-bottom: 8px; }
   .control-button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
   .nav-button { width: 42px; min-width: 42px; height: 42px; min-height: 42px; }
   .nav-button svg { width: 23px; height: 23px; }
   .slide-status { height: 34px; min-height: 34px; }
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
-  .qr-button { width: 35px; min-width: 35px; }
+  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
 }
 
 /* Immersa Presenter premium v4 refinements */
