@@ -1,28 +1,43 @@
 {
+  "deck_id": "mi-deck",
   "interactions": [
     {
-      "id": "demo-poll-1",
+      "id": "int_001",
+      "slide_id": "slide_001",
       "type": "poll",
-      "title": "Encuesta demo",
-      "prompt": "¿Qué experiencia te gustaría probar primero en Immersa?",
+      "title": "Pregunta 1",
+      "prompt": "¿Qué tema te interesa más?",
       "options": [
-        {
-          "id": "live-polls",
-          "label": "Encuestas en vivo"
-        },
-        {
-          "id": "quizzes",
-          "label": "Quizzes con puntaje"
-        },
-        {
-          "id": "decision-exercises",
-          "label": "Ejercicios de decisión"
-        },
-        {
-          "id": "attendee-results",
-          "label": "Resultados por asistente"
-        }
-      ]
+        { "id": "opt_a", "label": "Tecnología" },
+        { "id": "opt_b", "label": "Negocio" },
+        { "id": "opt_c", "label": "Experiencia del usuario" }
+      ],
+      "settings": {
+        "allow_multiple": false,
+        "anonymous": true,
+        "timer_seconds": null,
+        "correct_option_ids": [],
+        "points": 0
+      }
+    },
+    {
+      "id": "int_002",
+      "slide_id": "slide_002",
+      "type": "poll",
+      "title": "Pregunta 2",
+      "prompt": "¿Qué formato prefieres para la siguiente sección?",
+      "options": [
+        { "id": "opt_a", "label": "Demo en vivo" },
+        { "id": "opt_b", "label": "Caso práctico" },
+        { "id": "opt_c", "label": "Preguntas y respuestas" }
+      ],
+      "settings": {
+        "allow_multiple": false,
+        "anonymous": true,
+        "timer_seconds": null,
+        "correct_option_ids": [],
+        "points": 0
+      }
     }
   ]
 }
