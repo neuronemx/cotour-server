@@ -21,10 +21,16 @@
 .drawing-button.is-active,
 .drawing-button.active,
 .drawing-button[aria-pressed="true"] {
-  color: #fff;
-  background: linear-gradient(180deg, rgba(196,150,255,1), rgba(155,76,255,.98));
-  border-color: rgba(255,255,255,.36);
-  box-shadow: 0 0 0 5px rgba(155,76,255,.16), 0 0 32px rgba(155,76,255,.55), inset 0 1px 0 rgba(255,255,255,.25);
+  color: #fff !important;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255,255,255,.32), rgba(255,255,255,0) 36%),
+    linear-gradient(145deg, #c496ff 0%, #a460ff 42%, #8d3dff 68%, #6e2cff 100%) !important;
+  border-color: rgba(255,255,255,.38) !important;
+  box-shadow:
+    0 0 0 5px rgba(155,76,255,.18),
+    0 0 34px rgba(155,76,255,.62),
+    inset 0 1px 0 rgba(255,255,255,.30),
+    inset 0 -10px 22px rgba(40,10,90,.16) !important;
 }
 
 @media (max-width: 760px) {
@@ -33,4 +39,10 @@
 
 @media (max-width: 390px), (max-height: 640px) {
   .drawing-icon { width: 20px; height: 20px; }
+}
+
+.drawing-button.is-active .drawing-icon,
+.drawing-button.active .drawing-icon,
+.drawing-button[aria-pressed="true"] .drawing-icon {
+  background-color: #fff;
 }
