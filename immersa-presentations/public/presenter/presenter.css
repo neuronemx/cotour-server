@@ -144,8 +144,7 @@ body {
 }
 .main-controls > * { pointer-events: auto; }
 
-.nav-cluster,
-.fx-module {
+.nav-cluster {
   display: flex; align-items: center; gap: 4px;
   padding: 7px; border-radius: 999px;
   background:
@@ -157,7 +156,21 @@ body {
 }
 .nav-divider { width: 1px; height: 26px; background: rgba(255,255,255,.16); flex: 0 0 auto; }
 
-.fx-module { flex-direction: column-reverse; gap: 8px; }
+.fx-module {
+  display: flex;
+  align-items: center;
+  flex-direction: column-reverse;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(38,43,47,.48), rgba(7,9,12,.68)),
+    radial-gradient(circle at 50% 0%, rgba(104,216,204,.13), transparent 54%);
+  border: 1px solid rgba(234,255,251,.14);
+  box-shadow: 0 18px 48px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.045), inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.42);
+  backdrop-filter: blur(24px) saturate(1.32);
+  overflow: visible;
+}
 .fx-btn { border: 0; }
 
 button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; }
@@ -230,11 +243,11 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(255,157,61,.14), 0 0 32px rgba(255,157,61,.52), inset 0 1px 0 rgba(255,255,255,.25);
 }
-.fx-btn, .qr-button, .reaction-toggle {
+.fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle {
   width: 46px; min-width: 46px; height: 46px; min-height: 46px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
-.qr-button svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .links-panel { flex: 0 0 auto; width: 100%; max-width: 100%; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; color: #aeb8b3; font-size: 12px; overflow: hidden; }
 .links-panel label { min-width: 0; display: grid; gap: 6px; }
 .links-panel input { width: 100%; min-width: 0; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.28); color: #f7f2e8; padding: 10px; }
@@ -262,7 +275,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .status-pause-button { width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
   .status-pause-button svg { width: 17px; height: 17px; }
   .reaction-toggle { font-size: 18px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
   .qr-button svg { width: 19px; height: 19px; }
 }
 @media (max-width: 390px) {
@@ -281,7 +294,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; padding: 0 7px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .status-pause-button svg { width: 16px; height: 16px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
   .qr-button svg { width: 17px; height: 17px; }
 }
 @media (max-height: 640px) {
@@ -298,7 +311,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .slide-status { height: 34px; min-height: 34px; }
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
 }
 
 /* Immersa Presenter premium v4 refinements */
@@ -490,323 +503,4 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .thumb {
     opacity: .86;
   }
-}
-
-
-/* Immersa Presenter — microfixes after floating controls QA */
-/* Keep the thumbnails toggle hidden by default; fx-btn would otherwise force display. */
-.fx-module .thumbs-toggle {
-  display: none;
-}
-
-.fx-module .thumbs-toggle svg {
-  width: 21px;
-  height: 21px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* In compact landscape, thumbnails live inside the right tools capsule. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .fx-module .thumbs-toggle {
-    display: inline-flex;
-    position: static;
-    inset: auto;
-    z-index: auto;
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-    padding: 0;
-  }
-}
-
-/* Immersa Presenter — microfit QA fixes
-   Fixes:
-   - Right vertical tools capsule no longer feels clipped.
-   - Special tool buttons fit inside the capsule.
-   - Pause button is 2px smaller inside the center capsule.
-   Append at the END of presenter.css.
-*/
-
-.fx-module {
-  padding: 10px 10px 12px;
-  gap: 10px;
-  overflow: visible;
-}
-
-.fx-module .fx-btn,
-.fx-module .qr-button,
-.fx-module .reaction-toggle,
-.fx-module .thumbs-toggle {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-  flex: 0 0 44px;
-}
-
-.slide-status {
-  overflow: visible;
-}
-
-.status-pause-button {
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-}
-
-.status-pause-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-@media (max-width: 760px) {
-  .fx-module {
-    padding: 8px 8px 10px;
-    gap: 8px;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .thumbs-toggle {
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-    flex-basis: 38px;
-  }
-
-  .status-pause-button {
-    width: 29px;
-    min-width: 29px;
-    height: 29px;
-    min-height: 29px;
-  }
-
-  .status-pause-button svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-@media (max-width: 390px), (max-height: 640px) {
-  .fx-module {
-    padding: 7px 7px 9px;
-    gap: 7px;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .thumbs-toggle {
-    width: 35px;
-    min-width: 35px;
-    height: 35px;
-    min-height: 35px;
-    flex-basis: 35px;
-  }
-
-  .status-pause-button {
-    width: 26px;
-    min-width: 26px;
-    height: 26px;
-    min-height: 26px;
-  }
-
-  .status-pause-button svg {
-    width: 15px;
-    height: 15px;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 520px) {
-  .main-controls {
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
-
-  .fx-module {
-    padding: 7px 7px 9px;
-    gap: 7px;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .thumbs-toggle {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
-    flex-basis: 36px;
-  }
-}
-
-/* Immersa Presenter — microfit v2
-   Ajustes finos: pausa recupera 2px; cápsula vertical con más aire visual. */
-
-/* Cápsula vertical: más padding y sombra/borde sin efecto de corte */
-.fx-module {
-  padding: 11px 9px 13px;
-  gap: 9px;
-  overflow: visible;
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.38),
-    0 0 0 1px rgba(234,255,251,.06),
-    inset 0 1px 0 rgba(255,255,255,.11),
-    inset 0 -1px 0 rgba(0,0,0,.42);
-}
-
-/* Botones dentro de cápsula: dejan respirar el borde sin cambiar el lenguaje visual */
-.fx-module .fx-btn,
-.fx-module .qr-button,
-.fx-module .reaction-toggle,
-.fx-module .drawing-button,
-.fx-module .thumbs-toggle {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-}
-
-/* Pausa recupera los 2px: vuelve al tamaño visual correcto */
-.status-pause-button {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-}
-
-@media (max-width: 760px) {
-  .fx-module {
-    padding: 9px 7px 11px;
-    gap: 8px;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .drawing-button,
-  .fx-module .thumbs-toggle {
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-  }
-
-  .status-pause-button {
-    width: 31px;
-    min-width: 31px;
-    height: 31px;
-    min-height: 31px;
-  }
-}
-
-@media (max-width: 390px), (max-height: 640px) {
-  .fx-module {
-    padding: 8px 6px 10px;
-    gap: 7px;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .drawing-button,
-  .fx-module .thumbs-toggle {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
-  }
-
-  .status-pause-button {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
-  }
-}
-
-/* Landscape compacto: el botón de thumbnails vive dentro de la cápsula, con el mismo tamaño real que sus vecinos. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .fx-module {
-    padding: 8px 6px 10px;
-    gap: 7px;
-    overflow: visible;
-  }
-
-  .fx-module .fx-btn,
-  .fx-module .qr-button,
-  .fx-module .reaction-toggle,
-  .fx-module .drawing-button,
-  .fx-module .thumbs-toggle {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
-  }
-
-  .status-pause-button {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
-  }
-}
-/* Immersa Presenter — microfit v3
-   Corrige corte visual de la cápsula vertical y ajusta pausa.
-   Pegar al FINAL de presenter.css.
-*/
-
-.fx-module {
-  position: relative;
-  padding: 14px 10px;
-  gap: 10px;
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background:
-    linear-gradient(180deg, rgba(42, 46, 56, 0.88) 0%, rgba(24, 26, 34, 0.88) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.10),
-    inset 0 -1px 0 rgba(0,0,0,0.18),
-    0 10px 28px rgba(0,0,0,0.28);
-  overflow: hidden;
-}
-
-.fx-module::before,
-.fx-module::after {
-  box-shadow: none !important;
-}
-
-.fx-module .fx-btn,
-.fx-module .drawing-button,
-.fx-module .reaction-toggle,
-.fx-module .qr-button,
-.fx-module #thumbsToggle {
-  width: 68px;
-  height: 68px;
-  min-width: 68px;
-  min-height: 68px;
-  margin: 0;
-}
-
-#playPause {
-  width: 78px;
-  height: 78px;
-  min-width: 78px;
-  min-height: 78px;
-}
-
-#playPause svg,
-#playPause img,
-#playPause .icon {
-  transform: scale(0.98);
 }
