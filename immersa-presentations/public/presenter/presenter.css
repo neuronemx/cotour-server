@@ -74,6 +74,7 @@ body {
   font-size: 14px; font-weight: 850; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .audience-icon { font-size: 13px; opacity: .82; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #23c47f; box-shadow: 0 0 0 4px rgba(35,196,127,.25); flex: 0 0 auto; }
 .top-actions {
   position: absolute; z-index: 8; top: 14px; right: 14px;
   display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;
@@ -172,37 +173,32 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 .control-button:active { transform: translateY(1px) scale(.985); }
 .nav-button {
   width: 50px; min-width: 50px; height: 50px; min-height: 50px;
-  color: #041211;
-  background:
-    linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
-  border-color: rgba(255,255,255,.36);
-  box-shadow:
-    0 0 0 5px rgba(104,216,204,.13),
-    0 0 30px rgba(104,216,204,.48),
-    inset 0 1px 0 rgba(255,255,255,.24),
-    0 12px 28px rgba(0,0,0,.24);
+  color: rgba(255,255,255,.92);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
-.nav-button svg { width: 28px; height: 28px; display: block; stroke: currentColor; stroke-width: 2.8; fill: none; stroke-linecap: round; stroke-linejoin: round; transform: none; }
-.nav-button:hover { filter: brightness(1.12); box-shadow: 0 0 0 6px rgba(104,216,204,.16), 0 0 42px rgba(104,216,204,.62), inset 0 1px 0 rgba(255,255,255,.32), 0 16px 34px rgba(0,0,0,.28); }
+.nav-button svg { width: 26px; height: 26px; display: block; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; transform: none; }
+.nav-button:hover { filter: none; background: rgba(255,255,255,.10); box-shadow: none; }
 .muted-button {
   background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.026));
   color: rgba(234,255,251,.72);
   border-color: rgba(255,255,255,.105);
 }
-.reaction-toggle { position: relative; font-size: 20px; }
+.reaction-toggle { position: relative; }
 .reaction-toggle input { position: absolute; opacity: 0; pointer-events: none; }
-.reaction-toggle span { opacity: .95; transition: opacity .15s ease, filter .15s ease, transform .15s ease; }
-.reaction-toggle:not(:has(input:checked)) { opacity: 1; }
-.reaction-toggle:not(:has(input:checked)) span { opacity: .32; filter: grayscale(1); }
+.reaction-icon { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .95; transition: opacity .15s ease, filter .15s ease, transform .15s ease; }
+.reaction-toggle:not(:has(input:checked)) .reaction-icon { opacity: .4; }
 .reaction-toggle:has(input:checked) { background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.026)); border-color: rgba(255,255,255,.105); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.18); }
 .slide-status {
   flex: 0 0 auto; height: 42px; min-height: 42px;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 3px; gap: 3px; border-radius: 999px;
-  background: rgba(234,255,251,.94);
-  color: #08100f;
-  border: 1px solid rgba(255,255,255,.34);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 11px 24px rgba(0,0,0,.2);
+  background: linear-gradient(180deg, rgba(38,43,47,.48), rgba(7,9,12,.68));
+  color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.11), 0 11px 24px rgba(0,0,0,.32);
+  backdrop-filter: blur(24px) saturate(1.32);
   font-variant-numeric: tabular-nums;
 }
 .slide-count {
@@ -214,8 +210,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 .status-pause-button {
   flex: 0 0 auto; width: 34px; min-width: 34px; height: 34px; min-height: 34px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
-  background: rgba(8,12,13,.12); color: #08100f;
-  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.12); color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.14);
   transition: transform .15s ease, filter .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .status-pause-button svg { width: 19px; height: 19px; display: block; stroke: currentColor; stroke-width: 2.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -239,6 +235,13 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
 .qr-button svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.thumbs-toggle[aria-expanded="true"] {
+  color: #07100f;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 0 0 5px rgba(104,216,204,.12), 0 0 28px rgba(104,216,204,.42), inset 0 1px 0 rgba(255,255,255,.24), 0 12px 28px rgba(0,0,0,.25);
+}
 .links-panel { flex: 0 0 auto; width: 100%; max-width: 100%; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; color: #aeb8b3; font-size: 12px; overflow: hidden; }
 .links-panel label { min-width: 0; display: grid; gap: 6px; }
 .links-panel input { width: 100%; min-width: 0; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.28); color: #f7f2e8; padding: 10px; }
@@ -268,6 +271,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .reaction-toggle { font-size: 18px; }
   .fx-btn, .qr-button, .reaction-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
   .qr-button svg { width: 19px; height: 19px; }
+  .thumbs-toggle svg { width: 19px; height: 19px; }
 }
 @media (max-width: 390px) {
   .presenter-shell { padding: 7px; gap: 6px; }
@@ -287,6 +291,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .status-pause-button svg { width: 16px; height: 16px; }
   .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
   .qr-button svg { width: 17px; height: 17px; }
+  .thumbs-toggle svg { width: 17px; height: 17px; }
 }
 @media (max-height: 640px) {
   .presenter-shell { gap: 6px; padding-top: 7px; padding-bottom: 7px; }
