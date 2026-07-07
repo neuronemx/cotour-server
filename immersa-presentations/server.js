@@ -71,16 +71,30 @@ async function findDeckDir(deckId) {
   throw new Error("Deck manifest not found: " + deckId);
 }
 
+function parseInteractionsContent(content) {
+  const parsed = JSON.parse(content);
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed.interactions)) return parsed.interactions;
+  return [];
+}
+
+async function readInteractionsFile(interactionPath) {
+  return parseInteractionsContent(await fs.promises.readFile(interactionPath, "utf8"));
+}
+
 async function loadInteractionsForDeck(deckId) {
-  try {
-    const deckDir = await findDeckDir(deckId);
-    const interactionPath = path.join(deckDir, "interactions.json");
-    const content = await fs.promises.readFile(interactionPath, "utf8");
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed)) return parsed;
-    if (Array.isArray(parsed.interactions)) return parsed.interactions;
-  } catch (error) {
-    if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
+  const candidates = [
+    path.join(DATA_DECKS_DIR, deckId, "interactions.json"),
+    path.join(STATIC_DECKS_DIR, deckId, "interactions.json")
+  ];
+
+  for (const interactionPath of candidates) {
+    try {
+      const interactions = await readInteractionsFile(interactionPath);
+      if (interactions.length) return interactions;
+    } catch (error) {
+      if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
+    }
   }
   return [];
 }
