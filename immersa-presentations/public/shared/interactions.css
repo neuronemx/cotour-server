@@ -71,6 +71,47 @@
   opacity: .45;
   cursor: not-allowed;
 }
+.interaction-picker {
+  display: grid;
+  gap: 7px;
+  max-height: 184px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.interaction-panel button.interaction-choice {
+  width: 100%;
+  height: auto;
+  min-height: 58px;
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  align-content: center;
+  padding: 9px 10px;
+  border-radius: 12px;
+  text-align: left;
+}
+.interaction-panel button.interaction-choice.is-selected {
+  color: #041211;
+  background: linear-gradient(180deg, rgba(111,247,232,.98), rgba(62,202,191,.92));
+  border-color: rgba(255,255,255,.34);
+}
+.interaction-choice-title,
+.interaction-choice-prompt {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.interaction-choice-title {
+  font-size: 12px;
+  font-weight: 900;
+}
+.interaction-choice-prompt {
+  color: inherit;
+  opacity: .72;
+  font-size: 11px;
+  font-weight: 700;
+}
 .interaction-results-list {
   display: grid;
   gap: 8px;
