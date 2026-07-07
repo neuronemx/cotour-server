@@ -10,6 +10,7 @@ let currentSlideIndex = 0;
 let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
 let drawingOverlay = null;
+let stageInteractionPanel = null;
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 
 const slide = document.getElementById("slide");
@@ -177,6 +178,26 @@ function initDrawingOverlay() {
   drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenFrame, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 });
 }
 
+function ensureStageInteractionPanel() {
+  if (stageInteractionPanel) return stageInteractionPanel;
+  stageInteractionPanel = document.createElement("section");
+  stageInteractionPanel.className = "stage-interaction-panel interaction-hidden";
+  stageInteractionPanel.setAttribute("aria-label", "Resultados de interacción");
+  screenFrame.appendChild(stageInteractionPanel);
+  return stageInteractionPanel;
+}
+
+function renderStageInteractionResults(results) {
+  const panel = ensureStageInteractionPanel();
+  if (!results) {
+    panel.classList.add("interaction-hidden");
+    panel.innerHTML = "";
+    return;
+  }
+  panel.classList.remove("interaction-hidden");
+  panel.innerHTML = '<h2>' + (results.title || 'Interacción') + '</h2><p>' + results.totalResponses + ' respuesta' + (results.totalResponses === 1 ? '' : 's') + '</p><div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.count + ' · ' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>';
+}
+
 prevSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex - 1));
 nextSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex + 1));
 reactionsToggle.addEventListener("change", () => updateOverlay({ reactionsOnScreen: reactionsToggle.checked, showReactions: reactionsToggle.checked }));
@@ -224,6 +245,8 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (next) => { overlays = normalizeOverlayState(next); setToggles(); });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
+socket.on("interaction:results_updated", renderStageInteractionResults);
+socket.on("interaction:closed", () => renderStageInteractionResults(null));
 
 loadDeck().then(() => {
   initDrawingOverlay();
