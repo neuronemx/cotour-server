@@ -138,7 +138,6 @@
         points: currentPoints.map(normalizePoint),
         color,
         width,
-        opacity,
         createdAt: Date.now(),
         ttl
       };
