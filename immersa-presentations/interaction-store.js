@@ -184,6 +184,9 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     if (!results) return;
     io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:results_updated", results);
     io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:results_updated", results);
+    if (store.getSession(sessionId).resultsVisible) {
+      io.to(getRoleRoomKey(roomKey, "screen")).emit("interaction:show_results", results);
+    }
   }
 
   function emitStateToRoom(roomKey, sessionId) {
