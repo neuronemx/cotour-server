@@ -1,6 +1,7 @@
 (function () {
   const DEFAULT_COLOR = "#b20de9";
-  const DEFAULT_WIDTH = 0.009;
+  const DEFAULT_WIDTH = 0.018;
+  const DEFAULT_OPACITY = 0.7;
   const DEFAULT_TTL = 4200;
   const FADE_MS = 1000;
 
@@ -48,6 +49,7 @@
     const emitStroke = options.emitStroke || (() => {});
     const color = options.color || DEFAULT_COLOR;
     const width = options.width || DEFAULT_WIDTH;
+    const opacity = typeof options.opacity === "number" ? clamp01(options.opacity) : DEFAULT_OPACITY;
     const ttl = options.ttl || DEFAULT_TTL;
     const zIndex = options.zIndex || 2;
     const canvas = document.createElement("canvas");
@@ -136,6 +138,7 @@
         points: currentPoints.map(normalizePoint),
         color,
         width,
+        opacity,
         createdAt: Date.now(),
         ttl
       };
@@ -152,6 +155,7 @@
         points,
         color: stroke.color || color,
         width: Number(stroke.width) || width,
+        opacity: typeof stroke.opacity === "number" ? clamp01(stroke.opacity) : opacity,
         createdAt: Number(stroke.createdAt) || Date.now(),
         ttl: Math.max(1200, Math.min(8000, Number(stroke.ttl) || ttl))
       });
@@ -170,13 +174,13 @@
       const rect = getSlideRect(root, slide);
       const ratio = window.devicePixelRatio || 1;
       context.save();
-      context.globalAlpha = alpha;
+      context.globalAlpha = alpha * (typeof stroke.opacity === "number" ? stroke.opacity : opacity);
       context.lineCap = "round";
       context.lineJoin = "round";
       context.strokeStyle = stroke.color || color;
       context.lineWidth = Math.max(2, Math.min(rect.width, rect.height) * (stroke.width || width)) * ratio;
-      context.shadowColor = "rgba(0, 0, 0, .38)";
-      context.shadowBlur = 8 * ratio;
+      context.shadowColor = "rgba(0, 0, 0, .20)";
+      context.shadowBlur = 4 * ratio;
       context.beginPath();
       points.forEach((point, index) => {
         const x = (rect.left + point.x * rect.width) * ratio;
@@ -200,7 +204,7 @@
         const alpha = age <= fadeStart ? 1 : Math.max(0, 1 - (age - fadeStart) / FADE_MS);
         drawPath(stroke.points, stroke, alpha);
       });
-      if (drawing && currentSlideIndex === slideIndex) drawPath(currentPoints, { color, width }, 1);
+      if (drawing && currentSlideIndex === slideIndex) drawPath(currentPoints, { color, width, opacity }, 1);
     }
 
     function tick() {
