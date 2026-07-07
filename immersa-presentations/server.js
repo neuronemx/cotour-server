@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
 const { createUploadHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
+const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +29,13 @@ const accessLinkHandlers = createAccessLinkHandlers({
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
+const interactionStore = new InteractionStore();
+const interactionSockets = createInteractionSocketHandlers({
+  io,
+  store: interactionStore,
+  loadInteractionsForDeck,
+  getRoleRoomKey
+});
 
 function normalizeSessionId(sessionId) {
   return String(sessionId || "demo01");
@@ -39,6 +47,10 @@ function normalizeDeckId(deckId) {
 
 function getRoomKey(sessionId, deckId) {
   return normalizeSessionId(sessionId) + "::" + normalizeDeckId(deckId);
+}
+
+function getRoleRoomKey(roomKey, role) {
+  return roomKey + "::" + role;
 }
 
 async function ensureDataDirs() {
@@ -57,6 +69,20 @@ async function findDeckDir(deckId) {
     }
   }
   throw new Error("Deck manifest not found: " + deckId);
+}
+
+async function loadInteractionsForDeck(deckId) {
+  try {
+    const deckDir = await findDeckDir(deckId);
+    const interactionPath = path.join(deckDir, "interactions.json");
+    const content = await fs.promises.readFile(interactionPath, "utf8");
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed.interactions)) return parsed.interactions;
+  } catch (error) {
+    if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
+  }
+  return [];
 }
 
 function dateInfo(value) {
@@ -481,18 +507,31 @@ app.use(express.static(PUBLIC_DIR));
 io.on("connection", (socket) => {
   let currentRoomKey = null;
   let currentRole = null;
+  let currentSessionId = null;
+  let currentDeckId = null;
   let currentAudienceId = null;
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role }) => {
+  interactionSockets.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
+
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
     currentRoomKey = getRoomKey(joinedSessionId, joinedDeckId);
     currentRole = role;
+    currentSessionId = joinedSessionId;
+    currentDeckId = joinedDeckId;
     const session = getSession(joinedSessionId, joinedDeckId);
     const slideCount = await refreshSessionDeck(session, joinedDeckId);
     if (role === "presenter") console.log("[session]", joinedSessionId, "deck", session.deckId, "room", currentRoomKey, "slideCount", slideCount);
     socket.join(currentRoomKey);
+    socket.join(getRoleRoomKey(currentRoomKey, role));
 
     if (role === "presenter") {
       session.presenterConnected = true;
@@ -501,9 +540,16 @@ io.on("connection", (socket) => {
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
-      currentAudienceId = socket.id;
-      session.audience.set(socket.id, { joinedAt: Date.now() });
+      currentAudienceId = String(audienceId || socket.id);
+      session.audience.set(currentAudienceId, { joinedAt: Date.now() });
     }
+    await interactionSockets.sendCurrentState(socket, {
+      roomKey: currentRoomKey,
+      role: currentRole,
+      sessionId: currentSessionId,
+      deckId: currentDeckId,
+      audienceId: currentAudienceId
+    });
     emitState(currentRoomKey, session);
   });
 
