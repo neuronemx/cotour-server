@@ -32,6 +32,9 @@
     radial-gradient(circle at 34% 24%, rgba(196,150,255,.98) 0%, rgba(139,63,255,.98) 36%, transparent 62%),
     linear-gradient(135deg, #8b3dff 0%, #684cff 46%, #21b7ff 100%);
   border-color: rgba(255,255,255,.16);
+  border-radius: 999px;
+  background-clip: padding-box;
+  overflow: hidden;
   box-shadow:
     0 0 0 5px rgba(104, 76, 255, .14),
     0 0 30px rgba(92, 92, 255, .42),
