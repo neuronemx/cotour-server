@@ -1,3 +1,21 @@
+const FALLBACK_DEMO_INTERACTION = {
+  id: "demo-poll-1",
+  type: "poll",
+  title: "Encuesta demo",
+  prompt: "¿Qué experiencia te gustaría probar primero en Immersa?",
+  options: [
+    { id: "live-polls", label: "Encuestas en vivo" },
+    { id: "quizzes", label: "Quizzes con puntaje" },
+    { id: "decision-exercises", label: "Ejercicios de decisión" },
+    { id: "attendee-results", label: "Resultados por asistente" }
+  ],
+  source: "fallback-demo"
+};
+
+function withFallbackInteractions(interactions) {
+  return Array.isArray(interactions) && interactions.length ? interactions : [FALLBACK_DEMO_INTERACTION];
+}
+
 class InteractionStore {
   constructor() {
     this.sessions = new Map();
@@ -29,7 +47,8 @@ class InteractionStore {
       title: String(interaction.title || interaction.prompt || "Interacción"),
       prompt: String(interaction.prompt || interaction.title || "Elige una opción"),
       options,
-      allowMultiple: Boolean(interaction.allowMultiple)
+      allowMultiple: Boolean(interaction.allowMultiple),
+      source: interaction.source ? String(interaction.source) : "deck"
     };
   }
 
@@ -150,7 +169,8 @@ class InteractionStore {
         title: active.title,
         prompt: active.prompt,
         options: active.options,
-        launchedAt: active.launchedAt
+        launchedAt: active.launchedAt,
+        source: active.source
       },
       response: response ? { optionId: response.optionId, submittedAt: response.submittedAt } : null,
       resultsVisible: session.resultsVisible
@@ -186,7 +206,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !context?.deckId || context.role !== "presenter") return;
-      const interactions = await loadInteractionsForDeck(context.deckId);
+      const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
       const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
       const active = store.launch({ sessionId: context.sessionId, interaction });
       if (!active) return;
@@ -241,4 +261,4 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
   return { attach, sendCurrentState };
 }
 
-module.exports = { InteractionStore, createInteractionSocketHandlers };
+module.exports = { InteractionStore, createInteractionSocketHandlers, FALLBACK_DEMO_INTERACTION };
