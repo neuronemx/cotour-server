@@ -1,0 +1,28 @@
+{
+  "interactions": [
+    {
+      "id": "demo-poll-1",
+      "type": "poll",
+      "title": "Encuesta demo",
+      "prompt": "¿Qué experiencia te gustaría probar primero en Immersa?",
+      "options": [
+        {
+          "id": "live-polls",
+          "label": "Encuestas en vivo"
+        },
+        {
+          "id": "quizzes",
+          "label": "Quizzes con puntaje"
+        },
+        {
+          "id": "decision-exercises",
+          "label": "Ejercicios de decisión"
+        },
+        {
+          "id": "attendee-results",
+          "label": "Resultados por asistente"
+        }
+      ]
+    }
+  ]
+}

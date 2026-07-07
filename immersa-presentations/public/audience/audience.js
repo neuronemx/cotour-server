@@ -15,6 +15,10 @@ let startPanY = 0;
 let startDistance = 0;
 let startCenter = null;
 let drawingOverlay = null;
+let activeInteraction = null;
+let interactionResponse = null;
+let selectedInteractionOption = "";
+let interactionCard = null;
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -23,6 +27,8 @@ const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 const connectionNotice = document.getElementById("connectionNotice");
 const liveMessage = document.getElementById("liveMessage");
+const audienceId = getAudienceId();
+function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
@@ -54,9 +60,11 @@ function setConnectionNotice(visible) {
 }
 function joinAudience() {
   if (!manifest) return;
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience" });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId });
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
+function ensureInteractionCard() { if (interactionCard) return interactionCard; interactionCard = document.createElement("section"); interactionCard.className = "interaction-card interaction-hidden"; interactionCard.setAttribute("aria-label", "Interacción activa"); viewer.appendChild(interactionCard); return interactionCard; }
+function renderInteractionCard() { const card = ensureInteractionCard(); if (!activeInteraction) { card.classList.add("interaction-hidden"); card.innerHTML = ""; return; } const answered = Boolean(interactionResponse); const options = activeInteraction.options || []; card.classList.remove("interaction-hidden"); card.innerHTML = '<h2>' + (activeInteraction.title || 'Interacción') + '</h2><p>' + (activeInteraction.prompt || 'Elige una opción') + '</p><div class="interaction-options">' + options.map((option) => '<button class="interaction-option ' + (selectedInteractionOption === option.id || interactionResponse?.optionId === option.id ? 'is-selected' : '') + '" type="button" data-option-id="' + option.id + '" ' + (answered ? 'disabled' : '') + '>' + option.label + '</button>').join("") + '</div><div class="interaction-card-actions"><button class="primary" type="button" data-submit ' + (!selectedInteractionOption || answered ? 'disabled' : '') + '>' + (answered ? 'Respuesta enviada' : 'Enviar respuesta') + '</button></div>' + (answered ? '<div class="interaction-accepted">Respuesta registrada</div>' : ''); card.querySelectorAll("[data-option-id]").forEach((button) => button.addEventListener("click", () => { selectedInteractionOption = button.dataset.optionId; renderInteractionCard(); })); card.querySelector("[data-submit]")?.addEventListener("click", () => { if (!activeInteraction || !selectedInteractionOption || answered) return; socket.emit("interaction:submit_response", { interactionId: activeInteraction.id, audienceId, optionId: selectedInteractionOption }); }); }
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
@@ -75,5 +83,10 @@ socket.on("overlay_update", applyLiveMessage);
 socket.on("clear_overlays", () => applyLiveMessage({ messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
 socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
+socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; interactionResponse = state?.response || null; if (!activeInteraction) selectedInteractionOption = ""; else if (interactionResponse) selectedInteractionOption = interactionResponse.optionId; renderInteractionCard(); });
+socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; interactionResponse = null; selectedInteractionOption = ""; renderInteractionCard(); });
+socket.on("interaction:response_accepted", ({ optionId, submittedAt }) => { interactionResponse = { optionId, submittedAt }; selectedInteractionOption = optionId; renderInteractionCard(); });
+socket.on("interaction:response_rejected", ({ reason }) => { if (reason === "duplicate_response") interactionResponse = { optionId: selectedInteractionOption, submittedAt: "" }; renderInteractionCard(); });
+socket.on("interaction:closed", () => { activeInteraction = null; interactionResponse = null; selectedInteractionOption = ""; renderInteractionCard(); });
 applyTransform();
 loadDeck().then(() => { initDrawingOverlay(); joinAudience(); });
