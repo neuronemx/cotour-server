@@ -228,7 +228,6 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
       const results = store.revealResults(context.sessionId);
       if (!results) return;
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:show_results", results);
-      emitStateToRoom(context.roomKey, context.sessionId);
     });
 
     socket.on("interaction:hide_results", () => {
@@ -236,7 +235,6 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
       if (!context?.roomKey || !context?.sessionId || context.role !== "presenter") return;
       const results = store.hideResults(context.sessionId);
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", { interactionId: results?.interactionId || "" });
-      emitStateToRoom(context.roomKey, context.sessionId);
     });
   }
 
