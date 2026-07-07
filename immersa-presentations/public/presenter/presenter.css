@@ -523,3 +523,126 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     padding: 0;
   }
 }
+
+/* Immersa Presenter — microfit QA fixes
+   Fixes:
+   - Right vertical tools capsule no longer feels clipped.
+   - Special tool buttons fit inside the capsule.
+   - Pause button is 2px smaller inside the center capsule.
+   Append at the END of presenter.css.
+*/
+
+.fx-module {
+  padding: 10px 10px 12px;
+  gap: 10px;
+  overflow: visible;
+}
+
+.fx-module .fx-btn,
+.fx-module .qr-button,
+.fx-module .reaction-toggle,
+.fx-module .thumbs-toggle {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+}
+
+.slide-status {
+  overflow: visible;
+}
+
+.status-pause-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.status-pause-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 760px) {
+  .fx-module {
+    padding: 8px 8px 10px;
+    gap: 8px;
+  }
+
+  .fx-module .fx-btn,
+  .fx-module .qr-button,
+  .fx-module .reaction-toggle,
+  .fx-module .thumbs-toggle {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    flex-basis: 38px;
+  }
+
+  .status-pause-button {
+    width: 29px;
+    min-width: 29px;
+    height: 29px;
+    min-height: 29px;
+  }
+
+  .status-pause-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .fx-module {
+    padding: 7px 7px 9px;
+    gap: 7px;
+  }
+
+  .fx-module .fx-btn,
+  .fx-module .qr-button,
+  .fx-module .reaction-toggle,
+  .fx-module .thumbs-toggle {
+    width: 35px;
+    min-width: 35px;
+    height: 35px;
+    min-height: 35px;
+    flex-basis: 35px;
+  }
+
+  .status-pause-button {
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    min-height: 26px;
+  }
+
+  .status-pause-button svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .main-controls {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .fx-module {
+    padding: 7px 7px 9px;
+    gap: 7px;
+  }
+
+  .fx-module .fx-btn,
+  .fx-module .qr-button,
+  .fx-module .reaction-toggle,
+  .fx-module .thumbs-toggle {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    flex-basis: 36px;
+  }
+}
