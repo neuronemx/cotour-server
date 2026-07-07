@@ -11,24 +11,8 @@
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .fx-module .thumbs-toggle {
-    position: static;
-    z-index: auto;
-    left: auto;
-    right: auto;
-    top: auto;
-    bottom: auto;
-    display: inline-flex;
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-    padding: 0;
-  }
-
   .floating-action,
-  .control-button,
-  .status-pause-button {
+  .control-button {
     width: 38px;
     min-width: 38px;
     height: 38px;
@@ -43,15 +27,21 @@
     min-height: 46px;
   }
 
-  .nav-cluster,
-  .fx-module {
+  .nav-cluster {
     padding: 4px;
     gap: 3px;
   }
 
+  .fx-module {
+    padding: 5px;
+    gap: 4px;
+    overflow: visible;
+  }
+
   .fx-btn,
   .qr-button,
-  .reaction-toggle {
+  .reaction-toggle,
+  .thumbs-toggle {
     width: 38px;
     min-width: 38px;
     height: 38px;
@@ -61,6 +51,18 @@
   .slide-status {
     height: 38px;
     min-height: 38px;
+  }
+
+  .slide-status .status-pause-button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+  }
+
+  .fx-module .thumbs-toggle {
+    display: inline-flex;
   }
 
   .slide-count {

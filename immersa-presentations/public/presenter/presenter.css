@@ -144,8 +144,7 @@ body {
 }
 .main-controls > * { pointer-events: auto; }
 
-.nav-cluster,
-.fx-module {
+.nav-cluster {
   display: flex; align-items: center; gap: 4px;
   padding: 7px; border-radius: 999px;
   background:
@@ -157,8 +156,39 @@ body {
 }
 .nav-divider { width: 1px; height: 26px; background: rgba(255,255,255,.16); flex: 0 0 auto; }
 
-.fx-module { flex-direction: column-reverse; gap: 8px; }
-.fx-btn { border: 0; }
+.fx-module {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  flex-direction: column-reverse;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+}
+.fx-module::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(38,43,47,.58), rgba(7,9,12,.74)),
+    radial-gradient(circle at 50% 0%, rgba(104,216,204,.12), transparent 58%);
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.38),
+    inset 0 0 0 1px rgba(234,255,251,.13),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -1px 0 rgba(0,0,0,.42);
+  backdrop-filter: blur(24px) saturate(1.32);
+}
+.fx-btn { border: 0; position: relative; z-index: 1; }
 
 button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; }
 .control-button {
@@ -230,11 +260,16 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(255,157,61,.14), 0 0 32px rgba(255,157,61,.52), inset 0 1px 0 rgba(255,255,255,.25);
 }
-.fx-btn, .qr-button, .reaction-toggle {
+.fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle {
   width: 46px; min-width: 46px; height: 46px; min-height: 46px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
-.qr-button svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* Thumbnails toggle lives in the tools capsule, but only appears in compact landscape. */
+.fx-module .thumbs-toggle {
+  display: none;
+}
+
 .links-panel { flex: 0 0 auto; width: 100%; max-width: 100%; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; color: #aeb8b3; font-size: 12px; overflow: hidden; }
 .links-panel label { min-width: 0; display: grid; gap: 6px; }
 .links-panel input { width: 100%; min-width: 0; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.28); color: #f7f2e8; padding: 10px; }
@@ -262,7 +297,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .status-pause-button { width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
   .status-pause-button svg { width: 17px; height: 17px; }
   .reaction-toggle { font-size: 18px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
   .qr-button svg { width: 19px; height: 19px; }
 }
 @media (max-width: 390px) {
@@ -281,7 +316,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; padding: 0 7px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
   .status-pause-button svg { width: 16px; height: 16px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
   .qr-button svg { width: 17px; height: 17px; }
 }
 @media (max-height: 640px) {
@@ -298,7 +333,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .slide-status { height: 34px; min-height: 34px; }
   .slide-count { min-width: 64px; height: 28px; min-height: 28px; font-size: 12px; }
   .status-pause-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
-  .fx-btn, .qr-button, .reaction-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
 }
 
 /* Immersa Presenter premium v4 refinements */
@@ -453,7 +488,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   }
 }
 @media (orientation: landscape) and (max-height: 520px) {
-  .thumbs-toggle {
+  .fx-module .thumbs-toggle {
     display: inline-flex;
   }
 
@@ -489,37 +524,5 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 
   .thumb {
     opacity: .86;
-  }
-}
-
-
-/* Immersa Presenter — microfixes after floating controls QA */
-/* Keep the thumbnails toggle hidden by default; fx-btn would otherwise force display. */
-.fx-module .thumbs-toggle {
-  display: none;
-}
-
-.fx-module .thumbs-toggle svg {
-  width: 21px;
-  height: 21px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* In compact landscape, thumbnails live inside the right tools capsule. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .fx-module .thumbs-toggle {
-    display: inline-flex;
-    position: static;
-    inset: auto;
-    z-index: auto;
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-    padding: 0;
   }
 }
