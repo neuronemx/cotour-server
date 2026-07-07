@@ -1,0 +1,210 @@
+.interaction-panel,
+.interaction-card,
+.interaction-results-overlay,
+.stage-interaction-panel {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.interaction-panel {
+  position: fixed;
+  z-index: 10;
+  left: 14px;
+  bottom: 14px;
+  width: min(330px, calc(100vw - 28px));
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 18px;
+  color: rgba(234,255,251,.94);
+  background: linear-gradient(180deg, rgba(11,14,18,.78), rgba(7,9,12,.68));
+  border: 1px solid rgba(234,255,251,.15);
+  box-shadow: 0 20px 54px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(22px) saturate(1.25);
+}
+.interaction-panel h2,
+.interaction-card h2,
+.stage-interaction-panel h2,
+.interaction-results-overlay h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.15;
+}
+.interaction-panel p,
+.interaction-card p,
+.stage-interaction-panel p,
+.interaction-results-overlay p {
+  margin: 0;
+  color: rgba(234,255,251,.72);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.interaction-panel-actions,
+.interaction-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.interaction-panel button,
+.interaction-card button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  color: rgba(234,255,251,.92);
+  background: rgba(255,255,255,.08);
+  font-size: 12px;
+  font-weight: 800;
+}
+.interaction-panel button.primary,
+.interaction-card button.primary {
+  color: #041211;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  border-color: rgba(255,255,255,.34);
+}
+.interaction-panel button.danger {
+  color: #ffeaf0;
+  background: rgba(255,79,117,.18);
+  border-color: rgba(255,79,117,.38);
+}
+.interaction-panel button:disabled,
+.interaction-card button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.interaction-results-list {
+  display: grid;
+  gap: 8px;
+}
+.interaction-result-row {
+  display: grid;
+  gap: 4px;
+}
+.interaction-result-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(234,255,251,.9);
+}
+.interaction-result-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+}
+.interaction-result-bar span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6ff7e8, #9b4cff);
+  transition: width .18s ease;
+}
+
+.interaction-card {
+  position: fixed;
+  z-index: 7;
+  left: 50%;
+  bottom: max(88px, calc(78px + env(safe-area-inset-bottom)));
+  transform: translateX(-50%);
+  width: min(430px, calc(100vw - 24px));
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 22px;
+  color: rgba(234,255,251,.96);
+  background: linear-gradient(180deg, rgba(11,14,18,.82), rgba(7,9,12,.72));
+  border: 1px solid rgba(234,255,251,.16);
+  box-shadow: 0 22px 62px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(22px) saturate(1.25);
+  pointer-events: auto;
+}
+.interaction-options {
+  display: grid;
+  gap: 8px;
+}
+.interaction-option {
+  width: 100%;
+  min-height: 42px;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 14px !important;
+}
+.interaction-option.is-selected {
+  color: #041211;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  border-color: rgba(255,255,255,.34);
+}
+.interaction-accepted {
+  color: #6ff7e8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.interaction-results-overlay {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, 82vw);
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 3vw, 34px);
+  border-radius: 10px;
+  color: #f8f4ea;
+  background: rgba(0,0,0,.72);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 24px 90px rgba(0,0,0,.54);
+  backdrop-filter: blur(16px) saturate(1.15);
+}
+.interaction-results-overlay h2 {
+  font-size: clamp(28px, 4vw, 54px);
+  letter-spacing: -.02em;
+}
+.interaction-results-overlay p {
+  font-size: clamp(17px, 2vw, 24px);
+  color: rgba(248,244,234,.78);
+}
+.interaction-results-overlay .interaction-result-label {
+  font-size: clamp(16px, 2vw, 24px);
+  color: rgba(248,244,234,.95);
+}
+.interaction-results-overlay .interaction-result-bar {
+  height: 13px;
+  background: rgba(255,255,255,.16);
+}
+
+.stage-interaction-panel {
+  position: absolute;
+  z-index: 6;
+  left: 18px;
+  top: 18px;
+  width: min(340px, calc(100% - 36px));
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 18px;
+  color: rgba(234,255,251,.94);
+  background: linear-gradient(180deg, rgba(11,14,18,.78), rgba(7,9,12,.68));
+  border: 1px solid rgba(234,255,251,.15);
+  box-shadow: 0 20px 54px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(22px) saturate(1.25);
+}
+
+.interaction-hidden { display: none !important; }
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .interaction-panel {
+    left: 10px;
+    bottom: 10px;
+    width: min(290px, calc(50vw - 12px));
+    max-height: calc(100dvh - 20px);
+    overflow: auto;
+  }
+  .interaction-card {
+    bottom: 60px;
+    width: min(380px, calc(100vw - 120px));
+    padding: 12px;
+  }
+}
