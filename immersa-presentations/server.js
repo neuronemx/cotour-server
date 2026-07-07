@@ -359,7 +359,8 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     stageConnected: false,
     audience: new Map(),
     overlays: {
-      reactionsOnScreen: false,
+      reactionsOnScreen: true,
+      showReactions: true,
       qrVisible: false,
       messageVisible: false,
       messageText: "",
@@ -432,9 +433,25 @@ function emitReaction(roomKey, session, emoji) {
   if (!allowedReactions.has(emoji)) return;
   io.to(roomKey).emit("reaction", { emoji, target: "audience", at: Date.now() });
   io.to(roomKey).emit("reaction", { emoji, target: "presenter", at: Date.now() });
-  if (session.overlays.reactionsOnScreen) {
+  if (session.overlays.showReactions ?? session.overlays.reactionsOnScreen) {
     io.to(roomKey).emit("reaction", { emoji, target: "screen", at: Date.now() });
   }
+}
+
+function normalizeOverlayPatch(overlays = {}, role) {
+  const patch = role === "presenter"
+    ? {
+        showReactions: overlays.showReactions,
+        reactionsOnScreen: overlays.reactionsOnScreen
+      }
+    : { ...overlays };
+  const reactionState = patch.showReactions ?? patch.reactionsOnScreen;
+  if (typeof reactionState !== "undefined") {
+    const enabled = Boolean(reactionState);
+    patch.showReactions = enabled;
+    patch.reactionsOnScreen = enabled;
+  }
+  return patch;
 }
 
 function normalizeDrawingStroke(session, stroke) {
@@ -612,10 +629,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("overlay_update", ({ overlays }) => {
-    if (!currentRoomKey || currentRole !== "stage") return;
+    if (!currentRoomKey || (currentRole !== "stage" && currentRole !== "presenter")) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
-    session.overlays = { ...session.overlays, ...overlays };
+    const patch = normalizeOverlayPatch(overlays, currentRole);
+    session.overlays = { ...session.overlays, ...patch };
     io.to(currentRoomKey).emit("overlay_update", session.overlays);
     emitState(currentRoomKey, session);
   });
