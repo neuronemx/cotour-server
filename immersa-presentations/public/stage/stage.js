@@ -251,6 +251,4 @@ socket.on("interaction:closed", () => renderStageInteractionResults(null));
 loadDeck().then(() => {
   initDrawingOverlay();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
-  const audienceUrl = publicUrl();
-  updateOverlay({ audienceUrl });
 });
