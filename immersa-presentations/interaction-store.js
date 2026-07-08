@@ -193,6 +193,12 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     io.to(roomKey).emit("interaction:state", store.getState(sessionId));
   }
 
+  function emitStateToControlRoles(roomKey, sessionId) {
+    const state = store.getState(sessionId);
+    io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:state", state);
+    io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:state", state);
+  }
+
   async function sendCurrentState(socket, context) {
     if (!context?.sessionId) return;
     socket.emit("interaction:state", store.getState(context.sessionId, context.audienceId));
@@ -251,7 +257,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
       const results = store.revealResults(context.sessionId);
       if (!results) return;
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:show_results", results);
-      emitStateToRoom(context.roomKey, context.sessionId);
+      emitStateToControlRoles(context.roomKey, context.sessionId);
     });
 
     socket.on("interaction:hide_results", () => {
@@ -259,7 +265,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
       if (!context?.roomKey || !context?.sessionId || context.role !== "presenter") return;
       const results = store.hideResults(context.sessionId);
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", { interactionId: results?.interactionId || "" });
-      emitStateToRoom(context.roomKey, context.sessionId);
+      emitStateToControlRoles(context.roomKey, context.sessionId);
     });
   }
 
