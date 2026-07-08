@@ -246,7 +246,8 @@
   filter: brightness(1.03);
 }
 
-.interaction-list-item {
+.interaction-list-item,
+.interaction-delete-confirm {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 12px;
@@ -257,33 +258,56 @@
   background: linear-gradient(180deg, #fff, #fbfcff);
 }
 
-.interaction-list-copy {
+.interaction-delete-confirm {
+  border-color: rgba(239,68,98,.22);
+  background: linear-gradient(180deg, #fff7f9, #fff);
+}
+
+.interaction-list-copy,
+.interaction-delete-confirm div:first-child {
   min-width: 0;
   display: grid;
   gap: 4px;
 }
 
 .interaction-list-copy strong,
-.interaction-list-copy span {
+.interaction-list-copy span,
+.interaction-delete-confirm strong,
+.interaction-delete-confirm span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.interaction-list-copy strong {
+.interaction-list-copy strong,
+.interaction-delete-confirm strong {
   color: #0a0d28;
   font-size: 14px;
 }
 
+.interaction-delete-confirm strong {
+  color: var(--red);
+}
+
 .interaction-list-copy span,
-.interaction-list-copy small {
+.interaction-list-copy small,
+.interaction-delete-confirm span,
+.interaction-delete-confirm p {
   color: var(--muted);
   font-size: 12px;
 }
 
-.interaction-list-actions {
+.interaction-delete-confirm p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.interaction-list-actions,
+.interaction-delete-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .interactions-text-action {
@@ -295,6 +319,15 @@
 
 .interactions-text-action.danger {
   color: var(--red);
+}
+
+.interactions-text-action.solid {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: var(--red);
+  box-shadow: 0 10px 22px rgba(239,68,98,.20);
 }
 
 .interaction-edit-form {
@@ -452,13 +485,15 @@
 
   .interaction-module-grid,
   .interaction-list-item,
+  .interaction-delete-confirm,
   .interactions-hub-top,
   .interactions-list-heading {
     grid-template-columns: 1fr;
     display: grid;
   }
 
-  .interaction-list-actions {
+  .interaction-list-actions,
+  .interaction-delete-actions {
     justify-content: flex-start;
   }
 
