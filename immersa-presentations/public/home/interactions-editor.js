@@ -6,6 +6,7 @@
   let currentDeck = null;
   let interactions = [];
   let editingIndex = null;
+  let pendingDeleteIndex = null;
   let pollsOpen = false;
   let modal = null;
   let listNode = null;
@@ -131,6 +132,7 @@
     ensureModal();
     currentDeck = deck;
     editingIndex = null;
+    pendingDeleteIndex = null;
     pollsOpen = false;
     modal.querySelector("#interactionsDeckTitle").textContent = niceTitle(deck.title || deck.deckId);
     modal.hidden = false;
@@ -157,6 +159,7 @@
     modal.setAttribute("aria-hidden", "true");
     currentDeck = null;
     editingIndex = null;
+    pendingDeleteIndex = null;
     pollsOpen = false;
     if (document.getElementById("deckDetailModal")?.hidden) document.body.classList.remove("modal-open");
   }
@@ -173,9 +176,36 @@
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
     hub.innerHTML = '<div class="interactions-hub-top"><div><strong>Interacciones</strong><span>Prepara dinámicas para este deck.</span></div><button type="button" class="interactions-small-action interactions-main-cta">Nueva interacción</button></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, true) + moduleCardMarkup("raffles", "Sorteos", "", false) + moduleCardMarkup("contests", "Concursos", "", false) + moduleCardMarkup("games", "Juegos", "", false) + '</div>';
-    hub.querySelector('[data-module="polls"]').addEventListener("click", () => { pollsOpen = true; renderList(); renderForm(null); });
-    hub.querySelector(".interactions-main-cta").addEventListener("click", () => { pollsOpen = true; renderList(); renderForm(defaultDraft()); });
+    hub.querySelector('[data-module="polls"]').addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(null); });
+    hub.querySelector(".interactions-main-cta").addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(defaultDraft()); });
     return hub;
+  }
+
+  function renderDeleteConfirm(interaction, index) {
+    const confirm = document.createElement("div");
+    confirm.className = "interaction-delete-confirm";
+    confirm.innerHTML = '<div><strong>¿Eliminar esta encuesta?</strong><span>' + escapeHtml(interaction.title || interaction.prompt || "Encuesta") + '</span><p>Esta acción no se puede deshacer.</p></div><div class="interaction-delete-actions"></div>';
+    const actions = confirm.querySelector(".interaction-delete-actions");
+    actions.append(
+      makeButton("Cancelar", "interactions-text-action", () => {
+        pendingDeleteIndex = null;
+        renderList();
+      }),
+      makeButton("Eliminar encuesta", "interactions-text-action danger solid", async () => {
+        const next = interactions.filter((_item, itemIndex) => itemIndex !== index);
+        try {
+          setStatus("Guardando…");
+          await saveInteractions(next);
+          pendingDeleteIndex = null;
+          setStatus("Interacción eliminada.", "success");
+          renderList();
+          renderForm(null);
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      })
+    );
+    return confirm;
   }
 
   function renderPollList() {
@@ -184,7 +214,7 @@
     const heading = document.createElement("div");
     heading.className = "interactions-list-heading";
     heading.innerHTML = '<div><strong>Encuestas</strong><span>Crea preguntas que Speaker o Stage pueden lanzar cuando quieran.</span></div>';
-    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => renderForm(defaultDraft())));
+    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => { pendingDeleteIndex = null; renderForm(defaultDraft()); }));
     section.appendChild(heading);
 
     if (!interactions.length) {
@@ -205,21 +235,15 @@
       item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Encuesta") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
       const actions = item.querySelector(".interaction-list-actions");
       actions.append(
-        makeButton("Editar", "interactions-text-action", () => renderForm(normalizeForForm(interaction), index)),
-        makeButton("Eliminar", "interactions-text-action danger", async () => {
-          const next = interactions.filter((_item, itemIndex) => itemIndex !== index);
-          try {
-            setStatus("Guardando…");
-            await saveInteractions(next);
-            setStatus("Interacción eliminada.", "success");
-            renderList();
-            renderForm(null);
-          } catch (error) {
-            setStatus(error.message, "error");
-          }
+        makeButton("Editar", "interactions-text-action", () => { pendingDeleteIndex = null; renderForm(normalizeForForm(interaction), index); }),
+        makeButton("Eliminar", "interactions-text-action danger", () => {
+          pendingDeleteIndex = index;
+          renderList();
+          renderForm(null);
         })
       );
       list.appendChild(item);
+      if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
     });
     section.appendChild(list);
     return section;
@@ -235,6 +259,7 @@
     editingIndex = index;
     formNode.innerHTML = "";
     if (!draft) return;
+    pendingDeleteIndex = null;
     pollsOpen = true;
     renderList();
     const form = document.createElement("form");
