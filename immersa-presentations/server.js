@@ -8,6 +8,7 @@ const { createUploadHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
+const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +36,10 @@ const interactionSockets = createInteractionSocketHandlers({
   store: interactionStore,
   loadInteractionsForDeck,
   getRoleRoomKey
+});
+const deckInteractionHandlers = createDeckInteractionHandlers({
+  dataDecksDir: DATA_DECKS_DIR,
+  staticDecksDir: STATIC_DECKS_DIR
 });
 
 function normalizeSessionId(sessionId) {
@@ -499,6 +504,8 @@ app.get("/api/decks", async (_req, res) => {
     res.status(500).json({ error: "Unable to list decks" });
   }
 });
+app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
+app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
 app.delete("/api/decks/:deckId", async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
