@@ -10,16 +10,26 @@
   z-index: 10;
   left: 14px;
   bottom: 14px;
-  width: min(330px, calc(100vw - 28px));
+  width: min(352px, calc(100vw - 28px));
   display: grid;
-  gap: 10px;
-  padding: 13px;
-  border-radius: 18px;
-  color: rgba(234,255,251,.94);
-  background: linear-gradient(180deg, rgba(11,14,18,.78), rgba(7,9,12,.68));
-  border: 1px solid rgba(234,255,251,.15);
-  box-shadow: 0 20px 54px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.08);
-  backdrop-filter: blur(22px) saturate(1.25);
+  gap: 11px;
+  padding: 15px;
+  border-radius: 22px;
+  color: rgba(240,255,252,.96);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(111,247,232,.18), transparent 32%),
+    radial-gradient(circle at 100% 18%, rgba(155,76,255,.22), transparent 35%),
+    linear-gradient(180deg, rgba(12,15,24,.86), rgba(7,9,14,.76));
+  border: 1px solid rgba(234,255,251,.17);
+  box-shadow: 0 24px 68px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.10);
+  backdrop-filter: blur(24px) saturate(1.28);
+}
+.interaction-panel::before {
+  content: "";
+  width: 34px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6ff7e8, #9b4cff);
 }
 .interaction-panel h2,
 .interaction-card h2,
@@ -29,6 +39,10 @@
   font-size: 15px;
   line-height: 1.15;
 }
+.interaction-panel h2 {
+  font-size: 16px;
+  letter-spacing: -.01em;
+}
 .interaction-panel p,
 .interaction-card p,
 .stage-interaction-panel p,
@@ -36,7 +50,7 @@
   margin: 0;
   color: rgba(234,255,251,.72);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.38;
 }
 .interaction-panel-actions,
 .interaction-card-actions {
@@ -46,20 +60,27 @@
 }
 .interaction-panel button,
 .interaction-card button {
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 13px;
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 999px;
   color: rgba(234,255,251,.92);
   background: rgba(255,255,255,.08);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
+  transition: transform .14s ease, background .14s ease, border-color .14s ease;
+}
+.interaction-panel button:hover:not(:disabled),
+.interaction-card button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.12);
 }
 .interaction-panel button.primary,
 .interaction-card button.primary {
   color: #041211;
   background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
   border-color: rgba(255,255,255,.34);
+  box-shadow: 0 10px 24px rgba(111,247,232,.18);
 }
 .interaction-panel button.danger {
   color: #ffeaf0;
@@ -73,22 +94,23 @@
 }
 .interaction-picker {
   display: grid;
-  gap: 7px;
-  max-height: 184px;
+  gap: 8px;
+  max-height: 190px;
   overflow: auto;
   padding-right: 2px;
 }
 .interaction-panel button.interaction-choice {
   width: 100%;
   height: auto;
-  min-height: 58px;
+  min-height: 64px;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   justify-items: start;
   align-content: center;
-  padding: 9px 10px;
-  border-radius: 12px;
+  padding: 10px 11px;
+  border-radius: 16px;
   text-align: left;
+  background: rgba(255,255,255,.075);
 }
 .interaction-panel button.interaction-choice.is-selected {
   color: #041211;
@@ -114,11 +136,15 @@
 }
 .interaction-results-list {
   display: grid;
-  gap: 8px;
+  gap: 9px;
+  padding: 9px;
+  border-radius: 15px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.08);
 }
 .interaction-result-row {
   display: grid;
-  gap: 4px;
+  gap: 5px;
 }
 .interaction-result-label {
   display: flex;
@@ -126,6 +152,15 @@
   gap: 10px;
   font-size: 12px;
   color: rgba(234,255,251,.9);
+}
+.interaction-result-label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.interaction-result-label strong {
+  flex: none;
 }
 .interaction-result-bar {
   height: 7px;
@@ -239,9 +274,10 @@
   .interaction-panel {
     left: 10px;
     bottom: 10px;
-    width: min(290px, calc(50vw - 12px));
+    width: min(304px, calc(50vw - 12px));
     max-height: calc(100dvh - 20px);
     overflow: auto;
+    padding: 12px;
   }
   .interaction-card {
     bottom: 60px;
