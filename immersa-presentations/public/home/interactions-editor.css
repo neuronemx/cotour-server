@@ -1,0 +1,264 @@
+.detail-role-action.role-interactions::before {
+  background: #6d3bef;
+}
+
+.interactions-backdrop {
+  z-index: 70;
+}
+
+.interactions-modal {
+  width: min(620px, 100%);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  border-radius: var(--radius-xl);
+  background: #fff;
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+  position: relative;
+}
+
+.interactions-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--bg);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.interactions-close:hover {
+  color: var(--ink);
+  background: rgba(67,104,246,.08);
+}
+
+.interactions-header {
+  display: grid;
+  gap: 4px;
+  padding-right: 42px;
+}
+
+.interactions-header span {
+  color: var(--violet);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.interactions-header h2,
+.interaction-edit-form h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: #0a0d28;
+  letter-spacing: -.01em;
+}
+
+.interactions-header h2 {
+  font-size: 24px;
+}
+
+.interactions-header p,
+.interactions-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.interactions-status {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.interactions-status.success { color: var(--green); }
+.interactions-status.error { color: var(--red); }
+
+.interactions-list,
+.interaction-edit-form {
+  display: grid;
+  gap: 12px;
+}
+
+.interactions-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.interactions-list-heading strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: #0a0d28;
+}
+
+.interactions-small-action,
+.interactions-add-option {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  color: var(--violet);
+  background: rgba(109,59,239,.08);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.interactions-small-action:hover,
+.interactions-add-option:hover {
+  background: rgba(109,59,239,.14);
+}
+
+.interaction-list-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.interaction-list-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.interaction-list-copy strong,
+.interaction-list-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-list-copy strong {
+  color: #0a0d28;
+  font-size: 14px;
+}
+
+.interaction-list-copy span,
+.interaction-list-copy small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.interaction-list-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.interactions-text-action {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.interactions-text-action.danger {
+  color: var(--red);
+}
+
+.interaction-edit-form {
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.interaction-edit-form label,
+.interaction-option-field {
+  display: grid;
+  gap: 7px;
+}
+
+.interaction-edit-form label span,
+.interaction-options-title strong {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.interaction-edit-form input,
+.interaction-edit-form textarea {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.interaction-edit-form input {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.interaction-edit-form textarea {
+  resize: vertical;
+  min-height: 76px;
+  padding: 11px 12px;
+}
+
+.interaction-edit-form input:focus,
+.interaction-edit-form textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(67,104,246,.12);
+}
+
+.interaction-options-editor,
+.interaction-options-fields {
+  display: grid;
+  gap: 9px;
+}
+
+.interaction-option-field {
+  grid-template-columns: 82px 1fr 32px;
+  align-items: center;
+}
+
+.interaction-option-field span {
+  font-size: 12px;
+}
+
+.interaction-option-field button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 18px;
+}
+
+.interaction-option-field button:hover:not(:disabled) {
+  color: var(--red);
+  border-color: rgba(239,68,98,.32);
+}
+
+@media (max-width: 700px) {
+  .interactions-modal {
+    padding: 18px;
+  }
+
+  .interaction-list-item {
+    grid-template-columns: 1fr;
+  }
+
+  .interaction-option-field {
+    grid-template-columns: 1fr 32px;
+  }
+
+  .interaction-option-field span {
+    grid-column: 1 / -1;
+  }
+}
