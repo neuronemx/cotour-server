@@ -118,7 +118,7 @@ Closing an interaction is different from hiding results. Closing cleans Audience
 
 - [ ] Slide sync still works.
 - [ ] Drawing still works.
-- [ ] Reactions still works.
+- [ ] Reactions still work.
 - [ ] Home editor still works.
 - [ ] No duplicate voting.
 
