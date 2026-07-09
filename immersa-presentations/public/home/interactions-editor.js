@@ -2,9 +2,12 @@
   const MAX_OPTIONS = 6;
   const MIN_OPTIONS = 2;
   const optionLetters = "abcdefghijklmnopqrstuvwxyz";
+  const optionDotClasses = ["dot-a", "dot-b", "dot-c", "dot-d", "dot-e", "dot-f"];
   let currentDeck = null;
   let interactions = [];
   let editingIndex = null;
+  let pendingDeleteIndex = null;
+  let pollsOpen = false;
   let modal = null;
   let listNode = null;
   let formNode = null;
@@ -12,6 +15,10 @@
 
   function niceTitle(value) {
     return String(value || "Presentación").replace(/[-_]+/g, " ").trim() || "Presentación";
+  }
+
+  function escapeHtml(value) {
+    return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
   }
 
   function optionId(index) {
@@ -67,13 +74,23 @@
     return button;
   }
 
+  function pollSummary() {
+    const fixed = interactions.filter((item) => item?.slide_id).length;
+    const free = Math.max(0, interactions.length - fixed);
+    const title = interactions.length + " Encuesta" + (interactions.length === 1 ? "" : "s");
+    const parts = [];
+    if (free) parts.push(free + " libre" + (free === 1 ? "" : "s"));
+    if (fixed) parts.push(fixed + " fija" + (fixed === 1 ? "" : "s"));
+    return { title, detail: parts.join(" · ") };
+  }
+
   function ensureModal() {
     if (modal) return modal;
     modal = document.createElement("div");
     modal.className = "modal-backdrop interactions-backdrop";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
-    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-header"><span>Interacciones del deck</span><h2 id="interactionsTitle">Encuestas</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div><div class="interactions-form-wrap"></div></section>';
+    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-header"><span>Interacciones</span><h2 id="interactionsTitle">Interacciones</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div><div class="interactions-form-wrap"></div></section>';
     document.body.appendChild(modal);
     listNode = modal.querySelector(".interactions-list");
     formNode = modal.querySelector(".interactions-form-wrap");
@@ -115,6 +132,8 @@
     ensureModal();
     currentDeck = deck;
     editingIndex = null;
+    pendingDeleteIndex = null;
+    pollsOpen = false;
     modal.querySelector("#interactionsDeckTitle").textContent = niceTitle(deck.title || deck.deckId);
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
@@ -140,68 +159,113 @@
     modal.setAttribute("aria-hidden", "true");
     currentDeck = null;
     editingIndex = null;
+    pendingDeleteIndex = null;
+    pollsOpen = false;
     if (document.getElementById("deckDetailModal")?.hidden) document.body.classList.remove("modal-open");
   }
 
-  function renderList() {
-    listNode.innerHTML = "";
+  function moduleCardMarkup(kind, title, detail, enabled) {
+    const disabled = enabled ? "" : " disabled";
+    const soon = enabled ? "" : '<span class="interaction-module-badge">Próximamente</span>';
+    return '<button type="button" class="interaction-module-card ' + kind + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon" aria-hidden="true"></span><span class="interaction-module-copy"><strong>' + title + '</strong>' + (detail ? '<small>' + detail + '</small>' : '') + '</span>' + soon + '</button>';
+  }
+
+  function renderHub() {
+    const summary = pollSummary();
+    const pollDetail = interactions.length ? summary.detail : "";
+    const hub = document.createElement("section");
+    hub.className = "interactions-hub";
+    hub.innerHTML = '<div class="interactions-hub-top"><div><strong>Interacciones</strong><span>Prepara dinámicas para este deck.</span></div><button type="button" class="interactions-small-action interactions-main-cta">Nueva interacción</button></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, true) + moduleCardMarkup("raffles", "Sorteos", "", false) + moduleCardMarkup("contests", "Concursos", "", false) + moduleCardMarkup("games", "Juegos", "", false) + '</div>';
+    hub.querySelector('[data-module="polls"]').addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(null); });
+    hub.querySelector(".interactions-main-cta").addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(defaultDraft()); });
+    return hub;
+  }
+
+  function renderDeleteConfirm(interaction, index) {
+    const confirm = document.createElement("div");
+    confirm.className = "interaction-delete-confirm";
+    confirm.innerHTML = '<div><strong>¿Eliminar esta encuesta?</strong><span>' + escapeHtml(interaction.title || interaction.prompt || "Encuesta") + '</span><p>Esta acción no se puede deshacer.</p></div><div class="interaction-delete-actions"></div>';
+    const actions = confirm.querySelector(".interaction-delete-actions");
+    actions.append(
+      makeButton("Cancelar", "interactions-text-action", () => {
+        pendingDeleteIndex = null;
+        renderList();
+      }),
+      makeButton("Eliminar encuesta", "interactions-text-action danger solid", async () => {
+        const next = interactions.filter((_item, itemIndex) => itemIndex !== index);
+        try {
+          setStatus("Guardando…");
+          await saveInteractions(next);
+          pendingDeleteIndex = null;
+          setStatus("Interacción eliminada.", "success");
+          renderList();
+          renderForm(null);
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      })
+    );
+    return confirm;
+  }
+
+  function renderPollList() {
+    const section = document.createElement("section");
+    section.className = "interactions-polls-section";
     const heading = document.createElement("div");
     heading.className = "interactions-list-heading";
-    heading.innerHTML = '<strong>Encuestas</strong>';
-    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => renderForm(defaultDraft())));
-    listNode.appendChild(heading);
+    heading.innerHTML = '<div><strong>Encuestas</strong><span>Crea preguntas que Speaker o Stage pueden lanzar cuando quieran.</span></div>';
+    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => { pendingDeleteIndex = null; renderForm(defaultDraft()); }));
+    section.appendChild(heading);
 
     if (!interactions.length) {
       const empty = document.createElement("p");
       empty.className = "interactions-empty";
       empty.textContent = "Sin encuestas todavía.";
-      listNode.appendChild(empty);
-      return;
+      section.appendChild(empty);
+      return section;
     }
 
+    const list = document.createElement("div");
+    list.className = "interaction-list-stack";
     interactions.forEach((interaction, index) => {
       const item = document.createElement("article");
       item.className = "interaction-list-item";
-      const copy = document.createElement("div");
-      copy.className = "interaction-list-copy";
-      const title = document.createElement("strong");
-      title.textContent = interaction.title || "Encuesta";
-      const prompt = document.createElement("span");
-      prompt.textContent = interaction.prompt || "Sin pregunta";
-      const meta = document.createElement("small");
       const count = Array.isArray(interaction.options) ? interaction.options.length : 0;
-      meta.textContent = count + " opcion" + (count === 1 ? "" : "es");
-      copy.append(title, prompt, meta);
-      const actions = document.createElement("div");
-      actions.className = "interaction-list-actions";
+      const activation = interaction.slide_id ? "fija" : "libre";
+      item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Encuesta") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
+      const actions = item.querySelector(".interaction-list-actions");
       actions.append(
-        makeButton("Editar", "interactions-text-action", () => renderForm(normalizeForForm(interaction), index)),
-        makeButton("Eliminar", "interactions-text-action danger", async () => {
-          const next = interactions.filter((_item, itemIndex) => itemIndex !== index);
-          try {
-            setStatus("Guardando…");
-            await saveInteractions(next);
-            setStatus("Interacción eliminada.", "success");
-            renderList();
-            renderForm(null);
-          } catch (error) {
-            setStatus(error.message, "error");
-          }
+        makeButton("Editar", "interactions-text-action", () => { pendingDeleteIndex = null; renderForm(normalizeForForm(interaction), index); }),
+        makeButton("Eliminar", "interactions-text-action danger", () => {
+          pendingDeleteIndex = index;
+          renderList();
+          renderForm(null);
         })
       );
-      item.append(copy, actions);
-      listNode.appendChild(item);
+      list.appendChild(item);
+      if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
     });
+    section.appendChild(list);
+    return section;
+  }
+
+  function renderList() {
+    listNode.innerHTML = "";
+    listNode.appendChild(renderHub());
+    if (pollsOpen) listNode.appendChild(renderPollList());
   }
 
   function renderForm(draft, index = null) {
     editingIndex = index;
     formNode.innerHTML = "";
     if (!draft) return;
+    pendingDeleteIndex = null;
+    pollsOpen = true;
+    renderList();
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
-    form.innerHTML = '<h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3><label><span>Título interno</span><input name="title" autocomplete="off"></label><label><span>Pregunta para público</span><textarea name="prompt" rows="3" required></textarea></label><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar encuesta</button></div>';
+    form.innerHTML = '<div class="interaction-form-header"><span>Encuesta</span><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Stage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar encuesta</button></div>';
     const title = form.elements.title;
     const prompt = form.elements.prompt;
     const optionsFields = form.querySelector(".interaction-options-fields");
@@ -213,7 +277,7 @@
       draft.options.forEach((option, optionIndex) => {
         const row = document.createElement("label");
         row.className = "interaction-option-field";
-        row.innerHTML = '<span>Opción ' + (optionIndex + 1) + '</span><input autocomplete="off"><button type="button" aria-label="Eliminar opción">×</button>';
+        row.innerHTML = '<span class="interaction-option-dot ' + optionDotClasses[optionIndex % optionDotClasses.length] + '" aria-hidden="true"></span><input autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
         const input = row.querySelector("input");
         input.value = option.label || "";
         input.addEventListener("input", () => option.label = input.value);
@@ -239,7 +303,7 @@
       event.preventDefault();
       const next = normalizeForForm({ ...draft, title: title.value.trim(), prompt: prompt.value.trim() });
       next.options = draft.options.map((option, optionIndex) => ({ id: option.id || optionId(optionIndex), label: String(option.label || "").trim() })).filter((option) => option.label);
-      if (!next.prompt) return setStatus("La pregunta para público es obligatoria.", "error");
+      if (!next.prompt) return setStatus("La pregunta visible para público es obligatoria.", "error");
       if (next.options.length < MIN_OPTIONS) return setStatus("Agrega al menos dos opciones.", "error");
       const saved = [...interactions];
       if (editingIndex === null) saved.push(next);
@@ -265,7 +329,7 @@
     button.type = "button";
     button.className = "detail-role-action role-interactions";
     button.textContent = "Interacciones";
-    button.title = "Crear o editar encuestas de este deck";
+    button.title = "Crear o editar interacciones de este deck";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       openModal(deck);
