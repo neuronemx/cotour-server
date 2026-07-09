@@ -7,10 +7,12 @@
 
 .interaction-panel {
   position: fixed;
-  z-index: 10;
-  left: 14px;
-  bottom: 14px;
+  z-index: 20;
+  left: 50%;
+  top: 50%;
   width: min(352px, calc(100vw - 28px));
+  max-height: min(82vh, 680px);
+  overflow: auto;
   display: grid;
   gap: 11px;
   padding: 15px;
@@ -23,6 +25,58 @@
   border: 1px solid rgba(234,255,251,.17);
   box-shadow: 0 24px 68px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.10);
   backdrop-filter: blur(24px) saturate(1.28);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(-50% + 12px)) scale(.98);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+  visibility: hidden;
+}
+.presenter-shell.interaction-panel-open .interaction-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+  visibility: visible;
+}
+.interaction-panel-toggle {
+  position: fixed;
+  z-index: 19;
+  left: 14px;
+  bottom: 14px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #041211;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  border: 1px solid rgba(255,255,255,.34);
+  box-shadow: 0 12px 28px rgba(0,0,0,.24);
+  font-size: 12px;
+  font-weight: 900;
+}
+.interaction-panel-toggle.is-active {
+  color: rgba(234,255,251,.94);
+  background: rgba(12,15,24,.82);
+  border-color: rgba(234,255,251,.18);
+}
+.interaction-panel-close {
+  position: absolute;
+  right: 11px;
+  top: 11px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: rgba(234,255,251,.88);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size: 20px;
+  line-height: 1;
+}
+.interaction-panel-close:hover {
+  color: #041211;
+  background: rgba(111,247,232,.96);
+  border-color: rgba(255,255,255,.34);
 }
 .interaction-panel::before {
   content: "";
@@ -355,12 +409,15 @@
 
 @media (orientation: landscape) and (max-height: 520px) {
   .interaction-panel {
+    width: min(304px, calc(100vw - 24px));
+    max-height: calc(100dvh - 20px);
+    padding: 12px;
+  }
+  .interaction-panel-toggle {
     left: 10px;
     bottom: 10px;
-    width: min(304px, calc(50vw - 12px));
-    max-height: calc(100dvh - 20px);
-    overflow: auto;
-    padding: 12px;
+    min-height: 36px;
+    padding: 0 12px;
   }
   .interaction-card {
     bottom: 60px;

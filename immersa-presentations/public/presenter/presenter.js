@@ -46,6 +46,8 @@ const fallbackDemoInteraction = {
   source: "fallback-demo"
 };
 let interactionPanel = null;
+let interactionPanelOpen = false;
+let interactionToggle = null;
 function renderDeckNotice() {
   const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
   deckNotice.hidden = !pending;
@@ -126,6 +128,11 @@ function popReaction(emoji) { if (!localReactions.checked) return; const node = 
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
 function ensureInteractionPanel() { if (interactionPanel) return interactionPanel; interactionPanel = document.createElement("section"); interactionPanel.className = "interaction-panel"; interactionPanel.setAttribute("aria-label", "Interacciones"); presenterShell.appendChild(interactionPanel); return interactionPanel; }
+function setInteractionPanelOpen(open) { interactionPanelOpen = Boolean(open); presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen); if (interactionToggle) { interactionToggle.classList.toggle("is-active", interactionPanelOpen); interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen)); interactionToggle.textContent = interactionPanelOpen ? "Cerrar interacciones" : "Interacciones"; } if (interactionPanelOpen) renderInteractionPanel(); }
+function toggleInteractionPanel() { setInteractionPanelOpen(!interactionPanelOpen); }
+function ensureInteractionToggle() { if (interactionToggle) return interactionToggle; interactionToggle = document.createElement("button"); interactionToggle.type = "button"; interactionToggle.className = "interaction-panel-toggle"; interactionToggle.textContent = "Interacciones"; interactionToggle.setAttribute("aria-label", "Abrir interacciones"); interactionToggle.setAttribute("aria-expanded", "false"); interactionToggle.addEventListener("click", toggleInteractionPanel); presenterShell.appendChild(interactionToggle); return interactionToggle; }
+function interactionPanelCloseMarkup() { return '<button type="button" class="interaction-panel-close" data-interaction-panel-close aria-label="Cerrar interacciones">×</button>'; }
+function bindInteractionPanelClose(panel) { panel.querySelector("[data-interaction-panel-close]")?.addEventListener("click", () => setInteractionPanelOpen(false)); }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
 function activeResultRows(interaction, results) {
   const resultOptions = Array.isArray(results?.options) && results.options.length ? results.options : (interaction?.options || []).map((option) => ({ label: option.label, count: 0, percentage: 0 }));
@@ -163,14 +170,16 @@ function renderInteractionPanel() {
   const selected = selectedInteraction();
   const hasActive = Boolean(active);
   if (!hasActive) {
-    panel.innerHTML = '<div class="interaction-panel-heading"><h2>Interacciones</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><h2>Interacciones</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    bindInteractionPanelClose(panel);
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
   }
   const revealLabel = interactionResultsVisible ? 'Ocultar resultados' : 'Mostrar resultados';
   const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
-  panel.innerHTML = '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
+  panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
+  bindInteractionPanelClose(panel);
   panel.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => { const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results"; socket.emit(eventName, { interactionId: activeInteraction?.id }); });
   attachInteractionCloseSlider(panel.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
 }
@@ -186,6 +195,7 @@ if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListe
 else if (compactLandscapeQuery?.addListener) compactLandscapeQuery.addListener(syncThumbsPanelMode);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen) setInteractionPanelOpen(false); });
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (overlays) => updateReactionToggle({ overlays }));
 socket.on("audience_count", (count) => { audience.textContent = count; });
@@ -195,4 +205,5 @@ socket.on("interaction:active", (interaction) => { activeInteraction = interacti
 socket.on("interaction:results_updated", (results) => { interactionResults = results || null; renderInteractionPanel(); });
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderInteractionPanel(); });
 syncThumbsPanelMode();
+ensureInteractionToggle();
 loadDeck().then(() => { initDrawingOverlay(); updateDrawingMode(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" }); });
