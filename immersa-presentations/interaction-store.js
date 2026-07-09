@@ -179,6 +179,10 @@ class InteractionStore {
 }
 
 function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey }) {
+  function canControlInteractions(context) {
+    return context?.role === "presenter" || context?.role === "stage";
+  }
+
   function emitResults(roomKey, sessionId) {
     const results = store.getResults(sessionId);
     if (!results) return;
@@ -214,7 +218,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
   function attach(socket, getContext) {
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
-      if (!context?.roomKey || !context?.sessionId || !context?.deckId || context.role !== "presenter") return;
+      if (!context?.roomKey || !context?.sessionId || !context?.deckId || !canControlInteractions(context)) return;
       const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
       const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
       const active = store.launch({ sessionId: context.sessionId, interaction });
@@ -244,7 +248,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
 
     socket.on("interaction:close", () => {
       const context = getContext();
-      if (!context?.roomKey || !context?.sessionId || context.role !== "presenter") return;
+      if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const closed = store.close(context.sessionId);
       io.to(context.roomKey).emit("interaction:closed", { interactionId: closed?.id || "" });
       io.to(context.roomKey).emit("interaction:state", store.getState(context.sessionId));
@@ -253,7 +257,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
 
     socket.on("interaction:reveal_results", () => {
       const context = getContext();
-      if (!context?.roomKey || !context?.sessionId || context.role !== "presenter") return;
+      if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const results = store.revealResults(context.sessionId);
       if (!results) return;
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:show_results", results);
@@ -262,7 +266,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
 
     socket.on("interaction:hide_results", () => {
       const context = getContext();
-      if (!context?.roomKey || !context?.sessionId || context.role !== "presenter") return;
+      if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const results = store.hideResults(context.sessionId);
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", { interactionId: results?.interactionId || "" });
       emitStateToControlRoles(context.roomKey, context.sessionId);
