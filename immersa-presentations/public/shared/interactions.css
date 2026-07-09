@@ -58,6 +58,18 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+.interaction-active-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.interaction-active-actions > button {
+  flex: 0 0 auto;
+  padding: 0 10px;
+}
+.interaction-active-actions .interaction-close-slider {
+  flex: 1 1 150px;
+  min-width: 142px;
+}
 .interaction-panel button,
 .interaction-card button {
   min-height: 36px;
@@ -133,6 +145,16 @@
   opacity: .72;
   font-size: 11px;
   font-weight: 700;
+}
+.interaction-active-results {
+  display: grid;
+  gap: 8px;
+}
+.interaction-active-results h3 {
+  margin: 0;
+  color: rgba(234,255,251,.94);
+  font-size: 12px;
+  font-weight: 900;
 }
 .interaction-results-list {
   display: grid;
@@ -295,12 +317,12 @@
 .interaction-close-slider-label {
   position: relative;
   z-index: 1;
-  padding: 0 46px 0 48px;
+  padding: 0 40px 0 42px;
   overflow: hidden;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
 }
 .interaction-close-slider-knob {
@@ -345,11 +367,18 @@
     width: min(380px, calc(100vw - 120px));
     padding: 12px;
   }
+  .interaction-active-actions {
+    gap: 6px;
+  }
+  .interaction-active-actions > button {
+    padding: 0 8px;
+    font-size: 11px;
+  }
   .interaction-close-slider {
     height: 36px;
   }
   .interaction-close-slider-label {
-    font-size: 11px;
-    padding-right: 38px;
+    font-size: 10.5px;
+    padding: 0 34px 0 38px;
   }
 }
