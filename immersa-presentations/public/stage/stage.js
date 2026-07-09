@@ -10,8 +10,28 @@ let currentSlideIndex = 0;
 let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
 let drawingOverlay = null;
-let stageInteractionPanel = null;
+let interactions = [];
+let selectedInteractionId = "";
+let activeInteraction = null;
+let interactionResults = null;
+let interactionResultsVisible = false;
+let stageActionsModal = null;
+let stageActionsContent = null;
+let stageActionsOpen = false;
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
+const fallbackDemoInteraction = {
+  id: "demo-poll-1",
+  type: "poll",
+  title: "Encuesta demo",
+  prompt: "¿Qué experiencia te gustaría probar primero en Immersa?",
+  options: [
+    { id: "live-polls", label: "Encuestas en vivo" },
+    { id: "quizzes", label: "Quizzes con puntaje" },
+    { id: "decision-exercises", label: "Ejercicios de decisión" },
+    { id: "attendee-results", label: "Resultados por asistente" }
+  ],
+  source: "fallback-demo"
+};
 
 const slide = document.getElementById("slide");
 const screenFrame = document.querySelector(".screen-frame");
@@ -30,6 +50,7 @@ const textModal = document.getElementById("textModal");
 const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
 const displayLinkButton = document.getElementById("displayLinkButton");
+const stageActionsButton = document.getElementById("stageActionsButton");
 const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
 const stageQrPattern = document.getElementById("stageQrPattern");
@@ -43,10 +64,15 @@ async function loadDeck() {
   stageDeckLabel.textContent = manifest.title || "Presentación";
   updateSlideControls();
   setToggles();
+  await loadInteractions();
 }
 
 function publicUrl() {
   return roleOpenContext.public_url || "";
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
 }
 
 function normalizeOverlayState(next = {}) {
@@ -62,6 +88,37 @@ function normalizeOverlayState(next = {}) {
     messageVisible: Boolean(next.messageVisible),
     messageText: next.messageText || ""
   };
+}
+
+function normalizeInteractionList(data) {
+  const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : [];
+  return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length);
+}
+
+function selectDefaultInteraction() {
+  if (!interactions.length) {
+    selectedInteractionId = "";
+    return;
+  }
+  if (!interactions.some((item) => String(item.id) === String(selectedInteractionId))) selectedInteractionId = String(interactions[0].id);
+}
+
+async function loadInteractions() {
+  try {
+    const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("No interactions");
+    const data = await res.json();
+    interactions = normalizeInteractionList(data);
+    if (!interactions.length) interactions = [fallbackDemoInteraction];
+  } catch (_error) {
+    interactions = [fallbackDemoInteraction];
+  }
+  selectDefaultInteraction();
+  renderStageActionsPanel();
+}
+
+function selectedInteraction() {
+  return interactions.find((item) => String(item.id) === String(selectedInteractionId)) || interactions[0] || null;
 }
 
 function setToggles() {
@@ -178,24 +235,129 @@ function initDrawingOverlay() {
   drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenFrame, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 });
 }
 
-function ensureStageInteractionPanel() {
-  if (stageInteractionPanel) return stageInteractionPanel;
-  stageInteractionPanel = document.createElement("section");
-  stageInteractionPanel.className = "stage-interaction-panel interaction-hidden";
-  stageInteractionPanel.setAttribute("aria-label", "Resultados de interacción");
-  screenFrame.appendChild(stageInteractionPanel);
-  return stageInteractionPanel;
+function ensureStageActionsModal() {
+  if (stageActionsModal) return stageActionsModal;
+  stageActionsModal = document.createElement("div");
+  stageActionsModal.className = "stage-actions-modal";
+  stageActionsModal.setAttribute("aria-hidden", "true");
+  stageActionsModal.innerHTML = '<div class="stage-actions-backdrop" data-stage-actions-close></div><section class="stage-actions-card" role="dialog" aria-modal="true" aria-labelledby="stageActionsTitle"><button type="button" class="stage-actions-close" data-stage-actions-close aria-label="Cerrar acciones">×</button><div class="stage-actions-content"></div></section>';
+  document.body.appendChild(stageActionsModal);
+  stageActionsContent = stageActionsModal.querySelector(".stage-actions-content");
+  stageActionsModal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-stage-actions-close]")) closeStageActions();
+  });
+  return stageActionsModal;
 }
 
-function renderStageInteractionResults(results) {
-  const panel = ensureStageInteractionPanel();
-  if (!results) {
-    panel.classList.add("interaction-hidden");
-    panel.innerHTML = "";
+function openStageActions() {
+  ensureStageActionsModal();
+  stageActionsOpen = true;
+  stageActionsModal.classList.add("is-open");
+  stageActionsModal.setAttribute("aria-hidden", "false");
+  stageActionsButton?.setAttribute("aria-expanded", "true");
+  renderStageActionsPanel();
+}
+
+function closeStageActions() {
+  if (!stageActionsModal) return;
+  stageActionsOpen = false;
+  stageActionsModal.classList.remove("is-open");
+  stageActionsModal.setAttribute("aria-hidden", "true");
+  stageActionsButton?.setAttribute("aria-expanded", "false");
+}
+
+function responseCountText(results) {
+  const total = results?.totalResponses || 0;
+  return total + " respuesta" + (total === 1 ? "" : "s");
+}
+
+function interactionListMarkup() {
+  if (!interactions.length) return "";
+  return '<div class="interaction-picker" role="listbox" aria-label="Interacciones disponibles">' + interactions.map((item) => {
+    const selected = String(item.id) === String(selectedInteractionId);
+    const demo = item.source === "fallback-demo" ? '<small>Demo temporal</small>' : '';
+    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span>' + demo + '</button>';
+  }).join("") + '</div>';
+}
+
+function activeResultRows(interaction, results) {
+  const resultOptions = Array.isArray(results?.options) && results.options.length ? results.options : (interaction?.options || []).map((option) => ({ label: option.label, count: 0, percentage: 0 }));
+  if (!resultOptions.length) return '<section class="interaction-active-results"><h3>Resultados</h3><p>Sin opciones disponibles.</p></section>';
+  return '<section class="interaction-active-results"><h3>Resultados</h3><div class="interaction-results-list">' + resultOptions.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + escapeHtml(option.label) + '</span><strong>' + (option.count || 0) + ' · ' + (option.percentage || 0) + '%</strong></div><div class="interaction-result-bar"><span style="width:' + (option.percentage || 0) + '%"></span></div></div>').join("") + '</div><p>' + responseCountText(results) + '</p></section>';
+}
+
+function attachInteractionCloseSlider(control, interactionId) {
+  if (!control) return;
+  let dragging = false;
+  let startX = 0;
+  let maxX = 1;
+  let progress = 0;
+  const reset = () => { progress = 0; control.style.setProperty("--close-progress", "0"); control.style.setProperty("--close-x", "0px"); control.classList.remove("is-complete"); };
+  const update = (clientX) => {
+    progress = Math.max(0, Math.min(1, (clientX - startX) / maxX));
+    control.style.setProperty("--close-progress", String(progress));
+    control.style.setProperty("--close-x", Math.round(progress * maxX) + "px");
+    control.classList.toggle("is-complete", progress >= 0.82);
+  };
+  const finish = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    control.releasePointerCapture?.(event.pointerId);
+    if (progress >= 0.82) socket.emit("interaction:close", { interactionId });
+    else reset();
+  };
+  control.addEventListener("pointerdown", (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
+    const rect = control.getBoundingClientRect();
+    const knob = control.querySelector(".interaction-close-slider-knob");
+    maxX = Math.max(1, rect.width - (knob?.offsetWidth || 38) - 8);
+    startX = event.clientX;
+    dragging = true;
+    control.setPointerCapture?.(event.pointerId);
+    update(event.clientX);
+  });
+  control.addEventListener("pointermove", (event) => { if (dragging) update(event.clientX); });
+  control.addEventListener("pointerup", finish);
+  control.addEventListener("pointercancel", (event) => { finish(event); reset(); });
+}
+
+function renderStageActionsPanel() {
+  if (!stageActionsContent) return;
+  const active = activeInteraction || null;
+  const selected = selectedInteraction();
+  if (!active) {
+    stageActionsContent.innerHTML = '<div class="stage-actions-head"><span>Stage</span><h2 id="stageActionsTitle">Acciones</h2><p>Encuestas disponibles</p></div>' + (selected ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup() : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    stageActionsContent.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => {
+      selectedInteractionId = button.dataset.interactionSelect || "";
+      renderStageActionsPanel();
+    }));
+    stageActionsContent.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
   }
-  panel.classList.remove("interaction-hidden");
-  panel.innerHTML = '<h2>' + (results.title || 'Interacción') + '</h2><p>' + results.totalResponses + ' respuesta' + (results.totalResponses === 1 ? '' : 's') + '</p><div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.count + ' · ' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>';
+
+  const revealLabel = interactionResultsVisible ? "Ocultar resultados" : "Mostrar resultados";
+  const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
+  stageActionsContent.innerHTML = '<div class="stage-actions-head"><span>Encuesta activa</span><h2 id="stageActionsTitle">' + escapeHtml(active.title || 'Encuesta') + '</h2><p>' + escapeHtml(active.prompt || active.title || 'Interacción') + '</p></div>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
+  stageActionsContent.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => {
+    const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results";
+    socket.emit(eventName, { interactionId: activeInteraction?.id });
+  });
+  attachInteractionCloseSlider(stageActionsContent.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
+}
+
+function updateInteractionState(state) {
+  activeInteraction = state?.active || null;
+  if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id);
+  else selectDefaultInteraction();
+  interactionResultsVisible = Boolean(state?.resultsVisible);
+  if (state?.results) interactionResults = state.results;
+  if (!activeInteraction) interactionResults = null;
+  renderStageActionsPanel();
+}
+
+function handleInteractionResults(results) {
+  interactionResults = results || null;
+  renderStageActionsPanel();
 }
 
 prevSlide.addEventListener("click", () => emitStageSlide(currentSlideIndex - 1));
@@ -209,6 +371,8 @@ qrToggle.addEventListener("change", () => {
   }
   updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl });
 });
+
+stageActionsButton?.addEventListener("click", openStageActions);
 
 displayLinkButton.addEventListener("click", () => {
   const url = publicUrl();
@@ -235,7 +399,11 @@ textModal.addEventListener("click", (event) => {
   if (event.target.matches("[data-close-modal]")) closeTextModal();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeTextModal();
+  if (event.key === "Escape") {
+    if (stageActionsOpen) closeStageActions();
+    else closeTextModal();
+    return;
+  }
   if (event.target.matches("input, textarea, select, button")) return;
   if (event.key === "ArrowLeft") emitStageSlide(currentSlideIndex - 1);
   if (event.key === "ArrowRight") emitStageSlide(currentSlideIndex + 1);
@@ -245,8 +413,12 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (next) => { overlays = normalizeOverlayState(next); setToggles(); });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
-socket.on("interaction:results_updated", renderStageInteractionResults);
-socket.on("interaction:closed", () => renderStageInteractionResults(null));
+socket.on("interaction:state", updateInteractionState);
+socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderStageActionsPanel(); });
+socket.on("interaction:results_updated", handleInteractionResults);
+socket.on("interaction:show_results", () => { interactionResultsVisible = true; renderStageActionsPanel(); });
+socket.on("interaction:hide_results", () => { interactionResultsVisible = false; renderStageActionsPanel(); });
+socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderStageActionsPanel(); });
 
 loadDeck().then(() => {
   initDrawingOverlay();
