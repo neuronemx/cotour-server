@@ -74,6 +74,16 @@
     return button;
   }
 
+  function moduleIconSvg(kind) {
+    const icons = {
+      polls: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z"></path><path d="M13 9a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z"></path><path d="M3 20l18 0"></path></svg>',
+      raffles: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z"></path><path d="M12 8l0 13"></path><path d="M19 12l0 7a2 2 0 0 1 -2 2l-10 0a2 2 0 0 1 -2 -2l0 -7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0 -5c1.6 0 3 1.5 4.5 5c1.5 -3.5 2.9 -5 4.5 -5a2.5 2.5 0 0 1 0 5"></path></svg>',
+      contests: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21l8 0"></path><path d="M12 17l0 4"></path><path d="M7 4l10 0"></path><path d="M17 4v8a5 5 0 0 1 -10 0v-8"></path><path d="M5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M19 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path></svg>',
+      games: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h4a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2z"></path><path d="M14 7h4a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2z"></path><path d="M7 13h2"></path><path d="M15 13h2"></path></svg>'
+    };
+    return icons[kind] || icons.polls;
+  }
+
   function pollSummary() {
     const fixed = interactions.filter((item) => item?.slide_id).length;
     const free = Math.max(0, interactions.length - fixed);
@@ -90,7 +100,7 @@
     modal.className = "modal-backdrop interactions-backdrop";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
-    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-header"><span>Interacciones</span><h2 id="interactionsTitle">Interacciones</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div><div class="interactions-form-wrap"></div></section>';
+    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-scroll"><div class="interactions-header"><span>Interacciones</span><h2 id="interactionsTitle">Interacciones</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div><div class="interactions-form-wrap"></div></div></section>';
     document.body.appendChild(modal);
     listNode = modal.querySelector(".interactions-list");
     formNode = modal.querySelector(".interactions-form-wrap");
@@ -167,7 +177,7 @@
   function moduleCardMarkup(kind, title, detail, enabled) {
     const disabled = enabled ? "" : " disabled";
     const soon = enabled ? "" : '<span class="interaction-module-badge">Próximamente</span>';
-    return '<button type="button" class="interaction-module-card ' + kind + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon" aria-hidden="true"></span><span class="interaction-module-copy"><strong>' + title + '</strong>' + (detail ? '<small>' + detail + '</small>' : '') + '</span>' + soon + '</button>';
+    return '<button type="button" class="interaction-module-card ' + kind + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + title + '</strong>' + (detail ? '<small>' + detail + '</small>' : '') + '</span>' + soon + '</button>';
   }
 
   function renderHub() {
@@ -175,7 +185,7 @@
     const pollDetail = interactions.length ? summary.detail : "";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
-    hub.innerHTML = '<div class="interactions-hub-top"><div><strong>Interacciones</strong><span>Prepara dinámicas para este deck.</span></div><button type="button" class="interactions-small-action interactions-main-cta">Nueva interacción</button></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, true) + moduleCardMarkup("raffles", "Sorteos", "", false) + moduleCardMarkup("contests", "Concursos", "", false) + moduleCardMarkup("games", "Juegos", "", false) + '</div>';
+    hub.innerHTML = '<div class="interactions-hub-top"><div><strong>Interacciones</strong><span>Prepara encuestas y dinámicas para este deck.</span></div></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, true) + moduleCardMarkup("raffles", "Sorteos", "", false) + moduleCardMarkup("contests", "Concursos", "", false) + moduleCardMarkup("games", "Juegos", "", false) + '</div><div class="interactions-hub-actions"><button type="button" class="interactions-small-action interactions-main-cta">Nueva interacción</button></div>';
     hub.querySelector('[data-module="polls"]').addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(null); });
     hub.querySelector(".interactions-main-cta").addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(defaultDraft()); });
     return hub;
