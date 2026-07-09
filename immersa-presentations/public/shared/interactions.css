@@ -270,6 +270,7 @@
 
 .interaction-close-slider {
   --close-progress: 0;
+  --close-x: 0px;
   position: relative;
   height: 38px;
   display: grid;
@@ -315,7 +316,7 @@
   color: #fff;
   background: #ff4f75;
   box-shadow: 0 8px 18px rgba(255,79,117,.28);
-  transform: translateX(calc((100% - 38px) * var(--close-progress)));
+  transform: translateX(var(--close-x));
   transition: transform .14s ease, background .14s ease;
   font-size: 20px;
   line-height: 1;
