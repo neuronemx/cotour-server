@@ -21,10 +21,30 @@
 /* Immersa special-function fill
    Base visual language for Trazo vivo and future special tools:
    Encuestas, Sorteos, Juegos, etc. */
+
+.interaction-button {
+  position: relative;
+}
+
+.interaction-button svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+  color: currentColor;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+
 .fx-special-button,
 .fx-btn.special-active,
 .fx-btn.is-special-active,
-.drawing-button.is-active,
+.interaction-button.is-active,
+.interaction-button[aria-pressed="true"],
+
 .drawing-button.active,
 .drawing-button[aria-pressed="true"] {
   color: #fff;
@@ -49,10 +69,18 @@
   background-color: #fff;
 }
 
+.interaction-button.is-active svg,
+.interaction-button[aria-pressed="true"] svg {
+  color: #fff;
+  stroke: #fff;
+}
+
 @media (max-width: 760px) {
   .drawing-icon { width: 22px; height: 22px; }
+  .interaction-button svg { width: 21px; height: 21px; }
 }
 
 @media (max-width: 390px), (max-height: 640px) {
   .drawing-icon { width: 20px; height: 20px; }
+  .interaction-button svg { width: 20px; height: 20px; }
 }
