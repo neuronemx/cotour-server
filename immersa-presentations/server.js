@@ -8,6 +8,8 @@ const { createUploadHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
+const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
+const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 
 const app = express();
@@ -31,11 +33,21 @@ const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const interactionStore = new InteractionStore();
+const raffleStore = new RaffleStore();
+const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
 const interactionSockets = createInteractionSocketHandlers({
   io,
   store: interactionStore,
   loadInteractionsForDeck,
-  getRoleRoomKey
+  getRoleRoomKey,
+  coordinator: activeInteractionCoordinator
+});
+const raffleSockets = createRaffleSocketHandlers({
+  io,
+  store: raffleStore,
+  getRoleRoomKey,
+  getConnectedAudience,
+  coordinator: activeInteractionCoordinator
 });
 const deckInteractionHandlers = createDeckInteractionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
@@ -401,6 +413,17 @@ function getSessionByRoomKey(roomKey) {
   return sessions.get(roomKey);
 }
 
+function getConnectedAudience(roomKey) {
+  const session = getSessionByRoomKey(roomKey);
+  if (!session) return [];
+  return Array.from(session.audience.entries()).map(([audienceId, audience]) => ({
+    audienceId,
+    joinedAt: audience.joinedAt,
+    name: audience.name || "",
+    label: audience.label || audience.name || ""
+  }));
+}
+
 function clampSlide(session, slideIndex) {
   const lastSlide = Math.max(0, (session.slideCount || 1) - 1);
   const numeric = Number.isFinite(slideIndex) ? slideIndex : 0;
@@ -556,8 +579,15 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  raffleSockets.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -579,9 +609,21 @@ io.on("connection", (socket) => {
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
       currentAudienceId = String(audienceId || socket.id);
-      session.audience.set(currentAudienceId, { joinedAt: Date.now() });
+      socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
+      session.audience.set(currentAudienceId, {
+        joinedAt: Date.now(),
+        name: String(audienceName || ""),
+        label: String(label || audienceName || "")
+      });
     }
     await interactionSockets.sendCurrentState(socket, {
+      roomKey: currentRoomKey,
+      role: currentRole,
+      sessionId: currentSessionId,
+      deckId: currentDeckId,
+      audienceId: currentAudienceId
+    });
+    raffleSockets.sendCurrentState(socket, {
       roomKey: currentRoomKey,
       role: currentRole,
       sessionId: currentSessionId,
