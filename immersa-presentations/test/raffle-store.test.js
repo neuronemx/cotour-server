@@ -1,0 +1,226 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { RaffleStore } = require("../raffle-store");
+const { InteractionStore } = require("../interaction-store");
+const { ActiveInteractionCoordinator } = require("../active-interaction-coordinator");
+
+const pollInteraction = {
+  id: "poll-1",
+  type: "poll",
+  title: "Poll",
+  prompt: "Pick one",
+  options: [
+    { id: "a", label: "A" },
+    { id: "b", label: "B" }
+  ]
+};
+
+const visualKeyConfig = {
+  mode: "visual_key",
+  title: "Visual key",
+  prompt: "Pick the marked option",
+  entryKey: "b",
+  options: [
+    { id: "a", label: "A" },
+    { id: "b", label: "B" },
+    { id: "c", label: "C" },
+    { id: "d", label: "D" }
+  ]
+};
+
+function freeConfig() {
+  return { mode: "free", title: "Free raffle" };
+}
+
+function pollRaffleConfig() {
+  return {
+    mode: "poll",
+    title: "Poll raffle",
+    options: [
+      { id: "yes", label: "Yes" },
+      { id: "no", label: "No" }
+    ]
+  };
+}
+
+function connected(...ids) {
+  return ids.map((audienceId) => ({ audienceId }));
+}
+
+function createCoordinator(random = () => 0) {
+  const interactionStore = new InteractionStore();
+  const raffleStore = new RaffleStore(random);
+  const coordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
+  return { interactionStore, raffleStore, coordinator };
+}
+
+test("one active interaction per session blocks raffle when poll is active", async () => {
+  const { interactionStore, raffleStore, coordinator } = createCoordinator();
+  interactionStore.launch({ sessionId: "s1", interaction: pollInteraction });
+
+  const result = await coordinator.withSessionLock("s1", () => {
+    if (coordinator.hasActiveInteraction("s1")) return { ok: false, reason: "active_interaction_exists" };
+    return raffleStore.create({ sessionId: "s1", config: freeConfig() });
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "active_interaction_exists");
+  assert.equal(raffleStore.getActive("s1"), null);
+});
+
+test("one active interaction per session blocks poll launch when raffle is active", async () => {
+  const { interactionStore, raffleStore, coordinator } = createCoordinator();
+  raffleStore.create({ sessionId: "s1", config: freeConfig() });
+
+  const result = await coordinator.withSessionLock("s1", () => {
+    if (coordinator.hasActiveRaffle("s1")) return { ok: false, reason: "active_raffle_exists" };
+    return { ok: true, active: interactionStore.launch({ sessionId: "s1", interaction: pollInteraction }) };
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "active_raffle_exists");
+  assert.equal(interactionStore.hasActive("s1"), false);
+});
+
+test("double simultaneous Speaker and Stage action leaves only one active item", async () => {
+  const { interactionStore, raffleStore, coordinator } = createCoordinator();
+  const delay = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+  const raffleAction = coordinator.withSessionLock("s1", async () => {
+    await delay();
+    if (coordinator.hasActiveInteraction("s1")) return { ok: false, reason: "active_interaction_exists" };
+    return raffleStore.create({ sessionId: "s1", config: freeConfig() });
+  });
+  const interactionAction = coordinator.withSessionLock("s1", () => {
+    if (coordinator.hasActiveRaffle("s1")) return { ok: false, reason: "active_raffle_exists" };
+    return { ok: true, active: interactionStore.launch({ sessionId: "s1", interaction: pollInteraction }) };
+  });
+
+  const results = await Promise.all([raffleAction, interactionAction]);
+  assert.equal(results.filter((result) => result.ok).length, 1);
+  assert.equal(Boolean(raffleStore.getActive("s1")) !== interactionStore.hasActive("s1"), true);
+});
+
+test("visual_key requires valid config and lets incorrect option retry", () => {
+  const store = new RaffleStore();
+  assert.equal(store.create({ sessionId: "s1", config: { mode: "unknown" } }).reason, "invalid_raffle_mode");
+  assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, options: visualKeyConfig.options.slice(0, 3) } }).reason, "visual_key_requires_four_options");
+  assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, entryKey: "x" } }).reason, "entry_key_must_match_option");
+
+  assert.equal(store.create({ sessionId: "s2", config: visualKeyConfig }).ok, true);
+  const wrong = store.enter({ sessionId: "s2", audienceId: "a1", optionId: "a" });
+  assert.equal(wrong.ok, false);
+  assert.equal(wrong.reason, "incorrect_option");
+  assert.equal(store.getAudienceState("s2", "a1").active.ownEntry, null);
+
+  const correct = store.enter({ sessionId: "s2", audienceId: "a1", optionId: "b" });
+  assert.equal(correct.ok, true);
+  assert.equal(store.enter({ sessionId: "s2", audienceId: "a1", optionId: "b" }).reason, "duplicate_entry");
+});
+
+test("poll raffle accepts one response per audience", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: pollRaffleConfig() });
+  assert.equal(store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "yes" }).ok, true);
+  assert.equal(store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "no" }).reason, "duplicate_entry");
+});
+
+test("free mode snapshots connected audience on close", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: freeConfig() });
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).reason, "free_mode_does_not_use_entries");
+  assert.equal(store.closeEntries("s1", connected("a1", "a2")).ok, true);
+  const state = store.getControllerState("s1");
+  assert.equal(state.active.entryCount, 2);
+  assert.equal(state.active.eligibleCount, 2);
+});
+
+test("previous winners are excluded in the same session", () => {
+  const store = new RaffleStore(() => 0);
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  store.drawWinner("s1", ["a1", "a2"]);
+  store.revealWinner("s1");
+  store.close("s1");
+
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  const state = store.getControllerState("s1");
+  assert.equal(state.active.eligibleCount, 1);
+  assert.equal(state.active.entries.some((entry) => entry.audienceId === "a1"), false);
+});
+
+test("reset_winners clears future exclusion without altering current visible winner", () => {
+  const store = new RaffleStore(() => 0);
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  store.drawWinner("s1", ["a1", "a2"]);
+  store.revealWinner("s1");
+  const before = store.getControllerState("s1").active.winner;
+
+  store.resetWinners("s1");
+  const after = store.getControllerState("s1");
+  assert.deepEqual(after.active.winner, before);
+  assert.equal(after.previousWinnerCount, 0);
+
+  store.close("s1");
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  assert.equal(store.getControllerState("s1").active.eligibleCount, 2);
+});
+
+test("disconnected snapshot entries are filtered before draw", () => {
+  const store = new RaffleStore(() => 0);
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  assert.equal(store.drawWinner("s1", []).reason, "no_connected_eligible_entries");
+  const result = store.drawWinner("s1", ["a2"]);
+  assert.equal(result.ok, true);
+  store.revealWinner("s1");
+  assert.equal(store.getControllerState("s1").active.winner.audienceId, "a2");
+});
+
+test("role payloads keep audience and screen private", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: pollRaffleConfig() });
+  store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "yes" });
+
+  const controller = store.getControllerState("s1");
+  const screen = store.getScreenState("s1");
+  const audience = store.getAudienceState("s1", "a1");
+
+  assert.ok(controller.active.pollResults);
+  assert.ok(Array.isArray(controller.active.entries));
+  assert.equal("pollResults" in screen.active, false);
+  assert.equal("entries" in screen.active, false);
+  assert.equal("winner" in screen.active, false);
+  assert.equal("pollResults" in audience.active, false);
+  assert.equal("entryCount" in audience.active, false);
+  assert.equal("winners" in audience, false);
+  assert.equal("previousWinnerCount" in audience, false);
+});
+
+test("drawing is separate from winner reveal", () => {
+  const store = new RaffleStore(() => 0);
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  store.drawWinner("s1", ["a1", "a2"]);
+
+  assert.equal(store.getControllerState("s1").active.state, "drawing");
+  assert.equal(store.getScreenState("s1").active.hasWinner, false);
+  assert.equal(store.getAudienceState("s1", "a1").active.isWinner, false);
+
+  store.revealWinner("s1");
+  assert.equal(store.getControllerState("s1").active.state, "winner");
+  assert.equal(store.getScreenState("s1").active.hasWinner, true);
+  assert.equal(store.getAudienceState("s1", "a1").active.isWinner, true);
+  assert.equal(store.getAudienceState("s1", "a2").active.isWinner, false);
+});
+
+test("close permits a new convocatoria", () => {
+  const store = new RaffleStore();
+  assert.equal(store.create({ sessionId: "s1", config: freeConfig() }).ok, true);
+  assert.equal(store.create({ sessionId: "s1", config: freeConfig() }).reason, "active_raffle_exists");
+  assert.equal(store.close("s1").ok, true);
+  assert.equal(store.create({ sessionId: "s1", config: freeConfig() }).ok, true);
+});
