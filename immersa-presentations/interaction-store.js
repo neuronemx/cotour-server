@@ -33,6 +33,10 @@ class InteractionStore {
     return this.sessions.get(key);
   }
 
+  hasActive(sessionId) {
+    return Boolean(this.getSession(sessionId).active);
+  }
+
   normalizeInteraction(interaction) {
     if (!interaction || !interaction.id || !interaction.type) return null;
     const options = Array.isArray(interaction.options)
@@ -178,7 +182,7 @@ class InteractionStore {
   }
 }
 
-function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey }) {
+function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey, coordinator = null }) {
   function canControlInteractions(context) {
     return context?.role === "presenter" || context?.role === "stage";
   }
@@ -215,14 +219,27 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     }
   }
 
+  async function launchInteraction(context, interactionId) {
+    const execute = async () => {
+      if (coordinator?.hasActiveRaffle(context.sessionId)) return { ok: false, reason: "active_raffle_exists" };
+      const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
+      const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
+      const active = store.launch({ sessionId: context.sessionId, interaction });
+      if (!active) return { ok: false, reason: "invalid_interaction" };
+      return { ok: true, active };
+    };
+    return coordinator ? coordinator.withSessionLock(context.sessionId, execute) : execute();
+  }
+
   function attach(socket, getContext) {
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !context?.deckId || !canControlInteractions(context)) return;
-      const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
-      const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
-      const active = store.launch({ sessionId: context.sessionId, interaction });
-      if (!active) return;
+      const result = await launchInteraction(context, interactionId);
+      if (!result.ok) {
+        socket.emit("interaction:launch_rejected", { interactionId: interactionId || "", reason: result.reason });
+        return;
+      }
       io.to(context.roomKey).emit("interaction:active", store.getState(context.sessionId).active);
       emitStateToRoom(context.roomKey, context.sessionId);
       emitResults(context.roomKey, context.sessionId);
