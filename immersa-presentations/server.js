@@ -8,6 +8,7 @@ const { createUploadHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
+const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 
 const app = express();
@@ -35,6 +36,12 @@ const interactionSockets = createInteractionSocketHandlers({
   io,
   store: interactionStore,
   loadInteractionsForDeck,
+  getRoleRoomKey
+});
+const raffleStore = new RaffleStore();
+const raffleSockets = createRaffleSocketHandlers({
+  io,
+  store: raffleStore,
   getRoleRoomKey
 });
 const deckInteractionHandlers = createDeckInteractionHandlers({
@@ -556,6 +563,13 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  raffleSockets.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId }) => {
     if (!role) return;
@@ -582,6 +596,13 @@ io.on("connection", (socket) => {
       session.audience.set(currentAudienceId, { joinedAt: Date.now() });
     }
     await interactionSockets.sendCurrentState(socket, {
+      roomKey: currentRoomKey,
+      role: currentRole,
+      sessionId: currentSessionId,
+      deckId: currentDeckId,
+      audienceId: currentAudienceId
+    });
+    raffleSockets.sendCurrentState(socket, {
       roomKey: currentRoomKey,
       role: currentRole,
       sessionId: currentSessionId,
