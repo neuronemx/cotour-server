@@ -10,6 +10,7 @@ const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
+const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 
 const app = express();
@@ -608,13 +609,13 @@ io.on("connection", (socket) => {
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
-      currentAudienceId = String(audienceId || socket.id);
-      socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
-      session.audience.set(currentAudienceId, {
-        joinedAt: Date.now(),
-        name: String(audienceName || ""),
-        label: String(label || audienceName || "")
+      currentAudienceId = registerAudience(session, {
+        audienceId: audienceId || socket.id,
+        socketId: socket.id,
+        audienceName,
+        label
       });
+      socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
     await interactionSockets.sendCurrentState(socket, {
       roomKey: currentRoomKey,
@@ -730,7 +731,7 @@ io.on("connection", (socket) => {
     }
     if (currentRole === "screen") session.screenConnected = false;
     if (currentRole === "stage") session.stageConnected = false;
-    if (currentRole === "audience" && currentAudienceId) session.audience.delete(currentAudienceId);
+    if (currentRole === "audience" && currentAudienceId) unregisterAudience(session, currentAudienceId, socket.id);
     emitState(currentRoomKey, session);
   });
 });
