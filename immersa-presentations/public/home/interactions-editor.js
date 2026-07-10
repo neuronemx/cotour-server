@@ -7,10 +7,10 @@
   let interactions = [];
   let editingIndex = null;
   let pendingDeleteIndex = null;
-  let pollsOpen = false;
+  let activeModule = null;
+  let activeDraft = null;
   let modal = null;
   let listNode = null;
-  let formNode = null;
   let statusNode = null;
 
   function niceTitle(value) {
@@ -74,13 +74,23 @@
     return button;
   }
 
+  function moduleIconSvg(kind) {
+    const icons = {
+      polls: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z"></path><path d="M5 20h14"></path><path d="M8 15v-4"></path><path d="M12 15v-7"></path><path d="M16 15v-5"></path><path d="M8 7h2"></path></svg>',
+      raffles: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z"></path><path d="M12 8l0 13"></path><path d="M19 12l0 7a2 2 0 0 1 -2 2l-10 0a2 2 0 0 1 -2 -2l0 -7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0 -5c1.6 0 3 1.5 4.5 5c1.5 -3.5 2.9 -5 4.5 -5a2.5 2.5 0 0 1 0 5"></path></svg>',
+      contests: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21l8 0"></path><path d="M12 17l0 4"></path><path d="M7 4l10 0"></path><path d="M17 4v8a5 5 0 0 1 -10 0v-8"></path><path d="M5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M19 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path></svg>',
+      games: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M14 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M6.8 13h2.4"></path><path d="M15.8 13h2.4"></path></svg>'
+    };
+    return icons[kind] || icons.polls;
+  }
+
   function pollSummary() {
     const fixed = interactions.filter((item) => item?.slide_id).length;
     const free = Math.max(0, interactions.length - fixed);
     const title = interactions.length + " Encuesta" + (interactions.length === 1 ? "" : "s");
     const parts = [];
-    if (free) parts.push(free + " libre" + (free === 1 ? "" : "s"));
     if (fixed) parts.push(fixed + " fija" + (fixed === 1 ? "" : "s"));
+    if (free) parts.push(free + " libre" + (free === 1 ? "" : "s"));
     return { title, detail: parts.join(" · ") };
   }
 
@@ -90,10 +100,9 @@
     modal.className = "modal-backdrop interactions-backdrop";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
-    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-header"><span>Interacciones</span><h2 id="interactionsTitle">Interacciones</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div><div class="interactions-form-wrap"></div></section>';
+    modal.innerHTML = '<section class="interactions-modal" role="dialog" aria-modal="true" aria-labelledby="interactionsTitle"><button class="interactions-close" type="button" aria-label="Cerrar interacciones">×</button><div class="interactions-scroll"><div class="interactions-header"><h2 id="interactionsTitle">Interacciones</h2><p id="interactionsDeckTitle"></p></div><div class="interactions-status" aria-live="polite"></div><div class="interactions-list"></div></div></section>';
     document.body.appendChild(modal);
     listNode = modal.querySelector(".interactions-list");
-    formNode = modal.querySelector(".interactions-form-wrap");
     statusNode = modal.querySelector(".interactions-status");
     modal.querySelector(".interactions-close").addEventListener("click", closeModal);
     modal.addEventListener("click", (event) => {
@@ -133,7 +142,8 @@
     currentDeck = deck;
     editingIndex = null;
     pendingDeleteIndex = null;
-    pollsOpen = false;
+    activeModule = null;
+    activeDraft = null;
     modal.querySelector("#interactionsDeckTitle").textContent = niceTitle(deck.title || deck.deckId);
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
@@ -143,12 +153,10 @@
       .then(() => {
         setStatus("");
         renderList();
-        renderForm(null);
       })
       .catch((error) => {
         interactions = [];
         renderList();
-        renderForm(null);
         setStatus(error.message, "error");
       });
   }
@@ -160,24 +168,34 @@
     currentDeck = null;
     editingIndex = null;
     pendingDeleteIndex = null;
-    pollsOpen = false;
+    activeModule = null;
+    activeDraft = null;
     if (document.getElementById("deckDetailModal")?.hidden) document.body.classList.remove("modal-open");
   }
 
-  function moduleCardMarkup(kind, title, detail, enabled) {
-    const disabled = enabled ? "" : " disabled";
-    const soon = enabled ? "" : '<span class="interaction-module-badge">Próximamente</span>';
-    return '<button type="button" class="interaction-module-card ' + kind + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon" aria-hidden="true"></span><span class="interaction-module-copy"><strong>' + title + '</strong>' + (detail ? '<small>' + detail + '</small>' : '') + '</span>' + soon + '</button>';
+  function moduleCardMarkup(kind, title, detail, options = {}) {
+    const enabled = options.enabled !== false;
+    const plan = options.plan || "";
+    const selected = activeModule === kind;
+    const classes = ["interaction-module-card", kind, selected ? "is-active" : "", enabled ? "" : "is-locked"].filter(Boolean).join(" ");
+    const badge = plan ? '<span class="interaction-module-badge">' + escapeHtml(plan) + '</span>' : "";
+    const disabled = enabled ? "" : " disabled aria-disabled=\"true\"";
+    return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + badge + '</button>';
   }
 
   function renderHub() {
     const summary = pollSummary();
-    const pollDetail = interactions.length ? summary.detail : "";
+    const pollDetail = interactions.length ? summary.detail : "Selecciona para crear o editar";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
-    hub.innerHTML = '<div class="interactions-hub-top"><div><strong>Interacciones</strong><span>Prepara dinámicas para este deck.</span></div><button type="button" class="interactions-small-action interactions-main-cta">Nueva interacción</button></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, true) + moduleCardMarkup("raffles", "Sorteos", "", false) + moduleCardMarkup("contests", "Concursos", "", false) + moduleCardMarkup("games", "Juegos", "", false) + '</div>';
-    hub.querySelector('[data-module="polls"]').addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(null); });
-    hub.querySelector(".interactions-main-cta").addEventListener("click", () => { pollsOpen = true; pendingDeleteIndex = null; renderList(); renderForm(defaultDraft()); });
+    hub.innerHTML = '<div class="interactions-hub-top"><span>Elige el tipo de dinámica para este deck.</span></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Mejorar plan", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Mejorar plan", { enabled: false, plan: "Business" }) + moduleCardMarkup("games", "Juegos", "Mejorar plan", { enabled: false, plan: "Enterprise" }) + '</div>';
+    hub.querySelector('[data-module="polls"]').addEventListener("click", () => {
+      activeModule = "polls";
+      activeDraft = null;
+      editingIndex = null;
+      pendingDeleteIndex = null;
+      renderList();
+    });
     return hub;
   }
 
@@ -197,9 +215,10 @@
           setStatus("Guardando…");
           await saveInteractions(next);
           pendingDeleteIndex = null;
+          activeDraft = null;
+          editingIndex = null;
           setStatus("Interacción eliminada.", "success");
           renderList();
-          renderForm(null);
         } catch (error) {
           setStatus(error.message, "error");
         }
@@ -208,60 +227,8 @@
     return confirm;
   }
 
-  function renderPollList() {
-    const section = document.createElement("section");
-    section.className = "interactions-polls-section";
-    const heading = document.createElement("div");
-    heading.className = "interactions-list-heading";
-    heading.innerHTML = '<div><strong>Encuestas</strong><span>Crea preguntas que Speaker o Stage pueden lanzar cuando quieran.</span></div>';
-    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => { pendingDeleteIndex = null; renderForm(defaultDraft()); }));
-    section.appendChild(heading);
-
-    if (!interactions.length) {
-      const empty = document.createElement("p");
-      empty.className = "interactions-empty";
-      empty.textContent = "Sin encuestas todavía.";
-      section.appendChild(empty);
-      return section;
-    }
-
-    const list = document.createElement("div");
-    list.className = "interaction-list-stack";
-    interactions.forEach((interaction, index) => {
-      const item = document.createElement("article");
-      item.className = "interaction-list-item";
-      const count = Array.isArray(interaction.options) ? interaction.options.length : 0;
-      const activation = interaction.slide_id ? "fija" : "libre";
-      item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Encuesta") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
-      const actions = item.querySelector(".interaction-list-actions");
-      actions.append(
-        makeButton("Editar", "interactions-text-action", () => { pendingDeleteIndex = null; renderForm(normalizeForForm(interaction), index); }),
-        makeButton("Eliminar", "interactions-text-action danger", () => {
-          pendingDeleteIndex = index;
-          renderList();
-          renderForm(null);
-        })
-      );
-      list.appendChild(item);
-      if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
-    });
-    section.appendChild(list);
-    return section;
-  }
-
-  function renderList() {
-    listNode.innerHTML = "";
-    listNode.appendChild(renderHub());
-    if (pollsOpen) listNode.appendChild(renderPollList());
-  }
-
-  function renderForm(draft, index = null) {
+  function renderPollForm(draft, index = null) {
     editingIndex = index;
-    formNode.innerHTML = "";
-    if (!draft) return;
-    pendingDeleteIndex = null;
-    pollsOpen = true;
-    renderList();
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
@@ -298,7 +265,11 @@
     }
 
     renderOptionFields();
-    form.querySelector("[data-cancel]").addEventListener("click", () => renderForm(null));
+    form.querySelector("[data-cancel]").addEventListener("click", () => {
+      activeDraft = null;
+      editingIndex = null;
+      renderList();
+    });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const next = normalizeForForm({ ...draft, title: title.value.trim(), prompt: prompt.value.trim() });
@@ -311,15 +282,79 @@
       try {
         setStatus("Guardando…");
         await saveInteractions(saved);
+        activeDraft = null;
+        editingIndex = null;
         setStatus("Encuesta guardada.", "success");
         renderList();
-        renderForm(null);
       } catch (error) {
         setStatus(error.message, "error");
       }
     });
-    formNode.appendChild(form);
     window.setTimeout(() => title.focus(), 20);
+    return form;
+  }
+
+  function renderPollPanel() {
+    const section = document.createElement("section");
+    section.className = "interactions-polls-section";
+    const heading = document.createElement("div");
+    heading.className = "interactions-list-heading";
+    heading.innerHTML = '<div><strong>Encuestas</strong><span>Crea preguntas que Speaker o Stage pueden lanzar cuando quieran.</span></div>';
+    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => {
+      pendingDeleteIndex = null;
+      activeDraft = defaultDraft();
+      editingIndex = null;
+      renderList();
+    }));
+    section.appendChild(heading);
+
+    if (activeDraft) {
+      section.appendChild(renderPollForm(activeDraft, editingIndex));
+      return section;
+    }
+
+    if (!interactions.length) {
+      const empty = document.createElement("p");
+      empty.className = "interactions-empty";
+      empty.textContent = "Sin encuestas todavía.";
+      section.appendChild(empty);
+      return section;
+    }
+
+    const list = document.createElement("div");
+    list.className = "interaction-list-stack";
+    interactions.forEach((interaction, index) => {
+      const item = document.createElement("article");
+      item.className = "interaction-list-item";
+      const count = Array.isArray(interaction.options) ? interaction.options.length : 0;
+      const activation = interaction.slide_id ? "fija" : "libre";
+      item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Encuesta") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
+      const actions = item.querySelector(".interaction-list-actions");
+      actions.append(
+        makeButton("Editar", "interactions-text-action", () => {
+          pendingDeleteIndex = null;
+          activeDraft = normalizeForForm(interaction);
+          editingIndex = index;
+          renderList();
+        }),
+        makeButton("Eliminar", "interactions-text-action danger", () => {
+          pendingDeleteIndex = index;
+          activeDraft = null;
+          editingIndex = null;
+          renderList();
+        })
+      );
+      list.appendChild(item);
+      if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
+    });
+    section.appendChild(list);
+    return section;
+  }
+
+  function renderList() {
+    listNode.innerHTML = "";
+    listNode.appendChild(renderHub());
+    if (activeModule === "polls") listNode.appendChild(renderPollPanel());
   }
 
   function appendInteractionsButton(deck) {

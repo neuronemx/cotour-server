@@ -25,6 +25,7 @@ const playPause = document.getElementById("playPause");
 const localReactions = document.getElementById("localReactions");
 const audienceQr = document.getElementById("audienceQr");
 const drawToggle = document.getElementById("drawToggle");
+const interactionToggle = document.getElementById("interactionToggle");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
@@ -47,7 +48,6 @@ const fallbackDemoInteraction = {
 };
 let interactionPanel = null;
 let interactionPanelOpen = false;
-let interactionToggle = null;
 function renderDeckNotice() {
   const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
   deckNotice.hidden = !pending;
@@ -128,9 +128,29 @@ function popReaction(emoji) { if (!localReactions.checked) return; const node = 
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
 function ensureInteractionPanel() { if (interactionPanel) return interactionPanel; interactionPanel = document.createElement("section"); interactionPanel.className = "interaction-panel"; interactionPanel.setAttribute("aria-label", "Interacciones"); presenterShell.appendChild(interactionPanel); return interactionPanel; }
-function setInteractionPanelOpen(open) { interactionPanelOpen = Boolean(open); presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen); if (interactionToggle) { interactionToggle.classList.toggle("is-active", interactionPanelOpen); interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen)); interactionToggle.textContent = interactionPanelOpen ? "Cerrar interacciones" : "Interacciones"; } if (interactionPanelOpen) renderInteractionPanel(); }
+function setInteractionPanelOpen(open) {
+  interactionPanelOpen = Boolean(open);
+  presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
+  if (interactionToggle) {
+    interactionToggle.classList.toggle("is-active", interactionPanelOpen);
+    interactionToggle.classList.toggle("is-special-active", interactionPanelOpen);
+    interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen));
+    interactionToggle.setAttribute("aria-pressed", String(interactionPanelOpen));
+    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : "Interacciones";
+    interactionToggle.setAttribute("aria-label", interactionToggle.title);
+  }
+  if (interactionPanelOpen) renderInteractionPanel();
+}
 function toggleInteractionPanel() { setInteractionPanelOpen(!interactionPanelOpen); }
-function ensureInteractionToggle() { if (interactionToggle) return interactionToggle; interactionToggle = document.createElement("button"); interactionToggle.type = "button"; interactionToggle.className = "interaction-panel-toggle"; interactionToggle.textContent = "Interacciones"; interactionToggle.setAttribute("aria-label", "Abrir interacciones"); interactionToggle.setAttribute("aria-expanded", "false"); interactionToggle.addEventListener("click", toggleInteractionPanel); presenterShell.appendChild(interactionToggle); return interactionToggle; }
+function ensureInteractionToggle() {
+  if (!interactionToggle) return null;
+  interactionToggle.addEventListener("click", toggleInteractionPanel);
+  interactionToggle.setAttribute("aria-expanded", "false");
+  interactionToggle.setAttribute("aria-pressed", "false");
+  interactionToggle.title = "Interacciones";
+  interactionToggle.setAttribute("aria-label", "Interacciones");
+  return interactionToggle;
+}
 function interactionPanelCloseMarkup() { return '<button type="button" class="interaction-panel-close" data-interaction-panel-close aria-label="Cerrar interacciones">×</button>'; }
 function bindInteractionPanelClose(panel) { panel.querySelector("[data-interaction-panel-close]")?.addEventListener("click", () => setInteractionPanelOpen(false)); }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
