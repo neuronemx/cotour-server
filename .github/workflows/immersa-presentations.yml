@@ -1,0 +1,48 @@
+name: Immersa Presentations
+
+on:
+  pull_request:
+    paths:
+      - "immersa-presentations/**"
+      - ".github/workflows/immersa-presentations.yml"
+
+jobs:
+  server-checks:
+    name: Server checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: immersa-presentations
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare lockfile for npm ci
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check server syntax
+        run: node --check server.js
+
+      - name: Check raffle store syntax
+        run: node --check raffle-store.js
+
+      - name: Check interaction store syntax
+        run: node --check interaction-store.js
+
+      - name: Check active interaction coordinator syntax
+        run: node --check active-interaction-coordinator.js
