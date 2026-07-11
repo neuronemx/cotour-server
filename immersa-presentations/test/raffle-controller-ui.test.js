@@ -1,5 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 const SlideConfirm = require("../public/shared/slide-confirm");
 const {
   createRaffleConfig,
@@ -13,6 +16,80 @@ const {
   remainingRaffleSeconds,
   SLIDE_COMPLETE_RATIO
 } = require("../public/shared/raffle-controller");
+
+function readProjectFile(filePath) {
+  return fs.readFileSync(path.join(__dirname, "..", filePath), "utf8");
+}
+
+function scriptSources(html) {
+  return [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((match) => match[1]);
+}
+
+function assertSlideConfirmLoadsBeforeRaffleController(filePath) {
+  const sources = scriptSources(readProjectFile(filePath));
+  const slideConfirmIndex = sources.indexOf("/shared/slide-confirm.js");
+  const raffleControllerIndex = sources.indexOf("/shared/raffle-controller.js");
+
+  assert.notEqual(slideConfirmIndex, -1);
+  assert.notEqual(raffleControllerIndex, -1);
+  assert.equal(slideConfirmIndex < raffleControllerIndex, true);
+}
+
+function loadBrowserRaffleControlsWithoutHelper() {
+  const sandbox = { console, setTimeout, clearTimeout, setInterval, clearInterval };
+  sandbox.globalThis = sandbox;
+  vm.runInNewContext(readProjectFile("public/shared/raffle-controller.js"), sandbox);
+  return sandbox.ImmersaRaffleControls;
+}
+
+test("Speaker loads slide-confirm before raffle-controller", () => {
+  assertSlideConfirmLoadsBeforeRaffleController("public/presenter/index.html");
+});
+
+test("Stage loads slide-confirm before raffle-controller", () => {
+  assertSlideConfirmLoadsBeforeRaffleController("public/stage/index.html");
+});
+
+test("raffle selection renders the three approved modes", () => {
+  const html = renderRaffleController(createInitialRaffleControllerState());
+
+  assert.match(html, /data-raffle-create="visual_key"/);
+  assert.match(html, /data-raffle-create="poll"/);
+  assert.match(html, /data-raffle-create="free"/);
+  assert.match(html, />Clave visual</);
+  assert.match(html, />Encuesta</);
+  assert.match(html, />Libre</);
+});
+
+test("browser controller renders fallback UI when slide helper is absent", () => {
+  const controls = loadBrowserRaffleControlsWithoutHelper();
+  const html = controls.renderRaffleController({
+    ...controls.createInitialRaffleControllerState(),
+    active: { id: "r-browser", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
+  });
+
+  assert.match(html, /Desliza para iniciar sorteo/);
+  assert.match(html, /interaction-close-slider/);
+  assert.match(html, /data-raffle-slide-confirm/);
+  assert.match(controls.renderRaffleController(controls.createInitialRaffleControllerState()), /data-raffle-create="visual_key"/);
+});
+
+test("raffle shell preserves poll nodes instead of cloning or replacing them", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+
+  assert.match(source, /while \(host\.firstChild\) existing\.appendChild\(host\.firstChild\);/);
+  assert.doesNotMatch(source, /cloneNode/);
+  assert.doesNotMatch(source, /existing\.innerHTML\s*=/);
+  assert.doesNotMatch(source, /\.raffle-existing-content[\s\S]{0,120}innerHTML\s*=/);
+});
+
+test("poll launch handlers still emit interaction:launch from Speaker and Stage", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  const stage = readProjectFile("public/stage/stage.js");
+
+  assert.match(presenter, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
+  assert.match(stage, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
+});
 
 test("maps raffle states to available controller actions", () => {
   assert.deepEqual(getRaffleActions({ active: { state: "collecting" } }).map((action) => action.event), ["raffle:close_entries", "raffle:close"]);
