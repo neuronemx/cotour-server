@@ -139,7 +139,7 @@ test("Closed raffle clears public overlays", () => {
   assert.equal(renderAudienceRaffle({ active: { state: "closed", mode: "free" } }), "");
 });
 
-test("Screen collecting uses safe public payload and never receives entryKey", () => {
+test("Screen visual key collecting shows only the selected public option", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: visualKeyConfig });
   const screen = store.getScreenState("s1");
@@ -147,16 +147,38 @@ test("Screen collecting uses safe public payload and never receives entryKey", (
   const screenHtml = renderScreenRaffle(screen);
 
   assert.equal("entryKey" in screen.active, false);
-  assert.equal("entries" in screen.active, false);
-  assert.equal("eligibleCount" in screen.active, false);
-  assert.equal(screen.active.options.length, 4);
-  assert.equal(screen.active.options[0].thumbnail, "/future/a.png");
+  assert.equal(screen.active.displayOptionId, "b");
+  assert.equal(screen.active.displayOption.label, "B");
+  assert.equal(screen.active.options.length, 0);
   assert.equal("entryKey" in audience.active, false);
-  assert.equal("entryCount" in audience.active, false);
-  assert.match(screenHtml, /Elige la opción correcta/);
-  assert.match(screenHtml, /El presentador te la dirá/);
-  assert.match(screenHtml, /<span>A<\/span>/);
-  assert.doesNotMatch(screenHtml, /entryKey|audienceId|winner/);
+  assert.equal("displayOptionId" in audience.active, false);
+  assert.equal("displayOption" in audience.active, false);
+  assert.match(screenHtml, /Elige en tu pantalla:/);
+  assert.match(screenHtml, /raffle-screen-display-option[\s\S]*<strong>B<\/strong>/);
+  assert.doesNotMatch(screenHtml, /<span>A<\/span>|<span>C<\/span>|<span>D<\/span>|data-raffle-option/);
+  assert.doesNotMatch(screenHtml, /entryKey|audienceId|winner|correcta|respuesta|clave visual/i);
+});
+
+test("Screen visual key option follows selected Speaker config and stays frozen", () => {
+  const store = new RaffleStore();
+  assert.equal(store.configureVisualKey("s1", "c").ok, true);
+  assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, entryKey: store.getControllerState("s1").visualKeyDraftEntryKey } }).ok, true);
+
+  const screen = store.getScreenState("s1");
+  assert.equal(screen.active.displayOptionId, "c");
+  assert.match(renderScreenRaffle(screen), /<strong>C<\/strong>/);
+
+  assert.equal(store.configureVisualKey("s1", "d").reason, "active_raffle_exists");
+  const refreshed = store.getScreenState("s1");
+  assert.equal(refreshed.active.displayOptionId, "c");
+  assert.match(renderScreenRaffle(refreshed), /<strong>C<\/strong>/);
+
+  store.enter({ sessionId: "s1", audienceId: "a1", optionId: "c" });
+  store.enter({ sessionId: "s1", audienceId: "a2", optionId: "b" });
+  store.closeEntries("s1", [{ audienceId: "a1" }, { audienceId: "a2" }]);
+  const closed = store.getControllerState("s1").active;
+  assert.equal(closed.entryCount, 1);
+  assert.equal(closed.entries[0].selectedOptionId, "c");
 });
 
 test("Screen drawing and winner keep identity private", () => {
@@ -187,7 +209,11 @@ test("Public raffle runtime uses existing entry events and closes Audience expli
   assert.match(storeSource, /getRoleRoomKey\(context\.roomKey, "audience"\)\)\.emit\("raffle:closed"/);
 });
 
-test("Screen styles include reduced-motion fallback", () => {
+test("Screen styles include visual key display treatment and reduced-motion fallback", () => {
   const css = readProjectFile("public/screen/screen.css");
+  assert.match(css, /raffle-screen-display-option/);
+  assert.match(css, /rgba\(82,31,137/);
+  assert.match(css, /rgba\(27,61,149/);
+  assert.match(css, /rgba\(104,216,204/);
   assert.match(css, /prefers-reduced-motion: reduce/);
 });
