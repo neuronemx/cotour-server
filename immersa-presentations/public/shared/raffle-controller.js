@@ -117,6 +117,10 @@
     return TEMP_VISUAL_KEY_OPTIONS.map((option) => option.id);
   }
 
+  function visualKeyDisplayLabel(option) {
+    return String(option?.label || "").replace(/^Clave\s+/i, "") || String(option?.id || "").slice(-1).toUpperCase();
+  }
+
   function createRaffleConfig(mode, state = {}) {
     if (mode === "visual_key") {
       return {
@@ -198,10 +202,12 @@
     const selected = state.visualKeyDraftEntryKey || "";
     const options = TEMP_VISUAL_KEY_OPTIONS.map((option) => {
       const active = option.id === selected;
-      return '<button type="button" class="raffle-key-option ' + (active ? 'is-selected' : '') + '" data-raffle-key-option="' + option.id + '" aria-pressed="' + String(active) + '" ' + (disabled ? 'disabled' : '') + '><span>' + escapeHtml(option.label) + '</span></button>';
+      const activeStyle = active ? ' style="border-width:2px;transform:scale(1.04);box-shadow:0 0 0 3px rgba(104,216,204,.22),0 0 26px rgba(104,216,204,.32),inset 0 1px 0 rgba(255,255,255,.24);"' : "";
+      return '<button type="button" class="raffle-key-option ' + (active ? 'is-selected' : '') + '" data-raffle-key-option="' + option.id + '" data-raffle-key-label="' + escapeHtml(visualKeyDisplayLabel(option)) + '" aria-label="Opción correcta ' + escapeHtml(visualKeyDisplayLabel(option)) + '" aria-pressed="' + String(active) + '" ' + (disabled ? 'disabled' : '') + activeStyle + '><span>' + escapeHtml(visualKeyDisplayLabel(option)) + '</span></button>';
     }).join("");
     const createDisabled = disabled || !selected;
-    return '<div class="raffle-mode-card raffle-visual-key-card"><strong>Clave visual</strong><div class="raffle-key-options" role="group" aria-label="Opción correcta">' + options + '</div><button type="button" class="primary raffle-create-visual" data-raffle-create="visual_key" ' + (createDisabled ? 'disabled' : '') + '>Abrir participación</button></div>';
+    const disabledStyle = createDisabled ? ' style="opacity:.42;filter:grayscale(.4);cursor:not-allowed;box-shadow:none;"' : "";
+    return '<div class="raffle-mode-card raffle-visual-key-card"><strong>Clave visual</strong><div class="raffle-key-options" role="group" aria-label="Opción correcta">' + options + '</div><button type="button" class="primary raffle-create-visual ' + (createDisabled ? 'is-disabled' : '') + '" data-raffle-create="visual_key" ' + (createDisabled ? 'disabled' : '') + disabledStyle + '>Abrir participación</button></div>';
   }
 
   function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const visual = renderVisualKeyConfig(state, disabled); const otherButtons = RAFFLE_MODES.filter((mode) => mode.id !== "visual_key").map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (!canCreateMode(state, mode.id) ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + visual + otherButtons + '</div></section>'; }
@@ -218,7 +224,7 @@
     let renderQueued = false;
     let countdownTimer = null;
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
-    function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; syncCountdownTimer(); scheduleRender(); }
+    function update(eventName, payload) { state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
     function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
@@ -238,7 +244,7 @@
       shell.innerHTML = '<div class="raffle-tabs" role="tablist" aria-label="Acciones"><button type="button" data-raffle-tab="polls">Encuestas</button><button type="button" data-raffle-tab="raffles">Sorteos</button></div><div class="raffle-panel" data-raffle-panel></div>';
       host.appendChild(shell);
       host.appendChild(existing);
-      shell.querySelectorAll("[data-raffle-tab]").forEach((button) => button.addEventListener("click", () => { currentTab = button.dataset.raffleTab || "polls"; renderAllHosts(); }));
+      shell.querySelectorAll("[data-raffle-tab]").forEach((button) => button.addEventListener("click", () => { if (state.active && button.dataset.raffleTab !== "raffles") return; currentTab = button.dataset.raffleTab || "polls"; renderAllHosts(); }));
     }
     function decorateHost(host) {
       if (!host) return;
@@ -259,7 +265,7 @@
       rafflePanel.hidden = !inRaffleSubview;
       if (!inRaffleSubview) return;
       let nextHtml = "";
-      const backMarkup = isRaffleNavigationLocked(state) ? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>';
+      const backMarkup = state.active ? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>';
       try { nextHtml = backMarkup + renderRaffleController(state); }
       catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = backMarkup + renderSelection({ ...state, active: null, pendingEvent: "" }); }
       if (rafflePanel.dataset.raffleHtml === nextHtml) return;
@@ -268,7 +274,7 @@
       bindRafflePanel(rafflePanel);
     }
     function bindRafflePanel(panel) {
-      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (isRaffleNavigationLocked(state)) return; currentTab = "polls"; renderAllHosts(); });
+      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (state.active) return; currentTab = "polls"; renderAllHosts(); });
       panel.querySelectorAll("[data-raffle-key-option]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; socket.emit("raffle:configure_visual_key", { entryKey: button.dataset.raffleKeyOption }); }));
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { const mode = button.dataset.raffleCreate; if (!canDispatchRaffleAction(state, "raffle:create") || !canCreateMode(state, mode)) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(mode, state)); }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
@@ -277,7 +283,7 @@
     }
     function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && isRaffleNavigationLocked(state)) return false; currentTab = tab; renderAllHosts(); return true; } };
+    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; currentTab = tab; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
