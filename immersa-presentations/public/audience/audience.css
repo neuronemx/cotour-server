@@ -60,6 +60,8 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .raffle-public-card p { margin: 0; color: rgba(255,255,255,.82); font-size: clamp(15px, 4.4vw, 18px); line-height: 1.35; }
 .raffle-public-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .raffle-public-option { min-height: 112px; display: grid; align-content: center; justify-items: center; gap: 9px; padding: 12px; border-radius: 18px; color: #fff; background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05)); border: 1px solid rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 14px 34px rgba(0,0,0,.2); }
+.raffle-public-option.is-selected { color: #041211; background: linear-gradient(180deg, rgba(111,247,232,.98), rgba(62,202,191,.9)); border-color: rgba(255,255,255,.38); box-shadow: 0 0 0 4px rgba(104,216,204,.16), 0 0 30px rgba(104,216,204,.34), inset 0 1px 0 rgba(255,255,255,.22); }
+.raffle-public-option.is-selected .raffle-public-option-fallback, .raffle-public-option.is-selected .raffle-public-option-media { background: rgba(4,18,17,.14); box-shadow: none; }
 .raffle-public-option:disabled { opacity: .72; cursor: default; }
 .raffle-public-option-fallback, .raffle-public-option-media { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg, rgba(151,83,255,.78), rgba(56,112,255,.72) 54%, rgba(104,216,204,.68)); box-shadow: 0 0 26px rgba(104,216,204,.24); font-size: 22px; font-weight: 900; }
 .raffle-public-option-media img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
