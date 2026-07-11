@@ -3,6 +3,7 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ImmersaRaffleControls = api;
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
+  const SlideConfirm = root.ImmersaSlideConfirm || (typeof require === "function" ? require("./slide-confirm") : null);
   const TEMP_VISUAL_KEY_OPTIONS = [
     { id: "visual_key_1", label: "Clave A", tone: "cyan", correct: true },
     { id: "visual_key_2", label: "Clave B", tone: "violet", correct: false },
@@ -15,7 +16,7 @@
     { id: "free", label: "Libre" }
   ];
   const RAFFLE_EVENTS = new Set(["raffle:create", "raffle:close_entries", "raffle:draw", "raffle:reveal_winner", "raffle:close", "raffle:reset_winners"]);
-  const SLIDE_COMPLETE_RATIO = 0.82;
+  const SLIDE_COMPLETE_RATIO = SlideConfirm?.COMPLETE_THRESHOLD || 0.82;
 
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
@@ -150,17 +151,8 @@
     return getRaffleActions(state).some((action) => action.event === eventName && !action.disabled);
   }
 
-  function setSlideProgress(slider, progress) {
-    if (!slider) return;
-    const next = Math.max(0, Math.min(1, Number(progress) || 0));
-    slider.dataset.slideProgress = String(next);
-    slider.style.setProperty("--slide-progress", Math.round(next * 100) + "%");
-  }
-
   function resetSlideConfirm(slider) {
-    if (!slider) return;
-    delete slider.dataset.slideCompleted;
-    setSlideProgress(slider, 0);
+    SlideConfirm?.reset(slider);
   }
 
   function createSlideConfirmDispatcher({ getState, emit, setPending, reset = resetSlideConfirm }) {
@@ -198,8 +190,12 @@
   }
 
   function renderSlideConfirm(state) {
-    const disabled = state.pendingEvent ? 'disabled aria-disabled="true"' : '';
-    return '<button type="button" class="raffle-slide-confirm" data-raffle-slide-confirm aria-label="Desliza para iniciar sorteo" ' + disabled + '><span class="raffle-slide-fill" aria-hidden="true"></span><span class="raffle-slide-thumb" aria-hidden="true">›</span><span class="raffle-slide-label">Desliza para iniciar sorteo</span></button>';
+    return SlideConfirm.markup({
+      label: "Desliza para iniciar sorteo",
+      className: "raffle-slide-confirm is-raffle",
+      disabled: Boolean(state.pendingEvent),
+      dataAttribute: "data-raffle-slide-confirm"
+    });
   }
 
   function renderActionButtons(actions, state, extraClass = "") {
@@ -304,56 +300,6 @@
       bindRafflePanel(rafflePanel);
     }
 
-    function bindSlideConfirm(slider, dispatchSlideConfirm) {
-      let dragging = false;
-      let startX = 0;
-      let width = 1;
-      let progress = 0;
-
-      const updateProgress = (clientX) => {
-        progress = Math.max(0, Math.min(1, (clientX - startX) / width));
-        setSlideProgress(slider, progress);
-      };
-      const finish = () => {
-        if (!dragging) return;
-        dragging = false;
-        if (progress >= SLIDE_COMPLETE_RATIO) dispatchSlideConfirm(slider);
-        else resetSlideConfirm(slider);
-      };
-      const start = (clientX) => {
-        if (slider.disabled || slider.dataset.slideCompleted === "true") return;
-        const rect = slider.getBoundingClientRect();
-        startX = rect.left;
-        width = Math.max(1, rect.width - 48);
-        dragging = true;
-        updateProgress(clientX);
-      };
-
-      if (root.PointerEvent) {
-        slider.addEventListener("pointerdown", (event) => {
-          start(event.clientX);
-          if (!dragging) return;
-          slider.setPointerCapture?.(event.pointerId);
-          event.preventDefault();
-        });
-        slider.addEventListener("pointermove", (event) => { if (dragging) updateProgress(event.clientX); });
-        slider.addEventListener("pointerup", finish);
-        slider.addEventListener("pointercancel", () => { dragging = false; resetSlideConfirm(slider); });
-      } else {
-        slider.addEventListener("mousedown", (event) => { start(event.clientX); event.preventDefault(); });
-        root.document?.addEventListener("mousemove", (event) => { if (dragging) updateProgress(event.clientX); });
-        root.document?.addEventListener("mouseup", finish);
-        slider.addEventListener("touchstart", (event) => { start(event.touches?.[0]?.clientX || 0); }, { passive: true });
-        slider.addEventListener("touchmove", (event) => { if (dragging) updateProgress(event.touches?.[0]?.clientX || 0); }, { passive: true });
-        slider.addEventListener("touchend", finish);
-      }
-      slider.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        dispatchSlideConfirm(slider);
-      });
-    }
-
     function bindRafflePanel(panel) {
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => {
         if (!canDispatchRaffleAction(state, "raffle:create")) return;
@@ -367,7 +313,10 @@
         socket.emit(eventName);
       }));
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
-      panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => bindSlideConfirm(slider, dispatchSlideConfirm));
+      panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => SlideConfirm.attach(slider, {
+        isDisabled: () => !canDispatchRaffleAction(state, "raffle:draw"),
+        onComplete: () => dispatchSlideConfirm(slider)
+      }));
     }
 
     function renderAllHosts() {
