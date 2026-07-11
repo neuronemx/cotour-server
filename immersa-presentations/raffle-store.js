@@ -18,7 +18,21 @@ function normalizeOption(option, index) {
   const label = normalizeText(option?.label);
   const id = normalizeText(option?.id, "opt_" + (index + 1));
   if (!id || !label) return null;
-  return { id, label };
+  const normalized = { id, label };
+  ["asset", "thumbnail", "thumb", "image"].forEach((key) => {
+    const value = normalizeText(option?.[key]);
+    if (value) normalized[key] = value;
+  });
+  return normalized;
+}
+
+function publicOption(option) {
+  if (!option) return null;
+  const safe = { id: option.id, label: option.label };
+  ["asset", "thumbnail", "thumb", "image"].forEach((key) => {
+    if (option[key]) safe[key] = option[key];
+  });
+  return safe;
 }
 
 function uniqueOptions(options) {
@@ -110,6 +124,7 @@ function screenActive(raffle) {
   if (!raffle) return null;
   return {
     ...activeBase(raffle),
+    options: raffle.state === "collecting" ? raffle.options.map(publicOption).filter(Boolean) : [],
     hasWinner: raffle.state === "winner" && Boolean(raffle.winner)
   };
 }
@@ -119,7 +134,7 @@ function audienceActive(raffle, audienceId) {
   const entry = audienceId ? raffle.entries.get(String(audienceId)) : null;
   return {
     ...activeBase(raffle),
-    options: raffle.state === "collecting" ? raffle.options : [],
+    options: raffle.state === "collecting" ? raffle.options.map(publicOption).filter(Boolean) : [],
     ownEntry: ownEntry(entry),
     isWinner: raffle.state === "winner" && raffle.winner?.audienceId === String(audienceId || "")
   };
@@ -563,6 +578,7 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
       io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:closed", { raffleId: result.raffle.id });
       io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:closed", { raffleId: result.raffle.id });
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("raffle:closed", { raffleId: result.raffle.id });
+      io.to(getRoleRoomKey(context.roomKey, "audience")).emit("raffle:closed", { raffleId: result.raffle.id });
       emitAllStates(context);
     });
 
