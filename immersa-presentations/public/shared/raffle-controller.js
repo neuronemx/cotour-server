@@ -113,6 +113,17 @@
     return label ? String(label) : "Ganador seleccionado";
   }
 
+  function revealTimestamp(active) {
+    const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || "");
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  function remainingRaffleSeconds(active, nowMs = Date.now()) {
+    const timestamp = revealTimestamp(active);
+    if (!Number.isFinite(timestamp)) return null;
+    return Math.max(0, Math.ceil((timestamp - nowMs) / 1000));
+  }
+
   function getRaffleActions(state) {
     const active = state?.active;
     if (!active || active.state === "closed") return [];
@@ -122,14 +133,12 @@
     ];
     if (active.state === "entries_closed") return [
       { event: "raffle:draw", label: "Iniciar sorteo", primary: true },
+      { event: "raffle:reset_winners", label: "Restablecer ganadores" },
       { event: "raffle:close", label: "Cerrar sorteo" }
     ];
-    if (active.state === "drawing") return [
-      { event: "raffle:reveal_winner", label: "Mostrar ganador", primary: true, disabled: !active.pendingWinnerSelected }
-    ];
+    if (active.state === "drawing") return [];
     if (active.state === "winner") return [
-      { event: "raffle:close", label: "Cerrar sorteo", primary: true },
-      { event: "raffle:reset_winners", label: "Restablecer ganadores" }
+      { event: "raffle:close", label: "Cerrar sorteo", primary: true }
     ];
     return [];
   }
@@ -161,9 +170,10 @@
   function renderActive(active, state) {
     const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo";
     const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : "";
-    const drawingNote = active.state === "drawing" && !active.pendingWinnerSelected ? '<p class="raffle-warning">Esperando selección de ganador...</p>' : "";
+    const remaining = active.state === "drawing" ? remainingRaffleSeconds(active) : null;
+    const countdown = active.state === "drawing" && remaining !== null ? '<div class="raffle-countdown"><span>REVELACIÓN EN</span><strong>' + remaining + 's</strong></div>' : "";
     const actions = getRaffleActions(state).map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div>' + renderStats(active, state) + winner + drawingNote + '<div class="raffle-actions">' + actions + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div>' + renderStats(active, state) + winner + countdown + '<div class="raffle-actions">' + actions + '</div></section>';
   }
 
   function renderRaffleController(state) {
@@ -175,9 +185,11 @@
     let state = createInitialRaffleControllerState();
     let currentTab = "polls";
     let renderQueued = false;
+    let countdownTimer = null;
 
     function update(eventName, payload) {
       state = reduceRaffleControllerState(state, eventName, payload);
+      syncCountdownTimer();
       scheduleRender();
     }
 
@@ -187,6 +199,17 @@
       const render = () => { renderQueued = false; renderAllHosts(); };
       if (root.requestAnimationFrame) root.requestAnimationFrame(render);
       else setTimeout(render, 0);
+    }
+
+    function syncCountdownTimer() {
+      const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active));
+      if (shouldTick && !countdownTimer) {
+        countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500);
+      }
+      if (!shouldTick && countdownTimer) {
+        (root.clearInterval || clearInterval)(countdownTimer);
+        countdownTimer = null;
+      }
     }
 
     function installSocketHandlers() {
@@ -294,6 +317,7 @@
     renderRaffleController,
     errorMessage,
     winnerLabel,
+    remainingRaffleSeconds,
     installSocketCapture
   };
 });
