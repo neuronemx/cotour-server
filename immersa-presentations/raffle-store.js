@@ -67,6 +67,15 @@ function ownEntry(entry) {
   };
 }
 
+function ownSelection(selection) {
+  if (!selection) return null;
+  return {
+    selectedOptionId: selection.selectedOptionId,
+    selectedAt: selection.selectedAt,
+    raffleId: selection.raffleId
+  };
+}
+
 function audienceEntry(audience) {
   const audienceId = normalizeText(audience?.audienceId || audience?.id);
   if (!audienceId) return null;
@@ -131,12 +140,15 @@ function screenActive(raffle) {
 
 function audienceActive(raffle, audienceId) {
   if (!raffle) return null;
-  const entry = audienceId ? raffle.entries.get(String(audienceId)) : null;
+  const id = String(audienceId || "");
+  const entry = id ? raffle.entries.get(id) : null;
+  const selection = id ? raffle.selections?.get(id) : null;
   return {
     ...activeBase(raffle),
     options: raffle.state === "collecting" ? raffle.options.map(publicOption).filter(Boolean) : [],
     ownEntry: ownEntry(entry),
-    isWinner: raffle.state === "winner" && raffle.winner?.audienceId === String(audienceId || "")
+    ownSelection: ownSelection(selection),
+    isWinner: raffle.state === "winner" && raffle.winner?.audienceId === id
   };
 }
 
@@ -169,7 +181,8 @@ class RaffleStore {
       this.sessions.set(key, {
         active: null,
         winners: [],
-        previousWinnerAudienceIds: new Set()
+        previousWinnerAudienceIds: new Set(),
+        visualKeyDraftEntryKey: ""
       });
     }
     return this.sessions.get(key);
@@ -177,6 +190,13 @@ class RaffleStore {
 
   getActive(sessionId) {
     return this.getSession(sessionId).active;
+  }
+
+  configureVisualKey(sessionId, entryKey) {
+    const session = this.getSession(sessionId);
+    if (session.active && session.active.state !== "closed") return { ok: false, reason: "active_raffle_exists" };
+    session.visualKeyDraftEntryKey = normalizeText(entryKey);
+    return { ok: true, entryKey: session.visualKeyDraftEntryKey };
   }
 
   normalizeRaffle(config = {}) {
@@ -208,6 +228,7 @@ class RaffleStore {
         entryKey,
         options,
         entries: new Map(),
+        selections: new Map(),
         eligibleSnapshot: null,
         pendingWinner: null,
         winners: [],
@@ -228,6 +249,7 @@ class RaffleStore {
     const normalized = this.normalizeRaffle(config);
     if (!normalized.ok) return normalized;
     session.active = normalized.raffle;
+    if (session.active.mode === "visual_key") session.visualKeyDraftEntryKey = session.active.entryKey;
     return { ok: true, raffle: session.active };
   }
 
@@ -253,15 +275,21 @@ class RaffleStore {
     if (!audienceId) return { ok: false, reason: "missing_audience_id" };
     if (raffle.mode === "poll") return { ok: false, reason: "use_poll_response" };
     if (raffle.mode === "free") return { ok: false, reason: "free_mode_does_not_use_entries" };
-    if (raffle.entries.has(audienceId)) return { ok: false, reason: "duplicate_entry" };
 
     const selectedOptionId = normalizeText(optionId);
-    if (!this.findOption(raffle, selectedOptionId)) return { ok: false, reason: "invalid_option" };
-    if (selectedOptionId !== raffle.entryKey) return { ok: false, reason: "incorrect_option" };
+    const option = this.findOption(raffle, selectedOptionId);
+    if (!option) return { ok: false, reason: "invalid_option" };
 
-    const entry = this.createEntry({ raffle, audienceId, name, label, selectedOptionId });
-    raffle.entries.set(audienceId, entry);
-    return { ok: true, entry };
+    const selection = {
+      raffleId: raffle.id,
+      audienceId: String(audienceId),
+      name: normalizeText(name, "Participante"),
+      label: normalizeText(label || name, "Participante"),
+      selectedOptionId: option.id,
+      selectedAt: nowIso()
+    };
+    raffle.selections.set(String(audienceId), selection);
+    return { ok: true, selection };
   }
 
   submitPollResponse({ sessionId, audienceId, optionId, name }) {
@@ -297,6 +325,20 @@ class RaffleStore {
       for (const audience of connectedAudience) {
         const entry = audienceEntry(audience);
         if (entry) raffle.entries.set(entry.audienceId, entry);
+      }
+    }
+    if (raffle.mode === "visual_key") {
+      raffle.entries = new Map();
+      for (const selection of raffle.selections.values()) {
+        if (selection.selectedOptionId !== raffle.entryKey) continue;
+        const entry = this.createEntry({
+          raffle,
+          audienceId: selection.audienceId,
+          name: selection.name,
+          label: selection.label,
+          selectedOptionId: selection.selectedOptionId
+        });
+        raffle.entries.set(selection.audienceId, { ...entry, selectedAt: selection.selectedAt });
       }
     }
 
@@ -385,6 +427,7 @@ class RaffleStore {
     const session = this.getSession(sessionId);
     return {
       active: controllerActive(session.active, session),
+      visualKeyDraftEntryKey: session.visualKeyDraftEntryKey || "",
       winners: session.winners.map(publicEntry),
       previousWinnerCount: session.previousWinnerAudienceIds.size
     };
@@ -492,6 +535,14 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
   }
 
   function attach(socket, getContext) {
+    socket.on("raffle:configure_visual_key", (payload = {}) => {
+      const context = getContext();
+      if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
+      const result = store.configureVisualKey(context.sessionId, payload.entryKey || payload.optionId || "");
+      if (!result.ok) return reject(socket, "raffle:configure_visual_key", result.reason);
+      emitControllerState(context.roomKey, context.sessionId);
+    });
+
     socket.on("raffle:create", async (config = {}) => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
@@ -514,7 +565,6 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
         optionId: payload.optionId
       });
       if (!result.ok) return reject(socket, "raffle:enter", result.reason);
-      socket.emit("raffle:entry_accepted", { entry: ownEntry(result.entry) });
       socket.emit("raffle:state", store.getAudienceState(context.sessionId, audienceId));
       emitControllerState(context.roomKey, context.sessionId);
       emitScreenState(context.roomKey, context.sessionId);
