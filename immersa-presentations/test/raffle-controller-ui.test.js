@@ -87,19 +87,33 @@ test("raffle shell preserves poll nodes instead of cloning or replacing them", (
 test("raffle subview hides tabs and provides a back control", () => {
   const source = readProjectFile("public/shared/raffle-controller.js");
 
-  assert.match(source, /tabs\.hidden = currentTab === "raffles"/);
+  assert.match(source, /host\.classList\.toggle\("is-raffle-subview", inRaffleSubview\)/);
+  assert.match(source, /tabs\.hidden = inRaffleSubview/);
+  assert.match(source, /tabs\.classList\.toggle\("is-hidden", inRaffleSubview\)/);
+  assert.match(source, /tabs\.style\.display = inRaffleSubview \? "none" : ""/);
   assert.match(source, /data-raffle-back>← Volver<\/button>/);
   assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
 });
 
-test("active raffle state can render again after returning to raffle subview", () => {
+test("raffle selector hierarchy has no duplicate labels", () => {
+  const html = renderRaffleController(createInitialRaffleControllerState());
+
+  assert.doesNotMatch(html, /<span>Sorteos<\/span>/i);
+  assert.equal((html.match(/<h2>Sorteo<\/h2>/g) || []).length, 1);
+  assert.equal((html.match(/<h2>/g) || []).length, 1);
+  assert.match(html, /<p>Elige un modo para crear la convocatoria\.<\/p>/);
+});
+
+test("active raffle hierarchy uses mode title and state text", () => {
   let state = createInitialRaffleControllerState();
   state = reduceRaffleControllerState(state, "raffle:state", {
     active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 }
   });
 
   const html = renderRaffleController(state);
-  assert.match(html, /Participación abierta/);
+  assert.match(html, /<h2>Libre<\/h2><p>Participación abierta<\/p>/);
+  assert.doesNotMatch(html, /<span>Sorteos<\/span>/i);
+  assert.doesNotMatch(html, /<h2>Participación abierta<\/h2>/);
   assert.match(html, /data-raffle-action="raffle:close_entries"/);
   assert.match(html, /data-raffle-action="raffle:close"/);
 });
