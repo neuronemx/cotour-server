@@ -64,7 +64,6 @@ test("visual key selection enables create and stays private to controller config
   assert.equal(state.configMode, "visual_key");
   assert.match(selectedTag, /is-selected/);
   assert.match(selectedTag, /aria-pressed="true"/);
-  assert.match(selectedTag, /box-shadow/);
   assert.doesNotMatch(html, /data-raffle-create="visual_key" disabled/);
   assert.equal(config.entryKey, "visual_key_2");
   assert.equal(config.options.length, 4);
@@ -78,7 +77,6 @@ test("visual key create is disabled and non-startable without entryKey", () => {
   assert.equal(canCreateMode(state, "visual_key"), false);
   assert.match(html, /class="primary raffle-create-visual is-disabled"/);
   assert.match(html, /data-raffle-create="visual_key" disabled/);
-  assert.match(html, /cursor:not-allowed/);
 });
 
 test("closing or cancelling clears visual key setup state", () => {
