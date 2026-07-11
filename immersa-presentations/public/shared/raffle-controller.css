@@ -42,7 +42,8 @@
 
 .raffle-section,
 .raffle-heading,
-.raffle-mode-grid {
+.raffle-mode-grid,
+.raffle-action-stack {
   display: grid;
   gap: 10px;
 }
@@ -63,7 +64,8 @@
 
 .raffle-heading p,
 .raffle-warning,
-.raffle-error {
+.raffle-error,
+.raffle-mode-description {
   margin: 0;
   color: rgba(234,255,251,.72);
   font-size: 12px;
@@ -120,23 +122,25 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
+  pointer-events: none;
 }
 
 .raffle-visual-card {
-  min-height: 34px;
+  min-height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 6px;
   color: rgba(255,255,255,.92);
   font-size: 10px;
   font-weight: 900;
-  border: 1px solid rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
 }
 
-.raffle-visual-card.is-cyan { background: linear-gradient(135deg, rgba(83,224,212,.9), rgba(18,91,92,.72)); }
-.raffle-visual-card.is-violet { background: linear-gradient(135deg, rgba(143,85,255,.9), rgba(63,38,118,.74)); }
-.raffle-visual-card.is-orange { background: linear-gradient(135deg, rgba(255,157,61,.9), rgba(122,62,18,.76)); }
-.raffle-visual-card.is-green { background: linear-gradient(135deg, rgba(35,196,127,.9), rgba(20,91,65,.76)); }
+.raffle-visual-card.is-cyan { background: linear-gradient(135deg, rgba(83,224,212,.86), rgba(18,91,92,.7)); }
+.raffle-visual-card.is-violet { background: linear-gradient(135deg, rgba(143,85,255,.86), rgba(63,38,118,.72)); }
+.raffle-visual-card.is-orange { background: linear-gradient(135deg, rgba(255,157,61,.86), rgba(122,62,18,.72)); }
+.raffle-visual-card.is-green { background: linear-gradient(135deg, rgba(35,196,127,.86), rgba(20,91,65,.72)); }
 
 .raffle-stats {
   display: grid;
@@ -145,7 +149,8 @@
 }
 
 .raffle-stats div,
-.raffle-winner {
+.raffle-winner,
+.raffle-countdown {
   min-width: 0;
   display: grid;
   gap: 4px;
@@ -156,7 +161,8 @@
 }
 
 .raffle-stats span,
-.raffle-winner span {
+.raffle-winner span,
+.raffle-countdown span {
   color: rgba(234,255,251,.62);
   font-size: 10px;
   font-weight: 850;
@@ -165,7 +171,8 @@
 }
 
 .raffle-stats strong,
-.raffle-winner strong {
+.raffle-winner strong,
+.raffle-countdown strong {
   min-width: 0;
   overflow: hidden;
   color: rgba(234,255,251,.96);
@@ -186,8 +193,29 @@
   gap: 8px;
 }
 
+.raffle-actions.is-collecting {
+  align-items: center;
+}
+
+.raffle-actions.is-collecting .raffle-action.primary {
+  flex: 1 1 150px;
+}
+
+.raffle-actions.is-collecting .raffle-action.secondary {
+  flex: 0 1 auto;
+  min-height: 34px;
+  padding-inline: 11px;
+  font-size: 11px;
+}
+
+.raffle-actions.is-secondary {
+  padding-top: 2px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
 .raffle-actions button,
-.raffle-panel button.raffle-mode-card {
+.raffle-panel button.raffle-mode-card,
+.raffle-slide-confirm {
   transition: transform .14s ease, background .14s ease, border-color .14s ease, opacity .14s ease;
 }
 
@@ -210,12 +238,64 @@
 }
 
 .raffle-actions button.danger {
-  color: #ffeaf0;
-  background: rgba(255,79,117,.18);
-  border-color: rgba(255,79,117,.38);
+  color: rgba(255,226,233,.88);
+  background: rgba(255,79,117,.11);
+  border-color: rgba(255,79,117,.24);
 }
 
-.raffle-panel button:disabled {
+.raffle-slide-confirm {
+  --slide-progress: 0%;
+  position: relative;
+  width: 100%;
+  height: 52px;
+  overflow: hidden;
+  padding: 0 16px 0 58px;
+  border-radius: 999px;
+  border: 1px solid rgba(111,247,232,.34);
+  color: rgba(234,255,251,.94);
+  background: rgba(255,255,255,.08);
+  font-size: 13px;
+  font-weight: 950;
+  text-align: center;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.raffle-slide-confirm:focus-visible {
+  outline: 2px solid rgba(111,247,232,.78);
+  outline-offset: 3px;
+}
+
+.raffle-slide-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--slide-progress) + 48px);
+  background: linear-gradient(90deg, rgba(111,247,232,.34), rgba(62,202,191,.18));
+  pointer-events: none;
+}
+
+.raffle-slide-thumb {
+  position: absolute;
+  top: 5px;
+  left: max(5px, var(--slide-progress));
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #041211;
+  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
+  box-shadow: 0 10px 24px rgba(111,247,232,.18);
+  pointer-events: none;
+}
+
+.raffle-slide-label {
+  position: relative;
+  z-index: 1;
+}
+
+.raffle-panel button:disabled,
+.raffle-slide-confirm:disabled {
   opacity: .42;
   cursor: not-allowed;
   transform: none;
@@ -237,4 +317,5 @@
   .raffle-heading h2 { font-size: 17px; }
   .raffle-stats strong { font-size: 18px; }
   .raffle-actions button { flex: 1 1 130px; }
+  .raffle-actions.is-collecting .raffle-action.secondary { flex: 1 1 100%; }
 }
