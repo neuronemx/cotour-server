@@ -316,6 +316,22 @@ test("drawing renders automatic countdown without manual action or metrics", () 
   assert.doesNotMatch(html, /Mostrar ganador/);
 });
 
+test("winner renders winner block and close action without participant metrics", () => {
+  const state = {
+    ...createInitialRaffleControllerState(),
+    active: { id: "r12", mode: "free", state: "winner", entryCount: 2, eligibleCount: 2, winner: { label: "Mesa 4" } }
+  };
+
+  const html = renderRaffleController(state);
+  assert.match(html, /<h2>Libre<\/h2><p>Tenemos ganador<\/p>/);
+  assert.match(html, /<span>Ganador<\/span><strong>Mesa 4<\/strong>/);
+  assert.match(html, /data-raffle-action="raffle:close"/);
+  assert.match(html, /Cerrar sorteo/);
+  assert.doesNotMatch(html, /PARTICIPANTES/);
+  assert.doesNotMatch(html, /ELEGIBLES/);
+  assert.doesNotMatch(html, /Restablecer ganadores/);
+});
+
 test("visual key selector stays a single clean mode button", () => {
   const html = renderRaffleController(createInitialRaffleControllerState());
   const visualKeyCard = html.match(/<button type="button" class="raffle-mode-card" data-raffle-create="visual_key"[\s\S]*?<\/button>/)?.[0] || "";
