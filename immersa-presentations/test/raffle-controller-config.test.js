@@ -9,6 +9,10 @@ const {
   canCreateMode
 } = require("../public/shared/raffle-controller");
 
+function tagFor(html, optionId) {
+  return html.match(new RegExp('<button[^>]+data-raffle-key-option="' + optionId + '"[^>]*>'))?.[0] || "";
+}
+
 test("visual key controller starts without a default correct option", () => {
   const state = createInitialRaffleControllerState();
   const config = createRaffleConfig("visual_key", state);
@@ -39,12 +43,13 @@ test("visual key selection enables create and stays private to controller config
     active: null
   });
   const html = renderRaffleController(state);
+  const selectedTag = tagFor(html, "visual_key_2");
   const config = createRaffleConfig("visual_key", state);
 
   assert.equal(canCreateMode(state, "visual_key"), true);
-  assert.match(html, /data-raffle-key-option="visual_key_2"[^>]+is-selected/);
-  assert.match(html, /data-raffle-key-option="visual_key_2"[^>]+aria-pressed="true"/);
-  assert.match(html, /data-raffle-key-option="visual_key_2"[^>]+box-shadow/);
+  assert.match(selectedTag, /is-selected/);
+  assert.match(selectedTag, /aria-pressed="true"/);
+  assert.match(selectedTag, /box-shadow/);
   assert.doesNotMatch(html, /data-raffle-create="visual_key" disabled/);
   assert.equal(config.entryKey, "visual_key_2");
   assert.equal(config.options.length, 4);
@@ -70,7 +75,9 @@ test("Speaker and Stage synchronize visual key draft through controller state", 
     visualKeyDraftEntryKey: speaker.visualKeyDraftEntryKey,
     active: null
   });
+  const stageTag = tagFor(renderRaffleController(stage), "visual_key_3");
 
   assert.equal(stage.visualKeyDraftEntryKey, "visual_key_3");
-  assert.match(renderRaffleController(stage), /data-raffle-key-option="visual_key_3"[^>]+aria-pressed="true"/);
+  assert.match(stageTag, /aria-pressed="true"/);
+  assert.match(stageTag, /is-selected/);
 });
