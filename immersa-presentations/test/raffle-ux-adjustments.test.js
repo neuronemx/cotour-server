@@ -46,15 +46,18 @@ test("free collecting controls render Sorteo Libre with connected count and no t
   assert.match(html, /Cancelar sorteo/);
 });
 
-test("non-free collecting keeps ticket metric", () => {
-  let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
-  state = reduceRaffleControllerState(state, "raffle:state", {
-    active: { id: "r-poll", mode: "poll", state: "collecting", entryCount: 1, eligibleCount: 1 }
-  });
+test("non-free collecting also hides ticket metric", () => {
+  for (const [mode, title] of [["poll", "Sorteo Encuesta"], ["visual_key", "Sorteo Clave visual"]]) {
+    let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
+    state = reduceRaffleControllerState(state, "raffle:state", {
+      active: { id: "r-" + mode, mode, state: "collecting", entryCount: 1, eligibleCount: 1 }
+    });
 
-  const html = adjustRaffleHtml(renderRaffleController(state));
-  assert.match(html, /<h2>Sorteo Encuesta<\/h2><p>Participación abierta<\/p>/);
-  assert.match(html, /BOLETOS<\/span><strong>1<\/strong>/);
+    const html = adjustRaffleHtml(renderRaffleController(state));
+    assert.match(html, new RegExp(`<h2>${title}<\\/h2><p>Participación abierta<\\/p>`));
+    assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+    assert.doesNotMatch(html, /BOLETOS/);
+  }
 });
 
 test("Speaker and Stage active states render full raffle mode titles", () => {
