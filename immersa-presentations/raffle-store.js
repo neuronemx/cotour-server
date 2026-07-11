@@ -129,11 +129,19 @@ function controllerActive(raffle, session) {
   };
 }
 
+function screenDisplayOption(raffle) {
+  if (!raffle || raffle.mode !== "visual_key" || raffle.state !== "collecting") return null;
+  return publicOption(raffle.options.find((option) => option.id === raffle.entryKey));
+}
+
 function screenActive(raffle) {
   if (!raffle) return null;
+  const displayOption = screenDisplayOption(raffle);
   return {
     ...activeBase(raffle),
-    options: raffle.state === "collecting" ? raffle.options.map(publicOption).filter(Boolean) : [],
+    options: raffle.state === "collecting" && raffle.mode !== "visual_key" ? raffle.options.map(publicOption).filter(Boolean) : [],
+    displayOptionId: displayOption?.id || null,
+    displayOption,
     hasWinner: raffle.state === "winner" && Boolean(raffle.winner)
   };
 }
