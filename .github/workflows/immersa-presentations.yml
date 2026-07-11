@@ -44,6 +44,9 @@ jobs:
       - name: Check raffle controller syntax
         run: node --check public/shared/raffle-controller.js
 
+      - name: Check slide confirm syntax
+        run: node --check public/shared/slide-confirm.js
+
       - name: Check interaction store syntax
         run: node --check interaction-store.js
 
