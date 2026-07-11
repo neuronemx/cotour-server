@@ -301,7 +301,7 @@ test("rejection clears pending state and restores the slide control", () => {
   assert.doesNotMatch(html, /aria-disabled="true"/);
 });
 
-test("drawing renders automatic countdown without manual action", () => {
+test("drawing renders automatic countdown without manual action or metrics", () => {
   const state = {
     ...createInitialRaffleControllerState(),
     active: { id: "r11", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() }
@@ -310,6 +310,9 @@ test("drawing renders automatic countdown without manual action", () => {
   const html = renderRaffleController(state);
   assert.match(html, /Sorteando/);
   assert.match(html, /REVELACIÓN EN/);
+  assert.doesNotMatch(html, /PARTICIPANTES/);
+  assert.doesNotMatch(html, /ELEGIBLES/);
+  assert.doesNotMatch(html, /<strong>2<\/strong>/);
   assert.doesNotMatch(html, /Mostrar ganador/);
 });
 
