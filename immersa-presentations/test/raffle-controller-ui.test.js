@@ -6,6 +6,7 @@ const {
   reduceRaffleControllerState,
   getRaffleActions,
   canDispatchRaffleAction,
+  renderRaffleController,
   winnerLabel
 } = require("../public/shared/raffle-controller");
 
@@ -55,6 +56,35 @@ test("applies the same raffle state events for Speaker and Stage controllers", (
   });
 
   assert.deepEqual(getRaffleActions(speaker), getRaffleActions(stage));
+});
+
+test("state audienceCount updates connectedAudienceCount", () => {
+  const state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
+
+  assert.equal(state.connectedAudienceCount, 2);
+});
+
+test("collecting renders connected audience and ticket count", () => {
+  let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
+  state = reduceRaffleControllerState(state, "raffle:state", {
+    active: { id: "r3", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 }
+  });
+
+  const html = renderRaffleController(state);
+  assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+  assert.match(html, /BOLETOS<\/span><strong>0<\/strong>/);
+});
+
+test("entries_closed renders frozen participant and eligible counts", () => {
+  let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 4 });
+  state = reduceRaffleControllerState(state, "raffle:state", {
+    active: { id: "r4", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 1 }
+  });
+
+  const html = renderRaffleController(state);
+  assert.match(html, /PARTICIPANTES<\/span><strong>2<\/strong>/);
+  assert.match(html, /ELEGIBLES<\/span><strong>1<\/strong>/);
+  assert.doesNotMatch(html, /CONECTADOS/);
 });
 
 test("visual key config uses one correct temporary option without exposing permanent assets", () => {
