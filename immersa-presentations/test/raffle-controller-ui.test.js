@@ -6,6 +6,7 @@ const {
   reduceRaffleControllerState,
   getRaffleActions,
   canDispatchRaffleAction,
+  createSlideConfirmDispatcher,
   renderRaffleController,
   winnerLabel,
   remainingRaffleSeconds
@@ -91,7 +92,7 @@ test("state audienceCount updates connectedAudienceCount", () => {
   assert.equal(state.connectedAudienceCount, 2);
 });
 
-test("collecting renders connected audience and ticket count", () => {
+test("collecting renders connected audience, ticket count, and Cerrar tómbola", () => {
   let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
   state = reduceRaffleControllerState(state, "raffle:state", {
     active: { id: "r5", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 }
@@ -100,6 +101,8 @@ test("collecting renders connected audience and ticket count", () => {
   const html = renderRaffleController(state);
   assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
   assert.match(html, /BOLETOS<\/span><strong>0<\/strong>/);
+  assert.match(html, /Cerrar tómbola/);
+  assert.match(html, /secondary danger raffle-action/);
 });
 
 test("entries_closed renders frozen participant and eligible counts", () => {
@@ -114,16 +117,97 @@ test("entries_closed renders frozen participant and eligible counts", () => {
   assert.doesNotMatch(html, /CONECTADOS/);
 });
 
+test("entries_closed uses slide confirmation instead of a normal draw button", () => {
+  const state = {
+    ...createInitialRaffleControllerState(),
+    active: { id: "r7", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
+  };
+
+  const html = renderRaffleController(state);
+  assert.match(html, /data-raffle-slide-confirm/);
+  assert.match(html, /Desliza para iniciar sorteo/);
+  assert.doesNotMatch(html, /data-raffle-action="raffle:draw"/);
+  assert.match(html, /Restablecer ganadores/);
+  assert.match(html, /Cerrar sorteo/);
+});
+
+test("slide confirmation emits raffle:draw exactly once", () => {
+  const emitted = [];
+  let state = {
+    ...createInitialRaffleControllerState(),
+    active: { id: "r8", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
+  };
+  const slider = { dataset: {}, style: { setProperty() {} } };
+  const dispatch = createSlideConfirmDispatcher({
+    getState: () => state,
+    emit: (eventName) => emitted.push(eventName),
+    setPending: (eventName) => { state = { ...state, pendingEvent: eventName }; }
+  });
+
+  assert.equal(dispatch(slider), true);
+  assert.equal(dispatch(slider), false);
+  assert.deepEqual(emitted, ["raffle:draw"]);
+  assert.equal(state.pendingEvent, "raffle:draw");
+});
+
+test("pending state blocks repeated slide confirmation", () => {
+  const emitted = [];
+  const state = {
+    ...createInitialRaffleControllerState(),
+    pendingEvent: "raffle:draw",
+    active: { id: "r9", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
+  };
+  let restored = false;
+  const dispatch = createSlideConfirmDispatcher({
+    getState: () => state,
+    emit: (eventName) => emitted.push(eventName),
+    setPending() {},
+    reset: () => { restored = true; }
+  });
+
+  assert.equal(dispatch({ dataset: {} }), false);
+  assert.equal(restored, true);
+  assert.deepEqual(emitted, []);
+});
+
+test("rejection clears pending state and restores the slide control", () => {
+  let state = {
+    ...createInitialRaffleControllerState(),
+    pendingEvent: "raffle:draw",
+    active: { id: "r10", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
+  };
+  state = reduceRaffleControllerState(state, "raffle:rejected", { reason: "no_eligible_entries" });
+
+  const html = renderRaffleController(state);
+  assert.equal(state.pendingEvent, "");
+  assert.match(html, /No hay participantes elegibles/);
+  assert.match(html, /data-raffle-slide-confirm/);
+  assert.doesNotMatch(html, /data-slide-completed/);
+  assert.doesNotMatch(html, /aria-disabled="true"/);
+});
+
 test("drawing renders automatic countdown without manual action", () => {
   const state = {
     ...createInitialRaffleControllerState(),
-    active: { id: "r7", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() }
+    active: { id: "r11", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() }
   };
 
   const html = renderRaffleController(state);
   assert.match(html, /Sorteando/);
   assert.match(html, /REVELACIÓN EN/);
   assert.doesNotMatch(html, /Mostrar ganador/);
+});
+
+test("visual key preview does not create individual selectable actions", () => {
+  const html = renderRaffleController(createInitialRaffleControllerState());
+
+  assert.match(html, /data-raffle-create="visual_key"/);
+  assert.match(html, /Usa una dinámica visual preparada/);
+  assert.match(html, /Vista previa de claves visuales temporales/);
+  assert.doesNotMatch(html, /data-raffle-create="visual_key_1"/);
+  assert.doesNotMatch(html, /data-raffle-create="visual_key_2"/);
+  assert.doesNotMatch(html, /data-raffle-create="visual_key_3"/);
+  assert.doesNotMatch(html, /data-raffle-create="visual_key_4"/);
 });
 
 test("visual key config uses one correct temporary option without exposing permanent assets", () => {
