@@ -14,6 +14,10 @@
     return "Sorteo";
   }
 
+  function visualOptionLabel(option) {
+    return String(option?.label || option?.id || "").replace(/^Clave\s+/i, "").slice(0, 1).toUpperCase();
+  }
+
   function revealTimestamp(active) {
     const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || "");
     return Number.isFinite(timestamp) ? timestamp : null;
@@ -36,6 +40,12 @@
 
   function selectedOptionId(active) {
     return active?.ownSelection?.selectedOptionId || active?.ownEntry?.selectedOptionId || "";
+  }
+
+  function screenDisplayOption(active) {
+    if (active?.displayOption) return active.displayOption;
+    if (!active?.displayOptionId) return null;
+    return safeOptions(active).find((option) => option.id === active.displayOptionId) || { id: active.displayOptionId, label: active.displayOptionId };
   }
 
   function renderOption(option, disabled, selected = false) {
@@ -94,9 +104,10 @@
   function renderScreenCollecting(active) {
     if (active.mode === "free") return '<h2>Sorteo abierto</h2><p>Mantén abierta tu pantalla</p>';
     if (active.mode === "visual_key") {
-      const options = safeOptions(active);
-      const optionMarkup = options.length ? '<div class="raffle-screen-options">' + options.map((option) => '<span>' + escapeHtml(option.label) + '</span>').join("") + '</div>' : "";
-      return '<h2>Elige la opción correcta</h2><p>El presentador te la dirá</p>' + optionMarkup;
+      const option = screenDisplayOption(active);
+      const label = visualOptionLabel(option);
+      const display = label ? '<div class="raffle-screen-display-option" aria-label="Opción ' + escapeHtml(label) + '"><strong>' + escapeHtml(label) + '</strong></div>' : "";
+      return '<h2>Elige en tu pantalla:</h2>' + display;
     }
     return '<h2>Participa desde tu pantalla</h2>';
   }
