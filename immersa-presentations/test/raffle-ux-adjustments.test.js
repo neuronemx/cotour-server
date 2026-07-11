@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { renderRaffleController, createInitialRaffleControllerState, reduceRaffleControllerState } = require("../public/shared/raffle-controller");
 const { renderAudienceRaffle, renderScreenRaffle } = require("../public/shared/raffle-public-ui");
-const { adjustRaffleHtml, stripCountdownSuffix } = require("../public/shared/raffle-ux-adjustments");
+const { CONTROLLER_MODE_TITLES, adjustRaffleHtml, stripCountdownSuffix } = require("../public/shared/raffle-ux-adjustments");
 
 function readProjectFile(filePath) {
   return fs.readFileSync(path.join(__dirname, "..", filePath), "utf8");
@@ -53,8 +53,38 @@ test("non-free collecting keeps ticket metric", () => {
   });
 
   const html = adjustRaffleHtml(renderRaffleController(state));
-  assert.match(html, /<h2>Encuesta<\/h2><p>Participación abierta<\/p>/);
+  assert.match(html, /<h2>Sorteo Encuesta<\/h2><p>Participación abierta<\/p>/);
   assert.match(html, /BOLETOS<\/span><strong>1<\/strong>/);
+});
+
+test("Speaker and Stage active states render full raffle mode titles", () => {
+  const modes = [
+    ["free", CONTROLLER_MODE_TITLES.free, "Libre"],
+    ["visual_key", CONTROLLER_MODE_TITLES.visual_key, "Clave visual"],
+    ["poll", CONTROLLER_MODE_TITLES.poll, "Encuesta"]
+  ];
+  const states = ["collecting", "entries_closed", "drawing", "winner"];
+  const revealAt = new Date(Date.now() + 5_000).toISOString();
+
+  modes.forEach(([mode, expectedTitle, rawTitle]) => {
+    states.forEach((raffleState) => {
+      const html = adjustRaffleHtml(renderRaffleController({
+        ...createInitialRaffleControllerState(),
+        active: {
+          id: `r-${mode}-${raffleState}`,
+          mode,
+          state: raffleState,
+          entryCount: 2,
+          eligibleCount: 1,
+          revealAt,
+          winner: { label: "Ganador seleccionado" }
+        }
+      }));
+
+      assert.match(html, new RegExp(`<h2>${expectedTitle}<\\/h2>`));
+      assert.doesNotMatch(html, new RegExp(`<h2>${rawTitle}<\\/h2>`));
+    });
+  });
 });
 
 test("raffle UX adjustments load in Speaker, Stage, Audience, and Screen", () => {
