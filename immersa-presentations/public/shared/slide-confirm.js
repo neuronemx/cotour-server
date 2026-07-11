@@ -10,8 +10,9 @@
   }
 
   function markup({ label, className = "", disabled = false, dataAttribute = "data-slide-confirm" } = {}) {
-    const disabledState = disabled ? ' is-disabled" aria-disabled="true' : "";
-    return '<div class="interaction-close-slider ' + escapeHtml(className) + disabledState + '" ' + dataAttribute + ' role="button" aria-label="' + escapeHtml(label) + '" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">' + escapeHtml(label) + '</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
+    const classes = ["interaction-close-slider", className, disabled ? "is-disabled" : ""].filter(Boolean).join(" ");
+    const disabledState = disabled ? ' aria-disabled="true"' : "";
+    return '<div class="' + escapeHtml(classes) + '" ' + dataAttribute + ' role="button" aria-label="' + escapeHtml(label) + '" tabindex="0"' + disabledState + ' style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">' + escapeHtml(label) + '</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
   }
 
   function reset(control) {
