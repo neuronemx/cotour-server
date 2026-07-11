@@ -113,30 +113,17 @@
     setPending: fallbackSlideSetPending
   };
 
-  function visualKeyOptionIds() {
-    return TEMP_VISUAL_KEY_OPTIONS.map((option) => option.id);
-  }
-
-  function visualKeyDisplayLabel(option) {
-    return String(option?.label || "").replace(/^Clave\s+/i, "") || String(option?.id || "").slice(-1).toUpperCase();
-  }
+  function visualKeyOptionIds() { return TEMP_VISUAL_KEY_OPTIONS.map((option) => option.id); }
+  function visualKeyDisplayLabel(option) { return String(option?.label || "").replace(/^Clave\s+/i, "") || String(option?.id || "").slice(-1).toUpperCase(); }
 
   function createRaffleConfig(mode, state = {}) {
-    if (mode === "visual_key") {
-      return {
-        mode,
-        title: "Sorteo",
-        prompt: "Elige una opción",
-        entryKey: state.visualKeyDraftEntryKey || "",
-        options: TEMP_VISUAL_KEY_OPTIONS.map(({ id, label }) => ({ id, label }))
-      };
-    }
+    if (mode === "visual_key") return { mode, title: "Sorteo", prompt: "Elige una opción", entryKey: state.visualKeyDraftEntryKey || "", options: TEMP_VISUAL_KEY_OPTIONS.map(({ id, label }) => ({ id, label })) };
     if (mode === "poll") return { mode, title: "Sorteo", prompt: "Elige una opción", options: [{ id: "raffle_poll_1", label: "Opción 1" }, { id: "raffle_poll_2", label: "Opción 2" }] };
     return { mode: "free", title: "Sorteo" };
   }
 
   function createInitialRaffleControllerState() {
-    return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, visualKeyDraftEntryKey: "", pendingEvent: "", error: "" };
+    return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, visualKeyDraftEntryKey: "", configMode: "", pendingEvent: "", error: "" };
   }
   function normalizeControllerState(payload) { return { active: payload?.active || null, previousWinnerCount: Number(payload?.previousWinnerCount || 0), visualKeyDraftEntryKey: String(payload?.visualKeyDraftEntryKey || "") }; }
   function activeFromEventPayload(payload) { return payload?.raffle || payload?.active || payload || null; }
@@ -154,12 +141,13 @@
     if (eventName === "interaction:active") return { ...next, activeInteraction: payload || null };
     if (eventName === "interaction:closed") return { ...next, activeInteraction: null };
     if (eventName === "raffle:rejected") return { ...next, pendingEvent: "", error: errorMessage(payload?.reason || "raffle_rejected") };
-    if (eventName === "raffle:closed") return { ...next, active: null, pendingEvent: "", error: "" };
+    if (eventName === "raffle:closed") return { ...next, active: null, visualKeyDraftEntryKey: "", configMode: "", pendingEvent: "", error: "" };
     if (eventName === "raffle:state" || eventName === "raffle:winners_reset") {
       const normalized = normalizeControllerState(payload);
-      return { ...next, active: normalized.active, previousWinnerCount: normalized.previousWinnerCount, visualKeyDraftEntryKey: normalized.visualKeyDraftEntryKey, pendingEvent: "", error: "" };
+      const draft = normalized.visualKeyDraftEntryKey;
+      return { ...next, active: normalized.active, previousWinnerCount: normalized.previousWinnerCount, visualKeyDraftEntryKey: normalized.active || next.configMode === "visual_key" || draft ? draft : "", configMode: normalized.active ? "" : (draft ? "visual_key" : next.configMode), pendingEvent: "", error: "" };
     }
-    if (["raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner"].includes(eventName)) return { ...next, active: activeFromEventPayload(payload), pendingEvent: "", error: "" };
+    if (["raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner"].includes(eventName)) return { ...next, active: activeFromEventPayload(payload), configMode: "", pendingEvent: "", error: "" };
     return next;
   }
 
@@ -210,7 +198,16 @@
     return '<div class="raffle-mode-card raffle-visual-key-card"><strong>Clave visual</strong><div class="raffle-key-options" role="group" aria-label="Opción correcta">' + options + '</div><button type="button" class="primary raffle-create-visual ' + (createDisabled ? 'is-disabled' : '') + '" data-raffle-create="visual_key" ' + (createDisabled ? 'disabled' : '') + disabledStyle + '>Abrir participación</button></div>';
   }
 
-  function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const visual = renderVisualKeyConfig(state, disabled); const otherButtons = RAFFLE_MODES.filter((mode) => mode.id !== "visual_key").map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (!canCreateMode(state, mode.id) ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + visual + otherButtons + '</div></section>'; }
+  function renderSelection(state) {
+    const disabled = Boolean(state.activeInteraction || state.pendingEvent);
+    const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
+    if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
+    const modeButtons = RAFFLE_MODES.map((mode) => {
+      const attrs = mode.id === "visual_key" ? 'data-raffle-config-mode="visual_key"' : 'data-raffle-create="' + mode.id + '"';
+      return '<button type="button" class="raffle-mode-card" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>';
+    }).join("");
+    return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
+  }
   function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div></div>'; if (active.state === "entries_closed") return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>'; return ""; }
   function renderSlideConfirm(state) { return SlideConfirm.markup({ label: "Desliza para iniciar sorteo", className: "raffle-slide-confirm is-raffle", disabled: Boolean(state.pendingEvent), dataAttribute: "data-raffle-slide-confirm" }); }
   function renderActionButtons(actions, state, extraClass = "") { return '<div class="raffle-actions ' + extraClass + '">' + actions.map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + (action.secondary ? 'secondary ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("") + '</div>'; }
@@ -223,6 +220,7 @@
     let currentTab = "polls";
     let renderQueued = false;
     let countdownTimer = null;
+    function clearLocalSetup() { state = { ...state, visualKeyDraftEntryKey: "", configMode: "", pendingEvent: "", error: "" }; }
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
     function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
@@ -244,7 +242,7 @@
       shell.innerHTML = '<div class="raffle-tabs" role="tablist" aria-label="Acciones"><button type="button" data-raffle-tab="polls">Encuestas</button><button type="button" data-raffle-tab="raffles">Sorteos</button></div><div class="raffle-panel" data-raffle-panel></div>';
       host.appendChild(shell);
       host.appendChild(existing);
-      shell.querySelectorAll("[data-raffle-tab]").forEach((button) => button.addEventListener("click", () => { if (state.active && button.dataset.raffleTab !== "raffles") return; currentTab = button.dataset.raffleTab || "polls"; renderAllHosts(); }));
+      shell.querySelectorAll("[data-raffle-tab]").forEach((button) => button.addEventListener("click", () => { if (state.active && button.dataset.raffleTab !== "raffles") return; if (button.dataset.raffleTab !== "raffles") clearLocalSetup(); currentTab = button.dataset.raffleTab || "polls"; renderAllHosts(); }));
     }
     function decorateHost(host) {
       if (!host) return;
@@ -254,11 +252,7 @@
       const tabs = host.querySelector(".raffle-tabs");
       const rafflePanel = host.querySelector("[data-raffle-panel]");
       const existing = host.querySelector(".raffle-existing-content");
-      if (tabs) {
-        tabs.hidden = inRaffleSubview;
-        tabs.classList.toggle("is-hidden", inRaffleSubview);
-        tabs.style.display = inRaffleSubview ? "none" : "";
-      }
+      if (tabs) { tabs.hidden = inRaffleSubview; tabs.classList.toggle("is-hidden", inRaffleSubview); tabs.style.display = inRaffleSubview ? "none" : ""; }
       host.querySelectorAll("[data-raffle-tab]").forEach((button) => { const active = button.dataset.raffleTab === currentTab; button.classList.toggle("is-active", active); button.setAttribute("aria-selected", String(active)); });
       if (existing) existing.hidden = inRaffleSubview;
       if (!rafflePanel) return;
@@ -274,7 +268,8 @@
       bindRafflePanel(rafflePanel);
     }
     function bindRafflePanel(panel) {
-      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (state.active) return; currentTab = "polls"; renderAllHosts(); });
+      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (state.active) return; clearLocalSetup(); currentTab = "polls"; renderAllHosts(); });
+      panel.querySelectorAll("[data-raffle-config-mode]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; state = { ...state, configMode: button.dataset.raffleConfigMode || "", visualKeyDraftEntryKey: "", error: "" }; renderAllHosts(); }));
       panel.querySelectorAll("[data-raffle-key-option]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; socket.emit("raffle:configure_visual_key", { entryKey: button.dataset.raffleKeyOption }); }));
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { const mode = button.dataset.raffleCreate; if (!canDispatchRaffleAction(state, "raffle:create") || !canCreateMode(state, mode)) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(mode, state)); }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
@@ -283,7 +278,7 @@
     }
     function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; currentTab = tab; renderAllHosts(); return true; } };
+    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
