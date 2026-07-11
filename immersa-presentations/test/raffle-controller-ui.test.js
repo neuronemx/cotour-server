@@ -14,6 +14,7 @@ const {
   renderRaffleController,
   winnerLabel,
   remainingRaffleSeconds,
+  isRaffleNavigationLocked,
   SLIDE_COMPLETE_RATIO
 } = require("../public/shared/raffle-controller");
 
@@ -84,14 +85,14 @@ test("raffle shell preserves poll nodes instead of cloning or replacing them", (
   assert.doesNotMatch(source, /\.raffle-existing-content[\s\S]{0,120}innerHTML\s*=/);
 });
 
-test("raffle subview hides tabs and provides a back control", () => {
+test("raffle subview hides tabs and conditionally provides a back control", () => {
   const source = readProjectFile("public/shared/raffle-controller.js");
 
   assert.match(source, /host\.classList\.toggle\("is-raffle-subview", inRaffleSubview\)/);
   assert.match(source, /tabs\.hidden = inRaffleSubview/);
   assert.match(source, /tabs\.classList\.toggle\("is-hidden", inRaffleSubview\)/);
   assert.match(source, /tabs\.style\.display = inRaffleSubview \? "none" : ""/);
-  assert.match(source, /data-raffle-back>← Volver<\/button>/);
+  assert.match(source, /const backMarkup = isRaffleNavigationLocked\(state\) \? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver<\/button>'/);
   assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
 });
 
@@ -131,6 +132,48 @@ test("maps raffle states to available controller actions", () => {
   assert.deepEqual(getRaffleActions({ active: { state: "entries_closed" } }).map((action) => action.event), ["raffle:draw", "raffle:reset_winners", "raffle:close"]);
   assert.deepEqual(getRaffleActions({ active: { state: "drawing", pendingWinnerSelected: true } }).map((action) => action.event), []);
   assert.deepEqual(getRaffleActions({ active: { state: "winner" } }).map((action) => action.event), ["raffle:close"]);
+});
+
+test("raffle navigation lock applies only to drawing and winner", () => {
+  assert.equal(isRaffleNavigationLocked({ active: { state: "collecting" } }), false);
+  assert.equal(isRaffleNavigationLocked({ active: { state: "entries_closed" } }), false);
+  assert.equal(isRaffleNavigationLocked({ active: { state: "drawing" } }), true);
+  assert.equal(isRaffleNavigationLocked({ active: { state: "winner" } }), true);
+});
+
+test("locked raffle states do not expose back navigation or alternate exits", () => {
+  const drawingHtml = renderRaffleController({
+    ...createInitialRaffleControllerState(),
+    active: { id: "r-lock-drawing", mode: "free", state: "drawing", revealAt: new Date(Date.now() + 5_000).toISOString() }
+  });
+  const winnerHtml = renderRaffleController({
+    ...createInitialRaffleControllerState(),
+    active: { id: "r-lock-winner", mode: "free", state: "winner", winner: { label: "Mesa 4" } }
+  });
+
+  assert.doesNotMatch(drawingHtml, /Volver/);
+  assert.doesNotMatch(winnerHtml, /Volver/);
+  assert.doesNotMatch(drawingHtml, /data-raffle-action=/);
+  assert.match(winnerHtml, /data-raffle-action="raffle:close"/);
+  assert.doesNotMatch(winnerHtml, /data-raffle-action="raffle:reset_winners"/);
+});
+
+test("external modal close paths are blocked while raffle navigation is locked", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+
+  assert.match(source, /function installNavigationLockGuards\(\)/);
+  assert.match(source, /event\.key === "Escape" && isRaffleNavigationLocked\(state\)/);
+  assert.match(source, /isRaffleNavigationLocked\(state\) && isExternalCloseTarget\(event\.target\)/);
+  assert.match(source, /\[data-interaction-panel-close\], \[data-stage-actions-close\], #interactionToggle/);
+  assert.match(source, /addEventListener\("keydown",[\s\S]+true\)/);
+  assert.match(source, /addEventListener\("click",[\s\S]+true\)/);
+});
+
+test("closing a locked winner returns controllers to the initial interactions view", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+
+  assert.match(source, /const wasLocked = isRaffleNavigationLocked\(state\)/);
+  assert.match(source, /eventName === "raffle:closed" && wasLocked\) currentTab = "polls"/);
 });
 
 test("prevents duplicate actions while one raffle action is pending", () => {
@@ -209,6 +252,7 @@ test("collecting renders connected audience, ticket count, and Cerrar tómbola",
   assert.match(html, /BOLETOS<\/span><strong>0<\/strong>/);
   assert.match(html, /Cerrar tómbola/);
   assert.match(html, /danger secondary raffle-action/);
+  assert.equal(isRaffleNavigationLocked(state), false);
 });
 
 test("entries_closed renders frozen participant and eligible counts", () => {
@@ -221,6 +265,7 @@ test("entries_closed renders frozen participant and eligible counts", () => {
   assert.match(html, /PARTICIPANTES<\/span><strong>2<\/strong>/);
   assert.match(html, /ELEGIBLES<\/span><strong>1<\/strong>/);
   assert.doesNotMatch(html, /CONECTADOS/);
+  assert.equal(isRaffleNavigationLocked(state), false);
 });
 
 test("entries_closed uses shared slide confirmation instead of a normal draw button", () => {
@@ -314,6 +359,7 @@ test("drawing renders automatic countdown without manual action or metrics", () 
   assert.doesNotMatch(html, /ELEGIBLES/);
   assert.doesNotMatch(html, /<strong>2<\/strong>/);
   assert.doesNotMatch(html, /Mostrar ganador/);
+  assert.equal(isRaffleNavigationLocked(state), true);
 });
 
 test("winner renders winner block and close action without participant metrics", () => {
@@ -330,6 +376,7 @@ test("winner renders winner block and close action without participant metrics",
   assert.doesNotMatch(html, /PARTICIPANTES/);
   assert.doesNotMatch(html, /ELEGIBLES/);
   assert.doesNotMatch(html, /Restablecer ganadores/);
+  assert.equal(isRaffleNavigationLocked(state), true);
 });
 
 test("visual key selector stays a single clean mode button", () => {
