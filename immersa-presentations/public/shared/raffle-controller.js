@@ -203,7 +203,7 @@
     const options = TEMP_VISUAL_KEY_OPTIONS.map((option) => {
       const active = option.id === selected;
       const activeStyle = active ? ' style="border-width:2px;transform:scale(1.04);box-shadow:0 0 0 3px rgba(104,216,204,.22),0 0 26px rgba(104,216,204,.32),inset 0 1px 0 rgba(255,255,255,.24);"' : "";
-      return '<button type="button" class="raffle-key-option ' + (active ? 'is-selected' : '') + '" data-raffle-key-option="' + option.id + '" data-raffle-key-label="' + escapeHtml(visualKeyDisplayLabel(option)) + '" aria-label="Opción correcta ' + escapeHtml(visualKeyDisplayLabel(option)) + '" aria-pressed="' + String(active) + '" ' + (disabled ? 'disabled' : '') + activeStyle + '><span>' + escapeHtml(visualKeyDisplayLabel(option)) + '</span></button>';
+      return '<button type="button" class="raffle-key-option ' + (active ? 'is-selected' : '') + '" data-raffle-key-option="' + option.id + '" aria-pressed="' + String(active) + '" data-raffle-key-label="' + escapeHtml(visualKeyDisplayLabel(option)) + '" aria-label="Opción correcta ' + escapeHtml(visualKeyDisplayLabel(option)) + '" ' + (disabled ? 'disabled' : '') + activeStyle + '><span>' + escapeHtml(visualKeyDisplayLabel(option)) + '</span></button>';
     }).join("");
     const createDisabled = disabled || !selected;
     const disabledStyle = createDisabled ? ' style="opacity:.42;filter:grayscale(.4);cursor:not-allowed;box-shadow:none;"' : "";
@@ -224,7 +224,7 @@
     let renderQueued = false;
     let countdownTimer = null;
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
-    function update(eventName, payload) { state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); scheduleRender(); }
+    function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
     function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
@@ -265,9 +265,9 @@
       rafflePanel.hidden = !inRaffleSubview;
       if (!inRaffleSubview) return;
       let nextHtml = "";
-      const backMarkup = state.active ? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>';
-      try { nextHtml = backMarkup + renderRaffleController(state); }
-      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = backMarkup + renderSelection({ ...state, active: null, pendingEvent: "" }); }
+      const backMarkup = isRaffleNavigationLocked(state) ? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>';
+      try { nextHtml = (state.active ? "" : backMarkup) + renderRaffleController(state); }
+      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = (state.active ? "" : backMarkup) + renderSelection({ ...state, active: null, pendingEvent: "" }); }
       if (rafflePanel.dataset.raffleHtml === nextHtml) return;
       rafflePanel.dataset.raffleHtml = nextHtml;
       rafflePanel.innerHTML = nextHtml;
