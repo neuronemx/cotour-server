@@ -49,35 +49,61 @@ test("Audience free entries_closed distinguishes real ownEntry from closed tombo
   store.closeEntries("s1", [{ audienceId: "a1" }]);
 
   assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /Boleto activo/);
-  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a2")), /La tómbola está cerrada/);
+  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a2")), /La tómbola ya está cerrada :\(/);
 });
 
-test("Audience visual key incorrect answer stays quiet and allows retry", () => {
+test("Audience visual key collecting uses neutral copy and editable selected option", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: visualKeyConfig });
-  const before = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
-  const wrong = store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" });
-  const after = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
 
-  assert.equal(wrong.ok, false);
-  assert.equal(wrong.reason, "incorrect_option");
-  assert.equal(after, before);
-  assert.doesNotMatch(after, /incorrecta|Intenta|error|rojo|perdiste/i);
-  assert.doesNotMatch(after, /disabled/);
+  const before = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
+  assert.match(before, /Elige una opción/);
+  assert.match(before, /El presentador te dirá la correcta/);
+  assert.doesNotMatch(before, /Clave visual|Elige la clave visual correcta|Boleto activo|incorrecta|correcta/i);
+
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" }).ok, true);
+  const wrongHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
+  assert.match(wrongHtml, /data-raffle-option="a" aria-pressed="true"/);
+  assert.equal((wrongHtml.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.doesNotMatch(wrongHtml, /Boleto activo|incorrecta|correcta|error/i);
 
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", optionId: "b" }).ok, true);
-  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /Boleto activo/);
+  const changedHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
+  assert.match(changedHtml, /data-raffle-option="b" aria-pressed="true"/);
+  assert.equal((changedHtml.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.doesNotMatch(changedHtml, /Boleto activo/);
 });
 
-test("Audience visual key and poll lock after authoritative ownEntry", () => {
+test("Audience visual key refresh preserves last collecting selection", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: visualKeyConfig });
-  store.enter({ sessionId: "s1", audienceId: "a1", optionId: "b" });
-  const visualHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
-  assert.match(visualHtml, /Boleto activo/);
-  assert.doesNotMatch(visualHtml, /data-raffle-option/);
+  store.enter({ sessionId: "s1", audienceId: "a1", optionId: "c" });
 
-  store.close("s1");
+  const refreshed = store.getAudienceState("s1", "a1");
+  assert.equal(refreshed.active.ownSelection.selectedOptionId, "c");
+  assert.equal(refreshed.active.ownEntry, null);
+  assert.match(renderAudienceRaffle(refreshed), /data-raffle-option="c" aria-pressed="true"/);
+});
+
+test("Audience visual key locks after close and distinguishes ticket, participant, and late entry", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: visualKeyConfig });
+  store.enter({ sessionId: "s1", audienceId: "correct", optionId: "b" });
+  store.enter({ sessionId: "s1", audienceId: "wrong", optionId: "a" });
+  store.closeEntries("s1", [{ audienceId: "correct" }, { audienceId: "wrong" }]);
+
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "correct", optionId: "a" }).reason, "entries_not_collecting");
+  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "correct")), /Boleto activo/);
+  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "wrong")), /Gracias por participar :\)/);
+
+  const lateHtml = renderAudienceRaffle(store.getAudienceState("s1", "late"));
+  assert.match(lateHtml, /La tómbola ya está cerrada :\(/);
+  assert.match(lateHtml, /Mantente atento a próximos sorteos/);
+  assert.doesNotMatch(lateHtml, /data-raffle-option|La tómbola está cerrada/);
+});
+
+test("Audience poll locks after authoritative ownEntry", () => {
+  const store = new RaffleStore();
   store.create({ sessionId: "s1", config: pollConfig() });
   assert.equal(store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "yes" }).ok, true);
   assert.equal(store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "no" }).reason, "duplicate_entry");
@@ -118,6 +144,7 @@ test("Screen collecting uses safe public payload and never receives entryKey", (
   store.create({ sessionId: "s1", config: visualKeyConfig });
   const screen = store.getScreenState("s1");
   const audience = store.getAudienceState("s1", "a1");
+  const screenHtml = renderScreenRaffle(screen);
 
   assert.equal("entryKey" in screen.active, false);
   assert.equal("entries" in screen.active, false);
@@ -126,8 +153,10 @@ test("Screen collecting uses safe public payload and never receives entryKey", (
   assert.equal(screen.active.options[0].thumbnail, "/future/a.png");
   assert.equal("entryKey" in audience.active, false);
   assert.equal("entryCount" in audience.active, false);
-  assert.match(renderScreenRaffle(screen), /Clave visual/);
-  assert.doesNotMatch(renderScreenRaffle(screen), /entryKey|audienceId|winner/);
+  assert.match(screenHtml, /Elige la opción correcta/);
+  assert.match(screenHtml, /El presentador te la dirá/);
+  assert.match(screenHtml, /<span>A<\/span>/);
+  assert.doesNotMatch(screenHtml, /entryKey|audienceId|winner|correct/);
 });
 
 test("Screen drawing and winner keep identity private", () => {
