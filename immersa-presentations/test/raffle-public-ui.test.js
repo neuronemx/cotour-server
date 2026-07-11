@@ -59,13 +59,13 @@ test("Audience visual key collecting uses neutral copy and editable selected opt
   const before = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(before, /Elige una opción/);
   assert.match(before, /El presentador te dirá la correcta/);
-  assert.doesNotMatch(before, /Clave visual|Elige la clave visual correcta|Boleto activo|incorrecta|correcta/i);
+  assert.doesNotMatch(before, /Clave visual|Elige la clave visual correcta|Boleto activo|incorrecta|acertaste|fallaste|error/i);
 
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" }).ok, true);
   const wrongHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(wrongHtml, /data-raffle-option="a" aria-pressed="true"/);
   assert.equal((wrongHtml.match(/aria-pressed="true"/g) || []).length, 1);
-  assert.doesNotMatch(wrongHtml, /Boleto activo|incorrecta|correcta|error/i);
+  assert.doesNotMatch(wrongHtml, /Boleto activo|incorrecta|acertaste|fallaste|error/i);
 
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", optionId: "b" }).ok, true);
   const changedHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
@@ -156,7 +156,7 @@ test("Screen collecting uses safe public payload and never receives entryKey", (
   assert.match(screenHtml, /Elige la opción correcta/);
   assert.match(screenHtml, /El presentador te la dirá/);
   assert.match(screenHtml, /<span>A<\/span>/);
-  assert.doesNotMatch(screenHtml, /entryKey|audienceId|winner|correct/);
+  assert.doesNotMatch(screenHtml, /entryKey|audienceId|winner/);
 });
 
 test("Screen drawing and winner keep identity private", () => {
