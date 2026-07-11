@@ -1,8 +1,9 @@
 const RAFFLE_STATES = new Set(["collecting", "entries_closed", "drawing", "winner", "closed"]);
 const RAFFLE_MODES = new Set(["visual_key", "poll", "free"]);
+const AUTO_REVEAL_DELAY_MS = 5000;
 
-function nowIso() {
-  return new Date().toISOString();
+function nowIso(nowMs = Date.now()) {
+  return new Date(nowMs).toISOString();
 }
 
 function normalizeText(value, fallback = "") {
@@ -64,9 +65,13 @@ function audienceEntry(audience) {
   };
 }
 
-function controllerActive(raffle, session) {
-  if (!raffle) return null;
-  const eligible = raffleEligibleEntries(session, raffle);
+function raffleEligibleEntries(session, raffle) {
+  const previousWinners = session.previousWinnerAudienceIds;
+  const source = raffle.eligibleSnapshot || Array.from(raffle.entries.values());
+  return source.filter((entry) => !previousWinners.has(entry.audienceId));
+}
+
+function activeBase(raffle) {
   return {
     id: raffle.id,
     type: raffle.type,
@@ -74,6 +79,21 @@ function controllerActive(raffle, session) {
     state: RAFFLE_STATES.has(raffle.state) ? raffle.state : "closed",
     title: raffle.title,
     prompt: raffle.prompt,
+    createdAt: raffle.createdAt,
+    entriesClosedAt: raffle.entriesClosedAt,
+    drawingAt: raffle.drawingAt,
+    revealAt: raffle.revealAt,
+    drawingEndsAt: raffle.revealAt,
+    winnerSelectedAt: raffle.winnerSelectedAt,
+    closedAt: raffle.closedAt
+  };
+}
+
+function controllerActive(raffle, session) {
+  if (!raffle) return null;
+  const eligible = raffleEligibleEntries(session, raffle);
+  return {
+    ...activeBase(raffle),
     options: raffle.options,
     entryKey: raffle.entryKey,
     entryCount: raffle.entries.size,
@@ -82,30 +102,15 @@ function controllerActive(raffle, session) {
     pendingWinnerSelected: Boolean(raffle.pendingWinner),
     winner: raffle.state === "winner" ? publicEntry(raffle.winner) : null,
     winners: raffle.state === "winner" ? raffle.winners.map(publicEntry) : [],
-    pollResults: pollResults(raffle),
-    createdAt: raffle.createdAt,
-    entriesClosedAt: raffle.entriesClosedAt,
-    drawingAt: raffle.drawingAt,
-    winnerSelectedAt: raffle.winnerSelectedAt,
-    closedAt: raffle.closedAt
+    pollResults: pollResults(raffle)
   };
 }
 
 function screenActive(raffle) {
   if (!raffle) return null;
   return {
-    id: raffle.id,
-    type: raffle.type,
-    mode: raffle.mode,
-    state: RAFFLE_STATES.has(raffle.state) ? raffle.state : "closed",
-    title: raffle.title,
-    prompt: raffle.prompt,
-    hasWinner: raffle.state === "winner" && Boolean(raffle.winner),
-    createdAt: raffle.createdAt,
-    entriesClosedAt: raffle.entriesClosedAt,
-    drawingAt: raffle.drawingAt,
-    winnerSelectedAt: raffle.winnerSelectedAt,
-    closedAt: raffle.closedAt
+    ...activeBase(raffle),
+    hasWinner: raffle.state === "winner" && Boolean(raffle.winner)
   };
 }
 
@@ -113,20 +118,10 @@ function audienceActive(raffle, audienceId) {
   if (!raffle) return null;
   const entry = audienceId ? raffle.entries.get(String(audienceId)) : null;
   return {
-    id: raffle.id,
-    type: raffle.type,
-    mode: raffle.mode,
-    state: RAFFLE_STATES.has(raffle.state) ? raffle.state : "closed",
-    title: raffle.title,
-    prompt: raffle.prompt,
+    ...activeBase(raffle),
     options: raffle.state === "collecting" ? raffle.options : [],
     ownEntry: ownEntry(entry),
-    isWinner: raffle.state === "winner" && raffle.winner?.audienceId === String(audienceId || ""),
-    createdAt: raffle.createdAt,
-    entriesClosedAt: raffle.entriesClosedAt,
-    drawingAt: raffle.drawingAt,
-    winnerSelectedAt: raffle.winnerSelectedAt,
-    closedAt: raffle.closedAt
+    isWinner: raffle.state === "winner" && raffle.winner?.audienceId === String(audienceId || "")
   };
 }
 
@@ -145,12 +140,6 @@ function pollResults(raffle) {
       };
     })
   };
-}
-
-function raffleEligibleEntries(session, raffle) {
-  const previousWinners = session.previousWinnerAudienceIds;
-  const source = raffle.eligibleSnapshot || Array.from(raffle.entries.values());
-  return source.filter((entry) => !previousWinners.has(entry.audienceId));
 }
 
 class RaffleStore {
@@ -208,6 +197,7 @@ class RaffleStore {
         pendingWinner: null,
         winners: [],
         winner: null,
+        revealAt: null,
         createdAt: nowIso(),
         entriesClosedAt: null,
         drawingAt: null,
@@ -301,7 +291,7 @@ class RaffleStore {
     return { ok: true, raffle };
   }
 
-  drawWinner(sessionId, connectedAudienceIds = []) {
+  drawWinner(sessionId, connectedAudienceIds = [], options = {}) {
     const session = this.getSession(sessionId);
     const raffle = session.active;
     if (!raffle) return { ok: false, reason: "raffle_not_active" };
@@ -314,28 +304,45 @@ class RaffleStore {
     const connectedEligible = eligible.filter((entry) => connected.has(entry.audienceId));
     if (!connectedEligible.length) return { ok: false, reason: "no_connected_eligible_entries" };
 
-    const pendingWinner = { ...connectedEligible[Math.floor(this.random() * connectedEligible.length)], selectedAt: nowIso() };
+    const nowMs = Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
+    const revealDelayMs = Number.isFinite(options.revealDelayMs) ? options.revealDelayMs : AUTO_REVEAL_DELAY_MS;
+    const pendingWinner = { ...connectedEligible[Math.floor(this.random() * connectedEligible.length)], selectedAt: nowIso(nowMs) };
     raffle.state = "drawing";
-    raffle.drawingAt = nowIso();
+    raffle.drawingAt = nowIso(nowMs);
+    raffle.revealAt = nowIso(nowMs + revealDelayMs);
     raffle.pendingWinner = pendingWinner;
-    return { ok: true, pendingWinner, raffle };
+    return { ok: true, pendingWinner, revealAt: raffle.revealAt, raffle };
   }
 
-  revealWinner(sessionId) {
+  revealWinner(sessionId, options = {}) {
     const session = this.getSession(sessionId);
     const raffle = session.active;
     if (!raffle) return { ok: false, reason: "raffle_not_active" };
     if (raffle.state !== "drawing") return { ok: false, reason: "invalid_state" };
     if (!raffle.pendingWinner) return { ok: false, reason: "no_pending_winner" };
 
+    const nowMs = Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
     raffle.state = "winner";
     raffle.winner = raffle.pendingWinner;
     raffle.winners = [raffle.winner];
-    raffle.winnerSelectedAt = raffle.winner.selectedAt || nowIso();
+    raffle.winnerSelectedAt = nowIso(nowMs);
     raffle.pendingWinner = null;
     session.winners.push(raffle.winner);
     session.previousWinnerAudienceIds.add(raffle.winner.audienceId);
     return { ok: true, winner: raffle.winner, raffle };
+  }
+
+  revealDueWinners(nowMs = Date.now()) {
+    const revealed = [];
+    for (const [sessionId, session] of this.sessions.entries()) {
+      const raffle = session.active;
+      const revealTime = raffle?.revealAt ? Date.parse(raffle.revealAt) : NaN;
+      if (raffle?.state === "drawing" && Number.isFinite(revealTime) && revealTime <= nowMs) {
+        const result = this.revealWinner(sessionId, { nowMs });
+        if (result.ok) revealed.push({ sessionId, result });
+      }
+    }
+    return revealed;
   }
 
   close(sessionId) {
@@ -351,9 +358,11 @@ class RaffleStore {
 
   resetWinners(sessionId) {
     const session = this.getSession(sessionId);
+    const raffle = session.active;
+    if (raffle && raffle.state !== "entries_closed") return { ok: false, reason: "invalid_state" };
     session.previousWinnerAudienceIds = new Set();
     session.winners = [];
-    return { ok: true };
+    return { ok: true, active: raffle || null };
   }
 
   getControllerState(sessionId) {
@@ -376,9 +385,42 @@ class RaffleStore {
   }
 }
 
-function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAudience = () => [], coordinator = null }) {
+function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAudience = () => [], coordinator = null, revealDelayMs = AUTO_REVEAL_DELAY_MS }) {
+  const revealTimers = new Map();
+
   function canControlRaffles(context) {
     return context?.role === "presenter" || context?.role === "stage";
+  }
+
+  function timerKey(sessionId) {
+    return String(sessionId || "");
+  }
+
+  function clearAutoReveal(sessionId) {
+    const key = timerKey(sessionId);
+    const timer = revealTimers.get(key);
+    if (timer) clearTimeout(timer);
+    revealTimers.delete(key);
+  }
+
+  function emitWinner(context, result) {
+    io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:winner", { raffle: store.getControllerState(context.sessionId).active });
+    io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:winner", { raffle: store.getControllerState(context.sessionId).active });
+    io.to(getRoleRoomKey(context.roomKey, "screen")).emit("raffle:winner", { hasWinner: true, raffle: store.getScreenState(context.sessionId).active });
+    io.to(audienceRoom(context.roomKey, result.winner.audienceId)).emit("raffle:winner", { isWinner: true, raffleId: result.raffle.id });
+    emitAllStates(context);
+  }
+
+  function scheduleAutoReveal(context, revealAt) {
+    clearAutoReveal(context.sessionId);
+    const revealTime = Date.parse(revealAt);
+    if (!Number.isFinite(revealTime)) return;
+    const delay = Math.max(0, revealTime - Date.now());
+    revealTimers.set(timerKey(context.sessionId), setTimeout(() => {
+      revealTimers.delete(timerKey(context.sessionId));
+      const result = store.revealWinner(context.sessionId);
+      if (result.ok) emitWinner(context, result);
+    }, delay));
   }
 
   function connectedAudience(context) {
@@ -427,6 +469,7 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
   async function createRaffle(context, config) {
     const execute = () => {
       if (coordinator?.hasActiveInteraction(context.sessionId)) return { ok: false, reason: "active_interaction_exists" };
+      clearAutoReveal(context.sessionId);
       return store.create({ sessionId: context.sessionId, config });
     };
     return coordinator ? coordinator.withSessionLock(context.sessionId, execute) : execute();
@@ -481,6 +524,7 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
     socket.on("raffle:close_entries", () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
+      clearAutoReveal(context.sessionId);
       const result = store.closeEntries(context.sessionId, connectedAudience(context));
       if (!result.ok) return reject(socket, "raffle:close_entries", result.reason);
       io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:entries_closed", store.getControllerState(context.sessionId).active);
@@ -491,8 +535,9 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
     socket.on("raffle:draw", () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
-      const result = store.drawWinner(context.sessionId, connectedAudienceIds(context));
+      const result = store.drawWinner(context.sessionId, connectedAudienceIds(context), { revealDelayMs });
       if (!result.ok) return reject(socket, "raffle:draw", result.reason);
+      scheduleAutoReveal(context, result.revealAt);
       io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:drawing", store.getControllerState(context.sessionId).active);
       io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:drawing", store.getControllerState(context.sessionId).active);
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("raffle:drawing", store.getScreenState(context.sessionId).active);
@@ -502,18 +547,16 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
     socket.on("raffle:reveal_winner", () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
+      clearAutoReveal(context.sessionId);
       const result = store.revealWinner(context.sessionId);
       if (!result.ok) return reject(socket, "raffle:reveal_winner", result.reason);
-      io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:winner", { raffle: store.getControllerState(context.sessionId).active });
-      io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:winner", { raffle: store.getControllerState(context.sessionId).active });
-      io.to(getRoleRoomKey(context.roomKey, "screen")).emit("raffle:winner", { hasWinner: true, raffle: store.getScreenState(context.sessionId).active });
-      io.to(audienceRoom(context.roomKey, result.winner.audienceId)).emit("raffle:winner", { isWinner: true, raffleId: result.raffle.id });
-      emitAllStates(context);
+      emitWinner(context, result);
     });
 
     socket.on("raffle:close", () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
+      clearAutoReveal(context.sessionId);
       const result = store.close(context.sessionId);
       if (!result.ok) return reject(socket, "raffle:close", result.reason);
       io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:closed", { raffleId: result.raffle.id });
@@ -525,7 +568,8 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
     socket.on("raffle:reset_winners", () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return;
-      store.resetWinners(context.sessionId);
+      const result = store.resetWinners(context.sessionId);
+      if (!result.ok) return reject(socket, "raffle:reset_winners", result.reason);
       io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:winners_reset", store.getControllerState(context.sessionId));
       io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:winners_reset", store.getControllerState(context.sessionId));
       emitAllStates(context);
@@ -548,4 +592,4 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
   return { attach, sendCurrentState };
 }
 
-module.exports = { RaffleStore, createRaffleSocketHandlers, RAFFLE_STATES, RAFFLE_MODES };
+module.exports = { RaffleStore, createRaffleSocketHandlers, RAFFLE_STATES, RAFFLE_MODES, AUTO_REVEAL_DELAY_MS };
