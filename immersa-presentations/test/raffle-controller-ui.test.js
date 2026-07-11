@@ -102,7 +102,7 @@ test("collecting renders connected audience, ticket count, and Cerrar tómbola",
   assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
   assert.match(html, /BOLETOS<\/span><strong>0<\/strong>/);
   assert.match(html, /Cerrar tómbola/);
-  assert.match(html, /secondary danger raffle-action/);
+  assert.match(html, /danger secondary raffle-action/);
 });
 
 test("entries_closed renders frozen participant and eligible counts", () => {
