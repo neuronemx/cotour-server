@@ -281,7 +281,7 @@ class RaffleStore {
       raffle.entries = new Map();
       for (const audience of connectedAudience) {
         const entry = audienceEntry(audience);
-        if (entry && !session.previousWinnerAudienceIds.has(entry.audienceId)) raffle.entries.set(entry.audienceId, entry);
+        if (entry) raffle.entries.set(entry.audienceId, entry);
       }
     }
 
@@ -362,6 +362,7 @@ class RaffleStore {
     if (raffle && raffle.state !== "entries_closed") return { ok: false, reason: "invalid_state" };
     session.previousWinnerAudienceIds = new Set();
     session.winners = [];
+    if (raffle) raffle.eligibleSnapshot = Array.from(raffle.entries.values()).map((entry) => ({ ...entry }));
     return { ok: true, active: raffle || null };
   }
 
