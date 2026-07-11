@@ -59,6 +59,7 @@ test("raffle selection renders the three approved modes", () => {
   assert.match(html, />Clave visual</);
   assert.match(html, />Encuesta</);
   assert.match(html, />Libre</);
+  assert.doesNotMatch(html, /Usa una dinámica visual preparada/);
 });
 
 test("browser controller renders fallback UI when slide helper is absent", () => {
@@ -81,6 +82,26 @@ test("raffle shell preserves poll nodes instead of cloning or replacing them", (
   assert.doesNotMatch(source, /cloneNode/);
   assert.doesNotMatch(source, /existing\.innerHTML\s*=/);
   assert.doesNotMatch(source, /\.raffle-existing-content[\s\S]{0,120}innerHTML\s*=/);
+});
+
+test("raffle subview hides tabs and provides a back control", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+
+  assert.match(source, /tabs\.hidden = currentTab === "raffles"/);
+  assert.match(source, /data-raffle-back>← Volver<\/button>/);
+  assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
+});
+
+test("active raffle state can render again after returning to raffle subview", () => {
+  let state = createInitialRaffleControllerState();
+  state = reduceRaffleControllerState(state, "raffle:state", {
+    active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 }
+  });
+
+  const html = renderRaffleController(state);
+  assert.match(html, /Participación abierta/);
+  assert.match(html, /data-raffle-action="raffle:close_entries"/);
+  assert.match(html, /data-raffle-action="raffle:close"/);
 });
 
 test("poll launch handlers still emit interaction:launch from Speaker and Stage", () => {
@@ -284,12 +305,14 @@ test("visual key selector stays a single clean mode button", () => {
 
   assert.match(visualKeyCard, /data-raffle-create="visual_key"/);
   assert.match(visualKeyCard, /<strong>Clave visual<\/strong>/);
-  assert.match(visualKeyCard, /Usa una dinámica visual preparada/);
+  assert.doesNotMatch(visualKeyCard, /Usa una dinámica visual preparada/);
+  assert.doesNotMatch(visualKeyCard, /raffle-mode-description/);
   assert.doesNotMatch(visualKeyCard, /raffle-visual-preview/);
   assert.doesNotMatch(visualKeyCard, /raffle-visual-card/);
   assert.doesNotMatch(visualKeyCard, /Clave A|Clave B|Clave C|Clave D/);
   assert.doesNotMatch(visualKeyCard, />A<|>B<|>C<|>D</);
   assert.equal([...visualKeyCard.matchAll(/data-raffle-create=/g)].length, 1);
+  assert.equal([...visualKeyCard.matchAll(/<button/g)].length, 1);
 });
 
 test("visual key config keeps one correct temporary option without exposing permanent assets", () => {
