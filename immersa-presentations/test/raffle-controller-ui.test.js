@@ -379,29 +379,37 @@ test("winner renders winner block and close action without participant metrics",
   assert.equal(isRaffleNavigationLocked(state), true);
 });
 
-test("visual key selector stays a single clean mode button", () => {
-  const html = renderRaffleController(createInitialRaffleControllerState());
-  const visualKeyCard = html.match(/<button type="button" class="raffle-mode-card" data-raffle-create="visual_key"[\s\S]*?<\/button>/)?.[0] || "";
+test("visual key selector requires choosing the correct option before creating", () => {
+  const emptyHtml = renderRaffleController(createInitialRaffleControllerState());
+  const selectedState = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", {
+    visualKeyDraftEntryKey: "visual_key_2",
+    active: null
+  });
+  const selectedHtml = renderRaffleController(selectedState);
 
-  assert.match(visualKeyCard, /data-raffle-create="visual_key"/);
-  assert.match(visualKeyCard, /<strong>Clave visual<\/strong>/);
-  assert.doesNotMatch(visualKeyCard, /Usa una dinámica visual preparada/);
-  assert.doesNotMatch(visualKeyCard, /raffle-mode-description/);
-  assert.doesNotMatch(visualKeyCard, /raffle-visual-preview/);
-  assert.doesNotMatch(visualKeyCard, /raffle-visual-card/);
-  assert.doesNotMatch(visualKeyCard, /Clave A|Clave B|Clave C|Clave D/);
-  assert.doesNotMatch(visualKeyCard, />A<|>B<|>C<|>D</);
-  assert.equal([...visualKeyCard.matchAll(/data-raffle-create=/g)].length, 1);
-  assert.equal([...visualKeyCard.matchAll(/<button/g)].length, 1);
+  assert.match(emptyHtml, /class="raffle-mode-card raffle-visual-key-card"/);
+  assert.match(emptyHtml, /data-raffle-key-option="visual_key_1"/);
+  assert.match(emptyHtml, /data-raffle-key-option="visual_key_4"/);
+  assert.match(emptyHtml, /data-raffle-create="visual_key" disabled/);
+  assert.match(selectedHtml, /data-raffle-key-option="visual_key_2" aria-pressed="true"/);
+  assert.doesNotMatch(selectedHtml, /data-raffle-create="visual_key" disabled/);
+  assert.doesNotMatch(emptyHtml, /Usa una dinámica visual preparada/);
 });
 
-test("visual key config keeps one correct temporary option without exposing permanent assets", () => {
-  const config = createRaffleConfig("visual_key");
+test("visual key config has no default entryKey and uses the synchronized draft", () => {
+  const emptyConfig = createRaffleConfig("visual_key", createInitialRaffleControllerState());
+  const selectedState = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", {
+    visualKeyDraftEntryKey: "visual_key_3",
+    active: null
+  });
+  const selectedConfig = createRaffleConfig("visual_key", selectedState);
 
-  assert.equal(config.mode, "visual_key");
-  assert.equal(config.title, "Sorteo");
-  assert.equal(config.options.length, 4);
-  assert.equal(config.options.some((option) => option.id === config.entryKey), true);
+  assert.equal(emptyConfig.mode, "visual_key");
+  assert.equal(emptyConfig.title, "Sorteo");
+  assert.equal(emptyConfig.entryKey, "");
+  assert.equal(emptyConfig.options.length, 4);
+  assert.equal(selectedConfig.entryKey, "visual_key_3");
+  assert.equal(selectedConfig.options.some((option) => option.id === selectedConfig.entryKey), true);
 });
 
 test("winner label avoids exposing audience id when no public label exists", () => {
