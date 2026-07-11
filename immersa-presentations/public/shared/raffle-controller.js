@@ -10,11 +10,12 @@
     { id: "visual_key_4", label: "Clave D", tone: "green", correct: false }
   ];
   const RAFFLE_MODES = [
-    { id: "visual_key", label: "Clave visual" },
+    { id: "visual_key", label: "Clave visual", description: "Usa una dinámica visual preparada" },
     { id: "poll", label: "Encuesta" },
     { id: "free", label: "Libre" }
   ];
   const RAFFLE_EVENTS = new Set(["raffle:create", "raffle:close_entries", "raffle:draw", "raffle:reveal_winner", "raffle:close", "raffle:reset_winners"]);
+  const SLIDE_COMPLETE_RATIO = 0.82;
 
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
@@ -128,11 +129,11 @@
     const active = state?.active;
     if (!active || active.state === "closed") return [];
     if (active.state === "collecting") return [
-      { event: "raffle:close_entries", label: "Cerrar participación", primary: true },
-      { event: "raffle:close", label: "Cancelar sorteo", danger: true }
+      { event: "raffle:close_entries", label: "Cerrar tómbola", primary: true },
+      { event: "raffle:close", label: "Cancelar sorteo", danger: true, secondary: true }
     ];
     if (active.state === "entries_closed") return [
-      { event: "raffle:draw", label: "Iniciar sorteo", primary: true },
+      { event: "raffle:draw", label: "Desliza para iniciar sorteo", primary: true, slide: true },
       { event: "raffle:reset_winners", label: "Restablecer ganadores" },
       { event: "raffle:close", label: "Cerrar sorteo" }
     ];
@@ -149,14 +150,43 @@
     return getRaffleActions(state).some((action) => action.event === eventName && !action.disabled);
   }
 
+  function setSlideProgress(slider, progress) {
+    if (!slider) return;
+    const next = Math.max(0, Math.min(1, Number(progress) || 0));
+    slider.dataset.slideProgress = String(next);
+    slider.style.setProperty("--slide-progress", Math.round(next * 100) + "%");
+  }
+
+  function resetSlideConfirm(slider) {
+    if (!slider) return;
+    delete slider.dataset.slideCompleted;
+    setSlideProgress(slider, 0);
+  }
+
+  function createSlideConfirmDispatcher({ getState, emit, setPending, reset = resetSlideConfirm }) {
+    let completed = false;
+    return function dispatchSlideConfirm(slider) {
+      if (completed) return false;
+      if (!canDispatchRaffleAction(getState(), "raffle:draw")) {
+        reset(slider);
+        return false;
+      }
+      completed = true;
+      if (slider) slider.dataset.slideCompleted = "true";
+      setPending("raffle:draw");
+      emit("raffle:draw");
+      return true;
+    };
+  }
+
   function renderVisualKeyPreview() {
-    return '<div class="raffle-visual-preview" aria-label="Tarjetas visuales temporales">' + TEMP_VISUAL_KEY_OPTIONS.map((option) => '<span class="raffle-visual-card is-' + option.tone + '">' + escapeHtml(option.label) + '</span>').join("") + '</div>';
+    return '<div class="raffle-visual-preview" aria-label="Vista previa de claves visuales temporales">' + TEMP_VISUAL_KEY_OPTIONS.map((option) => '<span class="raffle-visual-card is-' + option.tone + '" aria-hidden="true">' + escapeHtml(option.label.replace("Clave ", "")) + '</span>').join("") + '</div>';
   }
 
   function renderSelection(state) {
     const disabled = Boolean(state.activeInteraction || state.pendingEvent);
     const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
-    const buttons = RAFFLE_MODES.map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (disabled ? 'disabled' : '') + '><strong>' + mode.label + '</strong>' + (mode.id === "visual_key" ? renderVisualKeyPreview() : "") + '</button>').join("");
+    const buttons = RAFFLE_MODES.map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (disabled ? 'disabled' : '') + '><strong>' + mode.label + '</strong>' + (mode.description ? '<span class="raffle-mode-description">' + escapeHtml(mode.description) + '</span>' : "") + (mode.id === "visual_key" ? renderVisualKeyPreview() : "") + '</button>').join("");
     return '<section class="raffle-section"><div class="raffle-heading"><span>Sorteos</span><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + buttons + '</div></section>';
   }
 
@@ -167,13 +197,29 @@
     return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>';
   }
 
+  function renderSlideConfirm(state) {
+    const disabled = state.pendingEvent ? 'disabled aria-disabled="true"' : '';
+    return '<button type="button" class="raffle-slide-confirm" data-raffle-slide-confirm aria-label="Desliza para iniciar sorteo" ' + disabled + '><span class="raffle-slide-fill" aria-hidden="true"></span><span class="raffle-slide-thumb" aria-hidden="true">›</span><span class="raffle-slide-label">Desliza para iniciar sorteo</span></button>';
+  }
+
+  function renderActionButtons(actions, state, extraClass = "") {
+    return '<div class="raffle-actions ' + extraClass + '">' + actions.map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + (action.secondary ? 'secondary ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("") + '</div>';
+  }
+
+  function renderActions(active, state) {
+    const actions = getRaffleActions(state);
+    if (active.state === "entries_closed") {
+      return '<div class="raffle-action-stack">' + renderSlideConfirm(state) + renderActionButtons(actions.filter((action) => action.event !== "raffle:draw"), state, "is-secondary") + '</div>';
+    }
+    return renderActionButtons(actions, state, active.state === "collecting" ? "is-collecting" : "");
+  }
+
   function renderActive(active, state) {
     const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo";
     const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : "";
     const remaining = active.state === "drawing" ? remainingRaffleSeconds(active) : null;
     const countdown = active.state === "drawing" && remaining !== null ? '<div class="raffle-countdown"><span>REVELACIÓN EN</span><strong>' + remaining + 's</strong></div>' : "";
-    const actions = getRaffleActions(state).map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div>' + renderStats(active, state) + winner + countdown + '<div class="raffle-actions">' + actions + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div>' + renderStats(active, state) + winner + countdown + renderActions(active, state) + '</section>';
   }
 
   function renderRaffleController(state) {
@@ -186,6 +232,11 @@
     let currentTab = "polls";
     let renderQueued = false;
     let countdownTimer = null;
+
+    function setPending(eventName) {
+      state = { ...state, pendingEvent: eventName, error: "" };
+      scheduleRender();
+    }
 
     function update(eventName, payload) {
       state = reduceRaffleControllerState(state, eventName, payload);
@@ -253,20 +304,70 @@
       bindRafflePanel(rafflePanel);
     }
 
+    function bindSlideConfirm(slider, dispatchSlideConfirm) {
+      let dragging = false;
+      let startX = 0;
+      let width = 1;
+      let progress = 0;
+
+      const updateProgress = (clientX) => {
+        progress = Math.max(0, Math.min(1, (clientX - startX) / width));
+        setSlideProgress(slider, progress);
+      };
+      const finish = () => {
+        if (!dragging) return;
+        dragging = false;
+        if (progress >= SLIDE_COMPLETE_RATIO) dispatchSlideConfirm(slider);
+        else resetSlideConfirm(slider);
+      };
+      const start = (clientX) => {
+        if (slider.disabled || slider.dataset.slideCompleted === "true") return;
+        const rect = slider.getBoundingClientRect();
+        startX = rect.left;
+        width = Math.max(1, rect.width - 48);
+        dragging = true;
+        updateProgress(clientX);
+      };
+
+      if (root.PointerEvent) {
+        slider.addEventListener("pointerdown", (event) => {
+          start(event.clientX);
+          if (!dragging) return;
+          slider.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        });
+        slider.addEventListener("pointermove", (event) => { if (dragging) updateProgress(event.clientX); });
+        slider.addEventListener("pointerup", finish);
+        slider.addEventListener("pointercancel", () => { dragging = false; resetSlideConfirm(slider); });
+      } else {
+        slider.addEventListener("mousedown", (event) => { start(event.clientX); event.preventDefault(); });
+        root.document?.addEventListener("mousemove", (event) => { if (dragging) updateProgress(event.clientX); });
+        root.document?.addEventListener("mouseup", finish);
+        slider.addEventListener("touchstart", (event) => { start(event.touches?.[0]?.clientX || 0); }, { passive: true });
+        slider.addEventListener("touchmove", (event) => { if (dragging) updateProgress(event.touches?.[0]?.clientX || 0); }, { passive: true });
+        slider.addEventListener("touchend", finish);
+      }
+      slider.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        dispatchSlideConfirm(slider);
+      });
+    }
+
     function bindRafflePanel(panel) {
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => {
         if (!canDispatchRaffleAction(state, "raffle:create")) return;
-        state = { ...state, pendingEvent: "raffle:create", error: "" };
+        setPending("raffle:create");
         socket.emit("raffle:create", createRaffleConfig(button.dataset.raffleCreate));
-        scheduleRender();
       }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => {
         const eventName = button.dataset.raffleAction;
         if (!canDispatchRaffleAction(state, eventName)) return;
-        state = { ...state, pendingEvent: eventName, error: "" };
+        setPending(eventName);
         socket.emit(eventName);
-        scheduleRender();
       }));
+      const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
+      panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => bindSlideConfirm(slider, dispatchSlideConfirm));
     }
 
     function renderAllHosts() {
@@ -308,12 +409,15 @@
     TEMP_VISUAL_KEY_OPTIONS,
     RAFFLE_MODES,
     RAFFLE_EVENTS,
+    SLIDE_COMPLETE_RATIO,
     createRaffleConfig,
     createInitialRaffleControllerState,
     normalizeControllerState,
     reduceRaffleControllerState,
     getRaffleActions,
     canDispatchRaffleAction,
+    createSlideConfirmDispatcher,
+    resetSlideConfirm,
     renderRaffleController,
     errorMessage,
     winnerLabel,
