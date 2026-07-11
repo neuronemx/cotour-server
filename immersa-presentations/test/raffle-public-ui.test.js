@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { RaffleStore } = require("../raffle-store");
 const { renderAudienceRaffle, renderScreenRaffle, remainingSeconds } = require("../public/shared/raffle-public-ui");
+const { adjustRaffleHtml } = require("../public/shared/raffle-ux-adjustments");
 
 const visualKeyConfig = {
   mode: "visual_key",
@@ -87,10 +88,13 @@ test("Audience visual key and poll lock after authoritative ownEntry", () => {
 
 test("Audience drawing uses revealAt and refresh does not restart countdown", () => {
   const active = { mode: "free", state: "drawing", revealAt: new Date(10_000).toISOString() };
+  const first = adjustRaffleHtml(renderAudienceRaffle({ active }, false, 6_100));
+  const refreshed = adjustRaffleHtml(renderAudienceRaffle({ active }, false, 8_900));
 
   assert.equal(remainingSeconds(active, 6_100), 4);
-  assert.match(renderAudienceRaffle({ active }, false, 6_100), /Revelación en<\/span><strong>4s/);
-  assert.match(renderAudienceRaffle({ active }, false, 8_900), /Revelación en<\/span><strong>2s/);
+  assert.match(first, /Revelación en<\/span><strong>4<\/strong>/);
+  assert.match(refreshed, /Revelación en<\/span><strong>2<\/strong>/);
+  assert.doesNotMatch(first + refreshed, /<strong>\d+s<\/strong>/);
 });
 
 test("Audience winner is private and non-winner stays positive without identity", () => {
@@ -132,9 +136,10 @@ test("Screen drawing and winner keep identity private", () => {
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs: 1000 });
 
-  const drawingHtml = renderScreenRaffle(store.getScreenState("s1"), 3000);
+  const drawingHtml = adjustRaffleHtml(renderScreenRaffle(store.getScreenState("s1"), 3000));
   assert.match(drawingHtml, /Sorteando/);
   assert.match(drawingHtml, /<strong>3<\/strong>/);
+  assert.doesNotMatch(drawingHtml, /<strong>\d+s<\/strong>/);
   assert.doesNotMatch(drawingHtml, /PARTICIPANTES|ELEGIBLES|Mesa|audienceId|pendingWinner/);
 
   store.revealWinner("s1", { nowMs: 6000 });
