@@ -161,6 +161,7 @@
   function winnerLabel(active) { const winner = active?.winner || active?.winners?.[0] || null; const label = winner?.label || winner?.name; return label ? String(label) : "Ganador seleccionado"; }
   function revealTimestamp(active) { const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || ""); return Number.isFinite(timestamp) ? timestamp : null; }
   function remainingRaffleSeconds(active, nowMs = Date.now()) { const timestamp = revealTimestamp(active); if (!Number.isFinite(timestamp)) return null; return Math.max(0, Math.ceil((timestamp - nowMs) / 1000)); }
+  function isRaffleNavigationLocked(state) { return state?.active?.state === "drawing" || state?.active?.state === "winner"; }
 
   function getRaffleActions(state) {
     const active = state?.active;
@@ -200,7 +201,7 @@
     let renderQueued = false;
     let countdownTimer = null;
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
-    function update(eventName, payload) { state = reduceRaffleControllerState(state, eventName, payload); syncCountdownTimer(); scheduleRender(); }
+    function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; syncCountdownTimer(); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
     function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
@@ -235,15 +236,16 @@
       rafflePanel.hidden = !inRaffleSubview;
       if (!inRaffleSubview) return;
       let nextHtml = "";
-      try { nextHtml = '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>' + renderRaffleController(state); }
-      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>' + renderSelection({ ...state, active: null, pendingEvent: "" }); }
+      const backMarkup = isRaffleNavigationLocked(state) ? "" : '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>';
+      try { nextHtml = backMarkup + renderRaffleController(state); }
+      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = backMarkup + renderSelection({ ...state, active: null, pendingEvent: "" }); }
       if (rafflePanel.dataset.raffleHtml === nextHtml) return;
       rafflePanel.dataset.raffleHtml = nextHtml;
       rafflePanel.innerHTML = nextHtml;
       bindRafflePanel(rafflePanel);
     }
     function bindRafflePanel(panel) {
-      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { currentTab = "polls"; renderAllHosts(); });
+      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (isRaffleNavigationLocked(state)) return; currentTab = "polls"; renderAllHosts(); });
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { if (!canDispatchRaffleAction(state, "raffle:create")) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(button.dataset.raffleCreate)); }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
@@ -251,7 +253,7 @@
     }
     function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); observeHosts(); scheduleRender(); return { getState: () => state, setTab: (tab) => { currentTab = tab; renderAllHosts(); } };
+    installSocketHandlers(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && isRaffleNavigationLocked(state)) return false; currentTab = tab; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
@@ -264,5 +266,5 @@
   }
 
   if (root?.document && root?.io) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, installSocketCapture };
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
 });
