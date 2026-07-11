@@ -162,6 +162,8 @@
   function revealTimestamp(active) { const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || ""); return Number.isFinite(timestamp) ? timestamp : null; }
   function remainingRaffleSeconds(active, nowMs = Date.now()) { const timestamp = revealTimestamp(active); if (!Number.isFinite(timestamp)) return null; return Math.max(0, Math.ceil((timestamp - nowMs) / 1000)); }
   function isRaffleNavigationLocked(state) { return state?.active?.state === "drawing" || state?.active?.state === "winner"; }
+  function isExternalCloseTarget(target) { return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], #interactionToggle")); }
+  function blockEvent(event) { event.preventDefault?.(); event.stopImmediatePropagation?.(); event.stopPropagation?.(); }
 
   function getRaffleActions(state) {
     const active = state?.active;
@@ -205,6 +207,12 @@
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
     function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
+    function installNavigationLockGuards() {
+      if (!root.document || root.__immersaRaffleNavigationGuard) return;
+      root.document.addEventListener("keydown", (event) => { if (event.key === "Escape" && isRaffleNavigationLocked(state)) blockEvent(event); }, true);
+      root.document.addEventListener("click", (event) => { if (isRaffleNavigationLocked(state) && isExternalCloseTarget(event.target)) blockEvent(event); }, true);
+      root.__immersaRaffleNavigationGuard = true;
+    }
     function ensureShell(host) {
       if (!host || host.querySelector(".raffle-tab-shell")) return;
       const existing = root.document.createElement("div");
@@ -253,7 +261,7 @@
     }
     function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && isRaffleNavigationLocked(state)) return false; currentTab = tab; renderAllHosts(); return true; } };
+    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && isRaffleNavigationLocked(state)) return false; currentTab = tab; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
