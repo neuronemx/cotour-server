@@ -2,11 +2,20 @@
   const api = factory(root || {});
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ImmersaSlideConfirm = api;
-})(typeof window !== "undefined" ? window : globalThis, function () {
+})(typeof window !== "undefined" ? window : globalThis, function (root) {
   const COMPLETE_THRESHOLD = 0.82;
 
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+  }
+
+  function loadRaffleUxAdjustments() {
+    if (!root.document || root.ImmersaRaffleUxAdjustments || root.__immersaRaffleUxAdjustmentsLoading) return;
+    root.__immersaRaffleUxAdjustmentsLoading = true;
+    const script = root.document.createElement("script");
+    script.src = "/shared/raffle-ux-adjustments.js";
+    script.defer = true;
+    root.document.head.appendChild(script);
   }
 
   function markup({ label, className = "", disabled = false, dataAttribute = "data-slide-confirm" } = {}) {
@@ -94,5 +103,6 @@
     return { reset: () => { completed = false; reset(control); }, setPending: (pending) => setPending(control, pending) };
   }
 
+  loadRaffleUxAdjustments();
   return { COMPLETE_THRESHOLD, markup, attach, reset, setPending };
 });
