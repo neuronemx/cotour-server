@@ -13,10 +13,10 @@
 
   const sharedSlideConfirm = loadSlideConfirm();
   const TEMP_VISUAL_KEY_OPTIONS = [
-    { id: "visual_key_1", label: "Clave A", tone: "cyan", correct: true },
-    { id: "visual_key_2", label: "Clave B", tone: "violet", correct: false },
-    { id: "visual_key_3", label: "Clave C", tone: "orange", correct: false },
-    { id: "visual_key_4", label: "Clave D", tone: "green", correct: false }
+    { id: "visual_key_1", label: "Clave A", tone: "cyan" },
+    { id: "visual_key_2", label: "Clave B", tone: "violet" },
+    { id: "visual_key_3", label: "Clave C", tone: "orange" },
+    { id: "visual_key_4", label: "Clave D", tone: "green" }
   ];
   const RAFFLE_MODES = [
     { id: "visual_key", label: "Clave visual" },
@@ -113,13 +113,17 @@
     setPending: fallbackSlideSetPending
   };
 
-  function createRaffleConfig(mode) {
+  function visualKeyOptionIds() {
+    return TEMP_VISUAL_KEY_OPTIONS.map((option) => option.id);
+  }
+
+  function createRaffleConfig(mode, state = {}) {
     if (mode === "visual_key") {
       return {
         mode,
         title: "Sorteo",
-        prompt: "Elige la clave visual correcta",
-        entryKey: TEMP_VISUAL_KEY_OPTIONS.find((option) => option.correct).id,
+        prompt: "Elige una opción",
+        entryKey: state.visualKeyDraftEntryKey || "",
         options: TEMP_VISUAL_KEY_OPTIONS.map(({ id, label }) => ({ id, label }))
       };
     }
@@ -128,13 +132,13 @@
   }
 
   function createInitialRaffleControllerState() {
-    return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, pendingEvent: "", error: "" };
+    return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, visualKeyDraftEntryKey: "", pendingEvent: "", error: "" };
   }
-  function normalizeControllerState(payload) { return { active: payload?.active || null, previousWinnerCount: Number(payload?.previousWinnerCount || 0) }; }
+  function normalizeControllerState(payload) { return { active: payload?.active || null, previousWinnerCount: Number(payload?.previousWinnerCount || 0), visualKeyDraftEntryKey: String(payload?.visualKeyDraftEntryKey || "") }; }
   function activeFromEventPayload(payload) { return payload?.raffle || payload?.active || payload || null; }
   function numericCount(value, fallback = 0) { const count = Number(value); return Number.isFinite(count) ? count : fallback; }
   function errorMessage(reason) {
-    const messages = { active_interaction_exists: "Cierra la encuesta activa antes de iniciar un sorteo.", active_raffle_exists: "Ya hay un sorteo activo.", invalid_raffle_mode: "Este modo de sorteo no está disponible.", visual_key_requires_four_options: "Clave visual necesita cuatro opciones.", entry_key_required: "Clave visual necesita una respuesta correcta.", entry_key_must_match_option: "La respuesta correcta debe existir entre las cuatro opciones.", poll_options_required: "Encuesta necesita al menos dos opciones.", no_eligible_entries: "No hay participantes elegibles.", no_connected_eligible_entries: "No hay participantes elegibles conectados." };
+    const messages = { active_interaction_exists: "Cierra la encuesta activa antes de iniciar un sorteo.", active_raffle_exists: "Ya hay un sorteo activo.", invalid_raffle_mode: "Este modo de sorteo no está disponible.", visual_key_requires_four_options: "Clave visual necesita cuatro opciones.", entry_key_required: "Elige la opción correcta antes de abrir la participación.", entry_key_must_match_option: "La respuesta correcta debe existir entre las cuatro opciones.", poll_options_required: "Encuesta necesita al menos dos opciones.", no_eligible_entries: "No hay participantes elegibles.", no_connected_eligible_entries: "No hay participantes elegibles conectados." };
     return messages[reason] || "No se pudo completar la acción. Intenta de nuevo.";
   }
 
@@ -149,7 +153,7 @@
     if (eventName === "raffle:closed") return { ...next, active: null, pendingEvent: "", error: "" };
     if (eventName === "raffle:state" || eventName === "raffle:winners_reset") {
       const normalized = normalizeControllerState(payload);
-      return { ...next, active: normalized.active, previousWinnerCount: normalized.previousWinnerCount, pendingEvent: "", error: "" };
+      return { ...next, active: normalized.active, previousWinnerCount: normalized.previousWinnerCount, visualKeyDraftEntryKey: normalized.visualKeyDraftEntryKey, pendingEvent: "", error: "" };
     }
     if (["raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner"].includes(eventName)) return { ...next, active: activeFromEventPayload(payload), pendingEvent: "", error: "" };
     return next;
@@ -174,6 +178,7 @@
     if (active.state === "winner") return [{ event: "raffle:close", label: "Cerrar sorto", primary: true }].map((action) => ({ ...action, label: "Cerrar sorteo" }));
     return [];
   }
+  function canCreateMode(state, mode) { if (state?.active || state?.activeInteraction || state?.pendingEvent) return false; if (mode === "visual_key") return visualKeyOptionIds().includes(state.visualKeyDraftEntryKey); return true; }
   function canDispatchRaffleAction(state, eventName) { if (!RAFFLE_EVENTS.has(eventName) || state?.pendingEvent) return false; if (eventName === "raffle:create") return !state?.active && !state?.activeInteraction; return getRaffleActions(state).some((action) => action.event === eventName && !action.disabled); }
   function resetSlideConfirm(slider) { SlideConfirm.reset(slider); }
   function createSlideConfirmDispatcher({ getState, emit, setPending, reset = resetSlideConfirm }) {
@@ -189,7 +194,17 @@
     };
   }
 
-  function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const buttons = RAFFLE_MODES.map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (disabled ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + buttons + '</div></section>'; }
+  function renderVisualKeyConfig(state, disabled) {
+    const selected = state.visualKeyDraftEntryKey || "";
+    const options = TEMP_VISUAL_KEY_OPTIONS.map((option) => {
+      const active = option.id === selected;
+      return '<button type="button" class="raffle-key-option ' + (active ? 'is-selected' : '') + '" data-raffle-key-option="' + option.id + '" aria-pressed="' + String(active) + '" ' + (disabled ? 'disabled' : '') + '><span>' + escapeHtml(option.label) + '</span></button>';
+    }).join("");
+    const createDisabled = disabled || !selected;
+    return '<div class="raffle-mode-card raffle-visual-key-card"><strong>Clave visual</strong><div class="raffle-key-options" role="group" aria-label="Opción correcta">' + options + '</div><button type="button" class="primary raffle-create-visual" data-raffle-create="visual_key" ' + (createDisabled ? 'disabled' : '') + '>Abrir participación</button></div>';
+  }
+
+  function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const visual = renderVisualKeyConfig(state, disabled); const otherButtons = RAFFLE_MODES.filter((mode) => mode.id !== "visual_key").map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (!canCreateMode(state, mode.id) ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + visual + otherButtons + '</div></section>'; }
   function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div><div><span>BOLETOS</span><strong>' + entryCount(active) + '</strong></div></div>'; if (active.state === "entries_closed") return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>'; return ""; }
   function renderSlideConfirm(state) { return SlideConfirm.markup({ label: "Desliza para iniciar sorteo", className: "raffle-slide-confirm is-raffle", disabled: Boolean(state.pendingEvent), dataAttribute: "data-raffle-slide-confirm" }); }
   function renderActionButtons(actions, state, extraClass = "") { return '<div class="raffle-actions ' + extraClass + '">' + actions.map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + (action.secondary ? 'secondary ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("") + '</div>'; }
@@ -254,7 +269,8 @@
     }
     function bindRafflePanel(panel) {
       panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { if (isRaffleNavigationLocked(state)) return; currentTab = "polls"; renderAllHosts(); });
-      panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { if (!canDispatchRaffleAction(state, "raffle:create")) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(button.dataset.raffleCreate)); }));
+      panel.querySelectorAll("[data-raffle-key-option]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; socket.emit("raffle:configure_visual_key", { entryKey: button.dataset.raffleKeyOption }); }));
+      panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { const mode = button.dataset.raffleCreate; if (!canDispatchRaffleAction(state, "raffle:create") || !canCreateMode(state, mode)) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(mode, state)); }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
       panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => SlideConfirm.attach(slider, { isDisabled: () => !canDispatchRaffleAction(state, "raffle:draw"), onComplete: () => dispatchSlideConfirm(slider) }));
@@ -274,5 +290,5 @@
   }
 
   if (root?.document && root?.io) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
 });
