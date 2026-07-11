@@ -45,7 +45,7 @@
   }
 
   function createInitialRaffleControllerState() {
-    return { active: null, previousWinnerCount: 0, activeInteraction: null, pendingEvent: "", error: "" };
+    return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, pendingEvent: "", error: "" };
   }
 
   function normalizeControllerState(payload) {
@@ -54,6 +54,11 @@
 
   function activeFromEventPayload(payload) {
     return payload?.raffle || payload?.active || payload || null;
+  }
+
+  function numericCount(value, fallback = 0) {
+    const count = Number(value);
+    return Number.isFinite(count) ? count : fallback;
   }
 
   function errorMessage(reason) {
@@ -73,6 +78,8 @@
 
   function reduceRaffleControllerState(state, eventName, payload = {}) {
     const next = { ...state };
+    if (eventName === "state" || eventName === "presentation_state") return { ...next, connectedAudienceCount: numericCount(payload?.audienceCount, next.connectedAudienceCount) };
+    if (eventName === "audience_count") return { ...next, connectedAudienceCount: numericCount(payload, next.connectedAudienceCount) };
     if (eventName === "interaction:state") return { ...next, activeInteraction: payload?.active || null };
     if (eventName === "interaction:active") return { ...next, activeInteraction: payload || null };
     if (eventName === "interaction:closed") return { ...next, activeInteraction: null };
@@ -144,12 +151,19 @@
     return '<section class="raffle-section"><div class="raffle-heading"><span>Sorteos</span><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + buttons + '</div></section>';
   }
 
+  function renderStats(active, state) {
+    if (active.state === "collecting") {
+      return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div><div><span>BOLETOS</span><strong>' + entryCount(active) + '</strong></div></div>';
+    }
+    return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>';
+  }
+
   function renderActive(active, state) {
     const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo";
     const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : "";
     const drawingNote = active.state === "drawing" && !active.pendingWinnerSelected ? '<p class="raffle-warning">Esperando selección de ganador...</p>' : "";
     const actions = getRaffleActions(state).map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div><div class="raffle-stats"><div><span>Participantes</span><strong>' + entryCount(active) + '</strong></div><div><span>Elegibles</span><strong>' + eligibleCount(active) + '</strong></div></div>' + winner + drawingNote + '<div class="raffle-actions">' + actions + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><span>' + escapeHtml(modeLabel(active.mode)) + '</span><h2>' + escapeHtml(statusText) + '</h2></div>' + renderStats(active, state) + winner + drawingNote + '<div class="raffle-actions">' + actions + '</div></section>';
   }
 
   function renderRaffleController(state) {
@@ -176,7 +190,7 @@
     }
 
     function installSocketHandlers() {
-      ["raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => {
+      ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => {
         socket.on(eventName, (payload) => update(eventName, payload));
       });
       socket.on("interaction:closed", () => update("interaction:closed"));
