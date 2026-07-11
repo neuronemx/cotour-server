@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const SlideConfirm = require("../public/shared/slide-confirm");
 const {
   createRaffleConfig,
   createInitialRaffleControllerState,
@@ -9,7 +10,8 @@ const {
   createSlideConfirmDispatcher,
   renderRaffleController,
   winnerLabel,
-  remainingRaffleSeconds
+  remainingRaffleSeconds,
+  SLIDE_COMPLETE_RATIO
 } = require("../public/shared/raffle-controller");
 
 test("maps raffle states to available controller actions", () => {
@@ -36,13 +38,7 @@ test("does not expose manual reveal or reset outside entries_closed", () => {
 test("reconstructs raffle controller state from server state after refresh", () => {
   let state = createInitialRaffleControllerState();
   state = reduceRaffleControllerState(state, "raffle:state", {
-    active: {
-      id: "r1",
-      mode: "free",
-      state: "entries_closed",
-      entryCount: 2,
-      eligibleCount: 2
-    },
+    active: { id: "r1", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 },
     previousWinnerCount: 1
   });
 
@@ -64,9 +60,7 @@ test("refresh during drawing keeps authoritative revealAt for countdown", () => 
 });
 
 test("applies the same raffle state events for Speaker and Stage controllers", () => {
-  const payload = {
-    active: { id: "r3", mode: "poll", state: "collecting", entryCount: 0, eligibleCount: 0 }
-  };
+  const payload = { active: { id: "r3", mode: "poll", state: "collecting", entryCount: 0, eligibleCount: 0 } };
   const speaker = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", payload);
   const stage = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", payload);
 
@@ -117,18 +111,27 @@ test("entries_closed renders frozen participant and eligible counts", () => {
   assert.doesNotMatch(html, /CONECTADOS/);
 });
 
-test("entries_closed uses slide confirmation instead of a normal draw button", () => {
+test("entries_closed uses shared slide confirmation instead of a normal draw button", () => {
   const state = {
     ...createInitialRaffleControllerState(),
     active: { id: "r7", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
   };
 
   const html = renderRaffleController(state);
+  assert.match(html, /interaction-close-slider/);
+  assert.match(html, /interaction-close-slider-track/);
+  assert.match(html, /interaction-close-slider-label/);
+  assert.match(html, /interaction-close-slider-knob/);
   assert.match(html, /data-raffle-slide-confirm/);
   assert.match(html, /Desliza para iniciar sorteo/);
   assert.doesNotMatch(html, /data-raffle-action="raffle:draw"/);
   assert.match(html, /Restablecer ganadores/);
   assert.match(html, /Cerrar sorteo/);
+});
+
+test("raffle slide confirmation shares the close-slider threshold", () => {
+  assert.equal(SLIDE_COMPLETE_RATIO, SlideConfirm.COMPLETE_THRESHOLD);
+  assert.equal(SlideConfirm.COMPLETE_THRESHOLD, 0.82);
 });
 
 test("slide confirmation emits raffle:draw exactly once", () => {
@@ -137,7 +140,7 @@ test("slide confirmation emits raffle:draw exactly once", () => {
     ...createInitialRaffleControllerState(),
     active: { id: "r8", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 }
   };
-  const slider = { dataset: {}, style: { setProperty() {} } };
+  const slider = { dataset: {}, style: { setProperty() {} }, classList: { remove() {} } };
   const dispatch = createSlideConfirmDispatcher({
     getState: () => state,
     emit: (eventName) => emitted.push(eventName),
