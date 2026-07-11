@@ -101,21 +101,50 @@ test("double simultaneous Speaker and Stage action leaves only one active item",
   assert.equal(Boolean(raffleStore.getActive("s1")) !== interactionStore.hasActive("s1"), true);
 });
 
-test("visual_key requires valid config and lets incorrect option retry", () => {
+test("visual_key requires valid config and no default correct option", () => {
   const store = new RaffleStore();
   assert.equal(store.create({ sessionId: "s1", config: { mode: "unknown" } }).reason, "invalid_raffle_mode");
   assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, options: visualKeyConfig.options.slice(0, 3) } }).reason, "visual_key_requires_four_options");
+  assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, entryKey: "" } }).reason, "entry_key_required");
   assert.equal(store.create({ sessionId: "s1", config: { ...visualKeyConfig, entryKey: "x" } }).reason, "entry_key_must_match_option");
+});
 
-  assert.equal(store.create({ sessionId: "s2", config: visualKeyConfig }).ok, true);
-  const wrong = store.enter({ sessionId: "s2", audienceId: "a1", optionId: "a" });
-  assert.equal(wrong.ok, false);
-  assert.equal(wrong.reason, "incorrect_option");
-  assert.equal(store.getAudienceState("s2", "a1").active.ownEntry, null);
+test("visual_key stores one editable selection and evaluates only on close", () => {
+  const store = new RaffleStore();
+  assert.equal(store.create({ sessionId: "s1", config: visualKeyConfig }).ok, true);
 
-  const correct = store.enter({ sessionId: "s2", audienceId: "a1", optionId: "b" });
-  assert.equal(correct.ok, true);
-  assert.equal(store.enter({ sessionId: "s2", audienceId: "a1", optionId: "b" }).reason, "duplicate_entry");
+  const wrong = store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" });
+  assert.equal(wrong.ok, true);
+  assert.equal(store.getAudienceState("s1", "a1").active.ownSelection.selectedOptionId, "a");
+  assert.equal(store.getAudienceState("s1", "a1").active.ownEntry, null);
+  assert.equal(store.getControllerState("s1").active.entryCount, 0);
+
+  const changed = store.enter({ sessionId: "s1", audienceId: "a1", optionId: "b" });
+  assert.equal(changed.ok, true);
+  const collecting = store.getAudienceState("s1", "a1").active;
+  assert.equal(collecting.ownSelection.selectedOptionId, "b");
+  assert.equal(collecting.ownEntry, null);
+
+  store.enter({ sessionId: "s1", audienceId: "a2", optionId: "a" });
+  assert.equal(store.closeEntries("s1", connected("a1", "a2")).ok, true);
+  const state = store.getControllerState("s1").active;
+  assert.equal(state.entryCount, 1);
+  assert.equal(state.eligibleCount, 1);
+  assert.equal(store.getAudienceState("s1", "a1").active.ownEntry.selectedOptionId, "b");
+  assert.equal(store.getAudienceState("s1", "a2").active.ownEntry, null);
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" }).reason, "entries_not_collecting");
+});
+
+test("visual_key refresh preserves the latest audience selection", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: visualKeyConfig });
+  store.enter({ sessionId: "s1", audienceId: "a1", optionId: "a" });
+  store.enter({ sessionId: "s1", audienceId: "a1", optionId: "c" });
+
+  const refreshed = store.getAudienceState("s1", "a1");
+  assert.equal(refreshed.active.ownSelection.raffleId, refreshed.active.id);
+  assert.equal(refreshed.active.ownSelection.selectedOptionId, "c");
+  assert.equal(refreshed.active.ownEntry, null);
 });
 
 test("poll raffle accepts one response per audience", () => {
@@ -210,6 +239,8 @@ test("role payloads keep audience and screen private", () => {
   assert.equal("pollResults" in screen.active, false);
   assert.equal("entries" in screen.active, false);
   assert.equal("winner" in screen.active, false);
+  assert.equal("entryKey" in screen.active, false);
+  assert.equal("entryKey" in audience.active, false);
   assert.equal("pollResults" in audience.active, false);
   assert.equal("entryCount" in audience.active, false);
   assert.equal("winners" in audience, false);
