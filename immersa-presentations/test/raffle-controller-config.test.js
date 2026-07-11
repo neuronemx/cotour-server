@@ -13,6 +13,19 @@ function tagFor(html, optionId) {
   return html.match(new RegExp('<button[^>]+data-raffle-key-option="' + optionId + '"[^>]*>'))?.[0] || "";
 }
 
+test("raffle controller starts in neutral mode selection", () => {
+  const state = createInitialRaffleControllerState();
+  const html = renderRaffleController(state);
+
+  assert.equal(state.visualKeyDraftEntryKey, "");
+  assert.equal(state.configMode, "");
+  assert.match(html, /data-raffle-config-mode="visual_key"/);
+  assert.match(html, /data-raffle-create="poll"/);
+  assert.match(html, /data-raffle-create="free"/);
+  assert.doesNotMatch(html, /data-raffle-key-option=/);
+  assert.doesNotMatch(html, /Abrir participación/);
+});
+
 test("visual key controller starts without a default correct option", () => {
   const state = createInitialRaffleControllerState();
   const config = createRaffleConfig("visual_key", state);
@@ -23,8 +36,9 @@ test("visual key controller starts without a default correct option", () => {
   assert.equal(canCreateMode(state, "visual_key"), false);
 });
 
-test("visual key setup buttons show only A, B, C, and D", () => {
-  const html = renderRaffleController(createInitialRaffleControllerState());
+test("visual key setup buttons show only A, B, C, and D after selecting visual key mode", () => {
+  const state = { ...createInitialRaffleControllerState(), configMode: "visual_key" };
+  const html = renderRaffleController(state);
 
   assert.match(html, /data-raffle-key-label="A"/);
   assert.match(html, /data-raffle-key-label="B"/);
@@ -38,7 +52,7 @@ test("visual key setup buttons show only A, B, C, and D", () => {
 });
 
 test("visual key selection enables create and stays private to controller config", () => {
-  const state = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", {
+  const state = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", {
     visualKeyDraftEntryKey: "visual_key_2",
     active: null
   });
@@ -47,6 +61,7 @@ test("visual key selection enables create and stays private to controller config
   const config = createRaffleConfig("visual_key", state);
 
   assert.equal(canCreateMode(state, "visual_key"), true);
+  assert.equal(state.configMode, "visual_key");
   assert.match(selectedTag, /is-selected/);
   assert.match(selectedTag, /aria-pressed="true"/);
   assert.match(selectedTag, /box-shadow/);
@@ -57,7 +72,7 @@ test("visual key selection enables create and stays private to controller config
 });
 
 test("visual key create is disabled and non-startable without entryKey", () => {
-  const state = createInitialRaffleControllerState();
+  const state = { ...createInitialRaffleControllerState(), configMode: "visual_key" };
   const html = renderRaffleController(state);
 
   assert.equal(canCreateMode(state, "visual_key"), false);
@@ -66,12 +81,26 @@ test("visual key create is disabled and non-startable without entryKey", () => {
   assert.match(html, /cursor:not-allowed/);
 });
 
-test("Speaker and Stage synchronize visual key draft through controller state", () => {
-  const speaker = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", {
+test("closing or cancelling clears visual key setup state", () => {
+  const configured = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", {
     visualKeyDraftEntryKey: "visual_key_3",
     active: null
   });
-  const stage = reduceRaffleControllerState(createInitialRaffleControllerState(), "raffle:state", {
+  const closed = reduceRaffleControllerState(configured, "raffle:closed", { raffleId: "r1" });
+  const html = renderRaffleController(closed);
+
+  assert.equal(closed.visualKeyDraftEntryKey, "");
+  assert.equal(closed.configMode, "");
+  assert.doesNotMatch(html, /data-raffle-key-option=/);
+  assert.doesNotMatch(html, /Abrir participación/);
+});
+
+test("Speaker and Stage synchronize visual key draft through controller state", () => {
+  const speaker = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", {
+    visualKeyDraftEntryKey: "visual_key_3",
+    active: null
+  });
+  const stage = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", {
     visualKeyDraftEntryKey: speaker.visualKeyDraftEntryKey,
     active: null
   });
