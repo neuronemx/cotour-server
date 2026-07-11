@@ -34,12 +34,16 @@
     return Array.isArray(active?.options) ? active.options.filter((option) => option && option.id && option.label) : [];
   }
 
-  function renderOption(option, disabled) {
+  function selectedOptionId(active) {
+    return active?.ownSelection?.selectedOptionId || active?.ownEntry?.selectedOptionId || "";
+  }
+
+  function renderOption(option, disabled, selected = false) {
     const asset = option.thumbnail || option.thumb || option.image || option.asset || "";
     const visual = asset
       ? '<span class="raffle-public-option-media"><img src="' + escapeHtml(asset) + '" alt=""></span>'
       : '<span class="raffle-public-option-fallback">' + escapeHtml(option.label).slice(0, 1).toUpperCase() + '</span>';
-    return '<button type="button" class="raffle-public-option" data-raffle-option="' + escapeHtml(option.id) + '" ' + (disabled ? 'disabled' : '') + '>' + visual + '<strong>' + escapeHtml(option.label) + '</strong></button>';
+    return '<button type="button" class="raffle-public-option ' + (selected ? 'is-selected' : '') + '" data-raffle-option="' + escapeHtml(option.id) + '" aria-pressed="' + String(Boolean(selected)) + '" ' + (disabled ? 'disabled' : '') + '>' + visual + '<strong>' + escapeHtml(option.label) + '</strong></button>';
   }
 
   function renderAudienceCollecting(active) {
@@ -49,13 +53,18 @@
     }
     if (hasEntry) return '<h2>Boleto activo</h2><p>Tu participación quedó registrada.</p>';
     const options = safeOptions(active);
-    const copy = active.mode === "visual_key" ? "Elige la clave visual preparada." : "Elige una opción para activar tu boleto.";
-    return '<h2>' + escapeHtml(modeLabel(active.mode)) + '</h2><p>' + escapeHtml(active.prompt || copy) + '</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false)).join("") + '</div>';
+    if (active.mode === "visual_key") {
+      const selected = selectedOptionId(active);
+      return '<h2>Elige una opción</h2><p>El presentador te dirá la correcta</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false, option.id === selected)).join("") + '</div>';
+    }
+    const copy = "Elige una opción para activar tu boleto.";
+    return '<h2>' + escapeHtml(modeLabel(active.mode)) + '</h2><p>' + escapeHtml(active.prompt || copy) + '</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false, option.id === selectedOptionId(active))).join("") + '</div>';
   }
 
   function renderAudienceEntriesClosed(active) {
     if (active.ownEntry) return '<h2>Boleto activo</h2><p>La tómbola está cerrada. Mantente atento.</p>';
-    return '<h2>La tómbola está cerrada</h2><p>Gracias por estar aquí.</p>';
+    if (active.mode === "visual_key" && active.ownSelection) return '<h2>Gracias por participar :)</h2>';
+    return '<h2>La tómbola ya está cerrada :(</h2><p>Mantente atento a próximos sorteos</p>';
   }
 
   function renderAudienceDrawing(active, nowMs) {
@@ -87,7 +96,7 @@
     if (active.mode === "visual_key") {
       const options = safeOptions(active);
       const optionMarkup = options.length ? '<div class="raffle-screen-options">' + options.map((option) => '<span>' + escapeHtml(option.label) + '</span>').join("") + '</div>' : "";
-      return '<h2>Clave visual</h2><p>' + escapeHtml(active.prompt || "Participa desde tu pantalla") + '</p>' + optionMarkup;
+      return '<h2>Elige la opción correcta</h2><p>El presentador te la dirá</p>' + optionMarkup;
     }
     return '<h2>Participa desde tu pantalla</h2>';
   }
@@ -190,13 +199,15 @@
       active = normalizeRaffleState(payload);
       if (!active) return clearOverlay();
       if (active.state !== "winner") privateWinner = false;
-      if (active.ownEntry) pendingEntry = false;
+      if (active.ownEntry || active.ownSelection) pendingEntry = false;
       syncTimer();
       render();
     }
 
     function submitOption(optionId) {
-      if (!active || pendingEntry || active.ownEntry || active.state !== "collecting") return;
+      if (!active || pendingEntry || active.state !== "collecting") return;
+      if (active.mode !== "visual_key" && active.ownEntry) return;
+      if (active.mode === "visual_key" && selectedOptionId(active) === optionId) return;
       pendingEntry = true;
       if (active.mode === "visual_key") socket.emit("raffle:enter", { optionId });
       if (active.mode === "poll") socket.emit("raffle:submit_poll_response", { optionId });
@@ -219,10 +230,9 @@
     });
     socket.on("raffle:entry_accepted", (payload = {}) => applyState({ ...active, ownEntry: payload.entry || active?.ownEntry || {} }));
     socket.on("raffle:poll_response_accepted", (payload = {}) => applyState({ ...active, ownEntry: payload.entry || active?.ownEntry || {} }));
-    socket.on("raffle:rejected", (payload = {}) => {
+    socket.on("raffle:rejected", () => {
       pendingEntry = false;
-      if (payload.event === "raffle:enter" && payload.reason === "incorrect_option") render();
-      else render();
+      render();
     });
     socket.on("raffle:closed", clearOverlay);
   }
