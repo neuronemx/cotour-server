@@ -278,19 +278,21 @@ test("drawing renders automatic countdown without manual action", () => {
   assert.doesNotMatch(html, /Mostrar ganador/);
 });
 
-test("visual key preview does not create individual selectable actions", () => {
+test("visual key selector stays a single clean mode button", () => {
   const html = renderRaffleController(createInitialRaffleControllerState());
+  const visualKeyCard = html.match(/<button type="button" class="raffle-mode-card" data-raffle-create="visual_key"[\s\S]*?<\/button>/)?.[0] || "";
 
-  assert.match(html, /data-raffle-create="visual_key"/);
-  assert.match(html, /Usa una dinámica visual preparada/);
-  assert.match(html, /Vista previa de claves visuales temporales/);
-  assert.doesNotMatch(html, /data-raffle-create="visual_key_1"/);
-  assert.doesNotMatch(html, /data-raffle-create="visual_key_2"/);
-  assert.doesNotMatch(html, /data-raffle-create="visual_key_3"/);
-  assert.doesNotMatch(html, /data-raffle-create="visual_key_4"/);
+  assert.match(visualKeyCard, /data-raffle-create="visual_key"/);
+  assert.match(visualKeyCard, /<strong>Clave visual<\/strong>/);
+  assert.match(visualKeyCard, /Usa una dinámica visual preparada/);
+  assert.doesNotMatch(visualKeyCard, /raffle-visual-preview/);
+  assert.doesNotMatch(visualKeyCard, /raffle-visual-card/);
+  assert.doesNotMatch(visualKeyCard, /Clave A|Clave B|Clave C|Clave D/);
+  assert.doesNotMatch(visualKeyCard, />A<|>B<|>C<|>D</);
+  assert.equal([...visualKeyCard.matchAll(/data-raffle-create=/g)].length, 1);
 });
 
-test("visual key config uses one correct temporary option without exposing permanent assets", () => {
+test("visual key config keeps one correct temporary option without exposing permanent assets", () => {
   const config = createRaffleConfig("visual_key");
 
   assert.equal(config.mode, "visual_key");
