@@ -19,7 +19,7 @@
     { id: "visual_key_4", label: "Clave D", tone: "green", correct: false }
   ];
   const RAFFLE_MODES = [
-    { id: "visual_key", label: "Clave visual", description: "Usa una dinámica visual preparada" },
+    { id: "visual_key", label: "Clave visual" },
     { id: "poll", label: "Encuesta" },
     { id: "free", label: "Libre" }
   ];
@@ -186,7 +186,7 @@
     };
   }
 
-  function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const buttons = RAFFLE_MODES.map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (disabled ? 'disabled' : '') + '><strong>' + mode.label + '</strong>' + (mode.description ? '<span class="raffle-mode-description">' + escapeHtml(mode.description) + '</span>' : "") + '</button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><span>Sorteos</span><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + buttons + '</div></section>'; }
+  function renderSelection(state) { const disabled = Boolean(state.activeInteraction || state.pendingEvent); const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : ""; const buttons = RAFFLE_MODES.map((mode) => '<button type="button" class="raffle-mode-card" data-raffle-create="' + mode.id + '" ' + (disabled ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>').join(""); return '<section class="raffle-section"><div class="raffle-heading"><span>Sorteos</span><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + buttons + '</div></section>'; }
   function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div><div><span>BOLETOS</span><strong>' + entryCount(active) + '</strong></div></div>'; return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>'; }
   function renderSlideConfirm(state) { return SlideConfirm.markup({ label: "Desliza para iniciar sorteo", className: "raffle-slide-confirm is-raffle", disabled: Boolean(state.pendingEvent), dataAttribute: "data-raffle-slide-confirm" }); }
   function renderActionButtons(actions, state, extraClass = "") { return '<div class="raffle-actions ' + extraClass + '">' + actions.map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + (action.secondary ? 'secondary ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("") + '</div>'; }
@@ -219,22 +219,25 @@
     function decorateHost(host) {
       if (!host) return;
       ensureShell(host);
+      const tabs = host.querySelector(".raffle-tabs");
       const rafflePanel = host.querySelector("[data-raffle-panel]");
       const existing = host.querySelector(".raffle-existing-content");
+      if (tabs) tabs.hidden = currentTab === "raffles";
       host.querySelectorAll("[data-raffle-tab]").forEach((button) => { const active = button.dataset.raffleTab === currentTab; button.classList.toggle("is-active", active); button.setAttribute("aria-selected", String(active)); });
       if (existing) existing.hidden = currentTab === "raffles";
       if (!rafflePanel) return;
       rafflePanel.hidden = currentTab !== "raffles";
       if (currentTab !== "raffles") return;
       let nextHtml = "";
-      try { nextHtml = renderRaffleController(state); }
-      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = renderSelection({ ...state, active: null, pendingEvent: "" }); }
+      try { nextHtml = '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>' + renderRaffleController(state); }
+      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = '<button type="button" class="raffle-back-button" data-raffle-back>← Volver</button>' + renderSelection({ ...state, active: null, pendingEvent: "" }); }
       if (rafflePanel.dataset.raffleHtml === nextHtml) return;
       rafflePanel.dataset.raffleHtml = nextHtml;
       rafflePanel.innerHTML = nextHtml;
       bindRafflePanel(rafflePanel);
     }
     function bindRafflePanel(panel) {
+      panel.querySelector("[data-raffle-back]")?.addEventListener("click", () => { currentTab = "polls"; renderAllHosts(); });
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { if (!canDispatchRaffleAction(state, "raffle:create")) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(button.dataset.raffleCreate)); }));
       panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
