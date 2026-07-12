@@ -1,5 +1,13 @@
-/* Safe recovery layer: restores the controller-rendered Interacciones home
-   without changing Speaker/Stage positioning or event handling. */
+/* Shared Interacciones visual shell.
+   Keeps the approved menu visible in Home, Encuestas and Sorteos without
+   changing Speaker/Stage positioning, sockets or event handling. */
+
+.interaction-home-panel,
+.interaction-home-panel[hidden] {
+  display: block !important;
+  width: 100%;
+  min-width: 0;
+}
 
 .interaction-home {
   display: block !important;
@@ -9,6 +17,7 @@
   color: #fff;
 }
 
+/* Neutral Home instruction only. */
 .interaction-home::after {
   content: "Selecciona una interacción.";
   min-height: 78px;
@@ -19,6 +28,12 @@
   font-family: Inter, "Segoe UI", Arial, sans-serif;
   font-size: 12px;
   text-align: center;
+}
+
+.interaction-panel:not(.is-interaction-home) .interaction-home::after,
+.stage-actions-content:not(.is-interaction-home) .interaction-home::after {
+  content: none;
+  display: none;
 }
 
 .interaction-home-heading {
@@ -81,6 +96,16 @@
   color: rgba(255,255,255,.82);
   background: rgba(255,255,255,.045);
   outline: none;
+}
+
+/* Active category remains lit while its content is open. */
+.interaction-panel:not(.is-interaction-home):not(.is-raffle-subview) .interaction-category-card:nth-child(1),
+.stage-actions-content:not(.is-interaction-home):not(.is-raffle-subview) .interaction-category-card:nth-child(1),
+.interaction-panel.is-raffle-subview .interaction-category-card:nth-child(2),
+.stage-actions-content.is-raffle-subview .interaction-category-card:nth-child(2) {
+  color: #fff;
+  background: linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%);
+  box-shadow: 0 8px 20px rgba(55, 138, 221, .18);
 }
 
 .interaction-category-card.is-disabled,
