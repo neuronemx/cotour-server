@@ -277,7 +277,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
       if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const results = store.revealResults(context.sessionId);
       if (!results) return;
-      io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:show_results", results);
+      emitResults(context.roomKey, context.sessionId);
       emitStateToControlRoles(context.roomKey, context.sessionId);
     });
 
