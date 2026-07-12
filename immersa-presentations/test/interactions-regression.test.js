@@ -86,6 +86,33 @@ test("first poll click after raffle close is not followed by delayed modal reset
   assert.doesNotMatch(controller, /currentTab = "home"; clearLocalSetup\(\); scheduleRender\(\); \}, 0\)/);
 });
 
+test("locked interaction modal guard allows opening but blocks close attempts", () => {
+  const controller = readProjectFile("public/shared/raffle-controller.js");
+  const polish = readProjectFile("public/shared/interactions-shell-polish.js");
+
+  assert.match(controller, /function isInteractionNavigationLocked\(state\) \{ return Boolean\(state\?\.active \|\| state\?\.activeInteraction\); \}/);
+  assert.match(controller, /target\?\.closest\?\.\("#interactionToggle"\)\) return isPresenterInteractionPanelOpen\(\)/);
+  assert.match(controller, /target\?\.closest\?\.\("#stageActionsButton"\)\) return isStageActionsModalOpen\(\)/);
+  assert.match(controller, /\.presenter-shell\.interaction-panel-open/);
+  assert.match(controller, /\.stage-actions-modal\.is-open/);
+  assert.match(controller, /event\.key === "Escape" && isInteractionNavigationLocked\(state\)/);
+  assert.match(controller, /isInteractionNavigationLocked\(state\) && isExternalCloseTarget\(event\.target\)/);
+  assert.doesNotMatch(controller, /isRaffleNavigationLocked\(state\) && isExternalCloseTarget\(event\.target\)/);
+
+  assert.match(polish, /function isLockedCloseAttempt\(target\)/);
+  assert.match(polish, /target\?\.closest\?\.\("#interactionToggle"\)\) return isPresenterInteractionPanelOpen\(\)/);
+  assert.match(polish, /target\?\.closest\?\.\("#stageActionsButton"\)\) return isStageActionsOpen\(\)/);
+  assert.match(polish, /const closeTarget = isLockedCloseAttempt\(target\);/);
+  assert.doesNotMatch(polish, /const closeTarget = target\?\.closest\?\.\("\[data-interaction-panel-close\], \[data-stage-actions-close\], \[data-close-modal\], #interactionToggle, #stageActionsButton"\)/);
+});
+
+test("cleared interaction state restores normal modal close reset", () => {
+  const controller = readProjectFile("public/shared/raffle-controller.js");
+  assert.match(controller, /if \(!state\.active && !state\.activeInteraction && isModalToggleOrCloseTarget\(event\.target\)\) \{ currentTab = "home"; clearLocalSetup\(\); scheduleRender\(\); \}/);
+  assert.match(controller, /socket\.on\("interaction:closed", \(\) => update\("interaction:closed"\)\);/);
+  assert.match(controller, /if \(eventName === "interaction:closed"\) return \{ \.\.\.next, activeInteraction: null \};/);
+});
+
 test("interaction reveal results updates state and emits the Screen results event", async () => {
   const io = createFakeIo();
   const socket = createFakeSocket();
