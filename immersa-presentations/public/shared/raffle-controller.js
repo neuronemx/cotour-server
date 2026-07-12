@@ -183,6 +183,14 @@
   function canCreateMode(state, mode) { if (state?.active || state?.activeInteraction || state?.pendingEvent) return false; if (mode === "visual_key") return visualKeyOptionIds().includes(state.visualKeyDraftEntryKey); return true; }
   function canDispatchRaffleAction(state, eventName) { if (!RAFFLE_EVENTS.has(eventName) || state?.pendingEvent) return false; if (eventName === "raffle:create") return !state?.active && !state?.activeInteraction; return getRaffleActions(state).some((action) => action.event === eventName && !action.disabled); }
   function resetSlideConfirm(slider) { SlideConfirm.reset(slider); }
+  function createRaffleActionDispatcher({ getState, emit, setPending }) {
+    return function dispatchRaffleAction(eventName) {
+      if (!canDispatchRaffleAction(getState(), eventName)) return false;
+      setPending(eventName);
+      emit(eventName);
+      return true;
+    };
+  }
   function createSlideConfirmDispatcher({ getState, emit, setPending, reset = resetSlideConfirm }) {
     let completed = false;
     return function dispatchSlideConfirm(slider) {
@@ -260,7 +268,7 @@
       root.document.addEventListener("keydown", (event) => { if (event.key === "Escape" && isRaffleNavigationLocked(state)) blockEvent(event); }, true);
       root.document.addEventListener("click", (event) => {
         if (isRaffleNavigationLocked(state) && isExternalCloseTarget(event.target)) { blockEvent(event); return; }
-        if (!state.active && !state.activeInteraction && isModalToggleOrCloseTarget(event.target)) setTimeout(() => { currentTab = "home"; clearLocalSetup(); scheduleRender(); }, 0);
+        if (!state.active && !state.activeInteraction && isModalToggleOrCloseTarget(event.target)) { currentTab = "home"; clearLocalSetup(); scheduleRender(); }
       }, true);
       root.__immersaRaffleNavigationGuard = true;
     }
@@ -334,7 +342,8 @@
       panel.querySelectorAll("[data-raffle-config-mode]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; state = { ...state, configMode: button.dataset.raffleConfigMode || "", visualKeyDraftEntryKey: "", error: "" }; renderAllHosts(); }));
       panel.querySelectorAll("[data-raffle-key-option]").forEach((button) => button.addEventListener("click", () => { if (state.active || state.pendingEvent) return; socket.emit("raffle:configure_visual_key", { entryKey: button.dataset.raffleKeyOption }); }));
       panel.querySelectorAll("[data-raffle-create]").forEach((button) => button.addEventListener("click", () => { const mode = button.dataset.raffleCreate; if (!canDispatchRaffleAction(state, "raffle:create") || !canCreateMode(state, mode)) return; setPending("raffle:create"); socket.emit("raffle:create", createRaffleConfig(mode, state)); }));
-      panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { const eventName = button.dataset.raffleAction; if (!canDispatchRaffleAction(state, eventName)) return; setPending(eventName); socket.emit(eventName); }));
+      const dispatchRaffleAction = createRaffleActionDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
+      panel.querySelectorAll("[data-raffle-action]").forEach((button) => button.addEventListener("click", () => { dispatchRaffleAction(button.dataset.raffleAction); }));
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
       panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => SlideConfirm.attach(slider, { isDisabled: () => !canDispatchRaffleAction(state, "raffle:draw"), onComplete: () => dispatchSlideConfirm(slider) }));
     }
@@ -353,5 +362,5 @@
   }
 
   if (root?.document && root?.io) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, INTERACTION_CATEGORIES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderInteractionHome, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, INTERACTION_CATEGORIES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createRaffleActionDispatcher, createSlideConfirmDispatcher, resetSlideConfirm, renderInteractionHome, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
 });
