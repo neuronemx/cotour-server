@@ -12,7 +12,8 @@
   positionStyle.setAttribute("data-immersa-interaction-position-fix", "");
   positionStyle.textContent = [
     ".interaction-panel { position: fixed !important; }",
-    ".stage-actions-card { position: relative !important; }"
+    ".stage-actions-card { position: relative !important; }",
+    ".interaction-option.is-selected, .interaction-option.is-selected:hover, [data-interaction-select].is-selected, [data-interaction-select].is-selected:hover { border-color: transparent !important; background: linear-gradient(#151827, #151827) padding-box, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%) border-box !important; box-shadow: 0 0 0 1px rgba(93,202,165,.18), 0 8px 22px rgba(55,138,221,.15) !important; }"
   ].join("\n");
   document.head.appendChild(positionStyle);
 
@@ -123,6 +124,36 @@
     }
   }
 
+  function showPollSelectionImmediately(event) {
+    const button = event.target?.closest?.("[data-interaction-select]");
+    if (!button || button.disabled || controllerState().activeInteraction) return;
+    const host = button.closest(".raffle-existing-content") || button.parentElement;
+    host?.querySelectorAll?.("[data-interaction-select]").forEach((option) => {
+      const selected = option === button;
+      option.classList.toggle("is-selected", selected);
+      option.setAttribute("aria-selected", String(selected));
+      option.setAttribute("aria-pressed", String(selected));
+    });
+    const launch = host?.querySelector?.("[data-interaction-launch]");
+    if (launch) launch.disabled = false;
+  }
+
+  function forwardCriticalRaffleAction(event) {
+    const button = event.target?.closest?.('[data-raffle-action="raffle:close_entries"], [data-raffle-action="raffle:close"]');
+    if (!button || button.disabled) return;
+    const socket = root.ImmersaRaffleSocket;
+    if (!socket?.emit) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    event.stopPropagation();
+
+    button.disabled = true;
+    socket.emit(button.dataset.raffleAction);
+  }
+
+  document.addEventListener("pointerdown", showPollSelectionImmediately, true);
+  document.addEventListener("click", forwardCriticalRaffleAction, true);
   document.addEventListener("click", blockLockedNavigation, true);
   document.addEventListener("keydown", blockLockedNavigation, true);
 
