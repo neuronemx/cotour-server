@@ -45,6 +45,20 @@
     return "";
   }
 
+  function isPresenterInteractionPanelOpen() {
+    return Boolean(document.querySelector(".presenter-shell.interaction-panel-open"));
+  }
+
+  function isStageActionsOpen() {
+    return Boolean(document.querySelector(".stage-actions-modal.is-open"));
+  }
+
+  function isLockedCloseAttempt(target) {
+    if (target?.closest?.("#interactionToggle")) return isPresenterInteractionPanelOpen();
+    if (target?.closest?.("#stageActionsButton")) return isStageActionsOpen();
+    return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal]"));
+  }
+
   function clearDefaultPollSelection(host) {
     host.querySelectorAll("[data-interaction-select]").forEach((button) => {
       button.classList.remove("is-selected");
@@ -115,7 +129,7 @@
 
     const target = event.target;
     const categoryButton = target?.closest?.("[data-interaction-category]");
-    const closeTarget = target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal], #interactionToggle, #stageActionsButton");
+    const closeTarget = isLockedCloseAttempt(target);
 
     if (categoryButton || closeTarget) {
       event.preventDefault();
