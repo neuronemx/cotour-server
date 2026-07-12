@@ -6,30 +6,32 @@
       id: "polls",
       label: "Encuestas",
       enabled: true,
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="M5 20h14"></path><path d="M8 15v-4"></path><path d="M12 15V8"></path><path d="M16 15v-5"></path><path d="M8 7h2"></path></svg>'
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M8 17V9m4 8V5m4 12v-6"></path></svg>'
     },
     {
       id: "raffles",
       label: "Sorteos",
       enabled: true,
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v4H3z"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path><path d="M12 8v13"></path><path d="M7.5 8a2.5 2.5 0 1 1 0-5C9.1 3 10.5 4.5 12 8"></path><path d="M16.5 8a2.5 2.5 0 1 0 0-5C14.9 3 13.5 4.5 12 8"></path></svg>'
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v13H3zM3 8l2-4h14l2 4M12 4v17M3 8h18"></path></svg>'
     },
     {
       id: "contests",
       label: "Concursos",
       enabled: false,
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"></path><path d="M7 6H4a2 2 0 0 0 2 2"></path><path d="M17 6h3a2 2 0 0 1-2 2"></path></svg>'
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a2 2 0 0 0 2 2M17 6h3a2 2 0 0 1-2 2"></path></svg>'
     },
     {
       id: "games",
       label: "Juegos",
       enabled: false,
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z"></path><path d="M14 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z"></path><path d="M6.8 13h2.4"></path><path d="M15.8 13h2.4"></path></svg>'
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zM14 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zM6.8 13h2.4M15.8 13h2.4"></path></svg>'
     }
   ];
 
   const CLOSE_TARGETS = "[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal], #interactionToggle, #stageActionsButton";
   let syncQueued = false;
+  let pollSelectionArmed = false;
+  let previousLocked = false;
 
   function controller() {
     return root.ImmersaRaffleController || null;
@@ -77,10 +79,26 @@
         if (isLocked() || button.disabled) return;
         const tab = button.dataset.interactionTopTab;
         if (tab !== "polls" && tab !== "raffles") return;
+        if (tab === "polls") pollSelectionArmed = false;
         controller()?.setTab?.(tab);
         scheduleSync();
       });
     });
+  }
+
+  function normalizePollSelection(host, selected, locked) {
+    if (selected !== "polls" || locked) return;
+    const existing = host.querySelector(".raffle-existing-content");
+    if (!existing) return;
+
+    if (!pollSelectionArmed) {
+      existing.querySelectorAll("[data-interaction-select]").forEach((button) => {
+        button.classList.remove("is-selected");
+        button.setAttribute("aria-selected", "false");
+      });
+      const launch = existing.querySelector("[data-interaction-launch]");
+      if (launch) launch.disabled = true;
+    }
   }
 
   function syncHost(host) {
@@ -110,6 +128,7 @@
     }
 
     host.querySelectorAll(".interaction-home-back, .raffle-back-button, [data-interaction-home-back], [data-raffle-back]").forEach((node) => node.remove());
+    normalizePollSelection(host, selected, locked);
 
     const card = host.closest(".stage-actions-card");
     if (card) card.classList.toggle("is-interaction-locked", locked);
@@ -117,6 +136,9 @@
 
   function syncAll() {
     syncQueued = false;
+    const locked = isLocked();
+    if (previousLocked && !locked) pollSelectionArmed = false;
+    previousLocked = locked;
     syncHost(root.document?.querySelector(".interaction-panel"));
     syncHost(root.document?.querySelector(".stage-actions-content"));
   }
@@ -125,6 +147,12 @@
     if (syncQueued) return;
     syncQueued = true;
     (root.requestAnimationFrame || root.setTimeout)(syncAll, 0);
+  }
+
+  function captureInteractionSelection(event) {
+    const button = event.target?.closest?.("[data-interaction-select]");
+    if (!button || isLocked()) return;
+    pollSelectionArmed = true;
   }
 
   function blockIfLocked(event) {
@@ -146,6 +174,7 @@
   function install() {
     if (!root.document || root.__immersaInteractionShellPolish) return;
     root.__immersaInteractionShellPolish = true;
+    root.document.addEventListener("pointerdown", captureInteractionSelection, true);
     root.document.addEventListener("keydown", blockIfLocked, true);
     root.document.addEventListener("click", blockIfLocked, true);
     const observer = new MutationObserver(scheduleSync);
