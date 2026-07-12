@@ -28,7 +28,7 @@
     }
   ];
 
-  const CLOSE_TARGETS = "[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal], #interactionToggle, #stageActionsButton";
+  const HARD_CLOSE_TARGETS = "[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal]";
   let syncQueued = false;
   let pollSelectionArmed = false;
   let previousLocked = false;
@@ -155,6 +155,22 @@
     pollSelectionArmed = true;
   }
 
+  function presenterPanelOpen() {
+    return Boolean(root.document?.querySelector(".presenter-shell.interaction-panel-open"));
+  }
+
+  function stagePanelOpen() {
+    return Boolean(root.document?.querySelector(".stage-actions-modal.is-open"));
+  }
+
+  function isClosingControl(target) {
+    if (!target?.closest) return false;
+    if (target.closest(HARD_CLOSE_TARGETS)) return true;
+    if (target.closest("#interactionToggle")) return presenterPanelOpen();
+    if (target.closest("#stageActionsButton")) return stagePanelOpen();
+    return false;
+  }
+
   function blockIfLocked(event) {
     if (!isLocked()) return;
     if (event.type === "keydown" && event.key === "Escape") {
@@ -163,8 +179,7 @@
       event.stopPropagation();
       return;
     }
-    const target = event.target;
-    if (target?.closest?.(CLOSE_TARGETS)) {
+    if (isClosingControl(event.target)) {
       event.preventDefault();
       event.stopImmediatePropagation();
       event.stopPropagation();
