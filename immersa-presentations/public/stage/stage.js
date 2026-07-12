@@ -249,6 +249,10 @@ function ensureStageActionsModal() {
   return stageActionsModal;
 }
 
+function stageActionsContentRoot() {
+  return stageActionsContent?.querySelector(".raffle-existing-content") || stageActionsContent;
+}
+
 function openStageActions() {
   ensureStageActionsModal();
   stageActionsOpen = true;
@@ -323,26 +327,27 @@ function attachInteractionCloseSlider(control, interactionId) {
 
 function renderStageActionsPanel() {
   if (!stageActionsContent) return;
+  const content = stageActionsContentRoot();
   const active = activeInteraction || null;
   const selected = selectedInteraction();
   if (!active) {
-    stageActionsContent.innerHTML = '<div class="stage-actions-head"><span>Stage</span><h2 id="stageActionsTitle">Acciones</h2><p>Encuestas disponibles</p></div>' + (selected ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup() : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
-    stageActionsContent.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => {
+    content.innerHTML = '<div class="stage-actions-head"><span>Stage</span><h2 id="stageActionsTitle">Acciones</h2><p>Encuestas disponibles</p></div>' + (selected ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup() : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    content.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => {
       selectedInteractionId = button.dataset.interactionSelect || "";
       renderStageActionsPanel();
     }));
-    stageActionsContent.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
+    content.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
   }
 
   const revealLabel = interactionResultsVisible ? "Ocultar resultados" : "Mostrar resultados";
   const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
-  stageActionsContent.innerHTML = '<div class="stage-actions-head"><span>Encuesta activa</span><h2 id="stageActionsTitle">' + escapeHtml(active.title || 'Encuesta') + '</h2><p>' + escapeHtml(active.prompt || active.title || 'Interacción') + '</p></div>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
-  stageActionsContent.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => {
+  content.innerHTML = '<div class="stage-actions-head"><span>Encuesta activa</span><h2 id="stageActionsTitle">' + escapeHtml(active.title || 'Encuesta') + '</h2><p>' + escapeHtml(active.prompt || active.title || 'Interacción') + '</p></div>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
+  content.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => {
     const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results";
     socket.emit(eventName, { interactionId: activeInteraction?.id });
   });
-  attachInteractionCloseSlider(stageActionsContent.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
+  attachInteractionCloseSlider(content.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
 }
 
 function updateInteractionState(state) {
