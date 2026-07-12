@@ -9,6 +9,18 @@
   color: #fff;
 }
 
+.interaction-home::after {
+  content: "Selecciona una interacción.";
+  min-height: 78px;
+  display: grid;
+  place-items: center;
+  padding: 12px 0 2px;
+  color: rgba(255,255,255,.36);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  text-align: center;
+}
+
 .interaction-home-heading {
   display: block;
   margin: 0 0 14px;
@@ -78,21 +90,46 @@
 }
 
 .interaction-category-icon {
+  position: relative;
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
-  display: grid;
-  place-items: center;
+  display: block;
+  overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: currentColor;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
 }
 
 .interaction-category-icon::before {
-  width: 16px;
-  height: 16px;
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+}
+
+/* Exact approved SVGs recovered from the project history. */
+.interaction-category-card:nth-child(1) .interaction-category-icon::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='17' height='15' rx='2'/%3E%3Cpath d='M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2'/%3E%3C/svg%3E");
+}
+
+.interaction-category-card:nth-child(2) .interaction-category-icon::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8h18v13H3zM3 8h18M12 8v13M7.5 8a2.5 2.5 0 1 1 0-5C9.2 3 10.6 4.5 12 8M16.5 8a2.5 2.5 0 1 0 0-5C14.8 3 13.4 4.5 12 8'/%3E%3C/svg%3E");
+}
+
+.interaction-category-card:nth-child(3) .interaction-category-icon::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a2 2 0 0 0 2 2M17 6h3a2 2 0 0 1-2 2'/%3E%3C/svg%3E");
+}
+
+.interaction-category-card:nth-child(4) .interaction-category-icon::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6.5' width='8' height='13' rx='2'/%3E%3Crect x='13' y='6.5' width='8' height='13' rx='2'/%3E%3Cpath d='M6.5 13h1.8M15.7 13h1.8'/%3E%3C/svg%3E");
 }
 
 .interaction-category-copy {
