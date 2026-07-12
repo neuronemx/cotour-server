@@ -128,6 +128,7 @@ function popReaction(emoji) { if (!localReactions.checked) return; const node = 
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
 function ensureInteractionPanel() { if (interactionPanel) return interactionPanel; interactionPanel = document.createElement("section"); interactionPanel.className = "interaction-panel"; interactionPanel.setAttribute("aria-label", "Interacciones"); presenterShell.appendChild(interactionPanel); return interactionPanel; }
+function interactionPanelContentRoot() { const panel = ensureInteractionPanel(); return panel.querySelector(".raffle-existing-content") || panel; }
 function setInteractionPanelOpen(open) {
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
@@ -185,7 +186,8 @@ function attachInteractionCloseSlider(control, interactionId) {
   control.addEventListener("pointercancel", (event) => { finish(event); reset(); });
 }
 function renderInteractionPanel() {
-  const panel = ensureInteractionPanel();
+  ensureInteractionPanel();
+  const panel = interactionPanelContentRoot();
   const active = activeInteraction || null;
   const selected = selectedInteraction();
   const hasActive = Boolean(active);
