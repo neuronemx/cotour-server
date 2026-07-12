@@ -1,5 +1,14 @@
-(function () {
+(function (root) {
   "use strict";
-  // Temporarily disabled: this progressive polish layer caused a Speaker regression.
-  // Interacciones continues to use the stable controller and native Speaker/Stage handlers.
-})();
+
+  if (!root.document || root.__immersaInteractionPositionFix) return;
+  root.__immersaInteractionPositionFix = true;
+
+  const style = root.document.createElement("style");
+  style.setAttribute("data-immersa-interaction-position-fix", "");
+  style.textContent = [
+    ".interaction-panel { position: fixed !important; }",
+    ".stage-actions-card { position: relative !important; }"
+  ].join("\n");
+  root.document.head.appendChild(style);
+})(typeof window !== "undefined" ? window : globalThis);
