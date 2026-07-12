@@ -8,6 +8,7 @@
 
 .interaction-panel,
 .stage-actions-card {
+  position: relative;
   overflow-x: hidden;
 }
 
@@ -29,33 +30,36 @@
   box-sizing: border-box;
 }
 
-/* The persistent header owns the only accent line. */
-.interaction-panel::before,
+/* One accent line only, anchored to the modal margin. */
 .interaction-category-shell::before,
 .interaction-home::before,
+.interaction-persistent-header::before,
 .stage-actions-content::before {
   content: none !important;
   display: none !important;
 }
 
-.interaction-persistent-header {
-  position: relative;
-  display: grid;
-  gap: 14px;
-  padding-top: 16px;
-  margin-bottom: 16px;
-  color: var(--immersa-text);
-}
-
-.interaction-persistent-header::before {
-  content: "";
+.interaction-panel::before,
+.stage-actions-card::before {
+  content: "" !important;
+  display: block !important;
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 20px;
+  right: 20px;
+  width: auto;
   height: 3px;
   border-radius: 0 0 4px 4px;
   background: var(--immersa-gradient);
+  pointer-events: none;
+}
+
+.interaction-persistent-header {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-top: 8px;
+  color: var(--immersa-text);
 }
 
 .interaction-persistent-header h2 {
@@ -104,9 +108,9 @@
 }
 
 .interaction-top-tab svg {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -160,7 +164,7 @@
   text-align: center;
 }
 
-/* Hide the old 2x2 home completely; the persistent menu replaces it. */
+/* Old home and back controls are fully replaced by the persistent menu. */
 .interaction-home,
 .interaction-category-grid,
 .interaction-category-nav,
@@ -171,7 +175,45 @@
   display: none !important;
 }
 
-/* Keep only the already-bound native close button from the hidden legacy body. */
+/* Unified close control: small, circular and with breathing room. */
+.interaction-panel-close,
+.stage-actions-close,
+.stage-actions-card [data-stage-actions-close].stage-actions-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  z-index: 30;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, .13) !important;
+  border-radius: 50% !important;
+  color: rgba(255, 255, 255, .68) !important;
+  background: rgba(255, 255, 255, .055) !important;
+  box-shadow: none !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  transform: none !important;
+}
+
+.interaction-panel-close:hover,
+.interaction-panel-close:focus-visible,
+.stage-actions-close:hover,
+.stage-actions-close:focus-visible {
+  color: #fff !important;
+  background: rgba(255, 255, 255, .11) !important;
+  border-color: rgba(255, 255, 255, .22) !important;
+  outline: none;
+}
+
+/* Preserve Speaker's bound X while the legacy body is hidden. */
 .raffle-existing-content[hidden] {
   display: block !important;
   position: absolute;
@@ -190,45 +232,111 @@
 
 .raffle-existing-content[hidden] > .interaction-panel-close {
   display: grid !important;
-  place-items: center !important;
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 50%;
-  color: rgba(255, 255, 255, .78);
-  background: rgba(255, 255, 255, .08);
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 1;
   pointer-events: auto;
-  transform: none;
 }
 
-.stage-actions-close,
-.stage-actions-card [data-stage-actions-close].stage-actions-close {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  line-height: 1;
-  text-align: center;
-  transform: none;
-}
-
-.interaction-panel.is-interaction-locked .raffle-existing-content[hidden] > .interaction-panel-close,
+.interaction-panel.is-interaction-locked .interaction-panel-close,
 .stage-actions-card.is-interaction-locked > .stage-actions-close {
   display: none !important;
+}
+
+/* Remove duplicate headings in the Encuestas view. */
+.interaction-panel[data-interaction-category="polls"] .raffle-existing-content:not([hidden]) > .interaction-panel-heading,
+.stage-actions-content[data-interaction-category="polls"] .raffle-existing-content:not([hidden]) > .stage-actions-head {
+  display: none !important;
+}
+
+.interaction-panel[data-interaction-category="polls"] .raffle-existing-content:not([hidden]) > p:first-of-type {
+  display: none !important;
+}
+
+/* Poll content spacing. */
+.interaction-panel[data-interaction-category="polls"] .raffle-existing-content:not([hidden]),
+.stage-actions-content[data-interaction-category="polls"] .raffle-existing-content:not([hidden]) {
+  display: grid;
+  gap: 8px;
+}
+
+/* Poll cards: same visual language as the supplied HTML reference. */
+.interaction-panel button.interaction-choice,
+.stage-actions-card button.interaction-choice {
+  width: 100%;
+  height: auto;
+  min-height: 62px;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  align-content: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 14px;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  transform: none;
+}
+
+.interaction-panel button.interaction-choice:hover:not(:disabled),
+.stage-actions-card button.interaction-choice:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .025);
+  transform: none;
+}
+
+.interaction-panel button.interaction-choice.is-selected,
+.stage-actions-card button.interaction-choice.is-selected {
+  color: #fff;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(20, 18, 32, .90), rgba(20, 18, 32, .90)) padding-box,
+    var(--immersa-gradient) border-box;
+  box-shadow: none;
+}
+
+.interaction-choice-title {
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.interaction-choice-prompt {
+  color: var(--immersa-text-dim);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.interaction-panel-actions,
+.stage-actions-card .interaction-panel-actions {
+  width: 100%;
+}
+
+.interaction-panel button[data-interaction-launch],
+.stage-actions-card button[data-interaction-launch] {
+  width: 100%;
+  min-height: 42px;
+  padding: 11px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--immersa-gradient);
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.interaction-panel button[data-interaction-launch]:hover:not(:disabled),
+.stage-actions-card button[data-interaction-launch]:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: none;
+}
+
+.interaction-panel button[data-interaction-launch]:disabled,
+.stage-actions-card button[data-interaction-launch]:disabled {
+  opacity: .36;
+  filter: grayscale(.25);
 }
 
 /* Poll and raffle bodies remain below the permanent menu. */
@@ -257,13 +365,13 @@
 
 /* Make the full close-poll instruction readable. */
 .interaction-active-actions .interaction-close-slider {
-  flex: 1 1 188px;
-  min-width: 178px;
+  flex: 1 1 198px;
+  min-width: 188px;
 }
 
 .interaction-close-slider-label {
   padding-left: 40px;
-  padding-right: 10px;
+  padding-right: 8px;
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: -.01em;
