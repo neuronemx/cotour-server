@@ -167,7 +167,10 @@
   function revealTimestamp(active) { const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || ""); return Number.isFinite(timestamp) ? timestamp : null; }
   function remainingRaffleSeconds(active, nowMs = Date.now()) { const timestamp = revealTimestamp(active); if (!Number.isFinite(timestamp)) return null; return Math.max(0, Math.ceil((timestamp - nowMs) / 1000)); }
   function isRaffleNavigationLocked(state) { return Boolean(state?.active); }
-  function isExternalCloseTarget(target) { return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal], #interactionToggle")); }
+  function isInteractionNavigationLocked(state) { return Boolean(state?.active || state?.activeInteraction); }
+  function isPresenterInteractionPanelOpen() { return Boolean(root.document?.querySelector?.(".presenter-shell.interaction-panel-open")); }
+  function isStageActionsModalOpen() { return Boolean(root.document?.querySelector?.(".stage-actions-modal.is-open")); }
+  function isExternalCloseTarget(target) { if (target?.closest?.("#interactionToggle")) return isPresenterInteractionPanelOpen(); if (target?.closest?.("#stageActionsButton")) return isStageActionsModalOpen(); return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal]")); }
   function isModalToggleOrCloseTarget(target) { return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], [data-close-modal], #interactionToggle, #stageActionsButton")); }
   function blockEvent(event) { event.preventDefault?.(); event.stopImmediatePropagation?.(); event.stopPropagation?.(); }
 
@@ -265,9 +268,9 @@
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
     function installNavigationLockGuards() {
       if (!root.document || root.__immersaRaffleNavigationGuard) return;
-      root.document.addEventListener("keydown", (event) => { if (event.key === "Escape" && isRaffleNavigationLocked(state)) blockEvent(event); }, true);
+      root.document.addEventListener("keydown", (event) => { if (event.key === "Escape" && isInteractionNavigationLocked(state)) blockEvent(event); }, true);
       root.document.addEventListener("click", (event) => {
-        if (isRaffleNavigationLocked(state) && isExternalCloseTarget(event.target)) { blockEvent(event); return; }
+        if (isInteractionNavigationLocked(state) && isExternalCloseTarget(event.target)) { blockEvent(event); return; }
         if (!state.active && !state.activeInteraction && isModalToggleOrCloseTarget(event.target)) { currentTab = "home"; clearLocalSetup(); scheduleRender(); }
       }, true);
       root.__immersaRaffleNavigationGuard = true;
@@ -349,7 +352,7 @@
     }
     function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab || "home"; renderAllHosts(); return true; } };
+    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isInteractionNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab || "home"; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
@@ -362,5 +365,5 @@
   }
 
   if (root?.document && root?.io) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, INTERACTION_CATEGORIES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createRaffleActionDispatcher, createSlideConfirmDispatcher, resetSlideConfirm, renderInteractionHome, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, INTERACTION_CATEGORIES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createRaffleActionDispatcher, createSlideConfirmDispatcher, resetSlideConfirm, renderInteractionHome, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, isInteractionNavigationLocked, installSocketCapture };
 });
