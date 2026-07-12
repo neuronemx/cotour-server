@@ -1,103 +1,178 @@
 :root {
   --immersa-gradient: linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%);
   --immersa-glass: linear-gradient(160deg, rgba(30, 26, 48, .96), rgba(18, 16, 30, .98));
-  --immersa-border: rgba(255, 255, 255, .09);
   --immersa-text: #fff;
-  --immersa-text-dim: rgba(255, 255, 255, .62);
-  --immersa-text-faint: rgba(255, 255, 255, .42);
+  --immersa-text-dim: rgba(255, 255, 255, .50);
+  --immersa-text-faint: rgba(255, 255, 255, .35);
 }
 
-/* Speaker controls the floating panel width. Stage keeps the width of its own modal card. */
-.interaction-panel.is-interaction-home {
-  width: min(410px, calc(100vw - 32px));
-  max-width: 410px;
-  box-sizing: border-box;
-}
-
-.stage-actions-content.is-interaction-home,
-.interaction-category-shell,
-.interaction-home-panel,
-.interaction-home,
-.interaction-category-grid {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.stage-actions-content.is-interaction-home,
-.interaction-home-panel,
-.interaction-category-shell,
-.interaction-home,
-.interaction-category-grid {
+.interaction-panel,
+.stage-actions-card {
   overflow-x: hidden;
 }
 
-.interaction-category-shell {
-  position: relative;
-  isolation: isolate;
+.interaction-panel {
+  width: min(380px, calc(100vw - 28px));
 }
 
-/* Remove every inherited/legacy accent line. The home owns one complete line below. */
-.interaction-panel.is-interaction-home::before,
-.stage-actions-content.is-interaction-home::before,
-.interaction-category-shell::before,
-.raffle-tab-shell.interaction-category-shell::before {
-  content: none;
-  display: none;
+.stage-actions-card {
+  width: min(430px, calc(100vw - 36px));
 }
 
-.interaction-home,
+.interaction-category-shell,
 .interaction-home-panel,
-.interaction-category-nav,
-.raffle-tab-shell .raffle-panel {
-  width: 100%;
+.raffle-panel,
+.raffle-existing-content,
+.stage-actions-content {
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
 }
 
-.interaction-home {
+/* The persistent header owns the only accent line. */
+.interaction-panel::before,
+.interaction-category-shell::before,
+.interaction-home::before,
+.stage-actions-content::before {
+  content: none !important;
+  display: none !important;
+}
+
+.interaction-persistent-header {
   position: relative;
-  padding: 28px 0 4px;
+  display: grid;
+  gap: 14px;
+  padding-top: 16px;
+  margin-bottom: 16px;
   color: var(--immersa-text);
 }
 
-/* Single, uninterrupted Immersa accent line. */
-.interaction-home::before {
+.interaction-persistent-header::before {
   content: "";
   position: absolute;
-  top: 8px;
+  top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  border-radius: 999px;
+  border-radius: 0 0 4px 4px;
   background: var(--immersa-gradient);
-  pointer-events: none;
 }
 
-.interaction-home-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 32px;
-  margin: 0 0 14px;
-  padding-right: 42px;
-}
-
-.interaction-home-heading span {
-  display: none;
-}
-
-.interaction-home-heading h2 {
+.interaction-persistent-header h2 {
   margin: 0;
+  padding-right: 42px;
   color: #fff;
-  font-size: 18px;
-  font-weight: 700;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -.01em;
 }
 
-/* Keep the already-bound Speaker close control available while hiding the legacy panel body. */
-.is-interaction-home .raffle-existing-content[hidden] {
+.interaction-top-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .04);
+}
+
+.interaction-top-tab,
+.interaction-panel button.interaction-top-tab,
+.stage-actions-card button.interaction-top-tab {
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--immersa-text-dim);
+  background: transparent;
+  box-shadow: none;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transform: none;
+  white-space: nowrap;
+  transition: background .2s ease, color .2s ease, opacity .2s ease;
+}
+
+.interaction-top-tab svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.interaction-top-tab span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.interaction-top-tab:hover:not(:disabled),
+.interaction-top-tab:focus-visible:not(:disabled),
+.interaction-panel button.interaction-top-tab:hover:not(:disabled),
+.stage-actions-card button.interaction-top-tab:hover:not(:disabled) {
+  color: rgba(255, 255, 255, .78);
+  background: rgba(255, 255, 255, .045);
+  transform: none;
+  outline: none;
+}
+
+.interaction-top-tab.is-active,
+.interaction-top-tab.is-active:disabled,
+.interaction-panel button.interaction-top-tab.is-active,
+.stage-actions-card button.interaction-top-tab.is-active {
+  color: #fff;
+  opacity: 1;
+  background: var(--immersa-gradient);
+  box-shadow: 0 8px 20px rgba(55, 138, 221, .18);
+}
+
+.interaction-top-tab:disabled:not(.is-active),
+.interaction-panel button.interaction-top-tab:disabled:not(.is-active),
+.stage-actions-card button.interaction-top-tab:disabled:not(.is-active) {
+  opacity: .42;
+  cursor: default;
+}
+
+.interaction-empty-state {
+  min-height: 92px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  color: var(--immersa-text-faint);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Hide the old 2x2 home completely; the persistent menu replaces it. */
+.interaction-home,
+.interaction-category-grid,
+.interaction-category-nav,
+.interaction-home-back,
+.raffle-back-button,
+[data-interaction-home-back],
+[data-raffle-back] {
+  display: none !important;
+}
+
+/* Keep only the already-bound native close button from the hidden legacy body. */
+.raffle-existing-content[hidden] {
   display: block !important;
   position: absolute;
   inset: 0;
@@ -109,254 +184,58 @@
   overflow: visible !important;
 }
 
-.is-interaction-home .raffle-existing-content[hidden] > * {
+.raffle-existing-content[hidden] > * {
   display: none !important;
 }
 
-/* One unified circular X for Speaker and Stage. */
-.is-interaction-home .raffle-existing-content[hidden] > .interaction-panel-close,
-.stage-actions-card .stage-actions-close,
-.stage-actions-card [data-stage-actions-close] {
+.raffle-existing-content[hidden] > .interaction-panel-close {
   display: grid !important;
   place-items: center !important;
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 1px solid rgba(255, 255, 255, .13) !important;
-  border-radius: 50% !important;
-  background: rgba(255, 255, 255, .065) !important;
-  color: rgba(255, 255, 255, .72) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
-  font-size: 20px !important;
-  font-weight: 500 !important;
-  line-height: 1 !important;
-  text-align: center !important;
-  cursor: pointer;
-  transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
-}
-
-.is-interaction-home .raffle-existing-content[hidden] > .interaction-panel-close {
   position: absolute;
-  top: 6px;
+  top: 0;
   right: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, .78);
+  background: rgba(255, 255, 255, .08);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
   pointer-events: auto;
-}
-
-.stage-actions-card .stage-actions-close,
-.stage-actions-card [data-stage-actions-close] {
-  top: 11px;
-  right: 11px;
-}
-
-.is-interaction-home .raffle-existing-content[hidden] > .interaction-panel-close:hover,
-.is-interaction-home .raffle-existing-content[hidden] > .interaction-panel-close:focus-visible,
-.stage-actions-card .stage-actions-close:hover,
-.stage-actions-card .stage-actions-close:focus-visible,
-.stage-actions-card [data-stage-actions-close]:hover,
-.stage-actions-card [data-stage-actions-close]:focus-visible {
-  color: #fff !important;
-  background: rgba(255, 255, 255, .12) !important;
-  border-color: rgba(255, 255, 255, .22) !important;
-  outline: none;
-  transform: none !important;
-}
-
-.interaction-category-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-/* Specificity intentionally beats Stage's global pill-button rule. */
-.interaction-category-card,
-.stage-actions-card button.interaction-category-card {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  min-height: 112px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 13px;
-  overflow: hidden;
-  text-align: left;
-  color: #f8fbff;
-  border: 1px solid rgba(255, 255, 255, .075);
-  border-radius: 14px !important;
-  background: rgba(255, 255, 255, .035);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
-  cursor: pointer;
-  white-space: normal;
   transform: none;
-  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
 }
 
-.interaction-category-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid transparent;
-  border-radius: inherit;
-  background: var(--immersa-gradient) border-box;
-  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .16s ease;
-}
-
-.interaction-category-card:hover,
-.interaction-category-card:focus-visible,
-.stage-actions-card button.interaction-category-card:hover,
-.stage-actions-card button.interaction-category-card:focus-visible {
-  transform: none;
-  background: rgba(255, 255, 255, .055);
-  border-color: transparent;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .07);
-  outline: none;
-}
-
-.interaction-category-card:hover::after,
-.interaction-category-card:focus-visible::after {
-  opacity: 1;
-}
-
-.interaction-category-card.is-disabled,
-.stage-actions-card button.interaction-category-card.is-disabled {
-  cursor: default;
-  opacity: .54;
-  filter: saturate(.72);
-}
-
-.interaction-category-card.is-disabled:hover,
-.interaction-category-card.is-disabled:focus-visible,
-.stage-actions-card button.interaction-category-card.is-disabled:hover,
-.stage-actions-card button.interaction-category-card.is-disabled:focus-visible {
-  transform: none;
-  border-color: rgba(255, 255, 255, .075);
-  background: rgba(255, 255, 255, .028);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
-}
-
-.interaction-category-card.is-disabled::after {
-  display: none;
-}
-
-.interaction-category-icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
+.stage-actions-close,
+.stage-actions-card [data-stage-actions-close].stage-actions-close {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 0;
-  background: linear-gradient(135deg, rgba(127, 119, 221, .78), rgba(55, 138, 221, .78), rgba(93, 202, 165, .78));
-  border: 1px solid rgba(255, 255, 255, .13);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 7px 18px rgba(52, 112, 206, .18);
+  border-radius: 50%;
+  line-height: 1;
+  text-align: center;
+  transform: none;
 }
 
-.interaction-category-icon::before {
-  content: "";
-  width: 18px;
-  height: 18px;
-  display: block;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
+.interaction-panel.is-interaction-locked .raffle-existing-content[hidden] > .interaction-panel-close,
+.stage-actions-card.is-interaction-locked > .stage-actions-close {
+  display: none !important;
 }
 
-/* Exact SVGs defined for the Interacciones home. */
-.interaction-category-card:nth-child(1) .interaction-category-icon::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18M8 17V9m4 8V5m4 12v-6'/%3E%3C/svg%3E");
-}
-
-.interaction-category-card:nth-child(2) .interaction-category-icon::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8h18v13H3zM3 8l2-4h14l2 4M12 4v17M3 8h18'/%3E%3C/svg%3E");
-}
-
-.interaction-category-card:nth-child(3) .interaction-category-icon::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4zM7 6H4a2 2 0 002 2M17 6h3a2 2 0 01-2 2'/%3E%3C/svg%3E");
-}
-
-.interaction-category-card:nth-child(4) .interaction-category-icon::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12h4m-2-2v4M15 11h.01M18 13h.01M6 20h12a3 3 0 003-3v-4a5 5 0 00-5-5H8a5 5 0 00-5 5v4a3 3 0 003 3z'/%3E%3C/svg%3E");
-}
-
-.interaction-category-copy {
-  min-width: 0;
+/* Poll and raffle bodies remain below the permanent menu. */
+.raffle-existing-content:not([hidden]),
+.raffle-panel:not([hidden]) {
   display: grid;
-  gap: 4px;
-}
-
-.interaction-category-copy strong {
-  display: block;
-  margin: 0;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -.01em;
-}
-
-.interaction-category-copy small {
-  display: block;
-  margin: 0;
-  color: var(--immersa-text-dim);
-  font-size: 11px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.interaction-category-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  max-width: calc(100% - 54px);
-  padding: 3px 7px;
-  border-radius: 999px;
-  color: rgba(228, 222, 255, .88);
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  background: rgba(127, 119, 221, .13);
-  border: 1px solid rgba(180, 174, 238, .16);
-}
-
-.interaction-category-nav {
-  padding: 10px 0 6px;
-}
-
-.interaction-home-back,
-.raffle-back-button {
-  min-height: 34px;
-  padding: 0 10px;
-  color: rgba(225, 235, 249, .84);
-  font-size: 12px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, .055);
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.interaction-home-back:hover,
-.interaction-home-back:focus-visible,
-.raffle-back-button:hover,
-.raffle-back-button:focus-visible {
-  color: #fff;
-  background: rgba(255, 255, 255, .09);
-  border-color: rgba(255, 255, 255, .16);
-  outline: none;
+  gap: 10px;
 }
 
 .raffle-mode-grid {
@@ -376,33 +255,38 @@
   box-shadow: none;
 }
 
-@media (max-width: 520px) {
-  .interaction-panel.is-interaction-home {
-    width: min(380px, calc(100vw - 24px));
-  }
-
-  .interaction-category-card,
-  .stage-actions-card button.interaction-category-card {
-    min-height: 108px;
-    padding: 12px;
-  }
+/* Make the full close-poll instruction readable. */
+.interaction-active-actions .interaction-close-slider {
+  flex: 1 1 188px;
+  min-width: 178px;
 }
 
-@media (max-width: 360px) {
-  .interaction-category-grid {
-    grid-template-columns: 1fr;
+.interaction-close-slider-label {
+  padding-left: 40px;
+  padding-right: 10px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-overflow: clip;
+}
+
+@media (max-width: 420px) {
+  .interaction-top-tabs {
+    gap: 4px;
   }
 
-  .interaction-category-card,
-  .stage-actions-card button.interaction-category-card {
-    min-height: 92px;
+  .interaction-top-tab,
+  .interaction-panel button.interaction-top-tab,
+  .stage-actions-card button.interaction-top-tab {
+    min-height: 50px;
+    padding: 7px 2px;
+    font-size: 9px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .interaction-category-card,
-  .interaction-category-card::after,
-  .is-interaction-home .interaction-panel-close,
+  .interaction-top-tab,
+  .interaction-panel-close,
   .stage-actions-close {
     transition: none;
   }
