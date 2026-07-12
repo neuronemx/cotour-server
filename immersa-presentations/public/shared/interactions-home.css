@@ -329,6 +329,9 @@
 
 .interaction-panel button[data-interaction-launch]:hover:not(:disabled),
 .stage-actions-card button[data-interaction-launch]:hover:not(:disabled) {
+  color: #fff;
+  background: var(--immersa-gradient);
+  box-shadow: 0 10px 24px rgba(55, 138, 221, .18);
   filter: brightness(1.08);
   transform: none;
 }
