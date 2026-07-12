@@ -9,13 +9,21 @@
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
   }
 
-  function loadRaffleUxAdjustments() {
-    if (!root.document || root.ImmersaRaffleUxAdjustments || root.__immersaRaffleUxAdjustmentsLoading) return;
-    root.__immersaRaffleUxAdjustmentsLoading = true;
+  function loadSharedScript(src, loadingFlag, readyObject) {
+    if (!root.document || root[readyObject] || root[loadingFlag]) return;
+    root[loadingFlag] = true;
     const script = root.document.createElement("script");
-    script.src = "/shared/raffle-ux-adjustments.js";
+    script.src = src;
     script.defer = true;
     root.document.head.appendChild(script);
+  }
+
+  function loadRaffleUxAdjustments() {
+    loadSharedScript("/shared/raffle-ux-adjustments.js", "__immersaRaffleUxAdjustmentsLoading", "ImmersaRaffleUxAdjustments");
+  }
+
+  function loadInteractionsShellPolish() {
+    loadSharedScript("/shared/interactions-shell-polish.js", "__immersaInteractionShellPolishLoading", "__immersaInteractionShellPolish");
   }
 
   function markup({ label, className = "", disabled = false, dataAttribute = "data-slide-confirm" } = {}) {
@@ -104,5 +112,6 @@
   }
 
   loadRaffleUxAdjustments();
+  loadInteractionsShellPolish();
   return { COMPLETE_THRESHOLD, markup, attach, reset, setPending };
 });
