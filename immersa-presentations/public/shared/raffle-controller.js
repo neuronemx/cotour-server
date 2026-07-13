@@ -215,14 +215,16 @@
   function renderActive(active, state) { const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo"; const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : ""; const remaining = active.state === "drawing" ? remainingRaffleSeconds(active) : null; const countdown = active.state === "drawing" && remaining !== null ? '<div class="raffle-countdown"><span>REVELACIÓN EN</span><strong>' + remaining + 's</strong></div>' : ""; return '<section class="raffle-section"><div class="raffle-heading"><h2>' + escapeHtml(modeLabel(active.mode)) + '</h2><p>' + escapeHtml(statusText) + '</p></div>' + renderStats(active, state) + winner + countdown + renderActions(active, state) + '</section>'; }
   function renderRaffleController(state) { const error = state.error ? '<p class="raffle-error" role="status">' + escapeHtml(state.error) + '</p>' : ""; return error + (state.active ? renderActive(state.active, state) : renderSelection(state)); }
 
-  function createController(socket) {
+  function createController(socket, options = {}) {
     let state = createInitialRaffleControllerState();
     let currentTab = "polls";
     let renderQueued = false;
     let countdownTimer = null;
+    const legacyIntegration = options.installLegacyIntegration !== false;
+    const explicitHosts = [];
     function clearLocalSetup() { state = { ...state, visualKeyDraftEntryKey: "", configMode: "", pendingEvent: "", error: "" }; }
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
-    function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); scheduleRender(); }
+    function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); options.onStateChange?.(state, eventName); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
     function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
@@ -276,9 +278,27 @@
       const dispatchSlideConfirm = createSlideConfirmDispatcher({ getState: () => state, emit: (eventName) => socket.emit(eventName), setPending });
       panel.querySelectorAll("[data-raffle-slide-confirm]").forEach((slider) => SlideConfirm.attach(slider, { isDisabled: () => !canDispatchRaffleAction(state, "raffle:draw"), onComplete: () => dispatchSlideConfirm(slider) }));
     }
-    function renderAllHosts() { decorateHost(root.document?.querySelector(".interaction-panel")); decorateHost(root.document?.querySelector(".stage-actions-content")); }
+    function decorateExplicitHost(hostConfig) {
+      const host = hostConfig?.root;
+      if (!host) return;
+      const active = hostConfig.isActive ? Boolean(hostConfig.isActive()) : true;
+      host.hidden = !active;
+      if (!active) return;
+      let nextHtml = "";
+      try { nextHtml = renderRaffleController(state); }
+      catch (error) { console.error?.("Immersa raffle controller render failed", error); nextHtml = renderSelection({ ...state, active: null, pendingEvent: "" }); }
+      if (host.dataset.raffleHtml === nextHtml) return;
+      host.dataset.raffleHtml = nextHtml;
+      host.innerHTML = nextHtml;
+      bindRafflePanel(host);
+    }
+    function renderAllHosts() {
+      explicitHosts.forEach(decorateExplicitHost);
+      if (!legacyIntegration) return;
+      decorateHost(root.document?.querySelector(".stage-actions-content"));
+    }
     function observeHosts() { if (!root.document || !root.MutationObserver) return; const observer = new root.MutationObserver(() => scheduleRender()); observer.observe(root.document.body, { childList: true, subtree: true }); }
-    installSocketHandlers(); installNavigationLockGuards(); observeHosts(); scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab; renderAllHosts(); return true; } };
+    installSocketHandlers(); if (legacyIntegration) { installNavigationLockGuards(); observeHosts(); } scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), mountHost: (hostConfig) => { if (!hostConfig?.root) return null; explicitHosts.push(hostConfig); scheduleRender(); return { unmount: () => { const index = explicitHosts.indexOf(hostConfig); if (index >= 0) explicitHosts.splice(index, 1); } }; }, setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab; renderAllHosts(); return true; } };
   }
 
   function installSocketCapture() {
@@ -290,6 +310,6 @@
     return root.io;
   }
 
-  if (root?.document && root?.io) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture };
+  if (root?.document && root?.io && !/\/presenter(?:\/|$)/.test(root.location?.pathname || "")) installSocketCapture();
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture, createController };
 });

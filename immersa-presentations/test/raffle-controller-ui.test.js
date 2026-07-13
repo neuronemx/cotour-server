@@ -126,3 +126,25 @@ test("visual key selector requires choosing the correct option before creating",
 test("visual key config has no default entryKey and uses the synchronized draft", () => { const emptyConfig = createRaffleConfig("visual_key", createInitialRaffleControllerState()); const selectedState = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", { visualKeyDraftEntryKey: "visual_key_3", active: null }); const selectedConfig = createRaffleConfig("visual_key", selectedState); assert.equal(emptyConfig.mode, "visual_key"); assert.equal(emptyConfig.title, "Sorteo"); assert.equal(emptyConfig.entryKey, ""); assert.equal(emptyConfig.options.length, 4); assert.equal(selectedConfig.entryKey, "visual_key_3"); assert.equal(selectedConfig.options.some((option) => option.id === selectedConfig.entryKey), true); });
 
 test("winner label avoids exposing audience id when no public label exists", () => { assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id" } }), "Ganador seleccionado"); assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id", label: "Mesa 4" } }), "Mesa 4"); });
+
+test("Speaker uses native shell mount and explicit raffle host", () => {
+  const presenterHtml = readProjectFile("public/presenter/index.html");
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenterHtml, /\/shared\/interactions-shell\.js/);
+  assert.match(presenter, /interactionShellMount\.className = "interactions-shell-mount"/);
+  assert.match(presenter, /ImmersaInteractionsShell\.create/);
+  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: interactionShell\.getContentRoot\(\), isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(presenter, /raffle-existing-content/);
+  assert.doesNotMatch(presenter, /MutationObserver/);
+  assert.doesNotMatch(presenter, /stopImmediatePropagation/);
+});
+
+test("raffle controller keeps legacy Stage path isolated from explicit Speaker hosts", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+  assert.match(source, /const legacyIntegration = options\.installLegacyIntegration !== false/);
+  assert.match(source, /mountHost: \(hostConfig\) =>/);
+  assert.match(source, /if \(!legacyIntegration\) return;/);
+  assert.match(source, /decorateHost\(root\.document\?\.querySelector\("\.stage-actions-content"\)\)/);
+  assert.doesNotMatch(source, /decorateHost\(root\.document\?\.querySelector\("\.interaction-panel"\)\)/);
+  assert.match(source, /!\/\\\/presenter/);
+});

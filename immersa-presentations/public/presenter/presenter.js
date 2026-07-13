@@ -4,6 +4,7 @@ const sessionId = params.get("session") || roleOpenContext.session || roleOpenCo
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 const overlaySocket = io();
+const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: () => syncInteractionShellState() }) : null;
 let overlaySocketJoined = false;
 let manifest = null;
 let interactions = [];
@@ -47,6 +48,10 @@ const fallbackDemoInteraction = {
   source: "fallback-demo"
 };
 let interactionPanel = null;
+let interactionShellMount = null;
+let interactionShell = null;
+let pollsRenderer = null;
+let raffleHostRegistration = null;
 let interactionPanelOpen = false;
 function renderDeckNotice() {
   const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
@@ -127,7 +132,54 @@ function render(state) { currentState = state; const index = state.presenterSlid
 function popReaction(emoji) { if (!localReactions.checked) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(20 + Math.random() * 60) + "%"; node.style.setProperty("--x", Math.round(Math.random() * 240 - 120) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2900); }
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
-function ensureInteractionPanel() { if (interactionPanel) return interactionPanel; interactionPanel = document.createElement("section"); interactionPanel.className = "interaction-panel"; interactionPanel.setAttribute("aria-label", "Interacciones"); presenterShell.appendChild(interactionPanel); return interactionPanel; }
+function ensureInteractionPanel() {
+  if (interactionPanel) return interactionPanel;
+  interactionPanel = document.createElement("section");
+  interactionPanel.className = "interaction-panel";
+  interactionPanel.setAttribute("aria-label", "Interacciones");
+  interactionShellMount = document.createElement("div");
+  interactionShellMount.className = "interactions-shell-mount";
+  interactionPanel.appendChild(interactionShellMount);
+  presenterShell.appendChild(interactionPanel);
+  return interactionPanel;
+}
+function ensureInteractionsShell() {
+  ensureInteractionPanel();
+  if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
+  interactionShell = window.ImmersaInteractionsShell.create({
+    root: interactionShellMount,
+    onSelectCategory: (view) => {
+      if (view === "polls") renderInteractionPanel();
+      if (view === "raffles") renderRafflePanel();
+      if (view === "home") syncInteractionShellState();
+    },
+    onRequestClose: () => setInteractionPanelOpen(false)
+  });
+  pollsRenderer = document.createElement("div");
+  pollsRenderer.className = "interaction-polls-renderer";
+  interactionShell.getContentRoot().appendChild(pollsRenderer);
+  if (raffleController?.mountHost) {
+    raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: interactionShell.getContentRoot(), isActive: () => interactionShell.getView() === "raffles" });
+  }
+  syncInteractionShellState();
+  return interactionShell;
+}
+function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
+function syncInteractionShellState() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  const activeRaffle = Boolean(raffleController?.getState?.().active);
+  const activePoll = Boolean(activeInteraction);
+  const view = activePoll ? "polls" : activeRaffle ? "raffles" : shell.getView();
+  shell.setLocked(activePoll || activeRaffle);
+  if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
+}
+function renderRafflePanel() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  shell.setView("raffles");
+  raffleController?.setTab?.("raffles");
+}
 function setInteractionPanelOpen(open) {
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
@@ -151,8 +203,6 @@ function ensureInteractionToggle() {
   interactionToggle.setAttribute("aria-label", "Interacciones");
   return interactionToggle;
 }
-function interactionPanelCloseMarkup() { return '<button type="button" class="interaction-panel-close" data-interaction-panel-close aria-label="Cerrar interacciones">×</button>'; }
-function bindInteractionPanelClose(panel) { panel.querySelector("[data-interaction-panel-close]")?.addEventListener("click", () => setInteractionPanelOpen(false)); }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
 function activeResultRows(interaction, results) {
   const resultOptions = Array.isArray(results?.options) && results.options.length ? results.options : (interaction?.options || []).map((option) => ({ label: option.label, count: 0, percentage: 0 }));
@@ -185,21 +235,24 @@ function attachInteractionCloseSlider(control, interactionId) {
   control.addEventListener("pointercancel", (event) => { finish(event); reset(); });
 }
 function renderInteractionPanel() {
-  const panel = ensureInteractionPanel();
+  ensureInteractionsShell();
+  syncInteractionShellState();
+  const shell = interactionShell;
+  const panel = pollsRenderer;
   const active = activeInteraction || null;
   const selected = selectedInteraction();
   const hasActive = Boolean(active);
   if (!hasActive) {
-    panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><h2>Interacciones</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
-    bindInteractionPanelClose(panel);
+    if (shell.getView() !== "home") shell.setView("polls");
+    panel.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
   }
   const revealLabel = interactionResultsVisible ? 'Ocultar resultados' : 'Mostrar resultados';
   const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
-  panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
-  bindInteractionPanelClose(panel);
+  shell.setView("polls");
+  panel.innerHTML = '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
   panel.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => { const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results"; socket.emit(eventName, { interactionId: activeInteraction?.id }); });
   attachInteractionCloseSlider(panel.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
 }
