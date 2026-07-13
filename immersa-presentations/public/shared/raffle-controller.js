@@ -301,6 +301,8 @@
     installSocketHandlers(); if (legacyIntegration) { installNavigationLockGuards(); observeHosts(); } scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), mountHost: (hostConfig) => { if (!hostConfig?.root) return null; explicitHosts.push(hostConfig); scheduleRender(); return { unmount: () => { const index = explicitHosts.indexOf(hostConfig); if (index >= 0) explicitHosts.splice(index, 1); } }; }, setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab; renderAllHosts(); return true; } };
   }
 
+  function shouldAutoInstallSocketCapture(pathname) { return !/^\/(?:speaker|presenter)(?:\/|$)/.test(String(pathname || "")); }
+
   function installSocketCapture() {
     if (!root || !root.io || root.__immersaRaffleIoWrapped) return null;
     const originalIo = root.io;
@@ -310,6 +312,6 @@
     return root.io;
   }
 
-  if (root?.document && root?.io && !/\/presenter(?:\/|$)/.test(root.location?.pathname || "")) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture, createController };
+  if (root?.document && root?.io && shouldAutoInstallSocketCapture(root.location?.pathname || "")) installSocketCapture();
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture, shouldAutoInstallSocketCapture, createController };
 });

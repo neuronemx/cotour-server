@@ -4,7 +4,7 @@ const sessionId = params.get("session") || roleOpenContext.session || roleOpenCo
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 const overlaySocket = io();
-const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: () => syncInteractionShellState() }) : null;
+const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 let overlaySocketJoined = false;
 let manifest = null;
 let interactions = [];
@@ -51,6 +51,7 @@ let interactionPanel = null;
 let interactionShellMount = null;
 let interactionShell = null;
 let pollsRenderer = null;
+let raffleRenderer = null;
 let raffleHostRegistration = null;
 let interactionPanelOpen = false;
 function renderDeckNotice() {
@@ -157,14 +158,28 @@ function ensureInteractionsShell() {
   });
   pollsRenderer = document.createElement("div");
   pollsRenderer.className = "interaction-polls-renderer";
-  interactionShell.getContentRoot().appendChild(pollsRenderer);
+  raffleRenderer = document.createElement("div");
+  raffleRenderer.className = "interaction-raffle-renderer";
+  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer);
   if (raffleController?.mountHost) {
-    raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: interactionShell.getContentRoot(), isActive: () => interactionShell.getView() === "raffles" });
+    raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: raffleRenderer, isActive: () => interactionShell.getView() === "raffles" });
   }
   syncInteractionShellState();
   return interactionShell;
 }
 function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
+function syncRendererVisibility() {
+  if (!interactionShell) return;
+  if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
+  if (raffleRenderer) raffleRenderer.hidden = interactionShell.getView() !== "raffles";
+}
+function returnInteractionsHome() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  shell.setLocked(false);
+  shell.setView("home");
+  syncRendererVisibility();
+}
 function syncInteractionShellState() {
   const shell = ensureInteractionsShell();
   if (!shell) return;
@@ -173,11 +188,13 @@ function syncInteractionShellState() {
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : shell.getView();
   shell.setLocked(activePoll || activeRaffle);
   if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
+  syncRendererVisibility();
 }
 function renderRafflePanel() {
   const shell = ensureInteractionsShell();
   if (!shell) return;
   shell.setView("raffles");
+  syncRendererVisibility();
   raffleController?.setTab?.("raffles");
 }
 function setInteractionPanelOpen(open) {
@@ -243,7 +260,8 @@ function renderInteractionPanel() {
   const selected = selectedInteraction();
   const hasActive = Boolean(active);
   if (!hasActive) {
-    if (shell.getView() !== "home") shell.setView("polls");
+    if (shell.getView() !== "home" && !raffleController?.getState?.().active) shell.setView("polls");
+    syncRendererVisibility();
     panel.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
@@ -252,6 +270,7 @@ function renderInteractionPanel() {
   const revealLabel = interactionResultsVisible ? 'Ocultar resultados' : 'Mostrar resultados';
   const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
   shell.setView("polls");
+  syncRendererVisibility();
   panel.innerHTML = '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
   panel.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => { const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results"; socket.emit(eventName, { interactionId: activeInteraction?.id }); });
   attachInteractionCloseSlider(panel.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
@@ -276,7 +295,7 @@ socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popRe
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); else selectDefaultInteraction(); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
 socket.on("interaction:results_updated", (results) => { interactionResults = results || null; renderInteractionPanel(); });
-socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderInteractionPanel(); });
+socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
 syncThumbsPanelMode();
 ensureInteractionToggle();
 loadDeck().then(() => { initDrawingOverlay(); updateDrawingMode(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" }); });

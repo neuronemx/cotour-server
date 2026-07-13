@@ -15,6 +15,7 @@ const {
   winnerLabel,
   remainingRaffleSeconds,
   isRaffleNavigationLocked,
+  shouldAutoInstallSocketCapture,
   SLIDE_COMPLETE_RATIO
 } = require("../public/shared/raffle-controller");
 
@@ -127,16 +128,49 @@ test("visual key config has no default entryKey and uses the synchronized draft"
 
 test("winner label avoids exposing audience id when no public label exists", () => { assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id" } }), "Ganador seleccionado"); assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id", label: "Mesa 4" } }), "Mesa 4"); });
 
+
+
+test("socket capture auto-install skips Speaker routes and keeps Stage legacy", () => {
+  assert.equal(shouldAutoInstallSocketCapture("/speaker"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/speaker/a_example"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/presenter"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/presenter/a_example"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/stage"), true);
+  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), true);
+});
+
 test("Speaker uses native shell mount and explicit raffle host", () => {
   const presenterHtml = readProjectFile("public/presenter/index.html");
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.match(presenterHtml, /\/shared\/interactions-shell\.js/);
   assert.match(presenter, /interactionShellMount\.className = "interactions-shell-mount"/);
   assert.match(presenter, /ImmersaInteractionsShell\.create/);
-  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: interactionShell\.getContentRoot\(\), isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
   assert.doesNotMatch(presenter, /raffle-existing-content/);
   assert.doesNotMatch(presenter, /MutationObserver/);
   assert.doesNotMatch(presenter, /stopImmediatePropagation/);
+});
+
+
+
+test("Speaker uses sibling stable renderers for polls and raffles", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /let pollsRenderer = null;[\s\S]+let raffleRenderer = null;/);
+  assert.match(presenter, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
+  assert.match(presenter, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
+  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(presenter, /root: interactionShell\.getContentRoot\(\)/);
+  assert.match(presenter, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
+  assert.match(presenter, /raffleRenderer\.hidden = interactionShell\.getView\(\) !== "raffles"/);
+});
+
+test("Speaker returns home only on real interaction close events", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /onRequestClose: \(\) => setInteractionPanelOpen\(false\)/);
+  assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
+  assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
 });
 
 test("raffle controller keeps legacy Stage path isolated from explicit Speaker hosts", () => {
@@ -146,5 +180,5 @@ test("raffle controller keeps legacy Stage path isolated from explicit Speaker h
   assert.match(source, /if \(!legacyIntegration\) return;/);
   assert.match(source, /decorateHost\(root\.document\?\.querySelector\("\.stage-actions-content"\)\)/);
   assert.doesNotMatch(source, /decorateHost\(root\.document\?\.querySelector\("\.interaction-panel"\)\)/);
-  assert.match(source, /!\/\\\/presenter/);
+  assert.match(source, /shouldAutoInstallSocketCapture\(root\.location\?\.pathname \|\| ""\)/);
 });
