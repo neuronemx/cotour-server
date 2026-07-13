@@ -8,6 +8,7 @@ const { RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
 const {
   createRaffleConfig,
   createInitialRaffleControllerState,
+  withLocalCountdown,
   RAFFLE_MODES,
   reduceRaffleControllerState,
   getRaffleActions,
@@ -169,6 +170,22 @@ test("controller countdown renders stable five second sequence without seconds s
     Date.now = originalNow;
   }
   assert.deepEqual([0, 1000, 2000, 3000, 4000].map((elapsed) => remainingRaffleSeconds(active, nowMs + elapsed)), [5, 4, 3, 2, 1]);
+});
+
+
+test("controller countdown uses server relative remaining time despite client clock skew", () => {
+  const serverRevealAt = new Date(100_000).toISOString();
+  const payload = { id: "r-skew", mode: "free", state: "drawing", revealAt: serverRevealAt, countdownRemainingMs: 5_000 };
+  const clientAhead = withLocalCountdown(payload, 102_000);
+  const clientBehind = withLocalCountdown(payload, 98_000);
+
+  assert.equal(remainingRaffleSeconds(clientAhead, 102_000), 5);
+  assert.equal(remainingRaffleSeconds(clientBehind, 98_000), 5);
+  assert.equal(remainingRaffleSeconds(clientAhead, 103_000), 4);
+  assert.deepEqual([0, 1000, 2000, 3000, 4000].map((elapsed) => remainingRaffleSeconds(clientAhead, 102_000 + elapsed)), [5, 4, 3, 2, 1]);
+
+  const lateJoin = withLocalCountdown({ ...payload, countdownRemainingMs: 2_800 }, 120_000);
+  assert.equal(remainingRaffleSeconds(lateJoin, 120_000), 3);
 });
 
 test("slide-confirm skips UX adjustment autoload for Speaker and Presenter", () => {

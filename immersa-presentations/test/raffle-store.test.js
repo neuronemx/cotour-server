@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { RaffleStore, RAFFLE_REVEAL_DELAY_MS, AUTO_REVEAL_DELAY_MS } = require("../raffle-store");
+const { RaffleStore, RAFFLE_REVEAL_DELAY_MS, AUTO_REVEAL_DELAY_MS, countdownRemainingMs } = require("../raffle-store");
 const { InteractionStore } = require("../interaction-store");
 const { ActiveInteractionCoordinator } = require("../active-interaction-coordinator");
 
@@ -254,13 +254,34 @@ test("draw enters drawing and defines revealAt five seconds ahead", () => {
   store.closeEntries("s1", connected("a1", "a2"));
 
   const result = store.drawWinner("s1", ["a1", "a2"], { nowMs });
-  const state = store.getControllerState("s1").active;
+  const originalNow = Date.now;
+  Date.now = () => nowMs;
+  let state;
+  try { state = store.getControllerState("s1").active; } finally { Date.now = originalNow; }
   assert.equal(result.ok, true);
   assert.equal(state.state, "drawing");
   assert.equal(RAFFLE_REVEAL_DELAY_MS, 5000);
   assert.equal(Date.parse(state.revealAt) - nowMs, RAFFLE_REVEAL_DELAY_MS);
+  assert.equal(state.countdownRemainingMs, RAFFLE_REVEAL_DELAY_MS);
   assert.equal(AUTO_REVEAL_DELAY_MS, RAFFLE_REVEAL_DELAY_MS);
   assert.equal(state.drawingEndsAt, state.revealAt);
+});
+
+
+test("server countdownRemainingMs is relative to the server clock and reaches zero at deadline", () => {
+  const store = new RaffleStore(() => 0);
+  const originalNow = Date.now;
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", connected("a1", "a2"));
+  store.drawWinner("s1", ["a1", "a2"], { nowMs: 10_000 });
+  const raffle = store.getActive("s1");
+
+  Date.now = () => 10_000;
+  try { assert.equal(countdownRemainingMs(raffle), RAFFLE_REVEAL_DELAY_MS); } finally { Date.now = originalNow; }
+  Date.now = () => 13_200;
+  try { assert.equal(store.getControllerState("s1").active.countdownRemainingMs, 1_800); } finally { Date.now = originalNow; }
+  Date.now = () => 15_000;
+  try { assert.equal(countdownRemainingMs(raffle), 0); } finally { Date.now = originalNow; }
 });
 
 test("winner is hidden before reveal and appears automatically after deadline", () => {

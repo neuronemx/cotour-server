@@ -125,8 +125,9 @@
   function createInitialRaffleControllerState() {
     return { active: null, previousWinnerCount: 0, activeInteraction: null, connectedAudienceCount: 0, visualKeyDraftEntryKey: "", configMode: "", pendingEvent: "", error: "" };
   }
-  function normalizeControllerState(payload) { return { active: payload?.active || null, previousWinnerCount: Number(payload?.previousWinnerCount || 0), visualKeyDraftEntryKey: String(payload?.visualKeyDraftEntryKey || "") }; }
-  function activeFromEventPayload(payload) { return payload?.raffle || payload?.active || payload || null; }
+  function withLocalCountdown(active, receivedAtLocalMs = Date.now()) { const remainingMs = Number(active?.countdownRemainingMs); if (!active || active.state !== "drawing" || !Number.isFinite(remainingMs)) return active || null; return { ...active, __countdownRemainingMs: Math.max(0, remainingMs), __countdownReceivedAtLocalMs: receivedAtLocalMs }; }
+  function normalizeControllerState(payload) { return { active: withLocalCountdown(payload?.active || null), previousWinnerCount: Number(payload?.previousWinnerCount || 0), visualKeyDraftEntryKey: String(payload?.visualKeyDraftEntryKey || "") }; }
+  function activeFromEventPayload(payload) { return withLocalCountdown(payload?.raffle || payload?.active || payload || null); }
   function numericCount(value, fallback = 0) { const count = Number(value); return Number.isFinite(count) ? count : fallback; }
   function errorMessage(reason) {
     const messages = { active_interaction_exists: "Cierra la encuesta activa antes de iniciar un sorteo.", active_raffle_exists: "Ya hay un sorteo activo.", invalid_raffle_mode: "Este modo de sorteo no está disponible.", visual_key_requires_four_options: "Clave visual necesita cuatro opciones.", entry_key_required: "Elige la opción correcta antes de abrir la participación.", entry_key_must_match_option: "La respuesta correcta debe existir entre las cuatro opciones.", poll_options_required: "Encuesta necesita al menos dos opciones.", no_eligible_entries: "No hay participantes elegibles.", no_connected_eligible_entries: "No hay participantes elegibles conectados." };
@@ -157,7 +158,7 @@
   function eligibleCount(active) { return Number(active?.eligibleCount ?? 0); }
   function winnerLabel(active) { const winner = active?.winner || active?.winners?.[0] || null; const label = winner?.label || winner?.name; return label ? String(label) : "Ganador seleccionado"; }
   function revealTimestamp(active) { const timestamp = Date.parse(active?.revealAt || active?.drawingEndsAt || ""); return Number.isFinite(timestamp) ? timestamp : null; }
-  function remainingRaffleSeconds(active, nowMs = Date.now()) { const timestamp = revealTimestamp(active); if (!Number.isFinite(timestamp)) return null; return Math.max(0, Math.ceil((timestamp - nowMs) / 1000)); }
+  function remainingRaffleSeconds(active, nowMs = Date.now()) { const localRemaining = Number(active?.__countdownRemainingMs); const receivedAt = Number(active?.__countdownReceivedAtLocalMs); if (Number.isFinite(localRemaining)) { const elapsed = Number.isFinite(receivedAt) ? Math.max(0, nowMs - receivedAt) : 0; return Math.max(0, Math.ceil((localRemaining - elapsed) / 1000)); } const serverRemaining = Number(active?.countdownRemainingMs); if (Number.isFinite(serverRemaining)) return Math.max(0, Math.ceil(serverRemaining / 1000)); const timestamp = revealTimestamp(active); if (!Number.isFinite(timestamp)) return null; return Math.max(0, Math.ceil((timestamp - nowMs) / 1000)); }
   function isRaffleNavigationLocked(state) { return Boolean(state?.active); }
   function isExternalCloseTarget(target) { return Boolean(target?.closest?.("[data-interaction-panel-close], [data-stage-actions-close], #interactionToggle")); }
   function blockEvent(event) { event.preventDefault?.(); event.stopImmediatePropagation?.(); event.stopPropagation?.(); }
@@ -227,7 +228,7 @@
     function setPending(eventName) { state = { ...state, pendingEvent: eventName, error: "" }; scheduleRender(); }
     function update(eventName, payload) { const wasLocked = isRaffleNavigationLocked(state); state = reduceRaffleControllerState(state, eventName, payload); if (eventName === "raffle:closed" && wasLocked) currentTab = "polls"; if (eventName === "raffle:closed") currentTab = "polls"; else if (state.active) currentTab = "raffles"; syncCountdownTimer(); options.onStateChange?.(state, eventName); scheduleRender(); }
     function scheduleRender() { if (renderQueued) return; renderQueued = true; const render = () => { renderQueued = false; renderAllHosts(); }; if (root.requestAnimationFrame) root.requestAnimationFrame(render); else setTimeout(render, 0); }
-    function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && Number.isFinite(revealTimestamp(state.active)); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
+    function syncCountdownTimer() { const shouldTick = state.active?.state === "drawing" && (Number.isFinite(Number(state.active.__countdownRemainingMs)) || Number.isFinite(Number(state.active.countdownRemainingMs)) || Number.isFinite(revealTimestamp(state.active))); if (shouldTick && !countdownTimer) countdownTimer = (root.setInterval || setInterval)(() => scheduleRender(), 500); if (!shouldTick && countdownTimer) { (root.clearInterval || clearInterval)(countdownTimer); countdownTimer = null; } }
     function installSocketHandlers() { ["state", "presentation_state", "audience_count", "raffle:state", "raffle:active", "raffle:entries_closed", "raffle:drawing", "raffle:winner", "raffle:closed", "raffle:winners_reset", "raffle:rejected", "interaction:state", "interaction:active"].forEach((eventName) => { socket.on(eventName, (payload) => update(eventName, payload)); }); socket.on("interaction:closed", () => update("interaction:closed")); }
     function installNavigationLockGuards() {
       if (!root.document || root.__immersaRaffleNavigationGuard) return;
@@ -314,5 +315,5 @@
   }
 
   if (root?.document && root?.io && shouldAutoInstallSocketCapture(root.location?.pathname || "")) installSocketCapture();
-  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture, shouldAutoInstallSocketCapture, createController };
+  return { TEMP_VISUAL_KEY_OPTIONS, RAFFLE_MODES, RAFFLE_EVENTS, SLIDE_COMPLETE_RATIO, createRaffleConfig, createInitialRaffleControllerState, withLocalCountdown, normalizeControllerState, reduceRaffleControllerState, getRaffleActions, canDispatchRaffleAction, canCreateMode, createSlideConfirmDispatcher, resetSlideConfirm, renderRaffleController, errorMessage, winnerLabel, remainingRaffleSeconds, isRaffleNavigationLocked, installSocketCapture, shouldAutoInstallSocketCapture, createController };
 });
