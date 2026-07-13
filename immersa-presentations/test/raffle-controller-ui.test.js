@@ -4,9 +4,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const SlideConfirm = require("../public/shared/slide-confirm");
+const { RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
 const {
   createRaffleConfig,
   createInitialRaffleControllerState,
+  withLocalCountdown,
+  RAFFLE_MODES,
   reduceRaffleControllerState,
   getRaffleActions,
   canDispatchRaffleAction,
@@ -15,6 +18,7 @@ const {
   winnerLabel,
   remainingRaffleSeconds,
   isRaffleNavigationLocked,
+  shouldAutoInstallSocketCapture,
   SLIDE_COMPLETE_RATIO
 } = require("../public/shared/raffle-controller");
 
@@ -60,9 +64,9 @@ test("raffle subview hides tabs and conditionally provides a back control", () =
   assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
 });
 
-test("raffle selector hierarchy has no duplicate labels", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.equal((html.match(/<h2>Sorteo<\/h2>/g) || []).length, 1); assert.equal((html.match(/<h2>/g) || []).length, 1); assert.match(html, /<p>Elige un modo para crear la convocatoria\.<\/p>/); });
+test("raffle selector hierarchy has no duplicate labels", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Sorteos?<\/h2>/i); assert.equal((html.match(/<h2>/g) || []).length, 0); assert.match(html, /<p>Elige un modo para crear la convocatoria\.<\/p>/); });
 
-test("active raffle hierarchy uses mode title and state text", () => { let state = createInitialRaffleControllerState(); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /<h2>Libre<\/h2><p>Participación abierta<\/p>/); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Participación abierta<\/h2>/); assert.match(html, /data-raffle-action="raffle:close_entries"/); assert.match(html, /data-raffle-action="raffle:close"/); });
+test("active raffle hierarchy uses mode title and state text", () => { let state = createInitialRaffleControllerState(); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Participación abierta<\/h2>/); assert.match(html, /data-raffle-action="raffle:close_entries"/); assert.match(html, /data-raffle-action="raffle:close"/); });
 
 test("poll launch handlers still emit interaction:launch from Speaker and Stage", () => { const presenter = readProjectFile("public/presenter/presenter.js"); const stage = readProjectFile("public/stage/stage.js"); assert.match(presenter, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/); assert.match(stage, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/); });
 
@@ -108,7 +112,7 @@ test("rejection clears pending state and restores the slide control", () => { le
 
 test("drawing renders automatic countdown without manual action or metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r11", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() } }; const html = renderRaffleController(state); assert.match(html, /Sorteando/); assert.match(html, /REVELACIÓN EN/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /ELEGIBLES/); assert.doesNotMatch(html, /<strong>2<\/strong>/); assert.doesNotMatch(html, /Mostrar ganador/); assert.equal(isRaffleNavigationLocked(state), true); });
 
-test("winner renders winner block and close action without participant metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r12", mode: "free", state: "winner", entryCount: 2, eligibleCount: 2, winner: { label: "Mesa 4" } } }; const html = renderRaffleController(state); assert.match(html, /<h2>Libre<\/h2><p>Tenemos ganador<\/p>/); assert.match(html, /<span>Ganador<\/span><strong>Mesa 4<\/strong>/); assert.match(html, /data-raffle-action="raffle:close"/); assert.match(html, /Cerrar sorteo/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /ELEGIBLES/); assert.doesNotMatch(html, /Restablecer ganadores/); assert.equal(isRaffleNavigationLocked(state), true); });
+test("winner renders winner block and close action without participant metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r12", mode: "free", state: "winner", entryCount: 2, eligibleCount: 2, winner: { label: "Mesa 4" } } }; const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Tenemos ganador<\/p>/); assert.match(html, /<span>Ganador<\/span><strong>Mesa 4<\/strong>/); assert.match(html, /data-raffle-action="raffle:close"/); assert.match(html, /Cerrar sorteo/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /ELEGIBLES/); assert.doesNotMatch(html, /Restablecer ganadores/); assert.equal(isRaffleNavigationLocked(state), true); });
 
 test("visual key selector requires choosing the correct option before creating", () => {
   const emptyHtml = renderRaffleController({ ...createInitialRaffleControllerState(), configMode: "visual_key" });
@@ -126,3 +130,175 @@ test("visual key selector requires choosing the correct option before creating",
 test("visual key config has no default entryKey and uses the synchronized draft", () => { const emptyConfig = createRaffleConfig("visual_key", createInitialRaffleControllerState()); const selectedState = reduceRaffleControllerState({ ...createInitialRaffleControllerState(), configMode: "visual_key" }, "raffle:state", { visualKeyDraftEntryKey: "visual_key_3", active: null }); const selectedConfig = createRaffleConfig("visual_key", selectedState); assert.equal(emptyConfig.mode, "visual_key"); assert.equal(emptyConfig.title, "Sorteo"); assert.equal(emptyConfig.entryKey, ""); assert.equal(emptyConfig.options.length, 4); assert.equal(selectedConfig.entryKey, "visual_key_3"); assert.equal(selectedConfig.options.some((option) => option.id === selectedConfig.entryKey), true); });
 
 test("winner label avoids exposing audience id when no public label exists", () => { assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id" } }), "Ganador seleccionado"); assert.equal(winnerLabel({ winner: { audienceId: "sensitive-id", label: "Mesa 4" } }), "Mesa 4"); });
+
+
+
+test("socket capture auto-install skips Speaker routes and keeps Stage legacy", () => {
+  assert.equal(shouldAutoInstallSocketCapture("/speaker"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/speaker/a_example"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/presenter"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/presenter/a_example"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/stage"), true);
+  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), true);
+});
+
+
+test("raffle mode order is Libre, Encuesta, Clave visual", () => {
+  assert.deepEqual(RAFFLE_MODES.map((mode) => mode.id), ["free", "poll", "visual_key"]);
+  const html = renderRaffleController(createInitialRaffleControllerState());
+  assert.equal(html.indexOf("<strong>Libre</strong>") < html.indexOf("<strong>Encuesta</strong>"), true);
+  assert.equal(html.indexOf("<strong>Encuesta</strong>") < html.indexOf("<strong>Clave visual</strong>"), true);
+});
+
+test("eligible metric is hidden when zero and visible when positive", () => {
+  const zeroHtml = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-e0", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 0 } });
+  const positiveHtml = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-e2", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 } });
+  assert.doesNotMatch(zeroHtml, /ELEGIBLES/);
+  assert.match(positiveHtml, /ELEGIBLES<\/span><strong>2<\/strong>/);
+});
+
+test("controller countdown renders stable five second sequence without seconds suffix", () => {
+  const nowMs = 50_000;
+  const active = { id: "r-count", mode: "free", state: "drawing", revealAt: new Date(nowMs + RAFFLE_REVEAL_DELAY_MS).toISOString() };
+  const originalNow = Date.now;
+  Date.now = () => nowMs;
+  try {
+    const html = renderRaffleController({ ...createInitialRaffleControllerState(), active });
+    assert.match(html, /<div class="raffle-countdown"><span>REVELACIÓN EN<\/span><strong>5<\/strong><\/div>/);
+    assert.doesNotMatch(html, /<strong>[1-5]s<\/strong>/);
+  } finally {
+    Date.now = originalNow;
+  }
+  assert.deepEqual([0, 1000, 2000, 3000, 4000].map((elapsed) => remainingRaffleSeconds(active, nowMs + elapsed)), [5, 4, 3, 2, 1]);
+});
+
+
+test("controller countdown uses server relative remaining time despite client clock skew", () => {
+  const serverRevealAt = new Date(100_000).toISOString();
+  const payload = { id: "r-skew", mode: "free", state: "drawing", revealAt: serverRevealAt, countdownRemainingMs: 5_000 };
+  const clientAhead = withLocalCountdown(payload, 102_000);
+  const clientBehind = withLocalCountdown(payload, 98_000);
+
+  assert.equal(remainingRaffleSeconds(clientAhead, 102_000), 5);
+  assert.equal(remainingRaffleSeconds(clientBehind, 98_000), 5);
+  assert.equal(remainingRaffleSeconds(clientAhead, 103_000), 4);
+  assert.deepEqual([0, 1000, 2000, 3000, 4000].map((elapsed) => remainingRaffleSeconds(clientAhead, 102_000 + elapsed)), [5, 4, 3, 2, 1]);
+
+  const lateJoin = withLocalCountdown({ ...payload, countdownRemainingMs: 2_800 }, 120_000);
+  assert.equal(remainingRaffleSeconds(lateJoin, 120_000), 3);
+});
+
+test("slide-confirm skips UX adjustment autoload for Speaker and Presenter", () => {
+  assert.equal(SlideConfirm.shouldLoadRaffleUxAdjustments("/speaker/a_example"), false);
+  assert.equal(SlideConfirm.shouldLoadRaffleUxAdjustments("/presenter/a_example"), false);
+  assert.equal(SlideConfirm.shouldLoadRaffleUxAdjustments("/stage/a_example"), true);
+  assert.equal(SlideConfirm.shouldLoadRaffleUxAdjustments("/audience/a_example"), true);
+  assert.equal(SlideConfirm.shouldLoadRaffleUxAdjustments("/screen/a_example"), true);
+});
+
+test("Speaker uses native shell mount and explicit raffle host", () => {
+  const presenterHtml = readProjectFile("public/presenter/index.html");
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenterHtml, /\/shared\/interactions-shell\.js/);
+  assert.match(presenter, /interactionShellMount\.className = "interactions-shell-mount"/);
+  assert.match(presenter, /ImmersaInteractionsShell\.create/);
+  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(presenter, /raffle-existing-content/);
+  assert.doesNotMatch(presenter, /MutationObserver/);
+  assert.doesNotMatch(presenter, /stopImmediatePropagation/);
+});
+
+
+
+test("Speaker uses sibling stable renderers for polls and raffles", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /let pollsRenderer = null;[\s\S]+let raffleRenderer = null;/);
+  assert.match(presenter, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
+  assert.match(presenter, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
+  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(presenter, /root: interactionShell\.getContentRoot\(\)/);
+  assert.match(presenter, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
+  assert.match(presenter, /raffleRenderer\.hidden = interactionShell\.getView\(\) !== "raffles"/);
+});
+
+test("Speaker returns home only on real interaction close events", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /onRequestClose: closeInteractionPanelRequest/);
+  assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+if \(hasActiveInteractionShellLock\(\)\) return;[\s\S]+returnInteractionsHome\(\);[\s\S]+setInteractionPanelOpen\(false\);/);
+  assert.match(presenter, /function toggleInteractionPanel\(\) \{ if \(interactionPanelOpen && hasActiveInteractionShellLock\(\)\) return;/);
+  assert.match(presenter, /event\.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock\(\)/);
+  assert.match(presenter, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
+  assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
+});
+
+
+
+test("poll idle selection starts empty and launch disabled until explicit choice", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /let selectedInteractionId = ""/);
+  assert.match(presenter, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
+  assert.match(presenter, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\); renderInteractionPanel\(\);/);
+  assert.match(presenter, /function selectedInteraction\(\) \{ return selectedInteractionId \? interactions\.find/);
+  assert.match(presenter, /const selected = selectedInteraction\(\);[\s\S]+data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.doesNotMatch(presenter, /selectDefaultInteraction/);
+  assert.doesNotMatch(presenter, /\|\| interactions\[0\]/);
+});
+
+
+test("poll idle renders list when interactions exist without selected poll", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /const hasInteractions = interactions\.length > 0;[\s\S]+const selected = selectedInteraction\(\);/);
+  assert.match(presenter, /panel\.innerHTML = \(hasInteractions \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
+  assert.match(presenter, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.match(presenter, /panel\.querySelectorAll\("\[data-interaction-select\]"\)[\s\S]+selectedInteractionId = button\.dataset\.interactionSelect/);
+  assert.match(presenter, /socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
+});
+
+test("poll empty state depends on interactions length, not selected fallback", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /function selectedInteraction\(\) \{ return selectedInteractionId \? interactions\.find/);
+  assert.doesNotMatch(presenter, /selected \? '<p>Selecciona una encuesta/);
+  assert.doesNotMatch(presenter, /\|\| interactions\[0\]/);
+  assert.doesNotMatch(presenter, /selectDefaultInteraction/);
+});
+
+test("poll selection clears on idle X close and interaction closed", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
+  assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(presenter, /if \(activeInteraction\?\.id\) selectedInteractionId = String\(activeInteraction\.id\)/);
+});
+
+test("generic shell section titles are hidden outside general home", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+});
+
+test("poll home copy uses shell title only", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.doesNotMatch(presenter, /<h2>Encuestas<\/h2>/);
+  assert.doesNotMatch(presenter, /Encuestas disponibles/);
+  assert.match(presenter, /Selecciona una encuesta para lanzarla\./);
+  assert.doesNotMatch(presenter, /data-interaction-panel-close/);
+});
+
+test("active raffle uses contextual title without countdown suffix", () => {
+  const html = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-title", mode: "visual_key", state: "drawing", revealAt: new Date(Date.now() + 5_000).toISOString() } });
+  assert.match(html, /<h2>Sorteo Clave visual<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Sorteos<\/h2>/);
+  assert.doesNotMatch(html, /s<\/strong>/);
+});
+
+test("raffle controller keeps legacy Stage path isolated from explicit Speaker hosts", () => {
+  const source = readProjectFile("public/shared/raffle-controller.js");
+  assert.match(source, /const legacyIntegration = options\.installLegacyIntegration !== false/);
+  assert.match(source, /mountHost: \(hostConfig\) =>/);
+  assert.match(source, /if \(!legacyIntegration\) return;/);
+  assert.match(source, /decorateHost\(root\.document\?\.querySelector\("\.stage-actions-content"\)\)/);
+  assert.doesNotMatch(source, /decorateHost\(root\.document\?\.querySelector\("\.interaction-panel"\)\)/);
+  assert.match(source, /shouldAutoInstallSocketCapture\(root\.location\?\.pathname \|\| ""\)/);
+});

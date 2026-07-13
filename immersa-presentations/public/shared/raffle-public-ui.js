@@ -23,7 +23,21 @@
     return Number.isFinite(timestamp) ? timestamp : null;
   }
 
+  function withLocalCountdown(active, receivedAtLocalMs = Date.now()) {
+    const remainingMs = Number(active?.countdownRemainingMs);
+    if (!active || active.state !== "drawing" || !Number.isFinite(remainingMs)) return active || null;
+    return { ...active, __countdownRemainingMs: Math.max(0, remainingMs), __countdownReceivedAtLocalMs: receivedAtLocalMs };
+  }
+
   function remainingSeconds(active, nowMs = Date.now()) {
+    const localRemaining = Number(active?.__countdownRemainingMs);
+    const receivedAt = Number(active?.__countdownReceivedAtLocalMs);
+    if (Number.isFinite(localRemaining)) {
+      const elapsed = Number.isFinite(receivedAt) ? Math.max(0, nowMs - receivedAt) : 0;
+      return Math.max(0, Math.ceil((localRemaining - elapsed) / 1000));
+    }
+    const serverRemaining = Number(active?.countdownRemainingMs);
+    if (Number.isFinite(serverRemaining)) return Math.max(0, Math.ceil(serverRemaining / 1000));
     const timestamp = revealTimestamp(active);
     if (!Number.isFinite(timestamp)) return null;
     return Math.max(0, Math.ceil((timestamp - nowMs) / 1000));
@@ -79,7 +93,7 @@
 
   function renderAudienceDrawing(active, nowMs) {
     const remaining = remainingSeconds(active, nowMs);
-    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>Revelación en</span><strong>' + remaining + 's</strong></div>';
+    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>Revelación en</span><strong>' + remaining + '</strong></div>';
     return '<h2>Sorteando...</h2>' + countdown;
   }
 
@@ -174,7 +188,7 @@
 
     function syncTimer() {
       clearTimer();
-      if (active?.state === "drawing" && Number.isFinite(revealTimestamp(active))) timer = (root.setInterval || setInterval)(render, 500);
+      if (active?.state === "drawing" && (Number.isFinite(Number(active.__countdownRemainingMs)) || Number.isFinite(Number(active.countdownRemainingMs)) || Number.isFinite(revealTimestamp(active)))) timer = (root.setInterval || setInterval)(render, 500);
     }
 
     function ensureOverlay() {
@@ -207,7 +221,7 @@
     }
 
     function applyState(payload) {
-      active = normalizeRaffleState(payload);
+      active = withLocalCountdown(normalizeRaffleState(payload));
       if (!active) return clearOverlay();
       if (active.state !== "winner") privateWinner = false;
       if (active.ownEntry || active.ownSelection) pendingEntry = false;
@@ -249,5 +263,5 @@
   }
 
   if (root?.document && root?.io) installRuntime();
-  return { renderAudienceRaffle, renderScreenRaffle, remainingSeconds, normalizeRaffleState };
+  return { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, normalizeRaffleState };
 });

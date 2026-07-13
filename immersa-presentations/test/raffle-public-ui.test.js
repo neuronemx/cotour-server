@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { RaffleStore } = require("../raffle-store");
-const { renderAudienceRaffle, renderScreenRaffle, remainingSeconds } = require("../public/shared/raffle-public-ui");
+const { RaffleStore, RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
+const { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds } = require("../public/shared/raffle-public-ui");
 const { adjustRaffleHtml } = require("../public/shared/raffle-ux-adjustments");
 
 const visualKeyConfig = {
@@ -123,6 +123,56 @@ test("Audience drawing uses revealAt and refresh does not restart countdown", ()
   assert.doesNotMatch(first + refreshed, /<strong>\d+s<\/strong>/);
 });
 
+
+
+test("public countdown uses server relative remaining time despite client clock skew", () => {
+  const active = { mode: "free", state: "drawing", revealAt: new Date(100_000).toISOString(), countdownRemainingMs: 5_000 };
+  const clientAhead = withLocalCountdown(active, 102_000);
+  const clientBehind = withLocalCountdown(active, 98_000);
+
+  assert.equal(remainingSeconds(clientAhead, 102_000), 5);
+  assert.equal(remainingSeconds(clientBehind, 98_000), 5);
+  assert.equal(remainingSeconds(clientAhead, 103_000), 4);
+  assert.equal(remainingSeconds(withLocalCountdown({ ...active, countdownRemainingMs: 2_800 }, 120_000), 120_000), 3);
+  assert.match(renderAudienceRaffle(clientAhead, false, 102_000), /<strong>5<\/strong>/);
+  assert.match(renderScreenRaffle(clientBehind, 98_000), /<strong>5<\/strong>/);
+});
+
+test("Speaker, Audience, and Screen states share the canonical five second reveal timestamp", () => {
+  const store = new RaffleStore(() => 0);
+  const nowMs = 20_000;
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
+  store.drawWinner("s1", ["a1", "a2"], { nowMs });
+
+  const originalNow = Date.now;
+  Date.now = () => nowMs;
+  let controllerActive;
+  let screenActive;
+  let audienceActive;
+  try {
+    controllerActive = store.getControllerState("s1").active;
+    screenActive = store.getScreenState("s1").active;
+    audienceActive = store.getAudienceState("s1", "a1").active;
+  } finally {
+    Date.now = originalNow;
+  }
+
+  assert.equal(Date.parse(controllerActive.revealAt) - nowMs, RAFFLE_REVEAL_DELAY_MS);
+  assert.equal(screenActive.revealAt, controllerActive.revealAt);
+  assert.equal(screenActive.drawingEndsAt, controllerActive.revealAt);
+  assert.equal(audienceActive.revealAt, controllerActive.revealAt);
+  assert.equal(audienceActive.drawingEndsAt, controllerActive.revealAt);
+  assert.equal(remainingSeconds(screenActive, nowMs), 5);
+  assert.equal(remainingSeconds(audienceActive, nowMs), 5);
+
+  const audienceHtml = renderAudienceRaffle({ active: audienceActive }, false, nowMs);
+  const screenHtml = renderScreenRaffle({ active: screenActive }, nowMs);
+  assert.match(audienceHtml, /<strong>5<\/strong>/);
+  assert.match(screenHtml, /<strong>5<\/strong>/);
+  assert.doesNotMatch(audienceHtml + screenHtml, /<strong>[1-5]s<\/strong>/);
+});
+
 test("Audience winner is private and non-winner stays positive without identity", () => {
   const winnerHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: true } });
   const otherHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: false } });
@@ -187,7 +237,11 @@ test("Screen drawing and winner keep identity private", () => {
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs: 1000 });
 
-  const drawingHtml = adjustRaffleHtml(renderScreenRaffle(store.getScreenState("s1"), 3000));
+  const originalNow = Date.now;
+  Date.now = () => 1000;
+  let screenState;
+  try { screenState = store.getScreenState("s1"); } finally { Date.now = originalNow; }
+  const drawingHtml = adjustRaffleHtml(renderScreenRaffle(withLocalCountdown(screenState.active, 1000), 3000));
   assert.match(drawingHtml, /Sorteando/);
   assert.match(drawingHtml, /<strong>3<\/strong>/);
   assert.doesNotMatch(drawingHtml, /<strong>\d+s<\/strong>/);

@@ -4,6 +4,7 @@ const sessionId = params.get("session") || roleOpenContext.session || roleOpenCo
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
 const overlaySocket = io();
+const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 let overlaySocketJoined = false;
 let manifest = null;
 let interactions = [];
@@ -47,6 +48,11 @@ const fallbackDemoInteraction = {
   source: "fallback-demo"
 };
 let interactionPanel = null;
+let interactionShellMount = null;
+let interactionShell = null;
+let pollsRenderer = null;
+let raffleRenderer = null;
+let raffleHostRegistration = null;
 let interactionPanelOpen = false;
 function renderDeckNotice() {
   const pending = manifest && (manifest.status === "uploaded" || manifest.conversion?.status === "pending");
@@ -116,9 +122,9 @@ document.getElementById("stageUrl").value = roleUrl("stage");
 document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; renderThumbs(); await loadInteractions(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
-function selectDefaultInteraction() { if (!interactions.length) { selectedInteractionId = ""; return; } if (!interactions.some((item) => String(item.id) === String(selectedInteractionId))) selectedInteractionId = String(interactions[0].id); }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); if (!interactions.length) interactions = [fallbackDemoInteraction]; } catch (_error) { interactions = [fallbackDemoInteraction]; } selectDefaultInteraction(); renderInteractionPanel(); }
-function selectedInteraction() { return interactions.find((item) => String(item.id) === String(selectedInteractionId)) || interactions[0] || null; }
+function clearSelectedInteraction() { selectedInteractionId = ""; }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); if (!interactions.length) interactions = [fallbackDemoInteraction]; } catch (_error) { interactions = [fallbackDemoInteraction]; } clearSelectedInteraction(); renderInteractionPanel(); }
+function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
 function applySlideOrientation(container, item, src) { const portrait = item?.orientation === "portrait"; container.classList.toggle("portrait-slide", portrait); if (portrait) container.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else container.style.removeProperty("--slide-bg"); }
@@ -127,8 +133,84 @@ function render(state) { currentState = state; const index = state.presenterSlid
 function popReaction(emoji) { if (!localReactions.checked) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(20 + Math.random() * 60) + "%"; node.style.setProperty("--x", Math.round(Math.random() * 240 - 120) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2900); }
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
-function ensureInteractionPanel() { if (interactionPanel) return interactionPanel; interactionPanel = document.createElement("section"); interactionPanel.className = "interaction-panel"; interactionPanel.setAttribute("aria-label", "Interacciones"); presenterShell.appendChild(interactionPanel); return interactionPanel; }
+function ensureInteractionPanel() {
+  if (interactionPanel) return interactionPanel;
+  interactionPanel = document.createElement("section");
+  interactionPanel.className = "interaction-panel";
+  interactionPanel.setAttribute("aria-label", "Interacciones");
+  interactionShellMount = document.createElement("div");
+  interactionShellMount.className = "interactions-shell-mount";
+  interactionPanel.appendChild(interactionShellMount);
+  presenterShell.appendChild(interactionPanel);
+  return interactionPanel;
+}
+function ensureInteractionsShell() {
+  ensureInteractionPanel();
+  if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
+  interactionShell = window.ImmersaInteractionsShell.create({
+    root: interactionShellMount,
+    onSelectCategory: (view) => {
+      if (view === "polls") renderInteractionPanel();
+      if (view === "raffles") renderRafflePanel();
+      if (view === "home") syncInteractionShellState();
+    },
+    onRequestClose: closeInteractionPanelRequest
+  });
+  pollsRenderer = document.createElement("div");
+  pollsRenderer.className = "interaction-polls-renderer";
+  raffleRenderer = document.createElement("div");
+  raffleRenderer.className = "interaction-raffle-renderer";
+  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer);
+  if (raffleController?.mountHost) {
+    raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: raffleRenderer, isActive: () => interactionShell.getView() === "raffles" });
+  }
+  syncInteractionShellState();
+  return interactionShell;
+}
+function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
+function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active); }
+function syncRendererVisibility() {
+  if (!interactionShell) return;
+  if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
+  if (raffleRenderer) raffleRenderer.hidden = interactionShell.getView() !== "raffles";
+}
+function returnInteractionsHome() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  shell.setLocked(false);
+  shell.setCloseVisible(true);
+  shell.setTitleVisible?.(true);
+  shell.setView("home");
+  syncRendererVisibility();
+}
+function syncInteractionShellState() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  const activeRaffle = Boolean(raffleController?.getState?.().active);
+  const activePoll = Boolean(activeInteraction);
+  const view = activePoll ? "polls" : activeRaffle ? "raffles" : shell.getView();
+  shell.setLocked(activePoll || activeRaffle);
+  shell.setCloseVisible(!(activePoll || activeRaffle));
+  if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
+  shell.setTitleVisible?.(shell.getView() === "home" && !(activePoll || activeRaffle));
+  syncRendererVisibility();
+  if ((activePoll || activeRaffle) && !interactionPanelOpen) setInteractionPanelOpen(true);
+}
+function renderRafflePanel() {
+  const shell = ensureInteractionsShell();
+  if (!shell) return;
+  shell.setView("raffles");
+  syncRendererVisibility();
+  raffleController?.setTab?.("raffles");
+}
+function closeInteractionPanelRequest() {
+  if (hasActiveInteractionShellLock()) return;
+  clearSelectedInteraction();
+  returnInteractionsHome();
+  setInteractionPanelOpen(false);
+}
 function setInteractionPanelOpen(open) {
+  if (!open && hasActiveInteractionShellLock()) open = true;
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
   if (interactionToggle) {
@@ -141,7 +223,7 @@ function setInteractionPanelOpen(open) {
   }
   if (interactionPanelOpen) renderInteractionPanel();
 }
-function toggleInteractionPanel() { setInteractionPanelOpen(!interactionPanelOpen); }
+function toggleInteractionPanel() { if (interactionPanelOpen && hasActiveInteractionShellLock()) return; setInteractionPanelOpen(!interactionPanelOpen); }
 function ensureInteractionToggle() {
   if (!interactionToggle) return null;
   interactionToggle.addEventListener("click", toggleInteractionPanel);
@@ -151,8 +233,6 @@ function ensureInteractionToggle() {
   interactionToggle.setAttribute("aria-label", "Interacciones");
   return interactionToggle;
 }
-function interactionPanelCloseMarkup() { return '<button type="button" class="interaction-panel-close" data-interaction-panel-close aria-label="Cerrar interacciones">×</button>'; }
-function bindInteractionPanelClose(panel) { panel.querySelector("[data-interaction-panel-close]")?.addEventListener("click", () => setInteractionPanelOpen(false)); }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
 function activeResultRows(interaction, results) {
   const resultOptions = Array.isArray(results?.options) && results.options.length ? results.options : (interaction?.options || []).map((option) => ({ label: option.label, count: 0, percentage: 0 }));
@@ -185,21 +265,27 @@ function attachInteractionCloseSlider(control, interactionId) {
   control.addEventListener("pointercancel", (event) => { finish(event); reset(); });
 }
 function renderInteractionPanel() {
-  const panel = ensureInteractionPanel();
+  ensureInteractionsShell();
+  syncInteractionShellState();
+  const shell = interactionShell;
+  const panel = pollsRenderer;
   const active = activeInteraction || null;
+  const hasInteractions = interactions.length > 0;
   const selected = selectedInteraction();
   const hasActive = Boolean(active);
   if (!hasActive) {
-    panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><h2>Interacciones</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
-    bindInteractionPanelClose(panel);
+    if (shell.getView() !== "home" && !raffleController?.getState?.().active) shell.setView("polls");
+    syncRendererVisibility();
+    panel.innerHTML = (hasInteractions ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
   }
   const revealLabel = interactionResultsVisible ? 'Ocultar resultados' : 'Mostrar resultados';
   const closeControl = '<div class="interaction-close-slider" data-interaction-close-slider role="button" aria-label="Desliza para cerrar encuesta" tabindex="0" style="--close-progress:0;--close-x:0px"><span class="interaction-close-slider-track"></span><span class="interaction-close-slider-label">Desliza para cerrar encuesta</span><span class="interaction-close-slider-knob" aria-hidden="true">›</span></div>';
-  panel.innerHTML = interactionPanelCloseMarkup() + '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
-  bindInteractionPanelClose(panel);
+  shell.setView("polls");
+  syncRendererVisibility();
+  panel.innerHTML = '<div class="interaction-panel-heading"><span>Encuesta activa</span><h2>' + (active.title || 'Encuesta') + '</h2></div><p>' + (active.prompt || active.title || 'Interacción') + '</p>' + activeResultRows(active, interactionResults) + '<div class="interaction-panel-actions interaction-active-actions"><button data-interaction-reveal>' + revealLabel + '</button>' + closeControl + '</div>';
   panel.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => { const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results"; socket.emit(eventName, { interactionId: activeInteraction?.id }); });
   attachInteractionCloseSlider(panel.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
 }
@@ -215,15 +301,15 @@ if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListe
 else if (compactLandscapeQuery?.addListener) compactLandscapeQuery.addListener(syncThumbsPanelMode);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen) setInteractionPanelOpen(false); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (overlays) => updateReactionToggle({ overlays }));
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
-socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); else selectDefaultInteraction(); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
+socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
 socket.on("interaction:results_updated", (results) => { interactionResults = results || null; renderInteractionPanel(); });
-socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderInteractionPanel(); });
+socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
 syncThumbsPanelMode();
 ensureInteractionToggle();
 loadDeck().then(() => { initDrawingOverlay(); updateDrawingMode(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" }); });
