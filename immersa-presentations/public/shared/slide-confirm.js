@@ -9,8 +9,10 @@
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
   }
 
+  function shouldLoadRaffleUxAdjustments(pathname) { return !/^\/(?:speaker|presenter)(?:\/|$)/.test(String(pathname || "")); }
+
   function loadRaffleUxAdjustments() {
-    if (!root.document || root.ImmersaRaffleUxAdjustments || root.__immersaRaffleUxAdjustmentsLoading) return;
+    if (!root.document || !shouldLoadRaffleUxAdjustments(root.location?.pathname || "") || root.ImmersaRaffleUxAdjustments || root.__immersaRaffleUxAdjustmentsLoading) return;
     root.__immersaRaffleUxAdjustmentsLoading = true;
     const script = root.document.createElement("script");
     script.src = "/shared/raffle-ux-adjustments.js";
@@ -104,5 +106,5 @@
   }
 
   loadRaffleUxAdjustments();
-  return { COMPLETE_THRESHOLD, markup, attach, reset, setPending };
+  return { COMPLETE_THRESHOLD, markup, attach, reset, setPending, shouldLoadRaffleUxAdjustments };
 });
