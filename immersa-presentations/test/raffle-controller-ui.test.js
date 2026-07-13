@@ -221,6 +221,24 @@ test("poll idle selection starts empty and launch disabled until explicit choice
   assert.doesNotMatch(presenter, /\|\| interactions\[0\]/);
 });
 
+
+test("poll idle renders list when interactions exist without selected poll", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /const hasInteractions = interactions\.length > 0;[\s\S]+const selected = selectedInteraction\(\);/);
+  assert.match(presenter, /panel\.innerHTML = \(hasInteractions \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
+  assert.match(presenter, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.match(presenter, /panel\.querySelectorAll\("\[data-interaction-select\]"\)[\s\S]+selectedInteractionId = button\.dataset\.interactionSelect/);
+  assert.match(presenter, /socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
+});
+
+test("poll empty state depends on interactions length, not selected fallback", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /function selectedInteraction\(\) \{ return selectedInteractionId \? interactions\.find/);
+  assert.doesNotMatch(presenter, /selected \? '<p>Selecciona una encuesta/);
+  assert.doesNotMatch(presenter, /\|\| interactions\[0\]/);
+  assert.doesNotMatch(presenter, /selectDefaultInteraction/);
+});
+
 test("poll selection clears on idle X close and interaction closed", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
