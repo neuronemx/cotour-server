@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { RaffleStore, AUTO_REVEAL_DELAY_MS } = require("../raffle-store");
+const { RaffleStore, RAFFLE_REVEAL_DELAY_MS, AUTO_REVEAL_DELAY_MS } = require("../raffle-store");
 const { InteractionStore } = require("../interaction-store");
 const { ActiveInteractionCoordinator } = require("../active-interaction-coordinator");
 
@@ -257,7 +257,9 @@ test("draw enters drawing and defines revealAt five seconds ahead", () => {
   const state = store.getControllerState("s1").active;
   assert.equal(result.ok, true);
   assert.equal(state.state, "drawing");
-  assert.equal(Date.parse(state.revealAt) - nowMs, AUTO_REVEAL_DELAY_MS);
+  assert.equal(RAFFLE_REVEAL_DELAY_MS, 5000);
+  assert.equal(Date.parse(state.revealAt) - nowMs, RAFFLE_REVEAL_DELAY_MS);
+  assert.equal(AUTO_REVEAL_DELAY_MS, RAFFLE_REVEAL_DELAY_MS);
   assert.equal(state.drawingEndsAt, state.revealAt);
 });
 
@@ -270,10 +272,10 @@ test("winner is hidden before reveal and appears automatically after deadline", 
 
   assert.equal(store.getControllerState("s1").active.winner, null);
   assert.equal(store.getScreenState("s1").active.hasWinner, false);
-  assert.equal(store.revealDueWinners(nowMs + AUTO_REVEAL_DELAY_MS - 1).length, 0);
+  assert.equal(store.revealDueWinners(nowMs + RAFFLE_REVEAL_DELAY_MS - 1).length, 0);
   assert.equal(store.getControllerState("s1").active.state, "drawing");
 
-  const revealed = store.revealDueWinners(nowMs + AUTO_REVEAL_DELAY_MS);
+  const revealed = store.revealDueWinners(nowMs + RAFFLE_REVEAL_DELAY_MS);
   assert.equal(revealed.length, 1);
   assert.equal(store.getControllerState("s1").active.state, "winner");
   assert.equal(store.getScreenState("s1").active.hasWinner, true);
@@ -299,7 +301,7 @@ test("close before reveal deadline cancels automatic reveal", () => {
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
   assert.equal(store.close("s1").ok, true);
-  assert.equal(store.revealDueWinners(nowMs + AUTO_REVEAL_DELAY_MS).length, 0);
+  assert.equal(store.revealDueWinners(nowMs + RAFFLE_REVEAL_DELAY_MS).length, 0);
   assert.equal(store.getControllerState("s1").active, null);
 });
 

@@ -79,7 +79,7 @@
 
   function renderAudienceDrawing(active, nowMs) {
     const remaining = remainingSeconds(active, nowMs);
-    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>Revelación en</span><strong>' + remaining + 's</strong></div>';
+    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>Revelación en</span><strong>' + remaining + '</strong></div>';
     return '<h2>Sorteando...</h2>' + countdown;
   }
 

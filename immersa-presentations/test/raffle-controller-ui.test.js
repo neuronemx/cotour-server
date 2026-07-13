@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const SlideConfirm = require("../public/shared/slide-confirm");
+const { RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
 const {
   createRaffleConfig,
   createInitialRaffleControllerState,
@@ -155,10 +156,19 @@ test("eligible metric is hidden when zero and visible when positive", () => {
   assert.match(positiveHtml, /ELEGIBLES<\/span><strong>2<\/strong>/);
 });
 
-test("controller countdown renders stable numbers without seconds suffix", () => {
-  const html = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-count", mode: "free", state: "drawing", revealAt: new Date(Date.now() + 5_000).toISOString() } });
-  assert.match(html, /<div class="raffle-countdown"><span>REVELACIÓN EN<\/span><strong>[1-5]<\/strong><\/div>/);
-  assert.doesNotMatch(html, /<strong>[1-5]s<\/strong>/);
+test("controller countdown renders stable five second sequence without seconds suffix", () => {
+  const nowMs = 50_000;
+  const active = { id: "r-count", mode: "free", state: "drawing", revealAt: new Date(nowMs + RAFFLE_REVEAL_DELAY_MS).toISOString() };
+  const originalNow = Date.now;
+  Date.now = () => nowMs;
+  try {
+    const html = renderRaffleController({ ...createInitialRaffleControllerState(), active });
+    assert.match(html, /<div class="raffle-countdown"><span>REVELACIÓN EN<\/span><strong>5<\/strong><\/div>/);
+    assert.doesNotMatch(html, /<strong>[1-5]s<\/strong>/);
+  } finally {
+    Date.now = originalNow;
+  }
+  assert.deepEqual([0, 1000, 2000, 3000, 4000].map((elapsed) => remainingRaffleSeconds(active, nowMs + elapsed)), [5, 4, 3, 2, 1]);
 });
 
 test("slide-confirm skips UX adjustment autoload for Speaker and Presenter", () => {
