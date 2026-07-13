@@ -202,12 +202,36 @@ test("Speaker returns home only on real interaction close events", () => {
   assert.match(presenter, /function toggleInteractionPanel\(\) \{ if \(interactionPanelOpen && hasActiveInteractionShellLock\(\)\) return;/);
   assert.match(presenter, /event\.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock\(\)/);
   assert.match(presenter, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
-  assert.match(presenter, /shell\.setTitleVisible\?\.\(!activeRaffle\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
   assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
   assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
 });
 
+
+
+test("poll idle selection starts empty and launch disabled until explicit choice", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /let selectedInteractionId = ""/);
+  assert.match(presenter, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
+  assert.match(presenter, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\); renderInteractionPanel\(\);/);
+  assert.match(presenter, /function selectedInteraction\(\) \{ return selectedInteractionId \? interactions\.find/);
+  assert.match(presenter, /const selected = selectedInteraction\(\);[\s\S]+data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.doesNotMatch(presenter, /selectDefaultInteraction/);
+  assert.doesNotMatch(presenter, /\|\| interactions\[0\]/);
+});
+
+test("poll selection clears on idle X close and interaction closed", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
+  assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(presenter, /if \(activeInteraction\?\.id\) selectedInteractionId = String\(activeInteraction\.id\)/);
+});
+
+test("generic shell section titles are hidden outside general home", () => {
+  const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+});
 
 test("poll home copy uses shell title only", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");

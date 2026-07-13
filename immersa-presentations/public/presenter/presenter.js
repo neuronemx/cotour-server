@@ -122,9 +122,9 @@ document.getElementById("stageUrl").value = roleUrl("stage");
 document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; renderThumbs(); await loadInteractions(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
-function selectDefaultInteraction() { if (!interactions.length) { selectedInteractionId = ""; return; } if (!interactions.some((item) => String(item.id) === String(selectedInteractionId))) selectedInteractionId = String(interactions[0].id); }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); if (!interactions.length) interactions = [fallbackDemoInteraction]; } catch (_error) { interactions = [fallbackDemoInteraction]; } selectDefaultInteraction(); renderInteractionPanel(); }
-function selectedInteraction() { return interactions.find((item) => String(item.id) === String(selectedInteractionId)) || interactions[0] || null; }
+function clearSelectedInteraction() { selectedInteractionId = ""; }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); if (!interactions.length) interactions = [fallbackDemoInteraction]; } catch (_error) { interactions = [fallbackDemoInteraction]; } clearSelectedInteraction(); renderInteractionPanel(); }
+function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
 function applySlideOrientation(container, item, src) { const portrait = item?.orientation === "portrait"; container.classList.toggle("portrait-slide", portrait); if (portrait) container.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else container.style.removeProperty("--slide-bg"); }
@@ -191,8 +191,8 @@ function syncInteractionShellState() {
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : shell.getView();
   shell.setLocked(activePoll || activeRaffle);
   shell.setCloseVisible(!(activePoll || activeRaffle));
-  shell.setTitleVisible?.(!activeRaffle);
   if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
+  shell.setTitleVisible?.(shell.getView() === "home" && !(activePoll || activeRaffle));
   syncRendererVisibility();
   if ((activePoll || activeRaffle) && !interactionPanelOpen) setInteractionPanelOpen(true);
 }
@@ -205,6 +205,7 @@ function renderRafflePanel() {
 }
 function closeInteractionPanelRequest() {
   if (hasActiveInteractionShellLock()) return;
+  clearSelectedInteraction();
   returnInteractionsHome();
   setInteractionPanelOpen(false);
 }
@@ -304,10 +305,10 @@ socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (overlays) => updateReactionToggle({ overlays }));
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
-socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); else selectDefaultInteraction(); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
+socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
 socket.on("interaction:results_updated", (results) => { interactionResults = results || null; renderInteractionPanel(); });
-socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; selectDefaultInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
+socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
 syncThumbsPanelMode();
 ensureInteractionToggle();
 loadDeck().then(() => { initDrawingOverlay(); updateDrawingMode(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" }); });
