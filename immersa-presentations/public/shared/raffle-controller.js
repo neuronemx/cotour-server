@@ -19,9 +19,9 @@
     { id: "visual_key_4", label: "Clave D", tone: "green" }
   ];
   const RAFFLE_MODES = [
-    { id: "visual_key", label: "Clave visual" },
+    { id: "free", label: "Libre" },
     { id: "poll", label: "Encuesta" },
-    { id: "free", label: "Libre" }
+    { id: "visual_key", label: "Clave visual" }
   ];
   const RAFFLE_EVENTS = new Set(["raffle:create", "raffle:close_entries", "raffle:draw", "raffle:reveal_winner", "raffle:close", "raffle:reset_winners"]);
   const SLIDE_COMPLETE_RATIO = sharedSlideConfirm?.COMPLETE_THRESHOLD || 0.82;
@@ -152,6 +152,7 @@
   }
 
   function modeLabel(mode) { return RAFFLE_MODES.find((item) => item.id === mode)?.label || "Sorteo"; }
+  function activeModeTitle(mode) { return "Sorteo " + modeLabel(mode); }
   function entryCount(active) { return Number(active?.entryCount ?? active?.entries?.length ?? 0); }
   function eligibleCount(active) { return Number(active?.eligibleCount ?? 0); }
   function winnerLabel(active) { const winner = active?.winner || active?.winners?.[0] || null; const label = winner?.label || winner?.name; return label ? String(label) : "Ganador seleccionado"; }
@@ -201,18 +202,18 @@
   function renderSelection(state) {
     const disabled = Boolean(state.activeInteraction || state.pendingEvent);
     const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
-    if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
+    if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
     const modeButtons = RAFFLE_MODES.map((mode) => {
       const attrs = mode.id === "visual_key" ? 'data-raffle-config-mode="visual_key"' : 'data-raffle-create="' + mode.id + '"';
       return '<button type="button" class="raffle-mode-card" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>';
     }).join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
   }
-  function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div></div>'; if (active.state === "entries_closed") return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div><div><span>ELEGIBLES</span><strong>' + eligibleCount(active) + '</strong></div></div>'; return ""; }
+  function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div></div>'; if (active.state === "entries_closed") { const eligible = eligibleCount(active); const eligibleMarkup = eligible > 0 ? '<div><span>ELEGIBLES</span><strong>' + eligible + '</strong></div>' : ""; return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div>' + eligibleMarkup + '</div>'; } return ""; }
   function renderSlideConfirm(state) { return SlideConfirm.markup({ label: "Desliza para iniciar sorteo", className: "raffle-slide-confirm is-raffle", disabled: Boolean(state.pendingEvent), dataAttribute: "data-raffle-slide-confirm" }); }
   function renderActionButtons(actions, state, extraClass = "") { return '<div class="raffle-actions ' + extraClass + '">' + actions.map((action) => '<button type="button" class="' + (action.primary ? 'primary ' : '') + (action.danger ? 'danger ' : '') + (action.secondary ? 'secondary ' : '') + 'raffle-action" data-raffle-action="' + action.event + '" ' + (action.disabled || state.pendingEvent ? 'disabled' : '') + '>' + action.label + '</button>').join("") + '</div>'; }
   function renderActions(active, state) { const actions = getRaffleActions(state); if (active.state === "entries_closed") return '<div class="raffle-action-stack">' + renderSlideConfirm(state) + renderActionButtons(actions.filter((action) => action.event !== "raffle:draw"), state, "is-secondary") + '</div>'; return renderActionButtons(actions, state, active.state === "collecting" ? "is-collecting" : ""); }
-  function renderActive(active, state) { const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo"; const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : ""; const remaining = active.state === "drawing" ? remainingRaffleSeconds(active) : null; const countdown = active.state === "drawing" && remaining !== null ? '<div class="raffle-countdown"><span>REVELACIÓN EN</span><strong>' + remaining + 's</strong></div>' : ""; return '<section class="raffle-section"><div class="raffle-heading"><h2>' + escapeHtml(modeLabel(active.mode)) + '</h2><p>' + escapeHtml(statusText) + '</p></div>' + renderStats(active, state) + winner + countdown + renderActions(active, state) + '</section>'; }
+  function renderActive(active, state) { const statusText = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }[active.state] || "Sorteo"; const winner = active.state === "winner" ? '<div class="raffle-winner"><span>Ganador</span><strong>' + escapeHtml(winnerLabel(active)) + '</strong></div>' : ""; const remaining = active.state === "drawing" ? remainingRaffleSeconds(active) : null; const countdown = active.state === "drawing" && remaining !== null ? '<div class="raffle-countdown"><span>REVELACIÓN EN</span><strong>' + remaining + '</strong></div>' : ""; return '<section class="raffle-section"><div class="raffle-heading"><h2>' + escapeHtml(activeModeTitle(active.mode)) + '</h2><p>' + escapeHtml(statusText) + '</p></div>' + renderStats(active, state) + winner + countdown + renderActions(active, state) + '</section>'; }
   function renderRaffleController(state) { const error = state.error ? '<p class="raffle-error" role="status">' + escapeHtml(state.error) + '</p>' : ""; return error + (state.active ? renderActive(state.active, state) : renderSelection(state)); }
 
   function createController(socket, options = {}) {

@@ -154,7 +154,7 @@ function ensureInteractionsShell() {
       if (view === "raffles") renderRafflePanel();
       if (view === "home") syncInteractionShellState();
     },
-    onRequestClose: () => setInteractionPanelOpen(false)
+    onRequestClose: closeInteractionPanelRequest
   });
   pollsRenderer = document.createElement("div");
   pollsRenderer.className = "interaction-polls-renderer";
@@ -168,6 +168,7 @@ function ensureInteractionsShell() {
   return interactionShell;
 }
 function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
+function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active); }
 function syncRendererVisibility() {
   if (!interactionShell) return;
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
@@ -177,6 +178,8 @@ function returnInteractionsHome() {
   const shell = ensureInteractionsShell();
   if (!shell) return;
   shell.setLocked(false);
+  shell.setCloseVisible(true);
+  shell.setTitleVisible?.(true);
   shell.setView("home");
   syncRendererVisibility();
 }
@@ -187,8 +190,11 @@ function syncInteractionShellState() {
   const activePoll = Boolean(activeInteraction);
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : shell.getView();
   shell.setLocked(activePoll || activeRaffle);
+  shell.setCloseVisible(!(activePoll || activeRaffle));
+  shell.setTitleVisible?.(!activeRaffle);
   if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
   syncRendererVisibility();
+  if ((activePoll || activeRaffle) && !interactionPanelOpen) setInteractionPanelOpen(true);
 }
 function renderRafflePanel() {
   const shell = ensureInteractionsShell();
@@ -197,7 +203,13 @@ function renderRafflePanel() {
   syncRendererVisibility();
   raffleController?.setTab?.("raffles");
 }
+function closeInteractionPanelRequest() {
+  if (hasActiveInteractionShellLock()) return;
+  returnInteractionsHome();
+  setInteractionPanelOpen(false);
+}
 function setInteractionPanelOpen(open) {
+  if (!open && hasActiveInteractionShellLock()) open = true;
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
   if (interactionToggle) {
@@ -210,7 +222,7 @@ function setInteractionPanelOpen(open) {
   }
   if (interactionPanelOpen) renderInteractionPanel();
 }
-function toggleInteractionPanel() { setInteractionPanelOpen(!interactionPanelOpen); }
+function toggleInteractionPanel() { if (interactionPanelOpen && hasActiveInteractionShellLock()) return; setInteractionPanelOpen(!interactionPanelOpen); }
 function ensureInteractionToggle() {
   if (!interactionToggle) return null;
   interactionToggle.addEventListener("click", toggleInteractionPanel);
@@ -262,7 +274,7 @@ function renderInteractionPanel() {
   if (!hasActive) {
     if (shell.getView() !== "home" && !raffleController?.getState?.().active) shell.setView("polls");
     syncRendererVisibility();
-    panel.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas</h2></div>' + (selected ? '<p>Encuestas disponibles</p><p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    panel.innerHTML = (selected ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;
@@ -287,7 +299,7 @@ if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListe
 else if (compactLandscapeQuery?.addListener) compactLandscapeQuery.addListener(syncThumbsPanelMode);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen) setInteractionPanelOpen(false); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (overlays) => updateReactionToggle({ overlays }));
 socket.on("audience_count", (count) => { audience.textContent = count; });

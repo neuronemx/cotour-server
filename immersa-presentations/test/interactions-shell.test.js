@@ -36,6 +36,8 @@ test("interactions shell navigation, lock, close, and destroy", () => {
   let closes = 0;
   const shell = Shell.create({ root, onSelectCategory: (view)=>selected.push(view), onRequestClose: ()=>closes++ });
   assert.equal(shell.getView(), "home");
+  assert.equal(root.querySelector("[data-interactions-back]").hidden, true);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, false);
   category(root, "polls").click();
   assert.equal(shell.getView(), "polls");
   category(root, "raffles").click();
@@ -50,10 +52,16 @@ test("interactions shell navigation, lock, close, and destroy", () => {
   assert.equal(shell.getView(), "raffles");
   shell.setLocked(false);
   root.querySelector("[data-interactions-back]").click();
+  assert.equal(shell.getView(), "raffles");
+  shell.setView("home");
   assert.equal(shell.getView(), "home");
   assert.equal(closes, 0);
   root.querySelector("[data-interactions-close]").click();
   assert.equal(closes, 1);
+  shell.setCloseVisible(false);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, true);
+  shell.setTitleVisible(false);
+  assert.equal(root.querySelector(".interactions-shell-title").hidden, true);
   const close = root.querySelector("[data-interactions-close]");
   shell.destroy();
   assert.equal(root.children.length, 0);

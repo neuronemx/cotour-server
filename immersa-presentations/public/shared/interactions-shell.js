@@ -17,6 +17,7 @@
     let view = "home";
     let locked = false;
     let closeVisible = true;
+    let titleVisible = true;
     let destroyed = false;
     const listeners = [];
     const container = createElement(documentRef, "section", "interactions-native-shell");
@@ -45,8 +46,9 @@
     function setView(nextView) { if (!VIEWS.has(nextView)) return false; view = nextView; renderState(); return true; }
     function renderState() {
       title.textContent = view === "polls" ? "Encuestas" : view === "raffles" ? "Sorteos" : "Interacciones";
-      backButton.hidden = view === "home";
-      backButton.disabled = locked;
+      title.hidden = !titleVisible;
+      backButton.hidden = true;
+      backButton.disabled = true;
       closeButton.hidden = !closeVisible;
       home.hidden = view !== "home";
       content.hidden = view === "home";
@@ -55,10 +57,10 @@
       container.dataset.view = view;
     }
     listen(nav, "click", (event) => { const button = event.target?.closest?.("[data-interactions-category]"); if (!button || !nav.contains(button) || button.disabled || locked) return; const nextView = button.dataset.interactionsCategory; if (!VIEWS.has(nextView)) return; setView(nextView); options.onSelectCategory?.(nextView); });
-    listen(backButton, "click", () => { if (locked || view === "home") return; setView("home"); options.onSelectCategory?.("home"); });
+    listen(backButton, "click", () => { if (backButton.hidden || locked || view === "home") return; setView("home"); options.onSelectCategory?.("home"); });
     listen(closeButton, "click", () => { options.onRequestClose?.(); });
     renderState();
-    return { setView, setLocked(value) { locked = Boolean(value); renderState(); }, setCloseVisible(value) { closeVisible = Boolean(value); renderState(); }, getContentRoot() { return content; }, getView() { return view; }, destroy() { if (destroyed) return; destroyed = true; listeners.splice(0).forEach(([target, eventName, handler]) => target.removeEventListener(eventName, handler)); container.remove(); } };
+    return { setView, setLocked(value) { locked = Boolean(value); renderState(); }, setCloseVisible(value) { closeVisible = Boolean(value); renderState(); }, setTitleVisible(value) { titleVisible = Boolean(value); renderState(); }, getContentRoot() { return content; }, getView() { return view; }, destroy() { if (destroyed) return; destroyed = true; listeners.splice(0).forEach(([target, eventName, handler]) => target.removeEventListener(eventName, handler)); container.remove(); } };
   }
   return { create };
 });
