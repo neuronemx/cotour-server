@@ -192,7 +192,7 @@ function syncInteractionShellState() {
   shell.setLocked(activePoll || activeRaffle);
   shell.setCloseVisible(!(activePoll || activeRaffle));
   if (activePoll || activeRaffle || view === "home") shell.setView(activeInteractionView());
-  shell.setTitleVisible?.(shell.getView() === "home" && !(activePoll || activeRaffle));
+  shell.setTitleVisible?.(true);
   syncRendererVisibility();
   if ((activePoll || activeRaffle) && !interactionPanelOpen) setInteractionPanelOpen(true);
 }

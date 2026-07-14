@@ -94,6 +94,10 @@ test("interactions shell preserves the approved category contract", () => {
   assert.deepEqual(categories.map((button) => button.dataset.interactionsCategory), ["polls", "raffles", "contests", "games"]);
   assert.deepEqual(categories.map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Sorteos", "Concursos", "Juegos"]);
   assert.equal(root.querySelector(".interactions-shell-home").innerHTML, "<p>Selecciona una interacción.</p>");
+  assert.equal(root.querySelectorAll("h2").length, 1);
+  assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
+  shell.setView("polls");
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
   assert.equal(category(root, "contests").disabled, true);
   assert.equal(category(root, "games").disabled, true);
   assert.equal(category(root, "contests").tabIndex, -1);
@@ -127,4 +131,9 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
   assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
+  assert.match(css, /\.interactions-shell-home\[hidden\] \{[\s\S]+display: none !important;[\s\S]+min-height: 0;[\s\S]+padding: 0;/);
+  assert.match(css, /\.interactions-shell-close \{[\s\S]+font-size: 14px !important;[\s\S]+font-weight: 300;/);
+  assert.match(css, /\.interaction-choice-prompt \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.interaction-panel button:hover:not\(:disabled\),[\s\S]+transform: none !important;/);
+  assert.doesNotMatch(css, /:hover[^{}]*\{[^{}]*(?:translateY|scale)\(/);
 });

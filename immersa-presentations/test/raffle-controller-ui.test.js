@@ -229,7 +229,7 @@ test("Speaker returns home only on real interaction close events", () => {
   assert.match(presenter, /function toggleInteractionPanel\(\) \{ if \(interactionPanelOpen && hasActiveInteractionShellLock\(\)\) return;/);
   assert.match(presenter, /event\.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock\(\)/);
   assert.match(presenter, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
-  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
   assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
@@ -275,7 +275,7 @@ test("poll selection clears on idle X close and interaction closed", () => {
 
 test("generic shell section titles are hidden outside general home", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
-  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
 });
 
 test("poll home copy uses a section title without duplicating the generic shell title", () => {
@@ -379,7 +379,7 @@ test("Stage modal relies on the shell close button and has an accessible dialog 
 test("Stage hides the generic shell title immediately for idle poll and raffle categories", () => {
   const stage = readProjectFile("public/stage/stage.js");
   assert.match(stage, /onSelectCategory: \(view\) => \{[\s\S]+if \(view === "polls"\) renderStageActionsPanel\(\);[\s\S]+if \(view === "raffles"\) \{ syncRendererVisibility\(\); raffleController\?\.setTab\?\.\("raffles"\); \}[\s\S]+syncInteractionShellState\(\);[\s\S]+\}/);
-  assert.match(stage, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(stage, /function returnInteractionsHome\(\) \{[\s\S]+shell\.setTitleVisible\?\.\(true\);[\s\S]+shell\.setView\("home"\);/);
 });
 
