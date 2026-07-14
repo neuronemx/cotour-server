@@ -30,6 +30,7 @@ test("countdown suffix is removed from Sorteos views without changing remaining 
   assert.doesNotMatch(audienceHtml, /<strong>\d+s<\/strong>/);
   assert.doesNotMatch(screenHtml, /<strong>\d+s<\/strong>/);
   assert.match(controllerHtml + audienceHtml + screenHtml, /<strong>\d<\/strong>/);
+  assert.doesNotMatch(controllerHtml, /REVELACIÓN EN/);
 });
 
 test("free collecting controls render Sorteo Libre with connected count and no tickets", () => {
@@ -40,23 +41,27 @@ test("free collecting controls render Sorteo Libre with connected count and no t
 
   const html = adjustRaffleHtml(renderRaffleController(state));
   assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/);
-  assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+  assert.match(html, /<span>Conectados<\/span><strong>2<\/strong>/);
+  assert.match(html, /<span>Elegibles<\/span><strong>0<\/strong>/);
   assert.doesNotMatch(html, /BOLETOS/);
+  assert.doesNotMatch(html, /class="raffle-stats"><div>/);
   assert.match(html, /Cerrar tómbola/);
   assert.match(html, /Cancelar sorteo/);
 });
 
 test("non-free collecting also hides ticket metric", () => {
-  for (const [mode, title] of [["poll", "Sorteo Encuesta"], ["visual_key", "Sorteo Clave visual"]]) {
+  for (const [mode, title, status] of [["poll", "Sorteo Encuesta", "Participación con pregunta o evaluación"], ["visual_key", "Sorteo Clave visual", "Participación abierta"]]) {
     let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
     state = reduceRaffleControllerState(state, "raffle:state", {
       active: { id: "r-" + mode, mode, state: "collecting", entryCount: 1, eligibleCount: 1 }
     });
 
     const html = adjustRaffleHtml(renderRaffleController(state));
-    assert.match(html, new RegExp(`<h2>${title}<\\/h2><p>Participación abierta<\\/p>`));
-    assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+    assert.match(html, new RegExp(`<h2>${title}<\/h2><p>${status}<\/p>`));
+    assert.match(html, /<span>Conectados<\/span><strong>2<\/strong>/);
+    assert.match(html, /<span>Elegibles<\/span><strong>1<\/strong>/);
     assert.doesNotMatch(html, /BOLETOS/);
+    assert.doesNotMatch(html, /class="raffle-stats"><div>/);
   }
 });
 

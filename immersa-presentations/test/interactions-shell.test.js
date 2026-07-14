@@ -20,7 +20,7 @@ class Element {
   removeEventListener(type,handler){ this.listeners[type]=(this.listeners[type]||[]).filter((item)=>item!==handler); }
   click(){ const event={ target:this }; let node=this; while(node){ (node.listeners.click||[]).forEach((handler)=>handler(event)); node=node.parentNode; } }
   contains(node){ return node===this || this.children.some((child)=>child.contains?.(node)); }
-  matches(selector){ if(selector.startsWith(".")) return this.classList.contains(selector.slice(1)); const data=selector.match(/^\[data-([^\]]+)\]$/); if(data){ const key=data[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase()); return Object.prototype.hasOwnProperty.call(this.dataset,key); } return false; }
+  matches(selector){ if(selector.startsWith(".")) return this.classList.contains(selector.slice(1)); const data=selector.match(/^\[data-([^\]]+)\]$/); if(data){ const key=data[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase()); return Object.prototype.hasOwnProperty.call(this.dataset,key); } return selector.toUpperCase() === this.tagName; }
   closest(selector){ let node=this; while(node){ if(node.matches?.(selector))return node; node=node.parentNode; } return null; }
   querySelectorAll(selector){ const out=[]; const visit=(node)=>{ if(node.matches?.(selector))out.push(node); node.children.forEach(visit); }; this.children.forEach(visit); return out; }
   querySelector(selector){ return this.querySelectorAll(selector)[0]||null; }
@@ -78,4 +78,179 @@ test("interactions shell source avoids prohibited integration mechanisms", () =>
   assert.doesNotMatch(source, /window\.addEventListener/);
   assert.doesNotMatch(source, /stopImmediatePropagation/);
   assert.doesNotMatch(source, /addEventListener\([^\n]+,\s*true\)/);
+});
+
+const APPROVED_CATEGORY_ICONS = {
+  polls: { viewBox: "0 0 24 24", rects: [{ x: "3.5", y: "3.5", width: "17", height: "15", rx: "2" }], paths: ["M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2"] },
+  raffles: { viewBox: "0 0 24 24", rects: [], paths: ["M3 8h18v13H3zM3 8h18M12 8v13M7.5 8a2.5 2.5 0 1 1 0-5C9.2 3 10.6 4.5 12 8M16.5 8a2.5 2.5 0 1 0 0-5C14.8 3 13.4 4.5 12 8"] },
+  contests: { viewBox: "0 0 24 24", rects: [], paths: ["M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a2 2 0 0 0 2 2M17 6h3a2 2 0 0 1-2 2"] },
+  games: { viewBox: "0 0 24 24", rects: [{ x: "3", y: "6.5", width: "8", height: "13", rx: "2" }, { x: "13", y: "6.5", width: "8", height: "13", rx: "2" }], paths: ["M6.5 13h1.8M15.7 13h1.8"] }
+};
+
+test("interactions shell preserves the approved category contract", () => {
+  const { root } = setup();
+  const shell = Shell.create({ root });
+  const categories = root.querySelectorAll("[data-interactions-category]");
+  assert.deepEqual(categories.map((button) => button.dataset.interactionsCategory), ["polls", "raffles", "contests", "games"]);
+  assert.deepEqual(categories.map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Sorteos", "Concursos", "Juegos"]);
+  assert.equal(root.querySelector(".interactions-shell-home").innerHTML, "<p>Selecciona una interacción.</p>");
+  assert.equal(root.querySelectorAll("h2").length, 1);
+  assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
+  shell.setView("polls");
+  assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
+  assert.notEqual(root.querySelector(".interactions-shell-title").textContent, "Encuestas");
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
+  assert.equal(category(root, "contests").disabled, true);
+  assert.equal(category(root, "games").disabled, true);
+  assert.equal(category(root, "contests").tabIndex, -1);
+  assert.equal(category(root, "games").tabIndex, -1);
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions-shell.js"), "utf8"), /Próximamente/);
+  for (const button of categories) {
+    const expected = APPROVED_CATEGORY_ICONS[button.dataset.interactionsCategory];
+    const svg = button.querySelector("svg");
+    assert.equal(svg.getAttribute("viewBox"), expected.viewBox);
+    assert.equal(svg.getAttribute("stroke-width"), "2");
+    assert.equal(svg.getAttribute("stroke-linecap"), "round");
+    assert.equal(svg.getAttribute("stroke-linejoin"), "round");
+    assert.deepEqual(svg.querySelectorAll("rect").map((rect) => ({ x: rect.getAttribute("x"), y: rect.getAttribute("y"), width: rect.getAttribute("width"), height: rect.getAttribute("height"), rx: rect.getAttribute("rx") })), expected.rects);
+    assert.deepEqual(svg.querySelectorAll("path").map((path) => path.getAttribute("d")), expected.paths);
+  }
+  assert.equal(root.querySelectorAll("[data-interactions-close]").length, 1);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, false);
+  shell.setLocked(true);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, true);
+  assert.equal(categories.every((button) => button.disabled), true);
+});
+
+
+test("interactions shell renderer visibility respects hidden state across views", () => {
+  const { root, document } = setup();
+  const shell = Shell.create({ root });
+  const content = shell.getContentRoot();
+  const pollsRenderer = document.createElement("div");
+  pollsRenderer.className = "interaction-polls-renderer";
+  pollsRenderer.textContent = "Encuestas disponibles";
+  const raffleRenderer = document.createElement("div");
+  raffleRenderer.className = "interaction-raffle-renderer";
+  raffleRenderer.textContent = "Sorteos disponibles";
+  content.append(pollsRenderer, raffleRenderer);
+  const syncRendererVisibility = () => {
+    pollsRenderer.hidden = shell.getView() !== "polls";
+    raffleRenderer.hidden = shell.getView() !== "raffles";
+  };
+
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, false);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, true);
+
+  shell.setView("polls");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
+  assert.equal(pollsRenderer.hidden, false);
+  assert.equal(raffleRenderer.hidden, true);
+
+  shell.setView("raffles");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, false);
+
+  shell.setView("home");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, false);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, true);
+});
+
+test("shared interactions css exposes critical visual contract tokens", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  assert.match(css, /--immersa-gradient: linear-gradient\(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%\);/);
+  assert.match(css, /--immersa-glass: linear-gradient\(160deg, rgba\(30, 26, 48, \.96\), rgba\(18, 16, 30, \.98\)\);/);
+  assert.match(css, /font-family: Poppins, Inter/);
+  assert.match(css, /width: min\(380px, calc\(100vw - 28px\)\);/);
+  assert.match(css, /\.interactions-shell-nav \{[\s\S]+gap: 0;[\s\S]+background: rgba\(5, 8, 18, \.32\);/);
+  assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.interaction-panel::before,[\s\S]+\.stage-actions-card::before \{[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+position: fixed !important;[\s\S]+overflow-x: hidden;[\s\S]+overflow-y: auto;/);
+  assert.match(css, new RegExp('\\.interaction-panel,\\n\\.stage-actions-card \\{\\n  background: var\\(--immersa-glass\\) !important;\\n\\}'));
+  assert.match(css, /\.stage-actions-card \{[\s\S]+border-radius: 22px;[\s\S]+overflow-x: hidden;[\s\S]+overflow-y: auto;[\s\S]+background: var\(--immersa-glass\) !important;[\s\S]+background-clip: padding-box;/);
+  assert.match(css, /\.stage-actions-card \.stage-actions-content \{[\s\S]+background: transparent !important;[\s\S]+border: 0;[\s\S]+border-radius: 0;[\s\S]+box-shadow: none;/);
+  assert.doesNotMatch(css, /\.stage-actions-card \.stage-actions-content \{\n  background: var\(--immersa-glass\);/);
+  assert.match(css, /\.interaction-panel,[\s\S]+\.stage-actions-card \{[\s\S]+border-top-width: 0 !important;/);
+  assert.match(css, /\.interaction-polls-renderer\[hidden\],[\s\S]+\.interaction-raffle-renderer\[hidden\] \{[\s\S]+display: none !important;/);
+  assert.match(css, /\.interaction-polls-renderer:not\(\[hidden\]\) \{[\s\S]+display: grid;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+row-gap: 12px;/);
+  assert.match(css, /\.interaction-raffle-renderer:not\(\[hidden\]\) \{[\s\S]+display: block;[\s\S]+min-width: 0;/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+scrollbar-width: thin;[\s\S]+scrollbar-color: rgba\(127, 119, 221, \.52\) transparent;[\s\S]+scrollbar-gutter: auto;[\s\S]+border-radius: 22px !important;[\s\S]+border-top-right-radius: 22px !important;[\s\S]+border-bottom-right-radius: 22px !important;[\s\S]+background-clip: padding-box;/);
+  const interactionPanelBlocks = [...css.matchAll(/\.interaction-panel \{([^}]*)\}/g)].map((match) => match[1]);
+  assert.equal(interactionPanelBlocks.some((block) => /scrollbar-gutter: stable;/.test(block)), false);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar \{[\s\S]+width: 7px;/);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar-track \{[\s\S]+background: transparent;/);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar-track-piece \{[\s\S]+margin-block: 16px;[\s\S]+background: transparent;/);
+  assert.match(css, /\.interaction-picker \{[\s\S]+display: grid;[\s\S]+row-gap: 12px;[\s\S]+max-height: min\(320px, 38dvh\);[\s\S]+overflow-y: auto;[\s\S]+scrollbar-width: thin;[\s\S]+margin: 0;/);
+  assert.match(css, /\.interaction-panel-actions \.primary,[\s\S]+\.stage-actions-card \.interaction-panel-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+min-height: 64px;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+transform: none !important;/);
+  assert.match(css, /\.raffle-mode-card strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 13px;[\s\S]+font-weight: 500;/);
+  assert.match(css, /\.raffle-mode-description \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 11px;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]+transform: none !important;[\s\S]+background: rgba\(255, 255, 255, \.075\);/);
+  assert.match(css, /\.raffle-mode-card\.is-selected,[\s\S]+\.stage-actions-card \.raffle-mode-card\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.raffle-stats-pill \{[\s\S]+display: flex;[\s\S]+border-radius: 999px;/);
+  assert.match(css, /\.raffle-stat-item \{[\s\S]+white-space: nowrap;/);
+  assert.match(css, /\.interaction-panel button\.interaction-choice\.is-selected::after,[\s\S]+\.stage-actions-card button\.interaction-choice\.is-selected::after \{[\s\S]+border-radius: 50%;[\s\S]+color: #fff !important;[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+box-shadow: none !important;/);
+  assert.doesNotMatch(css, /\.interaction-panel,\s*\n\.stage-actions-card \{\s*\n\s*position: relative;[\s\S]*?overflow: hidden;/);
+  assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
+  assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
+  assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
+  assert.match(css, /\.interactions-shell-home\[hidden\] \{[\s\S]+display: none !important;[\s\S]+min-height: 0;[\s\S]+padding: 0;/);
+  assert.match(css, /\.interactions-shell-close \{[\s\S]+color: transparent;[\s\S]+font-size: 0 !important;/);
+  assert.match(css, /\.interactions-shell-close::before,[\s\S]+\.interactions-shell-close::after \{[\s\S]+width: 8px;[\s\S]+height: 1px;/);
+  assert.match(css, /\.interaction-choice-prompt \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.interaction-panel button:hover:not\(:disabled\),[\s\S]+transform: none !important;/);
+  assert.doesNotMatch(css, /:hover[^{}]*\{[^{}]*(?:translateY|scale)\(/);
+});
+
+
+test("audience poll card uses Immersa visual contract without changing runtime markup", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  const audienceIndex = fs.readFileSync(path.join(__dirname, "..", "public/audience/index.html"), "utf8");
+  const selectedBlocks = [...css.matchAll(/\.interaction-card button\.interaction-option\.is-selected \{([^}]*)\}/g)].map((match) => match[1]);
+  const audienceSource = fs.readFileSync(path.join(__dirname, "..", "public/audience/audience.js"), "utf8");
+  const topActions = audienceIndex.match(/<div class="top-actions">([\s\S]+?)<\/div>/)[1];
+
+  assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">/);
+  assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin>/);
+  assert.match(audienceIndex, /family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap/);
+  assert.match(css, /\.interaction-card \{[\s\S]+position: fixed;[\s\S]+width: min\(430px, calc\(100vw - 24px\)\);[\s\S]+background: var\(--immersa-glass\) !important;[\s\S]+border-radius: 22px;/);
+  assert.equal((css.match(/\.interaction-card::before \{/g) || []).length, 1);
+  assert.match(css, /\.interaction-card \{[\s\S]+border-top-width: 0 !important;/);
+  assert.match(css, /\.interaction-card::before \{[\s\S]+z-index: 2;[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+margin: 0;[\s\S]+background: var\(--immersa-gradient\);[\s\S]+pointer-events: none;/);
+  assert.match(css, /\.interaction-card h2 \{\n  display: none !important;\n\}/);
+  assert.match(css, /\.interaction-card p \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 700;[\s\S]+overflow-wrap: anywhere;/);
+  assert.match(css, /\.interaction-card button\.interaction-option \{[\s\S]+min-height: 52px;[\s\S]+border-radius: 14px !important;[\s\S]+background: rgba\(255, 255, 255, \.055\);/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected::after \{[\s\S]+content: "✓";[\s\S]+border-radius: 50%;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected:disabled \{\n  opacity: 1;\n\}/);
+  assert.match(css, /\.interaction-card \.interaction-card-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
+  assert.match(css, /\.interaction-card \.interaction-accepted \{\n  display: none !important;\n\}/);
+  assert.match(topActions, /id="snapshot"[\s\S]+id="fullscreen"/);
+  assert.match(topActions.trim(), /<button id="fullscreen" class="icon-action" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶<\/button>$/);
+  assert.match(topActions, /<button id="snapshot"[\s\S]+<svg viewBox="0 0 24 24" aria-hidden="true">[\s\S]*<path d="M9 5 7\.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\.5L15 5H9Z"><\/path>[\s\S]*<circle cx="12" cy="13" r="3\.25"><\/circle>[\s\S]*<\/svg>/);
+  assert.doesNotMatch(topActions, /📷/);
+  assert.match(css, /\.snapshot svg \{[\s\S]+width: 20px;[\s\S]+height: 20px;[\s\S]+fill: none;[\s\S]+stroke: currentColor;[\s\S]+stroke-width: 1\.8;/);
+  assert.match(audienceSource, /Respuesta enviada/);
+  assert.equal(selectedBlocks.some((block) => /linear-gradient\(180deg, rgba\(111,247,232,1\), rgba\(62,202,191,\.98\)\)/.test(block)), false);
+});
+
+
+test("poll home CTA uses the existing Speaker rocket SVG", () => {
+  const presenterHtml = fs.readFileSync(path.join(__dirname, "..", "public/presenter/index.html"), "utf8");
+  const rocket = presenterHtml.match(/<svg class="interaction-rocket-icon"[\s\S]+?<\/svg>/)[0].replace('class="interaction-rocket-icon"', 'class="interaction-launch-rocket"').replace(/\s*\n\s*/g, "");
+  const presenter = fs.readFileSync(path.join(__dirname, "..", "public/presenter/presenter.js"), "utf8");
+  const stage = fs.readFileSync(path.join(__dirname, "..", "public/stage/stage.js"), "utf8");
+  assert.match(presenter, /interactionLaunchRocketMarkup/);
+  assert.match(stage, /interactionLaunchRocketMarkup/);
+  assert.equal(presenter.includes(rocket), true);
+  assert.equal(stage.includes(rocket), true);
+  assert.match(presenter, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
+  assert.match(stage, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
 });

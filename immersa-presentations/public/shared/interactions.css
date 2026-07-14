@@ -155,7 +155,7 @@ body.stage-actions-open .interaction-slide-scrim {
 }
 .interaction-panel button:hover:not(:disabled),
 .interaction-card button:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: none;
   background: rgba(255,255,255,.12);
 }
 .interaction-panel button.primary,
@@ -300,9 +300,12 @@ body.stage-actions-open .interaction-slide-scrim {
   border-radius: 14px !important;
 }
 .interaction-option.is-selected {
-  color: #041211;
-  background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98));
-  border-color: rgba(255,255,255,.34);
+  color: #fff;
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(rgba(31, 29, 47, .98), rgba(31, 29, 47, .98)) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none;
 }
 .interaction-accepted {
   color: #6ff7e8;
@@ -455,4 +458,1209 @@ body.stage-actions-open .interaction-slide-scrim {
     font-size: 10.5px;
     padding: 0 34px 0 38px;
   }
+}
+
+:root {
+  --immersa-gradient: linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%);
+  --immersa-glass: linear-gradient(160deg, rgba(30, 26, 48, .96), rgba(18, 16, 30, .98));
+}
+
+.interaction-panel,
+.stage-actions-card {
+  width: min(380px, calc(100vw - 28px));
+  max-width: 380px;
+}
+
+.interaction-panel,
+.interaction-card,
+.interaction-results-overlay,
+.stage-interaction-panel,
+.interactions-native-shell {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.interaction-panel,
+.stage-actions-card {
+  background: var(--immersa-glass) !important;
+}
+
+.stage-actions-card .stage-actions-content {
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.interactions-native-shell {
+  position: relative;
+  display: grid;
+  gap: 13px;
+  color: rgba(248, 250, 255, .96);
+}
+
+.interactions-native-shell::before {
+  content: "";
+  display: block;
+  width: 54px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--immersa-gradient);
+  box-shadow: 0 0 18px rgba(93, 202, 165, .42);
+}
+
+.interactions-shell-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.interactions-shell-title {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: #fff;
+}
+
+.interactions-shell-back { display: none !important; }
+
+.interactions-shell-close {
+  width: 32px;
+  height: 32px;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: 20px !important;
+  line-height: 1;
+}
+
+.interactions-shell-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.interaction-panel button.interactions-shell-category,
+.stage-actions-card button.interactions-shell-category {
+  position: relative;
+  min-height: 52px;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding: 8px 5px 7px;
+  border-radius: 9px;
+  color: rgba(248, 250, 255, .86);
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .13);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.interactions-shell-category::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--immersa-gradient);
+  opacity: .85;
+}
+
+.interactions-shell-category svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.interactions-shell-category.is-active {
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  border-color: rgba(255, 255, 255, .38) !important;
+  box-shadow: 0 12px 26px rgba(55, 138, 221, .28);
+}
+
+.interactions-shell-category:focus-visible {
+  outline: 2px solid rgba(93, 202, 165, .95);
+  outline-offset: 2px;
+}
+
+.interactions-shell-category[aria-disabled="true"],
+.interactions-native-shell.is-locked .interactions-shell-category {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.interactions-shell-category-badge {
+  max-width: 100%;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .10);
+  color: rgba(248, 250, 255, .72);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.interactions-shell-home {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  padding: 18px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+
+.interactions-shell-home p {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(248, 250, 255, .68);
+  text-align: center;
+}
+
+.interactions-shell-content {
+  min-height: 0;
+}
+
+@media (max-width: 420px) {
+  .interaction-panel,
+  .stage-actions-card {
+    width: min(380px, calc(100vw - 18px));
+  }
+  .interactions-shell-nav { gap: 5px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category {
+    padding-inline: 3px;
+    font-size: 9.5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .interaction-panel,
+  .stage-actions-card {
+    width: min(380px, calc(100vw - 120px));
+    max-height: calc(100dvh - 20px);
+  }
+  .interactions-native-shell { gap: 9px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category { min-height: 48px; }
+  .interactions-shell-home { min-height: 84px; padding-block: 10px; }
+}
+
+/* PR #80 visual reconciliation: exact segmented bar, single pleca, neutral body. */
+.interaction-panel {
+  padding: 18px;
+  overflow: hidden auto;
+}
+
+.interaction-panel::before {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  width: auto;
+  height: 4px;
+  border-radius: 0 0 999px 999px;
+  background: var(--immersa-gradient);
+}
+
+.interactions-native-shell {
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.interactions-native-shell::before,
+.interactions-shell-category::before {
+  content: none;
+}
+
+.interactions-shell-header {
+  display: block;
+  min-height: 30px;
+  padding-right: 38px;
+}
+
+.interactions-shell-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  font-weight: 400;
+  text-align: center;
+}
+
+.interactions-shell-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(5, 8, 18, .32);
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.interaction-panel button.interactions-shell-category,
+.stage-actions-card button.interactions-shell-category {
+  min-height: 54px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(248, 250, 255, .76);
+  gap: 5px;
+  padding: 7px 4px;
+}
+
+.interaction-panel button.interactions-shell-category:hover:not(:disabled),
+.stage-actions-card button.interactions-shell-category:hover:not(:disabled) {
+  transform: none;
+  background: rgba(255, 255, 255, .06);
+}
+
+.interactions-shell-category[aria-disabled="true"] {
+  color: rgba(248, 250, 255, .38);
+  opacity: 1;
+}
+
+.interactions-native-shell.is-locked .interactions-shell-category {
+  opacity: .48;
+}
+
+.interactions-shell-category.is-active {
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  box-shadow: 0 8px 18px rgba(55, 138, 221, .24);
+}
+
+.interactions-shell-category svg {
+  width: 19px;
+  height: 19px;
+}
+
+.interactions-shell-home {
+  min-height: 150px;
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.interactions-shell-home p {
+  color: rgba(248, 250, 255, .66);
+}
+
+.interaction-panel-heading,
+.raffle-heading {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.interaction-panel-heading span,
+.raffle-heading span { display: none; }
+
+.interaction-panel-heading h2,
+.raffle-heading h2 {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.14;
+  color: #fff;
+}
+
+.interaction-panel-heading p,
+.raffle-heading p {
+  margin: 0;
+  color: rgba(248, 250, 255, .66);
+  font-size: 12px;
+}
+
+.interaction-picker,
+.raffle-mode-grid {
+  gap: 9px;
+  max-height: min(320px, 42dvh);
+}
+
+.interaction-panel button.interaction-choice,
+.raffle-mode-card,
+.stage-actions-card .raffle-mode-card {
+  position: relative;
+  min-height: 64px;
+  border-radius: 14px !important;
+  padding: 12px 44px 12px 12px;
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.interaction-panel button.interaction-choice.is-selected,
+.raffle-mode-card.is-selected {
+  color: rgba(248, 250, 255, .98);
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(93, 202, 165, .72);
+  box-shadow: 0 0 0 1px rgba(55, 138, 221, .42), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.interaction-panel button.interaction-choice.is-selected::after,
+.raffle-mode-card.is-selected::after {
+  content: "✓";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #061219;
+  background: var(--immersa-gradient);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.interaction-choice-title,
+.raffle-mode-card strong {
+  font-size: 13px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, .96);
+}
+
+.interaction-choice-prompt,
+.raffle-mode-description {
+  color: rgba(248, 250, 255, .60);
+}
+
+.interaction-choice small,
+.raffle-mode-card small {
+  justify-self: start;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+  color: rgba(248, 250, 255, .68);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.interaction-panel-actions,
+.raffle-actions {
+  width: 100%;
+}
+
+.interaction-panel-actions .primary,
+.raffle-actions button.primary,
+.raffle-create-visual.primary {
+  width: 100%;
+  min-height: 42px;
+  justify-content: center;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  border-color: rgba(255, 255, 255, .20) !important;
+  border-radius: 14px !important;
+}
+
+.interaction-panel-actions .primary:disabled,
+.raffle-actions button.primary:disabled,
+.raffle-create-visual.primary:disabled {
+  color: rgba(248, 250, 255, .42) !important;
+  background: rgba(255, 255, 255, .08) !important;
+  border-color: rgba(255, 255, 255, .09) !important;
+  box-shadow: none;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .interactions-shell-home { min-height: 90px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category { min-height: 46px; }
+}
+
+
+/* PR #80 Encuestas home correction: title, hidden neutral, spacing, lightweight close, static hover. */
+.interactions-shell-title {
+  font-weight: 600;
+}
+
+.interactions-shell-home[hidden] {
+  display: none !important;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.interactions-shell-close {
+  top: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px !important;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 14px !important;
+  font-weight: 300;
+  line-height: 1;
+  color: rgba(255,255,255,.58);
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: none;
+}
+
+.interactions-shell-close:hover {
+  color: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.075);
+  border-color: rgba(255,255,255,.16);
+  transform: none;
+}
+
+.interactions-shell-content,
+.interaction-picker,
+.interaction-panel-actions:not(.interaction-active-actions) {
+  display: grid;
+  gap: 10px;
+}
+
+.interaction-panel button:hover:not(:disabled),
+.stage-actions-card button:hover:not(:disabled),
+.interaction-choice:hover:not(:disabled),
+.interactions-shell-category:hover:not(:disabled),
+.raffle-mode-card:hover:not(:disabled) {
+  transform: none !important;
+}
+
+.interaction-choice-title {
+  font-family: Poppins, Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.interaction-choice-prompt {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba(255,255,255,.50);
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.interaction-panel-actions .primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: none !important;
+}
+
+/* PR #80 top bar correction: continuous bar without exterior outline. */
+.interactions-shell-nav {
+  border: 0 !important;
+  outline: 0 !important;
+}
+
+/* PR #80 Encuestas home final alignment: fixed title, top pleca, CTA rocket, selected gradient border. */
+.interaction-panel::before,
+.stage-actions-card::before {
+  content: "";
+  position: absolute;
+  top: 0 !important;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  margin: 0;
+  border-radius: 0 0 4px 4px;
+  background: var(--immersa-gradient);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.interactions-native-shell {
+  gap: 10px;
+  padding-top: 0;
+}
+
+.interactions-shell-header {
+  min-height: 25px;
+  margin: 0;
+}
+
+.interactions-shell-nav {
+  margin-top: -1px;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interactions-shell-close {
+  top: -3px;
+  right: -3px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px !important;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: transparent;
+  font-size: 0 !important;
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: none;
+}
+
+.interactions-shell-close::before,
+.interactions-shell-close::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.58);
+  transform-origin: center;
+}
+
+.interactions-shell-close::before { transform: rotate(45deg); }
+.interactions-shell-close::after { transform: rotate(-45deg); }
+
+.interactions-shell-close:hover {
+  color: transparent;
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.12);
+  transform: none;
+}
+
+.interactions-shell-close:hover::before,
+.interactions-shell-close:hover::after {
+  background: rgba(255,255,255,.78);
+}
+
+.interactions-shell-content,
+.interaction-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.interaction-panel-heading,
+.interaction-picker,
+.interaction-panel-actions {
+  margin: 0;
+}
+
+.interaction-panel-heading { gap: 4px; }
+
+.interaction-panel-actions:not(.interaction-active-actions) {
+  display: grid;
+  gap: 0;
+}
+
+.interaction-panel-actions .primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.interaction-launch-rocket {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: currentColor;
+}
+
+.interaction-panel button.interaction-choice.is-selected,
+.stage-actions-card button.interaction-choice.is-selected {
+  color: rgba(248, 250, 255, .98);
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(rgba(31, 29, 47, .98), rgba(31, 29, 47, .98)) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+}
+
+.interaction-panel button.interaction-choice.is-selected::after,
+.stage-actions-card button.interaction-choice.is-selected::after {
+  color: #fff !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+
+/* PR #80 regression fix: keep Speaker modal out of document flow. */
+.interaction-panel {
+  position: fixed !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* PR #80 Encuestas home polish: flush pleca, true poll spacing, clean CTA edge. */
+.interaction-panel,
+.stage-actions-card {
+  border-top-width: 0 !important;
+}
+
+.interaction-polls-renderer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+  min-width: 0;
+}
+
+.interaction-picker {
+  display: grid;
+  row-gap: 12px;
+  margin: 0;
+}
+
+.interaction-panel-heading,
+.interaction-picker,
+.interaction-panel-actions {
+  margin-block: 0 !important;
+}
+
+.interaction-panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.interaction-panel-actions .primary,
+.stage-actions-card .interaction-panel-actions .primary {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  background-clip: border-box !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.interaction-panel-actions .primary:hover:not(:disabled),
+.stage-actions-card .interaction-panel-actions .primary:hover:not(:disabled) {
+  transform: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  filter: brightness(1.05);
+}
+
+.interaction-panel-actions .primary:focus,
+.interaction-panel-actions .primary:focus-visible,
+.stage-actions-card .interaction-panel-actions .primary:focus,
+.stage-actions-card .interaction-panel-actions .primary:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interaction-panel-actions .primary:active,
+.stage-actions-card .interaction-panel-actions .primary:active {
+  transform: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interaction-panel-actions .primary:disabled,
+.stage-actions-card .interaction-panel-actions .primary:disabled {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* PR #80 renderer visibility, integrated scrollbars, raffle visual parity. */
+.interaction-polls-renderer[hidden],
+.interaction-raffle-renderer[hidden] {
+  display: none !important;
+}
+
+.interaction-polls-renderer:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+  min-width: 0;
+}
+
+.interaction-raffle-renderer:not([hidden]) {
+  display: block;
+  min-width: 0;
+}
+
+.interaction-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(127, 119, 221, .52) transparent;
+  scrollbar-gutter: auto;
+  border-radius: 22px !important;
+  border-top-right-radius: 22px !important;
+  border-bottom-right-radius: 22px !important;
+  background-clip: padding-box;
+}
+
+.interaction-panel::-webkit-scrollbar {
+  width: 7px;
+}
+
+.interaction-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.interaction-panel::-webkit-scrollbar-track-piece {
+  margin-block: 16px;
+  background: transparent;
+}
+
+.interaction-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(127, 119, 221, .62),
+      rgba(55, 138, 221, .62),
+      rgba(93, 202, 165, .62)
+    );
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.interaction-panel::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(127, 119, 221, .82),
+      rgba(55, 138, 221, .82),
+      rgba(93, 202, 165, .82)
+    );
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.interaction-picker {
+  display: grid;
+  row-gap: 12px;
+  max-height: min(320px, 38dvh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 138, 221, .48) transparent;
+  margin: 0;
+  padding-right: 4px;
+}
+
+.interaction-picker::-webkit-scrollbar {
+  width: 6px;
+}
+
+.interaction-picker::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.interaction-picker::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(55, 138, 221, .48);
+}
+
+.interaction-picker::-webkit-scrollbar-thumb:hover {
+  background: rgba(93, 202, 165, .62);
+}
+
+.raffle-mode-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+  margin: 0;
+}
+
+.raffle-mode-card,
+.stage-actions-card .raffle-mode-card {
+  position: relative;
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  justify-items: start;
+  align-content: center;
+  padding: 12px 44px 12px 12px;
+  border-radius: 14px !important;
+  text-align: left;
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  transform: none !important;
+}
+
+.raffle-mode-card strong {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, .96);
+}
+
+.raffle-mode-description {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, .50);
+  white-space: normal;
+}
+
+.raffle-mode-card:hover:not(:disabled) {
+  transform: none !important;
+  background: rgba(255, 255, 255, .075);
+  border-color: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.raffle-mode-card.is-selected,
+.stage-actions-card .raffle-mode-card.is-selected {
+  color: rgba(248, 250, 255, .98);
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(
+      rgba(31, 29, 47, .98),
+      rgba(31, 29, 47, .98)
+    ) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  transform: none !important;
+}
+
+.raffle-heading {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.raffle-heading h2 {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.14;
+  color: #fff;
+}
+
+.raffle-heading p {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba(248, 250, 255, .66);
+}
+
+.raffle-stats-pill {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .09);
+}
+
+.raffle-stat-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.raffle-stat-item span {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: rgba(248, 250, 255, .58);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.raffle-stat-item strong {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.raffle-stat-divider {
+  width: 1px;
+  height: 13px;
+  flex: 0 0 1px;
+  background: rgba(255, 255, 255, .14);
+}
+
+.interaction-panel button.interaction-choice.is-selected::after,
+.stage-actions-card button.interaction-choice.is-selected::after {
+  content: "✓";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  box-shadow: none !important;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* PR #80 Stage modal glass surface parity with Speaker. */
+.stage-actions-card {
+  border-radius: 22px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--immersa-glass) !important;
+  background-clip: padding-box;
+}
+
+.stage-actions-card .stage-actions-content {
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* PR #80 Audience poll parity with Immersa interaction surfaces. */
+.interaction-card {
+  position: fixed;
+  overflow: hidden;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  color: rgba(248, 250, 255, .96);
+  background: var(--immersa-glass) !important;
+  border: 1px solid rgba(255, 255, 255, .13);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, .46),
+    inset 0 1px 0 rgba(255, 255, 255, .07);
+  background-clip: padding-box;
+}
+
+.interaction-card h2 {
+  margin: 2px 0 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: clamp(18px, 5.4vw, 22px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -.02em;
+  color: #fff;
+}
+
+.interaction-card p {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(248, 250, 255, .66);
+}
+
+.interaction-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.interaction-card button.interaction-option {
+  position: relative;
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 11px 44px 11px 13px;
+  border-radius: 14px !important;
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  transform: none;
+}
+
+.interaction-card button.interaction-option:hover:not(:disabled) {
+  transform: none;
+  background: rgba(255, 255, 255, .075);
+  border-color: rgba(255, 255, 255, .16);
+}
+
+.interaction-card button.interaction-option.is-selected {
+  color: #fff;
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(
+      rgba(31, 29, 47, .98),
+      rgba(31, 29, 47, .98)
+    ) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none;
+}
+
+.interaction-card button.interaction-option.is-selected::after {
+  content: "✓";
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--immersa-gradient);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.interaction-card button.interaction-option:disabled {
+  cursor: default;
+}
+
+.interaction-card button.interaction-option:disabled:not(.is-selected) {
+  opacity: .42;
+}
+
+.interaction-card button.interaction-option.is-selected:disabled {
+  opacity: 1;
+}
+
+.interaction-card .interaction-card-actions {
+  width: 100%;
+  display: grid;
+}
+
+.interaction-card .interaction-card-actions .primary {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  outline: 0;
+  box-shadow: none;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.interaction-card .interaction-card-actions .primary:disabled {
+  color: rgba(248, 250, 255, .42) !important;
+  background: rgba(255, 255, 255, .08) !important;
+  opacity: 1;
+}
+
+.interaction-accepted {
+  margin: -2px 0 0;
+  color: #5dcaa5;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* PR #80 Audience poll final visibility and icon polish. */
+.interaction-card {
+  position: fixed;
+  border-top-width: 0 !important;
+}
+
+.interaction-card::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0 !important;
+  left: 18px;
+  right: 18px;
+  height: 3px;
+  margin: 0;
+  border-radius: 0 0 999px 999px;
+  background: var(--immersa-gradient);
+  pointer-events: none;
+}
+
+.interaction-card h2 {
+  display: none !important;
+}
+
+.interaction-card p {
+  margin: 2px 0 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: clamp(18px, 5.4vw, 22px);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -.02em;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.interaction-card .interaction-accepted {
+  display: none !important;
+}
+
+.snapshot svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

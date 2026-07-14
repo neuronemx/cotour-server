@@ -14,6 +14,7 @@ const {
   getRaffleActions,
   canDispatchRaffleAction,
   createSlideConfirmDispatcher,
+  createController,
   renderRaffleController,
   winnerLabel,
   remainingRaffleSeconds,
@@ -29,6 +30,52 @@ function loadBrowserRaffleControlsWithoutHelper() { const sandbox = { console, s
 
 test("Speaker loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/presenter/index.html"); });
 test("Stage loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/stage/index.html"); });
+
+test("raffle visual css matches poll card geometry, typography, hover, selection, and stats pill", () => {
+  const css = readProjectFile("public/shared/raffle-controller.css");
+  const interactionsCss = readProjectFile("public/shared/interactions.css");
+  assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+height: auto !important;[\s\S]+min-height: 64px !important;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+gap: 4px;[\s\S]+padding: 12px 44px 12px 12px !important;[\s\S]+border-radius: 14px !important;[\s\S]+transform: none !important;/);
+  assert.match(interactionsCss, /\.interaction-panel button\.interaction-choice,[\s\S]+min-height: 64px;[\s\S]+border-radius: 14px !important;[\s\S]+padding: 12px 44px 12px 12px;/);
+  assert.doesNotMatch(css, /\.stage-actions-card \.raffle-mode-card \{ min-height: 36px; \}/);
+  assert.doesNotMatch(css, /\.stage-actions-card \.raffle-mode-card \{ height: auto; padding: 11px; border-radius: 16px; \}/);
+  assert.match(css, /\.raffle-mode-card strong,[\s\S]+\.stage-actions-card \.raffle-mode-card strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 13px;[\s\S]+font-weight: 500;/);
+  assert.match(css, /\.raffle-mode-description,[\s\S]+\.stage-actions-card \.raffle-mode-description \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 11px;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.raffle-mode-card:hover:not\(:disabled\),[\s\S]+\.stage-actions-card \.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]+transform: none !important;/);
+  assert.doesNotMatch(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]*?translateY\(-1px\);[\s\S]*?\}/);
+  assert.doesNotMatch(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]*?scale\([\s\S]*?\}/);
+  assert.match(css, /\.raffle-mode-card\.is-selected,[\s\S]+\.stage-actions-card \.raffle-mode-card\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.raffle-stats-pill \{[\s\S]+display: flex;[\s\S]+border-radius: 999px;/);
+  assert.match(css, /\.raffle-stat-item \{[\s\S]+white-space: nowrap;/);
+  assert.match(css, /\.raffle-actions\.is-secondary \{[\s\S]+display: flex;[\s\S]+align-items: center;[\s\S]+gap: 8px;[\s\S]+padding-top: 2px;[\s\S]+border-top: 0 !important;/);
+  assert.doesNotMatch(css, /\.raffle-actions\.is-secondary \{[^}]*border-top: 1px solid/);
+  assert.match(css, /\.raffle-actions\.is-secondary \.raffle-action\.danger\[data-raffle-action="raffle:close"\] \{[\s\S]+margin-left: auto;/);
+  assert.match(css, /\.raffle-countdown \{[\s\S]+min-height: 68px;[\s\S]+place-items: center;[\s\S]+color: #378add;[\s\S]+background: transparent;[\s\S]+border: 0;[\s\S]+border-radius: 0;[\s\S]+box-shadow: none;/);
+  assert.match(css, /\.raffle-countdown strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 38px;[\s\S]+color: #378add;/);
+});
+
+
+test("raffle controller resets incomplete local visual key drafts without socket emissions", () => {
+  const handlers = {};
+  const emitted = [];
+  const socket = { on: (eventName, handler) => { handlers[eventName] = handler; }, emit: (...args) => emitted.push(args) };
+  const controller = createController(socket, { installLegacyIntegration: false });
+  handlers["raffle:state"]?.({ active: null, previousWinnerCount: 2, visualKeyDraftEntryKey: "visual_key_2" });
+  assert.equal(controller.getState().configMode, "visual_key");
+  assert.equal(controller.getState().visualKeyDraftEntryKey, "visual_key_2");
+  assert.equal(controller.resetLocalSetup(), true);
+  assert.equal(controller.getState().configMode, "");
+  assert.equal(controller.getState().visualKeyDraftEntryKey, "");
+  assert.equal(controller.getState().pendingEvent, "");
+  assert.equal(controller.getState().previousWinnerCount, 2);
+  const html = renderRaffleController(controller.getState());
+  assert.match(html, /<h2>Sorteos disponibles<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Clave visual<\/h2>/);
+  assert.deepEqual(emitted, []);
+
+  handlers["raffle:active"]?.({ id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 });
+  assert.equal(controller.resetLocalSetup(), false);
+  assert.equal(controller.getState().active.id, "r-active");
+});
 
 test("raffle selection renders the three approved neutral modes", () => {
   const html = renderRaffleController(createInitialRaffleControllerState());
@@ -64,13 +111,27 @@ test("raffle subview hides tabs and conditionally provides a back control", () =
   assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
 });
 
-test("raffle selector hierarchy has no duplicate labels", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Sorteos?<\/h2>/i); assert.equal((html.match(/<h2>/g) || []).length, 0); assert.match(html, /<p>Elige un modo para crear la convocatoria\.<\/p>/); });
+test("raffle selector hierarchy uses a single section heading", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.equal((html.match(/<h2>/g) || []).length, 1); assert.match(html, /<h2>Sorteos disponibles<\/h2><p>Elige un modo para crear la convocatoria\.<\/p>/); });
+
+
+test("raffle active status text is mode-aware for poll collecting only", () => {
+  const base = createInitialRaffleControllerState();
+  const freeHtml = renderRaffleController({ ...base, active: { id: "r-free", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } });
+  const pollHtml = renderRaffleController({ ...base, active: { id: "r-poll", mode: "poll", state: "collecting", entryCount: 0, eligibleCount: 0 } });
+  const visualHtml = renderRaffleController({ ...base, active: { id: "r-visual", mode: "visual_key", state: "collecting", entryCount: 0, eligibleCount: 0 } });
+  assert.match(freeHtml, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/);
+  assert.match(pollHtml, /<h2>Sorteo Encuesta<\/h2><p>Participación con pregunta o evaluación<\/p>/);
+  assert.match(visualHtml, /<h2>Sorteo Clave visual<\/h2><p>Participación abierta<\/p>/);
+  assert.match(renderRaffleController({ ...base, active: { id: "r-closed", mode: "poll", state: "entries_closed", entryCount: 1, eligibleCount: 1 } }), /<p>Participación cerrada<\/p>/);
+  assert.match(renderRaffleController({ ...base, active: { id: "r-drawing", mode: "poll", state: "drawing", revealAt: new Date(Date.now() + 5000).toISOString() } }), /<p>Sorteando\.\.\.<\/p>/);
+  assert.match(renderRaffleController({ ...base, active: { id: "r-winner", mode: "poll", state: "winner", winner: { label: "Mesa 1" } } }), /<p>Tenemos ganador<\/p>/);
+});
 
 test("active raffle hierarchy uses mode title and state text", () => { let state = createInitialRaffleControllerState(); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Participación abierta<\/h2>/); assert.match(html, /data-raffle-action="raffle:close_entries"/); assert.match(html, /data-raffle-action="raffle:close"/); });
 
 test("poll launch handlers still emit interaction:launch from Speaker and Stage", () => { const presenter = readProjectFile("public/presenter/presenter.js"); const stage = readProjectFile("public/stage/stage.js"); assert.match(presenter, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/); assert.match(stage, /data-interaction-launch[\s\S]+socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/); });
 
-test("maps raffle states to available controller actions", () => { assert.deepEqual(getRaffleActions({ active: { state: "collecting" } }).map((action) => action.event), ["raffle:close_entries", "raffle:close"]); assert.deepEqual(getRaffleActions({ active: { state: "entries_closed" } }).map((action) => action.event), ["raffle:draw", "raffle:reset_winners", "raffle:close"]); assert.deepEqual(getRaffleActions({ active: { state: "drawing", pendingWinnerSelected: true } }).map((action) => action.event), []); assert.deepEqual(getRaffleActions({ active: { state: "winner" } }).map((action) => action.event), ["raffle:close"]); });
+test("maps raffle states to available controller actions", () => { const collecting = getRaffleActions({ active: { state: "collecting" } }); const closed = getRaffleActions({ active: { state: "entries_closed" } }); const winner = getRaffleActions({ active: { state: "winner" } }); assert.deepEqual(collecting.map((action) => action.event), ["raffle:close_entries", "raffle:close"]); assert.equal(collecting.find((action) => action.event === "raffle:close").label, "Cancelar sorteo"); assert.deepEqual(closed.map((action) => action.event), ["raffle:draw", "raffle:reset_winners", "raffle:close"]); assert.deepEqual(closed.find((action) => action.event === "raffle:close"), { event: "raffle:close", label: "Cancelar sorteo", danger: true, secondary: true }); assert.deepEqual(getRaffleActions({ active: { state: "drawing", pendingWinnerSelected: true } }).map((action) => action.event), []); assert.deepEqual(winner, [{ event: "raffle:close", label: "Cerrar sorteo", primary: true }]); });
 
 test("raffle navigation lock applies to any active raffle and not to setup", () => { assert.equal(isRaffleNavigationLocked(createInitialRaffleControllerState()), false); assert.equal(isRaffleNavigationLocked({ active: null }), false); assert.equal(isRaffleNavigationLocked({ active: { state: "collecting" } }), true); assert.equal(isRaffleNavigationLocked({ active: { state: "entries_closed" } }), true); assert.equal(isRaffleNavigationLocked({ active: { state: "drawing" } }), true); assert.equal(isRaffleNavigationLocked({ active: { state: "winner" } }), true); });
 
@@ -94,13 +155,14 @@ test("winners reset event keeps Speaker and Stage synchronized", () => { const p
 
 test("state audienceCount updates connectedAudienceCount", () => { const state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 }); assert.equal(state.connectedAudienceCount, 2); });
 
-test("collecting renders connected audience without ticket metric for all modes", () => { for (const mode of ["free", "visual_key", "poll"]) { let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 }); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r5-" + mode, mode, state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/); assert.doesNotMatch(html, /BOLETOS/); assert.doesNotMatch(html, /Boletos/); assert.match(html, /Cerrar tómbola/); assert.match(html, /data-raffle-action="raffle:close"/); assert.equal(isRaffleNavigationLocked(state), true); } });
+test("collecting renders connected audience without ticket metric for all modes", () => { for (const mode of ["free", "visual_key", "poll"]) { let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 }); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r5-" + mode, mode, state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /<div class="raffle-stats-pill"><span class="raffle-stat-item"><span>Conectados<\/span><strong>2<\/strong><\/span><span class="raffle-stat-divider" aria-hidden="true"><\/span><span class="raffle-stat-item"><span>Elegibles<\/span><strong>0<\/strong><\/span><\/div>/); assert.doesNotMatch(html, /BOLETOS/);
+    assert.doesNotMatch(html, /class="raffle-stats"><div>/); assert.doesNotMatch(html, /Boletos/); assert.match(html, /Cerrar tómbola/); assert.match(html, /data-raffle-action="raffle:close"/); assert.equal(isRaffleNavigationLocked(state), true); } });
 
 test("collecting keeps Cancelar sorteo as the explicit exit", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r5", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } }; const html = renderRaffleController(state); assert.match(html, /data-raffle-action="raffle:close"/); assert.match(html, /Cancelar sorteo/); assert.doesNotMatch(html, /Volver/); });
 
-test("entries_closed renders frozen participant and eligible counts", () => { let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 4 }); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r6", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 1 } }); const html = renderRaffleController(state); assert.match(html, /PARTICIPANTES<\/span><strong>2<\/strong>/); assert.match(html, /ELEGIBLES<\/span><strong>1<\/strong>/); assert.doesNotMatch(html, /CONECTADOS/); assert.equal(isRaffleNavigationLocked(state), true); });
+test("entries_closed renders connected and eligible counts in one pill", () => { let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 4 }); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r6", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 1 } }); const html = renderRaffleController(state); assert.match(html, /<div class="raffle-stats-pill">/); assert.match(html, /<span>Conectados<\/span><strong>4<\/strong>/); assert.match(html, /<span>Elegibles<\/span><strong>1<\/strong>/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /class="raffle-stats"><div>/); assert.equal(isRaffleNavigationLocked(state), true); });
 
-test("entries_closed uses shared slide confirmation instead of a normal draw button", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r7", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 } }; const html = renderRaffleController(state); assert.match(html, /interaction-close-slider/); assert.match(html, /interaction-close-slider-track/); assert.match(html, /interaction-close-slider-label/); assert.match(html, /interaction-close-slider-knob/); assert.match(html, /data-raffle-slide-confirm/); assert.match(html, /Desliza para iniciar sorteo/); assert.doesNotMatch(html, /data-raffle-action="raffle:draw"/); assert.match(html, /Restablecer ganadores/); assert.match(html, /Cerrar sorteo/); });
+test("entries_closed uses shared slide confirmation instead of a normal draw button", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r7", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 } }; const html = renderRaffleController(state); assert.match(html, /interaction-close-slider/); assert.match(html, /interaction-close-slider-track/); assert.match(html, /interaction-close-slider-label/); assert.match(html, /interaction-close-slider-knob/); assert.match(html, /data-raffle-slide-confirm/); assert.match(html, /Desliza para iniciar sorteo/); assert.doesNotMatch(html, /data-raffle-action="raffle:draw"/); assert.match(html, /Restablecer ganadores/); assert.match(html, /class="danger secondary raffle-action" data-raffle-action="raffle:close" [^>]*>Cancelar sorteo<\/button>/); assert.doesNotMatch(html, /Cerrar sorteo/); });
 
 test("raffle slide confirmation shares the close-slider threshold", () => { assert.equal(SLIDE_COMPLETE_RATIO, SlideConfirm.COMPLETE_THRESHOLD); assert.equal(SlideConfirm.COMPLETE_THRESHOLD, 0.82); });
 
@@ -110,9 +172,9 @@ test("pending state blocks repeated slide confirmation", () => { const emitted =
 
 test("rejection clears pending state and restores the slide control", () => { let state = { ...createInitialRaffleControllerState(), pendingEvent: "raffle:draw", active: { id: "r10", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 } }; state = reduceRaffleControllerState(state, "raffle:rejected", { reason: "no_eligible_entries" }); const html = renderRaffleController(state); assert.equal(state.pendingEvent, ""); assert.match(html, /No hay participantes elegibles/); assert.match(html, /data-raffle-slide-confirm/); assert.doesNotMatch(html, /data-slide-completed/); assert.doesNotMatch(html, /aria-disabled="true"/); });
 
-test("drawing renders automatic countdown without manual action or metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r11", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() } }; const html = renderRaffleController(state); assert.match(html, /Sorteando/); assert.match(html, /REVELACIÓN EN/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /ELEGIBLES/); assert.doesNotMatch(html, /<strong>2<\/strong>/); assert.doesNotMatch(html, /Mostrar ganador/); assert.equal(isRaffleNavigationLocked(state), true); });
+test("drawing renders automatic countdown without manual action or metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r11", mode: "free", state: "drawing", entryCount: 2, eligibleCount: 2, revealAt: new Date(Date.now() + 5_000).toISOString() } }; const html = renderRaffleController(state); assert.match(html, /Sorteando/); assert.match(html, /<div class="raffle-countdown" role="status" aria-live="polite" aria-label="Cuenta regresiva"><strong>5<\/strong><\/div>/); assert.doesNotMatch(html, /REVELACIÓN EN/); assert.doesNotMatch(html, /<span>REVELACIÓN EN<\/span>/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /Elegibles/); assert.doesNotMatch(html, /<strong>2<\/strong>/); assert.doesNotMatch(html, /Mostrar ganador/); assert.equal(isRaffleNavigationLocked(state), true); });
 
-test("winner renders winner block and close action without participant metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r12", mode: "free", state: "winner", entryCount: 2, eligibleCount: 2, winner: { label: "Mesa 4" } } }; const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Tenemos ganador<\/p>/); assert.match(html, /<span>Ganador<\/span><strong>Mesa 4<\/strong>/); assert.match(html, /data-raffle-action="raffle:close"/); assert.match(html, /Cerrar sorteo/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /ELEGIBLES/); assert.doesNotMatch(html, /Restablecer ganadores/); assert.equal(isRaffleNavigationLocked(state), true); });
+test("winner renders winner block and close action without participant metrics", () => { const state = { ...createInitialRaffleControllerState(), active: { id: "r12", mode: "free", state: "winner", entryCount: 2, eligibleCount: 2, winner: { label: "Mesa 4" } } }; const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Tenemos ganador<\/p>/); assert.match(html, /<span>Ganador<\/span><strong>Mesa 4<\/strong>/); assert.match(html, /data-raffle-action="raffle:close"/); assert.match(html, /Cerrar sorteo/); assert.doesNotMatch(html, /PARTICIPANTES/); assert.doesNotMatch(html, /Elegibles/); assert.doesNotMatch(html, /Restablecer ganadores/); assert.equal(isRaffleNavigationLocked(state), true); });
 
 test("visual key selector requires choosing the correct option before creating", () => {
   const emptyHtml = renderRaffleController({ ...createInitialRaffleControllerState(), configMode: "visual_key" });
@@ -153,8 +215,8 @@ test("raffle mode order is Libre, Encuesta, Clave visual", () => {
 test("eligible metric is hidden when zero and visible when positive", () => {
   const zeroHtml = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-e0", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 0 } });
   const positiveHtml = renderRaffleController({ ...createInitialRaffleControllerState(), active: { id: "r-e2", mode: "free", state: "entries_closed", entryCount: 2, eligibleCount: 2 } });
-  assert.doesNotMatch(zeroHtml, /ELEGIBLES/);
-  assert.match(positiveHtml, /ELEGIBLES<\/span><strong>2<\/strong>/);
+  assert.match(zeroHtml, /<span>Elegibles<\/span><strong>0<\/strong>/);
+  assert.match(positiveHtml, /<span>Elegibles<\/span><strong>2<\/strong>/);
 });
 
 test("controller countdown renders stable five second sequence without seconds suffix", () => {
@@ -164,7 +226,8 @@ test("controller countdown renders stable five second sequence without seconds s
   Date.now = () => nowMs;
   try {
     const html = renderRaffleController({ ...createInitialRaffleControllerState(), active });
-    assert.match(html, /<div class="raffle-countdown"><span>REVELACIÓN EN<\/span><strong>5<\/strong><\/div>/);
+    assert.match(html, /<div class="raffle-countdown" role="status" aria-live="polite" aria-label="Cuenta regresiva"><strong>5<\/strong><\/div>/);
+    assert.doesNotMatch(html, /REVELACIÓN EN/);
     assert.doesNotMatch(html, /<strong>[1-5]s<\/strong>/);
   } finally {
     Date.now = originalNow;
@@ -225,11 +288,11 @@ test("Speaker uses sibling stable renderers for polls and raffles", () => {
 test("Speaker returns home only on real interaction close events", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.match(presenter, /onRequestClose: closeInteractionPanelRequest/);
-  assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+if \(hasActiveInteractionShellLock\(\)\) return;[\s\S]+returnInteractionsHome\(\);[\s\S]+setInteractionPanelOpen\(false\);/);
+  assert.match(presenter, /function setInteractionPanelOpen\(open\) \{[\s\S]+if \(!open\) resetInactiveRaffleDraft\(\);[\s\S]+interactionPanelOpen = Boolean\(open\);/);
   assert.match(presenter, /function toggleInteractionPanel\(\) \{ if \(interactionPanelOpen && hasActiveInteractionShellLock\(\)\) return;/);
   assert.match(presenter, /event\.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock\(\)/);
   assert.match(presenter, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
-  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
   assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
@@ -252,7 +315,7 @@ test("poll idle selection starts empty and launch disabled until explicit choice
 test("poll idle renders list when interactions exist without selected poll", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.match(presenter, /const hasInteractions = interactions\.length > 0;[\s\S]+const selected = selectedInteraction\(\);/);
-  assert.match(presenter, /panel\.innerHTML = \(hasInteractions \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
+  assert.match(presenter, /panel\.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas disponibles<\/h2><p>Selecciona una encuesta para lanzarla\.<\/p><\/div>' \+ \(hasInteractions \? interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
   assert.match(presenter, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
   assert.match(presenter, /panel\.querySelectorAll\("\[data-interaction-select\]"\)[\s\S]+selectedInteractionId = button\.dataset\.interactionSelect/);
   assert.match(presenter, /socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
@@ -268,6 +331,7 @@ test("poll empty state depends on interactions length, not selected fallback", (
 
 test("poll selection clears on idle X close and interaction closed", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
+  assert.match(presenter, /function resetInactiveRaffleDraft\(\) \{ if \(hasActiveInteractionShellLock\(\)\) return false; return raffleController\?\.resetLocalSetup\?\.\(\) \|\| false; \}/);
   assert.match(presenter, /function closeInteractionPanelRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\); \}\)/);
   assert.match(presenter, /if \(activeInteraction\?\.id\) selectedInteractionId = String\(activeInteraction\.id\)/);
@@ -275,13 +339,13 @@ test("poll selection clears on idle X close and interaction closed", () => {
 
 test("generic shell section titles are hidden outside general home", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
-  assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
 });
 
-test("poll home copy uses shell title only", () => {
+test("poll home copy uses a section title without duplicating the generic shell title", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.doesNotMatch(presenter, /<h2>Encuestas<\/h2>/);
-  assert.doesNotMatch(presenter, /Encuestas disponibles/);
+  assert.match(presenter, /Encuestas disponibles/);
   assert.match(presenter, /Selecciona una encuesta para lanzarla\./);
   assert.doesNotMatch(presenter, /data-interaction-panel-close/);
 });
@@ -338,9 +402,10 @@ test("Stage poll idle requires explicit selection and clears it on close", () =>
   assert.match(stage, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
   assert.match(stage, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\);[\s\S]+renderStageActionsPanel\(\);/);
   assert.match(stage, /function selectedInteraction\(\) \{\n  return selectedInteractionId \? interactions\.find/);
-  assert.match(stage, /interactions\.length \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(\)/);
+  assert.match(stage, /<div class="interaction-panel-heading"><h2 id="stageActionsTitle">Encuestas disponibles<\/h2><p>Selecciona una encuesta para lanzarla\.<\/p><\/div>' \+ \(interactions\.length \? interactionListMarkup\(\)/);
   assert.match(stage, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
-  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
+  assert.match(stage, /function resetInactiveRaffleDraft\(\) \{ if \(hasActiveInteractionShellLock\(\)\) return false; return raffleController\?\.resetLocalSetup\?\.\(\) \|\| false; \}/);
+  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+resetInactiveRaffleDraft\(\);[\s\S]+returnInteractionsHome\(\);/);
   assert.doesNotMatch(stage, /selectDefaultInteraction/);
   assert.doesNotMatch(stage, /\|\| interactions\[0\]/);
 });
@@ -374,12 +439,14 @@ test("Stage modal relies on the shell close button and has an accessible dialog 
   assert.doesNotMatch(css, /\.stage-actions-close/);
   assert.match(stage, /role="dialog" aria-modal="true" aria-label="Interacciones"/);
   assert.match(shell, /"interactions-shell-close"/);
+  assert.match(shell, /title\.textContent = "Interacciones"/);
+  assert.doesNotMatch(shell, /title\.textContent = view === "polls" \? "Encuestas"/);
 });
 
 test("Stage hides the generic shell title immediately for idle poll and raffle categories", () => {
   const stage = readProjectFile("public/stage/stage.js");
   assert.match(stage, /onSelectCategory: \(view\) => \{[\s\S]+if \(view === "polls"\) renderStageActionsPanel\(\);[\s\S]+if \(view === "raffles"\) \{ syncRendererVisibility\(\); raffleController\?\.setTab\?\.\("raffles"\); \}[\s\S]+syncInteractionShellState\(\);[\s\S]+\}/);
-  assert.match(stage, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(stage, /function returnInteractionsHome\(\) \{[\s\S]+shell\.setTitleVisible\?\.\(true\);[\s\S]+shell\.setView\("home"\);/);
 });
 
@@ -422,7 +489,7 @@ test("Stage modal no longer renders a fullscreen visual backdrop and syncs body 
   assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);\n\}/);
   assert.match(stage, /function openStageActions\(\) \{[\s\S]+stageActionsOpen = true;\n  syncStageActionsVisualState\(\);/);
   assert.match(stage, /function closeStageActions\(\) \{[\s\S]+stageActionsOpen = false;\n  syncStageActionsVisualState\(\);/);
-  assert.match(stage, /function setStageActionsOpen\(open\) \{[\s\S]+stageActionsOpen = Boolean\(open\);\n  syncStageActionsVisualState\(\);/);
+  assert.match(stage, /function setStageActionsOpen\(open\) \{[\s\S]+if \(!open\) resetInactiveRaffleDraft\(\);[\s\S]+stageActionsOpen = Boolean\(open\);\n  syncStageActionsVisualState\(\);/);
 });
 
 test("slide overlays and controls stay above the scoped interaction scrim", () => {
