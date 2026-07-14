@@ -277,6 +277,7 @@ function closeStageActions() {
 function setStageActionsOpen(open) {
   ensureStageActionsModal();
   if (!open && hasActiveInteractionShellLock()) open = true;
+  if (!open) resetInactiveRaffleDraft();
   stageActionsOpen = Boolean(open);
   syncStageActionsVisualState();
   stageActionsModal.classList.toggle("is-open", stageActionsOpen);
@@ -287,6 +288,7 @@ function setStageActionsOpen(open) {
 
 function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
 function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active); }
+function resetInactiveRaffleDraft() { if (hasActiveInteractionShellLock()) return false; return raffleController?.resetLocalSetup?.() || false; }
 function syncRendererVisibility() {
   if (!interactionShell) return;
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
@@ -319,6 +321,7 @@ function syncInteractionShellState() {
 function closeStageActionsRequest() {
   if (hasActiveInteractionShellLock()) return;
   clearSelectedInteraction();
+  resetInactiveRaffleDraft();
   returnInteractionsHome();
   closeStageActions();
 }

@@ -170,6 +170,7 @@ function ensureInteractionsShell() {
 }
 function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
 function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active); }
+function resetInactiveRaffleDraft() { if (hasActiveInteractionShellLock()) return false; return raffleController?.resetLocalSetup?.() || false; }
 function syncRendererVisibility() {
   if (!interactionShell) return;
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
@@ -212,6 +213,7 @@ function closeInteractionPanelRequest() {
 }
 function setInteractionPanelOpen(open) {
   if (!open && hasActiveInteractionShellLock()) open = true;
+  if (!open) resetInactiveRaffleDraft();
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
   if (interactionToggle) {
