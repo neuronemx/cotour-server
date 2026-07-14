@@ -37,7 +37,7 @@ function displayTimer(timer) {
 
 function commandFingerprint(command) {
   const payload = command.payload && typeof command.payload === "object" ? command.payload : {};
-  return JSON.stringify({ action: command.action, expectedRevision: command.expectedRevision, payload }, Object.keys({ action: 1, expectedRevision: 1, payload: 1 }).sort());
+  return JSON.stringify([command.action, command.expectedRevision, payload]);
 }
 
 class TimeSyncStore {
