@@ -52,8 +52,8 @@ test("drawPath preserves a single stroke pass and existing coordinate, TTL, and 
 
 test("audience logo uses contained inner mark while preserving lockup capsule", () => {
   const mark = declarations(cssBlock(audienceCss, ".brand-mark"));
-  assert.equal(mark.width, "88%");
-  assert.equal(mark.height, "88%");
+  assert.equal(mark.width, "100%");
+  assert.equal(mark.height, "100%");
   assert.equal(mark.display, "block");
   assert.equal(mark["object-fit"], "contain");
   assert.equal(mark["object-position"], "center");
