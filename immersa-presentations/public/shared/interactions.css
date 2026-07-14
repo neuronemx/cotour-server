@@ -477,8 +477,15 @@ body.stage-actions-open .interaction-slide-scrim {
 }
 
 .interaction-panel,
+.stage-actions-card {
+  background: var(--immersa-glass) !important;
+}
+
 .stage-actions-card .stage-actions-content {
-  background: var(--immersa-glass);
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .interactions-native-shell {
@@ -1442,4 +1449,20 @@ body.stage-actions-open .interaction-slide-scrim {
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
+}
+
+/* PR #80 Stage modal glass surface parity with Speaker. */
+.stage-actions-card {
+  border-radius: 22px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--immersa-glass) !important;
+  background-clip: padding-box;
+}
+
+.stage-actions-card .stage-actions-content {
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
