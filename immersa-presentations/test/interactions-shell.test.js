@@ -210,6 +210,29 @@ test("shared interactions css exposes critical visual contract tokens", () => {
 });
 
 
+test("audience poll card uses Immersa visual contract without changing runtime markup", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  const audienceIndex = fs.readFileSync(path.join(__dirname, "..", "public/audience/index.html"), "utf8");
+  const selectedBlocks = [...css.matchAll(/\.interaction-card button\.interaction-option\.is-selected \{([^}]*)\}/g)].map((match) => match[1]);
+
+  assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">/);
+  assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin>/);
+  assert.match(audienceIndex, /family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap/);
+  assert.match(css, /\.interaction-card \{[\s\S]+position: fixed;[\s\S]+width: min\(430px, calc\(100vw - 24px\)\);[\s\S]+background: var\(--immersa-glass\) !important;[\s\S]+border-radius: 22px;/);
+  assert.equal((css.match(/\.interaction-card::before \{/g) || []).length, 1);
+  assert.match(css, /\.interaction-card::before \{[\s\S]+top: 0;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interaction-card h2 \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 700;/);
+  assert.match(css, /\.interaction-card p \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.interaction-card button\.interaction-option \{[\s\S]+min-height: 52px;[\s\S]+border-radius: 14px !important;[\s\S]+background: rgba\(255, 255, 255, \.055\);/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected::after \{[\s\S]+content: "✓";[\s\S]+border-radius: 50%;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interaction-card button\.interaction-option\.is-selected:disabled \{\n  opacity: 1;\n\}/);
+  assert.match(css, /\.interaction-card \.interaction-card-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
+  assert.match(css, /\.interaction-accepted \{[\s\S]+color: #5dcaa5;[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;/);
+  assert.equal(selectedBlocks.some((block) => /linear-gradient\(180deg, rgba\(111,247,232,1\), rgba\(62,202,191,\.98\)\)/.test(block)), false);
+});
+
+
 test("poll home CTA uses the existing Speaker rocket SVG", () => {
   const presenterHtml = fs.readFileSync(path.join(__dirname, "..", "public/presenter/index.html"), "utf8");
   const rocket = presenterHtml.match(/<svg class="interaction-rocket-icon"[\s\S]+?<\/svg>/)[0].replace('class="interaction-rocket-icon"', 'class="interaction-launch-rocket"').replace(/\s*\n\s*/g, "");
