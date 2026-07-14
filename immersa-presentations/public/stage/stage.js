@@ -241,7 +241,7 @@ function ensureStageActionsModal() {
   stageActionsModal = document.createElement("div");
   stageActionsModal.className = "stage-actions-modal";
   stageActionsModal.setAttribute("aria-hidden", "true");
-  stageActionsModal.innerHTML = '<div class="stage-actions-backdrop" data-stage-actions-close></div><section class="stage-actions-card" role="dialog" aria-modal="true" aria-labelledby="stageActionsTitle"><button type="button" class="stage-actions-close" data-stage-actions-close aria-label="Cerrar acciones">×</button><div class="stage-actions-content"><div class="interactions-shell-mount"></div></div></section>';
+  stageActionsModal.innerHTML = '<div class="stage-actions-backdrop" data-stage-actions-close></div><section class="stage-actions-card" role="dialog" aria-modal="true" aria-label="Interacciones"><div class="stage-actions-content"><div class="interactions-shell-mount"></div></div></section>';
   document.body.appendChild(stageActionsModal);
   stageActionsContent = stageActionsModal.querySelector(".stage-actions-content");
   interactionShellMount = stageActionsModal.querySelector(".interactions-shell-mount");
@@ -324,7 +324,7 @@ function ensureInteractionsShell() {
     onSelectCategory: (view) => {
       if (view === "polls") renderStageActionsPanel();
       if (view === "raffles") { syncRendererVisibility(); raffleController?.setTab?.("raffles"); }
-      if (view === "home") syncInteractionShellState();
+      syncInteractionShellState();
     },
     onRequestClose: closeStageActionsRequest
   });

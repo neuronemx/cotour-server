@@ -365,3 +365,32 @@ test("Stage close events return the shell home and raffle state uses shared coun
   assert.match(controller, /countdownRemainingMs/);
   assert.match(controller, /remainingRaffleSeconds\(active\)/);
 });
+
+test("Stage modal relies on the shell close button and has an accessible dialog name", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  const css = readProjectFile("public/stage/stage.css");
+  const shell = readProjectFile("public/shared/interactions-shell.js");
+  assert.doesNotMatch(stage, /class=\"stage-actions-close\"/);
+  assert.doesNotMatch(css, /\.stage-actions-close/);
+  assert.match(stage, /role="dialog" aria-modal="true" aria-label="Interacciones"/);
+  assert.match(shell, /"interactions-shell-close"/);
+});
+
+test("Stage hides the generic shell title immediately for idle poll and raffle categories", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /onSelectCategory: \(view\) => \{[\s\S]+if \(view === "polls"\) renderStageActionsPanel\(\);[\s\S]+if \(view === "raffles"\) \{ syncRendererVisibility\(\); raffleController\?\.setTab\?\.\("raffles"\); \}[\s\S]+syncInteractionShellState\(\);[\s\S]+\}/);
+  assert.match(stage, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /function returnInteractionsHome\(\) \{[\s\S]+shell\.setTitleVisible\?\.\(true\);[\s\S]+shell\.setView\("home"\);/);
+});
+
+test("Stage visual shell matches Speaker-sized card and uses a light non-blurred backdrop", () => {
+  const css = readProjectFile("public/stage/stage.css");
+  const backdrop = css.match(/\.stage-actions-backdrop \{[\s\S]+?\n\}/)?.[0] || "";
+  assert.match(backdrop, /background: rgba\(2, 4, 8, \.24\);/);
+  assert.match(backdrop, /backdrop-filter: none;/);
+  assert.match(backdrop, /-webkit-backdrop-filter: none;/);
+  assert.doesNotMatch(backdrop, /blur\(/);
+  assert.doesNotMatch(backdrop, /\.68/);
+  assert.match(css, /\.stage-actions-card \{[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);[\s\S]+max-height: min\(82vh, 680px\);[\s\S]+padding: 15px;[\s\S]+border-radius: 22px;/);
+  assert.doesNotMatch(css, /width: min\(430px/);
+});
