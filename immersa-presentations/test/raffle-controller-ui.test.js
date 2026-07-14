@@ -383,14 +383,47 @@ test("Stage hides the generic shell title immediately for idle poll and raffle c
   assert.match(stage, /function returnInteractionsHome\(\) \{[\s\S]+shell\.setTitleVisible\?\.\(true\);[\s\S]+shell\.setView\("home"\);/);
 });
 
-test("Stage visual shell matches Speaker-sized card and uses a light non-blurred backdrop", () => {
+test("Stage visual shell matches Speaker-sized card and uses the canonical click-through scrim", () => {
   const css = readProjectFile("public/stage/stage.css");
+  const stage = readProjectFile("public/stage/stage.js");
   const backdrop = css.match(/\.stage-actions-backdrop \{[\s\S]+?\n\}/)?.[0] || "";
-  assert.match(backdrop, /background: rgba\(2, 4, 8, \.24\);/);
-  assert.match(backdrop, /backdrop-filter: none;/);
-  assert.match(backdrop, /-webkit-backdrop-filter: none;/);
-  assert.doesNotMatch(backdrop, /blur\(/);
-  assert.doesNotMatch(backdrop, /\.68/);
-  assert.match(css, /\.stage-actions-card \{[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);[\s\S]+max-height: min\(82vh, 680px\);[\s\S]+padding: 15px;[\s\S]+border-radius: 22px;/);
+  assert.match(stage, /<div class="stage-actions-backdrop" aria-hidden="true"><\/div>/);
+  assert.doesNotMatch(stage, /data-stage-actions-close/);
+  assert.doesNotMatch(stage, /stageActionsModal\.addEventListener\("click"/);
+  assert.match(css, /\.stage-actions-modal \{ pointer-events: none; \}/);
+  assert.match(backdrop, /background: rgba\(2, 4, 8, \.22\);/);
+  assert.match(backdrop, /backdrop-filter: blur\(4px\);/);
+  assert.match(backdrop, /-webkit-backdrop-filter: blur\(4px\);/);
+  assert.match(backdrop, /pointer-events: none;/);
+  assert.doesNotMatch(backdrop, /blur\((?:[5-9]|[1-9]\d)px\)/);
+  assert.doesNotMatch(backdrop, /saturate|\n\s*filter:/);
+  assert.doesNotMatch(backdrop, /\.2[3-9]|\.68/);
+  assert.match(css, /\.stage-actions-card \{[\s\S]+pointer-events: auto;[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);[\s\S]+max-height: min\(82vh, 680px\);[\s\S]+padding: 15px;[\s\S]+border-radius: 22px;/);
   assert.doesNotMatch(css, /width: min\(430px/);
+});
+
+test("Speaker uses the same non-blocking scrim while interactions are open", () => {
+  const css = readProjectFile("public/shared/interactions.css");
+  const scrim = css.match(/\.presenter-shell\.interaction-panel-open::before \{[\s\S]+?\n\}/)?.[0] || "";
+  assert.match(scrim, /content: "";/);
+  assert.match(scrim, /position: fixed;/);
+  assert.match(scrim, /z-index: 18;/);
+  assert.match(scrim, /background: rgba\(2, 4, 8, \.22\);/);
+  assert.match(scrim, /backdrop-filter: blur\(4px\);/);
+  assert.match(scrim, /-webkit-backdrop-filter: blur\(4px\);/);
+  assert.match(scrim, /pointer-events: none;/);
+  assert.doesNotMatch(scrim, /blur\((?:[5-9]|[1-9]\d)px\)|saturate|\n\s*filter:|\.2[3-9]|\.68/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+z-index: 20;/);
+});
+
+test("Stage production controls remain wired independently of the click-through scrim", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /prevSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex - 1\)\)/);
+  assert.match(stage, /nextSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex \+ 1\)\)/);
+  assert.match(stage, /qrToggle\.addEventListener\("change", \(\) => \{/);
+  assert.match(stage, /reactionsToggle\.addEventListener\("change", \(\) => updateOverlay/);
+  assert.match(stage, /liveTextButton\.addEventListener\("click", \(\) => \{/);
+  assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
+  assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);
+  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+if \(hasActiveInteractionShellLock\(\)\) return;/);
 });

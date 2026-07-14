@@ -31,6 +31,16 @@
   transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
   visibility: hidden;
 }
+.presenter-shell.interaction-panel-open::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  background: rgba(2, 4, 8, .22);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
 .presenter-shell.interaction-panel-open .interaction-panel {
   opacity: 1;
   pointer-events: auto;
