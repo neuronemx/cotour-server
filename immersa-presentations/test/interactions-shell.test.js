@@ -127,6 +127,7 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /font-family: Poppins, Inter/);
   assert.match(css, /width: min\(380px, calc\(100vw - 28px\)\);/);
   assert.match(css, /\.interactions-shell-nav \{[\s\S]+gap: 0;[\s\S]+background: rgba\(5, 8, 18, \.32\);/);
+  assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;/);
   assert.match(css, /\.interaction-panel::before \{[\s\S]+left: 18px;[\s\S]+right: 18px;[\s\S]+background: var\(--immersa-gradient\);/);
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);

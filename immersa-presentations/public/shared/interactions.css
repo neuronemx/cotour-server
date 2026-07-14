@@ -960,3 +960,9 @@ body.stage-actions-open .interaction-slide-scrim {
   filter: brightness(1.05);
   transform: none !important;
 }
+
+/* PR #80 top bar correction: continuous bar without exterior outline. */
+.interactions-shell-nav {
+  border: 0 !important;
+  outline: 0 !important;
+}
