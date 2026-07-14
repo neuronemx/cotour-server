@@ -1618,6 +1618,9 @@ body.stage-actions-open .interaction-slide-scrim {
 /* PR #80 Audience poll final visibility and icon polish. */
 .interaction-card {
   position: fixed;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
   border-top-width: 0 !important;
 }
 

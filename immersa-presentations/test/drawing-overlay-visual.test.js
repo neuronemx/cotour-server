@@ -6,12 +6,24 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const drawingSource = fs.readFileSync(path.join(root, "public/shared/drawing-overlay.js"), "utf8");
 const audienceCss = fs.readFileSync(path.join(root, "public/audience/audience.css"), "utf8");
+const interactionsCss = fs.readFileSync(path.join(root, "public/shared/interactions.css"), "utf8");
 
 function cssBlock(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = source.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
   assert.ok(match, `${selector} block exists`);
   return match[1];
+}
+
+function cssBlocks(source, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return [...source.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, "g"))].map((match) => match[1]);
+}
+
+function lastCssBlock(source, selector) {
+  const blocks = cssBlocks(source, selector);
+  assert.ok(blocks.length > 0, `${selector} block exists`);
+  return blocks[blocks.length - 1];
 }
 
 function declarations(block) {
@@ -77,4 +89,23 @@ test("hotfix stays scoped away from speaker logo css and PNG assets", () => {
   const presenterLogo = path.join(root, "public/presenter/immersa-mark.png");
   assert.ok(fs.existsSync(audienceLogo), "audience logo PNG remains in place");
   assert.ok(fs.existsSync(presenterLogo), "speaker logo PNG remains in place");
+});
+
+test("audience public interactions are centered in the viewport", () => {
+  const baseCard = declarations(cssBlock(interactionsCss, ".interaction-card"));
+  assert.equal(baseCard.left, "50%");
+
+  const finalCard = declarations(lastCssBlock(interactionsCss, ".interaction-card"));
+  assert.equal(finalCard.position, "fixed");
+  assert.equal(finalCard.top, "50%");
+  assert.equal(finalCard.bottom, "auto");
+  assert.equal(finalCard.transform, "translate(-50%, -50%)");
+  assert.equal(finalCard["border-top-width"], "0 !important");
+  assert.match(interactionsCss, /\.interaction-card::before \{[\s\S]+background: var\(--immersa-gradient\);[\s\S]+pointer-events: none;/);
+  assert.match(interactionsCss, /\.interaction-card p \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 700;/);
+
+  const raffleOverlay = declarations(cssBlock(audienceCss, ".raffle-public-overlay"));
+  assert.equal(raffleOverlay["align-items"], "center");
+  assert.equal(raffleOverlay["justify-items"], "center");
+  assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.raffle-public-overlay \{[^}]*align-items: center;[^}]*\}/);
 });
