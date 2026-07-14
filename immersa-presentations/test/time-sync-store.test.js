@@ -106,6 +106,26 @@ test("command ids are idempotent", () => {
   assert.equal(store.getSession("session-a").revision, 1);
 });
 
+test("reused command id with a different payload is rejected", () => {
+  const store = new TimeSyncStore();
+  const first = command(store, {
+    commandId: "same-payload-command",
+    expectedRevision: 0,
+    action: "set_duration",
+    payload: { duration_ms: 30000 }
+  });
+  const reused = command(store, {
+    commandId: "same-payload-command",
+    expectedRevision: 0,
+    action: "set_duration",
+    payload: { duration_ms: 45000 }
+  });
+  assert.equal(first.ok, true);
+  assert.equal(reused.ok, false);
+  assert.equal(reused.code, "DUPLICATE_COMMAND");
+  assert.equal(store.snapshot("session-a", "presenter").timer.duration_ms, 30000);
+});
+
 test("only presenter and stage can control the timer", () => {
   const store = new TimeSyncStore();
   const result = command(store, { role: "audience", commandId: "audience-start" });
