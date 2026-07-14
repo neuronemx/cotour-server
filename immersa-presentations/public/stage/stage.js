@@ -241,7 +241,7 @@ function ensureStageActionsModal() {
   stageActionsModal = document.createElement("div");
   stageActionsModal.className = "stage-actions-modal";
   stageActionsModal.setAttribute("aria-hidden", "true");
-  stageActionsModal.innerHTML = '<div class="stage-actions-backdrop" aria-hidden="true"></div><section class="stage-actions-card" role="dialog" aria-modal="true" aria-label="Interacciones"><div class="stage-actions-content"><div class="interactions-shell-mount"></div></div></section>';
+  stageActionsModal.innerHTML = '<section class="stage-actions-card" role="dialog" aria-modal="true" aria-label="Interacciones"><div class="stage-actions-content"><div class="interactions-shell-mount"></div></div></section>';
   document.body.appendChild(stageActionsModal);
   stageActionsContent = stageActionsModal.querySelector(".stage-actions-content");
   interactionShellMount = stageActionsModal.querySelector(".interactions-shell-mount");
@@ -249,9 +249,14 @@ function ensureStageActionsModal() {
   return stageActionsModal;
 }
 
+function syncStageActionsVisualState() {
+  document.body.classList.toggle("stage-actions-open", stageActionsOpen);
+}
+
 function openStageActions() {
   ensureStageActionsModal();
   stageActionsOpen = true;
+  syncStageActionsVisualState();
   stageActionsModal.classList.add("is-open");
   stageActionsModal.setAttribute("aria-hidden", "false");
   stageActionsButton?.setAttribute("aria-expanded", "true");
@@ -262,6 +267,7 @@ function openStageActions() {
 function closeStageActions() {
   if (!stageActionsModal) return;
   stageActionsOpen = false;
+  syncStageActionsVisualState();
   stageActionsModal.classList.remove("is-open");
   stageActionsModal.setAttribute("aria-hidden", "true");
   stageActionsButton?.setAttribute("aria-expanded", "false");
@@ -271,6 +277,7 @@ function setStageActionsOpen(open) {
   ensureStageActionsModal();
   if (!open && hasActiveInteractionShellLock()) open = true;
   stageActionsOpen = Boolean(open);
+  syncStageActionsVisualState();
   stageActionsModal.classList.toggle("is-open", stageActionsOpen);
   stageActionsModal.setAttribute("aria-hidden", stageActionsOpen ? "false" : "true");
   stageActionsButton?.setAttribute("aria-expanded", String(stageActionsOpen));

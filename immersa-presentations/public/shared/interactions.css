@@ -31,15 +31,22 @@
   transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
   visibility: hidden;
 }
-.presenter-shell.interaction-panel-open::before {
-  content: "";
-  position: fixed;
+.interaction-slide-scrim {
+  position: absolute;
   inset: 0;
-  z-index: 18;
+  z-index: 2;
   background: rgba(2, 4, 8, .22);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .16s ease, visibility .16s ease;
+}
+.presenter-shell.interaction-panel-open .interaction-slide-scrim,
+body.stage-actions-open .interaction-slide-scrim {
+  opacity: 1;
+  visibility: visible;
 }
 .presenter-shell.interaction-panel-open .interaction-panel {
   opacity: 1;
