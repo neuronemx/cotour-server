@@ -7,6 +7,7 @@ const root = path.join(__dirname, "..");
 const drawingSource = fs.readFileSync(path.join(root, "public/shared/drawing-overlay.js"), "utf8");
 const audienceCss = fs.readFileSync(path.join(root, "public/audience/audience.css"), "utf8");
 const interactionsCss = fs.readFileSync(path.join(root, "public/shared/interactions.css"), "utf8");
+const audienceIndex = fs.readFileSync(path.join(root, "public/audience/index.html"), "utf8");
 
 function cssBlock(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -108,4 +109,26 @@ test("audience public interactions are centered in the viewport", () => {
   assert.equal(raffleOverlay["align-items"], "center");
   assert.equal(raffleOverlay["justify-items"], "center");
   assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.raffle-public-overlay \{[^}]*align-items: center;[^}]*\}/);
+});
+
+
+test("audience reuses the shared interaction slide scrim", () => {
+  assert.equal((audienceIndex.match(/class="interaction-slide-scrim"/g) || []).length, 1);
+  assert.match(audienceIndex, /<section id="slideViewport" class="slide-viewport"[^>]*>[\s\S]*?<\/section>\n    <div class="interaction-slide-scrim" aria-hidden="true"><\/div>\n    <a class="brand-lockup"/);
+
+  const scrim = declarations(cssBlock(interactionsCss, ".interaction-slide-scrim"));
+  assert.equal(scrim["z-index"], "2");
+  assert.equal(scrim.background, "rgba(2, 4, 8, .22)");
+  assert.equal(scrim["backdrop-filter"], "blur(4px)");
+  assert.equal(scrim["-webkit-backdrop-filter"], "blur(4px)");
+
+  assert.match(interactionsCss, /\.presenter-shell\.interaction-panel-open \.interaction-slide-scrim,\nbody\.stage-actions-open \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.match(interactionsCss, /\.audience:has\(\.interaction-card:not\(\.interaction-hidden\)\) > \.interaction-slide-scrim,\n\.audience:has\(\.raffle-public-overlay\) > \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.doesNotMatch(interactionsCss, /\.audience:has\(\.interaction-card\) > \.interaction-slide-scrim/);
+
+  const raffleOverlay = declarations(cssBlock(audienceCss, ".raffle-public-overlay"));
+  assert.equal(raffleOverlay.background, "transparent");
+  assert.equal(raffleOverlay["align-items"], "center");
+  assert.equal(raffleOverlay["justify-items"], "center");
+  assert.equal(raffleOverlay["z-index"], "7");
 });

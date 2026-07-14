@@ -48,6 +48,11 @@ body.stage-actions-open .interaction-slide-scrim {
   opacity: 1;
   visibility: visible;
 }
+.audience:has(.interaction-card:not(.interaction-hidden)) > .interaction-slide-scrim,
+.audience:has(.raffle-public-overlay) > .interaction-slide-scrim {
+  opacity: 1;
+  visibility: visible;
+}
 .presenter-shell.interaction-panel-open .interaction-panel {
   opacity: 1;
   pointer-events: auto;
