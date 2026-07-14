@@ -674,3 +674,4 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .stage-actions-card .interaction-active-actions { gap: 6px; }
   .stage-actions-card .interaction-active-actions > button { padding: 0 8px; font-size: 11px; }
 }
+.stage-actions-modal.is-locked .stage-actions-close { display: none; }

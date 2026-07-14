@@ -133,13 +133,13 @@ test("winner label avoids exposing audience id when no public label exists", () 
 
 
 
-test("socket capture auto-install skips Speaker routes and keeps Stage legacy", () => {
+test("socket capture auto-install skips Speaker and Stage explicit routes", () => {
   assert.equal(shouldAutoInstallSocketCapture("/speaker"), false);
   assert.equal(shouldAutoInstallSocketCapture("/speaker/a_example"), false);
   assert.equal(shouldAutoInstallSocketCapture("/presenter"), false);
   assert.equal(shouldAutoInstallSocketCapture("/presenter/a_example"), false);
-  assert.equal(shouldAutoInstallSocketCapture("/stage"), true);
-  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), true);
+  assert.equal(shouldAutoInstallSocketCapture("/stage"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), false);
 });
 
 
@@ -293,12 +293,75 @@ test("active raffle uses contextual title without countdown suffix", () => {
   assert.doesNotMatch(html, /s<\/strong>/);
 });
 
-test("raffle controller keeps legacy Stage path isolated from explicit Speaker hosts", () => {
+test("raffle controller auto-install skips explicit Speaker and Stage hosts", () => {
   const source = readProjectFile("public/shared/raffle-controller.js");
   assert.match(source, /const legacyIntegration = options\.installLegacyIntegration !== false/);
   assert.match(source, /mountHost: \(hostConfig\) =>/);
   assert.match(source, /if \(!legacyIntegration\) return;/);
   assert.match(source, /decorateHost\(root\.document\?\.querySelector\("\.stage-actions-content"\)\)/);
+  assert.match(source, /speaker\|presenter\|stage/);
   assert.doesNotMatch(source, /decorateHost\(root\.document\?\.querySelector\("\.interaction-panel"\)\)/);
   assert.match(source, /shouldAutoInstallSocketCapture\(root\.location\?\.pathname \|\| ""\)/);
+});
+
+test("Stage loads interactions shell before raffle controller", () => {
+  const sources = scriptSources(readProjectFile("public/stage/index.html"));
+  assert.ok(sources.indexOf("/shared/interactions-shell.js") > -1);
+  assert.ok(sources.indexOf("/shared/raffle-controller.js") > -1);
+  assert.equal(sources.indexOf("/shared/interactions-shell.js") < sources.indexOf("/shared/raffle-controller.js"), true);
+});
+
+test("Stage uses native interactions shell with persistent sibling hosts", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /stageActionsModal\.innerHTML = '[\s\S]+interactions-shell-mount/);
+  assert.match(stage, /if \(interactionShell \|\| !window\.ImmersaInteractionsShell \|\| !interactionShellMount\) return interactionShell/);
+  assert.match(stage, /ImmersaInteractionsShell\.create/);
+  assert.match(stage, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
+  assert.match(stage, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
+  assert.match(stage, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(stage, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
+  assert.match(stage, /raffleRenderer\.hidden = interactionShell\.getView\(\) !== "raffles"/);
+});
+
+test("Stage creates explicit non-legacy raffle controller and mounts role stage", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /createController\(socket, \{ installLegacyIntegration: false/);
+  assert.match(stage, /raffleController\.mountHost\(\{ role: "stage", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(stage, /MutationObserver/);
+  assert.doesNotMatch(stage, /stopImmediatePropagation/);
+  assert.doesNotMatch(stage, /cloneNode/);
+});
+
+test("Stage poll idle requires explicit selection and clears it on close", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /let selectedInteractionId = ""/);
+  assert.match(stage, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
+  assert.match(stage, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\);[\s\S]+renderStageActionsPanel\(\);/);
+  assert.match(stage, /function selectedInteraction\(\) \{\n  return selectedInteractionId \? interactions\.find/);
+  assert.match(stage, /interactions\.length \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(\)/);
+  assert.match(stage, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
+  assert.doesNotMatch(stage, /selectDefaultInteraction/);
+  assert.doesNotMatch(stage, /\|\| interactions\[0\]/);
+});
+
+test("Stage locks active poll and raffle views against all external closes", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
+  assert.match(stage, /function hasActiveInteractionShellLock\(\) \{ return Boolean\(activeInteraction \|\| raffleController\?\.getState\?\.\(\)\.active\); \}/);
+  assert.match(stage, /shell\.setLocked\(activePoll \|\| activeRaffle\)/);
+  assert.match(stage, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /if \(\(activePoll \|\| activeRaffle\) && !stageActionsOpen\) setStageActionsOpen\(true\)/);
+  assert.match(stage, /if \(hasActiveInteractionShellLock\(\)\) return;[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);[\s\S]+closeStageActions\(\);/);
+  assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
+  assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);
+});
+
+test("Stage close events return the shell home and raffle state uses shared countdown", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  const controller = readProjectFile("public/shared/raffle-controller.js");
+  assert.match(stage, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
+  assert.match(stage, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(controller, /countdownRemainingMs/);
+  assert.match(controller, /remainingRaffleSeconds\(active\)/);
 });
