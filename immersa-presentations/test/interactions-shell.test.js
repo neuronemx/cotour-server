@@ -122,6 +122,47 @@ test("interactions shell preserves the approved category contract", () => {
   assert.equal(categories.every((button) => button.disabled), true);
 });
 
+
+test("interactions shell renderer visibility respects hidden state across views", () => {
+  const { root, document } = setup();
+  const shell = Shell.create({ root });
+  const content = shell.getContentRoot();
+  const pollsRenderer = document.createElement("div");
+  pollsRenderer.className = "interaction-polls-renderer";
+  pollsRenderer.textContent = "Encuestas disponibles";
+  const raffleRenderer = document.createElement("div");
+  raffleRenderer.className = "interaction-raffle-renderer";
+  raffleRenderer.textContent = "Sorteos disponibles";
+  content.append(pollsRenderer, raffleRenderer);
+  const syncRendererVisibility = () => {
+    pollsRenderer.hidden = shell.getView() !== "polls";
+    raffleRenderer.hidden = shell.getView() !== "raffles";
+  };
+
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, false);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, true);
+
+  shell.setView("polls");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
+  assert.equal(pollsRenderer.hidden, false);
+  assert.equal(raffleRenderer.hidden, true);
+
+  shell.setView("raffles");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, false);
+
+  shell.setView("home");
+  syncRendererVisibility();
+  assert.equal(root.querySelector(".interactions-shell-home").hidden, false);
+  assert.equal(pollsRenderer.hidden, true);
+  assert.equal(raffleRenderer.hidden, true);
+});
+
 test("shared interactions css exposes critical visual contract tokens", () => {
   const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
   assert.match(css, /--immersa-gradient: linear-gradient\(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%\);/);
@@ -133,9 +174,21 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interaction-panel::before,[\s\S]+\.stage-actions-card::before \{[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
   assert.match(css, /\.interaction-panel \{[\s\S]+position: fixed !important;[\s\S]+overflow-x: hidden;[\s\S]+overflow-y: auto;/);
   assert.match(css, /\.interaction-panel,[\s\S]+\.stage-actions-card \{[\s\S]+border-top-width: 0 !important;/);
-  assert.match(css, /\.interaction-polls-renderer \{[\s\S]+display: grid;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+row-gap: 12px;/);
-  assert.match(css, /\.interaction-picker \{[\s\S]+display: grid;[\s\S]+row-gap: 12px;[\s\S]+margin: 0;/);
+  assert.match(css, /\.interaction-polls-renderer\[hidden\],[\s\S]+\.interaction-raffle-renderer\[hidden\] \{[\s\S]+display: none !important;/);
+  assert.match(css, /\.interaction-polls-renderer:not\(\[hidden\]\) \{[\s\S]+display: grid;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+row-gap: 12px;/);
+  assert.match(css, /\.interaction-raffle-renderer:not\(\[hidden\]\) \{[\s\S]+display: block;[\s\S]+min-width: 0;/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+scrollbar-width: thin;[\s\S]+scrollbar-color: rgba\(127, 119, 221, \.52\) transparent;[\s\S]+scrollbar-gutter: stable;/);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar \{[\s\S]+width: 7px;/);
+  assert.match(css, /\.interaction-picker \{[\s\S]+display: grid;[\s\S]+row-gap: 12px;[\s\S]+max-height: min\(320px, 38dvh\);[\s\S]+overflow-y: auto;[\s\S]+scrollbar-width: thin;[\s\S]+margin: 0;/);
   assert.match(css, /\.interaction-panel-actions \.primary,[\s\S]+\.stage-actions-card \.interaction-panel-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+min-height: 64px;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+transform: none !important;/);
+  assert.match(css, /\.raffle-mode-card strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 13px;[\s\S]+font-weight: 500;/);
+  assert.match(css, /\.raffle-mode-description \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 11px;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]+transform: none !important;[\s\S]+background: rgba\(255, 255, 255, \.075\);/);
+  assert.match(css, /\.raffle-mode-card\.is-selected,[\s\S]+\.stage-actions-card \.raffle-mode-card\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.raffle-stats-pill \{[\s\S]+display: flex;[\s\S]+border-radius: 999px;/);
+  assert.match(css, /\.raffle-stat-item \{[\s\S]+white-space: nowrap;/);
+  assert.match(css, /\.interaction-panel button\.interaction-choice\.is-selected::after,[\s\S]+\.stage-actions-card button\.interaction-choice\.is-selected::after \{[\s\S]+border-radius: 50%;[\s\S]+color: #fff !important;[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+box-shadow: none !important;/);
   assert.doesNotMatch(css, /\.interaction-panel,\s*\n\.stage-actions-card \{\s*\n\s*position: relative;[\s\S]*?overflow: hidden;/);
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);

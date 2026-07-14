@@ -95,7 +95,7 @@
 .raffle-mode-card strong { font-size: 13px; line-height: 1.1; }
 
 .raffle-mode-card:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: none !important;
   border-color: rgba(111,247,232,.32);
   background: rgba(255,255,255,.105);
 }
@@ -249,4 +249,144 @@
   .raffle-stats strong { font-size: 18px; }
   .raffle-actions button { flex: 1 1 130px; }
   .raffle-actions.is-collecting .raffle-action.secondary { flex: 1 1 100%; }
+}
+
+/* PR #80 visual parity: Sorteos cards and stats pill align with Encuestas. */
+.raffle-mode-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+  margin: 0;
+}
+
+.raffle-mode-card,
+.stage-actions-card .raffle-mode-card {
+  position: relative;
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  justify-items: start;
+  align-content: center;
+  padding: 12px 44px 12px 12px;
+  border-radius: 14px !important;
+  text-align: left;
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  transform: none !important;
+}
+
+.raffle-mode-card strong {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, .96);
+}
+
+.raffle-mode-description {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, .50);
+  white-space: normal;
+}
+
+.raffle-mode-card:hover:not(:disabled) {
+  transform: none !important;
+  background: rgba(255, 255, 255, .075);
+  border-color: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.raffle-mode-card.is-selected,
+.stage-actions-card .raffle-mode-card.is-selected {
+  color: rgba(248, 250, 255, .98);
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(
+      rgba(31, 29, 47, .98),
+      rgba(31, 29, 47, .98)
+    ) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  transform: none !important;
+}
+
+.raffle-heading {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.raffle-heading h2 {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.14;
+  color: #fff;
+}
+
+.raffle-heading p {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba(248, 250, 255, .66);
+}
+
+.raffle-stats-pill {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .09);
+}
+
+.raffle-stat-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.raffle-stat-item span {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: rgba(248, 250, 255, .58);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.raffle-stat-item strong {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.raffle-stat-divider {
+  width: 1px;
+  height: 13px;
+  flex: 0 0 1px;
+  background: rgba(255, 255, 255, .14);
 }

@@ -40,8 +40,10 @@ test("free collecting controls render Sorteo Libre with connected count and no t
 
   const html = adjustRaffleHtml(renderRaffleController(state));
   assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/);
-  assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+  assert.match(html, /<span>Conectados<\/span><strong>2<\/strong>/);
+  assert.match(html, /<span>Elegibles<\/span><strong>0<\/strong>/);
   assert.doesNotMatch(html, /BOLETOS/);
+  assert.doesNotMatch(html, /class="raffle-stats"><div>/);
   assert.match(html, /Cerrar tómbola/);
   assert.match(html, /Cancelar sorteo/);
 });
@@ -55,8 +57,10 @@ test("non-free collecting also hides ticket metric", () => {
 
     const html = adjustRaffleHtml(renderRaffleController(state));
     assert.match(html, new RegExp(`<h2>${title}<\\/h2><p>Participación abierta<\\/p>`));
-    assert.match(html, /CONECTADOS<\/span><strong>2<\/strong>/);
+    assert.match(html, /<span>Conectados<\/span><strong>2<\/strong>/);
+    assert.match(html, /<span>Elegibles<\/span><strong>1<\/strong>/);
     assert.doesNotMatch(html, /BOLETOS/);
+    assert.doesNotMatch(html, /class="raffle-stats"><div>/);
   }
 });
 
