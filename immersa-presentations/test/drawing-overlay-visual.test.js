@@ -52,17 +52,20 @@ test("drawPath preserves a single stroke pass and existing coordinate, TTL, and 
 
 test("audience logo uses contained inner mark while preserving lockup capsule", () => {
   const mark = declarations(cssBlock(audienceCss, ".brand-mark"));
-  assert.equal(mark.width, "100%");
-  assert.equal(mark.height, "100%");
+  assert.equal(mark.width, "42px");
+  assert.equal(mark.height, "42px");
   assert.equal(mark.display, "block");
+  assert.equal(mark["border-radius"], "13px");
   assert.equal(mark["object-fit"], "contain");
   assert.equal(mark["object-position"], "center");
   assert.equal(mark.flex, "0 0 auto");
 
   const lockup = declarations(cssBlock(audienceCss, ".brand-lockup"));
-  assert.equal(lockup.width, "44px");
-  assert.equal(lockup.height, "44px");
-  assert.equal(lockup.overflow, "hidden");
+  assert.equal(lockup.width, "58px");
+  assert.equal(lockup.height, "58px");
+  assert.equal(lockup.padding, "8px");
+  assert.equal(lockup["border-radius"], "20px");
+  assert.equal(lockup.overflow, "visible");
 });
 
 test("hotfix stays scoped away from speaker logo css and PNG assets", () => {
