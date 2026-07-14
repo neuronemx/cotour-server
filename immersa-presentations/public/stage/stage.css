@@ -457,21 +457,17 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   padding: 18px;
 }
 .stage-actions-modal.is-open { display: grid; }
-.stage-actions-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(2,4,8,.68);
-  backdrop-filter: blur(12px);
-}
+.stage-actions-modal { pointer-events: none; }
 .stage-actions-card {
   position: relative;
   z-index: 1;
-  width: min(430px, 100%);
-  max-height: min(84vh, 720px);
+  pointer-events: auto;
+  width: min(352px, calc(100vw - 28px));
+  max-height: min(82vh, 680px);
   overflow: auto;
   display: grid;
   gap: 12px;
-  padding: 16px;
+  padding: 15px;
   border-radius: 22px;
   color: rgba(240,255,252,.96);
   background:
@@ -482,34 +478,12 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   box-shadow: 0 28px 86px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.10);
   backdrop-filter: blur(24px) saturate(1.28);
 }
-.stage-actions-close {
-  position: absolute;
-  right: 11px;
-  top: 11px;
-  z-index: 2;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 50%;
-  color: rgba(234,255,251,.88);
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.14);
-  font-size: 20px;
-  line-height: 1;
-}
-.stage-actions-close:hover {
-  color: #041211;
-  background: rgba(111,247,232,.96);
-  border-color: rgba(255,255,255,.34);
-}
 .stage-actions-content,
 .stage-actions-head {
   display: grid;
   gap: 8px;
 }
-.stage-actions-head { padding-right: 34px; }
+.stage-actions-head { padding-right: 0; }
 .stage-actions-head span {
   color: var(--cyan);
   font-size: 10px;
@@ -547,11 +521,11 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   flex: 1 1 150px;
   min-width: 142px;
 }
-.stage-actions-card button:not(.stage-actions-close),
+.stage-actions-card button,
 .stage-actions-card .interaction-close-slider {
   min-height: 36px;
 }
-.stage-actions-card button:not(.stage-actions-close) {
+.stage-actions-card button {
   padding: 0 13px;
   border-radius: 999px;
   color: rgba(234,255,251,.92);
@@ -670,7 +644,7 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .slide-status { height: 37px; min-height: 37px; }
   .slide-count { min-width: 70px; height: 31px; min-height: 31px; padding: 0 8px; font-size: 13px; }
   .live-text-overlay { bottom: 86px; max-width: calc(100% - 28px); padding: 13px 16px; border-radius: 18px; }
-  .stage-actions-card { width: min(430px, 100%); max-height: calc(100dvh - 36px); }
+  .stage-actions-card { width: min(352px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); }
   .stage-actions-card .interaction-active-actions { gap: 6px; }
   .stage-actions-card .interaction-active-actions > button { padding: 0 8px; font-size: 11px; }
 }
