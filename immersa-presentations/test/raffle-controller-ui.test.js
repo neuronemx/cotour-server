@@ -133,13 +133,13 @@ test("winner label avoids exposing audience id when no public label exists", () 
 
 
 
-test("socket capture auto-install skips Speaker routes and keeps Stage legacy", () => {
+test("socket capture auto-install skips Speaker and Stage explicit routes", () => {
   assert.equal(shouldAutoInstallSocketCapture("/speaker"), false);
   assert.equal(shouldAutoInstallSocketCapture("/speaker/a_example"), false);
   assert.equal(shouldAutoInstallSocketCapture("/presenter"), false);
   assert.equal(shouldAutoInstallSocketCapture("/presenter/a_example"), false);
-  assert.equal(shouldAutoInstallSocketCapture("/stage"), true);
-  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), true);
+  assert.equal(shouldAutoInstallSocketCapture("/stage"), false);
+  assert.equal(shouldAutoInstallSocketCapture("/stage/a_example"), false);
 });
 
 
@@ -293,12 +293,160 @@ test("active raffle uses contextual title without countdown suffix", () => {
   assert.doesNotMatch(html, /s<\/strong>/);
 });
 
-test("raffle controller keeps legacy Stage path isolated from explicit Speaker hosts", () => {
+test("raffle controller auto-install skips explicit Speaker and Stage hosts", () => {
   const source = readProjectFile("public/shared/raffle-controller.js");
   assert.match(source, /const legacyIntegration = options\.installLegacyIntegration !== false/);
   assert.match(source, /mountHost: \(hostConfig\) =>/);
   assert.match(source, /if \(!legacyIntegration\) return;/);
   assert.match(source, /decorateHost\(root\.document\?\.querySelector\("\.stage-actions-content"\)\)/);
+  assert.match(source, /speaker\|presenter\|stage/);
   assert.doesNotMatch(source, /decorateHost\(root\.document\?\.querySelector\("\.interaction-panel"\)\)/);
   assert.match(source, /shouldAutoInstallSocketCapture\(root\.location\?\.pathname \|\| ""\)/);
+});
+
+test("Stage loads interactions shell before raffle controller", () => {
+  const sources = scriptSources(readProjectFile("public/stage/index.html"));
+  assert.ok(sources.indexOf("/shared/interactions-shell.js") > -1);
+  assert.ok(sources.indexOf("/shared/raffle-controller.js") > -1);
+  assert.equal(sources.indexOf("/shared/interactions-shell.js") < sources.indexOf("/shared/raffle-controller.js"), true);
+});
+
+test("Stage uses native interactions shell with persistent sibling hosts", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /stageActionsModal\.innerHTML = '[\s\S]+interactions-shell-mount/);
+  assert.match(stage, /if \(interactionShell \|\| !window\.ImmersaInteractionsShell \|\| !interactionShellMount\) return interactionShell/);
+  assert.match(stage, /ImmersaInteractionsShell\.create/);
+  assert.match(stage, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
+  assert.match(stage, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
+  assert.match(stage, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(stage, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
+  assert.match(stage, /raffleRenderer\.hidden = interactionShell\.getView\(\) !== "raffles"/);
+});
+
+test("Stage creates explicit non-legacy raffle controller and mounts role stage", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /createController\(socket, \{ installLegacyIntegration: false/);
+  assert.match(stage, /raffleController\.mountHost\(\{ role: "stage", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
+  assert.doesNotMatch(stage, /MutationObserver/);
+  assert.doesNotMatch(stage, /stopImmediatePropagation/);
+  assert.doesNotMatch(stage, /cloneNode/);
+});
+
+test("Stage poll idle requires explicit selection and clears it on close", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /let selectedInteractionId = ""/);
+  assert.match(stage, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
+  assert.match(stage, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\);[\s\S]+renderStageActionsPanel\(\);/);
+  assert.match(stage, /function selectedInteraction\(\) \{\n  return selectedInteractionId \? interactions\.find/);
+  assert.match(stage, /interactions\.length \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(\)/);
+  assert.match(stage, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
+  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
+  assert.doesNotMatch(stage, /selectDefaultInteraction/);
+  assert.doesNotMatch(stage, /\|\| interactions\[0\]/);
+});
+
+test("Stage locks active poll and raffle views against all external closes", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
+  assert.match(stage, /function hasActiveInteractionShellLock\(\) \{ return Boolean\(activeInteraction \|\| raffleController\?\.getState\?\.\(\)\.active\); \}/);
+  assert.match(stage, /shell\.setLocked\(activePoll \|\| activeRaffle\)/);
+  assert.match(stage, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /if \(\(activePoll \|\| activeRaffle\) && !stageActionsOpen\) setStageActionsOpen\(true\)/);
+  assert.match(stage, /if \(hasActiveInteractionShellLock\(\)\) return;[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);[\s\S]+closeStageActions\(\);/);
+  assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
+  assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);
+});
+
+test("Stage close events return the shell home and raffle state uses shared countdown", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  const controller = readProjectFile("public/shared/raffle-controller.js");
+  assert.match(stage, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
+  assert.match(stage, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\); \}\)/);
+  assert.match(controller, /countdownRemainingMs/);
+  assert.match(controller, /remainingRaffleSeconds\(active\)/);
+});
+
+test("Stage modal relies on the shell close button and has an accessible dialog name", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  const css = readProjectFile("public/stage/stage.css");
+  const shell = readProjectFile("public/shared/interactions-shell.js");
+  assert.doesNotMatch(stage, /class=\"stage-actions-close\"/);
+  assert.doesNotMatch(css, /\.stage-actions-close/);
+  assert.match(stage, /role="dialog" aria-modal="true" aria-label="Interacciones"/);
+  assert.match(shell, /"interactions-shell-close"/);
+});
+
+test("Stage hides the generic shell title immediately for idle poll and raffle categories", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /onSelectCategory: \(view\) => \{[\s\S]+if \(view === "polls"\) renderStageActionsPanel\(\);[\s\S]+if \(view === "raffles"\) \{ syncRendererVisibility\(\); raffleController\?\.setTab\?\.\("raffles"\); \}[\s\S]+syncInteractionShellState\(\);[\s\S]+\}/);
+  assert.match(stage, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(stage, /function returnInteractionsHome\(\) \{[\s\S]+shell\.setTitleVisible\?\.\(true\);[\s\S]+shell\.setView\("home"\);/);
+});
+
+test("slide scrims are scoped to the slide layer in Speaker and Stage", () => {
+  const speakerHtml = readProjectFile("public/presenter/index.html");
+  const stageHtml = readProjectFile("public/stage/index.html");
+  const css = readProjectFile("public/shared/interactions.css");
+  assert.doesNotMatch(css, /presenter-shell\.interaction-panel-open::before/);
+  assert.equal((speakerHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
+  assert.match(speakerHtml, /class="stream-area"[\s\S]+<img id="slide" alt="Lámina actual">\s+<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="reactions"/);
+  assert.equal((stageHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
+  assert.match(stageHtml, /<div class="screen-frame">[\s\S]+<img id="slide" alt="Slide en vivo">\s+<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="stageLiveText"/);
+  assert.doesNotMatch(stageHtml, /stage-actions-backdrop/);
+});
+
+test("shared slide scrim uses canonical values and scoped activation", () => {
+  const css = readProjectFile("public/shared/interactions.css");
+  const scrim = css.match(/\.interaction-slide-scrim \{[\s\S]+?\n\}/)?.[0] || "";
+  assert.match(scrim, /position: absolute;/);
+  assert.match(scrim, /inset: 0;/);
+  assert.match(scrim, /z-index: 2;/);
+  assert.match(scrim, /background: rgba\(2, 4, 8, \.22\);/);
+  assert.match(scrim, /backdrop-filter: blur\(4px\);/);
+  assert.match(scrim, /-webkit-backdrop-filter: blur\(4px\);/);
+  assert.match(scrim, /pointer-events: none;/);
+  assert.match(scrim, /opacity: 0;/);
+  assert.match(scrim, /visibility: hidden;/);
+  assert.doesNotMatch(scrim, /blur\((?:[5-9]|[1-9]\d)px\)|saturate|\n\s*filter:|\.2[3-9]|\.68/);
+  assert.match(css, /\.presenter-shell\.interaction-panel-open \.interaction-slide-scrim,\nbody\.stage-actions-open \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+});
+
+test("Stage modal no longer renders a fullscreen visual backdrop and syncs body visual state", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  const css = readProjectFile("public/stage/stage.css");
+  assert.doesNotMatch(stage, /stage-actions-backdrop|data-stage-actions-close/);
+  assert.doesNotMatch(css, /stage-actions-backdrop/);
+  assert.doesNotMatch(stage, /stageActionsModal\.addEventListener\("click"/);
+  assert.match(css, /\.stage-actions-modal \{ pointer-events: none; \}/);
+  assert.match(css, /\.stage-actions-card \{[\s\S]+pointer-events: auto;[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);/);
+  assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);\n\}/);
+  assert.match(stage, /function openStageActions\(\) \{[\s\S]+stageActionsOpen = true;\n  syncStageActionsVisualState\(\);/);
+  assert.match(stage, /function closeStageActions\(\) \{[\s\S]+stageActionsOpen = false;\n  syncStageActionsVisualState\(\);/);
+  assert.match(stage, /function setStageActionsOpen\(open\) \{[\s\S]+stageActionsOpen = Boolean\(open\);\n  syncStageActionsVisualState\(\);/);
+});
+
+test("slide overlays and controls stay above the scoped interaction scrim", () => {
+  const stageCss = readProjectFile("public/stage/stage.css");
+  const presenterCss = readProjectFile("public/presenter/presenter.css");
+  const sharedCss = readProjectFile("public/shared/interactions.css");
+  assert.match(sharedCss, /\.interaction-slide-scrim \{[\s\S]+z-index: 2;/);
+  assert.match(stageCss, /\.live-text-overlay \{[\s\S]+z-index: 5;/);
+  assert.match(stageCss, /\.stage-qr-overlay \{[\s\S]+z-index: 6;/);
+  assert.match(stageCss, /\.main-controls \{[\s\S]+z-index: 7;/);
+  assert.match(presenterCss, /\.reaction-layer \{[\s\S]+z-index: 3;/);
+  assert.match(presenterCss, /\.main-controls \{[\s\S]+z-index: 7;/);
+  assert.match(presenterCss, /\.top-actions \{[\s\S]+z-index: 8;/);
+  assert.doesNotMatch(sharedCss, /presenter-shell\.interaction-panel-open::before|\.presenter-shell\s*\{[\s\S]+backdrop-filter|\.stage-shell\s*\{[\s\S]+backdrop-filter|\.stream-area\s*\{[\s\S]+backdrop-filter|\.screen-frame\s*\{[\s\S]+backdrop-filter/);
+});
+
+test("Stage production controls remain wired independently of the click-through scrim", () => {
+  const stage = readProjectFile("public/stage/stage.js");
+  assert.match(stage, /prevSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex - 1\)\)/);
+  assert.match(stage, /nextSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex \+ 1\)\)/);
+  assert.match(stage, /qrToggle\.addEventListener\("change", \(\) => \{/);
+  assert.match(stage, /reactionsToggle\.addEventListener\("change", \(\) => updateOverlay/);
+  assert.match(stage, /liveTextButton\.addEventListener\("click", \(\) => \{/);
+  assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
+  assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);
+  assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+if \(hasActiveInteractionShellLock\(\)\) return;/);
 });

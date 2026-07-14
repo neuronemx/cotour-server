@@ -49,6 +49,7 @@
     <section class="screen-stage" aria-label="Slide en vivo">
       <div class="screen-frame">
         <img id="slide" alt="Slide en vivo">
+        <div class="interaction-slide-scrim" aria-hidden="true"></div>
         <div id="stageLiveText" class="live-text-overlay" hidden></div>
         <div id="stageQr" class="stage-qr-overlay" hidden>
           <div id="stageQrPattern" class="stage-qr-pattern" aria-label="QR Immersa Live"></div>
@@ -90,6 +91,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/shared/slide-confirm.js"></script>
+  <script src="/shared/interactions-shell.js"></script>
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
   <script src="/stage/stage.js?v=stage-v5"></script>

@@ -303,7 +303,7 @@
     installSocketHandlers(); if (legacyIntegration) { installNavigationLockGuards(); observeHosts(); } scheduleRender(); return { getState: () => state, isNavigationLocked: () => isRaffleNavigationLocked(state), mountHost: (hostConfig) => { if (!hostConfig?.root) return null; explicitHosts.push(hostConfig); scheduleRender(); return { unmount: () => { const index = explicitHosts.indexOf(hostConfig); if (index >= 0) explicitHosts.splice(index, 1); } }; }, setTab: (tab) => { if (tab !== "raffles" && state.active) return false; if (tab !== "raffles") clearLocalSetup(); currentTab = tab; renderAllHosts(); return true; } };
   }
 
-  function shouldAutoInstallSocketCapture(pathname) { return !/^\/(?:speaker|presenter)(?:\/|$)/.test(String(pathname || "")); }
+  function shouldAutoInstallSocketCapture(pathname) { return !/^\/(?:speaker|presenter|stage)(?:\/|$)/.test(String(pathname || "")); }
 
   function installSocketCapture() {
     if (!root || !root.io || root.__immersaRaffleIoWrapped) return null;
