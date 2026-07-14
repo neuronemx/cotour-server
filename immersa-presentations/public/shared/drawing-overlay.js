@@ -242,5 +242,21 @@
     return { canvas, addStroke, setInteractive, refresh };
   }
 
+  function loadPresentationRuntime() {
+    if (window.ImmersaPresentationRuntime || document.querySelector('script[data-immersa-time-sync]')) return;
+    const sources = ["/shared/time-sync-client.js", "/shared/presentation-connection.js", "/shared/presentation-runtime.js"];
+    let index = 0;
+    const loadNext = () => {
+      if (index >= sources.length) return;
+      const script = document.createElement("script");
+      script.src = sources[index++];
+      script.dataset.immersaTimeSync = "true";
+      script.onload = loadNext;
+      document.head.appendChild(script);
+    };
+    loadNext();
+  }
+
   window.ImmersaDrawingOverlay = { create: createDrawingOverlay };
+  window.setTimeout(loadPresentationRuntime, 0);
 })();
