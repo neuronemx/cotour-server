@@ -177,8 +177,12 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interaction-polls-renderer\[hidden\],[\s\S]+\.interaction-raffle-renderer\[hidden\] \{[\s\S]+display: none !important;/);
   assert.match(css, /\.interaction-polls-renderer:not\(\[hidden\]\) \{[\s\S]+display: grid;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+row-gap: 12px;/);
   assert.match(css, /\.interaction-raffle-renderer:not\(\[hidden\]\) \{[\s\S]+display: block;[\s\S]+min-width: 0;/);
-  assert.match(css, /\.interaction-panel \{[\s\S]+scrollbar-width: thin;[\s\S]+scrollbar-color: rgba\(127, 119, 221, \.52\) transparent;[\s\S]+scrollbar-gutter: stable;/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+scrollbar-width: thin;[\s\S]+scrollbar-color: rgba\(127, 119, 221, \.52\) transparent;[\s\S]+scrollbar-gutter: auto;[\s\S]+border-radius: 22px !important;[\s\S]+border-top-right-radius: 22px !important;[\s\S]+border-bottom-right-radius: 22px !important;[\s\S]+background-clip: padding-box;/);
+  const interactionPanelBlocks = [...css.matchAll(/\.interaction-panel \{([^}]*)\}/g)].map((match) => match[1]);
+  assert.equal(interactionPanelBlocks.some((block) => /scrollbar-gutter: stable;/.test(block)), false);
   assert.match(css, /\.interaction-panel::-webkit-scrollbar \{[\s\S]+width: 7px;/);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar-track \{[\s\S]+background: transparent;/);
+  assert.match(css, /\.interaction-panel::-webkit-scrollbar-track-piece \{[\s\S]+margin-block: 16px;[\s\S]+background: transparent;/);
   assert.match(css, /\.interaction-picker \{[\s\S]+display: grid;[\s\S]+row-gap: 12px;[\s\S]+max-height: min\(320px, 38dvh\);[\s\S]+overflow-y: auto;[\s\S]+scrollbar-width: thin;[\s\S]+margin: 0;/);
   assert.match(css, /\.interaction-panel-actions \.primary,[\s\S]+\.stage-actions-card \.interaction-panel-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
   assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+min-height: 64px;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+transform: none !important;/);

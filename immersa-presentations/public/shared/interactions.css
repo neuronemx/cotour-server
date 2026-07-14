@@ -1209,7 +1209,11 @@ body.stage-actions-open .interaction-slide-scrim {
 .interaction-panel {
   scrollbar-width: thin;
   scrollbar-color: rgba(127, 119, 221, .52) transparent;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  border-radius: 22px !important;
+  border-top-right-radius: 22px !important;
+  border-bottom-right-radius: 22px !important;
+  background-clip: padding-box;
 }
 
 .interaction-panel::-webkit-scrollbar {
@@ -1217,6 +1221,11 @@ body.stage-actions-open .interaction-slide-scrim {
 }
 
 .interaction-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.interaction-panel::-webkit-scrollbar-track-piece {
+  margin-block: 16px;
   background: transparent;
 }
 

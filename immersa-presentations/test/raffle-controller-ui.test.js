@@ -30,13 +30,18 @@ function loadBrowserRaffleControlsWithoutHelper() { const sandbox = { console, s
 test("Speaker loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/presenter/index.html"); });
 test("Stage loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/stage/index.html"); });
 
-test("raffle visual css matches poll card typography, hover, selection, and stats pill", () => {
+test("raffle visual css matches poll card geometry, typography, hover, selection, and stats pill", () => {
   const css = readProjectFile("public/shared/raffle-controller.css");
-  assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+min-height: 64px;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+transform: none !important;/);
-  assert.match(css, /\.raffle-mode-card strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 13px;[\s\S]+font-weight: 500;/);
-  assert.match(css, /\.raffle-mode-description \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 11px;[\s\S]+font-weight: 400;/);
-  assert.match(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]+transform: none !important;/);
+  const interactionsCss = readProjectFile("public/shared/interactions.css");
+  assert.match(css, /\.raffle-mode-card,[\s\S]+\.stage-actions-card \.raffle-mode-card \{[\s\S]+height: auto !important;[\s\S]+min-height: 64px !important;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+gap: 4px;[\s\S]+padding: 12px 44px 12px 12px !important;[\s\S]+border-radius: 14px !important;[\s\S]+transform: none !important;/);
+  assert.match(interactionsCss, /\.interaction-panel button\.interaction-choice,[\s\S]+min-height: 64px;[\s\S]+border-radius: 14px !important;[\s\S]+padding: 12px 44px 12px 12px;/);
+  assert.doesNotMatch(css, /\.stage-actions-card \.raffle-mode-card \{ min-height: 36px; \}/);
+  assert.doesNotMatch(css, /\.stage-actions-card \.raffle-mode-card \{ height: auto; padding: 11px; border-radius: 16px; \}/);
+  assert.match(css, /\.raffle-mode-card strong,[\s\S]+\.stage-actions-card \.raffle-mode-card strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 13px;[\s\S]+font-weight: 500;/);
+  assert.match(css, /\.raffle-mode-description,[\s\S]+\.stage-actions-card \.raffle-mode-description \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 11px;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.raffle-mode-card:hover:not\(:disabled\),[\s\S]+\.stage-actions-card \.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]+transform: none !important;/);
   assert.doesNotMatch(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]*?translateY\(-1px\);[\s\S]*?\}/);
+  assert.doesNotMatch(css, /\.raffle-mode-card:hover:not\(:disabled\) \{[\s\S]*?scale\([\s\S]*?\}/);
   assert.match(css, /\.raffle-mode-card\.is-selected,[\s\S]+\.stage-actions-card \.raffle-mode-card\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;[\s\S]+box-shadow: none !important;/);
   assert.match(css, /\.raffle-stats-pill \{[\s\S]+display: flex;[\s\S]+border-radius: 999px;/);
   assert.match(css, /\.raffle-stat-item \{[\s\S]+white-space: nowrap;/);
