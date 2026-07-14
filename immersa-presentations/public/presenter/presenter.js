@@ -276,7 +276,7 @@ function renderInteractionPanel() {
   if (!hasActive) {
     if (shell.getView() !== "home" && !raffleController?.getState?.().active) shell.setView("polls");
     syncRendererVisibility();
-    panel.innerHTML = (hasInteractions ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    panel.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas disponibles</h2><p>Selecciona una encuesta para lanzarla.</p></div>' + (hasInteractions ? interactionListMarkup(false) : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     panel.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => { selectedInteractionId = button.dataset.interactionSelect || ""; renderInteractionPanel(); }));
     panel.querySelector("[data-interaction-launch]")?.addEventListener("click", () => socket.emit("interaction:launch", { interactionId: selected?.id }));
     return;

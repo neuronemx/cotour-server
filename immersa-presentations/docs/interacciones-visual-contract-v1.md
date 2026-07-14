@@ -35,15 +35,18 @@ Los blobs identificados por ese freeze fueron usados sólo como contrato visual:
   4. Juegos
 - Estado neutral: `Selecciona una interacción.`.
 - Encuestas y Sorteos se renderizan bajo el mismo menú.
-- Concursos y Juegos permanecen visibles, deshabilitados y marcados como `Próximamente`.
+- Concursos y Juegos permanecen visibles, apagados, deshabilitados, sin badges y sin texto adicional.
 
 ## Reglas de interacción visual
 
 - El panel de Speaker no debe exceder `380px`, debe permanecer centrado y no debe desbordar el viewport.
-- Cada categoría usa una tarjeta de altura mínima `52px`, radio `9px`, icono SVG y pleca interior superior con gradiente.
-- La categoría activa usa el gradiente Immersa exacto.
+- El menú es una barra única segmentada: un contenedor oscuro y redondeado con cuatro segmentos internos del mismo ancho.
+- Cada segmento usa el SVG exacto aprobado del PR #75; está prohibido redibujar, reinterpretar o sustituir esos iconos.
+- Sólo el segmento activo usa el gradiente Immersa exacto y un radio interior; los segmentos inactivos son transparentes y no parecen tarjetas separadas.
+- Existe una sola pleca horizontal con gradiente, integrada al borde superior interior del panel principal.
 - Durante una interacción activa el menú permanece visible pero bloqueado.
-- La X de cierre es única y sólo se muestra cuando no hay interacción activa.
+- La X de cierre es única, ligera, circular, centrada ópticamente, posicionada en la esquina superior derecha real y sólo se muestra cuando no hay interacción activa.
+- El estado neutral no tiene tarjeta interna: conserva sólo el texto centrado `Selecciona una interacción.` sobre el fondo del panel principal.
 - El scrim no debe convertirse en backdrop fullscreen global; sólo oscurece y desenfoca el slide.
 
 ## Prohibición arquitectónica

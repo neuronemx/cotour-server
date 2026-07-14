@@ -80,6 +80,13 @@ test("interactions shell source avoids prohibited integration mechanisms", () =>
   assert.doesNotMatch(source, /addEventListener\([^\n]+,\s*true\)/);
 });
 
+const APPROVED_CATEGORY_ICONS = {
+  polls: { viewBox: "0 0 24 24", paths: ["M4 5.5h16", "M4 12h16", "M4 18.5h10", "M7 3.5v4", "M14 10v4", "M10 16.5v4"] },
+  raffles: { viewBox: "0 0 24 24", paths: ["M5 9h14v11H5z", "M7 9V6.5A2.5 2.5 0 0 1 9.5 4 3.5 3.5 0 0 1 13 7.5V9", "M17 9V6.5A2.5 2.5 0 0 0 14.5 4 3.5 3.5 0 0 0 11 7.5V9", "M12 9v11", "M5 13h14"] },
+  contests: { viewBox: "0 0 24 24", paths: ["M8 4h8v4a4 4 0 0 1-8 0z", "M8 6H5a3 3 0 0 0 3 3", "M16 6h3a3 3 0 0 1-3 3", "M12 12v5", "M9 20h6", "M10 17h4"] },
+  games: { viewBox: "0 0 24 24", paths: ["M7.5 10h9a4.5 4.5 0 0 1 4.12 6.32 2.05 2.05 0 0 1-3.25.57L15 14.5H9l-2.37 2.39a2.05 2.05 0 0 1-3.25-.57A4.5 4.5 0 0 1 7.5 10z", "M8 12.5v4", "M6 14.5h4", "M16.5 13.25h.01", "M18.5 15.25h.01"] }
+};
+
 test("interactions shell preserves the approved category contract", () => {
   const { root } = setup();
   const shell = Shell.create({ root });
@@ -89,9 +96,15 @@ test("interactions shell preserves the approved category contract", () => {
   assert.equal(root.querySelector(".interactions-shell-home").innerHTML, "<p>Selecciona una interacción.</p>");
   assert.equal(category(root, "contests").disabled, true);
   assert.equal(category(root, "games").disabled, true);
-  assert.equal(category(root, "contests").querySelector(".interactions-shell-category-badge")?.textContent, "Próximamente");
-  assert.equal(category(root, "games").querySelector(".interactions-shell-category-badge")?.textContent, "Próximamente");
-  assert.equal(categories.every((button) => Boolean(button.querySelector("svg"))), true);
+  assert.equal(category(root, "contests").tabIndex, -1);
+  assert.equal(category(root, "games").tabIndex, -1);
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions-shell.js"), "utf8"), /Próximamente/);
+  for (const button of categories) {
+    const expected = APPROVED_CATEGORY_ICONS[button.dataset.interactionsCategory];
+    const svg = button.querySelector("svg");
+    assert.equal(svg.getAttribute("viewBox"), expected.viewBox);
+    assert.deepEqual(svg.querySelectorAll("path").map((path) => path.getAttribute("d")), expected.paths);
+  }
   assert.equal(root.querySelectorAll("[data-interactions-close]").length, 1);
   assert.equal(root.querySelector("[data-interactions-close]").hidden, false);
   shell.setLocked(true);
@@ -104,8 +117,10 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /--immersa-gradient: linear-gradient\(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%\);/);
   assert.match(css, /--immersa-glass: linear-gradient\(160deg, rgba\(30, 26, 48, \.96\), rgba\(18, 16, 30, \.98\)\);/);
   assert.match(css, /font-family: Poppins, Inter/);
-  assert.match(css, /\.interactions-shell-nav \{\n  display: grid;\n  grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
-  assert.match(css, /min-height: 52px;/);
-  assert.match(css, /border-radius: 9px;/);
   assert.match(css, /width: min\(380px, calc\(100vw - 28px\)\);/);
+  assert.match(css, /\.interactions-shell-nav \{[\s\S]+gap: 0;[\s\S]+background: rgba\(5, 8, 18, \.32\);/);
+  assert.match(css, /\.interaction-panel::before \{[\s\S]+left: 18px;[\s\S]+right: 18px;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
+  assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
+  assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
 });

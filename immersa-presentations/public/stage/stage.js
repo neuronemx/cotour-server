@@ -407,7 +407,7 @@ function renderStageActionsPanel() {
   if (!active) {
     if (interactionShell.getView() !== "home" && !raffleController?.getState?.().active) interactionShell.setView("polls");
     syncRendererVisibility();
-    pollsRenderer.innerHTML = '<div class="stage-actions-head"><span>Stage</span><h2 id="stageActionsTitle">Acciones</h2><p>Encuestas disponibles</p></div>' + (interactions.length ? '<p>Selecciona una encuesta para lanzarla.</p>' + interactionListMarkup() : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
+    pollsRenderer.innerHTML = '<div class="interaction-panel-heading"><h2 id="stageActionsTitle">Encuestas disponibles</h2><p>Selecciona una encuesta para lanzarla.</p></div>' + (interactions.length ? interactionListMarkup() : '<p>Este deck aún no tiene interacciones.</p>') + '<div class="interaction-panel-actions"><button class="primary" data-interaction-launch ' + (!selected ? 'disabled' : '') + '>Lanzar encuesta</button></div>';
     pollsRenderer.querySelectorAll("[data-interaction-select]").forEach((button) => button.addEventListener("click", () => {
       selectedInteractionId = button.dataset.interactionSelect || "";
       renderStageActionsPanel();

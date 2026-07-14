@@ -648,3 +648,237 @@ body.stage-actions-open .interaction-slide-scrim {
   .stage-actions-card button.interactions-shell-category { min-height: 48px; }
   .interactions-shell-home { min-height: 84px; padding-block: 10px; }
 }
+
+/* PR #80 visual reconciliation: exact segmented bar, single pleca, neutral body. */
+.interaction-panel {
+  padding: 18px;
+  overflow: hidden auto;
+}
+
+.interaction-panel::before {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  width: auto;
+  height: 4px;
+  border-radius: 0 0 999px 999px;
+  background: var(--immersa-gradient);
+}
+
+.interactions-native-shell {
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.interactions-native-shell::before,
+.interactions-shell-category::before {
+  content: none;
+}
+
+.interactions-shell-header {
+  display: block;
+  min-height: 30px;
+  padding-right: 38px;
+}
+
+.interactions-shell-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  font-weight: 400;
+  text-align: center;
+}
+
+.interactions-shell-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(5, 8, 18, .32);
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.interaction-panel button.interactions-shell-category,
+.stage-actions-card button.interactions-shell-category {
+  min-height: 54px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(248, 250, 255, .76);
+  gap: 5px;
+  padding: 7px 4px;
+}
+
+.interaction-panel button.interactions-shell-category:hover:not(:disabled),
+.stage-actions-card button.interactions-shell-category:hover:not(:disabled) {
+  transform: none;
+  background: rgba(255, 255, 255, .06);
+}
+
+.interactions-shell-category[aria-disabled="true"] {
+  color: rgba(248, 250, 255, .38);
+  opacity: 1;
+}
+
+.interactions-native-shell.is-locked .interactions-shell-category {
+  opacity: .48;
+}
+
+.interactions-shell-category.is-active {
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  box-shadow: 0 8px 18px rgba(55, 138, 221, .24);
+}
+
+.interactions-shell-category svg {
+  width: 19px;
+  height: 19px;
+}
+
+.interactions-shell-home {
+  min-height: 150px;
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.interactions-shell-home p {
+  color: rgba(248, 250, 255, .66);
+}
+
+.interaction-panel-heading,
+.raffle-heading {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.interaction-panel-heading span,
+.raffle-heading span { display: none; }
+
+.interaction-panel-heading h2,
+.raffle-heading h2 {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.14;
+  color: #fff;
+}
+
+.interaction-panel-heading p,
+.raffle-heading p {
+  margin: 0;
+  color: rgba(248, 250, 255, .66);
+  font-size: 12px;
+}
+
+.interaction-picker,
+.raffle-mode-grid {
+  gap: 9px;
+  max-height: min(320px, 42dvh);
+}
+
+.interaction-panel button.interaction-choice,
+.raffle-mode-card,
+.stage-actions-card .raffle-mode-card {
+  position: relative;
+  min-height: 64px;
+  border-radius: 14px !important;
+  padding: 12px 44px 12px 12px;
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.interaction-panel button.interaction-choice.is-selected,
+.raffle-mode-card.is-selected {
+  color: rgba(248, 250, 255, .98);
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(93, 202, 165, .72);
+  box-shadow: 0 0 0 1px rgba(55, 138, 221, .42), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.interaction-panel button.interaction-choice.is-selected::after,
+.raffle-mode-card.is-selected::after {
+  content: "✓";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #061219;
+  background: var(--immersa-gradient);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.interaction-choice-title,
+.raffle-mode-card strong {
+  font-size: 13px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, .96);
+}
+
+.interaction-choice-prompt,
+.raffle-mode-description {
+  color: rgba(248, 250, 255, .60);
+}
+
+.interaction-choice small,
+.raffle-mode-card small {
+  justify-self: start;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+  color: rgba(248, 250, 255, .68);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.interaction-panel-actions,
+.raffle-actions {
+  width: 100%;
+}
+
+.interaction-panel-actions .primary,
+.raffle-actions button.primary,
+.raffle-create-visual.primary {
+  width: 100%;
+  min-height: 42px;
+  justify-content: center;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  border-color: rgba(255, 255, 255, .20) !important;
+  border-radius: 14px !important;
+}
+
+.interaction-panel-actions .primary:disabled,
+.raffle-actions button.primary:disabled,
+.raffle-create-visual.primary:disabled {
+  color: rgba(248, 250, 255, .42) !important;
+  background: rgba(255, 255, 255, .08) !important;
+  border-color: rgba(255, 255, 255, .09) !important;
+  box-shadow: none;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .interactions-shell-home { min-height: 90px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category { min-height: 46px; }
+}

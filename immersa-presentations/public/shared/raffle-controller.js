@@ -203,12 +203,12 @@
   function renderSelection(state) {
     const disabled = Boolean(state.activeInteraction || state.pendingEvent);
     const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
-    if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
+    if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><h2>Clave visual</h2><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
     const modeButtons = RAFFLE_MODES.map((mode) => {
       const attrs = mode.id === "visual_key" ? 'data-raffle-config-mode="visual_key"' : 'data-raffle-create="' + mode.id + '"';
-      return '<button type="button" class="raffle-mode-card" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong></button>';
+      const descriptions = { free: 'Participan las personas conectadas.', poll: 'Sortea entre respuestas de una encuesta.', visual_key: 'Define una clave visual de cuatro opciones.' }; const selectedClass = state.configMode === mode.id ? ' is-selected' : ''; return '<button type="button" class="raffle-mode-card' + selectedClass + '" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong><span class="raffle-mode-description">' + descriptions[mode.id] + '</span></button>';
     }).join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteos disponibles</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
   }
   function renderStats(active, state) { if (active.state === "collecting") return '<div class="raffle-stats"><div><span>CONECTADOS</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></div></div>'; if (active.state === "entries_closed") { const eligible = eligibleCount(active); const eligibleMarkup = eligible > 0 ? '<div><span>ELEGIBLES</span><strong>' + eligible + '</strong></div>' : ""; return '<div class="raffle-stats"><div><span>PARTICIPANTES</span><strong>' + entryCount(active) + '</strong></div>' + eligibleMarkup + '</div>'; } return ""; }
   function renderSlideConfirm(state) { return SlideConfirm.markup({ label: "Desliza para iniciar sorteo", className: "raffle-slide-confirm is-raffle", disabled: Boolean(state.pendingEvent), dataAttribute: "data-raffle-slide-confirm" }); }

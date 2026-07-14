@@ -64,7 +64,7 @@ test("raffle subview hides tabs and conditionally provides a back control", () =
   assert.match(source, /currentTab = "polls"; renderAllHosts\(\);/);
 });
 
-test("raffle selector hierarchy has no duplicate labels", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Sorteos?<\/h2>/i); assert.equal((html.match(/<h2>/g) || []).length, 0); assert.match(html, /<p>Elige un modo para crear la convocatoria\.<\/p>/); });
+test("raffle selector hierarchy uses a single section heading", () => { const html = renderRaffleController(createInitialRaffleControllerState()); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.equal((html.match(/<h2>/g) || []).length, 1); assert.match(html, /<h2>Sorteos disponibles<\/h2><p>Elige un modo para crear la convocatoria\.<\/p>/); });
 
 test("active raffle hierarchy uses mode title and state text", () => { let state = createInitialRaffleControllerState(); state = reduceRaffleControllerState(state, "raffle:state", { active: { id: "r-active", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 } }); const html = renderRaffleController(state); assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/); assert.doesNotMatch(html, /<span>Sorteos<\/span>/i); assert.doesNotMatch(html, /<h2>Participación abierta<\/h2>/); assert.match(html, /data-raffle-action="raffle:close_entries"/); assert.match(html, /data-raffle-action="raffle:close"/); });
 
@@ -252,7 +252,7 @@ test("poll idle selection starts empty and launch disabled until explicit choice
 test("poll idle renders list when interactions exist without selected poll", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.match(presenter, /const hasInteractions = interactions\.length > 0;[\s\S]+const selected = selectedInteraction\(\);/);
-  assert.match(presenter, /panel\.innerHTML = \(hasInteractions \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
+  assert.match(presenter, /panel\.innerHTML = '<div class="interaction-panel-heading"><h2>Encuestas disponibles<\/h2><p>Selecciona una encuesta para lanzarla\.<\/p><\/div>' \+ \(hasInteractions \? interactionListMarkup\(false\) : '<p>Este deck aún no tiene interacciones\.<\/p>'\)/);
   assert.match(presenter, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
   assert.match(presenter, /panel\.querySelectorAll\("\[data-interaction-select\]"\)[\s\S]+selectedInteractionId = button\.dataset\.interactionSelect/);
   assert.match(presenter, /socket\.emit\("interaction:launch", \{ interactionId: selected\?\.id \}\)/);
@@ -278,10 +278,10 @@ test("generic shell section titles are hidden outside general home", () => {
   assert.match(presenter, /shell\.setTitleVisible\?\.\(shell\.getView\(\) === "home" && !\(activePoll \|\| activeRaffle\)\)/);
 });
 
-test("poll home copy uses shell title only", () => {
+test("poll home copy uses a section title without duplicating the generic shell title", () => {
   const presenter = readProjectFile("public/presenter/presenter.js");
   assert.doesNotMatch(presenter, /<h2>Encuestas<\/h2>/);
-  assert.doesNotMatch(presenter, /Encuestas disponibles/);
+  assert.match(presenter, /Encuestas disponibles/);
   assert.match(presenter, /Selecciona una encuesta para lanzarla\./);
   assert.doesNotMatch(presenter, /data-interaction-panel-close/);
 });
@@ -338,7 +338,7 @@ test("Stage poll idle requires explicit selection and clears it on close", () =>
   assert.match(stage, /function clearSelectedInteraction\(\) \{ selectedInteractionId = ""; \}/);
   assert.match(stage, /loadInteractions\(\)[\s\S]+clearSelectedInteraction\(\);[\s\S]+renderStageActionsPanel\(\);/);
   assert.match(stage, /function selectedInteraction\(\) \{\n  return selectedInteractionId \? interactions\.find/);
-  assert.match(stage, /interactions\.length \? '<p>Selecciona una encuesta para lanzarla\.<\/p>' \+ interactionListMarkup\(\)/);
+  assert.match(stage, /<div class="interaction-panel-heading"><h2 id="stageActionsTitle">Encuestas disponibles<\/h2><p>Selecciona una encuesta para lanzarla\.<\/p><\/div>' \+ \(interactions\.length \? interactionListMarkup\(\)/);
   assert.match(stage, /data-interaction-launch ' \+ \(!selected \? 'disabled' : ''\)/);
   assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);/);
   assert.doesNotMatch(stage, /selectDefaultInteraction/);
