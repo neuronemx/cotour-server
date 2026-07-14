@@ -214,21 +214,30 @@ test("audience poll card uses Immersa visual contract without changing runtime m
   const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
   const audienceIndex = fs.readFileSync(path.join(__dirname, "..", "public/audience/index.html"), "utf8");
   const selectedBlocks = [...css.matchAll(/\.interaction-card button\.interaction-option\.is-selected \{([^}]*)\}/g)].map((match) => match[1]);
+  const audienceSource = fs.readFileSync(path.join(__dirname, "..", "public/audience/audience.js"), "utf8");
+  const topActions = audienceIndex.match(/<div class="top-actions">([\s\S]+?)<\/div>/)[1];
 
   assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">/);
   assert.match(audienceIndex, /<link rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin>/);
   assert.match(audienceIndex, /family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap/);
   assert.match(css, /\.interaction-card \{[\s\S]+position: fixed;[\s\S]+width: min\(430px, calc\(100vw - 24px\)\);[\s\S]+background: var\(--immersa-glass\) !important;[\s\S]+border-radius: 22px;/);
   assert.equal((css.match(/\.interaction-card::before \{/g) || []).length, 1);
-  assert.match(css, /\.interaction-card::before \{[\s\S]+top: 0;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
-  assert.match(css, /\.interaction-card h2 \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 700;/);
-  assert.match(css, /\.interaction-card p \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 400;/);
+  assert.match(css, /\.interaction-card \{[\s\S]+border-top-width: 0 !important;/);
+  assert.match(css, /\.interaction-card::before \{[\s\S]+z-index: 2;[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+margin: 0;[\s\S]+background: var\(--immersa-gradient\);[\s\S]+pointer-events: none;/);
+  assert.match(css, /\.interaction-card h2 \{\n  display: none !important;\n\}/);
+  assert.match(css, /\.interaction-card p \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 700;[\s\S]+overflow-wrap: anywhere;/);
   assert.match(css, /\.interaction-card button\.interaction-option \{[\s\S]+min-height: 52px;[\s\S]+border-radius: 14px !important;[\s\S]+background: rgba\(255, 255, 255, \.055\);/);
   assert.match(css, /\.interaction-card button\.interaction-option\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;/);
   assert.match(css, /\.interaction-card button\.interaction-option\.is-selected::after \{[\s\S]+content: "✓";[\s\S]+border-radius: 50%;[\s\S]+background: var\(--immersa-gradient\);/);
   assert.match(css, /\.interaction-card button\.interaction-option\.is-selected:disabled \{\n  opacity: 1;\n\}/);
   assert.match(css, /\.interaction-card \.interaction-card-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
-  assert.match(css, /\.interaction-accepted \{[\s\S]+color: #5dcaa5;[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;/);
+  assert.match(css, /\.interaction-card \.interaction-accepted \{\n  display: none !important;\n\}/);
+  assert.match(topActions, /id="snapshot"[\s\S]+id="fullscreen"/);
+  assert.match(topActions.trim(), /<button id="fullscreen" class="icon-action" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶<\/button>$/);
+  assert.match(topActions, /<button id="snapshot"[\s\S]+<svg viewBox="0 0 24 24" aria-hidden="true">[\s\S]*<path d="M9 5 7\.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\.5L15 5H9Z"><\/path>[\s\S]*<circle cx="12" cy="13" r="3\.25"><\/circle>[\s\S]*<\/svg>/);
+  assert.doesNotMatch(topActions, /📷/);
+  assert.match(css, /\.snapshot svg \{[\s\S]+width: 20px;[\s\S]+height: 20px;[\s\S]+fill: none;[\s\S]+stroke: currentColor;[\s\S]+stroke-width: 1\.8;/);
+  assert.match(audienceSource, /Respuesta enviada/);
   assert.equal(selectedBlocks.some((block) => /linear-gradient\(180deg, rgba\(111,247,232,1\), rgba\(62,202,191,\.98\)\)/.test(block)), false);
 });
 
