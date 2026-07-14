@@ -1,7 +1,7 @@
 (function () {
   const DEFAULT_COLOR = "#b20de9";
   const DEFAULT_WIDTH = 0.018;
-  const DEFAULT_OPACITY = 0.65;
+  const DEFAULT_OPACITY = 0.85;
   const DEFAULT_TTL = 4200;
   const FADE_MS = 1000;
 
@@ -70,7 +70,7 @@
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     canvas.style.zIndex = String(zIndex);
-    canvas.style.mixBlendMode = "multiply";
+    canvas.style.mixBlendMode = "normal";
     canvas.style.pointerEvents = "none";
     canvas.style.touchAction = "none";
     canvas.style.userSelect = "none";
@@ -179,8 +179,8 @@
       context.lineJoin = "round";
       context.strokeStyle = stroke.color || color;
       context.lineWidth = Math.max(2, Math.min(rect.width, rect.height) * (stroke.width || width)) * ratio;
-      context.shadowColor = "rgba(0, 0, 0, .20)";
-      context.shadowBlur = 4 * ratio;
+      context.shadowColor = "rgba(255, 255, 255, .24)";
+      context.shadowBlur = 3 * ratio;
       context.beginPath();
       points.forEach((point, index) => {
         const x = (rect.left + point.x * rect.width) * ratio;
