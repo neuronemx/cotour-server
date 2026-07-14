@@ -132,6 +132,10 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
   assert.match(css, /\.interaction-panel::before,[\s\S]+\.stage-actions-card::before \{[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
   assert.match(css, /\.interaction-panel \{[\s\S]+position: fixed !important;[\s\S]+overflow-x: hidden;[\s\S]+overflow-y: auto;/);
+  assert.match(css, /\.interaction-panel,[\s\S]+\.stage-actions-card \{[\s\S]+border-top-width: 0 !important;/);
+  assert.match(css, /\.interaction-polls-renderer \{[\s\S]+display: grid;[\s\S]+grid-template-columns: minmax\(0, 1fr\);[\s\S]+row-gap: 12px;/);
+  assert.match(css, /\.interaction-picker \{[\s\S]+display: grid;[\s\S]+row-gap: 12px;[\s\S]+margin: 0;/);
+  assert.match(css, /\.interaction-panel-actions \.primary,[\s\S]+\.stage-actions-card \.interaction-panel-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
   assert.doesNotMatch(css, /\.interaction-panel,\s*\n\.stage-actions-card \{\s*\n\s*position: relative;[\s\S]*?overflow: hidden;/);
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);

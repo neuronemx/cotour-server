@@ -1104,3 +1104,86 @@ body.stage-actions-open .interaction-slide-scrim {
   overflow-x: hidden;
   overflow-y: auto;
 }
+
+/* PR #80 Encuestas home polish: flush pleca, true poll spacing, clean CTA edge. */
+.interaction-panel,
+.stage-actions-card {
+  border-top-width: 0 !important;
+}
+
+.interaction-polls-renderer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+  min-width: 0;
+}
+
+.interaction-picker {
+  display: grid;
+  row-gap: 12px;
+  margin: 0;
+}
+
+.interaction-panel-heading,
+.interaction-picker,
+.interaction-panel-actions {
+  margin-block: 0 !important;
+}
+
+.interaction-panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.interaction-panel-actions .primary,
+.stage-actions-card .interaction-panel-actions .primary {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  background-clip: border-box !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.interaction-panel-actions .primary:hover:not(:disabled),
+.stage-actions-card .interaction-panel-actions .primary:hover:not(:disabled) {
+  transform: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  filter: brightness(1.05);
+}
+
+.interaction-panel-actions .primary:focus,
+.interaction-panel-actions .primary:focus-visible,
+.stage-actions-card .interaction-panel-actions .primary:focus,
+.stage-actions-card .interaction-panel-actions .primary:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interaction-panel-actions .primary:active,
+.stage-actions-card .interaction-panel-actions .primary:active {
+  transform: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interaction-panel-actions .primary:disabled,
+.stage-actions-card .interaction-panel-actions .primary:disabled {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
