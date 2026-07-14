@@ -456,3 +456,195 @@ body.stage-actions-open .interaction-slide-scrim {
     padding: 0 34px 0 38px;
   }
 }
+
+:root {
+  --immersa-gradient: linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%);
+  --immersa-glass: linear-gradient(160deg, rgba(30, 26, 48, .96), rgba(18, 16, 30, .98));
+}
+
+.interaction-panel,
+.stage-actions-card {
+  width: min(380px, calc(100vw - 28px));
+  max-width: 380px;
+}
+
+.interaction-panel,
+.interaction-card,
+.interaction-results-overlay,
+.stage-interaction-panel,
+.interactions-native-shell {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.interaction-panel,
+.stage-actions-card .stage-actions-content {
+  background: var(--immersa-glass);
+}
+
+.interactions-native-shell {
+  position: relative;
+  display: grid;
+  gap: 13px;
+  color: rgba(248, 250, 255, .96);
+}
+
+.interactions-native-shell::before {
+  content: "";
+  display: block;
+  width: 54px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--immersa-gradient);
+  box-shadow: 0 0 18px rgba(93, 202, 165, .42);
+}
+
+.interactions-shell-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.interactions-shell-title {
+  margin: 0;
+  font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: #fff;
+}
+
+.interactions-shell-back { display: none !important; }
+
+.interactions-shell-close {
+  width: 32px;
+  height: 32px;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: 20px !important;
+  line-height: 1;
+}
+
+.interactions-shell-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.interaction-panel button.interactions-shell-category,
+.stage-actions-card button.interactions-shell-category {
+  position: relative;
+  min-height: 52px;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding: 8px 5px 7px;
+  border-radius: 9px;
+  color: rgba(248, 250, 255, .86);
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .13);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.interactions-shell-category::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--immersa-gradient);
+  opacity: .85;
+}
+
+.interactions-shell-category svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.interactions-shell-category.is-active {
+  color: #fff !important;
+  background: var(--immersa-gradient) !important;
+  border-color: rgba(255, 255, 255, .38) !important;
+  box-shadow: 0 12px 26px rgba(55, 138, 221, .28);
+}
+
+.interactions-shell-category:focus-visible {
+  outline: 2px solid rgba(93, 202, 165, .95);
+  outline-offset: 2px;
+}
+
+.interactions-shell-category[aria-disabled="true"],
+.interactions-native-shell.is-locked .interactions-shell-category {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.interactions-shell-category-badge {
+  max-width: 100%;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .10);
+  color: rgba(248, 250, 255, .72);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.interactions-shell-home {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  padding: 18px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+
+.interactions-shell-home p {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(248, 250, 255, .68);
+  text-align: center;
+}
+
+.interactions-shell-content {
+  min-height: 0;
+}
+
+@media (max-width: 420px) {
+  .interaction-panel,
+  .stage-actions-card {
+    width: min(380px, calc(100vw - 18px));
+  }
+  .interactions-shell-nav { gap: 5px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category {
+    padding-inline: 3px;
+    font-size: 9.5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .interaction-panel,
+  .stage-actions-card {
+    width: min(380px, calc(100vw - 120px));
+    max-height: calc(100dvh - 20px);
+  }
+  .interactions-native-shell { gap: 9px; }
+  .interaction-panel button.interactions-shell-category,
+  .stage-actions-card button.interactions-shell-category { min-height: 48px; }
+  .interactions-shell-home { min-height: 84px; padding-block: 10px; }
+}

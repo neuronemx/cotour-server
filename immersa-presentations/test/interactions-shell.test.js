@@ -20,7 +20,7 @@ class Element {
   removeEventListener(type,handler){ this.listeners[type]=(this.listeners[type]||[]).filter((item)=>item!==handler); }
   click(){ const event={ target:this }; let node=this; while(node){ (node.listeners.click||[]).forEach((handler)=>handler(event)); node=node.parentNode; } }
   contains(node){ return node===this || this.children.some((child)=>child.contains?.(node)); }
-  matches(selector){ if(selector.startsWith(".")) return this.classList.contains(selector.slice(1)); const data=selector.match(/^\[data-([^\]]+)\]$/); if(data){ const key=data[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase()); return Object.prototype.hasOwnProperty.call(this.dataset,key); } return false; }
+  matches(selector){ if(selector.startsWith(".")) return this.classList.contains(selector.slice(1)); const data=selector.match(/^\[data-([^\]]+)\]$/); if(data){ const key=data[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase()); return Object.prototype.hasOwnProperty.call(this.dataset,key); } return selector.toUpperCase() === this.tagName; }
   closest(selector){ let node=this; while(node){ if(node.matches?.(selector))return node; node=node.parentNode; } return null; }
   querySelectorAll(selector){ const out=[]; const visit=(node)=>{ if(node.matches?.(selector))out.push(node); node.children.forEach(visit); }; this.children.forEach(visit); return out; }
   querySelector(selector){ return this.querySelectorAll(selector)[0]||null; }
@@ -78,4 +78,34 @@ test("interactions shell source avoids prohibited integration mechanisms", () =>
   assert.doesNotMatch(source, /window\.addEventListener/);
   assert.doesNotMatch(source, /stopImmediatePropagation/);
   assert.doesNotMatch(source, /addEventListener\([^\n]+,\s*true\)/);
+});
+
+test("interactions shell preserves the approved category contract", () => {
+  const { root } = setup();
+  const shell = Shell.create({ root });
+  const categories = root.querySelectorAll("[data-interactions-category]");
+  assert.deepEqual(categories.map((button) => button.dataset.interactionsCategory), ["polls", "raffles", "contests", "games"]);
+  assert.deepEqual(categories.map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Sorteos", "Concursos", "Juegos"]);
+  assert.equal(root.querySelector(".interactions-shell-home").innerHTML, "<p>Selecciona una interacción.</p>");
+  assert.equal(category(root, "contests").disabled, true);
+  assert.equal(category(root, "games").disabled, true);
+  assert.equal(category(root, "contests").querySelector(".interactions-shell-category-badge")?.textContent, "Próximamente");
+  assert.equal(category(root, "games").querySelector(".interactions-shell-category-badge")?.textContent, "Próximamente");
+  assert.equal(categories.every((button) => Boolean(button.querySelector("svg"))), true);
+  assert.equal(root.querySelectorAll("[data-interactions-close]").length, 1);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, false);
+  shell.setLocked(true);
+  assert.equal(root.querySelector("[data-interactions-close]").hidden, true);
+  assert.equal(categories.every((button) => button.disabled), true);
+});
+
+test("shared interactions css exposes critical visual contract tokens", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  assert.match(css, /--immersa-gradient: linear-gradient\(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%\);/);
+  assert.match(css, /--immersa-glass: linear-gradient\(160deg, rgba\(30, 26, 48, \.96\), rgba\(18, 16, 30, \.98\)\);/);
+  assert.match(css, /font-family: Poppins, Inter/);
+  assert.match(css, /\.interactions-shell-nav \{\n  display: grid;\n  grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(css, /min-height: 52px;/);
+  assert.match(css, /border-radius: 9px;/);
+  assert.match(css, /width: min\(380px, calc\(100vw - 28px\)\);/);
 });
