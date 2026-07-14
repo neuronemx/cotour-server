@@ -968,12 +968,6 @@ body.stage-actions-open .interaction-slide-scrim {
 }
 
 /* PR #80 Encuestas home final alignment: fixed title, top pleca, CTA rocket, selected gradient border. */
-.interaction-panel,
-.stage-actions-card {
-  position: relative;
-  overflow: hidden;
-}
-
 .interaction-panel::before,
 .stage-actions-card::before {
   content: "";
@@ -1101,4 +1095,12 @@ body.stage-actions-open .interaction-slide-scrim {
   box-shadow: none !important;
   font-size: 15px;
   font-weight: 500;
+}
+
+
+/* PR #80 regression fix: keep Speaker modal out of document flow. */
+.interaction-panel {
+  position: fixed !important;
+  overflow-x: hidden;
+  overflow-y: auto;
 }

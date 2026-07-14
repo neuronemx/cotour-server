@@ -131,6 +131,8 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interactions-shell-nav \{[\s\S]+gap: 0;[\s\S]+background: rgba\(5, 8, 18, \.32\);/);
   assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
   assert.match(css, /\.interaction-panel::before,[\s\S]+\.stage-actions-card::before \{[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interaction-panel \{[\s\S]+position: fixed !important;[\s\S]+overflow-x: hidden;[\s\S]+overflow-y: auto;/);
+  assert.doesNotMatch(css, /\.interaction-panel,\s*\n\.stage-actions-card \{\s*\n\s*position: relative;[\s\S]*?overflow: hidden;/);
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
   assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
