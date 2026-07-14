@@ -1,3 +1,5 @@
+const { TimeSyncStore, createTimeSyncSocketHandlers } = require("./time-sync-store");
+
 const FALLBACK_DEMO_INTERACTION = {
   id: "demo-poll-1",
   type: "poll",
@@ -72,9 +74,7 @@ class InteractionStore {
 
   close(sessionId) {
     const session = this.getSession(sessionId);
-    if (session.active) {
-      session.active = { ...session.active, closedAt: new Date().toISOString() };
-    }
+    if (session.active) session.active = { ...session.active, closedAt: new Date().toISOString() };
     session.resultsVisible = false;
     const closed = session.active;
     session.active = null;
@@ -103,17 +103,13 @@ class InteractionStore {
   submitResponse({ sessionId, interactionId, audienceId, optionId }) {
     const session = this.getSession(sessionId);
     const active = session.active;
-    if (!active || active.id !== interactionId) {
-      return { ok: false, reason: "interaction_not_active" };
-    }
+    if (!active || active.id !== interactionId) return { ok: false, reason: "interaction_not_active" };
     if (!audienceId) return { ok: false, reason: "missing_audience_id" };
     const option = active.options.find((item) => item.id === optionId);
     if (!option) return { ok: false, reason: "invalid_option" };
 
     const key = this.responseKey(sessionId, interactionId, audienceId);
-    if (session.responses.has(key)) {
-      return { ok: false, reason: "duplicate_response" };
-    }
+    if (session.responses.has(key)) return { ok: false, reason: "duplicate_response" };
 
     const response = {
       sessionId,
@@ -138,11 +134,7 @@ class InteractionStore {
     if (!active) return null;
     const totalResponses = session.responses.size;
     const counts = new Map(active.options.map((option) => [option.id, 0]));
-
-    for (const response of session.responses.values()) {
-      counts.set(response.optionId, (counts.get(response.optionId) || 0) + 1);
-    }
-
+    for (const response of session.responses.values()) counts.set(response.optionId, (counts.get(response.optionId) || 0) + 1);
     return {
       interactionId: active.id,
       type: active.type,
@@ -151,12 +143,7 @@ class InteractionStore {
       totalResponses,
       options: active.options.map((option) => {
         const count = counts.get(option.id) || 0;
-        return {
-          id: option.id,
-          label: option.label,
-          count,
-          percentage: totalResponses ? Math.round((count / totalResponses) * 100) : 0
-        };
+        return { id: option.id, label: option.label, count, percentage: totalResponses ? Math.round((count / totalResponses) * 100) : 0 };
       })
     };
   }
@@ -182,7 +169,9 @@ class InteractionStore {
   }
 }
 
-function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey, coordinator = null }) {
+function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey, coordinator = null, timeSyncStore = new TimeSyncStore() }) {
+  const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
+
   function canControlInteractions(context) {
     return context?.role === "presenter" || context?.role === "stage";
   }
@@ -192,9 +181,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     if (!results) return;
     io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:results_updated", results);
     io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:results_updated", results);
-    if (store.getSession(sessionId).resultsVisible) {
-      io.to(getRoleRoomKey(roomKey, "screen")).emit("interaction:show_results", results);
-    }
+    if (store.getSession(sessionId).resultsVisible) io.to(getRoleRoomKey(roomKey, "screen")).emit("interaction:show_results", results);
   }
 
   function emitStateToRoom(roomKey, sessionId) {
@@ -211,12 +198,9 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     if (!context?.sessionId) return;
     socket.emit("interaction:state", store.getState(context.sessionId, context.audienceId));
     const results = store.getResults(context.sessionId);
-    if (results && (context.role === "presenter" || context.role === "stage")) {
-      socket.emit("interaction:results_updated", results);
-    }
-    if (results && context.role === "screen" && store.getSession(context.sessionId).resultsVisible) {
-      socket.emit("interaction:show_results", results);
-    }
+    if (results && (context.role === "presenter" || context.role === "stage")) socket.emit("interaction:results_updated", results);
+    if (results && context.role === "screen" && store.getSession(context.sessionId).resultsVisible) socket.emit("interaction:show_results", results);
+    timeSyncSockets.sendCurrentState(socket, context);
   }
 
   async function launchInteraction(context, interactionId) {
@@ -232,6 +216,8 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
   }
 
   function attach(socket, getContext) {
+    timeSyncSockets.attach(socket, getContext);
+
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !context?.deckId || !canControlInteractions(context)) return;
@@ -290,7 +276,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     });
   }
 
-  return { attach, sendCurrentState };
+  return { attach, sendCurrentState, timeSyncStore, timeSyncSockets };
 }
 
 module.exports = { InteractionStore, createInteractionSocketHandlers, FALLBACK_DEMO_INTERACTION };
