@@ -30,6 +30,7 @@ test("countdown suffix is removed from Sorteos views without changing remaining 
   assert.doesNotMatch(audienceHtml, /<strong>\d+s<\/strong>/);
   assert.doesNotMatch(screenHtml, /<strong>\d+s<\/strong>/);
   assert.match(controllerHtml + audienceHtml + screenHtml, /<strong>\d<\/strong>/);
+  assert.doesNotMatch(controllerHtml, /REVELACIÓN EN/);
 });
 
 test("free collecting controls render Sorteo Libre with connected count and no tickets", () => {
