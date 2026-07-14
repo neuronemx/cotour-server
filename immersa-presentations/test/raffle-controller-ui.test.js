@@ -46,7 +46,8 @@ test("raffle visual css matches poll card geometry, typography, hover, selection
   assert.match(css, /\.raffle-mode-card\.is-selected,[\s\S]+\.stage-actions-card \.raffle-mode-card\.is-selected \{[\s\S]+border: 1\.5px solid transparent !important;[\s\S]+var\(--immersa-gradient\) border-box !important;[\s\S]+box-shadow: none !important;/);
   assert.match(css, /\.raffle-stats-pill \{[\s\S]+display: flex;[\s\S]+border-radius: 999px;/);
   assert.match(css, /\.raffle-stat-item \{[\s\S]+white-space: nowrap;/);
-  assert.match(css, /\.raffle-actions\.is-secondary \{[\s\S]+display: flex;[\s\S]+align-items: center;[\s\S]+gap: 8px;/);
+  assert.match(css, /\.raffle-actions\.is-secondary \{[\s\S]+display: flex;[\s\S]+align-items: center;[\s\S]+gap: 8px;[\s\S]+padding-top: 2px;[\s\S]+border-top: 0 !important;/);
+  assert.doesNotMatch(css, /\.raffle-actions\.is-secondary \{[^}]*border-top: 1px solid/);
   assert.match(css, /\.raffle-actions\.is-secondary \.raffle-action\.danger\[data-raffle-action="raffle:close"\] \{[\s\S]+margin-left: auto;/);
   assert.match(css, /\.raffle-countdown \{[\s\S]+min-height: 68px;[\s\S]+place-items: center;[\s\S]+color: #378add;[\s\S]+background: transparent;[\s\S]+border: 0;[\s\S]+border-radius: 0;[\s\S]+box-shadow: none;/);
   assert.match(css, /\.raffle-countdown strong \{[\s\S]+font-family: Poppins, Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-size: 38px;[\s\S]+color: #378add;/);

@@ -170,7 +170,7 @@
 .raffle-actions.is-collecting { align-items: center; }
 .raffle-actions.is-collecting .raffle-action.primary { flex: 1 1 150px; }
 .raffle-actions.is-collecting .raffle-action.secondary { flex: 0 1 auto; min-height: 34px; padding-inline: 11px; font-size: 11px; }
-.raffle-actions.is-secondary { padding-top: 2px; border-top: 1px solid rgba(255,255,255,.08); }
+.raffle-actions.is-secondary { padding-top: 2px; border-top: 0 !important; }
 
 .raffle-actions button,
 .raffle-panel button.raffle-mode-card,
@@ -468,6 +468,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-top: 2px;
+  border-top: 0 !important;
 }
 
 .raffle-actions.is-secondary .raffle-action.danger[data-raffle-action="raffle:close"] {
