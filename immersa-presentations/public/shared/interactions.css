@@ -966,3 +966,139 @@ body.stage-actions-open .interaction-slide-scrim {
   border: 0 !important;
   outline: 0 !important;
 }
+
+/* PR #80 Encuestas home final alignment: fixed title, top pleca, CTA rocket, selected gradient border. */
+.interaction-panel,
+.stage-actions-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.interaction-panel::before,
+.stage-actions-card::before {
+  content: "";
+  position: absolute;
+  top: 0 !important;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  margin: 0;
+  border-radius: 0 0 4px 4px;
+  background: var(--immersa-gradient);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.interactions-native-shell {
+  gap: 10px;
+  padding-top: 0;
+}
+
+.interactions-shell-header {
+  min-height: 25px;
+  margin: 0;
+}
+
+.interactions-shell-nav {
+  margin-top: -1px;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.interactions-shell-close {
+  top: -3px;
+  right: -3px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px !important;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: transparent;
+  font-size: 0 !important;
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: none;
+}
+
+.interactions-shell-close::before,
+.interactions-shell-close::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.58);
+  transform-origin: center;
+}
+
+.interactions-shell-close::before { transform: rotate(45deg); }
+.interactions-shell-close::after { transform: rotate(-45deg); }
+
+.interactions-shell-close:hover {
+  color: transparent;
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.12);
+  transform: none;
+}
+
+.interactions-shell-close:hover::before,
+.interactions-shell-close:hover::after {
+  background: rgba(255,255,255,.78);
+}
+
+.interactions-shell-content,
+.interaction-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.interaction-panel-heading,
+.interaction-picker,
+.interaction-panel-actions {
+  margin: 0;
+}
+
+.interaction-panel-heading { gap: 4px; }
+
+.interaction-panel-actions:not(.interaction-active-actions) {
+  display: grid;
+  gap: 0;
+}
+
+.interaction-panel-actions .primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.interaction-launch-rocket {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: currentColor;
+}
+
+.interaction-panel button.interaction-choice.is-selected,
+.stage-actions-card button.interaction-choice.is-selected {
+  color: rgba(248, 250, 255, .98);
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(rgba(31, 29, 47, .98), rgba(31, 29, 47, .98)) padding-box,
+    var(--immersa-gradient) border-box !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+}
+
+.interaction-panel button.interaction-choice.is-selected::after,
+.stage-actions-card button.interaction-choice.is-selected::after {
+  color: #fff !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 15px;
+  font-weight: 500;
+}

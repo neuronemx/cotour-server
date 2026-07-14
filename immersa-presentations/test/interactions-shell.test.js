@@ -97,6 +97,8 @@ test("interactions shell preserves the approved category contract", () => {
   assert.equal(root.querySelectorAll("h2").length, 1);
   assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
   shell.setView("polls");
+  assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
+  assert.notEqual(root.querySelector(".interactions-shell-title").textContent, "Encuestas");
   assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
   assert.equal(category(root, "contests").disabled, true);
   assert.equal(category(root, "games").disabled, true);
@@ -127,14 +129,29 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /font-family: Poppins, Inter/);
   assert.match(css, /width: min\(380px, calc\(100vw - 28px\)\);/);
   assert.match(css, /\.interactions-shell-nav \{[\s\S]+gap: 0;[\s\S]+background: rgba\(5, 8, 18, \.32\);/);
-  assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;/);
-  assert.match(css, /\.interaction-panel::before \{[\s\S]+left: 18px;[\s\S]+right: 18px;[\s\S]+background: var\(--immersa-gradient\);/);
+  assert.match(css, /\.interactions-shell-nav \{[\s\S]+border: 0 !important;[\s\S]+outline: 0 !important;[\s\S]+box-shadow: none !important;/);
+  assert.match(css, /\.interaction-panel::before,[\s\S]+\.stage-actions-card::before \{[\s\S]+top: 0 !important;[\s\S]+height: 3px;[\s\S]+background: var\(--immersa-gradient\);/);
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
   assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
   assert.match(css, /\.interactions-shell-home\[hidden\] \{[\s\S]+display: none !important;[\s\S]+min-height: 0;[\s\S]+padding: 0;/);
-  assert.match(css, /\.interactions-shell-close \{[\s\S]+font-size: 14px !important;[\s\S]+font-weight: 300;/);
+  assert.match(css, /\.interactions-shell-close \{[\s\S]+color: transparent;[\s\S]+font-size: 0 !important;/);
+  assert.match(css, /\.interactions-shell-close::before,[\s\S]+\.interactions-shell-close::after \{[\s\S]+width: 8px;[\s\S]+height: 1px;/);
   assert.match(css, /\.interaction-choice-prompt \{[\s\S]+font-family: Inter, "Segoe UI", Arial, sans-serif;[\s\S]+font-weight: 400;/);
   assert.match(css, /\.interaction-panel button:hover:not\(:disabled\),[\s\S]+transform: none !important;/);
   assert.doesNotMatch(css, /:hover[^{}]*\{[^{}]*(?:translateY|scale)\(/);
+});
+
+
+test("poll home CTA uses the existing Speaker rocket SVG", () => {
+  const presenterHtml = fs.readFileSync(path.join(__dirname, "..", "public/presenter/index.html"), "utf8");
+  const rocket = presenterHtml.match(/<svg class="interaction-rocket-icon"[\s\S]+?<\/svg>/)[0].replace('class="interaction-rocket-icon"', 'class="interaction-launch-rocket"').replace(/\s*\n\s*/g, "");
+  const presenter = fs.readFileSync(path.join(__dirname, "..", "public/presenter/presenter.js"), "utf8");
+  const stage = fs.readFileSync(path.join(__dirname, "..", "public/stage/stage.js"), "utf8");
+  assert.match(presenter, /interactionLaunchRocketMarkup/);
+  assert.match(stage, /interactionLaunchRocketMarkup/);
+  assert.equal(presenter.includes(rocket), true);
+  assert.equal(stage.includes(rocket), true);
+  assert.match(presenter, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
+  assert.match(stage, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
 });

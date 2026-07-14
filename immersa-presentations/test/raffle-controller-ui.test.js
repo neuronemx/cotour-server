@@ -374,6 +374,8 @@ test("Stage modal relies on the shell close button and has an accessible dialog 
   assert.doesNotMatch(css, /\.stage-actions-close/);
   assert.match(stage, /role="dialog" aria-modal="true" aria-label="Interacciones"/);
   assert.match(shell, /"interactions-shell-close"/);
+  assert.match(shell, /title\.textContent = "Interacciones"/);
+  assert.doesNotMatch(shell, /title\.textContent = view === "polls" \? "Encuestas"/);
 });
 
 test("Stage hides the generic shell title immediately for idle poll and raffle categories", () => {

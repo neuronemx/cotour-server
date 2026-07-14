@@ -51,7 +51,7 @@
     function listen(target, eventName, handler) { target.addEventListener(eventName, handler); listeners.push([target, eventName, handler]); }
     function setView(nextView) { if (!VIEWS.has(nextView)) return false; view = nextView; renderState(); return true; }
     function renderState() {
-      title.textContent = view === "polls" ? "Encuestas" : view === "raffles" ? "Sorteos" : "Interacciones";
+      title.textContent = "Interacciones";
       title.hidden = !titleVisible;
       backButton.hidden = true;
       backButton.disabled = true;
