@@ -23,14 +23,15 @@ test("Breakout role detection covers all presentation roles", () => {
   assert.equal(BreakoutUi.roleFromPath("/p_abcd"), "audience");
 });
 
-test("controller exposes authoritative game actions", () => {
-  assert.match(BreakoutUi.controllerMarkup({ ...state, status: "idle" }), /breakout:start/);
+test("controller exposes preview and authoritative game actions", () => {
+  assert.match(BreakoutUi.controllerMarkup({ ...state, status: "idle" }), /breakout:prepare/);
+  assert.match(BreakoutUi.controllerMarkup({ ...state, status: "ready" }), /breakout:start/);
   assert.match(BreakoutUi.controllerMarkup(state), /breakout:pause/);
   assert.match(BreakoutUi.controllerMarkup({ ...state, status: "paused" }), /breakout:resume/);
-  assert.match(BreakoutUi.controllerMarkup({ ...state, status: "finished" }), /Jugar otra vez/);
+  assert.match(BreakoutUi.controllerMarkup({ ...state, status: "finished" }), /Preparar otra vez/);
 });
 
-test("screen board renders blocks, paddle, ball, score, and countdown", () => {
+test("screen board renders blocks, paddle, ball, score, and countdown while running", () => {
   const html = BreakoutUi.boardMarkup(state, "screen");
   assert.match(html, /breakout-screen/);
   assert.match(html, /300 pts/);
@@ -40,11 +41,23 @@ test("screen board renders blocks, paddle, ball, score, and countdown", () => {
   assert.match(html, /is-hit/);
 });
 
-test("audience receives exactly two collective controls", () => {
-  const html = BreakoutUi.audienceMarkup(state);
+test("ready preview renders only the movable paddle and preparation message", () => {
+  const html = BreakoutUi.boardMarkup({ ...state, status: "ready", score: 0, remaining_ms: 60000 }, "screen");
+  assert.match(html, /¿ESTÁN LISTOS\?/);
+  assert.match(html, /Muevan la barra/);
+  assert.match(html, /breakout-paddle/);
+  assert.doesNotMatch(html, /breakout-block/);
+  assert.doesNotMatch(html, /breakout-ball/);
+  assert.doesNotMatch(html, /breakout-countdown/);
+});
+
+test("audience receives exactly two collective controls and fullscreen action", () => {
+  const html = BreakoutUi.audienceMarkup({ ...state, status: "ready" });
   assert.equal((html.match(/data-breakout-direction=/g) || []).length, 2);
   assert.match(html, /direction="left"/);
   assert.match(html, /direction="right"/);
+  assert.match(html, /data-breakout-fullscreen/);
+  assert.match(html, /PRÁCTICA/);
 });
 
 test("browser module requests current state and preserves approved shell source", () => {
