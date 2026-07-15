@@ -1,7 +1,8 @@
 class ActiveInteractionCoordinator {
-  constructor({ interactionStore, raffleStore }) {
+  constructor({ interactionStore, raffleStore, breakoutStore = null }) {
     this.interactionStore = interactionStore;
     this.raffleStore = raffleStore;
+    this.breakoutStore = breakoutStore;
     this.locks = new Map();
   }
 
@@ -25,11 +26,23 @@ class ActiveInteractionCoordinator {
   }
 
   hasActiveInteraction(sessionId) {
-    return Boolean(this.interactionStore?.getSession(sessionId)?.active);
+    return Boolean(this.interactionStore?.getSession(sessionId)?.active) || this.hasActiveBreakout(sessionId);
   }
 
   hasActiveRaffle(sessionId) {
     return Boolean(this.raffleStore?.getActive(sessionId));
+  }
+
+  hasActiveBreakout(sessionId) {
+    return Boolean(this.breakoutStore?.hasActive(sessionId));
+  }
+
+  hasAnyActive(sessionId, except = "") {
+    return (
+      (except !== "interaction" && Boolean(this.interactionStore?.getSession(sessionId)?.active)) ||
+      (except !== "raffle" && this.hasActiveRaffle(sessionId)) ||
+      (except !== "breakout" && this.hasActiveBreakout(sessionId))
+    );
   }
 }
 
