@@ -103,6 +103,10 @@ function createBreakoutSocketHandlers({
       const result = store.input(context.sessionId, context.audienceId, direction);
       if (!result.ok && result.reason !== "rate_limited") reject(socket, "input", result.reason);
     });
+
+    socket.on("breakout:request_state", () => {
+      sendCurrentState(socket, getContext());
+    });
   }
 
   function sendCurrentState(socket, context) {
