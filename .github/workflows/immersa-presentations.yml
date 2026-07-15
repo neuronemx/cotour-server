@@ -58,3 +58,15 @@ jobs:
 
       - name: Check active interaction coordinator syntax
         run: node --check active-interaction-coordinator.js
+
+      - name: Check Breakout store syntax
+        run: node --check breakout-store.js
+
+      - name: Check Breakout socket syntax
+        run: node --check breakout-sockets.js
+
+      - name: Check Breakout UI syntax
+        run: node --check public/shared/breakout-ui.js
+
+      - name: Check presentation runtime syntax
+        run: node --check public/shared/presentation-runtime.js
