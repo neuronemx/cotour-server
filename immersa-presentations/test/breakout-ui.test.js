@@ -30,11 +30,11 @@ test("controller exposes authoritative game actions", () => {
   assert.match(BreakoutUi.controllerMarkup({ ...state, status: "finished" }), /Jugar otra vez/);
 });
 
-test("screen board renders blocks, paddle, ball, score, and time", () => {
+test("screen board renders blocks, paddle, ball, score, and countdown", () => {
   const html = BreakoutUi.boardMarkup(state, "screen");
   assert.match(html, /breakout-screen/);
   assert.match(html, /300 pts/);
-  assert.match(html, /42 s/);
+  assert.match(html, /breakout-countdown[^>]*>42</);
   assert.match(html, /breakout-paddle/);
   assert.match(html, /breakout-ball/);
   assert.match(html, /is-hit/);
