@@ -33,6 +33,21 @@ test("remaining time uses the authoritative server deadline", () => {
   assert.equal(TimeSync.remainingMs({ timer: { status: "paused", remaining_ms: 4200 } }, 9000), 4200);
 });
 
+test("disconnect rejects an active clock sample", async () => {
+  const socket = fakeSocket();
+  let rejectPending;
+  const client = TimeSync.create(socket, {
+    setTimeoutFn(fn) { rejectPending = fn; return 1; },
+    clearTimeoutFn() {},
+    document: { addEventListener() {} }
+  });
+  const pending = client.handlePresentationJoin(1);
+  socket.connected = false;
+  socket.trigger("disconnect");
+  assert.equal(await pending, null);
+  assert.equal(typeof rejectPending, "function");
+});
+
 test("presentation connection rejoins once for every new socket id", () => {
   const socket = fakeSocket();
   let timeSyncJoins = 0;
@@ -41,13 +56,13 @@ test("presentation connection rejoins once for every new socket id", () => {
     timeSync: { handlePresentationJoin() { timeSyncJoins += 1; }, handleDisconnect() {} }
   });
   connection.start();
-  assert.equal(socket.emissions.filter((item) => item.event === "join_presentation").length, 1);
+  assert.equal(socket.emissions.filter(item => item.event === "join_presentation").length, 1);
   assert.equal(connection.join(), false);
   socket.trigger("disconnect");
   socket.connected = true;
   socket.id = "socket-2";
   socket.trigger("connect");
-  assert.equal(socket.emissions.filter((item) => item.event === "join_presentation").length, 2);
+  assert.equal(socket.emissions.filter(item => item.event === "join_presentation").length, 2);
   assert.equal(timeSyncJoins, 2);
 });
 
@@ -62,21 +77,21 @@ test("adoptCurrentConnection avoids duplicating the legacy initial join", () => 
   socket.connected = true;
   socket.id = "socket-2";
   socket.trigger("connect");
-  assert.equal(socket.emissions.filter((item) => item.event === "join_presentation").length, 1);
+  assert.equal(socket.emissions.filter(item => item.event === "join_presentation").length, 1);
 });
 
-test("runtime is loaded from the shared drawing script used by all roles", () => {
+test("runtime and Time Sync UI are loaded for shared roles", () => {
   const drawing = fs.readFileSync(path.join(__dirname, "../public/shared/drawing-overlay.js"), "utf8");
+  const runtime = fs.readFileSync(path.join(__dirname, "../public/shared/presentation-runtime.js"), "utf8");
+  const ui = fs.readFileSync(path.join(__dirname, "../public/shared/time-sync-ui.js"), "utf8");
   assert.match(drawing, /\/shared\/time-sync-client\.js/);
   assert.match(drawing, /\/shared\/presentation-connection\.js/);
   assert.match(drawing, /\/shared\/presentation-runtime\.js/);
-  assert.match(drawing, /setTimeout\(loadPresentationRuntime, 0\)/);
-});
-
-test("runtime maps product routes to internal socket roles", () => {
-  const runtime = fs.readFileSync(path.join(__dirname, "../public/shared/presentation-runtime.js"), "utf8");
-  assert.match(runtime, /configuredRole === "speaker" \? "presenter"/);
+  assert.match(runtime, /\/shared\/time-sync-ui\.css/);
+  assert.match(runtime, /\/shared\/time-sync-ui\.js/);
   assert.match(runtime, /speaker\|presenter/);
-  assert.match(runtime, /role === "audience"/);
-  assert.match(runtime, /adoptCurrentConnection: true/);
+  assert.match(runtime, /role==='audience'/);
+  assert.match(runtime, /adoptCurrentConnection:true/);
+  assert.match(ui, /Mostrar en Screen/);
+  assert.match(ui, /Mostrar en Público/);
 });
