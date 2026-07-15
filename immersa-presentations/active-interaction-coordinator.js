@@ -26,7 +26,7 @@ class ActiveInteractionCoordinator {
   }
 
   hasActiveInteraction(sessionId) {
-    return Boolean(this.interactionStore?.getSession(sessionId)?.active);
+    return Boolean(this.interactionStore?.getSession(sessionId)?.active) || this.hasActiveBreakout(sessionId);
   }
 
   hasActiveRaffle(sessionId) {
@@ -39,7 +39,7 @@ class ActiveInteractionCoordinator {
 
   hasAnyActive(sessionId, except = "") {
     return (
-      (except !== "interaction" && this.hasActiveInteraction(sessionId)) ||
+      (except !== "interaction" && Boolean(this.interactionStore?.getSession(sessionId)?.active)) ||
       (except !== "raffle" && this.hasActiveRaffle(sessionId)) ||
       (except !== "breakout" && this.hasActiveBreakout(sessionId))
     );
