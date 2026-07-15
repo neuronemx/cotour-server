@@ -6,4 +6,4 @@ const { BreakoutStore } = require("../breakout-store");
 
 function advanceReadyPaddle(store, sessionId, direction, audienceId, startAt) {
   store.input(sessionId, audienceId, direction, startAt + 100);
-  store.step(sessionId, 50, startAt + 200);
+  store.step(sessionId, 50
