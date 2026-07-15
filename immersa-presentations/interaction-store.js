@@ -1,4 +1,6 @@
 const { TimeSyncStore, createTimeSyncSocketHandlers } = require("./time-sync-store");
+const { BreakoutStore } = require("./breakout-store");
+const { createBreakoutSocketHandlers } = require("./breakout-sockets");
 
 const FALLBACK_DEMO_INTERACTION = {
   id: "demo-poll-1",
@@ -169,8 +171,18 @@ class InteractionStore {
   }
 }
 
-function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, getRoleRoomKey, coordinator = null, timeSyncStore = new TimeSyncStore() }) {
+function createInteractionSocketHandlers({
+  io,
+  store,
+  loadInteractionsForDeck,
+  getRoleRoomKey,
+  coordinator = null,
+  timeSyncStore = new TimeSyncStore(),
+  breakoutStore = new BreakoutStore()
+}) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
+  if (coordinator) coordinator.breakoutStore = breakoutStore;
+  const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator });
 
   function canControlInteractions(context) {
     return context?.role === "presenter" || context?.role === "stage";
@@ -201,11 +213,13 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     if (results && (context.role === "presenter" || context.role === "stage")) socket.emit("interaction:results_updated", results);
     if (results && context.role === "screen" && store.getSession(context.sessionId).resultsVisible) socket.emit("interaction:show_results", results);
     timeSyncSockets.sendCurrentState(socket, context);
+    breakoutSockets.sendCurrentState(socket, context);
   }
 
   async function launchInteraction(context, interactionId) {
     const execute = async () => {
       if (coordinator?.hasActiveRaffle(context.sessionId)) return { ok: false, reason: "active_raffle_exists" };
+      if (coordinator?.hasActiveBreakout(context.sessionId)) return { ok: false, reason: "active_breakout_exists" };
       const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
       const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
       const active = store.launch({ sessionId: context.sessionId, interaction });
@@ -217,6 +231,7 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
 
   function attach(socket, getContext) {
     timeSyncSockets.attach(socket, getContext);
+    breakoutSockets.attach(socket, getContext);
 
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
@@ -276,7 +291,14 @@ function createInteractionSocketHandlers({ io, store, loadInteractionsForDeck, g
     });
   }
 
-  return { attach, sendCurrentState, timeSyncStore, timeSyncSockets };
+  return {
+    attach,
+    sendCurrentState,
+    timeSyncStore,
+    timeSyncSockets,
+    breakoutStore,
+    breakoutSockets
+  };
 }
 
 module.exports = { InteractionStore, createInteractionSocketHandlers, FALLBACK_DEMO_INTERACTION };
