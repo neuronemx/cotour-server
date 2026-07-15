@@ -2,7 +2,7 @@
   if (typeof module === "object" && module.exports) module.exports = factory(root);
   else root.ImmersaInteractionsShell = factory(root);
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  const VIEWS = new Set(["home", "polls", "raffles", "games"]);
+  const VIEWS = new Set(["home", "polls", "raffles"]);
   const APPROVED_CATEGORY_ICONS = {
     polls: { viewBox: "0 0 24 24", rects: [{ x: "3.5", y: "3.5", width: "17", height: "15", rx: "2" }], paths: ["M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2"] },
     raffles: { viewBox: "0 0 24 24", rects: [], paths: ["M3 8h18v13H3zM3 8h18M12 8v13M7.5 8a2.5 2.5 0 1 1 0-5C9.2 3 10.6 4.5 12 8M16.5 8a2.5 2.5 0 1 0 0-5C14.8 3 13.4 4.5 12 8"] },
@@ -13,7 +13,7 @@
     { id: "polls", label: "Encuestas", enabled: true, icon: APPROVED_CATEGORY_ICONS.polls },
     { id: "raffles", label: "Sorteos", enabled: true, icon: APPROVED_CATEGORY_ICONS.raffles },
     { id: "contests", label: "Concursos", enabled: false, icon: APPROVED_CATEGORY_ICONS.contests },
-    { id: "games", label: "Juegos", enabled: true, icon: APPROVED_CATEGORY_ICONS.games }
+    { id: "games", label: "Juegos", enabled: false, icon: APPROVED_CATEGORY_ICONS.games }
   ];
   function createElement(documentRef, tag, className, text) { const element = documentRef.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; }
   function create(options = {}) {
