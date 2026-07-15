@@ -2,7 +2,7 @@
   if (typeof module === "object" && module.exports) module.exports = factory(root);
   else root.ImmersaInteractionsShell = factory(root);
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  const VIEWS = new Set(["home", "polls", "raffles"]);
+  const VIEWS = new Set(["home", "polls", "raffles", "games"]);
   const APPROVED_CATEGORY_ICONS = {
     polls: { viewBox: "0 0 24 24", rects: [{ x: "3.5", y: "3.5", width: "17", height: "15", rx: "2" }], paths: ["M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2"] },
     raffles: { viewBox: "0 0 24 24", rects: [], paths: ["M3 8h18v13H3zM3 8h18M12 8v13M7.5 8a2.5 2.5 0 1 1 0-5C9.2 3 10.6 4.5 12 8M16.5 8a2.5 2.5 0 1 0 0-5C14.8 3 13.4 4.5 12 8"] },
@@ -49,6 +49,11 @@
     container.append(header, nav, home, content);
     root.appendChild(container);
     function listen(target, eventName, handler) { target.addEventListener(eventName, handler); listeners.push([target, eventName, handler]); }
+    function syncRendererVisibility() {
+      content.querySelectorAll?.("[data-interactions-view]").forEach((node) => {
+        node.hidden = node.dataset.interactionsView !== view;
+      });
+    }
     function setView(nextView) { if (!VIEWS.has(nextView)) return false; view = nextView; renderState(); return true; }
     function renderState() {
       title.textContent = "Interacciones";
@@ -61,12 +66,13 @@
       buttons.forEach((button, id) => { const active = id === view; button.classList.toggle("is-active", active); button.setAttribute("aria-pressed", String(active)); if (button.getAttribute("aria-disabled") === "true") button.disabled = true; else button.disabled = locked; });
       container.classList.toggle("is-locked", locked);
       container.dataset.view = view;
+      syncRendererVisibility();
     }
     listen(nav, "click", (event) => { const button = event.target?.closest?.("[data-interactions-category]"); if (!button || !nav.contains(button) || button.disabled || locked) return; const nextView = button.dataset.interactionsCategory; if (!VIEWS.has(nextView)) return; setView(nextView); options.onSelectCategory?.(nextView); });
     listen(backButton, "click", () => { if (backButton.hidden || locked || view === "home") return; setView("home"); options.onSelectCategory?.("home"); });
     listen(closeButton, "click", () => { options.onRequestClose?.(); });
     renderState();
-    return { setView, setLocked(value) { locked = Boolean(value); renderState(); }, setCloseVisible(value) { closeVisible = Boolean(value); renderState(); }, setTitleVisible(value) { titleVisible = Boolean(value); renderState(); }, getContentRoot() { return content; }, getView() { return view; }, destroy() { if (destroyed) return; destroyed = true; listeners.splice(0).forEach(([target, eventName, handler]) => target.removeEventListener(eventName, handler)); container.remove(); } };
+    return { setView, refreshRendererVisibility: syncRendererVisibility, setLocked(value) { locked = Boolean(value); renderState(); }, setCloseVisible(value) { closeVisible = Boolean(value); renderState(); }, setTitleVisible(value) { titleVisible = Boolean(value); renderState(); }, getContentRoot() { return content; }, getView() { return view; }, destroy() { if (destroyed) return; destroyed = true; listeners.splice(0).forEach(([target, eventName, handler]) => target.removeEventListener(eventName, handler)); container.remove(); } };
   }
   return { create };
 });
