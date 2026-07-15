@@ -15,32 +15,35 @@ const state = {
 
 test("Screen exposes a large urgent countdown under ten seconds", () => {
   const html = BreakoutUi.boardMarkup(state, "screen");
-  assert.match(html, /breakout-countdown is-urgent/);
-  assert.match(html, />9<\/div>/);
+  assert.ok(html.includes("breakout-countdown is-urgent"));
+  assert.ok(html.includes(">9</div>"));
 });
 
 test("Audience markup keeps exactly two stable directional controls", () => {
   const html = BreakoutUi.audienceMarkup(state);
   assert.equal((html.match(/data-breakout-direction=/g) || []).length, 2);
-  assert.match(html, /data-breakout-audience-time/);
-  assert.match(html, /data-breakout-audience-score/);
+  assert.ok(html.includes("data-breakout-audience-time"));
+  assert.ok(html.includes("data-breakout-audience-score"));
 });
 
 test("Breakout browser source supports sustained press without rebuilding controls", () => {
   const source = fs.readFileSync(path.join(__dirname, "../public/shared/breakout-ui.js"), "utf8");
-  assert.match(source, /HOLD_MS=75/);
-  assert.match(source, /audienceMounted/);
-  assert.match(source, /controlStatus!==st/);
-  assert.match(source, /lostpointercapture/);
-  assert.match(source, /classList\.toggle\('is-held'/);
+  assert.ok(source.includes("HOLD_MS=75"));
+  assert.ok(source.includes("audienceMounted"));
+  assert.ok(source.includes("controlStatus!==status"));
+  assert.ok(source.includes("lostpointercapture"));
+  assert.ok(source.includes("classList.toggle('is-held'"));
 });
 
-test("Landscape control art maps all four supplied visual states", () => {
+test("Landscape control art uses image layers for all four visual states", () => {
+  const html = BreakoutUi.audienceMarkup(state);
   const css = fs.readFileSync(path.join(__dirname, "../public/shared/breakout-controls-art.css"), "utf8");
-  assert.match(css, /orientation:landscape/);
-  assert.match(css, /left-off\.jpg/);
-  assert.match(css, /left-on\.jpg/);
-  assert.match(css, /right-off\.jpg/);
-  assert.match(css, /right-on\.jpg/);
-  assert.match(css, /\.breakout-countdown\.is-urgent/);
+  assert.ok(css.includes("orientation:landscape"));
+  assert.ok(css.includes(".breakout-control-art.is-off"));
+  assert.ok(css.includes(".breakout-control-art.is-on"));
+  assert.ok(html.includes("left-off.jpg"));
+  assert.ok(html.includes("left-on.jpg"));
+  assert.ok(html.includes("right-off.jpg"));
+  assert.ok(html.includes("right-on.jpg"));
+  assert.ok(css.includes(".breakout-countdown.is-urgent"));
 });
