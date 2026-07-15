@@ -13,7 +13,7 @@
     { id: "polls", label: "Encuestas", enabled: true, icon: APPROVED_CATEGORY_ICONS.polls },
     { id: "raffles", label: "Sorteos", enabled: true, icon: APPROVED_CATEGORY_ICONS.raffles },
     { id: "contests", label: "Concursos", enabled: false, icon: APPROVED_CATEGORY_ICONS.contests },
-    { id: "games", label: "Juegos", enabled: true, icon: APPROVED_CATEGORY_ICONS.games }
+    { id: "games", label: "Juegos", enabled: false, icon: APPROVED_CATEGORY_ICONS.games }
   ];
   function createElement(documentRef, tag, className, text) { const element = documentRef.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; }
   function create(options = {}) {
