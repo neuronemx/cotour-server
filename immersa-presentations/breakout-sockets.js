@@ -2,9 +2,10 @@ const TICK_MS=50;
 const BROADCAST_MS=100;
 const LOOP_STATUSES=new Set(['ready','running']);
 function createBreakoutSocketHandlers({io,store,coordinator=null,setIntervalFn=setInterval,clearIntervalFn=clearInterval}){
- const loops=new Map();
+ const loops=new Map(),audioBySession=new Map();
  const canControl=context=>context?.role==='presenter'||context?.role==='stage';
  const emitState=(roomKey,sessionId)=>io.to(roomKey).emit('breakout:state',store.snapshot(sessionId));
+ const audioState=sessionId=>audioBySession.get(String(sessionId||''))||{muted:false,volume:.7};
  function stopLoop(sessionId){const key=String(sessionId||''),loop=loops.get(key);if(loop)clearIntervalFn(loop.handle);loops.delete(key);}
  function ensureLoop(roomKey,sessionId){const key=String(sessionId||'');if(loops.has(key))return;let lastAt=Date.now(),lastBroadcastAt=0;const handle=setIntervalFn(()=>{const nowMs=Date.now(),state=store.step(sessionId,nowMs-lastAt,nowMs);lastAt=nowMs;if(nowMs-lastBroadcastAt>=BROADCAST_MS||!LOOP_STATUSES.has(state.status)){io.to(roomKey).emit('breakout:state',state);lastBroadcastAt=nowMs;}if(!LOOP_STATUSES.has(state.status))stopLoop(sessionId);},TICK_MS);handle?.unref?.();loops.set(key,{handle,roomKey});}
  function clearCompeting(context){const sessionId=context.sessionId,roomKey=context.roomKey,interactionStore=coordinator?.interactionStore,raffleStore=coordinator?.raffleStore;if(!interactionStore&&!raffleStore&&coordinator?.hasAnyActive?.(sessionId,'breakout'))return{ok:false,reason:'active_interaction_exists'};const interaction=interactionStore?.getSession(sessionId)?.active||null;if(interaction){interactionStore.close(sessionId);io.to(roomKey).emit('interaction:closed',{interactionId:interaction.id||''});io.to(roomKey).emit('interaction:state',{active:null,response:null,resultsVisible:false});io.to(roomKey).emit('interaction:hide_results',{interactionId:interaction.id||''});}const raffle=raffleStore?.getActive(sessionId)||null;if(raffle){raffleStore.close(sessionId);io.to(roomKey).emit('raffle:closed',{raffleId:raffle.id||''});io.to(roomKey).emit('raffle:state',{active:null,previousWinnerCount:0,visualKeyDraftEntryKey:''});}return{ok:true};}
@@ -17,9 +18,11 @@ function createBreakoutSocketHandlers({io,store,coordinator=null,setIntervalFn=s
   socket.on('breakout:resume',()=>{const context=getContext();if(!context?.roomKey||!context?.sessionId||!canControl(context))return;const result=store.resume(context.sessionId,context.role);if(!result.ok)return reject(socket,'resume',result.reason);emitState(context.roomKey,context.sessionId);ensureLoop(context.roomKey,context.sessionId);});
   socket.on('breakout:close',()=>{const context=getContext();if(!context?.roomKey||!context?.sessionId||!canControl(context))return;const result=store.close(context.sessionId,context.role);if(!result.ok)return reject(socket,'close',result.reason);stopLoop(context.sessionId);io.to(context.roomKey).emit('breakout:closed',store.snapshot(context.sessionId));});
   socket.on('breakout:input',({direction}={})=>{const context=getContext();if(!context?.sessionId||context.role!=='audience'||!context.audienceId)return;const result=store.input(context.sessionId,context.audienceId,direction);if(!result.ok&&result.reason!=='rate_limited')reject(socket,'input',result.reason);});
+  socket.on('breakout:audio:set',next=>{const context=getContext();if(!context?.roomKey||!context?.sessionId||context.role!=='stage')return;const cfg={muted:Boolean(next?.muted),volume:Math.max(0,Math.min(1,Number(next?.volume??.7)))};audioBySession.set(String(context.sessionId),cfg);io.to(context.roomKey).emit('breakout:audio:state',cfg);});
+  socket.on('breakout:audio:request',()=>{const context=getContext();if(context?.sessionId)socket.emit('breakout:audio:state',audioState(context.sessionId));});
   socket.on('breakout:request_state',()=>sendCurrentState(socket,getContext()));
  }
- function sendCurrentState(socket,context){if(!context?.sessionId)return;const state=store.snapshot(context.sessionId);socket.emit('breakout:state',state);if(LOOP_STATUSES.has(state.status)&&context.roomKey)ensureLoop(context.roomKey,context.sessionId);}
+ function sendCurrentState(socket,context){if(!context?.sessionId)return;const state=store.snapshot(context.sessionId);socket.emit('breakout:state',state);socket.emit('breakout:audio:state',audioState(context.sessionId));if(LOOP_STATUSES.has(state.status)&&context.roomKey)ensureLoop(context.roomKey,context.sessionId);}
  function closeAll(){for(const sessionId of Array.from(loops.keys()))stopLoop(sessionId);}
  return{attach,sendCurrentState,emitState,ensureLoop,stopLoop,closeAll,constants:{TICK_MS,BROADCAST_MS}};
 }
