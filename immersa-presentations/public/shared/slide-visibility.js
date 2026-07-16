@@ -12,23 +12,27 @@
     const params=new URLSearchParams(root.location.search);
     const ctx=root.IMMERSA_ROLE_OPEN||{};
     const deckId=params.get('deck')||ctx.deck||ctx.deckId||'demo';
-    let manifest=null,interactions=[],hidden=new Set(),state=null,saving=false;
+    let manifest=null,interactions=[],videos=[],hiddenIds=new Set(),state=null,saving=false;
     const ids=role==='presenter'?{prev:'prev',next:'next'}:{prev:'prevSlide',next:'nextSlide'};
     const currentEl=document.getElementById('current');
     const totalEl=document.getElementById('total');
     const thumbs=document.getElementById('thumbs');
 
+    function slideId(index){
+      return String(manifest?.slides?.[index]?.id||'slide-'+String(index+1).padStart(3,'0'));
+    }
+    function hiddenIndex(index){return hiddenIds.has(slideId(index));}
     function ensureCss(){
       if(document.querySelector('link[data-slide-visibility]'))return;
       const link=document.createElement('link');
       link.rel='stylesheet';
-      link.href='/shared/slide-visibility.css?v=100';
+      link.href='/shared/slide-visibility.css?v=104';
       link.dataset.slideVisibility='1';
       document.head.appendChild(link);
     }
     function visible(){
       const count=manifest?.slides?.length||0;
-      return Array.from({length:count},(_,index)=>index).filter(index=>!hidden.has(index));
+      return Array.from({length:count},(_,index)=>index).filter(index=>!hiddenIndex(index));
     }
     function currentIndex(){
       return Number(role==='presenter'?(state?.presenterSlideIndex??state?.slideIndex??0):(state?.liveSlideIndex??state?.slideIndex??0))||0;
@@ -70,6 +74,7 @@
         shell.appendChild(control);
       }
       control.dataset.slideIndex=String(index);
+      control.dataset.slideId=slideId(index);
       return {shell,control};
     }
     function syncThumbs(){
@@ -77,7 +82,8 @@
         const nodes=Array.from(thumbs.querySelectorAll('.thumb'));
         nodes.forEach((node,index)=>{
           node.dataset.slideIndex=String(index);
-          const off=hidden.has(index);
+          node.dataset.slideId=slideId(index);
+          const off=hiddenIndex(index);
           const {shell,control}=ensureThumbShell(node,index);
           node.classList.toggle('is-hidden-slide',off);
           shell.classList.toggle('is-hidden-slide',off);
@@ -93,7 +99,9 @@
       const response=await fetch('/api/decks/'+encodeURIComponent(deckId)+'/interactions',{cache:'no-store'});
       const data=response.ok?await response.json():{};
       interactions=Array.isArray(data.interactions)?data.interactions:[];
-      hidden=new Set((data.hidden_slide_indexes||[]).map(Number));
+      videos=Array.isArray(data.videos)?data.videos:[];
+      const idsFromApi=Array.isArray(data.hidden_slide_ids)?data.hidden_slide_ids:[];
+      hiddenIds=new Set(idsFromApi.length?idsFromApi:(data.hidden_slide_indexes||[]).map(Number).map(slideId));
       syncThumbs();
     }
     async function save(){
@@ -103,11 +111,11 @@
         const response=await fetch('/api/decks/'+encodeURIComponent(deckId)+'/interactions',{
           method:'PUT',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({interactions,hidden_slide_indexes:[...hidden].sort((a,b)=>a-b)})
+          body:JSON.stringify({interactions,videos,hidden_slide_ids:[...hiddenIds]})
         });
         if(!response.ok)throw new Error('Unable to save slide visibility');
         const data=await response.json();
-        hidden=new Set(data.hidden_slide_indexes||[]);
+        hiddenIds=new Set(data.hidden_slide_ids||[]);
       }catch(error){
         console.warn(error);
         await loadSettings();
@@ -118,14 +126,15 @@
     }
     async function toggle(index){
       const list=visible();
-      const wasHidden=hidden.has(index);
+      const id=slideId(index);
+      const wasHidden=hiddenIds.has(id);
       if(!wasHidden&&list.length<=1){
         const node=thumbs?.querySelector('.thumb[data-slide-index="'+index+'"]');
         node?.classList.add('is-visibility-blocked');
         setTimeout(()=>node?.classList.remove('is-visibility-blocked'),700);
         return;
       }
-      if(wasHidden)hidden.delete(index);else hidden.add(index);
+      if(wasHidden)hiddenIds.delete(id);else hiddenIds.add(id);
       syncThumbs();
       if(!wasHidden&&index===currentIndex())live.emit('slide_go',{slideIndex:targetFrom(index,1)});
       await save();
@@ -141,7 +150,7 @@
           return;
         }
         const thumb=event.target.closest?.('.thumb');
-        if(thumb&&hidden.has(Number(thumb.dataset.slideIndex))){
+        if(thumb&&hiddenIds.has(String(thumb.dataset.slideId))){
           event.preventDefault();
           event.stopImmediatePropagation();
         }
@@ -165,7 +174,7 @@
     }
     async function init(){
       ensureCss();
-      const response=await fetch('/decks/'+encodeURIComponent(deckId)+'/manifest.json');
+      const response=await fetch('/decks/'+encodeURIComponent(deckId)+'/manifest.json',{cache:'no-store'});
       manifest=await response.json();
       bindThumbs();
       bindNav(ids.prev,-1);
