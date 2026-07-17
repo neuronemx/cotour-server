@@ -26,7 +26,7 @@
       if(document.querySelector('link[data-slide-visibility]'))return;
       const link=document.createElement('link');
       link.rel='stylesheet';
-      link.href='/shared/slide-visibility.css?v=104';
+      link.href='/shared/slide-visibility.css?v=100';
       link.dataset.slideVisibility='1';
       document.head.appendChild(link);
     }
@@ -74,7 +74,7 @@
         shell.appendChild(control);
       }
       control.dataset.slideIndex=String(index);
-      control.dataset.slideId=slideId(index);
+      control.setAttribute('data-slide-id',slideId(index));
       return {shell,control};
     }
     function syncThumbs(){
@@ -82,7 +82,7 @@
         const nodes=Array.from(thumbs.querySelectorAll('.thumb'));
         nodes.forEach((node,index)=>{
           node.dataset.slideIndex=String(index);
-          node.dataset.slideId=slideId(index);
+          node.setAttribute('data-slide-id',slideId(index));
           const off=hiddenIndex(index);
           const {shell,control}=ensureThumbShell(node,index);
           node.classList.toggle('is-hidden-slide',off);
