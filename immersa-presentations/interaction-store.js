@@ -1,6 +1,7 @@
 const { TimeSyncStore, createTimeSyncSocketHandlers } = require("./time-sync-store");
 const { BreakoutStore } = require("./breakout-store");
 const { createBreakoutSocketHandlers } = require("./breakout-sockets");
+const { createMediaSocketHandlers } = require("./media-sockets");
 
 const FALLBACK_DEMO_INTERACTION = {
   id: "demo-poll-1",
@@ -183,6 +184,7 @@ function createInteractionSocketHandlers({
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
   if (coordinator) coordinator.breakoutStore = breakoutStore;
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator });
+  const mediaSockets = createMediaSocketHandlers({ io, getRoleRoomKey });
 
   function canControlInteractions(context) {
     return context?.role === "presenter" || context?.role === "stage";
@@ -214,6 +216,7 @@ function createInteractionSocketHandlers({
     if (results && context.role === "screen" && store.getSession(context.sessionId).resultsVisible) socket.emit("interaction:show_results", results);
     timeSyncSockets.sendCurrentState(socket, context);
     breakoutSockets.sendCurrentState(socket, context);
+    mediaSockets.sendCurrentState(socket, context);
   }
 
   async function launchInteraction(context, interactionId) {
@@ -232,6 +235,7 @@ function createInteractionSocketHandlers({
   function attach(socket, getContext) {
     timeSyncSockets.attach(socket, getContext);
     breakoutSockets.attach(socket, getContext);
+    mediaSockets.attach(socket, getContext);
 
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
       const context = getContext();
@@ -297,7 +301,8 @@ function createInteractionSocketHandlers({
     timeSyncStore,
     timeSyncSockets,
     breakoutStore,
-    breakoutSockets
+    breakoutSockets,
+    mediaSockets
   };
 }
 
