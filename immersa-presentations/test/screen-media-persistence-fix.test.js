@@ -14,13 +14,15 @@ test('persistent multimedia fallback keeps stable deck and slide keys', () => {
   assert.ok(persistence.MAX_INDEXEDDB_COPY_BYTES >= 256 * 1024 * 1024);
 });
 
-test('Screen loads one canonical persistence store before the media manager', () => {
+test('Screen loads picker adapter and canonical persistence before the media manager', () => {
   const screen = read('public/screen/index.html');
   const fix = read('public/screen/screen-local-media-persistence-fix.js');
-  const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=110');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=110');
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=111');
+  const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=111');
 
-  assert.ok(fixPosition >= 0);
+  assert.ok(adapterPosition >= 0);
+  assert.ok(fixPosition > adapterPosition);
   assert.ok(managerPosition > fixPosition);
   assert.doesNotMatch(screen, /screen-local-media-handle-store\.js/);
   assert.match(fix, /transaction\.oncomplete/);
