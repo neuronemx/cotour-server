@@ -14,6 +14,7 @@ test('video slide manifest entries are detected and normalized', () => {
   assert.equal(videoSlides.posterPath({ poster: 'poster.jpg', thumb: 'thumb.jpg' }), 'poster.jpg');
   assert.equal(videoSlides.posterPath({ thumb: 'thumb.jpg' }), 'thumb.jpg');
   assert.equal(videoSlides.assetUrl('sales-deck', 'slides/slide-007.mp4'), '/decks/sales-deck/slides/slide-007.mp4');
+  assert.equal(videoSlides.assetUrl('sales-deck', 'blob:local-video'), 'blob:local-video');
 });
 
 test('video media state follows the active role slide index', () => {
@@ -36,20 +37,23 @@ test('video media state follows the active role slide index', () => {
   });
 });
 
-test('all roles load the shared video slide runtime', () => {
+test('all roles load the configured video bridge and shared runtime', () => {
   const screen = read('public/screen/index.html');
   const audience = read('public/audience/index.html');
   const sharedLoader = read('public/shared/slide-confirm.js');
   const runtime = read('public/shared/video-slide-runtime.js');
+  const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-slide-runtime\.js\?v=103/);
-  assert.match(audience, /video-slide-runtime\.js\?v=103/);
-  assert.match(sharedLoader, /video-slide-runtime\.js\?v=103/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=107/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=107/);
   assert.match(sharedLoader, /readyState==='complete'/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=107/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /Activar sonido y multimedia/);
+  assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /role === 'screen'/);
   assert.match(css, /\.immersa-video-slide/);
   assert.match(css, /\.video-media-controls/);
