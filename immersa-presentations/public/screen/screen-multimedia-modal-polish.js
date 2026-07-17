@@ -8,15 +8,17 @@
 
     const copy = item.querySelector('.screen-media-copy');
     if (!copy) return;
-    const existing = copy.querySelector('em');
-    const detail = String(existing?.textContent || '').replace(/^Usando localmente:\s*/i, '').trim();
     let warning = copy.querySelector('[data-media-file-warning]');
     if (!warning) {
+      const existing = copy.querySelector('em');
+      const detail = String(existing?.textContent || '').replace(/^Usando localmente:\s*/i, '').trim();
       warning = root.document.createElement('em');
       warning.dataset.mediaFileWarning = '1';
+      warning.dataset.mediaFileDetail = detail;
       if (existing) existing.replaceWith(warning);
       else copy.appendChild(warning);
     }
+    const detail = String(warning.dataset.mediaFileDetail || '').trim();
     const text = WARNING + (detail ? ' · ' + detail : '');
     if (warning.textContent !== text) warning.textContent = text;
   }
@@ -33,19 +35,26 @@
     const actions = modal.querySelector('.screen-media-actions');
     if (actions) actions.classList.add('is-single-picker');
 
-    modal.querySelectorAll('[data-media-action="accept"]').forEach((button) => button.click());
+    modal.querySelectorAll('[data-media-action="accept"]:not([data-media-auto-accept])').forEach((button) => {
+      button.dataset.mediaAutoAccept = '1';
+      button.click();
+    });
     modal.querySelectorAll('.screen-media-item.is-ready_override').forEach(polishOverride);
   }
 
   function schedulePolish() {
     if (scheduled) return;
     scheduled = true;
-    (root.requestAnimationFrame || root.setTimeout)(polishModal, 0);
+    if (typeof root.requestAnimationFrame === 'function') root.requestAnimationFrame(polishModal);
+    else root.setTimeout(polishModal, 0);
   }
 
   if (!root.document) return;
-  const observer = new MutationObserver(schedulePolish);
-  observer.observe(root.document.documentElement, { childList: true, subtree: true, characterData: true });
+  const Observer = root.MutationObserver;
+  if (typeof Observer === 'function') {
+    const observer = new Observer(schedulePolish);
+    observer.observe(root.document.documentElement, { childList: true, subtree: true, characterData: true });
+  }
   if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', schedulePolish, { once: true });
   else schedulePolish();
 })(typeof window !== 'undefined' ? window : globalThis);
