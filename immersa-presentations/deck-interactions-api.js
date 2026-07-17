@@ -164,12 +164,13 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
 
-    const hiddenIds = body.hidden_slide_ids !== undefined
+    const usesStableHiddenIds = body.hidden_slide_ids !== undefined;
+    const hiddenIds = usesStableHiddenIds
       ? normalizeIds(body.hidden_slide_ids).filter((slideId) => slideIds.includes(slideId))
       : body.hidden_slide_indexes !== undefined
         ? normalizeIndexes(body.hidden_slide_indexes).map((index) => slideIds[index]).filter(Boolean)
         : current.hidden_slide_ids;
-    if (hiddenIds.length >= slideIds.length && slideIds.length) {
+    if (usesStableHiddenIds && hiddenIds.length >= slideIds.length && slideIds.length) {
       const error = new Error("At least one slide must remain visible");
       error.statusCode = 400;
       throw error;
