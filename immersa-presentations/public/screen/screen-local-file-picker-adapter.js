@@ -1,5 +1,5 @@
 (function (root) {
-  const BUILD = 'v111';
+  const BUILD = 'v113';
   const MODE_NATIVE = 'native';
   const MODE_ADAPTER = 'input-adapter';
 
@@ -42,26 +42,4 @@
   }
 
   root.__IMMERSA_MEDIA_BUILD = BUILD;
-
-  function addBuildMarker() {
-    const header = root.document?.querySelector('.screen-media-modal header');
-    if (!header || header.querySelector('[data-media-build]')) return;
-    const marker = root.document.createElement('small');
-    marker.dataset.mediaBuild = '1';
-    marker.textContent = 'Persistencia ' + BUILD + ' · ' + (root.__IMMERSA_MEDIA_PICKER_MODE === MODE_NATIVE ? 'selector nativo' : 'selector compatible');
-    marker.style.display = 'block';
-    marker.style.marginTop = '5px';
-    marker.style.color = '#7c3aed';
-    marker.style.fontSize = '10px';
-    marker.style.fontWeight = '850';
-    marker.style.letterSpacing = '.04em';
-    header.appendChild(marker);
-  }
-
-  if (root.document) {
-    const observer = new MutationObserver(addBuildMarker);
-    observer.observe(root.document.documentElement, { childList: true, subtree: true });
-    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', addBuildMarker, { once: true });
-    else addBuildMarker();
-  }
 })(typeof window !== 'undefined' ? window : globalThis);
