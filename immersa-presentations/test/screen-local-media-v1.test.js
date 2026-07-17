@@ -51,6 +51,7 @@ test('Screen matches local files by name and exact size', () => {
   ]);
   assert.equal(records[0].status, 'selected');
   assert.equal(records[1].status, 'mismatched');
+  assert.equal(localMedia.escapeHtml('<clip>.mp4'), '&lt;clip&gt;.mp4');
 });
 
 test('media status is normalized before broadcasting to control roles', () => {
@@ -71,10 +72,12 @@ test('Screen and control roles load local multimedia preparation', () => {
   const loader = read('public/shared/slide-confirm.js');
   const runtime = read('public/shared/video-slide-runtime.js');
   const bridgeSource = read('public/shared/video-deck-config-bridge.js');
+  const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
   assert.match(screen, /screen-local-media\.js\?v=107/);
-  assert.match(screen, /screen-local-media-session-sync\.js\?v=107/);
+  assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
+  assert.doesNotMatch(screen, /screen-local-media-session-sync/);
   assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
   assert.match(audience, /video-deck-config-bridge\.js\?v=107/);
   assert.match(loader, /video-deck-config-bridge\.js\?v=107/);
@@ -82,6 +85,8 @@ test('Screen and control roles load local multimedia preparation', () => {
   assert.match(runtime, /handleEnded/);
   assert.match(bridgeSource, /Multimedia lista/);
   assert.match(bridgeSource, /media:advance_request/);
+  assert.match(unlockHost, /data-immersa-media-unlock/);
+  assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
   assert.match(socketSource, /media:advance_request/);
 });
