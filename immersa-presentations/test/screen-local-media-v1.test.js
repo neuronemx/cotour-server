@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const bridge = require('../public/shared/video-deck-config-bridge.js');
 const localMedia = require('../public/screen/screen-local-media.js');
+const handleStore = require('../public/screen/screen-local-media-handle-store.js');
 const mediaSockets = require('../media-sockets.js');
 
 test('deck video configuration augments stable slides without replacing the poster', () => {
@@ -40,7 +41,7 @@ test('hidden videos are excluded from Screen preparation', () => {
   assert.deepEqual(localMedia.activeVideos(config).map((video) => video.slide_id), ['closing']);
 });
 
-test('Screen matches local files by name and exact size', () => {
+test('Screen matches official files but accepts a local replacement', () => {
   const expected = [
     { slide_id: 'demo', file: { name: 'Demo.mp4', size: 20 } },
     { slide_id: 'closing', file: { name: 'closing.mp4', size: 30 } }
@@ -51,7 +52,24 @@ test('Screen matches local files by name and exact size', () => {
   ]);
   assert.equal(records[0].status, 'selected');
   assert.equal(records[1].status, 'mismatched');
+  assert.equal(localMedia.sameFile({ name: 'Demo.mp4', size: 20 }, { name: 'demo.mp4', size: 20 }), true);
+  assert.equal(localMedia.sameFile({ name: 'new-version.mp4', size: 20 }, expected[0].file), false);
   assert.equal(localMedia.escapeHtml('<clip>.mp4'), '&lt;clip&gt;.mp4');
+  assert.equal(localMedia.summarize([{ status: 'ready_override' }]).ready, 1);
+});
+
+test('persistent handle keys remain stable per deck and slide', () => {
+  assert.equal(handleStore.bindingKey('sales', 'demo'), 'sales::demo');
+  assert.equal(handleStore.sameFileMetadata(
+    { name: 'Demo.mp4', size: 200 },
+    { name: 'demo.mp4', size: 200 }
+  ), true);
+  assert.deepEqual(handleStore.fileMetadata({ name: 'v2.mp4', size: 400, type: 'video/mp4', lastModified: 9 }), {
+    name: 'v2.mp4',
+    size: 400,
+    type: 'video/mp4',
+    last_modified: 9
+  });
 });
 
 test('media status is normalized before broadcasting to control roles', () => {
@@ -66,16 +84,19 @@ test('media status is normalized before broadcasting to control roles', () => {
   assert.equal(status.missing, 1);
 });
 
-test('Screen and control roles load local multimedia preparation', () => {
+test('Screen loads persistent local multimedia preparation and override controls', () => {
   const screen = read('public/screen/index.html');
   const audience = read('public/audience/index.html');
   const loader = read('public/shared/slide-confirm.js');
   const runtime = read('public/shared/video-slide-runtime.js');
   const bridgeSource = read('public/shared/video-deck-config-bridge.js');
+  const localSource = read('public/screen/screen-local-media.js');
+  const storeSource = read('public/screen/screen-local-media-handle-store.js');
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  assert.match(screen, /screen-local-media\.js\?v=107/);
+  assert.match(screen, /screen-local-media-handle-store\.js\?v=108/);
+  assert.match(screen, /screen-local-media\.js\?v=108/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
   assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
@@ -85,6 +106,12 @@ test('Screen and control roles load local multimedia preparation', () => {
   assert.match(runtime, /handleEnded/);
   assert.match(bridgeSource, /Multimedia lista/);
   assert.match(bridgeSource, /media:advance_request/);
+  assert.match(localSource, /showOpenFilePicker/);
+  assert.match(localSource, /Autorizar archivo/);
+  assert.match(localSource, /Cambiar MP4/);
+  assert.match(localSource, /ready_override/);
+  assert.match(storeSource, /indexedDB/);
+  assert.match(storeSource, /requestPermission/);
   assert.match(unlockHost, /data-immersa-media-unlock/);
   assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
