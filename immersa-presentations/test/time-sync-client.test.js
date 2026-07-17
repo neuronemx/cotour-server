@@ -90,8 +90,8 @@ test("runtime and Time Sync UI are loaded for shared roles", () => {
   assert.match(runtime, /\/shared\/time-sync-ui\.css/);
   assert.match(runtime, /\/shared\/time-sync-ui\.js/);
   assert.match(runtime, /speaker\|presenter/);
-  assert.match(runtime, /role==='audience'/);
-  assert.match(runtime, /adoptCurrentConnection:true/);
+  assert.match(runtime, /role\s*===\s*["']audience["']/);
+  assert.match(runtime, /adoptCurrentConnection\s*:\s*true/);
   assert.match(ui, /Mostrar en Screen/);
   assert.match(ui, /Mostrar en Público/);
 });
