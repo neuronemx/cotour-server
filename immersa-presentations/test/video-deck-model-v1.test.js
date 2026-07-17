@@ -67,18 +67,25 @@ test('legacy hidden slide indexes migrate to stable slide ids', async () => {
   fs.rmSync(temp, { recursive: true, force: true });
 });
 
-test('Home exposes Videos as a separate local multimedia editor', () => {
+test('Home exposes compact multimedia configuration with visible linked file', () => {
   const html = read('public/home/index.html');
   const editor = read('public/home/video-editor.js');
+  const css = read('public/home/video-editor.css');
   const visibility = read('public/shared/slide-visibility.js');
 
-  assert.match(html, /video-editor\.css\?v=104/);
-  assert.match(html, /video-editor\.js\?v=104/);
+  assert.match(html, /video-editor\.css\?v=105/);
+  assert.match(html, /video-editor\.js\?v=105/);
   assert.match(editor, /button\.textContent = "Videos"/);
+  assert.match(editor, /Configuración Multimedia/);
+  assert.match(editor, /Archivo vinculado/);
+  assert.match(editor, /Reemplazar MP4/);
+  assert.doesNotMatch(editor, />Video local</);
   assert.match(editor, /El archivo no se sube/);
   assert.match(editor, /end_behavior/);
   assert.match(editor, /Repetir hasta recibir Siguiente/);
   assert.match(editor, /slide_id/);
+  assert.match(css, /video-editor-linked-file/);
+  assert.match(css, /video-editor-native-file/);
   assert.match(visibility, /hidden_slide_ids/);
   assert.match(visibility, /data-slide-id/);
 });
