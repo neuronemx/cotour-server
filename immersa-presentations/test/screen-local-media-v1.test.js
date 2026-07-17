@@ -92,12 +92,18 @@ test('Screen loads persistent local multimedia preparation and override controls
   const bridgeSource = read('public/shared/video-deck-config-bridge.js');
   const localSource = read('public/screen/screen-local-media.js');
   const storeSource = read('public/screen/screen-local-media-persistence-fix.js');
+  const pickerAdapter = read('public/screen/screen-local-file-picker-adapter.js');
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  assert.match(screen, /screen-local-media-persistence-fix\.js\?v=110/);
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=111');
+  const storePosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=111');
+  assert.ok(adapterPosition >= 0);
+  assert.ok(storePosition > adapterPosition);
+  assert.ok(managerPosition > storePosition);
   assert.doesNotMatch(screen, /screen-local-media-handle-store\.js/);
-  assert.match(screen, /screen-local-media\.js\?v=110/);
+  assert.match(screen, /Cache-Control/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
   assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
@@ -114,6 +120,10 @@ test('Screen loads persistent local multimedia preparation and override controls
   assert.match(storeSource, /discoverOpfs/);
   assert.match(storeSource, /deckDirectory\.entries/);
   assert.match(storeSource, /requestPermission/);
+  assert.match(pickerAdapter, /Persistencia/);
+  assert.match(pickerAdapter, /v111/);
+  assert.match(pickerAdapter, /__immersaTransientHandle/);
+  assert.match(pickerAdapter, /showOpenFilePicker/);
   assert.match(unlockHost, /data-immersa-media-unlock/);
   assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
