@@ -84,7 +84,7 @@ test('media status is normalized before broadcasting to control roles', () => {
   assert.equal(status.missing, 1);
 });
 
-test('Screen loads persistent local multimedia preparation and override controls', () => {
+test('Screen loads persistent local multimedia preparation and simplified replacement controls', () => {
   const screen = read('public/screen/index.html');
   const audience = read('public/audience/index.html');
   const loader = read('public/shared/slide-confirm.js');
@@ -93,15 +93,18 @@ test('Screen loads persistent local multimedia preparation and override controls
   const localSource = read('public/screen/screen-local-media.js');
   const storeSource = read('public/screen/screen-local-media-persistence-fix.js');
   const pickerAdapter = read('public/screen/screen-local-file-picker-adapter.js');
+  const modalPolish = read('public/screen/screen-multimedia-modal-polish.js');
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=111');
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=113');
   const storePosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
   const managerPosition = screen.indexOf('screen-local-media.js?v=111');
+  const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
   assert.ok(adapterPosition >= 0);
   assert.ok(storePosition > adapterPosition);
   assert.ok(managerPosition > storePosition);
+  assert.ok(polishPosition > managerPosition);
   assert.doesNotMatch(screen, /screen-local-media-handle-store\.js/);
   assert.match(screen, /Cache-Control/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
@@ -120,10 +123,13 @@ test('Screen loads persistent local multimedia preparation and override controls
   assert.match(storeSource, /discoverOpfs/);
   assert.match(storeSource, /deckDirectory\.entries/);
   assert.match(storeSource, /requestPermission/);
-  assert.match(pickerAdapter, /Persistencia/);
-  assert.match(pickerAdapter, /v111/);
+  assert.doesNotMatch(pickerAdapter, /Persistencia/);
+  assert.match(pickerAdapter, /v113/);
   assert.match(pickerAdapter, /__immersaTransientHandle/);
   assert.match(pickerAdapter, /showOpenFilePicker/);
+  assert.match(modalPolish, /Archivo distinto al registrado en la presentación/);
+  assert.match(modalPolish, /\[data-pick\]/);
+  assert.match(modalPolish, /\[data-multi-input\]/);
   assert.match(unlockHost, /data-immersa-media-unlock/);
   assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
