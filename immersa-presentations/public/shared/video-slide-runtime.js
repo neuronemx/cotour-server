@@ -25,7 +25,7 @@
   function assetUrl(deckId, value) {
     const path = String(value || '').trim();
     if (!path) return '';
-    if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('/')) return path;
+    if (/^(?:https?:)?\/\//i.test(path) || /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('/')) return path;
     return '/decks/' + encodeURIComponent(deckId) + '/' + path.replace(/^\/+/, '');
   }
 
@@ -62,7 +62,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=103';
+    link.href = '/shared/video-slide-runtime.css?v=107';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }
@@ -158,6 +158,10 @@
       video.playsInline = true;
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
+      video.addEventListener('ended', () => {
+        if (role !== 'screen' || !activeItem) return;
+        root.ImmersaLocalMedia?.handleEnded?.({ slideIndex: activeIndex, item: activeItem });
+      });
       host.appendChild(video);
       return video;
     }
@@ -191,9 +195,14 @@
       const player = ensureVideo();
       if (!player) return;
       const image = slideElement();
-      const source = assetUrl(deckId, item.src);
+      const localSource = role === 'screen' ? root.ImmersaLocalMedia?.getUrl?.(item.slide_id || item.id) : '';
+      const source = localSource || assetUrl(deckId, item.src);
       const poster = assetUrl(deckId, posterPath(item));
       const media = effectiveMediaState(state, item, index);
+      if (!source) {
+        hideVideo();
+        return;
+      }
       const sourceChanged = player.dataset.slideIndex !== String(index) || player.dataset.source !== source;
 
       if (sourceChanged) {
@@ -340,6 +349,7 @@
       if (!lastState) return;
       render({ ...lastState, overlays: { ...(lastState.overlays || {}), videoMedia: null } });
     });
+    if (role === 'screen') root.ImmersaLocalMedia?.subscribe?.(() => { if (lastState) render(lastState); });
 
     loadManifest().catch((error) => console.warn('Unable to initialize video slides', error.message));
 
