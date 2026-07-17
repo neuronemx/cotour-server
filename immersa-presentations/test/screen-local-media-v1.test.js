@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const bridge = require('../public/shared/video-deck-config-bridge.js');
 const localMedia = require('../public/screen/screen-local-media.js');
-const handleStore = require('../public/screen/screen-local-media-handle-store.js');
+const handleStore = require('../public/screen/screen-local-media-persistence-fix.js');
 const mediaSockets = require('../media-sockets.js');
 
 test('deck video configuration augments stable slides without replacing the poster', () => {
@@ -58,7 +58,7 @@ test('Screen matches official files but accepts a local replacement', () => {
   assert.equal(localMedia.summarize([{ status: 'ready_override' }]).ready, 1);
 });
 
-test('persistent handle keys remain stable per deck and slide', () => {
+test('persistent media keys remain stable per deck and slide', () => {
   assert.equal(handleStore.bindingKey('sales', 'demo'), 'sales::demo');
   assert.equal(handleStore.sameFileMetadata(
     { name: 'Demo.mp4', size: 200 },
@@ -91,12 +91,13 @@ test('Screen loads persistent local multimedia preparation and override controls
   const runtime = read('public/shared/video-slide-runtime.js');
   const bridgeSource = read('public/shared/video-deck-config-bridge.js');
   const localSource = read('public/screen/screen-local-media.js');
-  const storeSource = read('public/screen/screen-local-media-handle-store.js');
+  const storeSource = read('public/screen/screen-local-media-persistence-fix.js');
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  assert.match(screen, /screen-local-media-handle-store\.js\?v=108/);
-  assert.match(screen, /screen-local-media\.js\?v=108/);
+  assert.match(screen, /screen-local-media-persistence-fix\.js\?v=110/);
+  assert.doesNotMatch(screen, /screen-local-media-handle-store\.js/);
+  assert.match(screen, /screen-local-media\.js\?v=110/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
   assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
@@ -110,7 +111,8 @@ test('Screen loads persistent local multimedia preparation and override controls
   assert.match(localSource, /Autorizar archivo/);
   assert.match(localSource, /Cambiar MP4/);
   assert.match(localSource, /ready_override/);
-  assert.match(storeSource, /indexedDB/);
+  assert.match(storeSource, /discoverOpfs/);
+  assert.match(storeSource, /deckDirectory\.entries/);
   assert.match(storeSource, /requestPermission/);
   assert.match(unlockHost, /data-immersa-media-unlock/);
   assert.match(unlockHost, /fullscreenchange/);

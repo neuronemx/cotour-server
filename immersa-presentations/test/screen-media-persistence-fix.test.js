@@ -10,24 +10,33 @@ const persistence = require('../public/screen/screen-local-media-persistence-fix
 test('persistent multimedia fallback keeps stable deck and slide keys', () => {
   assert.equal(persistence.bindingKey('pitch', 'slide-005'), 'pitch::slide-005');
   assert.equal(persistence.safeSegment('Pitch 2026 / Final'), 'Pitch-2026-Final');
-  assert.equal(persistence.DB_VERSION, 2);
+  assert.equal(persistence.DB_VERSION, 3);
   assert.ok(persistence.MAX_INDEXEDDB_COPY_BYTES >= 256 * 1024 * 1024);
 });
 
-test('Screen loads verified persistence before the local media manager', () => {
+test('Screen loads one canonical persistence store before the media manager', () => {
   const screen = read('public/screen/index.html');
   const fix = read('public/screen/screen-local-media-persistence-fix.js');
-  const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=109');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=108');
+  const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=110');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=110');
 
   assert.ok(fixPosition >= 0);
   assert.ok(managerPosition > fixPosition);
+  assert.doesNotMatch(screen, /screen-local-media-handle-store\.js/);
   assert.match(fix, /transaction\.oncomplete/);
+  assert.match(fix, /discoverOpfs/);
+  assert.match(fix, /deckDirectory\.entries/);
+  assert.match(fix, /fileName \+ '\.json'/);
   assert.match(fix, /storage_mode: 'opfs'/);
-  assert.match(fix, /createWritable/);
   assert.match(fix, /storage_mode: 'indexeddb-file'/);
-  assert.match(fix, /file_blob/);
-  assert.match(fix, /putRecord/);
+});
+
+test('OPFS is the primary persistent copy rather than a database-only handle', () => {
+  const fix = read('public/screen/screen-local-media-persistence-fix.js');
+  const opfsWrite = fix.indexOf('const opfs = await writeOpfs');
+  const handleWrite = fix.indexOf('if (handle)', opfsWrite);
+  assert.ok(opfsWrite >= 0);
+  assert.ok(handleWrite > opfsWrite);
 });
 
 test('persistent file metadata still distinguishes replacements', () => {
