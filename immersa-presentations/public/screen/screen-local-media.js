@@ -16,6 +16,10 @@
     return String(value || '').trim().toLowerCase();
   }
 
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>\"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[char]));
+  }
+
   function matchFiles(expectedVideos, files) {
     const pool = Array.from(files || []);
     return expectedVideos.map((video) => {
@@ -182,7 +186,7 @@
       listNode.innerHTML = records.map((record) => {
         const video = record.video;
         const index = (config.slides || []).findIndex((slide, slideIndex) => stableSlideId(slide, slideIndex) === String(video.slide_id));
-        return '<article class="screen-media-item is-' + record.status + '"><span class="screen-media-index">' + (index >= 0 ? index + 1 : '—') + '</span><div><strong>' + String(video.file?.name || 'Video') + '</strong><small>Slide ' + (index >= 0 ? index + 1 : 'no encontrada') + ' · ' + formatBytes(video.file?.size) + '</small></div><b>' + statusLabel(record.status) + '</b></article>';
+        return '<article class="screen-media-item is-' + record.status + '"><span class="screen-media-index">' + (index >= 0 ? index + 1 : '—') + '</span><div><strong>' + escapeHtml(video.file?.name || 'Video') + '</strong><small>Slide ' + (index >= 0 ? index + 1 : 'no encontrada') + ' · ' + escapeHtml(formatBytes(video.file?.size)) + '</small></div><b>' + statusLabel(record.status) + '</b></article>';
       }).join('');
     }
 
@@ -236,7 +240,10 @@
       return config;
     }
 
-    liveSocket.on('presentation_state', (state) => { lastState = state || {}; });
+    liveSocket.on('presentation_state', (state) => {
+      lastState = state || {};
+      if (Array.isArray(config.slides) && config.slides.length) reportStatus();
+    });
     loadConfig().catch((error) => console.warn('Unable to prepare local multimedia', error.message));
 
     const registry = { deckId, sessionId, getUrl, subscribe, handleEnded, nextVisibleIndex, getConfig: () => config, getRecords: () => records, open: openModal, getState: () => lastState };
@@ -253,5 +260,5 @@
   if (root.document?.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', autoMount, { once: true });
   else autoMount();
 
-  return { stableSlideId, activeVideos, normalizeName, matchFiles, summarize, formatBytes, validatePlayable, createManager, autoMount };
+  return { stableSlideId, activeVideos, normalizeName, escapeHtml, matchFiles, summarize, formatBytes, validatePlayable, createManager, autoMount };
 });
