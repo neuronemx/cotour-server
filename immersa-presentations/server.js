@@ -12,6 +12,7 @@ const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
 const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { createQnaRuntime } = require("./qna-runtime");
 
 const app = express();
 const server = http.createServer(app);
@@ -24,12 +25,6 @@ const DATA_DIR = process.env.IMMERSA_DATA_DIR
   : path.join(__dirname, "data");
 const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
-const accessLinkHandlers = createAccessLinkHandlers({
-  dataDir: DATA_DIR,
-  staticDecksDir: STATIC_DECKS_DIR,
-  dataDecksDir: DATA_DECKS_DIR,
-  publicDir: PUBLIC_DIR
-});
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
@@ -49,6 +44,18 @@ const raffleSockets = createRaffleSocketHandlers({
   getRoleRoomKey,
   getConnectedAudience,
   coordinator: activeInteractionCoordinator
+});
+const qnaRuntime = createQnaRuntime({
+  io,
+  getRoleRoomKey,
+  getConnectedAudience
+});
+const accessLinkHandlers = createAccessLinkHandlers({
+  dataDir: DATA_DIR,
+  staticDecksDir: STATIC_DECKS_DIR,
+  dataDecksDir: DATA_DECKS_DIR,
+  publicDir: PUBLIC_DIR,
+  startScreenExecution: qnaRuntime.startScreenExecution
 });
 const deckInteractionHandlers = createDeckInteractionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
@@ -587,6 +594,13 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  qnaRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
     if (!role) return;
@@ -625,6 +639,13 @@ io.on("connection", (socket) => {
       audienceId: currentAudienceId
     });
     raffleSockets.sendCurrentState(socket, {
+      roomKey: currentRoomKey,
+      role: currentRole,
+      sessionId: currentSessionId,
+      deckId: currentDeckId,
+      audienceId: currentAudienceId
+    });
+    await qnaRuntime.sendCurrentState(socket, {
       roomKey: currentRoomKey,
       role: currentRole,
       sessionId: currentSessionId,
@@ -738,5 +759,6 @@ io.on("connection", (socket) => {
 
 server.listen(PORT, () => {
   console.log("Immersa Presentations running at http://localhost:" + PORT);
+  console.log("Q&A runtime enabled:", qnaRuntime.enabled);
   logConversionHealth();
 });
