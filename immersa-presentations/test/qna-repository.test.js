@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { QnaError, QnaRepository } = require("../db/qna-repository");
+const { buildQnaCsv } = require("../qna-csv");
 
 function fakePool(responses = []) {
   const calls = [];
@@ -130,4 +131,95 @@ test("new round archives the current one and preserves the open-questions slider
   const insert = pool.calls.find((call) => /INSERT INTO qna_rounds/.test(call.sql || ""));
   assert.deepEqual(archive.values, ["round-1"]);
   assert.deepEqual(insert.values, ["round-2", "session-1", 2, 1]);
+});
+
+test("reads the exact active round including the persisted selection and answer state", async () => {
+  const createdAt = new Date("2026-07-19T05:00:00.000Z");
+  const projectedAt = new Date("2026-07-19T05:01:00.000Z");
+  const pool = fakePool([[[
+    {
+      qna_round_id: "round-2",
+      round_number: 2,
+      questions_open: 1,
+      question_id: "question-2",
+      question_text: "¿Qué sigue?",
+      name: "Ana",
+      allow_name_on_screen: 1,
+      status: "selected",
+      projected_at: projectedAt,
+      created_at: createdAt
+    }
+  ], []]]);
+  const state = await new QnaRepository(pool).getActiveState("session-1");
+  assert.deepEqual(state, {
+    roundId: "round-2",
+    roundNumber: 2,
+    questionsOpen: true,
+    selectedQuestionId: "question-2",
+    questions: [{
+      id: "question-2",
+      text: "¿Qué sigue?",
+      name: "Ana",
+      allowNameOnScreen: true,
+      status: "selected",
+      answered: true,
+      projectedAt,
+      createdAt
+    }]
+  });
+});
+
+test("audience state exposes opening and one-submission status without leaking questions", async () => {
+  const pool = fakePool([[[{
+    qna_round_id: "round-2",
+    round_number: 2,
+    questions_open: 1,
+    question_id: "question-2"
+  }], []]]);
+  const state = await new QnaRepository(pool).getAudienceState({
+    presentationSessionId: "session-1",
+    audienceId: "audience-1"
+  });
+  assert.deepEqual(state, {
+    roundId: "round-2",
+    roundNumber: 2,
+    questionsOpen: true,
+    hasSubmitted: true,
+    questionId: "question-2"
+  });
+  assert.equal(Object.hasOwn(state, "questions"), false);
+});
+
+test("exports every existing question with Respondida Sí/No and spreadsheet-safe cells", async () => {
+  const createdAt = new Date("2026-07-19T05:00:00.000Z");
+  const pool = fakePool([[[
+    {
+      presentation_session_id: "session-1",
+      deck_id: "deck-a",
+      round_number: 1,
+      question_id: "question-1",
+      question_text: "=HYPERLINK(\"bad\")",
+      name: "Ana, MX",
+      projected_at: null,
+      created_at: createdAt
+    },
+    {
+      presentation_session_id: "session-1",
+      deck_id: "deck-a",
+      round_number: 2,
+      question_id: "question-2",
+      question_text: "¿Qué sigue?",
+      name: null,
+      projected_at: createdAt,
+      created_at: createdAt
+    }
+  ], []]]);
+  const rows = await new QnaRepository(pool).listExportQuestions("session-1");
+  const csv = buildQnaCsv(rows);
+  assert.ok(csv.startsWith("\uFEFF"));
+  assert.match(csv, /"Respondida"/);
+  assert.match(csv, /"No"/);
+  assert.match(csv, /"Sí"/);
+  assert.match(csv, /"'=HYPERLINK\(""bad""\)"/);
+  assert.match(csv, /"Ana, MX"/);
 });

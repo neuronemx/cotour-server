@@ -224,6 +224,105 @@ class QnaRepository {
       return { qnaRoundId, roundNumber: nextRoundNumber, questionsOpen };
     });
   }
+
+  async getActiveState(presentationSessionId) {
+    const sessionId = requiredText(presentationSessionId, "presentationSessionId", 36);
+    const [rows] = await this.pool.execute(
+      `SELECT
+         r.id AS qna_round_id,
+         r.round_number,
+         r.questions_open,
+         q.id AS question_id,
+         q.question_text,
+         q.name,
+         q.allow_name_on_screen,
+         q.status,
+         q.projected_at,
+         q.created_at
+       FROM qna_rounds r
+       LEFT JOIN qna_questions q ON q.qna_round_id = r.id
+       WHERE r.presentation_session_id = ? AND r.archived_at IS NULL
+       ORDER BY q.created_at, q.id`,
+      [sessionId]
+    );
+    if (!rows.length) throw new QnaError("QNA_ROUND_NOT_FOUND", "Active Q&A round not found");
+    const round = rows[0];
+    const questions = rows.filter((row) => row.question_id).map((row) => ({
+      id: row.question_id,
+      text: row.question_text,
+      name: row.name || "",
+      allowNameOnScreen: Boolean(row.allow_name_on_screen),
+      status: row.status,
+      answered: Boolean(row.projected_at),
+      projectedAt: row.projected_at || null,
+      createdAt: row.created_at
+    }));
+    return {
+      roundId: round.qna_round_id,
+      roundNumber: Number(round.round_number),
+      questionsOpen: Boolean(round.questions_open),
+      selectedQuestionId: questions.find((question) => question.status === "selected")?.id || null,
+      questions
+    };
+  }
+
+  async getAudienceState({ presentationSessionId, audienceId }) {
+    const sessionId = requiredText(presentationSessionId, "presentationSessionId", 36);
+    const normalizedAudienceId = requiredText(audienceId, "audienceId", 191);
+    const [rows] = await this.pool.execute(
+      `SELECT
+         r.id AS qna_round_id,
+         r.round_number,
+         r.questions_open,
+         q.id AS question_id
+       FROM qna_rounds r
+       LEFT JOIN qna_questions q
+         ON q.qna_round_id = r.id AND q.audience_id = ?
+       WHERE r.presentation_session_id = ? AND r.archived_at IS NULL
+       LIMIT 1`,
+      [normalizedAudienceId, sessionId]
+    );
+    const row = rows[0];
+    if (!row) throw new QnaError("QNA_ROUND_NOT_FOUND", "Active Q&A round not found");
+    return {
+      roundId: row.qna_round_id,
+      roundNumber: Number(row.round_number),
+      questionsOpen: Boolean(row.questions_open),
+      hasSubmitted: Boolean(row.question_id),
+      questionId: row.question_id || null
+    };
+  }
+
+  async listExportQuestions(presentationSessionId) {
+    const sessionId = requiredText(presentationSessionId, "presentationSessionId", 36);
+    const [rows] = await this.pool.execute(
+      `SELECT
+         ps.id AS presentation_session_id,
+         ps.deck_id,
+         r.round_number,
+         q.id AS question_id,
+         q.question_text,
+         q.name,
+         q.projected_at,
+         q.created_at
+       FROM presentation_sessions ps
+       INNER JOIN qna_rounds r ON r.presentation_session_id = ps.id
+       INNER JOIN qna_questions q ON q.qna_round_id = r.id
+       WHERE ps.id = ?
+       ORDER BY r.round_number, q.created_at, q.id`,
+      [sessionId]
+    );
+    return rows.map((row) => ({
+      presentationSessionId: row.presentation_session_id,
+      deckId: row.deck_id,
+      roundNumber: Number(row.round_number),
+      questionId: row.question_id,
+      question: row.question_text,
+      name: row.name || "",
+      answered: Boolean(row.projected_at),
+      createdAt: row.created_at
+    }));
+  }
 }
 
 module.exports = { QnaError, QnaRepository, inTransaction };
