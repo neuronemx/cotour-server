@@ -25,10 +25,26 @@
     <div id="liveMessage" class="live-message hidden" role="status"></div>
     <div id="reactions" class="reaction-layer"></div>
     <div class="top-actions">
+      <button id="qnaOpen" class="icon-action qna-open hidden" type="button" aria-label="Preguntas" title="Preguntas" aria-haspopup="dialog" aria-controls="qnaComposer"><img src="/shared/qna-question-icon.svg" alt="" aria-hidden="true"></button>
       <button id="snapshot" class="icon-action snapshot" type="button" aria-label="Captura pantalla" title="Captura pantalla"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 7.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2.5L15 5H9Z"></path><circle cx="12" cy="13" r="3.25"></circle></svg></button>
       <button id="fullscreen" class="icon-action" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
     </div>
     <nav class="reaction-bar" aria-label="Reacciones"><button data-emoji="❤️" aria-label="Enviar corazón">❤️</button><button data-emoji="👏" aria-label="Enviar aplauso">👏</button><button data-emoji="🔥" aria-label="Enviar fuego">🔥</button></nav>
+    <section id="qnaComposer" class="qna-composer hidden" role="dialog" aria-modal="true" aria-labelledby="qnaTitle">
+      <form id="qnaForm" class="qna-card">
+        <button id="qnaClose" class="qna-close" type="button" aria-label="Cerrar preguntas">×</button>
+        <img class="qna-icon" src="/shared/qna-question-icon.svg" alt="" aria-hidden="true">
+        <h2 id="qnaTitle">Envía tu pregunta</h2>
+        <label for="qnaQuestion">Pregunta</label>
+        <textarea id="qnaQuestion" name="question" maxlength="1000" rows="4" required placeholder="Escribe tu pregunta"></textarea>
+        <label for="qnaName">Nombre <span>(opcional)</span></label>
+        <input id="qnaName" name="name" maxlength="120" autocomplete="name" placeholder="Tu nombre">
+        <label class="qna-consent" for="qnaAllowName"><input id="qnaAllowName" name="allowNameOnScreen" type="checkbox"><span>Autorizo que mi nombre aparezca en Screen</span></label>
+        <p id="qnaFormStatus" class="qna-form-status" role="status"></p>
+        <button id="qnaSubmit" class="qna-submit" type="submit">Enviar pregunta</button>
+      </form>
+    </section>
+    <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
   <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/audience/audience.js"></script><script src="/shared/video-deck-config-bridge.js?v=107"></script><script src="/shared/public-code-display.js?v=102"></script>
 </body></html>
