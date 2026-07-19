@@ -207,6 +207,7 @@ function relatedRoleContext(req, accessLink, deck, relatedLinks = {}) {
     deck: deck.deckId,
     deckId: deck.deckId,
     role: accessLink.role,
+    presentation_session_id: accessLink.presentation_session_id || relatedLinks.screen?.presentation_session_id || '',
     public_id: relatedLinks.audience?.public_id || '',
     public_url: publicPath ? absoluteUrl(req, publicPath) : '',
     screen_url: screenPath ? absoluteUrl(req, screenPath) : '',
@@ -302,20 +303,46 @@ function serializeCookie(name, value, req) {
   return parts.join('; ');
 }
 
-function injectPublicAudienceContext(html, accessLink, deck) {
+function injectPublicAudienceContext(html, accessLink, deck, presentationSessionId = '') {
   const context = JSON.stringify({
     session: accessLink.session_id,
-    deck: deck.deckId
+    deck: deck.deckId,
+    presentation_session_id: presentationSessionId
   }).replace(/</g, '\\u003c');
   const script = '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
   if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
+
+  function latestPresentationSessionId(accessLinks, sessionId) {
+    return accessLinks
+      .filter((link) => link.session_id === sessionId && link.role === 'screen' && link.presentation_session_id)
+      .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0))[0]?.presentation_session_id || '';
+  }
+
+  async function bindScreenExecution(accessLink, deck, accessLinks) {
+    if (accessLink.role !== 'screen' || typeof startScreenExecution !== 'function') return accessLink;
+    const execution = await startScreenExecution({
+      deckId: deck.deckId,
+      sourceSessionId: accessLink.session_id,
+      screenLinkId: accessLink.access_token,
+      presentationSessionId: accessLink.presentation_session_id || null
+    });
+    const presentationSessionId = String(execution?.presentationSessionId || '').trim();
+    if (!presentationSessionId) throw new Error('Screen execution did not return presentationSessionId');
+    const storedLink = accessLinks.find((link) => link.access_token === accessLink.access_token);
+    if (!storedLink) throw new Error('Screen access link disappeared while binding its execution');
+    if (storedLink.presentation_session_id !== presentationSessionId) {
+      storedLink.presentation_session_id = presentationSessionId;
+      await saveAccessLinks(storePath, accessLinks);
+    }
+    return storedLink;
+  }
 
   async function findActiveAccessLink(accessToken) {
     if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return { status: 404, error: 'Access link not found' };
@@ -424,6 +451,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
         const accessLinks = await loadAccessLinks(storePath);
+        const activeAccessLink = await bindScreenExecution(result.accessLink, deck, accessLinks);
         const audienceResult = ensureAudienceAccessLink(accessLinks, result.accessLink.session_id);
         if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
         const relatedLinks = {
@@ -432,9 +460,9 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
           stage: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
         };
         const html = await fs.promises.readFile(roleIndexPath(publicDir, route), 'utf8');
-        const context = relatedRoleContext(req, result.accessLink, deck, relatedLinks);
+        const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks);
 
-        res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: result.accessLink, deck, route }), req));
+        res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: activeAccessLink, deck, route }), req));
         return res.type('html').send(injectRoleContext(html, context));
       } catch (error) {
         console.error('Unable to open role experience', error);
@@ -455,9 +483,11 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
       if (!audienceIndexPath) return res.status(500).json({ error: 'Audience experience is not configured' });
 
+      const accessLinks = await loadAccessLinks(storePath);
+      const presentationSessionId = latestPresentationSessionId(accessLinks, result.accessLink.session_id);
       const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
       res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName('audience'), createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
-      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck));
+      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId));
     } catch (error) {
       console.error('Unable to open public audience link', error);
       return res.status(500).json({ error: 'Unable to open public audience link' });
