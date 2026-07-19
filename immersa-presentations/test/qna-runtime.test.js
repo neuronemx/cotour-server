@@ -124,3 +124,44 @@ test("enabled runtime reports state failures without breaking the presentation j
   }]);
   assert.equal(logger.errors.length, 1);
 });
+
+test("enabled runtime exports every round in the active historical execution", async () => {
+  const calls = [];
+  const repository = {
+    async getActivePresentationSession(payload) {
+      calls.push({ method: "getActivePresentationSession", payload });
+      return { presentationSessionId: "presentation-session-1" };
+    },
+    async listExportQuestions(presentationSessionId) {
+      calls.push({ method: "listExportQuestions", presentationSessionId });
+      return [{
+        presentationSessionId,
+        deckId: "deck-a",
+        roundNumber: 2,
+        question: "¿Se guarda?",
+        name: "Ana",
+        answered: true,
+        createdAt: new Date("2026-07-19T06:00:00.000Z")
+      }];
+    }
+  };
+  const runtime = createQnaRuntime({
+    env: { IMMERSA_QNA_ENABLED: "true" },
+    pool: { async end() {} },
+    repository,
+    executionCoordinator: { async openScreen() {} },
+    io: fakeIo(),
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getConnectedAudience: () => []
+  });
+
+  const result = await runtime.exportCsv({ deckId: "deck-a", sourceSessionId: "source-session-1" });
+  assert.equal(result.presentationSessionId, "presentation-session-1");
+  assert.match(result.csv, /^\uFEFF/);
+  assert.match(result.csv, /"Respondida"/);
+  assert.match(result.csv, /"Sí"/);
+  assert.deepEqual(calls, [
+    { method: "getActivePresentationSession", payload: { deckId: "deck-a", sourceSessionId: "source-session-1" } },
+    { method: "listExportQuestions", presentationSessionId: "presentation-session-1" }
+  ]);
+});
