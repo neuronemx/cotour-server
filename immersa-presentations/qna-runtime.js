@@ -1,7 +1,8 @@
 const { createMysqlPool } = require("./db/mysql");
-const { QnaRepository } = require("./db/qna-repository");
+const { QnaError, QnaRepository } = require("./db/qna-repository");
 const { QnaExecutionCoordinator } = require("./qna-execution-coordinator");
 const { createQnaSocketHandlers } = require("./qna-sockets");
+const { buildQnaCsv } = require("./qna-csv");
 
 function qnaEnabled(env = process.env) {
   return /^(1|true|yes|on)$/i.test(String(env.IMMERSA_QNA_ENABLED || "").trim());
@@ -11,6 +12,7 @@ function disabledRuntime() {
   return {
     enabled: false,
     startScreenExecution: null,
+    exportCsv: null,
     attach() {},
     async sendCurrentState() {},
     async close() {}
@@ -45,6 +47,18 @@ function createQnaRuntime(options = {}) {
   return {
     enabled: true,
     startScreenExecution: (payload) => executionCoordinator.openScreen(payload),
+    async exportCsv({ deckId, sourceSessionId }) {
+      const active = await repository.getActivePresentationSession({ deckId, sourceSessionId });
+      if (!active?.presentationSessionId) {
+        throw new QnaError("QNA_SESSION_NOT_FOUND", "Active presentation session not found");
+      }
+      const rows = await repository.listExportQuestions(active.presentationSessionId);
+      return {
+        csv: buildQnaCsv(rows),
+        presentationSessionId: active.presentationSessionId,
+        deckId
+      };
+    },
     attach(socket, getContext) {
       sockets.attach(socket, getContext);
     },

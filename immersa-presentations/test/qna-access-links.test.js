@@ -124,3 +124,30 @@ test('without a runtime callback Screen remains available and no DB binding is a
   const stored = JSON.parse(await fs.promises.readFile(path.join(paths.dataDir, 'access-links.json'), 'utf8'));
   assert.equal(Object.hasOwn(stored[0], 'presentation_session_id'), false);
 });
+
+test('Q&A resources accept only active Speaker and Stage access links', async (t) => {
+  const paths = await fixture(t);
+  const storePath = path.join(paths.dataDir, 'access-links.json');
+  const stored = JSON.parse(await fs.promises.readFile(storePath, 'utf8'));
+  stored.push(
+    { access_token: 'a_spk1234567', session_id: 's_abcdefghij', role: 'speaker', active: true },
+    { access_token: 'a_stg1234567', session_id: 's_abcdefghij', role: 'stage', active: true },
+    { access_token: 'a_aud1234567', session_id: 's_abcdefghij', role: 'audience', active: true }
+  );
+  await fs.promises.writeFile(storePath, JSON.stringify(stored));
+  const handlers = createAccessLinkHandlers(paths);
+  const guard = handlers.guardAccessRoles(['speaker', 'stage']);
+
+  for (const accessToken of ['a_spk1234567', 'a_stg1234567']) {
+    const req = request({ access_token: accessToken });
+    let passed = false;
+    await guard(req, response(), () => { passed = true; });
+    assert.equal(passed, true);
+    assert.equal(req.immersaAccess.deck.deckId, 'deck-a');
+    assert.equal(req.immersaAccess.accessLink.access_token, accessToken);
+  }
+
+  const audienceResponse = response();
+  await guard(request({ access_token: 'a_aud1234567' }), audienceResponse, () => assert.fail('Público must not export Q&A'));
+  assert.equal(audienceResponse.statusCode, 403);
+});
