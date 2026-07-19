@@ -19,6 +19,9 @@ let activeInteraction = null;
 let interactionResponse = null;
 let selectedInteractionOption = "";
 let interactionCard = null;
+let qnaState = { questionsOpen: false, hasSubmitted: false, roundNumber: null };
+let qnaSubmitting = false;
+let qnaConfirmationTimer = null;
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -27,6 +30,16 @@ const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 const connectionNotice = document.getElementById("connectionNotice");
 const liveMessage = document.getElementById("liveMessage");
+const qnaOpen = document.getElementById("qnaOpen");
+const qnaComposer = document.getElementById("qnaComposer");
+const qnaForm = document.getElementById("qnaForm");
+const qnaClose = document.getElementById("qnaClose");
+const qnaQuestion = document.getElementById("qnaQuestion");
+const qnaName = document.getElementById("qnaName");
+const qnaAllowName = document.getElementById("qnaAllowName");
+const qnaFormStatus = document.getElementById("qnaFormStatus");
+const qnaSubmit = document.getElementById("qnaSubmit");
+const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
@@ -58,6 +71,52 @@ function setConnectionNotice(visible) {
   if (!connectionNotice) return;
   connectionNotice.classList.toggle("hidden", !visible);
 }
+function closeQnaComposer() { qnaComposer?.classList.add("hidden"); qnaComposer?.setAttribute("aria-hidden", "true"); qnaFormStatus.textContent = ""; }
+function openQnaComposer() { if (!qnaState.questionsOpen || qnaState.hasSubmitted) return; qnaComposer?.classList.remove("hidden"); qnaComposer?.setAttribute("aria-hidden", "false"); qnaFormStatus.textContent = ""; window.setTimeout(() => qnaQuestion?.focus(), 20); }
+function renderQnaState(state = {}) {
+  qnaState = {
+    questionsOpen: Boolean(state.questionsOpen),
+    hasSubmitted: Boolean(state.hasSubmitted),
+    roundNumber: Number.isFinite(Number(state.roundNumber)) ? Number(state.roundNumber) : null
+  };
+  const visible = qnaState.questionsOpen;
+  qnaOpen?.classList.toggle("hidden", !visible);
+  if (qnaOpen) {
+    qnaOpen.disabled = qnaState.hasSubmitted;
+    qnaOpen.classList.toggle("is-submitted", qnaState.hasSubmitted);
+    qnaOpen.setAttribute("aria-label", qnaState.hasSubmitted ? "Pregunta enviada" : "Preguntas");
+    qnaOpen.title = qnaState.hasSubmitted ? "Pregunta enviada" : "Preguntas";
+  }
+  if (!visible || qnaState.hasSubmitted) closeQnaComposer();
+}
+function showQnaConfirmation(message) {
+  if (!qnaConfirmation) return;
+  window.clearTimeout(qnaConfirmationTimer);
+  qnaConfirmation.textContent = message;
+  qnaConfirmation.classList.remove("hidden");
+  qnaConfirmationTimer = window.setTimeout(() => qnaConfirmation.classList.add("hidden"), 4200);
+}
+function qnaRejectedMessage(reason) {
+  if (reason === "QNA_CLOSED") return "Las preguntas están cerradas.";
+  if (reason === "QNA_ALREADY_SUBMITTED") return "Tu pregunta ha sido enviada";
+  if (reason === "QNA_INVALID_INPUT") return "Escribe una pregunta antes de enviarla.";
+  return "Preguntas no disponibles por el momento.";
+}
+function submitQna(event) {
+  event.preventDefault();
+  if (qnaSubmitting || qnaState.hasSubmitted || !qnaState.questionsOpen) return;
+  const question = String(qnaQuestion?.value || "").trim();
+  if (!question) { qnaFormStatus.textContent = "Escribe una pregunta antes de enviarla."; qnaQuestion?.focus(); return; }
+  const name = String(qnaName?.value || "").trim();
+  qnaSubmitting = true;
+  qnaSubmit.disabled = true;
+  qnaFormStatus.textContent = "Enviando…";
+  socket.emit("qna:submit", {
+    question,
+    name,
+    allowNameOnScreen: Boolean(name && qnaAllowName?.checked)
+  });
+}
 function joinAudience() {
   if (!manifest) return;
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId });
@@ -68,6 +127,11 @@ function renderInteractionCard() { const card = ensureInteractionCard(); if (!ac
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
+qnaOpen?.addEventListener("click", openQnaComposer);
+qnaClose?.addEventListener("click", closeQnaComposer);
+qnaComposer?.addEventListener("click", (event) => { if (event.target === qnaComposer) closeQnaComposer(); });
+qnaForm?.addEventListener("submit", submitQna);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !qnaComposer?.classList.contains("hidden")) closeQnaComposer(); });
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 viewport.addEventListener("pointerdown", handlePointerDown);
 viewport.addEventListener("pointermove", handlePointerMove);
@@ -88,5 +152,27 @@ socket.on("interaction:active", (interaction) => { activeInteraction = interacti
 socket.on("interaction:response_accepted", ({ optionId, submittedAt }) => { interactionResponse = { optionId, submittedAt }; selectedInteractionOption = optionId; renderInteractionCard(); });
 socket.on("interaction:response_rejected", ({ reason }) => { if (reason === "duplicate_response") interactionResponse = { optionId: selectedInteractionOption, submittedAt: "" }; renderInteractionCard(); });
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResponse = null; selectedInteractionOption = ""; renderInteractionCard(); });
+socket.on("qna:state", renderQnaState);
+socket.on("qna:submitted", ({ message }) => {
+  qnaSubmitting = false;
+  qnaSubmit.disabled = false;
+  qnaState.hasSubmitted = true;
+  renderQnaState(qnaState);
+  qnaForm?.reset();
+  showQnaConfirmation(message || "Tu pregunta ha sido enviada");
+});
+socket.on("qna:rejected", ({ event, reason }) => {
+  if (event !== "qna:submit" && event !== "qna:state") return;
+  qnaSubmitting = false;
+  qnaSubmit.disabled = false;
+  const message = qnaRejectedMessage(reason);
+  qnaFormStatus.textContent = message;
+  if (reason === "QNA_ALREADY_SUBMITTED") {
+    qnaState.hasSubmitted = true;
+    renderQnaState(qnaState);
+    showQnaConfirmation("Tu pregunta ha sido enviada");
+  }
+  if (reason === "QNA_CLOSED") renderQnaState({ ...qnaState, questionsOpen: false });
+});
 applyTransform();
 loadDeck().then(() => { initDrawingOverlay(); joinAudience(); });
