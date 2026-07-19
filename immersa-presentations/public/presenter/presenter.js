@@ -31,6 +31,13 @@ const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
 const deckNotice = document.getElementById("deckNotice");
+const qnaControls = window.ImmersaQnaControls?.create({
+  socket,
+  role: "presenter",
+  mount: document.querySelector(".fx-module"),
+  before: localReactions,
+  compact: true
+});
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
 const compactLandscapeQuery = window.matchMedia ? window.matchMedia("(orientation: landscape) and (max-height: 520px)") : null;
