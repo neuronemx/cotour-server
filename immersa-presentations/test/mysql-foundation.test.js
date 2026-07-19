@@ -1,0 +1,83 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const { readMysqlConfig } = require("../db/mysql");
+const { runMigrations } = require("../db/migrate");
+
+const migrationsDir = path.join(__dirname, "..", "db", "migrations");
+
+test("MySQL URL config is UTC, utf8mb4 and safely pooled", () => {
+  const config = readMysqlConfig({
+    IMMERSA_MYSQL_URL: "mysql://immersa_app:s3cret@db.example.com:3307/immersa",
+    IMMERSA_MYSQL_CONNECTION_LIMIT: "7",
+    IMMERSA_MYSQL_SSL: "required"
+  });
+  assert.equal(config.host, "db.example.com");
+  assert.equal(config.port, 3307);
+  assert.equal(config.user, "immersa_app");
+  assert.equal(config.password, "s3cret");
+  assert.equal(config.database, "immersa");
+  assert.equal(config.connectionLimit, 7);
+  assert.equal(config.charset, "utf8mb4");
+  assert.equal(config.timezone, "Z");
+  assert.deepEqual(config.ssl, { rejectUnauthorized: true });
+});
+
+test("MySQL config accepts individual Immersa variables and a TLS CA", () => {
+  const config = readMysqlConfig({
+    IMMERSA_MYSQL_HOST: "mysql.internal",
+    IMMERSA_MYSQL_USER: "immersa_app",
+    IMMERSA_MYSQL_PASSWORD: "secret",
+    IMMERSA_MYSQL_DATABASE: "immersa",
+    IMMERSA_MYSQL_SSL_CA: "line-one\\nline-two"
+  });
+  assert.equal(config.port, 3306);
+  assert.equal(config.connectionLimit, 10);
+  assert.equal(config.ssl.ca, "line-one\nline-two");
+  assert.equal(config.ssl.rejectUnauthorized, true);
+});
+
+test("MySQL config fails clearly when required values are absent", () => {
+  assert.throws(() => readMysqlConfig({}), /MySQL is not configured/);
+  assert.throws(() => readMysqlConfig({ IMMERSA_MYSQL_URL: "postgres://example.test/db" }), /mysql:\/\//);
+});
+
+test("Q&A schema preserves the frozen storage contract", async () => {
+  const files = (await fs.promises.readdir(migrationsDir)).sort();
+  assert.deepEqual(files, ["001_presentation_sessions.sql", "002_qna_rounds.sql", "003_qna_questions.sql"]);
+  const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
+  assert.match(schema, /ENGINE=InnoDB/g);
+  assert.match(schema, /utf8mb4/g);
+  assert.match(schema, /UNIQUE KEY uq_qna_question_per_audience \(qna_round_id, audience_id\)/);
+  assert.match(schema, /ENUM\('new', 'selected'\)/);
+  assert.match(schema, /projected_at DATETIME\(3\) NULL/);
+  assert.match(schema, /UNIQUE KEY uq_qna_selected_per_round \(selected_round_id\)/);
+  assert.match(schema, /status = 'new' AND selected_round_id IS NULL/);
+  assert.match(schema, /status = 'selected' AND selected_round_id = qna_round_id/);
+  assert.doesNotMatch(schema, /GENERATED ALWAYS/);
+  assert.doesNotMatch(schema, /deleted_at|projected_by|projection_count|projected_with_name/i);
+});
+
+test("migration runner serializes and records pending SQL files", async () => {
+  const calls = [];
+  const connection = {
+    async query(sql, values) {
+      calls.push({ kind: "query", sql: String(sql), values });
+      if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }], []];
+      if (/SELECT id FROM schema_migrations/.test(sql)) return [[], []];
+      return [[], []];
+    },
+    async execute(sql, values) {
+      calls.push({ kind: "execute", sql: String(sql), values });
+      return [[], []];
+    },
+    release() { calls.push({ kind: "release" }); }
+  };
+  const result = await runMigrations({ async getConnection() { return connection; } }, { migrationsDir });
+  assert.deepEqual(result.executed, ["001_presentation_sessions.sql", "002_qna_rounds.sql", "003_qna_questions.sql"]);
+  const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
+  assert.deepEqual(recorded, result.executed);
+  assert.ok(calls.some((call) => /RELEASE_LOCK/.test(call.sql || "")));
+  assert.equal(calls.at(-1).kind, "release");
+});
