@@ -14,8 +14,8 @@
     return node;
   }
 
-  function createController({ socket, role, mount, before = null, compact = false } = {}) {
-    if (!socket?.on || !socket?.emit || !mount || !["presenter", "stage"].includes(role)) return null;
+  function createController({ socket, role, mount, before = null, compact = false, launcher = true, onAvailabilityChange } = {}) {
+    if (!socket?.on || !socket?.emit || (launcher && !mount) || !["presenter", "stage"].includes(role)) return null;
 
     let state = null;
     let open = false;
@@ -40,7 +40,7 @@
     const badge = element("span", "qna-control-badge", "0");
     badge.hidden = true;
     button.append(icon, buttonLabel, badge);
-    mount.insertBefore(button, before);
+    if (launcher) mount.insertBefore(button, before);
 
     const modal = element("div", "qna-control-modal");
     modal.hidden = true;
@@ -89,12 +89,13 @@
 
     function updateButton() {
       if (!state) return;
-      button.hidden = false;
+      button.hidden = !launcher;
       const pending = state.questions.filter((question) => !question.answered).length;
       badge.textContent = String(pending);
       badge.hidden = pending === 0;
       button.classList.toggle("is-active", open);
       button.classList.toggle("has-questions", pending > 0);
+      onAvailabilityChange?.({ available: true, pending, state });
     }
 
     function actionButton(label, action, question, className = "") {
