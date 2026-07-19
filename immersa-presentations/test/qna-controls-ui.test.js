@@ -20,6 +20,7 @@ test("Speaker and Stage expose the shared Q&A controller only after Q&A state ar
   assert.match(stageHtml, /shared\/qna-controls\.css/);
   assert.match(stageHtml, /shared\/qna-controls\.js/);
   assert.match(presenterScript, /role: "presenter"/);
+  assert.match(presenterScript, /before: localReactions\?\.closest\("\.reaction-toggle"\)/);
   assert.match(stageScript, /role: "stage"/);
   assert.match(controls, /button\.hidden = true/);
   assert.match(controls, /socket\.on\("qna:state", render\)/);
