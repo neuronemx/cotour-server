@@ -43,7 +43,7 @@
 }
 
 .qna-control-modal[hidden] { display: none !important; }
-.qna-control-backdrop { position: absolute; inset: 0; background: rgba(2, 4, 10, .82); backdrop-filter: blur(14px); }
+.qna-control-backdrop { position: absolute; inset: 0; background: rgba(5, 8, 18, .42); backdrop-filter: blur(4px); }
 
 .qna-control-card {
   position: relative;
@@ -53,12 +53,13 @@
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   border: 1px solid rgba(255, 255, 255, .16);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 0 0, rgba(83, 224, 212, .12), transparent 34%),
-    linear-gradient(145deg, rgba(19, 23, 35, .98), rgba(8, 10, 17, .98));
-  box-shadow: 0 28px 90px rgba(0, 0, 0, .56);
+  border-top-width: 0;
+  border-radius: 22px;
+  background: var(--immersa-glass, linear-gradient(160deg, rgba(30, 26, 48, .96), rgba(18, 16, 30, .98)));
+  box-shadow: 0 24px 68px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255,255,255,.08);
 }
+
+.qna-control-card::before { content: ""; position: absolute; z-index: 2; top: 0; left: 0; right: 0; height: 3px; border-radius: 22px 22px 0 0; background: var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%)); pointer-events: none; }
 
 .qna-control-head {
   min-width: 0;
