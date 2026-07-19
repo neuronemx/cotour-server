@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS qna_questions (
   name VARCHAR(120) NULL,
   allow_name_on_screen TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('new', 'selected') NOT NULL DEFAULT 'new',
-  selected_round_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin
-    GENERATED ALWAYS AS (CASE WHEN status = 'selected' THEN qna_round_id ELSE NULL END) STORED,
+  selected_round_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
   projected_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -15,6 +14,11 @@ CREATE TABLE IF NOT EXISTS qna_questions (
   UNIQUE KEY uq_qna_selected_per_round (selected_round_id),
   KEY idx_qna_questions_round_created (qna_round_id, created_at),
   KEY idx_qna_questions_projected (qna_round_id, projected_at),
+  CONSTRAINT ck_qna_question_selection
+    CHECK (
+      (status = 'new' AND selected_round_id IS NULL)
+      OR (status = 'selected' AND selected_round_id = qna_round_id)
+    ),
   CONSTRAINT fk_qna_questions_round
     FOREIGN KEY (qna_round_id) REFERENCES qna_rounds (id)
     ON UPDATE RESTRICT ON DELETE CASCADE
