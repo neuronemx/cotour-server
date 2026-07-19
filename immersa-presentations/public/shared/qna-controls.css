@@ -98,7 +98,10 @@
 .qna-open-switch input:focus-visible + .qna-open-track { outline: 3px solid rgba(83, 224, 212, .34); outline-offset: 3px; }
 .qna-open-switch strong { font-size: 14px; }
 
+.qna-control-secondary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
 .qna-new-round,
+.qna-export-link,
 .qna-question-actions button {
   border: 1px solid rgba(255, 255, 255, .16);
   border-radius: 11px;
@@ -107,10 +110,13 @@
   color: #f7f8ff;
   font: 700 13px/1 Inter, sans-serif;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .qna-new-round:hover,
+.qna-export-link:hover,
 .qna-question-actions button:hover { background: rgba(255, 255, 255, .13); }
+.qna-export-link[hidden] { display: none !important; }
 .qna-control-status { min-height: 19px; margin: 10px 24px 0; color: #ff99af; font-size: 13px; font-weight: 700; }
 .qna-question-list { min-height: 0; overflow: auto; padding: 10px 24px 24px; display: grid; align-content: start; gap: 12px; }
 
@@ -144,4 +150,5 @@
   .qna-control-status { margin-inline: 18px; }
   .qna-question-list { padding: 8px 18px 20px; }
   .qna-open-switch strong { max-width: 88px; line-height: 1.15; }
+  .qna-control-secondary-actions { flex-wrap: wrap; }
 }
