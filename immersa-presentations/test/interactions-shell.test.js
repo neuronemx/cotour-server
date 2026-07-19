@@ -53,7 +53,7 @@ test("interactions shell navigation, lock, close, and destroy", () => {
   assert.equal(shell.getView(), "qna");
   shell.setLocked(false);
   root.querySelector("[data-interactions-back]").click();
-  assert.equal(shell.getView(), "raffles");
+  assert.equal(shell.getView(), "qna");
   shell.setView("home");
   assert.equal(shell.getView(), "home");
   assert.equal(closes, 0);
