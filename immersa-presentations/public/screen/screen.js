@@ -10,6 +10,9 @@ let screenUiTimer = null;
 const slide = document.getElementById("slide");
 const qr = document.getElementById("qr");
 const message = document.getElementById("message");
+const qnaOverlay = document.getElementById("qnaOverlay");
+const qnaQuestion = document.getElementById("qnaQuestion");
+const qnaName = document.getElementById("qnaName");
 const audienceUrl = roleOpenContext.public_url || "";
 let activeAudienceUrl = audienceUrl;
 let overlays = normalizeOverlayState();
@@ -59,6 +62,22 @@ function ensureInteractionOverlay() { if (interactionOverlay) return interaction
 function renderResultRows(results) { return '<div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>'; }
 function showInteractionResults(results) { if (!results) return; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (results.title || 'Resultados') + '</h2><p>' + (results.prompt || '') + '</p>' + renderResultRows(results); }
 function hideInteractionResults() { ensureInteractionOverlay().classList.add("interaction-hidden"); }
+function renderQnaScreen(payload = {}) {
+  const question = payload.visible ? payload.question : null;
+  const text = String(question?.text || "").trim();
+  if (!question || !text) {
+    qnaOverlay.hidden = true;
+    qnaQuestion.textContent = "";
+    qnaName.textContent = "";
+    qnaName.hidden = true;
+    return;
+  }
+  const name = String(question.name || "").trim();
+  qnaQuestion.textContent = text;
+  qnaName.textContent = name;
+  qnaName.hidden = !name;
+  qnaOverlay.hidden = false;
+}
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
@@ -75,5 +94,6 @@ socket.on("drawing_stroke", (stroke) => drawingOverlay?.addStroke(stroke));
 socket.on("interaction:show_results", showInteractionResults);
 socket.on("interaction:hide_results", hideInteractionResults);
 socket.on("interaction:closed", hideInteractionResults);
+socket.on("qna:screen", renderQnaScreen);
 makeQrPattern(activeAudienceUrl);
 loadDeck().then(() => { initDrawingOverlay(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" }); });

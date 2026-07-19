@@ -21,6 +21,15 @@
 .reactions { pointer-events: none; position: fixed; z-index: 4; inset: 0; overflow: hidden; }
 .reaction { position: absolute; bottom: 42px; left: 50%; font-size: 54px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); animation: rise 3s ease-out forwards; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 0) scale(.8); } 12% { opacity: 1; } to { opacity: 0; transform: translate(calc(-50% + var(--x)), -62vh) scale(1.45); } }
+.qna-screen-overlay { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; padding: 7vh 7vw; pointer-events: none; background: radial-gradient(circle at 50% 50%, rgba(3,8,16,.24), rgba(0,0,0,.58) 72%); }
+.qna-screen-overlay[hidden] { display: none !important; }
+.qna-screen-card { width: min(86vw, 1100px); display: grid; grid-template-columns: clamp(76px, 9vw, 126px) minmax(0, 1fr); align-items: center; gap: clamp(22px, 3vw, 42px); padding: clamp(28px, 4vw, 54px); border: 1px solid rgba(255,255,255,.2); border-radius: 26px; background: linear-gradient(135deg, rgba(18,26,46,.94), rgba(7,10,18,.96)); box-shadow: 0 34px 120px rgba(0,0,0,.62), 0 0 74px rgba(83,224,212,.16); backdrop-filter: blur(22px) saturate(1.16); animation: qnaScreenIn .34s ease-out both; }
+.qna-screen-icon { display: block; width: 100%; height: auto; filter: drop-shadow(0 16px 32px rgba(73,181,238,.24)); }
+.qna-screen-copy { min-width: 0; }
+.qna-screen-copy p { margin: 0; color: #fff; font-family: Inter, "Segoe UI", Arial, sans-serif; font-size: clamp(30px, 4.1vw, 62px); font-weight: 800; line-height: 1.14; letter-spacing: -.025em; overflow-wrap: anywhere; text-wrap: balance; }
+.qna-screen-copy span { display: block; margin-top: clamp(16px, 2vw, 24px); color: #83e8df; font-size: clamp(18px, 2vw, 29px); font-weight: 700; }
+.qna-screen-copy span[hidden] { display: none !important; }
+@keyframes qnaScreenIn { from { opacity: 0; transform: translateY(20px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .raffle-public-overlay { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 6vh 6vw; pointer-events: none; background: linear-gradient(180deg, rgba(0,0,0,.16), rgba(0,0,0,.34)); }
 .raffle-screen-overlay.is-collecting, .raffle-screen-overlay.is-entries_closed { place-items: end center; padding-bottom: 8vh; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.28)); }
 .raffle-screen-overlay.is-drawing, .raffle-screen-overlay.is-winner { background: radial-gradient(circle at 50% 50%, rgba(71,42,160,.34), rgba(0,0,0,.68) 62%), rgba(0,0,0,.38); }
@@ -43,6 +52,6 @@
 @keyframes raffleTicketOrbit { 0%, 100% { transform: translate3d(0,0,0) rotate(-8deg); opacity: .35; } 50% { transform: translate3d(18px,-18px,0) rotate(12deg); opacity: .9; } }
 .is-winner .raffle-screen-card { animation: raffleWinnerIn .55s ease-out both; }
 @keyframes raffleWinnerIn { from { transform: scale(.96); opacity: .72; } to { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card { animation: none; } }
 @media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }
-@media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(210px, 44vw); } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
+@media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(210px, 44vw); } .qna-screen-overlay { padding: 5vw; } .qna-screen-card { width: 90vw; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; border-radius: 20px; } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
