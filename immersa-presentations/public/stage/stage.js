@@ -62,6 +62,12 @@ const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
 const stageQrPattern = document.getElementById("stageQrPattern");
 const stageQrUrl = document.getElementById("stageQrUrl");
+const qnaControls = window.ImmersaQnaControls?.create({
+  socket,
+  role: "stage",
+  mount: document.querySelector(".toolbar-actions"),
+  before: stageActionsButton
+});
 
 async function loadDeck() {
   const res = await fetch("/decks/" + deckId + "/manifest.json");
