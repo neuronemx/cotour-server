@@ -5,7 +5,7 @@ const test = require("node:test");
 
 const root = path.join(__dirname, "..");
 
-test("Speaker and Stage expose the shared Q&A controller only after Q&A state arrives", async () => {
+test("Speaker and Stage expose Q&A through Interacciones only after Q&A state arrives", async () => {
   const [presenterHtml, presenterScript, stageHtml, stageScript, controls, css] = await Promise.all([
     fs.promises.readFile(path.join(root, "public", "presenter", "index.html"), "utf8"),
     fs.promises.readFile(path.join(root, "public", "presenter", "presenter.js"), "utf8"),
@@ -20,11 +20,16 @@ test("Speaker and Stage expose the shared Q&A controller only after Q&A state ar
   assert.match(stageHtml, /shared\/qna-controls\.css/);
   assert.match(stageHtml, /shared\/qna-controls\.js/);
   assert.match(presenterScript, /role: "presenter"/);
-  assert.match(presenterScript, /before: localReactions\?\.closest\("\.reaction-toggle"\)/);
+  assert.match(presenterScript, /launcher: false/);
+  assert.match(presenterScript, /view === "qna"/);
+  assert.match(presenterScript, /qnaControls\?\.open\(\)/);
   assert.match(stageScript, /role: "stage"/);
+  assert.match(stageScript, /launcher: false/);
+  assert.match(stageScript, /view === "qna"/);
   assert.match(controls, /button\.hidden = true/);
   assert.match(controls, /socket\.on\("qna:state", render\)/);
-  assert.match(controls, /button\.hidden = false/);
+  assert.match(controls, /button\.hidden = !launcher/);
+  assert.match(controls, /onAvailabilityChange/);
   assert.match(controls, /Abrir preguntas/);
   assert.match(controls, /Nueva ronda/);
   assert.match(controls, /Descargar CSV/);
@@ -41,6 +46,8 @@ test("Speaker and Stage expose the shared Q&A controller only after Q&A state ar
   assert.match(controls, /if \(!question\.answered\).*"delete"/s);
   assert.match(controls, /qna-question-icon\.svg/);
   assert.match(css, /\.qna-control-modal/);
+  assert.match(css, /backdrop-filter: blur\(4px\)/);
+  assert.match(css, /--immersa-glass/);
 });
 
 test("Q&A control UI does not add live drawing to Stage", async () => {
