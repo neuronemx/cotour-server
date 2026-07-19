@@ -79,13 +79,13 @@ function renderQnaState(state = {}) {
     hasSubmitted: Boolean(state.hasSubmitted),
     roundNumber: Number.isFinite(Number(state.roundNumber)) ? Number(state.roundNumber) : null
   };
-  const visible = qnaState.questionsOpen;
+  const visible = qnaState.questionsOpen && !qnaState.hasSubmitted;
   qnaOpen?.classList.toggle("hidden", !visible);
   if (qnaOpen) {
     qnaOpen.disabled = qnaState.hasSubmitted;
     qnaOpen.classList.toggle("is-submitted", qnaState.hasSubmitted);
-    qnaOpen.setAttribute("aria-label", qnaState.hasSubmitted ? "Pregunta enviada" : "Preguntas");
-    qnaOpen.title = qnaState.hasSubmitted ? "Pregunta enviada" : "Preguntas";
+    qnaOpen.setAttribute("aria-label", qnaState.hasSubmitted ? "Pregunta enviada" : "Enviar pregunta");
+    qnaOpen.title = qnaState.hasSubmitted ? "Pregunta enviada" : "Enviar pregunta";
   }
   if (!visible || qnaState.hasSubmitted) closeQnaComposer();
 }
