@@ -35,7 +35,7 @@ const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "presenter",
   mount: document.querySelector(".fx-module"),
-  before: localReactions,
+  before: localReactions?.closest(".reaction-toggle"),
   compact: true
 });
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
