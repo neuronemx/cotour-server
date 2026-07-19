@@ -524,7 +524,29 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     };
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute };
+  function guardAccessRoles(allowedRoles = []) {
+    const roles = new Set(allowedRoles.map((role) => String(role || '').trim()).filter(Boolean));
+    return async (req, res, next) => {
+      const accessToken = String(req.params?.access_token || '').trim();
+      if (!ACCESS_TOKEN_PATTERN.test(accessToken)) return res.status(404).json({ error: 'Access link not found' });
+
+      try {
+        const result = await findActiveAccessLink(accessToken);
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        if (!roles.has(result.accessLink.role)) return res.status(403).json({ error: 'Role not allowed for this resource' });
+
+        const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+        if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+        req.immersaAccess = { accessLink: result.accessLink, deck };
+        return next();
+      } catch (error) {
+        console.error('Unable to validate resource access', error);
+        return res.status(500).json({ error: 'Unable to validate resource access' });
+      }
+    };
+  }
+
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles };
 }
 
 module.exports = {
