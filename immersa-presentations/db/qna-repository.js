@@ -48,13 +48,29 @@ class QnaRepository {
     this.createId = options.createId || randomUUID;
   }
 
-  async startPresentationSession({ deckId, sourceSessionId }) {
+  async startPresentationSession({ deckId, sourceSessionId, replaceActive = false }) {
     const normalizedDeckId = requiredText(deckId, "deckId", 191);
     const normalizedSourceSessionId = requiredText(sourceSessionId, "sourceSessionId", 191);
     const presentationSessionId = this.createId();
     const qnaRoundId = this.createId();
 
     return inTransaction(this.pool, async (connection) => {
+      if (replaceActive) {
+        await connection.execute(
+          `UPDATE qna_rounds r
+           INNER JOIN presentation_sessions ps ON ps.id = r.presentation_session_id
+           SET r.archived_at = COALESCE(r.archived_at, CURRENT_TIMESTAMP(3))
+           WHERE ps.deck_id = ? AND ps.source_session_id = ?
+             AND ps.ended_at IS NULL AND r.archived_at IS NULL`,
+          [normalizedDeckId, normalizedSourceSessionId]
+        );
+        await connection.execute(
+          `UPDATE presentation_sessions
+           SET ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP(3))
+           WHERE deck_id = ? AND source_session_id = ? AND ended_at IS NULL`,
+          [normalizedDeckId, normalizedSourceSessionId]
+        );
+      }
       await connection.execute(
         `INSERT INTO presentation_sessions (id, deck_id, source_session_id)
          VALUES (?, ?, ?)`,
@@ -67,6 +83,27 @@ class QnaRepository {
       );
       return { presentationSessionId, qnaRoundId, roundNumber: 1, questionsOpen: false };
     });
+  }
+
+  async getActivePresentationSession({ deckId, sourceSessionId }) {
+    const normalizedDeckId = requiredText(deckId, "deckId", 191);
+    const normalizedSourceSessionId = requiredText(sourceSessionId, "sourceSessionId", 191);
+    const [rows] = await this.pool.execute(
+      `SELECT id, deck_id, source_session_id, started_at
+       FROM presentation_sessions
+       WHERE deck_id = ? AND source_session_id = ? AND ended_at IS NULL
+       ORDER BY started_at DESC, id DESC
+       LIMIT 1`,
+      [normalizedDeckId, normalizedSourceSessionId]
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      presentationSessionId: row.id,
+      deckId: row.deck_id,
+      sourceSessionId: row.source_session_id,
+      startedAt: row.started_at
+    };
   }
 
   async endPresentationSession(presentationSessionId) {

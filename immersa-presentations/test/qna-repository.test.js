@@ -47,6 +47,23 @@ test("starts each deck execution as a distinct historical session and first roun
   assert.deepEqual(pool.calls.map((call) => call.type), ["begin", "execute", "execute", "commit", "release"]);
 });
 
+test("new Screen execution archives the previous active round and presentation session", async () => {
+  const pool = fakePool();
+  const repository = new QnaRepository(pool, { createId: ids() });
+  await repository.startPresentationSession({
+    deckId: "deck-a",
+    sourceSessionId: "room-a",
+    replaceActive: true
+  });
+  const statements = pool.calls.filter((call) => call.type === "execute");
+  assert.match(statements[0].sql, /UPDATE qna_rounds/);
+  assert.deepEqual(statements[0].values, ["deck-a", "room-a"]);
+  assert.match(statements[1].sql, /UPDATE presentation_sessions/);
+  assert.deepEqual(statements[1].values, ["deck-a", "room-a"]);
+  assert.match(statements[2].sql, /INSERT INTO presentation_sessions/);
+  assert.match(statements[3].sql, /INSERT INTO qna_rounds/);
+});
+
 test("submits one normalized question only while the active round is open", async () => {
   const pool = fakePool([
     [[{ id: "round-1", round_number: 1, questions_open: 1 }], []],
