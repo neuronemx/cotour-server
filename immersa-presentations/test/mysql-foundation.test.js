@@ -52,7 +52,10 @@ test("Q&A schema preserves the frozen storage contract", async () => {
   assert.match(schema, /UNIQUE KEY uq_qna_question_per_audience \(qna_round_id, audience_id\)/);
   assert.match(schema, /ENUM\('new', 'selected'\)/);
   assert.match(schema, /projected_at DATETIME\(3\) NULL/);
-  assert.match(schema, /GENERATED ALWAYS AS \(CASE WHEN status = 'selected'/);
+  assert.match(schema, /UNIQUE KEY uq_qna_selected_per_round \(selected_round_id\)/);
+  assert.match(schema, /status = 'new' AND selected_round_id IS NULL/);
+  assert.match(schema, /status = 'selected' AND selected_round_id = qna_round_id/);
+  assert.doesNotMatch(schema, /GENERATED ALWAYS/);
   assert.doesNotMatch(schema, /deleted_at|projected_by|projection_count|projected_with_name/i);
 });
 
