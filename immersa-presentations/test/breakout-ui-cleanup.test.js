@@ -29,7 +29,7 @@ test("interactions shell owns renderer visibility by selected view", () => {
   const shell = source("public/shared/interactions-shell.js");
   assert.match(shell, /data-interactions-view/);
   assert.match(shell, /node\.hidden = node\.dataset\.interactionsView !== view/);
-  assert.match(shell, /new Set\(\["home", "polls", "raffles", "games"\]\)/);
+  assert.match(shell, /new Set\(\["home", "polls", "raffles", "qna", "games"\]\)/);
 });
 
 test("Time Sync UI does not mount controls in Speaker or Stage", () => {
