@@ -43,16 +43,17 @@ test("interactions shell navigation, lock, close, and destroy", () => {
   category(root, "raffles").click();
   assert.equal(shell.getView(), "raffles");
   category(root, "contests").click();
+  category(root, "qna").click();
   category(root, "games").click();
-  assert.deepEqual(selected, ["polls", "raffles"]);
+  assert.deepEqual(selected, ["polls", "raffles", "qna"]);
   shell.setLocked(true);
   category(root, "polls").click();
-  assert.equal(shell.getView(), "raffles");
+  assert.equal(shell.getView(), "qna");
   root.querySelector("[data-interactions-back]").click();
-  assert.equal(shell.getView(), "raffles");
+  assert.equal(shell.getView(), "qna");
   shell.setLocked(false);
   root.querySelector("[data-interactions-back]").click();
-  assert.equal(shell.getView(), "raffles");
+  assert.equal(shell.getView(), "qna");
   shell.setView("home");
   assert.equal(shell.getView(), "home");
   assert.equal(closes, 0);
@@ -84,6 +85,7 @@ const APPROVED_CATEGORY_ICONS = {
   polls: { viewBox: "0 0 24 24", rects: [{ x: "3.5", y: "3.5", width: "17", height: "15", rx: "2" }], paths: ["M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2"] },
   raffles: { viewBox: "0 0 24 24", rects: [], paths: ["M3 8h18v13H3zM3 8h18M12 8v13M7.5 8a2.5 2.5 0 1 1 0-5C9.2 3 10.6 4.5 12 8M16.5 8a2.5 2.5 0 1 0 0-5C14.8 3 13.4 4.5 12 8"] },
   contests: { viewBox: "0 0 24 24", rects: [], paths: ["M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a2 2 0 0 0 2 2M17 6h3a2 2 0 0 1-2 2"] },
+  qna: { viewBox: "0 0 24 24", rects: [], paths: ["M4 4.5h16v12H9l-5 3v-15z", "M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4", "M12 15h.01"] },
   games: { viewBox: "0 0 24 24", rects: [{ x: "3", y: "6.5", width: "8", height: "13", rx: "2" }, { x: "13", y: "6.5", width: "8", height: "13", rx: "2" }], paths: ["M6.5 13h1.8M15.7 13h1.8"] }
 };
 
@@ -91,8 +93,8 @@ test("interactions shell preserves the approved category contract", () => {
   const { root } = setup();
   const shell = Shell.create({ root });
   const categories = root.querySelectorAll("[data-interactions-category]");
-  assert.deepEqual(categories.map((button) => button.dataset.interactionsCategory), ["polls", "raffles", "contests", "games"]);
-  assert.deepEqual(categories.map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Sorteos", "Concursos", "Juegos"]);
+  assert.deepEqual(categories.map((button) => button.dataset.interactionsCategory), ["polls", "raffles", "contests", "qna", "games"]);
+  assert.deepEqual(categories.map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Sorteos", "Concursos", "Preguntas", "Juegos"]);
   assert.equal(root.querySelector(".interactions-shell-home").innerHTML, "<p>Selecciona una interacción.</p>");
   assert.equal(root.querySelectorAll("h2").length, 1);
   assert.equal(root.querySelector(".interactions-shell-title").textContent, "Interacciones");
@@ -101,9 +103,14 @@ test("interactions shell preserves the approved category contract", () => {
   assert.notEqual(root.querySelector(".interactions-shell-title").textContent, "Encuestas");
   assert.equal(root.querySelector(".interactions-shell-home").hidden, true);
   assert.equal(category(root, "contests").disabled, true);
+  assert.equal(category(root, "qna").disabled, false);
   assert.equal(category(root, "games").disabled, true);
   assert.equal(category(root, "contests").tabIndex, -1);
   assert.equal(category(root, "games").tabIndex, -1);
+  shell.setCategoryVisible("qna", false);
+  assert.equal(category(root, "qna").hidden, true);
+  shell.setCategoryVisible("qna", true);
+  assert.equal(category(root, "qna").hidden, false);
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions-shell.js"), "utf8"), /Próximamente/);
   for (const button of categories) {
     const expected = APPROVED_CATEGORY_ICONS[button.dataset.interactionsCategory];

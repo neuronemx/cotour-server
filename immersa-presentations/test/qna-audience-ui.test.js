@@ -13,6 +13,7 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
     fs.promises.readFile(path.join(__dirname, "..", "public", "shared", "qna-question-icon.svg"), "utf8")
   ]);
   assert.match(html, /id="qnaOpen"[^>]*hidden/);
+  assert.match(html, /<span>Enviar pregunta<\/span>/);
   assert.match(html, /qna-question-icon\.svg/);
   assert.match(html, /maxlength="1000"/);
   assert.match(html, /Nombre <span>\(opcional\)<\/span>/);
@@ -20,8 +21,12 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
   assert.match(script, /socket\.on\("qna:state", renderQnaState\)/);
   assert.match(script, /socket\.emit\("qna:submit"/);
   assert.match(script, /questionsOpen: Boolean\(state\.questionsOpen\)/);
+  assert.match(script, /qnaState\.questionsOpen && !qnaState\.hasSubmitted/);
   assert.match(script, /Tu pregunta ha sido enviada/);
   assert.doesNotMatch(script, /qna:select|qna:project|qna:delete|qna:new_round/);
   assert.match(css, /\.qna-composer/);
+  assert.match(css, /\.qna-open \{[\s\S]+left: 50%;[\s\S]+translateX\(-50%\)/);
   assert.match(icon, /viewBox="0 0 2048 2048"/);
+  assert.match(icon, /mask id="qna-transparent-silhouette"/);
+  assert.doesNotMatch(icon, /fill="rgb\(253,253,253\)"/);
 });

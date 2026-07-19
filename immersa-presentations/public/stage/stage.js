@@ -62,11 +62,15 @@ const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
 const stageQrPattern = document.getElementById("stageQrPattern");
 const stageQrUrl = document.getElementById("stageQrUrl");
+let qnaAvailable = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
-  mount: document.querySelector(".toolbar-actions"),
-  before: stageActionsButton
+  launcher: false,
+  onAvailabilityChange: ({ available }) => {
+    qnaAvailable = Boolean(available);
+    interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
+  }
 });
 
 async function loadDeck() {
@@ -335,7 +339,15 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell || !interactionShellMount) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    categoryVisibility: { qna: qnaAvailable },
     onSelectCategory: (view) => {
+      if (view === "qna") {
+        interactionShell.setView("home");
+        syncRendererVisibility();
+        closeStageActions();
+        qnaControls?.open();
+        return;
+      }
       if (view === "polls") renderStageActionsPanel();
       if (view === "raffles") { syncRendererVisibility(); raffleController?.setTab?.("raffles"); }
       syncInteractionShellState();
