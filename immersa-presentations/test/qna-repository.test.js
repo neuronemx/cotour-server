@@ -257,3 +257,27 @@ test("exports every existing deck question with Respondida Sí/No and spreadshee
   assert.match(csv, /"'=HYPERLINK\(""bad""\)"/);
   assert.match(csv, /"Ana, MX"/);
 });
+
+test("clears deck history while preserving an empty active execution", async () => {
+  const pool = fakePool([
+    [[{ id: "session-active", source_session_id: "source-session-1" }], []],
+    [[{ session_count: 3, question_count: 7 }], []],
+    [{ affectedRows: 2 }, []],
+    [{ affectedRows: 2 }, []],
+    [{ affectedRows: 4 }, []]
+  ]);
+  const result = await new QnaRepository(pool).clearDeckHistory("deck-a");
+  assert.deepEqual(result, {
+    deckId: "deck-a",
+    deletedSessionCount: 2,
+    deletedQuestionCount: 7,
+    activePresentationSessionId: "session-active",
+    sourceSessionId: "source-session-1"
+  });
+  const statements = pool.calls.filter((call) => call.type === "execute");
+  assert.match(statements[0].sql, /ended_at IS NULL/);
+  assert.match(statements[2].sql, /DELETE FROM presentation_sessions/);
+  assert.match(statements[3].sql, /DELETE q FROM qna_questions/);
+  assert.match(statements[4].sql, /archived_at IS NOT NULL/);
+  assert.deepEqual(pool.calls.map((call) => call.type), ["begin", "execute", "execute", "execute", "execute", "execute", "commit", "release"]);
+});
