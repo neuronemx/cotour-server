@@ -196,6 +196,44 @@ test("history deletion immediately clears controllers, Screen and Público", asy
   assert.ok(io.emissions.some((item) => item.room === "source-session-1::deck-a::audience:audience-1" && item.event === "qna:state"));
 });
 
+test("roles reconnect to the empty active round after history deletion", async () => {
+  const repository = repositoryStub();
+  repository.state.questions = [];
+  repository.state.selectedQuestionId = null;
+  repository.getAudienceState = async () => ({ roundNumber: 1, questionsOpen: true, hasSubmitted: false });
+  const { handlers } = setup("presenter", { repository });
+  await handlers.resetAfterHistoryDelete({
+    deckId: "deck-a",
+    sourceSessionId: "source-session-1",
+    presentationSessionId: "presentation-session-1"
+  });
+
+  const screen = fakeSocket();
+  await handlers.sendCurrentState(screen, {
+    roomKey: "source-session-1::deck-a",
+    sessionId: "source-session-1",
+    deckId: "deck-a",
+    role: "screen"
+  });
+  assert.deepEqual(screen.emissions.at(-1), {
+    event: "qna:screen",
+    payload: { visible: false, question: null }
+  });
+
+  const audience = fakeSocket();
+  await handlers.sendCurrentState(audience, {
+    roomKey: "source-session-1::deck-a",
+    sessionId: "source-session-1",
+    deckId: "deck-a",
+    role: "audience",
+    audienceId: "audience-1"
+  });
+  assert.deepEqual(audience.emissions.at(-1), {
+    event: "qna:state",
+    payload: { roundNumber: 1, questionsOpen: true, hasSubmitted: false }
+  });
+});
+
 test("domain errors are returned with stable public reasons", async () => {
   const repository = repositoryStub();
   repository.deleteQuestion = async () => { throw new QnaError("QNA_ALREADY_PROJECTED", "internal detail"); };
