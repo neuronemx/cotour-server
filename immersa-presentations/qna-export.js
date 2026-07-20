@@ -43,7 +43,25 @@ function createQnaHistoryHandlers({ runtime, logger = console } = {}) {
     }
   }
 
-  return { listHistory, exportDeck };
+  async function clearHistory(req, res) {
+    if (!runtime.enabled || typeof runtime.clearHistory !== "function") {
+      return res.status(404).json({ error: "Q&A history is not available" });
+    }
+    const access = req.immersaAccess;
+    if (!access?.accessLink || !access?.deck) {
+      return res.status(403).json({ error: "Access token required" });
+    }
+    try {
+      const result = await runtime.clearHistory({ deckId: access.deck.deckId });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      logger.error("Unable to clear Q&A history", error);
+      return res.status(503).json({ error: "Q&A history could not be deleted" });
+    }
+  }
+
+  return { listHistory, exportDeck, clearHistory };
 }
 
 module.exports = { createQnaHistoryHandlers, safeFilenamePart };

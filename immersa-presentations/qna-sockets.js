@@ -6,6 +6,7 @@ function createQnaSocketHandlers({
   io,
   repository,
   getRoleRoomKey,
+  getRoomKey = (sessionId, deckId) => `${sessionId}::${deckId}`,
   resolvePresentationSessionId,
   getConnectedAudience = () => []
 }) {
@@ -221,7 +222,15 @@ function createQnaSocketHandlers({
     }
   }
 
-  return { attach, sendCurrentState };
+  async function resetAfterHistoryDelete({ deckId, sourceSessionId, presentationSessionId }) {
+    if (!deckId || !sourceSessionId || !presentationSessionId) return;
+    const roomKey = getRoomKey(sourceSessionId, deckId);
+    const context = { roomKey, sessionId: sourceSessionId, deckId, presentationSessionId };
+    screenState.set(String(presentationSessionId), { questionId: null, visible: false });
+    await emitAllStates(context);
+  }
+
+  return { attach, sendCurrentState, resetAfterHistoryDelete };
 }
 
 module.exports = { CONTROL_ROLES, createQnaSocketHandlers };

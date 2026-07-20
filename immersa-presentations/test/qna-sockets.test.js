@@ -181,6 +181,21 @@ test("new round clears Screen while repository owns round archiving", async () =
   assert.deepEqual(repository.state.questions, []);
 });
 
+test("history deletion immediately clears controllers, Screen and Público", async () => {
+  const { io, repository, handlers } = setup("presenter");
+  repository.state.questions = [];
+  repository.state.selectedQuestionId = null;
+  await handlers.resetAfterHistoryDelete({
+    deckId: "deck-a",
+    sourceSessionId: "source-session-1",
+    presentationSessionId: "presentation-session-1"
+  });
+  const screen = io.emissions.filter((item) => item.room === "source-session-1::deck-a::screen" && item.event === "qna:screen").at(-1);
+  assert.deepEqual(screen.payload, { visible: false, question: null });
+  assert.ok(io.emissions.some((item) => item.room === "source-session-1::deck-a::presenter" && item.event === "qna:state"));
+  assert.ok(io.emissions.some((item) => item.room === "source-session-1::deck-a::audience:audience-1" && item.event === "qna:state"));
+});
+
 test("domain errors are returned with stable public reasons", async () => {
   const repository = repositoryStub();
   repository.deleteQuestion = async () => { throw new QnaError("QNA_ALREADY_PROJECTED", "internal detail"); };
