@@ -16,6 +16,11 @@ function makeClock(start = 1000) {
   };
 }
 
+function joinBothTeams(store, sessionId = "s1") {
+  store.joinTeam(sessionId, "left-player", "left");
+  store.joinTeam(sessionId, "right-player", "right");
+}
+
 test("Pong team names are editable in the lobby, bounded, and retained for a rematch", () => {
   const clock = makeClock();
   const store = new PongStore({ now: clock.now });
@@ -29,6 +34,7 @@ test("Pong team names are editable in the lobby, bounded, and retained for a rem
   assert.equal(store.snapshot("s1").teams.left.name, "Las Ballenas Azules");
   assert.equal(Array.from(store.snapshot("s1").teams.right.name).length, MAX_TEAM_NAME_LENGTH);
 
+  joinBothTeams(store);
   store.start("s1", "presenter");
   assert.equal(store.setTeamNames("s1", "stage", { left: "Otro" }).reason, "names_locked");
   store.close("s1", "stage");
@@ -68,6 +74,21 @@ test("the roster locks at start, restores known audience, and makes late joins s
   assert.equal(serialized.includes(rightAudienceId), false);
 });
 
+test("a rematch clears every roster membership and cannot start with an empty team", () => {
+  const store = new PongStore({ now: () => 1000 });
+  store.prepare("s1", "presenter");
+  joinBothTeams(store);
+  assert.equal(store.start("s1", "stage").ok, true);
+  store.close("s1", "stage");
+  store.prepare("s1", "stage");
+
+  assert.deepEqual(store.snapshot("s1").roster_counts, { left: 0, right: 0 });
+  assert.deepEqual(store.membership("s1", "left-player"), { team: "", spectator: false, roster_locked: false });
+  assert.equal(store.start("s1", "stage").reason, "teams_incomplete");
+  store.joinTeam("s1", "only-left", "left");
+  assert.equal(store.start("s1", "stage").reason, "teams_incomplete");
+});
+
 test("collective input is normalized per team and one audience has one vote per window", () => {
   const clock = makeClock();
   const store = new PongStore({ now: clock.now, inputWindowMs: 100 });
@@ -90,6 +111,7 @@ test("a goal updates the competitive score without resetting match acceleration"
   const clock = makeClock();
   const store = new PongStore({ now: clock.now });
   store.prepare("s1", "presenter");
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   const game = store.getSession("s1");
   game.elapsed_active_ms = 20000;
@@ -109,6 +131,7 @@ test("a goal updates the competitive score without resetting match acceleration"
 test("Pong speed grows with active match time and caps safely", () => {
   const store = new PongStore({ now: () => 1000 });
   store.prepare("s1", "presenter");
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   const game = store.getSession("s1");
   game.elapsed_active_ms = 10000;
@@ -120,6 +143,7 @@ test("Pong speed grows with active match time and caps safely", () => {
 test("match acceleration follows authoritative active time even after a delayed server tick", () => {
   const store = new PongStore({ now: () => 1000 });
   store.prepare("s1", "presenter", 1000);
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   const state = store.step("s1", 5000, 6000);
   assert.equal(state.speed_multiplier, 1.05);
@@ -128,6 +152,7 @@ test("match acceleration follows authoritative active time even after a delayed 
 test("the authoritative clock finishes Pong and declares winner or tie", () => {
   const store = new PongStore({ now: () => 1000, durationMs: 1000 });
   store.prepare("s1", "presenter", 1000);
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   store.getSession("s1").teams.left.score = 2;
   assert.equal(store.step("s1", 16, 1999).status, "running");
@@ -140,6 +165,7 @@ test("the authoritative clock finishes Pong and declares winner or tie", () => {
 test("pause and resume preserve both match time and a pending serve", () => {
   const store = new PongStore({ now: () => 1000 });
   store.prepare("s1", "presenter", 1000);
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   const game = store.getSession("s1");
   store.scoreGoal(game, "left", 2000);
@@ -153,6 +179,7 @@ test("pause and resume preserve both match time and a pending serve", () => {
 test("a complete authoritative match keeps every physics value finite and bounded", () => {
   const store = new PongStore({ now: () => 1000 });
   store.prepare("s1", "presenter", 1000);
+  joinBothTeams(store);
   store.start("s1", "presenter", 1000);
   let state = store.snapshot("s1", 1000);
   for (let nowMs = 1050; nowMs <= 61000; nowMs += 50) {

@@ -41,25 +41,30 @@
     return { ...defaults, ...(state?.teams?.[id] || {}) };
   }
 
-  function actionButton(label, event, className = "") {
-    return '<button type="button" class="pong-action '+className+'" data-pong-event="'+event+'">'+label+'</button>';
+  function actionButton(label, event, className = "", disabled = false) {
+    return '<button type="button" class="pong-action '+className+'" data-pong-event="'+event+'"'+(disabled ? ' disabled aria-disabled="true"' : '')+'>'+label+'</button>';
   }
 
   function queueActionButton(label, event, className = "") {
     return '<button type="button" class="pong-action '+className+'" data-games-queue-event="'+event+'">'+label+'</button>';
   }
 
-  function actions(status, queue = {}) {
+  function teamsReady(state) {
+    return Number(state?.roster_counts?.left || 0) > 0 && Number(state?.roster_counts?.right || 0) > 0;
+  }
+
+  function actions(state, queue = {}) {
+    const status = state?.status || "idle";
     const queued = (queue.status === "running" || queue.status === "finished") && queue.current_game_type === "pong";
     if (queued) {
       const end = queueActionButton("Terminar juegos", "games:queue:end", "danger");
       const skip = queue.next_game_type ? queueActionButton("Saltar juego", "games:queue:skip") : "";
-      if (status === "ready") return actionButton("Iniciar", "pong:start", "primary") + skip + end;
+      if (status === "ready") return actionButton("Iniciar", "pong:start", "primary", !teamsReady(state)) + skip + end;
       if (status === "running") return actionButton("Pausar", "pong:pause") + skip + end;
       if (status === "paused") return actionButton("Reanudar", "pong:resume", "primary") + skip + end;
       return end;
     }
-    if (status === "ready") return actionButton("Iniciar", "pong:start", "primary") + actionButton("Cerrar", "pong:close", "danger");
+    if (status === "ready") return actionButton("Iniciar", "pong:start", "primary", !teamsReady(state)) + actionButton("Cerrar", "pong:close", "danger");
     if (status === "running") return actionButton("Pausar", "pong:pause") + actionButton("Cerrar", "pong:close", "danger");
     if (status === "paused") return actionButton("Reanudar", "pong:resume", "primary") + actionButton("Cerrar", "pong:close", "danger");
     if (status === "finished") return actionButton("Preparar otra vez", "pong:prepare", "primary") + actionButton("Cerrar", "pong:close", "danger");
@@ -74,6 +79,7 @@
 
   function statusLabel(state, queue = {}) {
     if (queue.transition_at_ms) return "Preparando siguiente juego…";
+    if (state?.status === "ready" && !teamsReady(state)) return "Se necesita al menos 1 persona en cada equipo";
     if (state?.status === "ready") return "Lobby abierto · el público elige equipo";
     if (state?.status === "running") return "Partida en curso";
     if (state?.status === "paused") return "Partida pausada";
@@ -115,7 +121,7 @@
       +'<div><span>Jugadores</span><strong data-pong-roster-total>'+totalRoster+'</strong></div>'
       +'</div>'
       +'<div class="pong-controller-status" data-pong-status>'+escapeHtml(statusLabel(state, queue))+'</div>'
-      +'<div class="pong-controller-actions" data-pong-actions>'+actions(status, queue)+'</div>'
+      +'<div class="pong-controller-actions" data-pong-actions>'+actions(state, queue)+'</div>'
       +'</section>';
   }
 
@@ -347,7 +353,7 @@
       const status = state.status || "idle";
       const queued = (queueState.status === "running" || queueState.status === "finished") && queueState.current_game_type === "pong";
       renderer.dataset.gamesQueueHidden = queueReady && !queued && !ACTIVE_STATUSES.has(status) ? "true" : "false";
-      const key = [state.id || "", status, queueState.revision || 0, queued].join(":");
+      const key = [state.id || "", status, queueState.revision || 0, queued, teamsReady(state)].join(":");
       if (controllerKey !== key) {
         renderer.innerHTML = controllerMarkup(state, queueState);
         controllerKey = key;

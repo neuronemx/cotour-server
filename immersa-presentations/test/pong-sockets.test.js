@@ -50,6 +50,11 @@ function createIntervals() {
   };
 }
 
+function joinBothTeams(store, sessionId = "s1") {
+  store.joinTeam(sessionId, "left-player", "left");
+  store.joinTeam(sessionId, "right-player", "right");
+}
+
 test("Speaker and Stage prepare Pong and synchronize lobby team names", async () => {
   const io = createIo();
   const intervals = createIntervals();
@@ -68,6 +73,24 @@ test("Speaker and Stage prepare Pong and synchronize lobby team names", async ()
   assert.equal(intervals.active.size, 1);
 });
 
+test("preparing a rematch clears stale Público membership before publishing its empty roster", async () => {
+  const io = createIo();
+  const store = new PongStore({ now: () => 1000 });
+  const runtime = createPongSocketHandlers({ io, store, ...createIntervals() });
+  const context = { roomKey: "room", sessionId: "s1", role: "stage" };
+  await runtime.prepare(context);
+  joinBothTeams(store);
+  store.start("s1", "stage");
+  store.close("s1", "stage");
+  await runtime.prepare(context);
+
+  assert.deepEqual(io.emitted.slice(-2), [
+    { room: "room", event: "pong:membership", payload: { team: "", spectator: false, roster_locked: false } },
+    { room: "room", event: "pong:state", payload: store.snapshot("s1") }
+  ]);
+  assert.deepEqual(store.snapshot("s1").roster_counts, { left: 0, right: 0 });
+});
+
 test("starting after a long lobby resets loop timing before acceleration begins", async () => {
   const clock = createClock();
   const io = createIo();
@@ -78,6 +101,7 @@ test("starting after a long lobby resets loop timing before acceleration begins"
   runtime.attach(socket, () => ({ roomKey: "room", sessionId: "s1", role: "stage" }));
 
   await socket.handlers.get("pong:prepare")();
+  joinBothTeams(store);
   clock.set(30000);
   await socket.handlers.get("pong:start")();
   clock.add(50);
@@ -96,6 +120,7 @@ test("audience team choice is server-bound to its identity and restored on recon
   runtime.attach(socket, () => context);
 
   socket.handlers.get("pong:team:join")({ team: "left", audienceId: "spoofed" });
+  store.joinTeam("s1", "right-player", "right");
   runtime.sendCurrentState(socket, context);
   assert.equal(socket.emitted.filter((item) => item.event === "pong:membership").at(-1).payload.team, "left");
 
@@ -123,6 +148,7 @@ test("the loop emits each goal once and notifies the queue once at match end", a
   });
   const context = { roomKey: "room", sessionId: "s1", role: "stage" };
   await runtime.prepare(context);
+  joinBothTeams(store);
   store.start("s1", "stage", 1000);
   const game = store.getSession("s1");
   game.ball.x = -0.1;
