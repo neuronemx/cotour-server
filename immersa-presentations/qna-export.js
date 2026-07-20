@@ -1,5 +1,3 @@
-const { QnaError } = require("./db/qna-repository");
-
 function safeFilenamePart(value) {
   return String(value || "presentation")
     .normalize("NFKD")
@@ -9,40 +7,43 @@ function safeFilenamePart(value) {
     .slice(0, 80) || "presentation";
 }
 
-function createQnaExportHandler({ runtime, logger = console } = {}) {
+function createQnaHistoryHandlers({ runtime, logger = console } = {}) {
   if (!runtime) throw new Error("Q&A runtime is required");
 
-  return async function exportQna(req, res) {
-    if (!runtime.enabled || typeof runtime.exportCsv !== "function") {
+  async function listHistory(req, res) {
+    if (!runtime.enabled || typeof runtime.listHistory !== "function") {
+      return res.status(404).json({ error: "Q&A history is not available" });
+    }
+    try {
+      const sessions = await runtime.listHistory({ deckId: req.params.deckId });
+      return res.json({ deckId: req.params.deckId, sessions });
+    } catch (error) {
+      logger.error("Unable to list Q&A history", error);
+      return res.status(503).json({ error: "Q&A history is not available" });
+    }
+  }
+
+  async function exportDeck(req, res) {
+    if (!runtime.enabled || typeof runtime.exportDeckCsv !== "function") {
       return res.status(404).json({ error: "Q&A export is not available" });
     }
-
     const access = req.immersaAccess;
     if (!access?.accessLink || !access?.deck) {
       return res.status(403).json({ error: "Access token required" });
     }
-
     try {
-      const result = await runtime.exportCsv({
-        deckId: access.deck.deckId,
-        sourceSessionId: access.accessLink.session_id
-      });
-      const filename = [
-        "immersa-qna",
-        safeFilenamePart(result.deckId),
-        safeFilenamePart(result.presentationSessionId)
-      ].join("-") + ".csv";
+      const result = await runtime.exportDeckCsv({ deckId: access.deck.deckId });
+      const filename = ["immersa-qna", safeFilenamePart(result.deckId)].join("-") + ".csv";
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       return res.type("text/csv; charset=utf-8").send(result.csv);
     } catch (error) {
-      if (error instanceof QnaError && error.code === "QNA_SESSION_NOT_FOUND") {
-        return res.status(404).json({ error: "Q&A session not found" });
-      }
       logger.error("Unable to export Q&A", error);
       return res.status(503).json({ error: "Q&A export is not available" });
     }
-  };
+  }
+
+  return { listHistory, exportDeck };
 }
 
-module.exports = { createQnaExportHandler, safeFilenamePart };
+module.exports = { createQnaHistoryHandlers, safeFilenamePart };
