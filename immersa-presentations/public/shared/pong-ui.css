@@ -265,6 +265,10 @@
   transform: translateX(-50%);
 }
 
+.pong-scoreboard.is-lobby {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pong-score-team {
   min-width: 0;
   display: grid;
@@ -323,7 +327,7 @@
   position: absolute;
   top: 54%;
   left: 50%;
-  width: min(90vw, 1200px);
+  width: min(94vw, 145vh);
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .18);
@@ -440,12 +444,6 @@
   font-weight: 750;
 }
 
-.pong-lobby-message > span {
-  color: #fff;
-  font-size: clamp(38px, 7vw, 88px);
-  letter-spacing: .12em;
-}
-
 .pong-lobby-message {
   background: transparent;
   backdrop-filter: none;
@@ -453,38 +451,64 @@
   text-shadow: 0 8px 30px rgba(0, 0, 0, .9);
 }
 
-.pong-lobby-message > strong {
-  font-size: clamp(24px, 4vw, 52px);
+.pong-lobby-content {
+  width: min(74%, 760px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(22px, 3vw, 46px);
+  align-items: center;
+  padding: clamp(18px, 2.2vw, 30px) clamp(22px, 3vw, 42px);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 24px;
+  background: rgba(4, 7, 16, .72);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .06);
 }
 
-.pong-lobby-message > div {
+.pong-lobby-copy {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+}
+
+.pong-lobby-copy strong {
+  font: 850 clamp(28px, 3.4vw, 52px)/.95 Poppins, Inter, sans-serif;
+  text-wrap: balance;
+}
+
+.pong-lobby-copy small {
+  color: rgba(255, 255, 255, .7);
+  font-size: clamp(14px, 1.5vw, 21px);
+  font-weight: 750;
+}
+
+.pong-lobby-counts {
   display: grid;
   grid-template-columns: auto auto auto;
-  gap: 18px;
+  gap: 12px;
   align-items: center;
-  margin-top: 10px;
 }
 
-.pong-lobby-message em {
-  min-width: 70px;
-  padding: 10px 16px;
+.pong-lobby-counts em {
+  min-width: clamp(58px, 5vw, 76px);
+  padding: 10px 14px;
   border-radius: 15px;
   color: #fff;
-  font: 850 clamp(25px, 4vw, 48px)/1 Poppins, Inter, sans-serif;
+  font: 850 clamp(28px, 3.4vw, 46px)/1 Poppins, Inter, sans-serif;
   font-style: normal;
 }
 
-.pong-lobby-message em.is-left {
+.pong-lobby-counts em.is-left {
   background: #2f80ed;
   box-shadow: 0 0 32px rgba(47, 128, 237, .38);
 }
 
-.pong-lobby-message em.is-right {
+.pong-lobby-counts em.is-right {
   background: #f2994a;
   box-shadow: 0 0 32px rgba(242, 153, 74, .34);
 }
 
-.pong-lobby-message b {
+.pong-lobby-counts b {
   color: rgba(255, 255, 255, .5);
   font-size: 14px;
 }

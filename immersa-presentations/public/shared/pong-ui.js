@@ -136,8 +136,10 @@
       const leftCount = Number(state?.roster_counts?.left || 0);
       const rightCount = Number(state?.roster_counts?.right || 0);
       return '<div class="pong-message pong-lobby-message">'
-        +'<span>PONG</span><strong>ELIGE TU EQUIPO</strong><small>Desde tu teléfono</small>'
-        +'<div><em class="is-left" data-pong-screen-roster="left">'+leftCount+'</em><b>VS</b><em class="is-right" data-pong-screen-roster="right">'+rightCount+'</em></div>'
+        +'<div class="pong-lobby-content">'
+        +'<div class="pong-lobby-copy"><strong>ELIGE TU EQUIPO</strong><small>Desde tu teléfono</small></div>'
+        +'<div class="pong-lobby-counts"><em class="is-left" data-pong-screen-roster="left">'+leftCount+'</em><b>VS</b><em class="is-right" data-pong-screen-roster="right">'+rightCount+'</em></div>'
+        +'</div>'
         +'</div>';
     }
     if (status === "paused") return '<div class="pong-message"><strong>PAUSA</strong></div>';
@@ -164,9 +166,9 @@
     const ball = state.ball || { x: 0.5, y: 0.5, radius: 0.014 };
     const remaining = seconds(state.remaining_ms);
     return '<section class="pong-overlay pong-'+role+' '+status+'">'
-      +'<header class="pong-scoreboard">'
+      +'<header class="pong-scoreboard '+(status === "ready" ? "is-lobby" : "")+'">'
       +'<div class="pong-score-team is-left"><span data-pong-screen-name="left">'+escapeHtml(left.name)+'</span><strong data-pong-screen-score="left">'+Number(left.score || 0)+'</strong></div>'
-      +'<div class="pong-clock '+(remaining <= 10 && status === "running" ? "is-urgent" : "")+'" data-pong-screen-time>'+(status === "ready" ? "LOBBY" : remaining)+'</div>'
+      +(status === "ready" ? "" : '<div class="pong-clock '+(remaining <= 10 && status === "running" ? "is-urgent" : "")+'" data-pong-screen-time>'+remaining+'</div>')
       +'<div class="pong-score-team is-right"><strong data-pong-screen-score="right">'+Number(right.score || 0)+'</strong><span data-pong-screen-name="right">'+escapeHtml(right.name)+'</span></div>'
       +'</header>'
       +'<div class="pong-board">'

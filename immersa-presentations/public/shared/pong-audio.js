@@ -100,15 +100,28 @@
     if (previousState?.status === "ready") playCue("lobby");
   }
 
+  function bindSharedUnlock(button) {
+    if (!button || button.dataset.pongAudioBound === "1") return;
+    button.dataset.pongAudioBound = "1";
+    button.addEventListener("click", unlock, { once: true });
+  }
+
   function ensureUnlock(state) {
     if (role !== "screen" || unlocked || !["ready", "running", "paused", "finished"].includes(state?.status)) return;
-    if (root.document.querySelector("[data-pong-audio-unlock]")) return;
+    const ownButton = root.document.querySelector("[data-pong-audio-unlock]");
+    const sharedButton = root.document.querySelector("[data-immersa-media-unlock]:not([hidden]), [data-breakout-audio-unlock]:not([hidden])");
+    if (sharedButton) {
+      ownButton?.remove();
+      bindSharedUnlock(sharedButton);
+      return;
+    }
+    if (ownButton) return;
     const button = root.document.createElement("button");
     button.type = "button";
     button.className = "pong-audio-unlock";
     button.dataset.pongAudioUnlock = "1";
     button.textContent = "🔊 Activar audio de Pong";
-    button.addEventListener("click", unlock, { once: true });
+    bindSharedUnlock(button);
     root.document.body.appendChild(button);
   }
 
