@@ -12,7 +12,8 @@ function createGameQueueSocketHandlers({
   const timers = new Map();
   const canControl = (context) => context?.role === "presenter" || context?.role === "stage";
   const runtimeFor = (gameType) => coordinator?.getGameRuntime?.(gameType) || null;
-  const availableGameTypes = () => coordinator?.getRegisteredGameTypes?.("prepare") || [];
+  const availableGameTypes = () => (coordinator?.getRegisteredGameTypes?.("prepare") || [])
+    .filter((gameType) => runtimeFor(gameType)?.queueAvailable !== false);
   const withLock = (sessionId, action) => coordinator?.withSessionLock
     ? coordinator.withSessionLock(sessionId, action)
     : action();

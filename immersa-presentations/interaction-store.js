@@ -1,6 +1,8 @@
 const { TimeSyncStore, createTimeSyncSocketHandlers } = require("./time-sync-store");
 const { BreakoutStore } = require("./breakout-store");
 const { createBreakoutSocketHandlers } = require("./breakout-sockets");
+const { PongStore } = require("./pong-store");
+const { createPongSocketHandlers } = require("./pong-sockets");
 const { createMediaSocketHandlers } = require("./media-sockets");
 
 const FALLBACK_DEMO_INTERACTION = {
@@ -180,12 +182,15 @@ function createInteractionSocketHandlers({
   coordinator = null,
   timeSyncStore = new TimeSyncStore(),
   breakoutStore = new BreakoutStore(),
+  pongStore = new PongStore(),
   onGameFinished = null
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator, onFinished: onGameFinished });
+  const pongSockets = createPongSocketHandlers({ io, store: pongStore, coordinator, onFinished: onGameFinished });
   if (coordinator?.registerGame) coordinator.registerGame("breakout", breakoutSockets);
   else if (coordinator) coordinator.breakoutStore = breakoutStore;
+  if (coordinator?.registerGame) coordinator.registerGame("pong", pongSockets);
   const mediaSockets = createMediaSocketHandlers({ io, getRoleRoomKey });
 
   function canControlInteractions(context) {
@@ -218,6 +223,7 @@ function createInteractionSocketHandlers({
     if (results && context.role === "screen" && store.getSession(context.sessionId).resultsVisible) socket.emit("interaction:show_results", results);
     timeSyncSockets.sendCurrentState(socket, context);
     breakoutSockets.sendCurrentState(socket, context);
+    pongSockets.sendCurrentState(socket, context);
     mediaSockets.sendCurrentState(socket, context);
   }
 
@@ -239,6 +245,7 @@ function createInteractionSocketHandlers({
   function attach(socket, getContext) {
     timeSyncSockets.attach(socket, getContext);
     breakoutSockets.attach(socket, getContext);
+    pongSockets.attach(socket, getContext);
     mediaSockets.attach(socket, getContext);
 
     socket.on("interaction:launch", async ({ interactionId } = {}) => {
@@ -306,6 +313,8 @@ function createInteractionSocketHandlers({
     timeSyncSockets,
     breakoutStore,
     breakoutSockets,
+    pongStore,
+    pongSockets,
     mediaSockets
   };
 }
