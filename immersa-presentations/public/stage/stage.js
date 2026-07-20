@@ -13,6 +13,8 @@ let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
 let drawingOverlay = null;
 let interactions = [];
+let videoSlideIds = new Set();
+let lastThumbSlideIndex = -1;
 let selectedInteractionId = "";
 let activeInteraction = null;
 let interactionResults = null;
@@ -62,6 +64,10 @@ const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
 const stageQrPattern = document.getElementById("stageQrPattern");
 const stageQrUrl = document.getElementById("stageQrUrl");
+const stageThumbsPanel = document.getElementById("stageThumbsPanel");
+const stageThumbsToggle = document.getElementById("stageThumbsToggle");
+const stageThumbs = document.getElementById("stageThumbs");
+const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
 let qnaAvailable = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
@@ -82,6 +88,7 @@ async function loadDeck() {
   updateSlideControls();
   setToggles();
   await loadInteractions();
+  renderStageThumbs();
 }
 
 function publicUrl() {
@@ -120,9 +127,11 @@ async function loadInteractions() {
     if (!res.ok) throw new Error("No interactions");
     const data = await res.json();
     interactions = normalizeInteractionList(data);
+    videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
     if (!interactions.length) interactions = [fallbackDemoInteraction];
   } catch (_error) {
     interactions = [fallbackDemoInteraction];
+    videoSlideIds = new Set();
   }
   clearSelectedInteraction();
   renderStageActionsPanel();
@@ -173,6 +182,69 @@ function clampSlideIndex(index) {
   return Math.max(0, Math.min(index, manifest.slides.length - 1));
 }
 
+function stageSlideIdentity(item, index) {
+  return String(item?.id || "slide-" + String(index + 1).padStart(3, "0"));
+}
+
+function stageAssetSrc(item, kind = "src") {
+  return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src);
+}
+
+function stageVideoThumbMark(index) {
+  const gradientId = "stage-video-gradient-" + (index + 1);
+  return '<span class="stage-thumb-video-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><defs><linearGradient id="' + gradientId + '" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#68d8cc"/><stop offset=".52" stop-color="#4368f6"/><stop offset="1" stop-color="#9b4cff"/></linearGradient></defs><path d="M6.5 4.75 19 12 6.5 19.25Z" fill="none" stroke="url(#' + gradientId + ')" stroke-width="3.1" stroke-linejoin="round"/></svg></span>';
+}
+
+function setStageThumbsOpen(open) {
+  const expanded = Boolean(open);
+  stageThumbsPanel?.classList.toggle("is-open", expanded);
+  if (stageThumbs) stageThumbs.hidden = !expanded;
+  stageThumbsToggle?.setAttribute("aria-expanded", String(expanded));
+  if (expanded) {
+    lastThumbSlideIndex = -1;
+    window.requestAnimationFrame?.(() => syncStageThumbSelection(currentSlideIndex));
+  }
+}
+
+function syncStageThumbsMode() {
+  setStageThumbsOpen(!compactStageThumbsQuery?.matches);
+}
+
+function syncStageThumbSelection(index, scroll = true) {
+  if (!stageThumbs) return;
+  const nodes = [...stageThumbs.querySelectorAll(".stage-thumb")];
+  nodes.forEach((node, nodeIndex) => {
+    const active = nodeIndex === index;
+    node.classList.toggle("active", active);
+    node.setAttribute("aria-current", active ? "true" : "false");
+  });
+  if (!scroll || lastThumbSlideIndex === index || stageThumbs.hidden) return;
+  lastThumbSlideIndex = index;
+  const active = nodes[index];
+  if (!active) return;
+  const left = active.offsetLeft - (stageThumbs.clientWidth - active.offsetWidth) / 2;
+  stageThumbs.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+}
+
+function renderStageThumbs() {
+  if (!stageThumbs || !manifest?.slides) return;
+  stageThumbs.replaceChildren();
+  manifest.slides.forEach((item, index) => {
+    const slideNumber = index + 1;
+    const hasVideo = videoSlideIds.has(stageSlideIdentity(item, index));
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "stage-thumb" + (hasVideo ? " has-video" : "");
+    button.setAttribute("aria-label", "Ir a lámina " + slideNumber + (item.title ? ": " + item.title : "") + (hasVideo ? " · contiene video" : ""));
+    button.title = (item.title ? "Lámina " + slideNumber + " · " + item.title : "Lámina " + slideNumber) + (hasVideo ? " · Video" : "");
+    button.innerHTML = '<span class="stage-thumb-number">' + slideNumber + '</span><img alt="" src="' + stageAssetSrc(item, "thumb") + '">' + (hasVideo ? stageVideoThumbMark(index) : "");
+    button.addEventListener("click", () => emitStageSlide(index));
+    stageThumbs.appendChild(button);
+  });
+  lastThumbSlideIndex = -1;
+  syncStageThumbSelection(currentSlideIndex, false);
+}
+
 function applySlideOrientation(item, src) {
   const portrait = item?.orientation === "portrait";
   screenFrame.classList.toggle("portrait-slide", portrait);
@@ -205,6 +277,7 @@ function render(state) {
   audience.textContent = state.audienceCount || 0;
   presenterStatus.textContent = state.presenterConnected ? "On" : "Off";
   updateSlideControls();
+  syncStageThumbSelection(index);
 }
 
 function updateOverlay(patch) {
@@ -222,6 +295,7 @@ function emitStageSlide(targetIndex) {
   const slideIndex = clampSlideIndex(targetIndex);
   currentSlideIndex = slideIndex;
   updateSlideControls();
+  syncStageThumbSelection(slideIndex);
   socket.emit("slide_go", { slideIndex });
 }
 
@@ -478,6 +552,9 @@ qrToggle.addEventListener("change", () => {
 });
 
 stageActionsButton?.addEventListener("click", () => { if (stageActionsOpen) closeStageActionsRequest(); else openStageActions(); });
+stageThumbsToggle?.addEventListener("click", () => setStageThumbsOpen(stageThumbsToggle.getAttribute("aria-expanded") !== "true"));
+if (compactStageThumbsQuery?.addEventListener) compactStageThumbsQuery.addEventListener("change", syncStageThumbsMode);
+else if (compactStageThumbsQuery?.addListener) compactStageThumbsQuery.addListener(syncStageThumbsMode);
 
 displayLinkButton.addEventListener("click", () => {
   const url = publicUrl();
@@ -525,6 +602,7 @@ socket.on("interaction:show_results", () => { interactionResultsVisible = true; 
 socket.on("interaction:hide_results", () => { interactionResultsVisible = false; renderStageActionsPanel(); });
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderStageActionsPanel(); returnInteractionsHome(); });
 
+syncStageThumbsMode();
 loadDeck().then(() => {
   initDrawingOverlay();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });
