@@ -125,7 +125,7 @@ test('without a runtime callback Screen remains available and no DB binding is a
   assert.equal(Object.hasOwn(stored[0], 'presentation_session_id'), false);
 });
 
-test('Q&A resources accept only active Speaker and Stage access links', async (t) => {
+test('live Q&A controls accept only active Speaker and Stage access links', async (t) => {
   const paths = await fixture(t);
   const storePath = path.join(paths.dataDir, 'access-links.json');
   const stored = JSON.parse(await fs.promises.readFile(storePath, 'utf8'));
@@ -150,4 +150,36 @@ test('Q&A resources accept only active Speaker and Stage access links', async (t
   const audienceResponse = response();
   await guard(request({ access_token: 'a_aud1234567' }), audienceResponse, () => assert.fail('Público must not export Q&A'));
   assert.equal(audienceResponse.statusCode, 403);
+});
+
+test('Q&A history export and deletion accept only active Speaker access', async (t) => {
+  const paths = await fixture(t);
+  const storePath = path.join(paths.dataDir, 'access-links.json');
+  const stored = JSON.parse(await fs.promises.readFile(storePath, 'utf8'));
+  stored.push(
+    { access_token: 'a_spk1234567', session_id: 's_abcdefghij', role: 'speaker', active: true },
+    { access_token: 'a_stg1234567', session_id: 's_abcdefghij', role: 'stage', active: true },
+    { access_token: 'a_old1234567', session_id: 's_abcdefghij', role: 'speaker', active: false }
+  );
+  await fs.promises.writeFile(storePath, JSON.stringify(stored));
+  const guard = createAccessLinkHandlers(paths).guardAccessRoles(['speaker']);
+
+  const speakerRequest = request({ access_token: 'a_spk1234567' });
+  let passed = false;
+  await guard(speakerRequest, response(), () => { passed = true; });
+  assert.equal(passed, true);
+  assert.equal(speakerRequest.immersaAccess.deck.deckId, 'deck-a');
+
+  for (const accessToken of ['a_stg1234567', 'a_old1234567']) {
+    const res = response();
+    await guard(request({ access_token: accessToken }), res, () => assert.fail(`${accessToken} must not access Q&A history`));
+    assert.equal(res.statusCode, 403);
+  }
+});
+
+test('server keeps Q&A history download and deletion behind the Speaker-only guard', async () => {
+  const server = await fs.promises.readFile(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(server, /app\.get\("\/api\/qna\/export\/:access_token", accessLinkHandlers\.guardAccessRoles\(\["speaker"\]\)/);
+  assert.match(server, /app\.delete\("\/api\/qna\/history\/:access_token", accessLinkHandlers\.guardAccessRoles\(\["speaker"\]\)/);
+  assert.doesNotMatch(server, /\/api\/qna\/(?:export|history)\/:access_token"[^\n]+\["speaker",\s*"stage"\]/);
 });
