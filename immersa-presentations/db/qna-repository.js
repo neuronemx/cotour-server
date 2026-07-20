@@ -360,6 +360,66 @@ class QnaRepository {
       createdAt: row.created_at
     }));
   }
+
+  async listPresentationSessions(deckId) {
+    const normalizedDeckId = requiredText(deckId, "deckId", 191);
+    const [rows] = await this.pool.execute(
+      `SELECT
+         ps.id AS presentation_session_id,
+         ps.started_at,
+         ps.ended_at,
+         COUNT(DISTINCT r.id) AS round_count,
+         COUNT(q.id) AS question_count,
+         COALESCE(SUM(CASE WHEN q.projected_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS answered_count
+       FROM presentation_sessions ps
+       LEFT JOIN qna_rounds r ON r.presentation_session_id = ps.id
+       LEFT JOIN qna_questions q ON q.qna_round_id = r.id
+       WHERE ps.deck_id = ?
+       GROUP BY ps.id, ps.started_at, ps.ended_at
+       ORDER BY ps.started_at DESC, ps.id DESC`,
+      [normalizedDeckId]
+    );
+    return rows.map((row) => ({
+      presentationSessionId: row.presentation_session_id,
+      startedAt: row.started_at,
+      endedAt: row.ended_at || null,
+      roundCount: Number(row.round_count),
+      questionCount: Number(row.question_count),
+      answeredCount: Number(row.answered_count)
+    }));
+  }
+
+  async listExportQuestionsByDeck(deckId) {
+    const normalizedDeckId = requiredText(deckId, "deckId", 191);
+    const [rows] = await this.pool.execute(
+      `SELECT
+         ps.id AS presentation_session_id,
+         ps.deck_id,
+         ps.started_at,
+         r.round_number,
+         q.id AS question_id,
+         q.question_text,
+         q.name,
+         q.projected_at,
+         q.created_at
+       FROM presentation_sessions ps
+       INNER JOIN qna_rounds r ON r.presentation_session_id = ps.id
+       INNER JOIN qna_questions q ON q.qna_round_id = r.id
+       WHERE ps.deck_id = ?
+       ORDER BY ps.started_at, ps.id, r.round_number, q.created_at, q.id`,
+      [normalizedDeckId]
+    );
+    return rows.map((row) => ({
+      presentationSessionId: row.presentation_session_id,
+      deckId: row.deck_id,
+      roundNumber: Number(row.round_number),
+      questionId: row.question_id,
+      question: row.question_text,
+      name: row.name || "",
+      answered: Boolean(row.projected_at),
+      createdAt: row.created_at
+    }));
+  }
 }
 
 module.exports = { QnaError, QnaRepository, inTransaction };
