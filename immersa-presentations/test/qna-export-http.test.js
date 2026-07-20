@@ -46,14 +46,36 @@ test("deck history provides one CSV for every deck execution", async () => {
   assert.match(res.body, /^\uFEFF/);
 });
 
+test("protected history deletion clears the authorized deck", async () => {
+  const calls = [];
+  const handlers = createQnaHistoryHandlers({ runtime: {
+    enabled: true,
+    async clearHistory(payload) {
+      calls.push(payload);
+      return { deckId: payload.deckId, deletedSessionCount: 2, deletedQuestionCount: 7 };
+    }
+  }});
+  const res = response();
+  await handlers.clearHistory({ immersaAccess: {
+    accessLink: { role: "speaker" },
+    deck: { deckId: "deck-a" }
+  } }, res);
+  assert.deepEqual(calls, [{ deckId: "deck-a" }]);
+  assert.equal(res.headers["Cache-Control"], "no-store");
+  assert.deepEqual(res.body, { ok: true, deckId: "deck-a", deletedSessionCount: 2, deletedQuestionCount: 7 });
+});
+
 test("Q&A history stays unavailable while the feature flag is disabled", async () => {
-  const handlers = createQnaHistoryHandlers({ runtime: { enabled: false, listHistory: null, exportDeckCsv: null } });
+  const handlers = createQnaHistoryHandlers({ runtime: { enabled: false, listHistory: null, exportDeckCsv: null, clearHistory: null } });
   const historyResponse = response();
   const exportResponse = response();
+  const deleteResponse = response();
   await handlers.listHistory({ params: { deckId: "deck-a" } }, historyResponse);
   await handlers.exportDeck({ params: { deckId: "deck-a" } }, exportResponse);
+  await handlers.clearHistory({ params: { deckId: "deck-a" } }, deleteResponse);
   assert.equal(historyResponse.statusCode, 404);
   assert.equal(exportResponse.statusCode, 404);
+  assert.equal(deleteResponse.statusCode, 404);
 });
 
 test("CSV filenames are restricted to portable characters", () => {
