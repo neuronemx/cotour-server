@@ -13,7 +13,7 @@ const { ActiveInteractionCoordinator } = require("./active-interaction-coordinat
 const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
-const { createQnaExportHandler } = require("./qna-export");
+const { createQnaHistoryHandlers } = require("./qna-export");
 
 const app = express();
 const server = http.createServer(app);
@@ -62,7 +62,7 @@ const deckInteractionHandlers = createDeckInteractionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
 });
-const qnaExportHandler = createQnaExportHandler({ runtime: qnaRuntime });
+const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 
 function normalizeSessionId(sessionId) {
   return String(sessionId || "demo01");
@@ -539,6 +539,7 @@ app.get("/api/decks", async (_req, res) => {
 });
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
+app.get("/api/decks/:deckId/qna/history", qnaHistoryHandlers.listHistory);
 app.delete("/api/decks/:deckId", async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
@@ -552,7 +553,7 @@ app.delete("/api/decks/:deckId", async (req, res) => {
 app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
-app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker", "stage"]), qnaExportHandler);
+app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
