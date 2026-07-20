@@ -12,13 +12,18 @@ test("Stage owns a responsive collapsible thumbnail navigator", () => {
   const css = read("public/stage/stage.css");
   assert.match(html, /id="stageThumbsToggle"[^>]*aria-expanded="true"/);
   assert.match(html, /id="stageThumbs"[^>]*aria-label="Miniaturas de slides"/);
-  assert.match(html, /stage-v6/);
+  assert.match(html, /stage-v7/);
   assert.match(script, /renderStageThumbs\(\)/);
   assert.match(script, /button\.addEventListener\("click", \(\) => emitStageSlide\(index\)\)/);
   assert.match(script, /stageThumbs\.scrollTo\(\{ left: Math\.max\(0, left\), behavior: "smooth" \}\)/);
   assert.match(script, /max-width: 760px/);
   assert.match(script, /max-height: 700px/);
   assert.match(css, /grid-template-rows:\s*auto auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.stage-shell\.stage-thumbs-collapsed\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.stage-thumbs-toggle\s*\{[\s\S]*?grid-column:\s*2/);
+  assert.match(css, /\.stage-thumbs-panel:not\(\.is-open\)\s*\{[\s\S]*?justify-self:\s*end/);
+  assert.match(css, /\.stage-shell\.stage-thumbs-collapsed \.stage-thumbs-panel,[\s\S]*?\.stage-shell\.stage-thumbs-collapsed \.screen-stage\s*\{[\s\S]*?grid-row:\s*2/);
+  assert.match(script, /stageShell\?\.classList\.toggle\("stage-thumbs-collapsed", !expanded\)/);
   assert.match(css, /\.stage-thumb\.active img/);
 });
 
