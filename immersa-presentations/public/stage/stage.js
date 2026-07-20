@@ -43,6 +43,7 @@ const fallbackDemoInteraction = {
 };
 
 const slide = document.getElementById("slide");
+const stageShell = document.querySelector(".stage-shell");
 const screenFrame = document.querySelector(".screen-frame");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
@@ -197,6 +198,7 @@ function stageVideoThumbMark(index) {
 
 function setStageThumbsOpen(open) {
   const expanded = Boolean(open);
+  stageShell?.classList.toggle("stage-thumbs-collapsed", !expanded);
   stageThumbsPanel?.classList.toggle("is-open", expanded);
   if (stageThumbs) stageThumbs.hidden = !expanded;
   stageThumbsToggle?.setAttribute("aria-expanded", String(expanded));
