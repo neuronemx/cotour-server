@@ -207,7 +207,24 @@ test("audience state exposes opening and one-submission status without leaking q
   assert.equal(Object.hasOwn(state, "questions"), false);
 });
 
-test("exports every existing question with Respondida Sí/No and spreadsheet-safe cells", async () => {
+test("lists historical deck executions with round and answer totals", async () => {
+  const startedAt = new Date("2026-07-19T04:00:00.000Z");
+  const pool = fakePool([[ [
+    { presentation_session_id: "session-2", started_at: startedAt, ended_at: null, round_count: 2, question_count: 3, answered_count: 2 }
+  ], [] ]]);
+  const sessions = await new QnaRepository(pool).listPresentationSessions("deck-a");
+  assert.deepEqual(sessions, [{
+    presentationSessionId: "session-2",
+    startedAt,
+    endedAt: null,
+    roundCount: 2,
+    questionCount: 3,
+    answeredCount: 2
+  }]);
+  assert.deepEqual(pool.calls.find((call) => call.type === "execute").values, ["deck-a"]);
+});
+
+test("exports every existing deck question with Respondida Sí/No and spreadsheet-safe cells", async () => {
   const createdAt = new Date("2026-07-19T05:00:00.000Z");
   const pool = fakePool([[[
     {
@@ -231,7 +248,7 @@ test("exports every existing question with Respondida Sí/No and spreadsheet-saf
       created_at: createdAt
     }
   ], []]]);
-  const rows = await new QnaRepository(pool).listExportQuestions("session-1");
+  const rows = await new QnaRepository(pool).listExportQuestionsByDeck("deck-a");
   const csv = buildQnaCsv(rows);
   assert.ok(csv.startsWith("\uFEFF"));
   assert.match(csv, /"Respondida"/);

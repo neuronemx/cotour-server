@@ -1,14 +1,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { QnaError } = require("../db/qna-repository");
-const { createQnaExportHandler, safeFilenamePart } = require("../qna-export");
+const { createQnaHistoryHandlers, safeFilenamePart } = require("../qna-export");
 
 function response() {
   return {
-    headers: {},
-    statusCode: 200,
-    body: null,
-    contentType: "",
+    headers: {}, statusCode: 200, body: null, contentType: "",
     setHeader(name, value) { this.headers[name] = value; },
     status(code) { this.statusCode = code; return this; },
     type(value) { this.contentType = value; return this; },
@@ -17,67 +13,47 @@ function response() {
   };
 }
 
-test("Q&A CSV download uses the authorized access context and safe attachment headers", async () => {
+test("deck history lists every historical Q&A execution", async () => {
   const calls = [];
-  const handler = createQnaExportHandler({
-    runtime: {
-      enabled: true,
-      async exportCsv(payload) {
-        calls.push(payload);
-        return {
-          csv: "\uFEFF\"Respondida\"\r\n\"Sí\"\r\n",
-          deckId: "Deck número 1",
-          presentationSessionId: "session/one"
-        };
-      }
-    }
-  });
-  const req = {
-    immersaAccess: {
-      accessLink: { session_id: "source-session-1", role: "speaker" },
-      deck: { deckId: "deck-a" }
-    }
-  };
+  const handlers = createQnaHistoryHandlers({ runtime: {
+    enabled: true,
+    async listHistory(payload) { calls.push(payload); return [{ presentationSessionId: "session-1" }]; }
+  }});
   const res = response();
-  await handler(req, res);
-  assert.deepEqual(calls, [{ deckId: "deck-a", sourceSessionId: "source-session-1" }]);
-  assert.equal(res.statusCode, 200);
+  await handlers.listHistory({ params: { deckId: "deck-a" } }, res);
+  assert.deepEqual(calls, [{ deckId: "deck-a" }]);
+  assert.deepEqual(res.body, { deckId: "deck-a", sessions: [{ presentationSessionId: "session-1" }] });
+});
+
+test("deck history provides one CSV for every deck execution", async () => {
+  const calls = [];
+  const handlers = createQnaHistoryHandlers({ runtime: {
+    enabled: true,
+    async exportDeckCsv(payload) {
+      calls.push(payload);
+      return { csv: "\uFEFF\"Respondida\"\r\n\"Sí\"\r\n", deckId: "Deck número 1", questionCount: 1 };
+    }
+  }});
+  const res = response();
+  await handlers.exportDeck({ immersaAccess: {
+    accessLink: { role: "speaker" },
+    deck: { deckId: "deck-a" }
+  } }, res);
+  assert.deepEqual(calls, [{ deckId: "deck-a" }]);
   assert.equal(res.headers["Cache-Control"], "no-store");
-  assert.equal(res.headers["Content-Disposition"], 'attachment; filename="immersa-qna-Deck-numero-1-session-one.csv"');
+  assert.equal(res.headers["Content-Disposition"], 'attachment; filename="immersa-qna-Deck-numero-1.csv"');
   assert.equal(res.contentType, "text/csv; charset=utf-8");
   assert.match(res.body, /^\uFEFF/);
 });
 
-test("Q&A CSV endpoint stays unavailable without feature flag or controller access", async () => {
-  const disabled = createQnaExportHandler({ runtime: { enabled: false, exportCsv: null } });
-  const disabledResponse = response();
-  await disabled({}, disabledResponse);
-  assert.equal(disabledResponse.statusCode, 404);
-
-  const enabled = createQnaExportHandler({ runtime: { enabled: true, async exportCsv() {} } });
-  const forbiddenResponse = response();
-  await enabled({}, forbiddenResponse);
-  assert.equal(forbiddenResponse.statusCode, 403);
-});
-
-test("missing active execution returns 404 without exposing database details", async () => {
-  const handler = createQnaExportHandler({
-    runtime: {
-      enabled: true,
-      async exportCsv() {
-        throw new QnaError("QNA_SESSION_NOT_FOUND", "internal detail");
-      }
-    }
-  });
-  const res = response();
-  await handler({
-    immersaAccess: {
-      accessLink: { session_id: "source-session-1" },
-      deck: { deckId: "deck-a" }
-    }
-  }, res);
-  assert.equal(res.statusCode, 404);
-  assert.deepEqual(res.body, { error: "Q&A session not found" });
+test("Q&A history stays unavailable while the feature flag is disabled", async () => {
+  const handlers = createQnaHistoryHandlers({ runtime: { enabled: false, listHistory: null, exportDeckCsv: null } });
+  const historyResponse = response();
+  const exportResponse = response();
+  await handlers.listHistory({ params: { deckId: "deck-a" } }, historyResponse);
+  await handlers.exportDeck({ params: { deckId: "deck-a" } }, exportResponse);
+  assert.equal(historyResponse.statusCode, 404);
+  assert.equal(exportResponse.statusCode, 404);
 });
 
 test("CSV filenames are restricted to portable characters", () => {

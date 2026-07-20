@@ -1,5 +1,5 @@
 const { createMysqlPool } = require("./db/mysql");
-const { QnaError, QnaRepository } = require("./db/qna-repository");
+const { QnaRepository } = require("./db/qna-repository");
 const { QnaExecutionCoordinator } = require("./qna-execution-coordinator");
 const { createQnaSocketHandlers } = require("./qna-sockets");
 const { buildQnaCsv } = require("./qna-csv");
@@ -12,7 +12,8 @@ function disabledRuntime() {
   return {
     enabled: false,
     startScreenExecution: null,
-    exportCsv: null,
+    listHistory: null,
+    exportDeckCsv: null,
     attach() {},
     async sendCurrentState() {},
     async close() {}
@@ -47,16 +48,15 @@ function createQnaRuntime(options = {}) {
   return {
     enabled: true,
     startScreenExecution: (payload) => executionCoordinator.openScreen(payload),
-    async exportCsv({ deckId, sourceSessionId }) {
-      const active = await repository.getActivePresentationSession({ deckId, sourceSessionId });
-      if (!active?.presentationSessionId) {
-        throw new QnaError("QNA_SESSION_NOT_FOUND", "Active presentation session not found");
-      }
-      const rows = await repository.listExportQuestions(active.presentationSessionId);
+    async listHistory({ deckId }) {
+      return repository.listPresentationSessions(deckId);
+    },
+    async exportDeckCsv({ deckId }) {
+      const rows = await repository.listExportQuestionsByDeck(deckId);
       return {
         csv: buildQnaCsv(rows),
-        presentationSessionId: active.presentationSessionId,
-        deckId
+        deckId,
+        questionCount: rows.length
       };
     },
     attach(socket, getContext) {

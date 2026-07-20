@@ -568,6 +568,7 @@ function openDeckModal(deck) {
   deckDetailModal.hidden = false;
   deckDetailModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  document.dispatchEvent(new CustomEvent("immersa:deck-detail-open", { detail: { deck } }));
   window.setTimeout(() => closeDeckDetail?.focus(), 20);
 }
 
@@ -575,6 +576,7 @@ function closeDeckModal() {
   if (!deckDetailModal) return;
   deckDetailModal.hidden = true;
   deckDetailModal.setAttribute("aria-hidden", "true");
+  document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));
   detailDeck = null;
   if (!nameModal || nameModal.hidden) document.body.classList.remove("modal-open");
 }
