@@ -420,6 +420,59 @@ class QnaRepository {
       createdAt: row.created_at
     }));
   }
+
+  async clearDeckHistory(deckId) {
+    const normalizedDeckId = requiredText(deckId, "deckId", 191);
+    return inTransaction(this.pool, async (connection) => {
+      const [activeRows] = await connection.execute(
+        `SELECT id, source_session_id
+         FROM presentation_sessions
+         WHERE deck_id = ? AND ended_at IS NULL
+         ORDER BY started_at DESC, id DESC
+         LIMIT 1 FOR UPDATE`,
+        [normalizedDeckId]
+      );
+      const active = activeRows[0] || null;
+      const [countRows] = await connection.execute(
+        `SELECT
+           COUNT(DISTINCT ps.id) AS session_count,
+           COUNT(q.id) AS question_count
+         FROM presentation_sessions ps
+         LEFT JOIN qna_rounds r ON r.presentation_session_id = ps.id
+         LEFT JOIN qna_questions q ON q.qna_round_id = r.id
+         WHERE ps.deck_id = ?`,
+        [normalizedDeckId]
+      );
+      const counts = countRows[0] || {};
+
+      if (!active) {
+        await connection.execute("DELETE FROM presentation_sessions WHERE deck_id = ?", [normalizedDeckId]);
+      } else {
+        await connection.execute(
+          "DELETE FROM presentation_sessions WHERE deck_id = ? AND id <> ?",
+          [normalizedDeckId, active.id]
+        );
+        await connection.execute(
+          `DELETE q FROM qna_questions q
+           INNER JOIN qna_rounds r ON r.id = q.qna_round_id
+           WHERE r.presentation_session_id = ?`,
+          [active.id]
+        );
+        await connection.execute(
+          "DELETE FROM qna_rounds WHERE presentation_session_id = ? AND archived_at IS NOT NULL",
+          [active.id]
+        );
+      }
+
+      return {
+        deckId: normalizedDeckId,
+        deletedSessionCount: Math.max(0, Number(counts.session_count) - (active ? 1 : 0)),
+        deletedQuestionCount: Number(counts.question_count) || 0,
+        activePresentationSessionId: active?.id || null,
+        sourceSessionId: active?.source_session_id || null
+      };
+    });
+  }
 }
 
 module.exports = { QnaError, QnaRepository, inTransaction };
