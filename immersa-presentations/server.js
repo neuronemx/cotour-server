@@ -49,6 +49,7 @@ const raffleSockets = createRaffleSocketHandlers({
 const qnaRuntime = createQnaRuntime({
   io,
   getRoleRoomKey,
+  getRoomKey,
   getConnectedAudience
 });
 const accessLinkHandlers = createAccessLinkHandlers({
@@ -554,6 +555,7 @@ app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
+app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.clearHistory);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
