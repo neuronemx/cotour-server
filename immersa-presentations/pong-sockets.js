@@ -204,6 +204,7 @@ function createPongSocketHandlers({
     if (!context?.roomKey || !context?.sessionId || !canControl(context)) return { ok: false, reason: "unauthorized_role" };
     const result = await transition(context, "prepare", options);
     if (!result.ok) return result;
+    io.to(context.roomKey).emit("pong:membership", { team: "", spectator: false, roster_locked: false });
     emitState(context.roomKey, context.sessionId);
     ensureLoop(context.roomKey, context.sessionId);
     return result;

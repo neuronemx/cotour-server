@@ -190,6 +190,12 @@
   background: rgba(255, 79, 117, .17);
 }
 
+.pong-action:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+  filter: saturate(.45);
+}
+
 .pong-audio-controls {
   display: inline-flex;
   align-items: center;
@@ -438,6 +444,13 @@
   color: #fff;
   font-size: clamp(38px, 7vw, 88px);
   letter-spacing: .12em;
+}
+
+.pong-lobby-message {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, .9);
 }
 
 .pong-lobby-message > strong {
@@ -738,10 +751,11 @@
 }
 
 .pong-direction-pad {
-  width: min(100%, 640px);
-  height: min(45dvh, 330px);
+  width: min(100%, 420px);
+  height: min(58dvh, 460px);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 

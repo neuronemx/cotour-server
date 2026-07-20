@@ -44,6 +44,18 @@ test("lobby controller edits both team names and exposes authoritative actions",
   assert.match(html, /Derecho · Naranja/);
   assert.match(html, /8 personas/);
   assert.match(html, /pong:start/);
+  assert.doesNotMatch(html, /pong:start" disabled/);
+});
+
+test("lobby cannot start until Público has joined both teams", () => {
+  const html = PongUi.controllerMarkup({
+    ...runningState,
+    status: "ready",
+    roster_locked: false,
+    roster_counts: { left: 1, right: 0 }
+  });
+  assert.match(html, /pong:start" disabled aria-disabled="true"/);
+  assert.match(html, /Se necesita al menos 1 persona en cada equipo/);
 });
 
 test("team names are escaped before controller and Screen markup", () => {
@@ -156,9 +168,14 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(ui, /data-pong-direction/);
   assert.match(ui, /pong:membership/);
   assert.match(ui, /IMMERSA_PONG_GOAL_VIDEO_URL/);
+  assert.match(ui, /queueState\.revision[\s\S]*teamsReady\(state\)/);
   assert.match(interactionStore, /createPongSocketHandlers\(\{[\s\S]+queueAvailable: true/);
+  assert.match(runtime, /pong-ui\.css\?v=2/);
+  assert.match(runtime, /pong-ui\.js\?v=2/);
   assert.match(css, /#2f80ed/);
   assert.match(css, /#f2994a/);
   assert.match(css, /pong-goal-celebration/);
+  assert.match(css, /\.pong-lobby-message\s*\{[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(css, /\.pong-direction-pad\s*\{[\s\S]*?grid-template-rows:\s*repeat\(2/);
   assert.match(css, /prefers-reduced-motion/);
 });

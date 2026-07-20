@@ -138,6 +138,9 @@ class PongStore {
     if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const game = this.getSession(sessionId);
     if (game.status !== "ready") return { ok: false, reason: "invalid_state" };
+    const hasLeftTeam = Array.from(game.roster.values()).some((team) => team === "left");
+    const hasRightTeam = Array.from(game.roster.values()).some((team) => team === "right");
+    if (!hasLeftTeam || !hasRightTeam) return { ok: false, reason: "teams_incomplete" };
     game.status = "running";
     game.started_at_ms = nowMs;
     game.ends_at_ms = nowMs + game.duration_ms;
