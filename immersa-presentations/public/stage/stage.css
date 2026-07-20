@@ -29,9 +29,109 @@ body {
   margin: 0 auto;
   padding: 12px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
   overflow: hidden;
+}
+
+.stage-thumbs-panel {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+  box-shadow: 0 14px 38px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(18px);
+}
+.stage-thumbs-panel:not(.is-open) { justify-self: start; grid-template-columns: auto; padding: 5px; }
+.stage-thumbs-toggle {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: 12px;
+  background: rgba(4,7,13,.44);
+  color: rgba(255,255,255,.86);
+}
+.stage-thumbs-toggle span { font-size: 11px; }
+.stage-thumbs-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .16s ease; }
+.stage-thumbs-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.stage-thumbs {
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(92px, 116px);
+  gap: 9px;
+  padding: 2px 3px 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83,224,212,.34) transparent;
+}
+.stage-thumbs[hidden] { display: none; }
+.stage-thumb {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  opacity: .72;
+  box-shadow: none;
+}
+.stage-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #020304;
+  box-shadow: 0 7px 16px rgba(0,0,0,.28);
+  transition: box-shadow .16s ease, filter .16s ease;
+}
+.stage-thumb-number {
+  position: absolute;
+  z-index: 3;
+  top: 5px;
+  left: 6px;
+  color: rgba(255,255,255,.9);
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px #000, 0 0 9px #000;
+}
+.stage-thumb-video-mark {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: clamp(29px, 36%, 43px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  opacity: .8;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 4px 9px rgba(0,0,0,.5));
+}
+.stage-thumb-video-mark svg { width: 100%; height: 100%; overflow: visible; }
+.stage-thumb.active { opacity: 1; }
+.stage-thumb.active img {
+  box-shadow: 0 0 0 2px rgba(83,224,212,.96), 0 0 22px rgba(83,224,212,.3), 0 10px 22px rgba(0,0,0,.34);
+  filter: brightness(1.04) saturate(1.05);
+}
+.stage-thumb.active .stage-thumb-number { color: #eafffb; }
+@media (hover: hover) and (pointer: fine) {
+  .stage-thumb:hover { opacity: .96; transform: translateY(-1px); }
+  .stage-thumb:hover img { box-shadow: 0 0 0 1px rgba(234,255,251,.24), 0 10px 22px rgba(0,0,0,.34); }
 }
 
 .stage-toolbar {
@@ -630,6 +730,8 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   html, body { overflow: auto; }
   .stage-shell { height: auto; min-height: 100dvh; padding: 9px; gap: 9px; overflow: visible; }
   .stage-toolbar { border-radius: 18px; }
+  .stage-thumbs-panel { border-radius: 16px; }
+  .stage-thumbs { grid-auto-columns: minmax(82px, 106px); }
   .stage-brand strong { display: none; }
   .presentation-name { min-width: 130px; max-width: 210px; }
   .screen-stage { height: min(58vh, calc(100dvh - 96px)); }
@@ -647,4 +749,8 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .stage-actions-card { width: min(352px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); }
   .stage-actions-card .interaction-active-actions { gap: 6px; }
   .stage-actions-card .interaction-active-actions > button { padding: 0 8px; font-size: 11px; }
+}
+
+@media (max-height: 700px) {
+  .stage-thumbs { grid-auto-columns: minmax(78px, 100px); }
 }
