@@ -182,8 +182,9 @@ function createInteractionSocketHandlers({
   breakoutStore = new BreakoutStore()
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
-  if (coordinator) coordinator.breakoutStore = breakoutStore;
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator });
+  if (coordinator?.registerGame) coordinator.registerGame("breakout", breakoutSockets);
+  else if (coordinator) coordinator.breakoutStore = breakoutStore;
   const mediaSockets = createMediaSocketHandlers({ io, getRoleRoomKey });
 
   function canControlInteractions(context) {
@@ -222,7 +223,9 @@ function createInteractionSocketHandlers({
   async function launchInteraction(context, interactionId) {
     const execute = async () => {
       if (coordinator?.hasActiveRaffle(context.sessionId)) return { ok: false, reason: "active_raffle_exists" };
-      if (coordinator?.hasActiveBreakout(context.sessionId)) return { ok: false, reason: "active_breakout_exists" };
+      const activeGameType = coordinator?.getActiveGameType?.(context.sessionId)
+        || (coordinator?.hasActiveBreakout?.(context.sessionId) ? "breakout" : "");
+      if (activeGameType) return { ok: false, reason: `active_${activeGameType}_exists` };
       const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
       const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
       const active = store.launch({ sessionId: context.sessionId, interaction });

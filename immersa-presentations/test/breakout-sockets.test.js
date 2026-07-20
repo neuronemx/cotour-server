@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { BreakoutStore } = require("../breakout-store");
 const { createBreakoutSocketHandlers } = require("../breakout-sockets");
+const { ActiveInteractionCoordinator } = require("../active-interaction-coordinator");
 
 function createSocket() {
   const handlers = new Map();
@@ -102,5 +103,33 @@ test("late join receives current state and restores running loop", () => {
   handlers.sendCurrentState(socket, { roomKey: "room", sessionId: "s1", role: "screen" });
   assert.equal(socket.emitted.at(-1).event, "breakout:state");
   assert.equal(socket.emitted.at(-1).payload.status, "running");
+  assert.equal(intervals.active.size, 1);
+});
+
+test("preparing Breakout closes another registered game inside the session lock", async () => {
+  const io = createIo();
+  const intervals = createIntervals();
+  const store = new BreakoutStore();
+  const coordinator = new ActiveInteractionCoordinator({ interactionStore: null, raffleStore: null });
+  let pongActive = true;
+  const closed = [];
+  coordinator.registerGame("pong", {
+    hasActive: () => pongActive,
+    close(context) {
+      pongActive = false;
+      closed.push(context.sessionId);
+      return { ok: true };
+    }
+  });
+  const handlers = createBreakoutSocketHandlers({ io, store, coordinator, ...intervals });
+  coordinator.registerGame("breakout", handlers);
+  const socket = createSocket();
+  handlers.attach(socket, () => ({ roomKey: "room", sessionId: "s1", role: "presenter" }));
+
+  await socket.handlers.get("breakout:prepare")();
+
+  assert.deepEqual(closed, ["s1"]);
+  assert.equal(pongActive, false);
+  assert.equal(store.snapshot("s1").status, "ready");
   assert.equal(intervals.active.size, 1);
 });
