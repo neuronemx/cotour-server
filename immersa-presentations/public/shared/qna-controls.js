@@ -20,7 +20,6 @@
     let state = null;
     let open = false;
     let lastFocused = null;
-    const accessToken = String(global.IMMERSA_ROLE_OPEN?.access_token || "").trim();
 
     const button = element("button", "qna-control-button");
     button.type = "button";
@@ -62,7 +61,6 @@
             <strong>Abrir preguntas</strong>
           </label>
           <div class="qna-control-secondary-actions">
-            <a class="qna-export-link" data-qna-export download hidden>Descargar CSV</a>
             <button class="qna-new-round" type="button" data-qna-new-round>Nueva ronda</button>
           </div>
         </div>
@@ -76,11 +74,6 @@
     const status = modal.querySelector("[data-qna-status]");
     const list = modal.querySelector("[data-qna-list]");
     const closeButton = modal.querySelector(".qna-control-close");
-    const exportLink = modal.querySelector("[data-qna-export]");
-    if (/^a_[a-z0-9]{10}$/.test(accessToken)) {
-      exportLink.href = "/api/qna/export/" + encodeURIComponent(accessToken);
-      exportLink.hidden = false;
-    }
 
     function emit(event, payload = {}) {
       status.textContent = "Actualizando…";
