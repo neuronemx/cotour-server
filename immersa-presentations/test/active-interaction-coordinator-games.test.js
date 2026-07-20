@@ -33,6 +33,7 @@ test("coordinator registers multiple game runtimes and reports the active game",
   assert.equal(coordinator.hasActiveBreakout("session-breakout"), true);
   assert.equal(coordinator.hasActiveGame("session-pong"), true);
   assert.equal(coordinator.hasAnyActive("session-pong", "pong"), false);
+  assert.deepEqual(coordinator.getRegisteredGameTypes("close"), ["breakout", "pong"]);
 });
 
 test("coordinator closes only competing games and preserves the requested game", () => {

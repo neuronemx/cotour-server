@@ -31,6 +31,18 @@ test("controller exposes preview and authoritative game actions", () => {
   assert.match(BreakoutUi.controllerMarkup({ ...state, status: "finished" }), /Preparar otra vez/);
 });
 
+test("queued Breakout uses queue exit actions instead of preparing an independent round", () => {
+  const queue = {
+    status: "running",
+    current_game_type: "breakout",
+    next_game_type: "pong",
+    transition_at_ms: null
+  };
+  const html = BreakoutUi.controllerMarkup({ ...state, status: "finished" }, queue);
+  assert.match(html, /games:queue:end/);
+  assert.doesNotMatch(html, /Preparar otra vez/);
+});
+
 test("screen board renders blocks, paddle, ball, score, and countdown while running", () => {
   const html = BreakoutUi.boardMarkup(state, "screen");
   assert.match(html, /breakout-screen/);

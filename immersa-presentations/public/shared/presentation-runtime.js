@@ -28,12 +28,25 @@
       script.dataset.immersaTimeUi = "1";
       root.document.head.appendChild(script);
     }
+    if (!root.document.querySelector("link[data-immersa-games-ui]")) {
+      const gamesLink = root.document.createElement("link");
+      gamesLink.rel = "stylesheet";
+      gamesLink.href = "/shared/games-ui.css";
+      gamesLink.dataset.immersaGamesUi = "1";
+      root.document.head.appendChild(gamesLink);
+    }
     if (!root.document.querySelector("link[data-immersa-breakout-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
       link.href = "/shared/breakout-ui.css";
       link.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(link);
+    }
+    if (!root.document.querySelector("script[data-immersa-games-ui]")) {
+      const script = root.document.createElement("script");
+      script.src = "/shared/games-ui.js";
+      script.dataset.immersaGamesUi = "1";
+      root.document.head.appendChild(script);
     }
     if (!root.document.querySelector("script[data-immersa-breakout-ui]")) {
       const script = root.document.createElement("script");

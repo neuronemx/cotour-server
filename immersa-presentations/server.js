@@ -10,6 +10,8 @@ const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
+const { GameQueueStore } = require("./game-queue-store");
+const { createGameQueueSocketHandlers } = require("./game-queue-sockets");
 const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
@@ -32,12 +34,19 @@ const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
+const gameQueueStore = new GameQueueStore();
+const gameQueueSockets = createGameQueueSocketHandlers({
+  io,
+  store: gameQueueStore,
+  coordinator: activeInteractionCoordinator
+});
 const interactionSockets = createInteractionSocketHandlers({
   io,
   store: interactionStore,
   loadInteractionsForDeck,
   getRoleRoomKey,
-  coordinator: activeInteractionCoordinator
+  coordinator: activeInteractionCoordinator,
+  onGameFinished: gameQueueSockets.handleGameFinished
 });
 const raffleSockets = createRaffleSocketHandlers({
   io,
@@ -593,6 +602,13 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  gameQueueSockets.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
   raffleSockets.attach(socket, () => ({
     roomKey: currentRoomKey,
     role: currentRole,
@@ -637,13 +653,15 @@ io.on("connection", (socket) => {
       });
       socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
-    await interactionSockets.sendCurrentState(socket, {
+    const joinedContext = {
       roomKey: currentRoomKey,
       role: currentRole,
       sessionId: currentSessionId,
       deckId: currentDeckId,
       audienceId: currentAudienceId
-    });
+    };
+    gameQueueSockets.sendCurrentState(socket, joinedContext);
+    await interactionSockets.sendCurrentState(socket, joinedContext);
     raffleSockets.sendCurrentState(socket, {
       roomKey: currentRoomKey,
       role: currentRole,
