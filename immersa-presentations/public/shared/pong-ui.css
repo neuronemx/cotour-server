@@ -650,6 +650,10 @@
   align-items: center;
 }
 
+.pong-audience-header.is-lobby {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pong-audience-header > div {
   min-width: 0;
   display: grid;
@@ -777,14 +781,16 @@
 .pong-direction-pad {
   width: min(100%, 420px);
   height: min(58dvh, 460px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .pong-direction-pad button {
   min-width: 0;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 0;
   display: grid;
   place-content: center;
   gap: 8px;
@@ -833,6 +839,72 @@
 
 .pong-fullscreen[hidden] {
   display: none !important;
+}
+
+.pong-audience-goal-flash {
+  --pong-goal-rgb: 47, 128, 237;
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  opacity: 0;
+  background: radial-gradient(circle, rgba(var(--pong-goal-rgb), .82), rgba(var(--pong-goal-rgb), .28) 48%, transparent 78%);
+  box-shadow: inset 0 0 120px rgba(var(--pong-goal-rgb), .52);
+  pointer-events: none;
+}
+
+.pong-audience-goal-flash[hidden] {
+  display: none !important;
+}
+
+.pong-audience-goal-flash.is-right {
+  --pong-goal-rgb: 242, 153, 74;
+}
+
+.pong-audience-goal-flash.is-active {
+  animation: pong-audience-flash 1s ease-out both;
+}
+
+.pong-audience-goal-flash > div {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 22px 28px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 24px;
+  background: rgba(4, 7, 16, .76);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, .4), 0 0 54px rgba(var(--pong-goal-rgb), .5);
+  animation: pong-audience-goal-pop 1s cubic-bezier(.18, .84, .22, 1) both;
+  text-align: center;
+}
+
+.pong-audience-goal-flash strong {
+  font: 900 clamp(48px, 16vw, 90px)/.85 Poppins, Inter, sans-serif;
+  letter-spacing: -.04em;
+}
+
+.pong-audience-goal-flash span {
+  max-width: 78vw;
+  overflow: hidden;
+  font: 800 clamp(17px, 5vw, 28px)/1 Poppins, Inter, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes pong-audience-flash {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  68% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes pong-audience-goal-pop {
+  0% { opacity: 0; transform: scale(.72); }
+  20% { opacity: 1; transform: scale(1.06); }
+  72% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08); }
 }
 
 .pong-audience-spectator {
@@ -963,6 +1035,13 @@
   }
 
   .pong-goal-celebration.is-active .pong-goal-copy {
+    opacity: 1;
+    transform: none;
+  }
+
+  .pong-audience-goal-flash.is-active,
+  .pong-audience-goal-flash > div {
+    animation: none !important;
     opacity: 1;
     transform: none;
   }

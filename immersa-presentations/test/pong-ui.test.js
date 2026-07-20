@@ -134,6 +134,9 @@ test("Público chooses between real blue and orange team buttons in the lobby", 
   assert.match(html, /Tigres/);
   assert.match(html, /8 personas/);
   assert.match(html, /7 personas/);
+  assert.match(html, /pong-audience-header is-lobby/);
+  assert.doesNotMatch(html, />LOBBY</);
+  assert.doesNotMatch(html, /data-pong-audience-time/);
 });
 
 test("Público gets two same-team directional controls and may switch during lobby", () => {
@@ -144,11 +147,22 @@ test("Público gets two same-team directional controls and may switch during lob
   const right = PongUi.audienceMarkup(runningState, { team: "right", spectator: false, roster_locked: true });
   assert.equal((left.match(/data-pong-direction=/g) || []).length, 2);
   assert.match(left, /pong-direction-pad is-left/);
+  assert.match(left, /data-pong-audience-goal/);
   assert.match(left, /data-pong-change-team/);
   assert.match(left, /data-pong-fullscreen/);
   assert.equal((right.match(/data-pong-direction=/g) || []).length, 2);
   assert.match(right, /pong-direction-pad is-right/);
   assert.doesNotMatch(right, /data-pong-change-team/);
+});
+
+test("Público flashes only when its own team scores", () => {
+  assert.equal(PongUi.isAudienceGoal({ team: "left" }, { scoring_team: "left" }), true);
+  assert.equal(PongUi.isAudienceGoal({ team: "left" }, { scoring_team: "right" }), false);
+  assert.equal(PongUi.isAudienceGoal({ team: "" }, { scoring_team: "left" }), false);
+  const html = PongUi.audienceMarkup(runningState, { team: "left", spectator: false, roster_locked: true });
+  assert.match(html, /pong-audience-goal-flash/);
+  assert.match(html, /¡GOOOL!/);
+  assert.match(html, /data-pong-audience-goal-team/);
 });
 
 test("late Público is a spectator after the roster locks", () => {
@@ -173,14 +187,16 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(ui, /IMMERSA_PONG_GOAL_VIDEO_URL/);
   assert.match(ui, /queueState\.revision[\s\S]*teamsReady\(state\)/);
   assert.match(interactionStore, /createPongSocketHandlers\(\{[\s\S]+queueAvailable: true/);
-  assert.match(runtime, /pong-ui\.css\?v=3/);
-  assert.match(runtime, /pong-ui\.js\?v=3/);
+  assert.match(runtime, /pong-ui\.css\?v=4/);
+  assert.match(runtime, /pong-ui\.js\?v=4/);
   assert.match(css, /#2f80ed/);
   assert.match(css, /#f2994a/);
   assert.match(css, /pong-goal-celebration/);
   assert.match(css, /\.pong-lobby-message\s*\{[\s\S]*?backdrop-filter:\s*none/);
   assert.match(css, /\.pong-board\s*\{[\s\S]*?width:\s*min\(94vw, 145vh\)/);
   assert.match(css, /\.pong-lobby-content\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
-  assert.match(css, /\.pong-direction-pad\s*\{[\s\S]*?grid-template-rows:\s*repeat\(2/);
+  assert.match(css, /\.pong-direction-pad\s*\{[\s\S]*?display:\s*flex[\s\S]*?flex-direction:\s*column/);
+  assert.match(css, /pong-audience-goal-flash/);
+  assert.match(ui, /isAudienceGoal\(membership, goal\)/);
   assert.match(css, /prefers-reduced-motion/);
 });
