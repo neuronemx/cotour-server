@@ -187,7 +187,13 @@ function createInteractionSocketHandlers({
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator, onFinished: onGameFinished });
-  const pongSockets = createPongSocketHandlers({ io, store: pongStore, coordinator, onFinished: onGameFinished });
+  const pongSockets = createPongSocketHandlers({
+    io,
+    store: pongStore,
+    coordinator,
+    onFinished: onGameFinished,
+    queueAvailable: true
+  });
   if (coordinator?.registerGame) coordinator.registerGame("breakout", breakoutSockets);
   else if (coordinator) coordinator.breakoutStore = breakoutStore;
   if (coordinator?.registerGame) coordinator.registerGame("pong", pongSockets);
