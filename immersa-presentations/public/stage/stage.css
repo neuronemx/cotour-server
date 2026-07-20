@@ -34,9 +34,9 @@ body {
   overflow: hidden;
 }
 
-.stage-toolbar { grid-row: 1; }
-.stage-thumbs-panel { grid-row: 2; }
-.screen-stage { grid-row: 3; }
+.stage-toolbar { grid-row: 1; grid-column: 1; }
+.stage-thumbs-panel { grid-row: 2; grid-column: 1; }
+.screen-stage { grid-row: 3; grid-column: 1; }
 .stage-shell.stage-thumbs-collapsed {
   grid-template-rows: auto minmax(0, 1fr);
 }
