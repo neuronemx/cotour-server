@@ -13,8 +13,23 @@ function createPongSocketHandlers({
   queueAvailable = false
 }) {
   const loops = new Map();
+  const audioBySession = new Map();
   const canControl = (context) => context?.role === "presenter" || context?.role === "stage";
   const emitState = (roomKey, sessionId) => io.to(roomKey).emit("pong:state", store.snapshot(sessionId));
+
+  function audioState(sessionId) {
+    return audioBySession.get(String(sessionId || "")) || { muted: false, volume: 0.7, pack: "arcade" };
+  }
+
+  function normalizeAudioConfig(next = {}) {
+    const volume = Number(next?.volume);
+    const pack = String(next?.pack || "arcade").trim().toLowerCase();
+    return {
+      muted: Boolean(next?.muted),
+      volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0.7,
+      pack: /^[a-z0-9_-]{1,32}$/.test(pack) ? pack : "arcade"
+    };
+  }
 
   function stopLoop(sessionId) {
     const key = String(sessionId || "");
@@ -169,6 +184,19 @@ function createPongSocketHandlers({
       if (!result.ok && result.reason !== "rate_limited") reject(socket, "input", result.reason);
     });
 
+    socket.on("pong:audio:set", (next = {}) => {
+      const context = getContext();
+      if (!context?.roomKey || !context?.sessionId || context.role !== "stage") return;
+      const config = normalizeAudioConfig(next);
+      audioBySession.set(String(context.sessionId), config);
+      io.to(context.roomKey).emit("pong:audio:state", config);
+    });
+
+    socket.on("pong:audio:request", () => {
+      const context = getContext();
+      if (context?.sessionId) socket.emit("pong:audio:state", audioState(context.sessionId));
+    });
+
     socket.on("pong:request_state", () => sendCurrentState(socket, getContext()));
   }
 
@@ -184,6 +212,7 @@ function createPongSocketHandlers({
   function sendCurrentState(socket, context) {
     if (!context?.sessionId) return;
     const state = store.snapshot(context.sessionId);
+    socket.emit("pong:audio:state", audioState(context.sessionId));
     socket.emit("pong:state", state);
     sendMembership(socket, context);
     if (LOOP_STATUSES.has(state.status) && context.roomKey) ensureLoop(context.roomKey, context.sessionId);
@@ -214,6 +243,7 @@ function createPongSocketHandlers({
     closeAll,
     hasActive: (sessionId) => store.hasActive(sessionId),
     queueAvailable: Boolean(queueAvailable),
+    audioState,
     constants: { TICK_MS, BROADCAST_MS }
   };
 }

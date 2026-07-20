@@ -87,6 +87,9 @@ test("Screen renders two colored teams, authoritative field objects, score, and 
   assert.equal((html.match(/data-pong-paddle=/g) || []).length, 2);
   assert.match(html, /data-pong-ball/);
   assert.match(html, /--x:0\.57/);
+  assert.match(html, /data-pong-goal-celebration/);
+  assert.match(html, /data-pong-goal-video/);
+  assert.equal((html.match(/<i style="--i:/g) || []).length, 24);
 });
 
 test("Screen lobby shows team selection counts without starting ball movement", () => {
@@ -104,18 +107,58 @@ test("finished Screen names the winner and keeps the final score", () => {
   assert.match(html, /3 — 2/);
 });
 
-test("shared runtime loads Pong UI while this PR leaves Público controls and queue activation out", () => {
+test("Público chooses between real blue and orange team buttons in the lobby", () => {
+  const html = PongUi.audienceMarkup(
+    { ...runningState, status: "ready", remaining_ms: 60000, roster_locked: false },
+    { team: "", spectator: false, roster_locked: false }
+  );
+  assert.equal((html.match(/data-pong-team-choice=/g) || []).length, 2);
+  assert.match(html, /data-pong-team-choice="left"/);
+  assert.match(html, /data-pong-team-choice="right"/);
+  assert.match(html, /Ballenas/);
+  assert.match(html, /Tigres/);
+  assert.match(html, /8 personas/);
+  assert.match(html, /7 personas/);
+});
+
+test("Público gets two same-team directional controls and may switch during lobby", () => {
+  const left = PongUi.audienceMarkup(
+    { ...runningState, status: "ready", remaining_ms: 60000, roster_locked: false },
+    { team: "left", spectator: false, roster_locked: false }
+  );
+  const right = PongUi.audienceMarkup(runningState, { team: "right", spectator: false, roster_locked: true });
+  assert.equal((left.match(/data-pong-direction=/g) || []).length, 2);
+  assert.match(left, /pong-direction-pad is-left/);
+  assert.match(left, /data-pong-change-team/);
+  assert.match(left, /data-pong-fullscreen/);
+  assert.equal((right.match(/data-pong-direction=/g) || []).length, 2);
+  assert.match(right, /pong-direction-pad is-right/);
+  assert.doesNotMatch(right, /data-pong-change-team/);
+});
+
+test("late Público is a spectator after the roster locks", () => {
+  const html = PongUi.audienceMarkup(runningState, { team: "", spectator: true, roster_locked: true });
+  assert.match(html, /MIRA LA PARTIDA/);
+  assert.match(html, /roster ya estaba cerrado/);
+  assert.doesNotMatch(html, /data-pong-direction/);
+  assert.doesNotMatch(html, /data-pong-team-choice/);
+});
+
+test("shared runtime loads the complete Pong UI and production enables its queue runtime", () => {
   const runtime = fs.readFileSync(path.join(__dirname, "../public/shared/presentation-runtime.js"), "utf8");
   const ui = fs.readFileSync(path.join(__dirname, "../public/shared/pong-ui.js"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../public/shared/pong-ui.css"), "utf8");
-  const sockets = fs.readFileSync(path.join(__dirname, "../pong-sockets.js"), "utf8");
+  const interactionStore = fs.readFileSync(path.join(__dirname, "../interaction-store.js"), "utf8");
   assert.match(runtime, /\/shared\/pong-ui\.css/);
   assert.match(runtime, /\/shared\/pong-ui\.js/);
   assert.match(ui, /pong:request_state/);
   assert.match(ui, /button\.dataset\.pongEvent === "pong:start"[\s\S]+emitNames\(\)[\s\S]+socket\.emit\(button\.dataset\.pongEvent\)/);
-  assert.doesNotMatch(ui, /data-pong-direction/);
-  assert.match(sockets, /queueAvailable = false/);
+  assert.match(ui, /data-pong-direction/);
+  assert.match(ui, /pong:membership/);
+  assert.match(ui, /IMMERSA_PONG_GOAL_VIDEO_URL/);
+  assert.match(interactionStore, /createPongSocketHandlers\(\{[\s\S]+queueAvailable: true/);
   assert.match(css, /#2f80ed/);
   assert.match(css, /#f2994a/);
+  assert.match(css, /pong-goal-celebration/);
   assert.match(css, /prefers-reduced-motion/);
 });

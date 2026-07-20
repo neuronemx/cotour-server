@@ -5,6 +5,7 @@ const { createPongSocketHandlers } = require("../pong-sockets");
 const { ActiveInteractionCoordinator } = require("../active-interaction-coordinator");
 const { GameQueueStore } = require("../game-queue-store");
 const { createGameQueueSocketHandlers } = require("../game-queue-sockets");
+const { InteractionStore, createInteractionSocketHandlers } = require("../interaction-store");
 
 function createSocket() {
   const handlers = new Map();
@@ -175,4 +176,59 @@ test("Pong core remains hidden from the queue until its UI explicitly enables it
   const state = queue.snapshot("s1");
   assert.equal(state.catalog.find((game) => game.id === "breakout").available, true);
   assert.equal(state.catalog.find((game) => game.id === "pong").available, false);
+});
+
+test("only Stage synchronizes bounded Pong audio configuration", () => {
+  const io = createIo();
+  const runtime = createPongSocketHandlers({ io, store: new PongStore() });
+  const stage = createSocket();
+  runtime.attach(stage, () => ({ roomKey: "room", sessionId: "s1", role: "stage" }));
+  stage.handlers.get("pong:audio:set")({ muted: true, volume: 2, pack: "SOFT" });
+  assert.deepEqual(io.emitted.at(-1), {
+    room: "room",
+    event: "pong:audio:state",
+    payload: { muted: true, volume: 1, pack: "soft" }
+  });
+
+  const presenter = createSocket();
+  runtime.attach(presenter, () => ({ roomKey: "room", sessionId: "s1", role: "presenter" }));
+  const before = io.emitted.length;
+  presenter.handlers.get("pong:audio:set")({ muted: false, volume: 0, pack: "arcade" });
+  assert.equal(io.emitted.length, before);
+
+  const screen = createSocket();
+  runtime.attach(screen, () => ({ roomKey: "room", sessionId: "s1", role: "screen" }));
+  screen.handlers.get("pong:audio:request")();
+  assert.deepEqual(screen.emitted.at(-1), {
+    event: "pong:audio:state",
+    payload: { muted: true, volume: 1, pack: "soft" }
+  });
+
+  stage.handlers.get("pong:audio:set")({ volume: "invalid", pack: "../../bad" });
+  assert.deepEqual(runtime.audioState("s1"), { muted: false, volume: 0.7, pack: "arcade" });
+});
+
+test("production interaction runtime exposes and prepares Pong from the ordered game queue", async () => {
+  const io = createIo();
+  const coordinator = new ActiveInteractionCoordinator({ interactionStore: null, raffleStore: null });
+  const interactionRuntime = createInteractionSocketHandlers({
+    io,
+    store: new InteractionStore(),
+    loadInteractionsForDeck: async () => [],
+    getRoleRoomKey: (roomKey, role) => `${roomKey}::${role}`,
+    coordinator
+  });
+  const queue = createGameQueueSocketHandlers({ io, store: new GameQueueStore(), coordinator });
+  const pong = coordinator.getGameRuntime("pong");
+  assert.equal(interactionRuntime.pongSockets, pong);
+  assert.equal(pong.queueAvailable, true);
+  assert.equal(queue.snapshot("s1").catalog.find((game) => game.id === "pong").available, true);
+
+  const socket = createSocket();
+  queue.attach(socket, () => ({ roomKey: "room", sessionId: "s1", role: "presenter" }));
+  await socket.handlers.get("games:queue:set")({ selected: ["pong"] });
+  await socket.handlers.get("games:queue:start")();
+
+  assert.equal(queue.snapshot("s1").current_game_type, "pong");
+  assert.equal(interactionRuntime.pongStore.snapshot("s1").status, "ready");
 });
