@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v5">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v6">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
   <link rel="stylesheet" href="/shared/qna-controls.css">
@@ -49,6 +49,14 @@
         <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
       </div>
     </header>
+
+    <section id="stageThumbsPanel" class="stage-thumbs-panel is-open" aria-label="Navegación por slides">
+      <button id="stageThumbsToggle" class="stage-thumbs-toggle" type="button" aria-expanded="true" aria-controls="stageThumbs">
+        <span>Slides</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+      </button>
+      <nav id="stageThumbs" class="stage-thumbs" aria-label="Miniaturas de slides"></nav>
+    </section>
 
     <section class="screen-stage" aria-label="Slide en vivo">
       <div class="screen-frame">
@@ -99,7 +107,7 @@
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
   <script src="/shared/qna-controls.js"></script>
-  <script src="/stage/stage.js?v=stage-v5"></script>
+  <script src="/stage/stage.js?v=stage-v6"></script>
   <script src="/shared/breakout-audio.js?v=98"></script>
 </body>
 </html>
