@@ -125,18 +125,18 @@ test("enabled runtime reports state failures without breaking the presentation j
   assert.equal(logger.errors.length, 1);
 });
 
-test("enabled runtime exports every round in the active historical execution", async () => {
+test("enabled runtime lists history and exports every deck execution", async () => {
   const calls = [];
   const repository = {
-    async getActivePresentationSession(payload) {
-      calls.push({ method: "getActivePresentationSession", payload });
-      return { presentationSessionId: "presentation-session-1" };
+    async listPresentationSessions(deckId) {
+      calls.push({ method: "listPresentationSessions", deckId });
+      return [{ presentationSessionId: "presentation-session-1", questionCount: 1 }];
     },
-    async listExportQuestions(presentationSessionId) {
-      calls.push({ method: "listExportQuestions", presentationSessionId });
+    async listExportQuestionsByDeck(deckId) {
+      calls.push({ method: "listExportQuestionsByDeck", deckId });
       return [{
-        presentationSessionId,
-        deckId: "deck-a",
+        presentationSessionId: "presentation-session-1",
+        deckId,
         roundNumber: 2,
         question: "¿Se guarda?",
         name: "Ana",
@@ -155,13 +155,15 @@ test("enabled runtime exports every round in the active historical execution", a
     getConnectedAudience: () => []
   });
 
-  const result = await runtime.exportCsv({ deckId: "deck-a", sourceSessionId: "source-session-1" });
-  assert.equal(result.presentationSessionId, "presentation-session-1");
+  const history = await runtime.listHistory({ deckId: "deck-a" });
+  const result = await runtime.exportDeckCsv({ deckId: "deck-a" });
+  assert.equal(history[0].presentationSessionId, "presentation-session-1");
+  assert.equal(result.questionCount, 1);
   assert.match(result.csv, /^\uFEFF/);
   assert.match(result.csv, /"Respondida"/);
   assert.match(result.csv, /"Sí"/);
   assert.deepEqual(calls, [
-    { method: "getActivePresentationSession", payload: { deckId: "deck-a", sourceSessionId: "source-session-1" } },
-    { method: "listExportQuestions", presentationSessionId: "presentation-session-1" }
+    { method: "listPresentationSessions", deckId: "deck-a" },
+    { method: "listExportQuestionsByDeck", deckId: "deck-a" }
   ]);
 });
