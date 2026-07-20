@@ -110,6 +110,9 @@ test("Screen lobby shows team selection counts without starting ball movement", 
   assert.match(html, /Desde tu teléfono/);
   assert.match(html, /data-pong-screen-roster="left">8/);
   assert.match(html, /data-pong-screen-roster="right">7/);
+  assert.match(html, /pong-scoreboard is-lobby/);
+  assert.doesNotMatch(html, />PONG</);
+  assert.doesNotMatch(html, />LOBBY</);
   assert.doesNotMatch(html, /data-pong-ball/);
 });
 
@@ -170,12 +173,14 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(ui, /IMMERSA_PONG_GOAL_VIDEO_URL/);
   assert.match(ui, /queueState\.revision[\s\S]*teamsReady\(state\)/);
   assert.match(interactionStore, /createPongSocketHandlers\(\{[\s\S]+queueAvailable: true/);
-  assert.match(runtime, /pong-ui\.css\?v=2/);
-  assert.match(runtime, /pong-ui\.js\?v=2/);
+  assert.match(runtime, /pong-ui\.css\?v=3/);
+  assert.match(runtime, /pong-ui\.js\?v=3/);
   assert.match(css, /#2f80ed/);
   assert.match(css, /#f2994a/);
   assert.match(css, /pong-goal-celebration/);
   assert.match(css, /\.pong-lobby-message\s*\{[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(css, /\.pong-board\s*\{[\s\S]*?width:\s*min\(94vw, 145vh\)/);
+  assert.match(css, /\.pong-lobby-content\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
   assert.match(css, /\.pong-direction-pad\s*\{[\s\S]*?grid-template-rows:\s*repeat\(2/);
   assert.match(css, /prefers-reduced-motion/);
 });
