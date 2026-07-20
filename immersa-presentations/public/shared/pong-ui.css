@@ -1,0 +1,498 @@
+.interaction-pong-renderer[hidden],
+.interaction-pong-renderer[data-games-queue-hidden="true"],
+.pong-ui-host[hidden] {
+  display: none !important;
+}
+
+.interaction-pong-renderer {
+  display: block;
+  min-width: 0;
+}
+
+.pong-controller {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .055);
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.pong-controller-head {
+  display: grid;
+  gap: 4px;
+}
+
+.pong-controller-head > span {
+  color: #f2994a;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.pong-controller-head h3 {
+  margin: 0;
+  color: #fff;
+  font: 700 22px/1 Poppins, Inter, sans-serif;
+}
+
+.pong-controller-head p {
+  margin: 0;
+  color: rgba(255, 255, 255, .68);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.pong-team-editors,
+.pong-controller-scoreboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pong-team-editor,
+.pong-controller-team {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 14px;
+}
+
+.pong-team-editor.is-left,
+.pong-controller-team.is-left {
+  border-color: rgba(47, 128, 237, .48);
+  background: rgba(47, 128, 237, .1);
+}
+
+.pong-team-editor.is-right,
+.pong-controller-team.is-right {
+  border-color: rgba(242, 153, 74, .48);
+  background: rgba(242, 153, 74, .1);
+}
+
+.pong-team-editor > span,
+.pong-controller-team > span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, .72);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pong-team-editor input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 10px;
+  outline: none;
+  color: #fff;
+  background: rgba(4, 7, 17, .55);
+  font: 750 12px/1 Inter, sans-serif;
+}
+
+.pong-team-editor.is-left input:focus {
+  border-color: #2f80ed;
+  box-shadow: 0 0 0 3px rgba(47, 128, 237, .17);
+}
+
+.pong-team-editor.is-right input:focus {
+  border-color: #f2994a;
+  box-shadow: 0 0 0 3px rgba(242, 153, 74, .17);
+}
+
+.pong-team-editor small {
+  color: rgba(255, 255, 255, .55);
+  font-size: 9px;
+}
+
+.pong-controller-team {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.pong-controller-team strong {
+  color: #fff;
+  font: 800 26px/1 Poppins, Inter, sans-serif;
+}
+
+.pong-controller-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.pong-controller-stats > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.pong-controller-stats span {
+  color: rgba(255, 255, 255, .54);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pong-controller-stats strong {
+  color: #fff;
+  font-size: 17px;
+}
+
+.pong-controller-status {
+  padding: 9px 10px;
+  border-radius: 13px;
+  color: rgba(255, 255, 255, .82);
+  background: linear-gradient(90deg, rgba(47, 128, 237, .12), rgba(242, 153, 74, .12));
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pong-controller-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pong-action {
+  min-height: 38px;
+  flex: 1 1 110px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  font: 900 12px Inter, sans-serif;
+}
+
+.pong-action.primary {
+  color: #fff;
+  background: linear-gradient(105deg, #2f80ed, #7f77dd 50%, #f2994a);
+}
+
+.pong-action.danger {
+  color: #ffe8ee;
+  border-color: rgba(255, 79, 117, .34);
+  background: rgba(255, 79, 117, .17);
+}
+
+.pong-ui-host {
+  position: fixed;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pong-overlay {
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  background: radial-gradient(circle at 50% 28%, rgba(70, 80, 135, .28), rgba(4, 6, 14, .94) 67%);
+  font-family: Inter, "Segoe UI", sans-serif;
+  pointer-events: none;
+}
+
+.pong-scoreboard {
+  position: absolute;
+  z-index: 3;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  width: min(88vw, 1120px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: clamp(12px, 2vw, 26px);
+  align-items: center;
+  transform: translateX(-50%);
+}
+
+.pong-score-team {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px;
+  background: rgba(7, 10, 22, .62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+  backdrop-filter: blur(16px);
+}
+
+.pong-score-team.is-left {
+  border-color: rgba(47, 128, 237, .52);
+  box-shadow: inset 4px 0 0 #2f80ed, 0 0 30px rgba(47, 128, 237, .12);
+}
+
+.pong-score-team.is-right {
+  grid-template-columns: auto minmax(0, 1fr);
+  border-color: rgba(242, 153, 74, .52);
+  box-shadow: inset -4px 0 0 #f2994a, 0 0 30px rgba(242, 153, 74, .12);
+  text-align: right;
+}
+
+.pong-score-team span {
+  overflow: hidden;
+  font: 750 clamp(14px, 1.7vw, 23px)/1.1 Poppins, Inter, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pong-score-team strong {
+  font: 800 clamp(26px, 3vw, 42px)/1 Poppins, Inter, sans-serif;
+}
+
+.pong-clock {
+  min-width: clamp(74px, 8vw, 104px);
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 15px;
+  color: #fff;
+  background: rgba(6, 9, 19, .78);
+  font: 850 clamp(22px, 2.6vw, 36px)/1 Poppins, Inter, sans-serif;
+  text-align: center;
+}
+
+.pong-clock.is-urgent {
+  color: #ff6687;
+  border-color: rgba(255, 102, 135, .52);
+  box-shadow: 0 0 32px rgba(255, 79, 117, .2);
+}
+
+.pong-board {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  width: min(90vw, 1200px);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 24px;
+  background: #070b17;
+  box-shadow: 0 28px 100px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transform: translate(-50%, -50%);
+}
+
+.pong-half,
+.pong-center-line,
+.pong-center-circle,
+.pong-paddle,
+.pong-ball {
+  position: absolute;
+  display: block;
+}
+
+.pong-half {
+  top: 0;
+  bottom: 0;
+  width: 50%;
+}
+
+.pong-half.is-left {
+  left: 0;
+  background: radial-gradient(circle at 10% 50%, rgba(47, 128, 237, .18), transparent 66%);
+}
+
+.pong-half.is-right {
+  right: 0;
+  background: radial-gradient(circle at 90% 50%, rgba(242, 153, 74, .17), transparent 66%);
+}
+
+.pong-center-line {
+  top: 3%;
+  bottom: 3%;
+  left: 50%;
+  border-left: 3px dashed rgba(255, 255, 255, .16);
+  transform: translateX(-50%);
+}
+
+.pong-center-circle {
+  top: 50%;
+  left: 50%;
+  width: 18%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, .11);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.pong-paddle {
+  top: calc(var(--y) * 100%);
+  left: calc(var(--x) * 100%);
+  width: calc(var(--w) * 100%);
+  height: calc(var(--h) * 100%);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  transition: top .09s linear;
+}
+
+.pong-paddle.is-left {
+  background: linear-gradient(90deg, #1d64c7, #65a6ff);
+  box-shadow: 0 0 30px rgba(47, 128, 237, .75);
+}
+
+.pong-paddle.is-right {
+  background: linear-gradient(90deg, #ffbc75, #e37a22);
+  box-shadow: 0 0 30px rgba(242, 153, 74, .72);
+}
+
+.pong-ball {
+  top: calc(var(--y) * 100%);
+  left: calc(var(--x) * 100%);
+  width: calc(var(--r) * 200%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 28px rgba(255, 255, 255, .78), 0 0 58px rgba(127, 119, 221, .4);
+  transform: translate(-50%, -50%);
+  transition: top .09s linear, left .09s linear;
+}
+
+.pong-message {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  background: rgba(3, 5, 12, .5);
+  backdrop-filter: blur(5px);
+  text-align: center;
+}
+
+.pong-message > span {
+  color: rgba(255, 255, 255, .64);
+  font-size: clamp(14px, 1.6vw, 22px);
+  font-weight: 850;
+  letter-spacing: .2em;
+}
+
+.pong-message > strong {
+  max-width: 86%;
+  font: 800 clamp(36px, 7vw, 92px)/.95 Poppins, Inter, sans-serif;
+  text-wrap: balance;
+}
+
+.pong-message > small {
+  color: rgba(255, 255, 255, .74);
+  font-size: clamp(16px, 2vw, 28px);
+  font-weight: 750;
+}
+
+.pong-lobby-message > span {
+  color: #fff;
+  font-size: clamp(38px, 7vw, 88px);
+  letter-spacing: .12em;
+}
+
+.pong-lobby-message > strong {
+  font-size: clamp(24px, 4vw, 52px);
+}
+
+.pong-lobby-message > div {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.pong-lobby-message em {
+  min-width: 70px;
+  padding: 10px 16px;
+  border-radius: 15px;
+  color: #fff;
+  font: 850 clamp(25px, 4vw, 48px)/1 Poppins, Inter, sans-serif;
+  font-style: normal;
+}
+
+.pong-lobby-message em.is-left {
+  background: #2f80ed;
+  box-shadow: 0 0 32px rgba(47, 128, 237, .38);
+}
+
+.pong-lobby-message em.is-right {
+  background: #f2994a;
+  box-shadow: 0 0 32px rgba(242, 153, 74, .34);
+}
+
+.pong-lobby-message b {
+  color: rgba(255, 255, 255, .5);
+  font-size: 14px;
+}
+
+.pong-result-message > strong {
+  background: linear-gradient(90deg, #65a6ff, #fff 50%, #ffbc75);
+  background-clip: text;
+  color: transparent;
+}
+
+@media (max-width: 720px) {
+  .pong-team-editors,
+  .pong-controller-scoreboard {
+    grid-template-columns: 1fr;
+  }
+
+  .pong-controller-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pong-controller-stats > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .pong-scoreboard {
+    top: max(10px, env(safe-area-inset-top));
+    width: calc(100% - 20px);
+    gap: 7px;
+  }
+
+  .pong-score-team {
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .pong-score-team span {
+    font-size: 11px;
+  }
+
+  .pong-score-team strong {
+    font-size: 22px;
+  }
+
+  .pong-clock {
+    min-width: 54px;
+    padding: 9px 8px;
+    border-radius: 11px;
+    font-size: 18px;
+  }
+
+  .pong-board {
+    top: 55%;
+    width: 96vw;
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pong-paddle,
+  .pong-ball {
+    transition: none;
+  }
+}

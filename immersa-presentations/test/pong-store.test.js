@@ -51,18 +51,21 @@ test("empty lobby names fall back to the frozen blue and orange defaults", () =>
 test("the roster locks at start, restores known audience, and makes late joins spectators", () => {
   const store = new PongStore({ now: () => 1000 });
   store.prepare("s1", "presenter");
-  assert.equal(store.joinTeam("s1", "a1", "left").ok, true);
-  assert.equal(store.joinTeam("s1", "a2", "right").ok, true);
+  const leftAudienceId = "audience-private-left-7f3c";
+  const rightAudienceId = "audience-private-right-9d2e";
+  assert.equal(store.joinTeam("s1", leftAudienceId, "left").ok, true);
+  assert.equal(store.joinTeam("s1", rightAudienceId, "right").ok, true);
   assert.deepEqual(store.snapshot("s1").roster_counts, { left: 1, right: 1 });
 
   store.start("s1", "stage");
-  assert.deepEqual(store.membership("s1", "a1"), { team: "left", spectator: false, roster_locked: true });
-  assert.equal(store.joinTeam("s1", "a1", "left").restored, true);
-  assert.equal(store.joinTeam("s1", "a1", "right").reason, "roster_locked");
+  assert.deepEqual(store.membership("s1", leftAudienceId), { team: "left", spectator: false, roster_locked: true });
+  assert.equal(store.joinTeam("s1", leftAudienceId, "left").restored, true);
+  assert.equal(store.joinTeam("s1", leftAudienceId, "right").reason, "roster_locked");
   assert.deepEqual(store.membership("s1", "late"), { team: "", spectator: true, roster_locked: true });
   assert.equal(store.joinTeam("s1", "late", "right").reason, "roster_locked");
-  assert.equal(JSON.stringify(store.snapshot("s1")).includes("a1"), false);
-  assert.equal(JSON.stringify(store.snapshot("s1")).includes("a2"), false);
+  const serialized = JSON.stringify(store.snapshot("s1"));
+  assert.equal(serialized.includes(leftAudienceId), false);
+  assert.equal(serialized.includes(rightAudienceId), false);
 });
 
 test("collective input is normalized per team and one audience has one vote per window", () => {

@@ -1,0 +1,440 @@
+(function (root, factory) {
+  const api = factory(root || {});
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else {
+    root.ImmersaPongUi = api;
+    api.autoMount();
+  }
+})(typeof window !== "undefined" ? window : globalThis, function (root) {
+  const ACTIVE_STATUSES = new Set(["ready", "running", "paused", "finished"]);
+  const DISPLAY_ROLES = new Set(["screen", "viewer"]);
+  const CONTROL_ROLES = new Set(["presenter", "stage"]);
+
+  function roleFromPath(path) {
+    if (/^\/(?:speaker|presenter)(?:\/|$)/.test(path)) return "presenter";
+    if (/^\/stage(?:\/|$)/.test(path)) return "stage";
+    if (/^\/screen(?:\/|$)/.test(path)) return "screen";
+    if (/^\/viewer(?:\/|$)/.test(path)) return "viewer";
+    if (/^\/(?:audience(?:\/|$)|p_[a-z0-9]+$)/i.test(path)) return "audience";
+    return "";
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function seconds(ms) {
+    return Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+  }
+
+  function team(state, id) {
+    const defaults = id === "left"
+      ? { id: "left", name: "Equipo Azul", color: "#2f80ed", score: 0 }
+      : { id: "right", name: "Equipo Naranja", color: "#f2994a", score: 0 };
+    return { ...defaults, ...(state?.teams?.[id] || {}) };
+  }
+
+  function actionButton(label, event, className = "") {
+    return '<button type="button" class="pong-action '+className+'" data-pong-event="'+event+'">'+label+'</button>';
+  }
+
+  function queueActionButton(label, event, className = "") {
+    return '<button type="button" class="pong-action '+className+'" data-games-queue-event="'+event+'">'+label+'</button>';
+  }
+
+  function actions(status, queue = {}) {
+    const queued = (queue.status === "running" || queue.status === "finished") && queue.current_game_type === "pong";
+    if (queued) {
+      const end = queueActionButton("Terminar juegos", "games:queue:end", "danger");
+      const skip = queue.next_game_type ? queueActionButton("Saltar juego", "games:queue:skip") : "";
+      if (status === "ready") return actionButton("Iniciar", "pong:start", "primary") + skip + end;
+      if (status === "running") return actionButton("Pausar", "pong:pause") + skip + end;
+      if (status === "paused") return actionButton("Reanudar", "pong:resume", "primary") + skip + end;
+      return end;
+    }
+    if (status === "ready") return actionButton("Iniciar", "pong:start", "primary") + actionButton("Cerrar", "pong:close", "danger");
+    if (status === "running") return actionButton("Pausar", "pong:pause") + actionButton("Cerrar", "pong:close", "danger");
+    if (status === "paused") return actionButton("Reanudar", "pong:resume", "primary") + actionButton("Cerrar", "pong:close", "danger");
+    if (status === "finished") return actionButton("Preparar otra vez", "pong:prepare", "primary") + actionButton("Cerrar", "pong:close", "danger");
+    return actionButton("Abrir lobby", "pong:prepare", "primary");
+  }
+
+  function resultLabel(state) {
+    if (state?.winner_team === "tie") return "Empate";
+    if (state?.winner_team === "left" || state?.winner_team === "right") return team(state, state.winner_team).name + " gana";
+    return "Partida terminada";
+  }
+
+  function statusLabel(state, queue = {}) {
+    if (queue.transition_at_ms) return "Preparando siguiente juego…";
+    if (state?.status === "ready") return "Lobby abierto · el público elige equipo";
+    if (state?.status === "running") return "Partida en curso";
+    if (state?.status === "paused") return "Partida pausada";
+    if (state?.status === "finished") return resultLabel(state);
+    return "Listo para abrir el lobby";
+  }
+
+  function teamEditorMarkup(state, id) {
+    const current = team(state, id);
+    const count = Number(state?.roster_counts?.[id] || 0);
+    return '<label class="pong-team-editor is-'+id+'">'
+      +'<span>'+(id === "left" ? "Izquierdo · Azul" : "Derecho · Naranja")+'</span>'
+      +'<input type="text" maxlength="24" autocomplete="off" data-pong-team-name="'+id+'" value="'+escapeHtml(current.name)+'" aria-label="Nombre del equipo '+(id === "left" ? "azul" : "naranja")+'">'
+      +'<small data-pong-roster-count="'+id+'">'+count+' '+(count === 1 ? "persona" : "personas")+'</small>'
+      +'</label>';
+  }
+
+  function scoreCardMarkup(state, id) {
+    const current = team(state, id);
+    return '<div class="pong-controller-team is-'+id+'">'
+      +'<span data-pong-controller-team-name="'+id+'">'+escapeHtml(current.name)+'</span>'
+      +'<strong data-pong-controller-score="'+id+'">'+Number(current.score || 0)+'</strong>'
+      +'</div>';
+  }
+
+  function controllerMarkup(state = {}, queue = {}) {
+    const status = state.status || "idle";
+    const lobby = status === "ready";
+    const teams = lobby
+      ? '<div class="pong-team-editors">'+teamEditorMarkup(state, "left")+teamEditorMarkup(state, "right")+'</div>'
+      : '<div class="pong-controller-scoreboard">'+scoreCardMarkup(state, "left")+scoreCardMarkup(state, "right")+'</div>';
+    const totalRoster = Number(state?.roster_counts?.left || 0) + Number(state?.roster_counts?.right || 0);
+    return '<section class="pong-controller">'
+      +'<div class="pong-controller-head"><span>Juego competitivo</span><h3>PONG</h3><p>Azul controla la izquierda y naranja controla la derecha.</p></div>'
+      +teams
+      +'<div class="pong-controller-stats">'
+      +'<div><span>Tiempo</span><strong data-pong-time>'+(lobby ? "60 s" : seconds(state.remaining_ms)+" s")+'</strong></div>'
+      +'<div><span>Velocidad</span><strong data-pong-speed>'+Number(state.speed_multiplier || 1).toFixed(2)+'×</strong></div>'
+      +'<div><span>Jugadores</span><strong data-pong-roster-total>'+totalRoster+'</strong></div>'
+      +'</div>'
+      +'<div class="pong-controller-status" data-pong-status>'+escapeHtml(statusLabel(state, queue))+'</div>'
+      +'<div class="pong-controller-actions" data-pong-actions>'+actions(status, queue)+'</div>'
+      +'</section>';
+  }
+
+  function paddleMarkup(state, id) {
+    const paddle = state?.paddles?.[id] || { x: id === "left" ? 0.055 : 0.945, y: 0.5, width: 0.025, height: 0.22 };
+    return '<i class="pong-paddle is-'+id+'" data-pong-paddle="'+id+'" style="--x:'+paddle.x+';--y:'+paddle.y+';--w:'+paddle.width+';--h:'+paddle.height+'"></i>';
+  }
+
+  function messageMarkup(state) {
+    const status = state?.status || "idle";
+    if (status === "ready") {
+      const leftCount = Number(state?.roster_counts?.left || 0);
+      const rightCount = Number(state?.roster_counts?.right || 0);
+      return '<div class="pong-message pong-lobby-message">'
+        +'<span>PONG</span><strong>ELIGE TU EQUIPO</strong><small>Desde tu teléfono</small>'
+        +'<div><em class="is-left" data-pong-screen-roster="left">'+leftCount+'</em><b>VS</b><em class="is-right" data-pong-screen-roster="right">'+rightCount+'</em></div>'
+        +'</div>';
+    }
+    if (status === "paused") return '<div class="pong-message"><strong>PAUSA</strong></div>';
+    if (status === "finished") {
+      const label = state.winner_team === "tie" ? "EMPATE" : escapeHtml(team(state, state.winner_team).name) + " GANA";
+      return '<div class="pong-message pong-result-message"><span>TIEMPO</span><strong>'+label+'</strong><small>'+Number(team(state, "left").score || 0)+' — '+Number(team(state, "right").score || 0)+'</small></div>';
+    }
+    return "";
+  }
+
+  function boardMarkup(state = {}, role = "screen") {
+    const status = state.status || "idle";
+    const left = team(state, "left");
+    const right = team(state, "right");
+    const ball = state.ball || { x: 0.5, y: 0.5, radius: 0.014 };
+    const remaining = seconds(state.remaining_ms);
+    return '<section class="pong-overlay pong-'+role+' '+status+'">'
+      +'<header class="pong-scoreboard">'
+      +'<div class="pong-score-team is-left"><span data-pong-screen-name="left">'+escapeHtml(left.name)+'</span><strong data-pong-screen-score="left">'+Number(left.score || 0)+'</strong></div>'
+      +'<div class="pong-clock '+(remaining <= 10 && status === "running" ? "is-urgent" : "")+'" data-pong-screen-time>'+(status === "ready" ? "LOBBY" : remaining)+'</div>'
+      +'<div class="pong-score-team is-right"><strong data-pong-screen-score="right">'+Number(right.score || 0)+'</strong><span data-pong-screen-name="right">'+escapeHtml(right.name)+'</span></div>'
+      +'</header>'
+      +'<div class="pong-board">'
+      +'<i class="pong-half is-left"></i><i class="pong-half is-right"></i><i class="pong-center-line"></i><i class="pong-center-circle"></i>'
+      +paddleMarkup(state, "left")+paddleMarkup(state, "right")
+      +(status === "ready" ? "" : '<i class="pong-ball" data-pong-ball style="--x:'+ball.x+';--y:'+ball.y+';--r:'+ball.radius+'"></i>')
+      +messageMarkup(state)
+      +'</div>'
+      +'</section>';
+  }
+
+  function create(options = {}) {
+    const doc = options.document || root.document;
+    const socket = options.socket || root.socket;
+    const role = options.role || roleFromPath(root.location?.pathname || "");
+    if (!doc || !socket || !role) return null;
+    let state = {
+      status: "idle",
+      remaining_ms: 60000,
+      speed_multiplier: 1,
+      roster_counts: { left: 0, right: 0 },
+      teams: {
+        left: { name: "Equipo Azul", score: 0 },
+        right: { name: "Equipo Naranja", score: 0 }
+      }
+    };
+    let queueState = { status: "idle", current_game_type: "", revision: 0 };
+    let queueReady = false;
+    let renderer = null;
+    let host = null;
+    let controllerKey = "";
+    let screenKey = "";
+    let namesTimer = null;
+    let mountTimer = null;
+    let destroyed = false;
+    let wasActive = false;
+    let activateGamesOnce = false;
+    const listeners = [];
+
+    function listen(target, name, handler) {
+      target.addEventListener(name, handler);
+      listeners.push([target, name, handler]);
+    }
+
+    function shellView(shell) {
+      return shell?.dataset?.view || "home";
+    }
+
+    function openController() {
+      const button = role === "presenter"
+        ? doc.getElementById("interactionToggle")
+        : doc.getElementById("stageActionsButton");
+      if (button && button.getAttribute("aria-expanded") !== "true") button.click();
+    }
+
+    function activateGames(shell) {
+      const button = shell?.querySelector?.('[data-interactions-category="games"]');
+      if (button && !button.disabled && shellView(shell) !== "games") button.click();
+    }
+
+    function emitNames() {
+      if (!renderer || state.status !== "ready") return;
+      const left = renderer.querySelector('[data-pong-team-name="left"]');
+      const right = renderer.querySelector('[data-pong-team-name="right"]');
+      if (left && right) socket.emit("pong:teams:set", { left: left.value, right: right.value });
+    }
+
+    function scheduleNames() {
+      root.clearTimeout(namesTimer);
+      namesTimer = root.setTimeout(emitNames, 180);
+    }
+
+    function ensureController() {
+      const shell = doc.querySelector(".interactions-native-shell");
+      if (!shell) return null;
+      const content = shell.querySelector("[data-interactions-content-root]");
+      if (!content) return null;
+      if (!renderer) {
+        renderer = doc.createElement("div");
+        renderer.className = "interaction-pong-renderer";
+        renderer.dataset.interactionsView = "games";
+        renderer.hidden = shellView(shell) !== "games";
+        content.appendChild(renderer);
+        listen(renderer, "click", (event) => {
+          const button = event.target.closest?.("[data-pong-event]");
+          if (button) {
+            if (button.dataset.pongEvent === "pong:start") {
+              root.clearTimeout(namesTimer);
+              emitNames();
+            }
+            socket.emit(button.dataset.pongEvent);
+          }
+          const queueButton = event.target.closest?.("[data-games-queue-event]");
+          if (queueButton) socket.emit(queueButton.dataset.gamesQueueEvent);
+        });
+        listen(renderer, "input", (event) => {
+          if (event.target.closest?.("[data-pong-team-name]")) scheduleNames();
+        });
+        listen(renderer, "change", (event) => {
+          if (event.target.closest?.("[data-pong-team-name]")) {
+            root.clearTimeout(namesTimer);
+            emitNames();
+          }
+        });
+      }
+      return shell;
+    }
+
+    function patchController() {
+      if (!renderer) return;
+      const status = state.status || "idle";
+      const queued = (queueState.status === "running" || queueState.status === "finished") && queueState.current_game_type === "pong";
+      renderer.dataset.gamesQueueHidden = queueReady && !queued && !ACTIVE_STATUSES.has(status) ? "true" : "false";
+      const key = [state.id || "", status, queueState.revision || 0, queued].join(":");
+      if (controllerKey !== key) {
+        renderer.innerHTML = controllerMarkup(state, queueState);
+        controllerKey = key;
+      }
+      const activeElement = doc.activeElement;
+      for (const id of ["left", "right"]) {
+        const input = renderer.querySelector('[data-pong-team-name="'+id+'"]');
+        if (input && input !== activeElement) input.value = team(state, id).name;
+        const count = Number(state?.roster_counts?.[id] || 0);
+        const roster = renderer.querySelector('[data-pong-roster-count="'+id+'"]');
+        if (roster) roster.textContent = count + " " + (count === 1 ? "persona" : "personas");
+        const name = renderer.querySelector('[data-pong-controller-team-name="'+id+'"]');
+        const score = renderer.querySelector('[data-pong-controller-score="'+id+'"]');
+        if (name) name.textContent = team(state, id).name;
+        if (score) score.textContent = Number(team(state, id).score || 0);
+      }
+      const time = renderer.querySelector("[data-pong-time]");
+      const speed = renderer.querySelector("[data-pong-speed]");
+      const total = renderer.querySelector("[data-pong-roster-total]");
+      const label = renderer.querySelector("[data-pong-status]");
+      if (time) time.textContent = status === "ready" ? "60 s" : seconds(state.remaining_ms) + " s";
+      if (speed) speed.textContent = Number(state.speed_multiplier || 1).toFixed(2) + "×";
+      if (total) total.textContent = Number(state?.roster_counts?.left || 0) + Number(state?.roster_counts?.right || 0);
+      if (label) label.textContent = statusLabel(state, queueState);
+    }
+
+    function ensureOverlay() {
+      if (host) return host;
+      host = doc.createElement("div");
+      host.className = "pong-ui-host";
+      doc.body.appendChild(host);
+      return host;
+    }
+
+    function setPosition(node, values) {
+      if (!node || !values) return;
+      for (const [name, value] of Object.entries(values)) node.style.setProperty("--" + name, value);
+    }
+
+    function patchScreen() {
+      const overlayHost = ensureOverlay();
+      const active = ACTIVE_STATUSES.has(state.status);
+      overlayHost.hidden = !active;
+      if (!active) {
+        overlayHost.innerHTML = "";
+        screenKey = "";
+        return;
+      }
+      const key = [state.id || "", state.status || ""].join(":");
+      if (screenKey !== key) {
+        overlayHost.innerHTML = boardMarkup(state, role);
+        screenKey = key;
+      }
+      for (const id of ["left", "right"]) {
+        const currentTeam = team(state, id);
+        const name = overlayHost.querySelector('[data-pong-screen-name="'+id+'"]');
+        const score = overlayHost.querySelector('[data-pong-screen-score="'+id+'"]');
+        const roster = overlayHost.querySelector('[data-pong-screen-roster="'+id+'"]');
+        if (name) name.textContent = currentTeam.name;
+        if (score) score.textContent = Number(currentTeam.score || 0);
+        if (roster) roster.textContent = Number(state?.roster_counts?.[id] || 0);
+        const paddle = state?.paddles?.[id];
+        setPosition(overlayHost.querySelector('[data-pong-paddle="'+id+'"]'), paddle && {
+          x: paddle.x, y: paddle.y, w: paddle.width, h: paddle.height
+        });
+      }
+      const ball = state.ball;
+      setPosition(overlayHost.querySelector("[data-pong-ball]"), ball && { x: ball.x, y: ball.y, r: ball.radius });
+      const clock = overlayHost.querySelector("[data-pong-screen-time]");
+      if (clock) {
+        clock.textContent = state.status === "ready" ? "LOBBY" : seconds(state.remaining_ms);
+        clock.classList.toggle("is-urgent", state.status === "running" && seconds(state.remaining_ms) <= 10);
+      }
+    }
+
+    function render() {
+      if (CONTROL_ROLES.has(role)) {
+        const active = ACTIVE_STATUSES.has(state.status);
+        if (active && !wasActive) {
+          activateGamesOnce = true;
+          openController();
+        }
+        const shell = ensureController();
+        patchController();
+        if (shell && activateGamesOnce) {
+          activateGamesOnce = false;
+          activateGames(shell);
+        }
+        wasActive = active;
+        return;
+      }
+      if (DISPLAY_ROLES.has(role)) patchScreen();
+    }
+
+    function handle(next) {
+      state = next || state;
+      render();
+    }
+
+    function handleQueue(next) {
+      queueReady = true;
+      queueState = next || queueState;
+      render();
+    }
+
+    function requestState() {
+      socket.emit("pong:request_state");
+    }
+
+    const closeForOther = (payload) => {
+      if (CONTROL_ROLES.has(role) && ACTIVE_STATUSES.has(state.status) && (payload?.active || payload?.id || payload?.state)) {
+        socket.emit(queueReady ? "games:queue:end" : "pong:close");
+      }
+    };
+    socket.on("pong:state", handle);
+    socket.on("pong:closed", handle);
+    socket.on("games:queue:state", handleQueue);
+    socket.on("interaction:active", closeForOther);
+    socket.on("raffle:active", closeForOther);
+    socket.on("connect", requestState);
+    if (CONTROL_ROLES.has(role)) {
+      mountTimer = root.setInterval(() => {
+        if (!destroyed && !renderer) render();
+      }, 250);
+    }
+    render();
+    requestState();
+    root.setTimeout(requestState, 350);
+
+    return {
+      getState: () => state,
+      render,
+      destroy() {
+        if (destroyed) return;
+        destroyed = true;
+        root.clearTimeout(namesTimer);
+        root.clearInterval(mountTimer);
+        socket.off?.("pong:state", handle);
+        socket.off?.("pong:closed", handle);
+        socket.off?.("games:queue:state", handleQueue);
+        socket.off?.("interaction:active", closeForOther);
+        socket.off?.("raffle:active", closeForOther);
+        socket.off?.("connect", requestState);
+        listeners.splice(0).forEach(([target, name, handler]) => target.removeEventListener(name, handler));
+        renderer?.remove();
+        host?.remove();
+      }
+    };
+  }
+
+  let instance = null;
+  let timer = null;
+  let attempts = 0;
+  function autoMount() {
+    if (instance) return instance;
+    function mount() {
+      const liveSocket = typeof socket !== "undefined" ? socket : root.socket;
+      if (!liveSocket || !root.document) return null;
+      instance = create({ socket: liveSocket, document: root.document });
+      return instance;
+    }
+    if (mount()) return instance;
+    if (!timer) timer = root.setInterval(() => {
+      attempts += 1;
+      if (mount() || attempts >= 80) {
+        root.clearInterval(timer);
+        timer = null;
+      }
+    }, 100);
+    return null;
+  }
+
+  return { create, autoMount, roleFromPath, controllerMarkup, boardMarkup, statusLabel, escapeHtml };
+});
