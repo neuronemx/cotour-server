@@ -14,6 +14,7 @@ function disabledRuntime() {
     startScreenExecution: null,
     listHistory: null,
     exportDeckCsv: null,
+    clearHistory: null,
     attach() {},
     async sendCurrentState() {},
     async close() {}
@@ -41,6 +42,7 @@ function createQnaRuntime(options = {}) {
     io: options.io,
     repository,
     getRoleRoomKey: options.getRoleRoomKey,
+    getRoomKey: options.getRoomKey,
     getConnectedAudience: options.getConnectedAudience,
     resolvePresentationSessionId
   });
@@ -58,6 +60,11 @@ function createQnaRuntime(options = {}) {
         deckId,
         questionCount: rows.length
       };
+    },
+    async clearHistory({ deckId }) {
+      const result = await repository.clearDeckHistory(deckId);
+      await sockets.resetAfterHistoryDelete(result);
+      return result;
     },
     attach(socket, getContext) {
       sockets.attach(socket, getContext);
