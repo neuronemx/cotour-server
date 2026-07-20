@@ -28,6 +28,13 @@ class ActiveInteractionCoordinator {
     return this.gameRuntimes.get(String(gameType || "")) || null;
   }
 
+  getRegisteredGameTypes(requiredMethod = "") {
+    const method = String(requiredMethod || "");
+    return Array.from(this.gameRuntimes.entries())
+      .filter(([, runtime]) => !method || typeof runtime?.[method] === "function")
+      .map(([gameType]) => gameType);
+  }
+
   getActiveGameType(sessionId, exceptGameType = "") {
     const except = String(exceptGameType || "").replace(/^game:/, "");
     for (const [gameType, runtime] of this.gameRuntimes.entries()) {

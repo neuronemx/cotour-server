@@ -30,7 +30,7 @@ test("Breakout browser source supports sustained press without rebuilding contro
   const source = fs.readFileSync(path.join(__dirname, "../public/shared/breakout-ui.js"), "utf8");
   assert.ok(source.includes("HOLD_MS=75"));
   assert.ok(source.includes("audienceMounted"));
-  assert.ok(source.includes("controlStatus!==status"));
+  assert.ok(source.includes("controlStatus!==key"));
   assert.ok(source.includes("lostpointercapture"));
   assert.ok(source.includes("classList.toggle('is-held'"));
 });

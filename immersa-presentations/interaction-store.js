@@ -179,10 +179,11 @@ function createInteractionSocketHandlers({
   getRoleRoomKey,
   coordinator = null,
   timeSyncStore = new TimeSyncStore(),
-  breakoutStore = new BreakoutStore()
+  breakoutStore = new BreakoutStore(),
+  onGameFinished = null
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
-  const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator });
+  const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator, onFinished: onGameFinished });
   if (coordinator?.registerGame) coordinator.registerGame("breakout", breakoutSockets);
   else if (coordinator) coordinator.breakoutStore = breakoutStore;
   const mediaSockets = createMediaSocketHandlers({ io, getRoleRoomKey });

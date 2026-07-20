@@ -1,0 +1,129 @@
+.interaction-games-queue-renderer[data-games-queue-hidden="true"],
+.interaction-breakout-renderer[data-games-queue-hidden="true"] {
+  display: none !important;
+}
+
+.interaction-games-queue-renderer:not([hidden]) {
+  display: block;
+  min-width: 0;
+}
+
+.games-queue-selector {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.games-queue-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.games-queue-heading > span {
+  color: #7f77dd;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.games-queue-heading h3 {
+  margin: 0;
+  color: #fff;
+  font: 600 18px/1.15 Poppins, Inter, sans-serif;
+}
+
+.games-queue-heading p,
+.games-queue-empty {
+  margin: 0;
+  color: rgba(255, 255, 255, .66);
+  font: 400 11px/1.45 Inter, sans-serif;
+}
+
+.games-queue-list {
+  display: grid;
+  gap: 9px;
+}
+
+.games-queue-card {
+  box-sizing: border-box;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .055);
+  cursor: pointer;
+}
+
+.games-queue-card.is-selected {
+  border-color: rgba(93, 202, 165, .55);
+  background: rgba(93, 202, 165, .09);
+}
+
+.games-queue-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.games-queue-check {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 7px;
+  color: #071713;
+  background: rgba(255, 255, 255, .06);
+  font: 900 13px/1 Inter, sans-serif;
+}
+
+.games-queue-card.is-selected .games-queue-check {
+  border-color: transparent;
+  background: #5dcaa5;
+}
+
+.games-queue-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.games-queue-copy strong {
+  color: #fff;
+  font: 600 13px/1.2 Poppins, Inter, sans-serif;
+}
+
+.games-queue-copy small {
+  color: rgba(255, 255, 255, .58);
+  font: 400 10px/1.25 Inter, sans-serif;
+}
+
+.games-queue-card em {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #7f77dd, #378add 55%, #5dcaa5);
+  font: 800 11px/1 Inter, sans-serif;
+  font-style: normal;
+}
+
+.games-queue-start {
+  min-height: 40px;
+  border: 0 !important;
+  border-radius: 999px;
+  color: #fff !important;
+  background: linear-gradient(135deg, #7f77dd, #378add 55%, #5dcaa5) !important;
+  font: 800 12px/1 Inter, sans-serif;
+}
+
+.games-queue-start:disabled {
+  opacity: .38;
+}
