@@ -86,18 +86,22 @@
       copy.className = "brand-mention-card-copy";
       const name = document.createElement("strong");
       const pitch = document.createElement("span");
+      pitch.className = "brand-mention-card-pitch";
+      const linkRow = document.createElement("span");
+      linkRow.className = "brand-mention-card-link";
       const domain = document.createElement("em");
       name.textContent = mention.name;
       pitch.textContent = String(mention.pitch || "");
       domain.textContent = String(mention.display_domain || new URL(targetUrl).hostname.replace(/^www\./i, ""));
-      copy.append(name, pitch, domain);
 
       const arrow = document.createElement("img");
       arrow.className = "brand-mention-card-arrow";
       arrow.src = "/audience/external-link.png";
       arrow.alt = "";
       arrow.setAttribute("aria-hidden", "true");
-      link.append(logo, copy, arrow);
+      linkRow.append(domain, arrow);
+      copy.append(name, pitch, linkRow);
+      link.append(logo, copy);
       container.replaceChildren(sponsor, link);
       container.hidden = false;
       container.classList.remove("is-visible", "is-exiting");
