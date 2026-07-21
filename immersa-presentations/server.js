@@ -17,6 +17,7 @@ const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
+const { BrandMentionRuntime } = require("./brand-mention-runtime");
 
 const app = express();
 const server = http.createServer(app);
@@ -77,6 +78,12 @@ const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const brandMentionHandlers = createBrandMentionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
+});
+const brandMentionRuntime = new BrandMentionRuntime({
+  io,
+  store: brandMentionHandlers.store,
+  coordinator: activeInteractionCoordinator,
+  getRoleRoomKey
 });
 
 function normalizeSessionId(sessionId) {
@@ -686,6 +693,8 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     });
+    if (role === "presenter") await brandMentionRuntime.start(joinedContext);
+    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
     emitState(currentRoomKey, session);
   });
 
@@ -782,6 +791,7 @@ io.on("connection", (socket) => {
     if (!session) return;
     if (currentRole === "presenter") {
       session.presenterConnected = false;
+      brandMentionRuntime.stop(currentRoomKey);
       socket.to(currentRoomKey).emit("presenter_disconnected");
     }
     if (currentRole === "screen") session.screenConnected = false;

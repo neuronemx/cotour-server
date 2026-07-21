@@ -58,6 +58,7 @@ function createPongSocketHandlers({
         lastBroadcastAt = nowMs;
       }
       if (state.status === "finished" && lastStatus !== "finished") {
+        coordinator?.notifyActivityChange?.(sessionId);
         onFinished?.({ sessionId, roomKey, gameType: "pong", state });
       }
       lastStatus = state.status;
@@ -224,6 +225,7 @@ function createPongSocketHandlers({
     const result = store.close(context.sessionId, context.role);
     if (!result.ok) return result;
     stopLoop(context.sessionId);
+    coordinator?.notifyActivityChange?.(context.sessionId);
     io.to(context.roomKey).emit("pong:closed", store.snapshot(context.sessionId));
     return result;
   }
