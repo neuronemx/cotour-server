@@ -29,14 +29,14 @@
   display: block;
   margin: 0 0 1px 14px;
   color: rgba(255, 255, 255, .56);
-  font: 500 14px/1.05 Inter, sans-serif;
+  font: 300 14px/1.05 Inter, sans-serif;
 }
 
 .brand-mention-card {
   width: 100%;
   min-height: 94px;
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr) 30px;
+  grid-template-columns: 84px minmax(0, 1fr);
   align-items: center;
   gap: 13px;
   padding: 10px 13px 10px 10px;
@@ -57,8 +57,8 @@
 }
 
 .brand-mention-card-logo {
-  width: 68px;
-  height: 68px;
+  width: 84px;
+  aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -87,15 +87,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #fff;
-  font: 800 clamp(18px, 4.5vw, 23px)/1.08 Poppins, Inter, sans-serif;
+  font: 500 clamp(18px, 4.5vw, 23px)/1.08 Inter, sans-serif;
 }
 
-.brand-mention-card-copy > span {
+.brand-mention-card-pitch {
   display: -webkit-box;
   min-height: 2.36em;
   overflow: hidden;
   color: rgba(255, 255, 255, .84);
-  font: 550 clamp(11px, 3vw, 14px)/1.18 Inter, sans-serif;
+  font: 400 clamp(11px, 3vw, 14px)/1.18 Inter, sans-serif;
   white-space: normal;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -103,19 +103,30 @@
   line-clamp: 2;
 }
 
-.brand-mention-card-copy em {
+.brand-mention-card-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  color: #19b9f2;
+}
+
+.brand-mention-card-link em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, .58);
-  font: 650 10px/1.2 Inter, sans-serif;
+  color: inherit;
+  font: 400 10px/1.2 Inter, sans-serif;
   font-style: normal;
 }
 
 .brand-mention-card-arrow {
+  flex: 0 0 auto;
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 14px;
+  height: 14px;
   object-fit: contain;
 }
 
@@ -132,15 +143,14 @@
 
   .brand-mention-card {
     min-height: 82px;
-    grid-template-columns: 58px minmax(0, 1fr) 27px;
+    grid-template-columns: 74px minmax(0, 1fr);
     gap: 9px;
     padding: 9px 10px 9px 9px;
     border-radius: 18px;
   }
 
   .brand-mention-card-logo {
-    width: 58px;
-    height: 58px;
+    width: 74px;
     border-radius: 14px;
   }
 
@@ -148,13 +158,13 @@
     font-size: clamp(17px, 5.5vw, 20px);
   }
 
-  .brand-mention-card-copy > span {
+  .brand-mention-card-pitch {
     font-size: clamp(11px, 3.35vw, 13px);
   }
 
   .brand-mention-card-arrow {
-    width: 26px;
-    height: 26px;
+    width: 13px;
+    height: 13px;
   }
 }
 
@@ -171,15 +181,14 @@
 
   .brand-mention-card {
     min-height: 68px;
-    grid-template-columns: 51px minmax(0, 1fr) 25px;
+    grid-template-columns: 64px minmax(0, 1fr);
     gap: 9px;
     padding: 7px 9px;
     border-radius: 16px;
   }
 
   .brand-mention-card-logo {
-    width: 51px;
-    height: 51px;
+    width: 64px;
     border-radius: 12px;
   }
 
@@ -187,19 +196,19 @@
     font-size: 16px;
   }
 
-  .brand-mention-card-copy > span {
+  .brand-mention-card-pitch {
     min-height: 2.3em;
     font-size: 10.5px;
     line-height: 1.15;
   }
 
-  .brand-mention-card-copy em {
+  .brand-mention-card-link em {
     font-size: 9px;
   }
 
   .brand-mention-card-arrow {
-    width: 24px;
-    height: 24px;
+    width: 12px;
+    height: 12px;
   }
 }
 
