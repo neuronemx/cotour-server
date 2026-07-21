@@ -1,0 +1,93 @@
+.brand-mentions-backdrop{z-index:92}
+.brand-mentions-modal{position:relative;width:min(720px,calc(100vw - 28px));max-height:min(90vh,820px);overflow:hidden;border-radius:22px;background:#fff;box-shadow:0 30px 90px rgba(8,10,35,.28)}
+.brand-mentions-scroll{max-height:min(90vh,820px);overflow:auto;padding:22px 24px 24px}
+.brand-mentions-close{position:absolute;right:12px;top:12px;z-index:2;width:32px;height:32px;border-radius:50%;background:#eef1fb;color:#0a0d28;font-size:20px}
+.brand-mentions-header{padding-right:38px}
+.brand-mentions-kicker{display:block;color:#c24170;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.brand-mentions-header h2{margin:2px 0 1px;font-family:var(--font-display);font-size:26px;color:#0a0d28}
+.brand-mentions-header p{margin:0;color:var(--muted);font-size:13px;font-weight:600}
+.brand-mentions-schedule{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:10px 13px;border:1px solid rgba(194,65,112,.16);border-radius:13px;background:rgba(194,65,112,.045);color:#242944;font-size:12px}
+.brand-mentions-schedule strong{font-family:var(--font-display);color:#8f244d}
+.brand-mentions-schedule span{color:var(--muted);font-weight:600;text-align:right}
+.brand-mentions-status{min-height:0;margin:8px 0 0;color:var(--muted);font-size:13px;font-weight:700}
+.brand-mentions-status:empty{display:none}
+.brand-mentions-status.success{color:var(--green)}
+.brand-mentions-status.error{color:var(--red)}
+.brand-mentions-body{display:grid;gap:12px;margin-top:12px}
+.brand-mentions-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:#f8f9fe}
+.brand-mentions-toolbar>div{display:grid;gap:2px}
+.brand-mentions-toolbar strong{color:#0a0d28;font-family:var(--font-display)}
+.brand-mentions-toolbar span{color:var(--muted);font-size:12px}
+.brand-mentions-add{min-width:142px}
+.brand-mentions-empty{padding:26px 22px;border:1px dashed #cfd5e7;border-radius:16px;text-align:center;background:#fbfcff}
+.brand-mentions-empty strong{color:#0a0d28}
+.brand-mentions-empty p{max-width:540px;margin:6px auto 0;color:var(--muted);font-size:13px;line-height:1.45}
+.brand-mentions-list{display:grid;gap:9px}
+.brand-mention-entry{display:grid;gap:7px}
+.brand-mention-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:15px;background:#fff}
+.brand-mention-item.is-inactive{background:#f7f8fb}
+.brand-mention-item.is-inactive .brand-mention-logo,.brand-mention-item.is-inactive .brand-mention-copy{opacity:.58}
+.brand-mention-logo{display:grid;place-items:center;width:54px;height:54px;overflow:hidden;border:1px solid #e4e7f1;border-radius:13px;background:#fff}
+.brand-mention-logo img{display:block;width:100%;height:100%;object-fit:contain;padding:5px}
+.brand-mention-copy{display:grid;gap:2px;min-width:0}
+.brand-mention-copy>div{display:flex;align-items:center;gap:7px;min-width:0}
+.brand-mention-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0a0d28;font-family:var(--font-display);font-size:14px}
+.brand-mention-copy>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#414761;font-size:12px}
+.brand-mention-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px}
+.brand-mention-state{flex:none;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase}
+.brand-mention-state.active{background:rgba(35,196,127,.11);color:#07845c}
+.brand-mention-state.inactive{background:#e9ebf2;color:#676d82}
+.brand-mention-item-actions{display:flex;align-items:center;gap:5px}
+.brand-mention-order-actions{display:flex;gap:3px;margin-right:2px}
+.brand-mention-icon-action,.brand-mention-text-action{min-height:31px;padding:0 8px;border-radius:9px;background:#f0f2f8;color:#202542;font-size:11px;font-weight:800}
+.brand-mention-icon-action{width:30px;padding:0;font-size:14px}
+.brand-mention-icon-action:disabled{opacity:.28}
+.brand-mention-text-action.danger{color:var(--red)}
+.brand-mention-text-action.danger.solid{background:var(--red);color:#fff}
+.brand-mention-delete-confirm{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid rgba(239,68,98,.22);border-radius:13px;background:rgba(239,68,98,.045)}
+.brand-mention-delete-confirm>div:first-child{display:grid;gap:2px}
+.brand-mention-delete-confirm strong{color:#77142c;font-size:13px}
+.brand-mention-delete-confirm span{color:var(--muted);font-size:11px}
+.brand-mention-delete-actions{display:flex;gap:6px;flex:none}
+.brand-mention-form{display:grid;gap:12px}
+.brand-mention-form-heading{display:grid;gap:2px}
+.brand-mention-form-heading h3{margin:0;color:#0a0d28;font-family:var(--font-display);font-size:21px}
+.brand-mention-form-heading p{margin:0;color:var(--muted);font-size:12px}
+.brand-mention-form>label{position:relative;display:grid;gap:6px}
+.brand-mention-form>label>span{color:#242944;font-size:12px;font-weight:800}
+.brand-mention-form input[type="text"],.brand-mention-form input[name="name"],.brand-mention-form input[name="url"],.brand-mention-form textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#fff;color:#0a0d28;font:inherit;font-size:13px;resize:vertical}
+.brand-mention-form input:focus,.brand-mention-form textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(67,104,246,.1)}
+.brand-mention-form label>small{color:var(--muted);font-size:10px}
+.brand-mention-counter{position:absolute;right:8px;bottom:7px;padding:1px 4px;border-radius:5px;background:rgba(255,255,255,.92)}
+.brand-mention-logo-field{display:grid;grid-template-columns:78px minmax(0,1fr);align-items:center;gap:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fafbfe}
+.brand-mention-logo-field>div:nth-child(2){display:grid;justify-items:start;gap:3px}
+.brand-mention-logo-field strong{color:#242944;font-size:12px}
+.brand-mention-logo-field span{color:var(--muted);font-size:10px}
+.brand-mention-logo-field button{min-height:34px;margin-top:4px;padding:0 11px;font-size:11px}
+.brand-mention-logo-preview{display:grid;place-items:center;width:74px;height:74px;overflow:hidden;border:1px dashed #cbd1e1;border-radius:15px;background:#fff;color:#9ba1b4;font-size:10px;font-weight:800;text-transform:uppercase}
+.brand-mention-logo-preview img{display:block;width:100%;height:100%;object-fit:contain;padding:6px}
+.brand-mention-logo-preview img[hidden],.brand-mention-logo-preview span[hidden]{display:none}
+.brand-mention-native-file{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;clip-path:inset(50%)!important}
+.brand-mention-active-field{grid-template-columns:auto 1fr!important;align-items:start;padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:#fafbfe}
+.brand-mention-active-field input{margin-top:3px}
+.brand-mention-active-field>span{display:grid;gap:1px}
+.brand-mention-active-field strong{color:#242944;font-size:12px}
+.brand-mention-active-field small{color:var(--muted);font-size:10px;font-weight:500}
+.role-brand-mentions::before{background:#c24170!important}
+@media(max-width:700px){
+  .brand-mentions-scroll{padding:18px 14px 16px}
+  .brand-mentions-modal{width:calc(100vw - 16px);border-radius:18px}
+  .brand-mentions-schedule{align-items:flex-start;flex-direction:column;gap:2px}
+  .brand-mentions-schedule span{text-align:left}
+  .brand-mentions-toolbar{align-items:stretch;flex-direction:column}
+  .brand-mentions-add{width:100%}
+  .brand-mention-item{grid-template-columns:52px minmax(0,1fr)}
+  .brand-mention-item-actions{grid-column:1/-1;display:grid;grid-template-columns:auto repeat(3,1fr)}
+  .brand-mention-order-actions{margin:0}
+  .brand-mention-text-action{padding:0 6px}
+  .brand-mention-delete-confirm{align-items:stretch;flex-direction:column}
+  .brand-mention-delete-actions{justify-content:flex-end}
+}
+@media(prefers-reduced-motion:reduce){
+  .brand-mentions-modal *{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}
