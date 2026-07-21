@@ -15,7 +15,8 @@ const { createGameQueueSocketHandlers } = require("./game-queue-sockets");
 const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
-const { createQnaHistoryHandlers } = require("./qna-export");\nconst { createBrandMentionHandlers } = require("./brand-mentions-api");
+const { createQnaHistoryHandlers } = require("./qna-export");
+const { createBrandMentionHandlers } = require("./brand-mentions-api");
 
 const app = express();
 const server = http.createServer(app);
@@ -72,7 +73,11 @@ const deckInteractionHandlers = createDeckInteractionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
 });
-const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });\nconst brandMentionHandlers = createBrandMentionHandlers({\n  dataDecksDir: DATA_DECKS_DIR,\n  staticDecksDir: STATIC_DECKS_DIR\n});
+const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
+const brandMentionHandlers = createBrandMentionHandlers({
+  dataDecksDir: DATA_DECKS_DIR,
+  staticDecksDir: STATIC_DECKS_DIR
+});
 
 function normalizeSessionId(sessionId) {
   return String(sessionId || "demo01");
@@ -548,7 +553,12 @@ app.get("/api/decks", async (_req, res) => {
   }
 });
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);\napp.get("/api/decks/:deckId/brand-mentions", brandMentionHandlers.getConfig);\napp.post("/api/decks/:deckId/brand-mentions", brandMentionHandlers.createBrand);\napp.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderBrands);\napp.put("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.updateBrand);\napp.delete("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.deleteBrand);
+app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
+app.get("/api/decks/:deckId/brand-mentions", brandMentionHandlers.getConfig);
+app.post("/api/decks/:deckId/brand-mentions", brandMentionHandlers.createBrand);
+app.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderBrands);
+app.put("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.updateBrand);
+app.delete("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", qnaHistoryHandlers.listHistory);
 app.delete("/api/decks/:deckId", async (req, res) => {
   try {
