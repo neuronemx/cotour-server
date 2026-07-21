@@ -289,6 +289,7 @@ function createInteractionSocketHandlers({
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const closed = store.close(context.sessionId);
+      coordinator?.notifyActivityChange?.(context.sessionId);
       io.to(context.roomKey).emit("interaction:closed", { interactionId: closed?.id || "" });
       io.to(context.roomKey).emit("interaction:state", store.getState(context.sessionId));
       io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", { interactionId: closed?.id || "" });
