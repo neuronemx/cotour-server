@@ -23,7 +23,7 @@
       host.hidden = true;
       host.setAttribute("aria-live", "polite");
       host.setAttribute("aria-label", "Mención de marca");
-      document.body.appendChild(host);
+      (document.getElementById("viewer") || document.body).appendChild(host);
       return host;
     }
 
@@ -105,6 +105,7 @@
       container.replaceChildren(sponsor, link);
       container.hidden = false;
       container.classList.remove("is-visible", "is-exiting");
+      container.getBoundingClientRect?.();
       root.requestAnimationFrame?.(() => {
         if (generation === currentGeneration && !container.hidden) container.classList.add("is-visible");
       });
