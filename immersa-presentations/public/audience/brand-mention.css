@@ -1,16 +1,218 @@
-.brand-mention-host{position:fixed;z-index:9;top:max(12px,env(safe-area-inset-top));left:50%;width:min(92vw,620px);pointer-events:none;transform:translate(-50%,-145%);opacity:0;transition:transform .32s cubic-bezier(.2,.8,.2,1),opacity .22s ease}
-.brand-mention-host[hidden]{display:none!important}
-.brand-mention-host.is-visible{transform:translate(-50%,0);opacity:1}
-.brand-mention-card{width:100%;min-height:88px;display:grid;grid-template-columns:66px minmax(0,1fr) 34px;align-items:center;gap:13px;padding:11px 13px;color:#fff;text-decoration:none;pointer-events:auto;border:1px solid rgba(255,255,255,.2);border-radius:22px;background:linear-gradient(145deg,rgba(45,28,74,.94),rgba(18,38,72,.93) 58%,rgba(14,75,76,.9));box-shadow:0 24px 70px rgba(0,0,0,.5),0 0 36px rgba(104,216,204,.16),inset 0 1px 0 rgba(255,255,255,.13);backdrop-filter:blur(22px) saturate(1.24);-webkit-tap-highlight-color:transparent}
-.brand-mention-card:focus-visible{outline:3px solid #81e4f4;outline-offset:3px}
-.brand-mention-card-logo{width:62px;height:62px;display:grid;place-items:center;overflow:hidden;border-radius:16px;background:#fff;border:1px solid rgba(255,255,255,.58);box-shadow:0 10px 24px rgba(0,0,0,.22)}
-.brand-mention-card-logo img{display:block;width:100%;height:100%;padding:6px;object-fit:contain}
-.brand-mention-card-copy{display:grid;gap:1px;min-width:0}
-.brand-mention-card-copy small{color:#8ce8dd;font:800 9px/1.2 Poppins,Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase}
-.brand-mention-card-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font:800 clamp(17px,4.5vw,23px)/1.15 Poppins,Inter,sans-serif}
-.brand-mention-card-copy>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.82);font:550 clamp(11px,3.2vw,14px)/1.3 Inter,sans-serif}
-.brand-mention-card-copy em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.58);font:650 10px/1.3 Inter,sans-serif;font-style:normal}
-.brand-mention-card-arrow{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:#061715;background:linear-gradient(180deg,#a5f4ec,#62d3ca);font-size:17px;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.2)}
-@media(max-width:520px){.brand-mention-host{top:max(8px,env(safe-area-inset-top));width:calc(100vw - 16px)}.brand-mention-card{min-height:76px;grid-template-columns:54px minmax(0,1fr) 30px;gap:10px;padding:9px 10px;border-radius:18px}.brand-mention-card-logo{width:52px;height:52px;border-radius:13px}.brand-mention-card-arrow{width:29px;height:29px}}
-@media(orientation:landscape) and (max-height:520px){.brand-mention-host{top:7px;width:min(78vw,620px)}.brand-mention-card{min-height:64px;grid-template-columns:48px minmax(0,1fr) 28px;padding:7px 9px;border-radius:16px}.brand-mention-card-logo{width:46px;height:46px;border-radius:12px}.brand-mention-card-copy strong{font-size:16px}.brand-mention-card-copy>span{font-size:11px}}
-@media(prefers-reduced-motion:reduce){.brand-mention-host,.brand-mention-host.is-visible{transform:translate(-50%,0);transition:none;animation:none}.brand-mention-card{scroll-behavior:auto}}
+.brand-mention-host {
+  position: fixed;
+  z-index: 9;
+  top: max(4px, env(safe-area-inset-top));
+  left: 50%;
+  width: min(96vw, 620px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -145%);
+}
+
+.brand-mention-host[hidden] {
+  display: none !important;
+}
+
+.brand-mention-host.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition: transform 1.05s cubic-bezier(.22, .74, .24, 1), opacity .4s ease-out;
+}
+
+.brand-mention-host.is-exiting {
+  opacity: 0;
+  transform: translate(-50%, 0);
+  transition: opacity .72s ease-in-out;
+}
+
+.brand-mention-sponsor-label {
+  display: block;
+  margin: 0 0 1px 14px;
+  color: rgba(255, 255, 255, .56);
+  font: 500 14px/1.05 Inter, sans-serif;
+}
+
+.brand-mention-card {
+  width: 100%;
+  min-height: 94px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 13px 10px 10px;
+  color: #fff;
+  text-decoration: none;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(45, 28, 74, .94), rgba(18, 38, 72, .93) 58%, rgba(14, 75, 76, .9));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .5), 0 0 36px rgba(104, 216, 204, .16), inset 0 1px 0 rgba(255, 255, 255, .13);
+  backdrop-filter: blur(22px) saturate(1.24);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.brand-mention-card:focus-visible {
+  outline: 3px solid #81e4f4;
+  outline-offset: 3px;
+}
+
+.brand-mention-card-logo {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, .58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .22);
+}
+
+.brand-mention-card-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+}
+
+.brand-mention-card-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.brand-mention-card-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+  font: 800 clamp(18px, 4.5vw, 23px)/1.08 Poppins, Inter, sans-serif;
+}
+
+.brand-mention-card-copy > span {
+  display: -webkit-box;
+  min-height: 2.36em;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .84);
+  font: 550 clamp(11px, 3vw, 14px)/1.18 Inter, sans-serif;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.brand-mention-card-copy em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, .58);
+  font: 650 10px/1.2 Inter, sans-serif;
+  font-style: normal;
+}
+
+.brand-mention-card-arrow {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .brand-mention-host {
+    top: max(4px, env(safe-area-inset-top));
+    width: calc(100vw - 12px);
+  }
+
+  .brand-mention-sponsor-label {
+    margin-left: 12px;
+    font-size: 12px;
+  }
+
+  .brand-mention-card {
+    min-height: 82px;
+    grid-template-columns: 58px minmax(0, 1fr) 27px;
+    gap: 9px;
+    padding: 9px 10px 9px 9px;
+    border-radius: 18px;
+  }
+
+  .brand-mention-card-logo {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+  }
+
+  .brand-mention-card-copy strong {
+    font-size: clamp(17px, 5.5vw, 20px);
+  }
+
+  .brand-mention-card-copy > span {
+    font-size: clamp(11px, 3.35vw, 13px);
+  }
+
+  .brand-mention-card-arrow {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .brand-mention-host {
+    top: 3px;
+    width: min(82vw, 620px);
+  }
+
+  .brand-mention-sponsor-label {
+    margin-left: 10px;
+    font-size: 10px;
+  }
+
+  .brand-mention-card {
+    min-height: 68px;
+    grid-template-columns: 51px minmax(0, 1fr) 25px;
+    gap: 9px;
+    padding: 7px 9px;
+    border-radius: 16px;
+  }
+
+  .brand-mention-card-logo {
+    width: 51px;
+    height: 51px;
+    border-radius: 12px;
+  }
+
+  .brand-mention-card-copy strong {
+    font-size: 16px;
+  }
+
+  .brand-mention-card-copy > span {
+    min-height: 2.3em;
+    font-size: 10.5px;
+    line-height: 1.15;
+  }
+
+  .brand-mention-card-copy em {
+    font-size: 9px;
+  }
+
+  .brand-mention-card-arrow {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mention-host,
+  .brand-mention-host.is-visible,
+  .brand-mention-host.is-exiting {
+    transform: translate(-50%, 0);
+    transition: none;
+    animation: none;
+  }
+
+  .brand-mention-card {
+    scroll-behavior: auto;
+  }
+}
