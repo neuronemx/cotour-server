@@ -11,6 +11,7 @@
   const CONTROL_ROLES = new Set(["presenter", "stage"]);
   const HOLD_MS = 75;
   const CELEBRATION_MS = 1200;
+  const AUDIENCE_GOAL_MS = 1000;
 
   function roleFromPath(path) {
     if (/^\/(?:speaker|presenter)(?:\/|$)/.test(path)) return "presenter";
@@ -190,12 +191,22 @@
   function audienceHeaderMarkup(state) {
     const left = team(state, "left");
     const right = team(state, "right");
-    const time = state?.status === "ready" ? "LOBBY" : seconds(state?.remaining_ms) + " s";
-    return '<header class="pong-audience-header">'
+    const lobby = state?.status === "ready";
+    return '<header class="pong-audience-header '+(lobby ? "is-lobby" : "")+'">'
       +'<div class="is-left"><span data-pong-audience-name="left">'+escapeHtml(left.name)+'</span><strong data-pong-audience-score="left">'+Number(left.score || 0)+'</strong></div>'
-      +'<em data-pong-audience-time>'+time+'</em>'
+      +(lobby ? "" : '<em data-pong-audience-time>'+seconds(state?.remaining_ms)+' s</em>')
       +'<div class="is-right"><strong data-pong-audience-score="right">'+Number(right.score || 0)+'</strong><span data-pong-audience-name="right">'+escapeHtml(right.name)+'</span></div>'
       +'</header>';
+  }
+
+  function isAudienceGoal(membership, goal) {
+    return Boolean(membership?.team && membership.team === goal?.scoring_team);
+  }
+
+  function audienceGoalMarkup() {
+    return '<div class="pong-audience-goal-flash" data-pong-audience-goal role="status" aria-live="polite" hidden>'
+      +'<div><strong>¡GOOOL!</strong><span data-pong-audience-goal-team></span></div>'
+      +'</div>';
   }
 
   function teamChoiceMarkup(state) {
@@ -243,6 +254,7 @@
       +audienceHeaderMarkup(state)
       +'<button type="button" class="pong-fullscreen" data-pong-fullscreen aria-label="Abrir pantalla completa">⛶ Pantalla completa</button>'
       +'<main>'+content+'</main>'
+      +audienceGoalMarkup()
       +'</section>';
   }
 
@@ -273,7 +285,9 @@
     let heldDirection = "";
     let holdTimer = null;
     let celebrationTimer = null;
+    let audienceGoalTimer = null;
     let lastGoalId = "";
+    let lastAudienceGoalId = "";
     let namesTimer = null;
     let mountTimer = null;
     let destroyed = false;
@@ -546,7 +560,7 @@
         if (choiceCount) choiceCount.textContent = count + " " + (count === 1 ? "persona" : "personas");
       }
       const time = overlayHost.querySelector("[data-pong-audience-time]");
-      if (time) time.textContent = state.status === "ready" ? "LOBBY" : seconds(state.remaining_ms) + " s";
+      if (time) time.textContent = seconds(state.remaining_ms) + " s";
       if (!playable()) stopHold();
       else syncHeld();
       syncFullscreen();
@@ -582,6 +596,27 @@
         layer.hidden = true;
         video?.pause?.();
       }, CELEBRATION_MS);
+    }
+
+    function showAudienceGoal(goal) {
+      if (role !== "audience" || !goal?.id || goal.id === lastAudienceGoalId) return;
+      lastAudienceGoalId = goal.id;
+      if (!isAudienceGoal(membership, goal)) return;
+      const layer = ensureOverlay().querySelector("[data-pong-audience-goal]");
+      if (!layer) return;
+      const scoringTeam = goal.scoring_team === "right" ? "right" : "left";
+      const label = layer.querySelector("[data-pong-audience-goal-team]");
+      if (label) label.textContent = goal.scoring_team_name || team(state, scoringTeam).name;
+      layer.classList.remove("is-left", "is-right", "is-active");
+      layer.classList.add("is-" + scoringTeam);
+      layer.hidden = false;
+      void layer.offsetWidth;
+      layer.classList.add("is-active");
+      root.clearTimeout(audienceGoalTimer);
+      audienceGoalTimer = root.setTimeout(() => {
+        layer.classList.remove("is-active");
+        layer.hidden = true;
+      }, AUDIENCE_GOAL_MS);
     }
 
     function render() {
@@ -623,6 +658,7 @@
 
     function handleGoal(goal) {
       showCelebration(goal);
+      showAudienceGoal(goal);
     }
 
     function requestState() {
@@ -660,6 +696,7 @@
         stopHold();
         root.clearTimeout(namesTimer);
         root.clearTimeout(celebrationTimer);
+        root.clearTimeout(audienceGoalTimer);
         root.clearInterval(mountTimer);
         socket.off?.("pong:state", handle);
         socket.off?.("pong:closed", handle);
@@ -698,5 +735,5 @@
     return null;
   }
 
-  return { create, autoMount, roleFromPath, controllerMarkup, boardMarkup, audienceMarkup, statusLabel, escapeHtml };
+  return { create, autoMount, roleFromPath, controllerMarkup, boardMarkup, audienceMarkup, isAudienceGoal, statusLabel, escapeHtml };
 });
