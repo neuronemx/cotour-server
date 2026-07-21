@@ -6,7 +6,9 @@
   width: min(96vw, 620px);
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, -145%);
+  transform: translate3d(-50%, calc(-100% - 24px), 0);
+  transition: transform 1.25s cubic-bezier(.22, .74, .24, 1), opacity .45s ease-out;
+  will-change: transform, opacity;
 }
 
 .brand-mention-host[hidden] {
@@ -15,13 +17,12 @@
 
 .brand-mention-host.is-visible {
   opacity: 1;
-  transform: translate(-50%, 0);
-  transition: transform 1.05s cubic-bezier(.22, .74, .24, 1), opacity .4s ease-out;
+  transform: translate3d(-50%, 0, 0);
 }
 
 .brand-mention-host.is-exiting {
   opacity: 0;
-  transform: translate(-50%, 0);
+  transform: translate3d(-50%, 0, 0);
   transition: opacity .72s ease-in-out;
 }
 
@@ -87,7 +88,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #fff;
-  font: 500 clamp(18px, 4.5vw, 23px)/1.08 Inter, sans-serif;
+  font: 500 clamp(17px, calc(4.5vw - 1px), 22px)/1.08 Inter, sans-serif;
 }
 
 .brand-mention-card-pitch {
@@ -95,7 +96,7 @@
   min-height: 2.36em;
   overflow: hidden;
   color: rgba(255, 255, 255, .84);
-  font: 400 clamp(11px, 3vw, 14px)/1.18 Inter, sans-serif;
+  font: 400 clamp(10px, calc(3vw - 1px), 13px)/1.18 Inter, sans-serif;
   white-space: normal;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -110,6 +111,7 @@
   min-width: 0;
   width: fit-content;
   max-width: 100%;
+  justify-self: center;
   color: #19b9f2;
 }
 
@@ -155,11 +157,11 @@
   }
 
   .brand-mention-card-copy strong {
-    font-size: clamp(17px, 5.5vw, 20px);
+    font-size: clamp(16px, calc(5.5vw - 1px), 19px);
   }
 
   .brand-mention-card-pitch {
-    font-size: clamp(11px, 3.35vw, 13px);
+    font-size: clamp(10px, calc(3.35vw - 1px), 12px);
   }
 
   .brand-mention-card-arrow {
@@ -193,12 +195,12 @@
   }
 
   .brand-mention-card-copy strong {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .brand-mention-card-pitch {
     min-height: 2.3em;
-    font-size: 10.5px;
+    font-size: 9.5px;
     line-height: 1.15;
   }
 
@@ -216,7 +218,7 @@
   .brand-mention-host,
   .brand-mention-host.is-visible,
   .brand-mention-host.is-exiting {
-    transform: translate(-50%, 0);
+    transform: translate3d(-50%, 0, 0);
     transition: none;
     animation: none;
   }
