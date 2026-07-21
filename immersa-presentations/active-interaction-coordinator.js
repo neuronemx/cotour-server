@@ -4,6 +4,7 @@ class ActiveInteractionCoordinator {
     this.raffleStore = raffleStore;
     this.gameRuntimes = new Map();
     this.locks = new Map();
+    this.activityListeners = new Set();
 
     if (gameRuntimes) {
       const entries = gameRuntimes instanceof Map ? gameRuntimes.entries() : Object.entries(gameRuntimes);
@@ -69,12 +70,27 @@ class ActiveInteractionCoordinator {
     this.locks.set(key, chain);
 
     await previous;
+    const wasActive = this.hasAnyActive(sessionId);
     try {
-      return await action();
+      const result = await action();
+      if (wasActive !== this.hasAnyActive(sessionId)) this.notifyActivityChange(sessionId);
+      return result;
     } finally {
       release();
       if (this.locks.get(key) === chain) this.locks.delete(key);
     }
+  }
+
+  subscribeActivity(listener) {
+    if (typeof listener !== "function") throw new Error("activity listener must be a function");
+    this.activityListeners.add(listener);
+    return () => this.activityListeners.delete(listener);
+  }
+
+  notifyActivityChange(sessionId) {
+    const snapshot = { sessionId: String(sessionId || ""), active: this.hasAnyActive(sessionId) };
+    for (const listener of this.activityListeners) listener(snapshot);
+    return snapshot;
   }
 
   hasActiveInteraction(sessionId) {
