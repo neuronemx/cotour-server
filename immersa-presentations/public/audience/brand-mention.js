@@ -38,9 +38,11 @@
       generation += 1;
       clearTimers();
       if (!host || host.hidden) return;
+      host.classList.add("is-exiting");
       host.classList.remove("is-visible");
       if (reducedMotion?.matches) {
         host.hidden = true;
+        host.classList.remove("is-exiting");
         host.replaceChildren();
         return;
       }
@@ -48,8 +50,9 @@
       concealTimer = setTimeoutFn(() => {
         if (generation !== currentGeneration) return;
         host.hidden = true;
+        host.classList.remove("is-exiting");
         host.replaceChildren();
-      }, 320);
+      }, 760);
     }
 
     function show(mention) {
@@ -68,6 +71,10 @@
       link.rel = "noopener noreferrer";
       link.setAttribute("aria-label", "Abrir sitio de " + mention.name);
 
+      const sponsor = document.createElement("span");
+      sponsor.className = "brand-mention-sponsor-label";
+      sponsor.textContent = "Con la colaboración de";
+
       const logo = document.createElement("span");
       logo.className = "brand-mention-card-logo";
       const image = document.createElement("img");
@@ -77,24 +84,23 @@
 
       const copy = document.createElement("span");
       copy.className = "brand-mention-card-copy";
-      const eyebrow = document.createElement("small");
       const name = document.createElement("strong");
       const pitch = document.createElement("span");
       const domain = document.createElement("em");
-      eyebrow.textContent = "Mención de marca";
       name.textContent = mention.name;
       pitch.textContent = String(mention.pitch || "");
       domain.textContent = String(mention.display_domain || new URL(targetUrl).hostname.replace(/^www\./i, ""));
-      copy.append(eyebrow, name, pitch, domain);
+      copy.append(name, pitch, domain);
 
-      const arrow = document.createElement("span");
+      const arrow = document.createElement("img");
       arrow.className = "brand-mention-card-arrow";
+      arrow.src = "/audience/external-link.png";
+      arrow.alt = "";
       arrow.setAttribute("aria-hidden", "true");
-      arrow.textContent = "↗";
       link.append(logo, copy, arrow);
-      container.replaceChildren(link);
+      container.replaceChildren(sponsor, link);
       container.hidden = false;
-      container.classList.remove("is-visible");
+      container.classList.remove("is-visible", "is-exiting");
       root.requestAnimationFrame?.(() => {
         if (generation === currentGeneration && !container.hidden) container.classList.add("is-visible");
       });
