@@ -23,7 +23,7 @@
     modal.className = "modal-backdrop brand-mentions-backdrop";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
-    modal.innerHTML = '<section class="brand-mentions-modal" role="dialog" aria-modal="true" aria-labelledby="brandMentionsTitle"><button class="brand-mentions-close" type="button" aria-label="Cerrar menciones de marca">×</button><div class="brand-mentions-scroll"><header class="brand-mentions-header"><span class="brand-mentions-kicker">Solo Público</span><h2 id="brandMentionsTitle">Menciones de marca</h2><p id="brandMentionsDeckTitle"></p></header><div class="brand-mentions-schedule"><strong>Rotación automática</strong><span>Cada 120 segundos · visible durante 8 segundos</span></div><div class="brand-mentions-status" aria-live="polite"></div><div class="brand-mentions-body"></div></div></section>';
+    modal.innerHTML = '<section class="brand-mentions-modal" role="dialog" aria-modal="true" aria-labelledby="brandMentionsTitle"><button class="brand-mentions-close" type="button" aria-label="Cerrar menciones de marca">×</button><div class="brand-mentions-scroll"><header class="brand-mentions-header"><span class="brand-mentions-kicker">Solo Público</span><h2 id="brandMentionsTitle">Menciones de marca</h2><p id="brandMentionsDeckTitle"></p></header><div class="brand-mentions-status" aria-live="polite"></div><div class="brand-mentions-body"></div></div></section>';
     document.body.appendChild(modal);
     bodyNode = modal.querySelector(".brand-mentions-body");
     statusNode = modal.querySelector(".brand-mentions-status");

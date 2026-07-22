@@ -6,9 +6,6 @@
 .brand-mentions-kicker{display:block;color:#c24170;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
 .brand-mentions-header h2{margin:2px 0 1px;font-family:var(--font-display);font-size:26px;color:#0a0d28}
 .brand-mentions-header p{margin:0;color:var(--muted);font-size:13px;font-weight:600}
-.brand-mentions-schedule{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:10px 13px;border:1px solid rgba(194,65,112,.16);border-radius:13px;background:rgba(194,65,112,.045);color:#242944;font-size:12px}
-.brand-mentions-schedule strong{font-family:var(--font-display);color:#8f244d}
-.brand-mentions-schedule span{color:var(--muted);font-weight:600;text-align:right}
 .brand-mentions-status{min-height:0;margin:8px 0 0;color:var(--muted);font-size:13px;font-weight:700}
 .brand-mentions-status:empty{display:none}
 .brand-mentions-status.success{color:var(--green)}
@@ -77,8 +74,6 @@
 @media(max-width:700px){
   .brand-mentions-scroll{padding:18px 14px 16px}
   .brand-mentions-modal{width:calc(100vw - 16px);border-radius:18px}
-  .brand-mentions-schedule{align-items:flex-start;flex-direction:column;gap:2px}
-  .brand-mentions-schedule span{text-align:left}
   .brand-mention-item{grid-template-columns:68px minmax(0,1fr)}
   .brand-mention-logo{width:64px}
   .brand-mention-item-actions{grid-column:1/-1;display:grid;grid-template-columns:auto repeat(3,1fr)}

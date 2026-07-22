@@ -20,7 +20,7 @@
 .video-editor-list{display:grid;gap:8px}
 .video-editor-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#f8f9fc}
 .video-editor-item.has-thumbnail{grid-template-columns:96px minmax(0,1fr) auto}
-.video-editor-item-thumbnail{display:block;width:96px;aspect-ratio:16/9;object-fit:cover;border:1px solid #e2e5ef;border-radius:9px;background:#111}
+.video-editor-item-thumbnail{display:block;width:96px;aspect-ratio:16/9;object-fit:cover;border:1px solid #e2e5ef;border-radius:9px;background:#111;pointer-events:none;user-select:none;cursor:default}
 .video-editor-item.is-hidden{opacity:.58;background:#f6f7fb}
 .video-editor-item-copy{display:grid;gap:1px;min-width:0}
 .video-editor-item-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0a0d28}

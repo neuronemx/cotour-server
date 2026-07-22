@@ -1,6 +1,10 @@
 const path = require("path");
 const fs = require("fs");
 
+const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
+const VIDEO_PREVIEW_WIDTH = 320;
+const VIDEO_PREVIEW_HEIGHT = 180;
+
 function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
   function normalizeDeckId(value) {
     const deckId = String(value || "").trim();
@@ -86,7 +90,40 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     return ["next", "stay", "loop"].includes(value) ? value : "stay";
   }
 
-  function normalizeVideo(item, index) {
+  function normalizeVideoId(value, index) {
+    const id = String(value || "vid_" + Date.now() + "_" + index).trim();
+    if (!/^[a-z0-9_-]{1,96}$/i.test(id)) {
+      const error = new Error("Invalid video id");
+      error.statusCode = 400;
+      throw error;
+    }
+    return id;
+  }
+
+  function normalizeDuration(value) {
+    const duration = Number(value);
+    if (!Number.isFinite(duration) || duration <= 0) return null;
+    return Math.round(duration * 1000) / 1000;
+  }
+
+  function previewUrlPrefix(deckId) {
+    return "/decks/" + deckId + "/video-previews/";
+  }
+
+  function normalizePreview(item, deckId) {
+    const preview = item?.preview || {};
+    const dataUrl = String(preview.data_url || item?.preview_data_url || "").trim();
+    const url = String(preview.url || item?.preview_url || "").trim();
+    const width = Math.max(1, Math.min(1920, Number(preview.width) || VIDEO_PREVIEW_WIDTH));
+    const height = Math.max(1, Math.min(1080, Number(preview.height) || VIDEO_PREVIEW_HEIGHT));
+    if (dataUrl) return { data_url: dataUrl, width, height };
+    if (url.startsWith(previewUrlPrefix(deckId)) && /^[a-z0-9_-]+\.jpg$/i.test(url.slice(previewUrlPrefix(deckId).length))) {
+      return { url, width, height };
+    }
+    return null;
+  }
+
+  function normalizeVideo(item, index, deckId) {
     const slideId = String(item?.slide_id || "").trim();
     const fileName = String(item?.file?.name || item?.file_name || "").trim();
     if (!slideId || !fileName) {
@@ -95,7 +132,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
     return {
-      id: String(item?.id || "vid_" + Date.now() + "_" + index).trim(),
+      id: normalizeVideoId(item?.id, index),
       slide_id: slideId,
       file: {
         name: fileName,
@@ -107,6 +144,35 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
         autoplay: item?.playback?.autoplay !== false,
         end_behavior: normalizeEndBehavior(item?.playback?.end_behavior),
         muted: Boolean(item?.playback?.muted)
+      },
+      duration_seconds: normalizeDuration(item?.duration_seconds || item?.duration),
+      preview: normalizePreview(item, deckId)
+    };
+  }
+
+  async function persistVideoPreview(deckDir, deckId, video) {
+    if (!video.preview?.data_url) return video;
+    const match = /^data:image\/jpeg;base64,([a-z0-9+/=]+)$/i.exec(video.preview.data_url);
+    if (!match) {
+      const error = new Error("Video preview must be a JPEG image");
+      error.statusCode = 400;
+      throw error;
+    }
+    const bytes = Buffer.from(match[1], "base64");
+    if (!bytes.length || bytes.length > MAX_VIDEO_PREVIEW_BYTES || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) {
+      const error = new Error("Video preview is invalid or too large");
+      error.statusCode = 400;
+      throw error;
+    }
+    const previewDir = path.join(deckDir, "video-previews");
+    await fs.promises.mkdir(previewDir, { recursive: true });
+    await fs.promises.writeFile(path.join(previewDir, video.id + ".jpg"), bytes);
+    return {
+      ...video,
+      preview: {
+        url: previewUrlPrefix(deckId) + video.id + ".jpg",
+        width: video.preview.width,
+        height: video.preview.height
       }
     };
   }
@@ -176,9 +242,9 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
 
-    const videos = body.videos === undefined
+    let videos = body.videos === undefined
       ? current.videos
-      : body.videos.map(normalizeVideo);
+      : body.videos.map((video, index) => normalizeVideo(video, index, deckId));
     const seenVideoSlides = new Set();
     videos.forEach((video) => {
       if (!slideIds.includes(video.slide_id)) {
@@ -193,6 +259,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       }
       seenVideoSlides.add(video.slide_id);
     });
+    if (body.videos !== undefined) {
+      videos = await Promise.all(videos.map((video) => persistVideoPreview(deckDir, deckId, video)));
+    }
+    videos.sort((a, b) => slideIds.indexOf(a.slide_id) - slideIds.indexOf(b.slide_id));
 
     return {
       deck_id: deckId,
