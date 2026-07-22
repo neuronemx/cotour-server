@@ -240,9 +240,7 @@
     title.textContent = config.brands.length + " marca" + (config.brands.length === 1 ? "" : "s");
     detail.textContent = activeCount + " activa" + (activeCount === 1 ? "" : "s") + " · rotan en este orden";
     summary.append(title, detail);
-    const add = makeButton("Agregar marca", "primary-action brand-mentions-add", () => renderForm());
-    add.disabled = config.brands.length >= 50;
-    toolbar.append(summary, add);
+    toolbar.append(summary);
     bodyNode.appendChild(toolbar);
 
     if (!config.brands.length) {
@@ -250,13 +248,16 @@
       empty.className = "brand-mentions-empty";
       empty.innerHTML = "<strong>Este deck todavía no tiene marcas.</strong><p>Agrega un patrocinador con logo, mensaje corto y enlace. Las menciones aparecerán únicamente en Público.</p>";
       bodyNode.appendChild(empty);
-      return;
+    } else {
+      const list = document.createElement("div");
+      list.className = "brand-mentions-list";
+      config.brands.forEach((brand, index) => list.appendChild(renderBrandCard(brand, index)));
+      bodyNode.appendChild(list);
     }
 
-    const list = document.createElement("div");
-    list.className = "brand-mentions-list";
-    config.brands.forEach((brand, index) => list.appendChild(renderBrandCard(brand, index)));
-    bodyNode.appendChild(list);
+    const add = makeButton("Agregar marca", "primary-action brand-mentions-add", () => renderForm());
+    add.disabled = config.brands.length >= 50;
+    bodyNode.appendChild(add);
   }
 
   function validLogo(file) {

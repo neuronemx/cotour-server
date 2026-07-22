@@ -74,8 +74,8 @@ test('Home exposes compact multimedia configuration with visible linked file', (
   const css = read('public/home/video-editor.css');
   const visibility = read('public/shared/slide-visibility.js');
 
-  assert.match(html, /video-editor\.css\?v=105/);
-  assert.match(html, /video-editor\.js\?v=105/);
+  assert.match(html, /video-editor\.css\?v=106/);
+  assert.match(html, /video-editor\.js\?v=106/);
   assert.match(html, /video-slide-labels\.js\?v=106/);
   assert.match(editor, /button\.textContent = "Videos"/);
   assert.match(editor, /Configuración Multimedia/);

@@ -178,17 +178,21 @@
     const plan = options.plan || "";
     const selected = activeModule === kind;
     const classes = ["interaction-module-card", kind, selected ? "is-active" : "", enabled ? "" : "is-locked"].filter(Boolean).join(" ");
-    const badge = plan ? '<span class="interaction-module-badge">' + escapeHtml(plan) + '</span>' : "";
+    const trailing = plan
+      ? '<span class="interaction-module-badge">' + escapeHtml(plan) + '</span>'
+      : '<svg class="interaction-module-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
     const disabled = enabled ? "" : " disabled aria-disabled=\"true\"";
-    return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + badge + '</button>';
+    return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + trailing + '</button>';
   }
 
   function renderHub() {
     const summary = pollSummary();
-    const pollDetail = interactions.length ? summary.detail : "Selecciona para crear o editar";
+    const pollDetail = interactions.length
+      ? interactions.length + " encuesta" + (interactions.length === 1 ? "" : "s") + (summary.detail ? " · " + summary.detail : "")
+      : "0 encuestas · Selecciona para crear o editar";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
-    hub.innerHTML = '<div class="interactions-hub-top"><span>Elige el tipo de dinámica para este deck.</span></div><div class="interaction-module-grid">' + moduleCardMarkup("polls", summary.title, pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Mejorar plan", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Mejorar plan", { enabled: false, plan: "Business" }) + moduleCardMarkup("games", "Juegos", "Mejorar plan", { enabled: false, plan: "Enterprise" }) + '</div>';
+    hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">' + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Ganador aleatorio entre asistentes conectados", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Preguntas, respuestas y clasificación en vivo", { enabled: false, plan: "Próximamente" }) + moduleCardMarkup("games", "Juegos colaborativos", "Breakout, Pong, Catcher y más", { enabled: false, plan: "Próximamente" }) + '</div>';
     hub.querySelector('[data-module="polls"]').addEventListener("click", () => {
       activeModule = "polls";
       activeDraft = null;

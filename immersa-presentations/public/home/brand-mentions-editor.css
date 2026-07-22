@@ -14,20 +14,20 @@
 .brand-mentions-status.success{color:var(--green)}
 .brand-mentions-status.error{color:var(--red)}
 .brand-mentions-body{display:grid;gap:12px;margin-top:12px}
-.brand-mentions-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:#f8f9fe}
+.brand-mentions-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:2px 0;background:transparent}
 .brand-mentions-toolbar>div{display:grid;gap:2px}
 .brand-mentions-toolbar strong{color:#0a0d28;font-family:var(--font-display)}
 .brand-mentions-toolbar span{color:var(--muted);font-size:12px}
-.brand-mentions-add{min-width:142px}
+.brand-mentions-add{width:100%;min-height:40px;margin-top:2px}
 .brand-mentions-empty{padding:26px 22px;border:1px dashed #cfd5e7;border-radius:16px;text-align:center;background:#fbfcff}
 .brand-mentions-empty strong{color:#0a0d28}
 .brand-mentions-empty p{max-width:540px;margin:6px auto 0;color:var(--muted);font-size:13px;line-height:1.45}
 .brand-mentions-list{display:grid;gap:9px}
 .brand-mention-entry{display:grid;gap:7px}
-.brand-mention-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:15px;background:#fff}
+.brand-mention-item{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:#f8f9fc}
 .brand-mention-item.is-inactive{background:#f7f8fb}
 .brand-mention-item.is-inactive .brand-mention-logo,.brand-mention-item.is-inactive .brand-mention-copy{opacity:.58}
-.brand-mention-logo{display:grid;place-items:center;width:54px;height:54px;overflow:hidden;border:1px solid #e4e7f1;border-radius:13px;background:#fff}
+.brand-mention-logo{display:grid;place-items:center;width:72px;aspect-ratio:4/3;overflow:hidden;border:1px solid #e4e7f1;border-radius:11px;background:#fff}
 .brand-mention-logo img{display:block;width:100%;height:100%;object-fit:contain;padding:5px}
 .brand-mention-copy{display:grid;gap:2px;min-width:0}
 .brand-mention-copy>div{display:flex;align-items:center;gap:7px;min-width:0}
@@ -59,12 +59,12 @@
 .brand-mention-form input:focus,.brand-mention-form textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(67,104,246,.1)}
 .brand-mention-form label>small{color:var(--muted);font-size:10px}
 .brand-mention-counter{position:absolute;right:8px;bottom:7px;padding:1px 4px;border-radius:5px;background:rgba(255,255,255,.92)}
-.brand-mention-logo-field{display:grid;grid-template-columns:78px minmax(0,1fr);align-items:center;gap:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fafbfe}
+.brand-mention-logo-field{display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fafbfe}
 .brand-mention-logo-field>div:nth-child(2){display:grid;justify-items:start;gap:3px}
 .brand-mention-logo-field strong{color:#242944;font-size:12px}
 .brand-mention-logo-field span{color:var(--muted);font-size:10px}
 .brand-mention-logo-field button{min-height:34px;margin-top:4px;padding:0 11px;font-size:11px}
-.brand-mention-logo-preview{display:grid;place-items:center;width:74px;height:74px;overflow:hidden;border:1px dashed #cbd1e1;border-radius:15px;background:#fff;color:#9ba1b4;font-size:10px;font-weight:800;text-transform:uppercase}
+.brand-mention-logo-preview{display:grid;place-items:center;width:96px;aspect-ratio:4/3;overflow:hidden;border:1px dashed #cbd1e1;border-radius:13px;background:#fff;color:#9ba1b4;font-size:10px;font-weight:800;text-transform:uppercase}
 .brand-mention-logo-preview img{display:block;width:100%;height:100%;object-fit:contain;padding:6px}
 .brand-mention-logo-preview img[hidden],.brand-mention-logo-preview span[hidden]{display:none}
 .brand-mention-native-file{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;clip-path:inset(50%)!important}
@@ -79,9 +79,8 @@
   .brand-mentions-modal{width:calc(100vw - 16px);border-radius:18px}
   .brand-mentions-schedule{align-items:flex-start;flex-direction:column;gap:2px}
   .brand-mentions-schedule span{text-align:left}
-  .brand-mentions-toolbar{align-items:stretch;flex-direction:column}
-  .brand-mentions-add{width:100%}
-  .brand-mention-item{grid-template-columns:52px minmax(0,1fr)}
+  .brand-mention-item{grid-template-columns:68px minmax(0,1fr)}
+  .brand-mention-logo{width:64px}
   .brand-mention-item-actions{grid-column:1/-1;display:grid;grid-template-columns:auto repeat(3,1fr)}
   .brand-mention-order-actions{margin:0}
   .brand-mention-text-action{padding:0 6px}
