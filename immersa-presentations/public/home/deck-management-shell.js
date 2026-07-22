@@ -1,31 +1,29 @@
 (function () {
   const modal = document.getElementById("deckDetailModal");
   const actionSource = document.getElementById("detailActions");
+  const launchers = document.getElementById("deckEditorLaunchers");
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
-  if (!modal || !actionSource || !tabs.length || !panels.length) return;
+  if (!modal || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const moduleDetails = {
     interactions: {
       selector: ".role-interactions",
-      slot: "interactions",
-      title: "Administrar interacciones",
-      detail: "Encuestas, sorteos y dinámicas del deck.",
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="15" rx="2"></rect><path d="M6 20.5h12M8 15v-4M12 15V8M16 15v-5M8 7h2"></path></svg>'
+      backdrop: ".interactions-backdrop",
+      editor: ".interactions-modal",
+      close: ".interactions-close"
     },
     brands: {
       selector: ".role-brand-mentions",
-      slot: "brands",
-      title: "Administrar marcas",
-      detail: "Logo, pitch, enlace, estado y orden de aparición.",
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13V9l13-5v14L4 13zM8 14l1.5 5H6l-1-6M17 8a4 4 0 0 1 0 6"></path></svg>'
+      backdrop: ".brand-mentions-backdrop",
+      editor: ".brand-mentions-modal",
+      close: ".brand-mentions-close"
     },
     video: {
       selector: ".role-videos",
-      slot: "video",
-      title: "Administrar videos",
-      detail: "Asigna archivos locales y define su reproducción.",
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m10 9 5 3-5 3V9z"></path></svg>'
+      backdrop: ".video-editor-backdrop",
+      editor: ".video-editor-modal",
+      close: ".video-editor-close"
     }
   };
 
@@ -42,32 +40,60 @@
       panel.hidden = !selected;
       panel.classList.toggle("is-active", selected);
     });
+    if (moduleDetails[name]) mountEditor(name);
   }
 
-  function decorateModuleAction(button, definition) {
-    button.classList.add("deck-detail-module-action");
-    button.innerHTML = '<span class="deck-detail-module-icon">' + definition.icon + '</span><span class="deck-detail-module-copy"><strong>' + definition.title + '</strong><small>' + definition.detail + '</small></span><span class="deck-detail-module-arrow" aria-hidden="true">›</span>';
+  function restoreEditor(definition) {
+    const editor = document.querySelector(definition.editor);
+    const backdrop = document.querySelector(definition.backdrop);
+    if (!editor || !backdrop || editor.parentElement === backdrop) return;
+    editor.classList.remove("is-deck-inline");
+    editor.setAttribute("role", "dialog");
+    editor.setAttribute("aria-modal", "true");
+    const close = editor.querySelector(definition.close);
+    if (close) close.hidden = false;
+    backdrop.appendChild(editor);
   }
 
-  function clearModuleSlots() {
-    modal.querySelectorAll("[data-deck-action-slot]").forEach((slot) => slot.replaceChildren());
+  function restoreEditors() {
+    Object.values(moduleDetails).forEach(restoreEditor);
+    modal.querySelectorAll("[data-deck-editor-host]").forEach((host) => host.replaceChildren());
   }
 
   function distributeActions() {
     Object.values(moduleDetails).forEach((definition) => {
       const button = actionSource.querySelector(definition.selector);
-      const slot = modal.querySelector('[data-deck-action-slot="' + definition.slot + '"]');
-      if (!button || !slot) return;
-      decorateModuleAction(button, definition);
-      slot.appendChild(button);
+      if (button) launchers.appendChild(button);
     });
+  }
+
+  function mountEditor(name) {
+    const definition = moduleDetails[name];
+    const host = modal.querySelector('[data-deck-editor-host="' + name + '"]');
+    if (!definition || !host || host.querySelector(definition.editor)) return;
+    const launcher = launchers.querySelector(definition.selector);
+    if (!launcher) return;
+    restoreEditor(definition);
+    launcher.click();
+    const backdrop = document.querySelector(definition.backdrop);
+    const editor = backdrop?.querySelector(definition.editor);
+    if (!backdrop || !editor) return;
+    backdrop.hidden = true;
+    backdrop.setAttribute("aria-hidden", "true");
+    editor.classList.add("is-deck-inline");
+    editor.setAttribute("role", "region");
+    editor.removeAttribute("aria-modal");
+    const close = editor.querySelector(definition.close);
+    if (close) close.hidden = true;
+    host.replaceChildren(editor);
   }
 
   function patchDetailActions() {
     const original = window.renderDetailActions;
     if (typeof original !== "function" || original.__deckManagementShellPatched) return;
     window.renderDetailActions = function deckManagementRenderDetailActions(deck) {
-      clearModuleSlots();
+      restoreEditors();
+      launchers.replaceChildren();
       original(deck);
       distributeActions();
     };
@@ -89,6 +115,7 @@
   });
 
   document.addEventListener("immersa:deck-detail-open", () => activateTab("links"));
+  document.addEventListener("immersa:deck-detail-close", restoreEditors);
   patchDetailActions();
   activateTab("links");
 })();
