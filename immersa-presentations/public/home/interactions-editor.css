@@ -245,11 +245,13 @@
 }
 
 .interactions-polls-section {
-  padding: 16px;
-  border-radius: 20px;
-  background: #fff;
-  border: 1px solid rgba(67,104,246,.10);
-  box-shadow: 0 12px 34px rgba(27, 32, 80, .08);
+  margin: -2px 0 4px 54px;
+  padding: 10px 0 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(67,104,246,.12);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .interactions-list-heading {
@@ -270,16 +272,28 @@
   color: #0a0d28;
 }
 
-.interactions-small-action,
+.interactions-create-action,
 .interactions-add-option {
   min-height: 38px;
   padding: 0 14px;
   border-radius: var(--radius-pill);
   color: #fff;
-  background: linear-gradient(135deg, var(--violet), var(--blue));
+  background: var(--grad);
   font-size: 12.5px;
   font-weight: 900;
   box-shadow: 0 12px 26px rgba(67,104,246,.18);
+}
+
+.interactions-create-action {
+  justify-self: end;
+  margin-top: 2px;
+}
+
+.interactions-create-action::before {
+  content: "+";
+  margin-right: 6px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .interactions-add-option {
@@ -289,7 +303,7 @@
   box-shadow: none;
 }
 
-.interactions-small-action:hover,
+.interactions-create-action:hover,
 .interactions-add-option:hover {
   filter: brightness(1.03);
 }
@@ -557,5 +571,10 @@
 
   .interaction-option-field {
     grid-template-columns: 14px 1fr 34px;
+  }
+
+  .interactions-polls-section {
+    margin-left: 0;
+    padding: 10px 2px 14px;
   }
 }

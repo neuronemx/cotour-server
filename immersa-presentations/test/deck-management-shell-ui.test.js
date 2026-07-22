@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=3/);
-  assert.match(html, /deck-management-shell\.js\?v=3/);
+  assert.match(html, /deck-management-shell\.css\?v=4/);
+  assert.match(html, /deck-management-shell\.js\?v=4/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
   assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
@@ -25,6 +25,9 @@ test("Deck detail exposes the approved management sections", () => {
   assert.doesNotMatch(html, /deck-detail-kicker/);
   assert.doesNotMatch(html, /Enlaces de presentación/);
   assert.doesNotMatch(html, />Business</);
+  assert.doesNotMatch(html, /id="detailStatus"/);
+  assert.match(html, /data-deck-tab="interactions">[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Interacciones<\/span>/);
+  assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
 test("Deck management shell reuses existing actions without parallel state", () => {
@@ -57,6 +60,8 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /\.deck-detail-editor-host \.is-deck-inline/);
   assert.match(css, /\.deck-detail-tab svg/);
   assert.match(css, /justify-content: space-between/);
+  assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+min-height: 34px/);
+  assert.match(css, /\.interactions-status:empty \{ display: none; \}/);
   assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
   assert.match(css, /@media \(max-width: 700px\)/);
@@ -76,7 +81,11 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(interactions, /Disponibles para este deck/);
   assert.match(interactions, /interaction-module-list/);
   assert.doesNotMatch(interactions, /interaction-module-grid/);
+  assert.match(interactions, /pollsButton\?\.after\(renderPollPanel\(\)\)/);
+  assert.match(interactions, /section\.appendChild\(makeButton\("Crear encuesta", "interactions-create-action"/);
+  assert.doesNotMatch(interactions, /interaction-form-header"><span>Encuesta<\/span>/);
   assert.match(interactionsCss, /grid-template-columns: 42px minmax\(0, 1fr\) auto/);
+  assert.match(interactionsCss, /\.interactions-create-action[\s\S]+background: var\(--grad\)/);
 
   assert.match(brands, /bodyNode\.appendChild\(list\)[\s\S]+bodyNode\.appendChild\(add\)/);
   assert.match(brandsCss, /aspect-ratio:4\/3/);
