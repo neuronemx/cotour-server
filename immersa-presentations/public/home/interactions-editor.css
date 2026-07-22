@@ -122,60 +122,56 @@
 }
 
 .interactions-hub {
-  padding: 18px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.78);
-  border: 1px solid rgba(67,104,246,.10);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.92);
+  gap: 10px;
 }
 
-.interactions-hub-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.interactions-section-label {
+  margin: 0;
+  color: var(--muted-2);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
 }
 
-.interactions-hub-top span,
 .interactions-list-heading span {
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 700;
 }
 
-.interaction-module-grid {
+.interaction-module-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .interaction-module-card {
-  min-height: 116px;
+  min-height: 72px;
   position: relative;
   display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 13px;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
-  padding: 16px;
-  border-radius: 20px;
+  padding: 11px 13px;
+  border-radius: 12px;
   border: 1px solid rgba(67,104,246,.12);
-  background: #fff;
+  background: #f8f9fc;
   color: #0a0d28;
   text-align: left;
-  box-shadow: 0 10px 30px rgba(27, 32, 80, .08);
   transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease, opacity .16s ease;
 }
 
 .interaction-module-card:not(:disabled):hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: rgba(109,59,239,.30);
-  box-shadow: 0 16px 38px rgba(27, 32, 80, .12);
+  background: #f0f1f6;
+  box-shadow: 0 10px 24px rgba(27, 32, 80, .08);
 }
 
 .interaction-module-card.is-active {
   border-color: rgba(109,59,239,.58);
-  background: linear-gradient(180deg, rgba(109,59,239,.08), #fff 72%);
-  box-shadow: 0 16px 42px rgba(109,59,239,.14);
+  background: rgba(109,59,239,.055);
+  box-shadow: none;
 }
 
 .interaction-module-card.is-locked {
@@ -189,19 +185,19 @@
 }
 
 .interaction-module-icon {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 11px;
   color: #fff;
   background: linear-gradient(135deg, #6d3bef, #4368f6);
-  box-shadow: 0 12px 28px rgba(109,59,239,.24);
+  box-shadow: 0 8px 18px rgba(109,59,239,.18);
 }
 
 .interaction-module-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   display: block;
 }
 
@@ -217,21 +213,17 @@
 
 .interaction-module-copy strong {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 13.5px;
   line-height: 1.1;
 }
 
 .interaction-module-copy small {
-  min-height: 16px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 .interaction-module-badge {
-  position: absolute;
-  right: 12px;
-  top: 12px;
   padding: 5px 8px;
   border-radius: var(--radius-pill);
   color: var(--violet);
@@ -240,6 +232,16 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: .04em;
+}
+
+.interaction-module-chevron {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted-2);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .interactions-polls-section {
@@ -541,10 +543,8 @@
     font-size: 25px;
   }
 
-  .interaction-module-grid,
   .interaction-list-item,
   .interaction-delete-confirm,
-  .interactions-hub-top,
   .interactions-list-heading {
     grid-template-columns: 1fr;
     display: grid;

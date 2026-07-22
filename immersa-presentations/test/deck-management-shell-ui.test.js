@@ -9,19 +9,21 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=2/);
-  assert.match(html, /deck-management-shell\.js\?v=2/);
-  assert.match(html, /data-deck-tab="links">Enlaces/);
-  assert.match(html, /data-deck-tab="interactions">Interacciones/);
-  assert.match(html, /data-deck-tab="brands">Marcas/);
-  assert.match(html, /data-deck-tab="video">Video/);
-  assert.match(html, /data-deck-tab="history">Historial/);
+  assert.match(html, /deck-management-shell\.css\?v=3/);
+  assert.match(html, /deck-management-shell\.js\?v=3/);
+  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
+  assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
+  assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
+  assert.match(html, /data-deck-tab="brands">[\s\S]*?<span>Marcas<\/span>/);
+  assert.match(html, /data-deck-tab="history">[\s\S]*?<span>Historial<\/span>/);
   assert.match(html, /data-deck-editor-host="interactions"/);
   assert.match(html, /data-deck-editor-host="brands"/);
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
   assert.match(html, /id="detailDelete"[\s\S]+<\/header>/);
   assert.match(html, /data-deck-panel="history"[\s\S]+id="qnaHistory"/);
+  assert.doesNotMatch(html, /deck-detail-kicker/);
+  assert.doesNotMatch(html, /Enlaces de presentación/);
   assert.doesNotMatch(html, />Business</);
 });
 
@@ -53,9 +55,36 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /\.deck-detail-header[\s\S]+grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.deck-detail-header \.deck-detail-thumb[\s\S]+width: 100%/);
   assert.match(css, /\.deck-detail-editor-host \.is-deck-inline/);
+  assert.match(css, /\.deck-detail-tab svg/);
+  assert.match(css, /justify-content: space-between/);
+  assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(css, /linear-gradient\(/);
+});
+
+test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {
+  const interactions = read("public/home/interactions-editor.js");
+  const interactionsCss = read("public/home/interactions-editor.css");
+  const brands = read("public/home/brand-mentions-editor.js");
+  const brandsCss = read("public/home/brand-mentions-editor.css");
+  const videos = read("public/home/video-editor.js");
+  const videosCss = read("public/home/video-editor.css");
+
+  assert.match(interactions, /Disponibles para este deck/);
+  assert.match(interactions, /interaction-module-list/);
+  assert.doesNotMatch(interactions, /interaction-module-grid/);
+  assert.match(interactionsCss, /grid-template-columns: 42px minmax\(0, 1fr\) auto/);
+
+  assert.match(brands, /bodyNode\.appendChild\(list\)[\s\S]+bodyNode\.appendChild\(add\)/);
+  assert.match(brandsCss, /aspect-ratio:4\/3/);
+
+  assert.match(videos, /function captureFirstFrame\(file\)/);
+  assert.match(videos, /canvas\.toDataURL\("image\/jpeg", \.76\)/);
+  assert.match(videos, /localStorage\.setItem\(thumbnailStorageKey\(video\), value\)/);
+  assert.match(videos, /bodyNode\.appendChild\(add\)/);
+  assert.match(videosCss, /video-editor-item-thumbnail/);
+  assert.match(videosCss, /aspect-ratio:16\/9/);
 });

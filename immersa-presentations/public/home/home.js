@@ -537,7 +537,7 @@ function renderDetailActions(deck) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "detail-role-action role-" + role;
-    button.textContent = role === "speaker" ? "Abrir Speaker" : "Copiar " + (labels[role] || role);
+    button.textContent = labels[role] || role;
     button.title = role === "speaker" ? "Abrir Speaker en nueva pestaña" : "Copiar link de " + (labels[role] || role);
     button.addEventListener("click", (event) => {
       event.stopPropagation();

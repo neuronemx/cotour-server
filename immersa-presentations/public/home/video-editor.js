@@ -26,6 +26,83 @@
     return String(slide?.id || "slide-" + String(index + 1).padStart(3, "0"));
   }
 
+  function thumbnailStorageKey(video) {
+    return "immersa:video-thumbnail:" + String(currentDeck?.deckId || "") + ":" + String(video?.id || "");
+  }
+
+  function storedThumbnail(video) {
+    if (!currentDeck?.deckId || !video?.id) return "";
+    try {
+      const value = window.localStorage.getItem(thumbnailStorageKey(video)) || "";
+      return /^data:image\/(?:jpeg|png|webp);base64,/i.test(value) ? value : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function storeThumbnail(video, value) {
+    if (!video?.id || !value) return;
+    try {
+      window.localStorage.setItem(thumbnailStorageKey(video), value);
+    } catch (_error) {}
+  }
+
+  function removeThumbnail(video) {
+    if (!video?.id) return;
+    try {
+      window.localStorage.removeItem(thumbnailStorageKey(video));
+    } catch (_error) {}
+  }
+
+  function captureFirstFrame(file) {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      const objectUrl = URL.createObjectURL(file);
+      let finished = false;
+      const timeout = window.setTimeout(() => finish(""), 6000);
+
+      function finish(value) {
+        if (finished) return;
+        finished = true;
+        window.clearTimeout(timeout);
+        video.removeAttribute("src");
+        video.load();
+        URL.revokeObjectURL(objectUrl);
+        resolve(value || "");
+      }
+
+      function drawFrame() {
+        try {
+          const sourceWidth = video.videoWidth || 320;
+          const sourceHeight = video.videoHeight || 180;
+          const canvas = document.createElement("canvas");
+          canvas.width = 320;
+          canvas.height = 180;
+          const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+          const width = sourceWidth * scale;
+          const height = sourceHeight * scale;
+          canvas.getContext("2d").drawImage(video, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+          finish(canvas.toDataURL("image/jpeg", .76));
+        } catch (_error) {
+          finish("");
+        }
+      }
+
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+      video.addEventListener("error", () => finish(""), { once: true });
+      video.addEventListener("seeked", drawFrame, { once: true });
+      video.addEventListener("loadeddata", () => {
+        const target = Number.isFinite(video.duration) && video.duration > .12 ? Math.min(.12, video.duration / 2) : 0;
+        if (target > 0) video.currentTime = target;
+        else drawFrame();
+      }, { once: true });
+      video.src = objectUrl;
+      video.load();
+    });
+  }
+
   function ensureModal() {
     if (modal) return modal;
     modal = document.createElement("div");
@@ -90,13 +167,12 @@
     bodyNode.innerHTML = "";
     const top = document.createElement("div");
     top.className = "video-editor-toolbar";
-    top.innerHTML = '<div><strong>Videos del deck</strong><span>Se reproducirán desde archivos locales preparados en Screen.</span></div>';
+    top.innerHTML = '<p>Videos en este deck</p>';
     const add = document.createElement("button");
     add.type = "button";
     add.className = "primary-action video-editor-add";
     add.textContent = "Agregar video";
     add.addEventListener("click", () => renderForm());
-    top.appendChild(add);
     bodyNode.appendChild(top);
 
     if (!config.videos.length) {
@@ -104,40 +180,50 @@
       empty.className = "video-editor-empty";
       empty.innerHTML = '<strong>Este deck todavía no tiene videos.</strong><p>Asigna un MP4 a una slide. Immersa guardará su identidad y Screen vinculará después el archivo local.</p>';
       bodyNode.appendChild(empty);
-      return;
+    } else {
+      const stack = document.createElement("div");
+      stack.className = "video-editor-list";
+      config.videos.forEach((video) => {
+        const index = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === video.slide_id);
+        const thumbnail = storedThumbnail(video);
+        const item = document.createElement("article");
+        item.className = "video-editor-item" + (thumbnail ? " has-thumbnail" : "") + (config.hidden_slide_ids.includes(video.slide_id) ? " is-hidden" : "");
+        item.innerHTML = '<div class="video-editor-item-copy"><strong>' + escapeHtml(video.file?.name || "Video") + '</strong><span>Slide ' + (index >= 0 ? index + 1 : "no encontrada") + " · " + escapeHtml(formatBytes(video.file?.size)) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
+        if (thumbnail) {
+          const image = document.createElement("img");
+          image.className = "video-editor-item-thumbnail";
+          image.src = thumbnail;
+          image.alt = "Primer frame de " + (video.file?.name || "video");
+          item.prepend(image);
+        }
+        const actions = item.querySelector(".video-editor-item-actions");
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.textContent = "Editar";
+        edit.addEventListener("click", () => renderForm(video));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Eliminar";
+        remove.addEventListener("click", async () => {
+          if (!window.confirm("¿Eliminar la configuración de este video? La slide original permanecerá en el deck.")) return;
+          try {
+            setStatus("Guardando…");
+            await saveVideos(config.videos.filter((itemVideo) => itemVideo.slide_id !== video.slide_id));
+            removeThumbnail(video);
+            setStatus("Video eliminado.", "success");
+            renderList();
+          } catch (error) {
+            setStatus(error.message, "error");
+          }
+        });
+        actions.append(edit, remove);
+        stack.appendChild(item);
+      });
+      bodyNode.appendChild(stack);
     }
 
-    const stack = document.createElement("div");
-    stack.className = "video-editor-list";
-    config.videos.forEach((video) => {
-      const index = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === video.slide_id);
-      const item = document.createElement("article");
-      item.className = "video-editor-item" + (config.hidden_slide_ids.includes(video.slide_id) ? " is-hidden" : "");
-      item.innerHTML = '<div class="video-editor-item-index">' + (index >= 0 ? index + 1 : "—") + '</div><div class="video-editor-item-copy"><strong>' + escapeHtml(video.file?.name || "Video") + '</strong><span>Slide ' + (index >= 0 ? index + 1 : "no encontrada") + " · " + escapeHtml(formatBytes(video.file?.size)) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
-      const actions = item.querySelector(".video-editor-item-actions");
-      const edit = document.createElement("button");
-      edit.type = "button";
-      edit.textContent = "Editar";
-      edit.addEventListener("click", () => renderForm(video));
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "danger";
-      remove.textContent = "Eliminar";
-      remove.addEventListener("click", async () => {
-        if (!window.confirm("¿Eliminar la configuración de este video? La slide original permanecerá en el deck.")) return;
-        try {
-          setStatus("Guardando…");
-          await saveVideos(config.videos.filter((itemVideo) => itemVideo.slide_id !== video.slide_id));
-          setStatus("Video eliminado.", "success");
-          renderList();
-        } catch (error) {
-          setStatus(error.message, "error");
-        }
-      });
-      actions.append(edit, remove);
-      stack.appendChild(item);
-    });
-    bodyNode.appendChild(stack);
+    bodyNode.appendChild(add);
   }
 
   function renderForm(existing = null) {
@@ -151,8 +237,8 @@
       return '<option value="' + escapeHtml(id) + '"' + (assigned ? " disabled" : "") + ">" + (index + 1) + " · " + escapeHtml(slide?.title || id) + (assigned ? " — ya tiene video" : "") + "</option>";
     }).join("");
     const linkedFile = existing
-      ? '<div class="video-editor-linked-file" data-linked-file><span class="video-editor-file-badge" aria-hidden="true">MP4</span><div class="video-editor-linked-copy"><span>Archivo vinculado</span><strong data-file-name>' + escapeHtml(existing.file?.name || "Archivo registrado") + '</strong><small data-file-size>' + escapeHtml(formatBytes(existing.file?.size)) + '</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Reemplazar MP4</button></div>'
-      : '<div class="video-editor-linked-file is-empty" data-linked-file><span class="video-editor-file-badge" aria-hidden="true">MP4</span><div class="video-editor-linked-copy"><span>Archivo MP4</span><strong data-file-name>Ningún archivo seleccionado</strong><small data-file-size>Selecciona el archivo que se utilizará en Screen.</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Seleccionar MP4</button></div>';
+      ? '<div class="video-editor-linked-file" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo vinculado</span><strong data-file-name>' + escapeHtml(existing.file?.name || "Archivo registrado") + '</strong><small data-file-size>' + escapeHtml(formatBytes(existing.file?.size)) + '</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Reemplazar MP4</button></div>'
+      : '<div class="video-editor-linked-file is-empty" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo MP4</span><strong data-file-name>Ningún archivo seleccionado</strong><small data-file-size>Selecciona el archivo que se utilizará en Screen.</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Seleccionar MP4</button></div>';
     form.innerHTML = '<div class="video-editor-form-heading"><h3>' + (existing ? "Configuración Multimedia" : "Agregar video") + '</h3><p>El archivo no se sube; Screen lo validará localmente antes de presentar.</p></div><label><span>Slide</span><select name="slide_id" required>' + options + '</select></label><div class="video-editor-file">' + linkedFile + '<input class="video-editor-native-file" name="file" type="file" accept=".mp4,video/mp4" aria-label="Seleccionar archivo MP4"></div><fieldset><legend>Inicio</legend><label class="video-editor-radio"><input type="radio" name="autoplay" value="true" checked><span>Play automático <small>Recomendado</small></span></label><label class="video-editor-radio"><input type="radio" name="autoplay" value="false"><span>Esperar Play de Speaker o Stage</span></label></fieldset><fieldset><legend>Al terminar</legend><label class="video-editor-radio"><input type="radio" name="end_behavior" value="next"><span>Avanzar automáticamente</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="stay" checked><span>Permanecer en esta slide</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="loop"><span>Repetir hasta recibir Siguiente</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-action" data-cancel>Cancelar</button><button type="submit" class="primary-action">' + (existing ? "Guardar configuración" : "Guardar video") + '</button></div>';
     bodyNode.appendChild(form);
 
@@ -164,14 +250,40 @@
     const linkedNode = form.querySelector("[data-linked-file]");
     const nameNode = form.querySelector("[data-file-name]");
     const sizeNode = form.querySelector("[data-file-size]");
+    const previewNode = form.querySelector("[data-file-preview]");
+    const badgeNode = form.querySelector("[data-file-badge]");
+    let selectedThumbnail = existing ? storedThumbnail(existing) : "";
+    let thumbnailPromise = null;
+
+    function showThumbnail(value) {
+      selectedThumbnail = value || "";
+      previewNode.hidden = !selectedThumbnail;
+      badgeNode.hidden = Boolean(selectedThumbnail);
+      if (selectedThumbnail) {
+        previewNode.src = selectedThumbnail;
+        previewNode.alt = "Primer frame del video seleccionado";
+      } else {
+        previewNode.removeAttribute("src");
+        previewNode.alt = "";
+      }
+    }
+
+    showThumbnail(selectedThumbnail);
     form.querySelector("[data-select-file]").addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => {
       const file = fileInput.files[0];
       if (!file) return;
       linkedNode.classList.remove("is-empty");
       nameNode.textContent = file.name;
-      sizeNode.textContent = formatBytes(file.size) + " · seleccionado";
+      sizeNode.textContent = formatBytes(file.size) + " · capturando primer frame…";
       form.querySelector("[data-select-file]").textContent = "Cambiar MP4";
+      thumbnailPromise = captureFirstFrame(file).then((thumbnail) => {
+        const selected = fileInput.files[0];
+        if (!selected || selected.name !== file.name || selected.size !== file.size || selected.lastModified !== file.lastModified) return "";
+        showThumbnail(thumbnail);
+        sizeNode.textContent = formatBytes(file.size) + (thumbnail ? " · thumbnail listo" : " · seleccionado");
+        return thumbnail;
+      });
     });
     form.querySelector("[data-cancel]").addEventListener("click", renderList);
     form.addEventListener("submit", async (event) => {
@@ -193,7 +305,10 @@
       next.push(video);
       try {
         setStatus("Guardando…");
+        if (thumbnailPromise) await thumbnailPromise;
         await saveVideos(next);
+        if (selectedThumbnail) storeThumbnail(video, selectedThumbnail);
+        else if (file) removeThumbnail(video);
         setStatus("Video guardado.", "success");
         renderList();
       } catch (error) {
