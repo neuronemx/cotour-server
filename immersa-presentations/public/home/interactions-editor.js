@@ -182,7 +182,8 @@
       ? '<span class="interaction-module-badge">' + escapeHtml(plan) + '</span>'
       : '<svg class="interaction-module-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
     const disabled = enabled ? "" : " disabled aria-disabled=\"true\"";
-    return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + trailing + '</button>';
+    const expanded = kind === "polls" ? ' aria-expanded="' + String(selected) + '"' : "";
+    return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + expanded + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + trailing + '</button>';
   }
 
   function renderHub() {
@@ -194,7 +195,7 @@
     hub.className = "interactions-hub";
     hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">' + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Ganador aleatorio entre asistentes conectados", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Preguntas, respuestas y clasificación en vivo", { enabled: false, plan: "Próximamente" }) + moduleCardMarkup("games", "Juegos colaborativos", "Breakout, Pong, Catcher y más", { enabled: false, plan: "Próximamente" }) + '</div>';
     hub.querySelector('[data-module="polls"]').addEventListener("click", () => {
-      activeModule = "polls";
+      activeModule = activeModule === "polls" ? null : "polls";
       activeDraft = null;
       editingIndex = null;
       pendingDeleteIndex = null;

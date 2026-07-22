@@ -22,6 +22,19 @@
     return (bytes / Math.pow(1024, index)).toFixed(index > 1 ? 1 : 0) + " " + units[index];
   }
 
+  function formatDuration(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds <= 0) return "Duración pendiente";
+    const total = Math.round(seconds);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const remainder = total % 60;
+    const clock = hours
+      ? hours + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0")
+      : minutes + ":" + String(remainder).padStart(2, "0");
+    return "Duración " + clock;
+  }
+
   function slideId(slide, index) {
     return String(slide?.id || "slide-" + String(index + 1).padStart(3, "0"));
   }
@@ -31,6 +44,8 @@
   }
 
   function storedThumbnail(video) {
+    const serverPreview = String(video?.preview?.url || "").trim();
+    if (serverPreview) return serverPreview;
     if (!currentDeck?.deckId || !video?.id) return "";
     try {
       const value = window.localStorage.getItem(thumbnailStorageKey(video)) || "";
@@ -38,13 +53,6 @@
     } catch (_error) {
       return "";
     }
-  }
-
-  function storeThumbnail(video, value) {
-    if (!video?.id || !value) return;
-    try {
-      window.localStorage.setItem(thumbnailStorageKey(video), value);
-    } catch (_error) {}
   }
 
   function removeThumbnail(video) {
@@ -59,6 +67,7 @@
       const video = document.createElement("video");
       const objectUrl = URL.createObjectURL(file);
       let finished = false;
+      let durationSeconds = null;
       const timeout = window.setTimeout(() => finish(""), 6000);
 
       function finish(value) {
@@ -68,7 +77,7 @@
         video.removeAttribute("src");
         video.load();
         URL.revokeObjectURL(objectUrl);
-        resolve(value || "");
+        resolve({ thumbnail: value || "", durationSeconds });
       }
 
       function drawFrame() {
@@ -92,8 +101,12 @@
       video.muted = true;
       video.playsInline = true;
       video.addEventListener("error", () => finish(""), { once: true });
+      video.addEventListener("loadedmetadata", () => {
+        durationSeconds = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : null;
+      }, { once: true });
       video.addEventListener("seeked", drawFrame, { once: true });
       video.addEventListener("loadeddata", () => {
+        durationSeconds = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : durationSeconds;
         const target = Number.isFinite(video.duration) && video.duration > .12 ? Math.min(.12, video.duration / 2) : 0;
         if (target > 0) video.currentTime = target;
         else drawFrame();
@@ -183,17 +196,23 @@
     } else {
       const stack = document.createElement("div");
       stack.className = "video-editor-list";
-      config.videos.forEach((video) => {
+      const orderedVideos = [...config.videos].sort((a, b) => {
+        const aIndex = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === a.slide_id);
+        const bIndex = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === b.slide_id);
+        return (aIndex < 0 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex < 0 ? Number.MAX_SAFE_INTEGER : bIndex);
+      });
+      orderedVideos.forEach((video) => {
         const index = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === video.slide_id);
         const thumbnail = storedThumbnail(video);
         const item = document.createElement("article");
         item.className = "video-editor-item" + (thumbnail ? " has-thumbnail" : "") + (config.hidden_slide_ids.includes(video.slide_id) ? " is-hidden" : "");
-        item.innerHTML = '<div class="video-editor-item-copy"><strong>' + escapeHtml(video.file?.name || "Video") + '</strong><span>Slide ' + (index >= 0 ? index + 1 : "no encontrada") + " · " + escapeHtml(formatBytes(video.file?.size)) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
+        item.innerHTML = '<div class="video-editor-item-copy"><strong>' + escapeHtml(video.file?.name || "Video") + '</strong><span>Slide ' + (index >= 0 ? index + 1 : "no encontrada") + " · " + escapeHtml(formatDuration(video.duration_seconds)) + " · " + escapeHtml(formatBytes(video.file?.size)) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
         if (thumbnail) {
           const image = document.createElement("img");
           image.className = "video-editor-item-thumbnail";
           image.src = thumbnail;
           image.alt = "Primer frame de " + (video.file?.name || "video");
+          image.draggable = false;
           item.prepend(image);
         }
         const actions = item.querySelector(".video-editor-item-actions");
@@ -253,6 +272,7 @@
     const previewNode = form.querySelector("[data-file-preview]");
     const badgeNode = form.querySelector("[data-file-badge]");
     let selectedThumbnail = existing ? storedThumbnail(existing) : "";
+    let selectedDuration = Number(existing?.duration_seconds) || null;
     let thumbnailPromise = null;
 
     function showThumbnail(value) {
@@ -277,12 +297,13 @@
       nameNode.textContent = file.name;
       sizeNode.textContent = formatBytes(file.size) + " · capturando primer frame…";
       form.querySelector("[data-select-file]").textContent = "Cambiar MP4";
-      thumbnailPromise = captureFirstFrame(file).then((thumbnail) => {
+      thumbnailPromise = captureFirstFrame(file).then((preview) => {
         const selected = fileInput.files[0];
         if (!selected || selected.name !== file.name || selected.size !== file.size || selected.lastModified !== file.lastModified) return "";
-        showThumbnail(thumbnail);
-        sizeNode.textContent = formatBytes(file.size) + (thumbnail ? " · thumbnail listo" : " · seleccionado");
-        return thumbnail;
+        selectedDuration = preview.durationSeconds;
+        showThumbnail(preview.thumbnail);
+        sizeNode.textContent = formatBytes(file.size) + " · " + formatDuration(selectedDuration) + (preview.thumbnail ? " · thumbnail listo" : " · seleccionado");
+        return preview.thumbnail;
       });
     });
     form.querySelector("[data-cancel]").addEventListener("click", renderList);
@@ -291,24 +312,27 @@
       const file = fileInput.files[0];
       if (!existing && !file) return setStatus("Selecciona un archivo MP4.", "error");
       if (file && !/\.mp4$/i.test(file.name)) return setStatus("El archivo debe ser MP4.", "error");
-      const video = {
-        id: existing?.id || "vid_" + Date.now().toString(36),
-        slide_id: slideSelect.value,
-        file: file ? { name: file.name, size: file.size, type: file.type || "video/mp4", last_modified: file.lastModified || null } : existing.file,
-        playback: {
-          autoplay: form.elements.autoplay.value === "true",
-          end_behavior: form.elements.end_behavior.value,
-          muted: false
-        }
-      };
-      const next = config.videos.filter((item) => item.slide_id !== editingSlideId && item.slide_id !== video.slide_id);
-      next.push(video);
       try {
         setStatus("Guardando…");
         if (thumbnailPromise) await thumbnailPromise;
+        const video = {
+          id: existing?.id || "vid_" + Date.now().toString(36),
+          slide_id: slideSelect.value,
+          file: file ? { name: file.name, size: file.size, type: file.type || "video/mp4", last_modified: file.lastModified || null } : existing.file,
+          playback: {
+            autoplay: form.elements.autoplay.value === "true",
+            end_behavior: form.elements.end_behavior.value,
+            muted: false
+          },
+          duration_seconds: selectedDuration,
+          preview: /^data:image\/jpeg;base64,/i.test(selectedThumbnail)
+            ? { data_url: selectedThumbnail, width: 320, height: 180 }
+            : file ? null : existing?.preview || null
+        };
+        const next = config.videos.filter((item) => item.slide_id !== editingSlideId && item.slide_id !== video.slide_id);
+        next.push(video);
         await saveVideos(next);
-        if (selectedThumbnail) storeThumbnail(video, selectedThumbnail);
-        else if (file) removeThumbnail(video);
+        removeThumbnail(video);
         setStatus("Video guardado.", "success");
         renderList();
       } catch (error) {

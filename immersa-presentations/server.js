@@ -547,7 +547,7 @@ function normalizeDrawingStroke(session, stroke) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "192kb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));

@@ -51,18 +51,31 @@ test('legacy hidden slide indexes migrate to stable slide ids', async () => {
         id: 'vid_product',
         slide_id: 'product',
         file: { name: 'producto-4k.mp4', size: 987654321, type: 'video/mp4', last_modified: 123 },
-        playback: { autoplay: true, end_behavior: 'loop', muted: false }
+        playback: { autoplay: true, end_behavior: 'loop', muted: false },
+        duration_seconds: 125.432,
+        preview: { data_url: 'data:image/jpeg;base64,/9j/2Q==', width: 320, height: 180 }
+      }, {
+        id: 'vid_intro',
+        slide_id: 'intro',
+        file: { name: 'intro.mp4', size: 123456, type: 'video/mp4', last_modified: 456 },
+        playback: { autoplay: false, end_behavior: 'stay', muted: false },
+        duration_seconds: 9.8
       }]
     }
   }, putRes);
   assert.equal(putRes.statusCode, 200);
   assert.deepEqual(putRes.body.hidden_slide_ids, ['closing']);
   assert.deepEqual(putRes.body.hidden_slide_indexes, [2]);
-  assert.equal(putRes.body.videos[0].slide_id, 'product');
-  assert.equal(putRes.body.videos[0].playback.end_behavior, 'loop');
+  assert.deepEqual(putRes.body.videos.map((video) => video.slide_id), ['intro', 'product']);
+  const productVideo = putRes.body.videos.find((video) => video.id === 'vid_product');
+  assert.equal(productVideo.playback.end_behavior, 'loop');
+  assert.equal(productVideo.duration_seconds, 125.432);
+  assert.equal(productVideo.preview.url, '/decks/sales/video-previews/vid_product.jpg');
+  assert.equal(fs.readFileSync(path.join(deckDir, 'video-previews', 'vid_product.jpg')).toString('hex'), 'ffd8ffd9');
 
   const stored = JSON.parse(fs.readFileSync(path.join(deckDir, 'interactions.json'), 'utf8'));
-  assert.equal(stored.videos[0].file.name, 'producto-4k.mp4');
+  assert.equal(stored.videos.find((video) => video.id === 'vid_product').file.name, 'producto-4k.mp4');
+  assert.equal(stored.videos.find((video) => video.id === 'vid_product').preview.url, '/decks/sales/video-previews/vid_product.jpg');
   assert.deepEqual(stored.hidden_slide_ids, ['closing']);
   fs.rmSync(temp, { recursive: true, force: true });
 });
@@ -74,8 +87,8 @@ test('Home exposes compact multimedia configuration with visible linked file', (
   const css = read('public/home/video-editor.css');
   const visibility = read('public/shared/slide-visibility.js');
 
-  assert.match(html, /video-editor\.css\?v=106/);
-  assert.match(html, /video-editor\.js\?v=106/);
+  assert.match(html, /video-editor\.css\?v=107/);
+  assert.match(html, /video-editor\.js\?v=107/);
   assert.match(html, /video-slide-labels\.js\?v=106/);
   assert.match(editor, /button\.textContent = "Videos"/);
   assert.match(editor, /Configuración Multimedia/);

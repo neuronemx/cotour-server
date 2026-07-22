@@ -11,12 +11,13 @@ test("Home exposes the deck brand mention editor", () => {
   const editor = read("public/home/brand-mentions-editor.js");
   const css = read("public/home/brand-mentions-editor.css");
 
-  assert.match(html, /brand-mentions-editor\.css\?v=2/);
-  assert.match(html, /brand-mentions-editor\.js\?v=2/);
+  assert.match(html, /brand-mentions-editor\.css\?v=3/);
+  assert.match(html, /brand-mentions-editor\.js\?v=3/);
   assert.match(editor, /button\.textContent = "Marcas"/);
   assert.match(editor, /Menciones de marca/);
   assert.match(editor, /Solo Público/);
-  assert.match(editor, /Cada 120 segundos · visible durante 8 segundos/);
+  assert.doesNotMatch(editor, /Rotación automática|Cada 120 segundos/);
+  assert.doesNotMatch(css, /brand-mentions-schedule/);
   assert.match(css, /role-brand-mentions/);
   assert.match(css, /prefers-reduced-motion:reduce/);
 });

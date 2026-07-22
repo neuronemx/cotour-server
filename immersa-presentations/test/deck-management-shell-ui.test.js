@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=4/);
+  assert.match(html, /deck-management-shell\.css\?v=5/);
   assert.match(html, /deck-management-shell\.js\?v=4/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
@@ -60,7 +60,9 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /\.deck-detail-editor-host \.is-deck-inline/);
   assert.match(css, /\.deck-detail-tab svg/);
   assert.match(css, /justify-content: space-between/);
-  assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+min-height: 34px/);
+  assert.match(css, /\.deck-detail-modal \.deck-detail-actions[\s\S]+grid-auto-rows: 34px/);
+  assert.match(css, /\.deck-detail-panel\[data-deck-panel="links"\][\s\S]+align-content: start/);
+  assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+height: 34px/);
   assert.match(css, /\.interactions-status:empty \{ display: none; \}/);
   assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
@@ -82,6 +84,8 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(interactions, /interaction-module-list/);
   assert.doesNotMatch(interactions, /interaction-module-grid/);
   assert.match(interactions, /pollsButton\?\.after\(renderPollPanel\(\)\)/);
+  assert.match(interactions, /activeModule = activeModule === "polls" \? null : "polls"/);
+  assert.match(interactions, /aria-expanded/);
   assert.match(interactions, /section\.appendChild\(makeButton\("Crear encuesta", "interactions-create-action"/);
   assert.doesNotMatch(interactions, /interaction-form-header"><span>Encuesta<\/span>/);
   assert.match(interactionsCss, /grid-template-columns: 42px minmax\(0, 1fr\) auto/);
@@ -92,8 +96,12 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
 
   assert.match(videos, /function captureFirstFrame\(file\)/);
   assert.match(videos, /canvas\.toDataURL\("image\/jpeg", \.76\)/);
-  assert.match(videos, /localStorage\.setItem\(thumbnailStorageKey\(video\), value\)/);
+  assert.match(videos, /video\?\.preview\?\.url/);
+  assert.match(videos, /duration_seconds: selectedDuration/);
+  assert.match(videos, /orderedVideos/);
+  assert.match(videos, /image\.draggable = false/);
   assert.match(videos, /bodyNode\.appendChild\(add\)/);
   assert.match(videosCss, /video-editor-item-thumbnail/);
   assert.match(videosCss, /aspect-ratio:16\/9/);
+  assert.match(videosCss, /pointer-events:none/);
 });
