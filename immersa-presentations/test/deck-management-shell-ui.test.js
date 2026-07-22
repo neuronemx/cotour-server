@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=5/);
+  assert.match(html, /deck-management-shell\.css\?v=6/);
   assert.match(html, /deck-management-shell\.js\?v=4/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
@@ -60,9 +60,9 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /\.deck-detail-editor-host \.is-deck-inline/);
   assert.match(css, /\.deck-detail-tab svg/);
   assert.match(css, /justify-content: space-between/);
-  assert.match(css, /\.deck-detail-modal \.deck-detail-actions[\s\S]+grid-auto-rows: 34px/);
+  assert.match(css, /\.deck-detail-modal \.deck-detail-actions[\s\S]+grid-auto-rows: 51px/);
   assert.match(css, /\.deck-detail-panel\[data-deck-panel="links"\][\s\S]+align-content: start/);
-  assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+height: 34px/);
+  assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+height: 51px/);
   assert.match(css, /\.interactions-status:empty \{ display: none; \}/);
   assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
@@ -70,6 +70,24 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(css, /linear-gradient\(/);
+});
+
+test("Deck detail loads a navigable slide thumbnail strip without changing the show", () => {
+  const html = read("public/home/index.html");
+  const source = read("public/home/home.js");
+  const css = read("public/home/deck-management-shell.css");
+
+  assert.match(html, /id="detailSlideStrip"[^>]+aria-label="Miniaturas del deck"[^>]+hidden/);
+  assert.match(html, /home\.js\?v=46/);
+  assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deck\.deckId\) \+ "\/manifest\.json"/);
+  assert.match(source, /cache: "no-store"/);
+  assert.match(source, /slide\?\.thumb/);
+  assert.match(source, /detailThumb\.replaceChildren\(renderDetailSlide\(deck, slide, index\)\)/);
+  assert.match(source, /aria-pressed/);
+  assert.match(source, /detailSlidesRequestId/);
+  assert.doesNotMatch(source, /slide_go|socket\.emit/);
+  assert.match(css, /\.deck-detail-slide-strip[\s\S]+overflow-x: auto/);
+  assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+background: var\(--grad\)/);
 });
 
 test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {

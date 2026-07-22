@@ -21,6 +21,7 @@ const cancelName = document.getElementById("cancelName");
 const deckDetailModal = document.getElementById("deckDetailModal");
 const closeDeckDetail = document.getElementById("closeDeckDetail");
 const detailThumb = document.getElementById("detailThumb");
+const detailSlideStrip = document.getElementById("detailSlideStrip");
 const detailTitle = document.getElementById("detailTitle");
 const detailDate = document.getElementById("detailDate");
 const detailSlides = document.getElementById("detailSlides");
@@ -36,6 +37,7 @@ const conversionBarFill = document.getElementById("conversionBarFill");
 let conversionProgressTimer = null;
 let conversionProgressValue = 0;
 let pendingFile = null;
+let detailSlidesRequestId = 0;
 
 function normalizeSlug(value) {
   return String(value || "")
@@ -377,6 +379,25 @@ function firstSlideThumbnailCandidates(deck) {
   return unique([...direct.map(absoluteOrRoot), ...derived]);
 }
 
+function deckAssetUrl(deckId, value) {
+  if (!value || typeof value !== "string") return "";
+  if (/^(https?:)?\/\//.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
+  if (value.startsWith("/")) return value;
+  const safePath = value
+    .replace(/^\.\//, "")
+    .split("/")
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  return safePath ? "/decks/" + encodeURIComponent(deckId) + "/" + safePath : "";
+}
+
+function slideImageCandidates(deck, slide, preferThumbnail = false) {
+  const thumbnail = [slide?.thumb, slide?.thumbnail, slide?.thumbnailUrl];
+  const full = [slide?.poster, slide?.image, slide?.imageUrl, slide?.src, slide?.url, slide?.path];
+  return unique((preferThumbnail ? [...thumbnail, ...full] : [...full, ...thumbnail]).map((value) => deckAssetUrl(deck.deckId, value)));
+}
+
 function niceTitle(title = "Presentación") {
   return String(title).replace(/[-_]+/g, " ").trim() || "Presentación";
 }
@@ -419,6 +440,85 @@ function renderThumb(deck, className = "deck-thumb") {
 
   thumb.append(fallback);
   return thumb;
+}
+
+function renderDetailSlide(deck, slide, index) {
+  const thumb = document.createElement("div");
+  const candidates = slideImageCandidates(deck, slide);
+  thumb.className = "deck-detail-thumb" + (candidates.length ? " is-loading" : " has-fallback");
+
+  if (candidates.length) {
+    const img = document.createElement("img");
+    img.alt = "Slide " + (index + 1) + " de " + niceTitle(deck.title || deck.deckId);
+    thumb.appendChild(img);
+    attachImageWithFallback(img, thumb, candidates);
+  }
+
+  const fallback = document.createElement("span");
+  fallback.className = "thumb-fallback";
+  fallback.textContent = "Slide " + (index + 1) + " no disponible";
+  thumb.appendChild(fallback);
+  return thumb;
+}
+
+async function loadDetailSlideNavigation(deck) {
+  if (!detailSlideStrip || !detailThumb) return;
+  const requestId = ++detailSlidesRequestId;
+  detailSlideStrip.hidden = true;
+  detailSlideStrip.replaceChildren();
+
+  try {
+    const response = await fetch("/decks/" + encodeURIComponent(deck.deckId) + "/manifest.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("No se pudieron cargar las miniaturas");
+    const manifest = await response.json();
+    const slides = Array.isArray(manifest?.slides) ? manifest.slides : [];
+    if (requestId !== detailSlidesRequestId || detailDeck?.deckId !== deck.deckId || !slides.length) return;
+
+    const buttons = slides.map((slide, index) => {
+      const button = document.createElement("button");
+      const candidates = slideImageCandidates(deck, slide, true);
+      button.type = "button";
+      button.className = "deck-detail-slide-thumb" + (candidates.length ? " is-loading" : " has-fallback");
+      button.setAttribute("aria-label", "Ver slide " + (index + 1));
+      button.setAttribute("aria-pressed", "false");
+
+      if (candidates.length) {
+        const image = document.createElement("img");
+        image.alt = "";
+        image.loading = "lazy";
+        image.draggable = false;
+        button.appendChild(image);
+        attachImageWithFallback(image, button, candidates);
+      }
+
+      const fallback = document.createElement("span");
+      fallback.className = "deck-detail-slide-fallback";
+      fallback.textContent = String(index + 1);
+      button.appendChild(fallback);
+
+      const number = document.createElement("span");
+      number.className = "deck-detail-slide-number";
+      number.textContent = String(index + 1);
+      button.appendChild(number);
+
+      button.addEventListener("click", () => {
+        if (detailDeck?.deckId !== deck.deckId) return;
+        detailThumb.replaceChildren(renderDetailSlide(deck, slide, index));
+        buttons.forEach((item, itemIndex) => {
+          const selected = itemIndex === index;
+          item.classList.toggle("is-active", selected);
+          item.setAttribute("aria-pressed", String(selected));
+        });
+      });
+      return button;
+    });
+
+    detailSlideStrip.append(...buttons);
+    detailSlideStrip.hidden = false;
+    buttons[0].click();
+  } catch (_error) {
+    if (requestId === detailSlidesRequestId) detailSlideStrip.hidden = true;
+  }
 }
 
 function renderEmptyDecks() {
@@ -564,6 +664,7 @@ function openDeckModal(deck) {
     detailStatus.className = "deck-detail-status" + deckBadgeClass(deck);
   }
   renderDetailActions(deck);
+  loadDetailSlideNavigation(deck);
 
   deckDetailModal.hidden = false;
   deckDetailModal.setAttribute("aria-hidden", "false");
@@ -574,6 +675,11 @@ function openDeckModal(deck) {
 
 function closeDeckModal() {
   if (!deckDetailModal) return;
+  detailSlidesRequestId += 1;
+  if (detailSlideStrip) {
+    detailSlideStrip.hidden = true;
+    detailSlideStrip.replaceChildren();
+  }
   deckDetailModal.hidden = true;
   deckDetailModal.setAttribute("aria-hidden", "true");
   document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));

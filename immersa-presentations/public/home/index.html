@@ -26,7 +26,7 @@
     .deck-detail-delete{justify-self:start;color:var(--muted-2);font-size:13px;font-weight:700;border-bottom:1px solid transparent}.deck-detail-delete:hover{color:var(--red);border-bottom-color:var(--red)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=5">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=6">
 </head>
 <body>
   <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
@@ -71,7 +71,7 @@
   <div id="deckDetailModal" class="modal-backdrop" hidden aria-hidden="true">
     <section class="deck-detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <header class="deck-detail-header">
-        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div></div>
+        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
         <div class="deck-detail-copy"><div><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><button id="detailDelete" class="deck-detail-delete" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>Eliminar presentación</button></div>
         <button id="closeDeckDetail" class="deck-detail-close" type="button" aria-label="Cerrar detalle">×</button>
       </header>
@@ -106,7 +106,7 @@
   <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
-  <script src="/home/home.js?v=45"></script>
+  <script src="/home/home.js?v=46"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/interactions-editor.js?v=5"></script>
   <script src="/home/video-editor.js?v=107"></script>
