@@ -61,17 +61,18 @@
   flex: 0 0 88px;
   width: 88px;
   aspect-ratio: 16 / 9;
-  padding: 2px;
+  padding: 1px;
   overflow: hidden;
   border: 0;
   border-radius: 7px;
-  background: #e9ebf4;
+  background: rgba(255, 255, 255, .3);
   box-shadow: 0 1px 5px rgba(10, 10, 30, .12);
   transition: transform .14s ease, box-shadow .14s ease;
 }
 
 .deck-detail-slide-thumb:hover { transform: translateY(-1px); }
 .deck-detail-slide-thumb.is-active {
+  padding: 2px;
   background: var(--grad);
   box-shadow: 0 3px 10px rgba(67, 104, 246, .28);
 }
