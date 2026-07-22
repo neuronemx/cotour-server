@@ -34,7 +34,7 @@
   z-index: 3;
   display: flex;
   gap: 5px;
-  padding: 8px 10px 9px;
+  padding: 5px;
   overflow-x: auto;
   border-top: 1px solid rgba(255, 255, 255, .14);
   background: rgba(10, 10, 30, .58);
@@ -58,8 +58,8 @@
 
 .deck-detail-slide-thumb {
   position: relative;
-  flex: 0 0 76px;
-  width: 76px;
+  flex: 0 0 88px;
+  width: 88px;
   aspect-ratio: 16 / 9;
   padding: 2px;
   overflow: hidden;
@@ -408,8 +408,8 @@
   .deck-detail-panel-heading h3 { font-size: 15px; }
   .deck-detail-panel-heading p { font-size: 11.5px; }
   .deck-detail-modal .deck-detail-actions { gap: 9px; }
-  .deck-detail-slide-strip { gap: 4px; padding: 7px 8px 8px; }
-  .deck-detail-slide-thumb { flex-basis: 68px; width: 68px; }
+  .deck-detail-slide-strip { gap: 4px; padding: 4px; }
+  .deck-detail-slide-thumb { flex-basis: 80px; width: 80px; }
   .deck-detail-modal .deck-detail-actions { grid-auto-rows: 45px; }
   .deck-detail-modal .detail-role-action { height: 45px; min-height: 0; padding-right: 9px; padding-left: 36px; font-size: 11.5px; }
   .deck-detail-modal .detail-role-action::before { left: 11px; width: 16px; height: 16px; }

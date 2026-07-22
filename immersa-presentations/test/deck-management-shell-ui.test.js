@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=7/);
+  assert.match(html, /deck-management-shell\.css\?v=8/);
   assert.match(html, /deck-management-shell\.js\?v=4/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
@@ -89,10 +89,12 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+overflow-x: auto/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+position: absolute[\s\S]+bottom: 0/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+gap: 5px/);
+  assert.match(css, /\.deck-detail-slide-strip[\s\S]+padding: 5px/);
+  assert.match(css, /\.deck-detail-slide-thumb[\s\S]+flex: 0 0 88px[\s\S]+width: 88px/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+background: rgba\(10, 10, 30, \.58\)/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+backdrop-filter: blur\(12px\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+background: var\(--grad\)/);
-  assert.match(html, /deck-management-shell\.css\?v=7/);
+  assert.match(html, /deck-management-shell\.css\?v=8/);
 });
 
 test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {
