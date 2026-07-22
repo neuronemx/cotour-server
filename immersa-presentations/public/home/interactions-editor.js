@@ -188,8 +188,8 @@
   function renderHub() {
     const summary = pollSummary();
     const pollDetail = interactions.length
-      ? interactions.length + " encuesta" + (interactions.length === 1 ? "" : "s") + (summary.detail ? " · " + summary.detail : "")
-      : "0 encuestas · Selecciona para crear o editar";
+      ? interactions.length + " creada" + (interactions.length === 1 ? "" : "s") + (summary.detail ? " · " + summary.detail : "")
+      : "Ninguna creada · Selecciona para comenzar";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
     hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">' + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Ganador aleatorio entre asistentes conectados", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Preguntas, respuestas y clasificación en vivo", { enabled: false, plan: "Próximamente" }) + moduleCardMarkup("games", "Juegos colaborativos", "Breakout, Pong, Catcher y más", { enabled: false, plan: "Próximamente" }) + '</div>';
@@ -236,7 +236,7 @@
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><span>Encuesta</span><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Stage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar encuesta</button></div>';
+    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Stage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar encuesta</button></div>';
     const title = form.elements.title;
     const prompt = form.elements.prompt;
     const optionsFields = form.querySelector(".interaction-options-fields");
@@ -301,16 +301,6 @@
   function renderPollPanel() {
     const section = document.createElement("section");
     section.className = "interactions-polls-section";
-    const heading = document.createElement("div");
-    heading.className = "interactions-list-heading";
-    heading.innerHTML = '<div><strong>Encuestas</strong><span>Crea preguntas que Speaker o Stage pueden lanzar cuando quieran.</span></div>';
-    heading.appendChild(makeButton("Crear encuesta", "interactions-small-action", () => {
-      pendingDeleteIndex = null;
-      activeDraft = defaultDraft();
-      editingIndex = null;
-      renderList();
-    }));
-    section.appendChild(heading);
 
     if (activeDraft) {
       section.appendChild(renderPollForm(activeDraft, editingIndex));
@@ -320,45 +310,55 @@
     if (!interactions.length) {
       const empty = document.createElement("p");
       empty.className = "interactions-empty";
-      empty.textContent = "Sin encuestas todavía.";
+      empty.textContent = "Aún no hay ninguna.";
       section.appendChild(empty);
-      return section;
+    } else {
+      const list = document.createElement("div");
+      list.className = "interaction-list-stack";
+      interactions.forEach((interaction, index) => {
+        const item = document.createElement("article");
+        item.className = "interaction-list-item";
+        const count = Array.isArray(interaction.options) ? interaction.options.length : 0;
+        const activation = interaction.slide_id ? "fija" : "libre";
+        item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Sin título") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
+        const actions = item.querySelector(".interaction-list-actions");
+        actions.append(
+          makeButton("Editar", "interactions-text-action", () => {
+            pendingDeleteIndex = null;
+            activeDraft = normalizeForForm(interaction);
+            editingIndex = index;
+            renderList();
+          }),
+          makeButton("Eliminar", "interactions-text-action danger", () => {
+            pendingDeleteIndex = index;
+            activeDraft = null;
+            editingIndex = null;
+            renderList();
+          })
+        );
+        list.appendChild(item);
+        if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
+      });
+      section.appendChild(list);
     }
 
-    const list = document.createElement("div");
-    list.className = "interaction-list-stack";
-    interactions.forEach((interaction, index) => {
-      const item = document.createElement("article");
-      item.className = "interaction-list-item";
-      const count = Array.isArray(interaction.options) ? interaction.options.length : 0;
-      const activation = interaction.slide_id ? "fija" : "libre";
-      item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Encuesta") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
-      const actions = item.querySelector(".interaction-list-actions");
-      actions.append(
-        makeButton("Editar", "interactions-text-action", () => {
-          pendingDeleteIndex = null;
-          activeDraft = normalizeForForm(interaction);
-          editingIndex = index;
-          renderList();
-        }),
-        makeButton("Eliminar", "interactions-text-action danger", () => {
-          pendingDeleteIndex = index;
-          activeDraft = null;
-          editingIndex = null;
-          renderList();
-        })
-      );
-      list.appendChild(item);
-      if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
-    });
-    section.appendChild(list);
+    section.appendChild(makeButton("Crear encuesta", "interactions-create-action", () => {
+      pendingDeleteIndex = null;
+      activeDraft = defaultDraft();
+      editingIndex = null;
+      renderList();
+    }));
     return section;
   }
 
   function renderList() {
     listNode.innerHTML = "";
-    listNode.appendChild(renderHub());
-    if (activeModule === "polls") listNode.appendChild(renderPollPanel());
+    const hub = renderHub();
+    listNode.appendChild(hub);
+    if (activeModule === "polls") {
+      const pollsButton = hub.querySelector('[data-module="polls"]');
+      pollsButton?.after(renderPollPanel());
+    }
   }
 
   function appendInteractionsButton(deck) {
