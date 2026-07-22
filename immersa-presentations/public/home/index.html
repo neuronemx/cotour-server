@@ -26,7 +26,7 @@
     .deck-detail-delete{justify-self:start;color:var(--muted-2);font-size:13px;font-weight:700;border-bottom:1px solid transparent}.deck-detail-delete:hover{color:var(--red);border-bottom-color:var(--red)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=1">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=2">
 </head>
 <body>
   <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
@@ -88,22 +88,20 @@
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
         </section>
         <section id="deckPanelInteractions" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabInteractions" data-deck-panel="interactions" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Interacciones</h3><p>Diseña y administra las dinámicas de esta presentación.</p></div></div>
-          <div class="deck-detail-module-slot" data-deck-action-slot="interactions"></div>
+          <div class="deck-detail-editor-host" data-deck-editor-host="interactions"></div>
         </section>
         <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Marcas y patrocinadores</h3><p>Configura las menciones que aparecerán únicamente en Público.</p></div></div>
-          <div class="deck-detail-module-slot" data-deck-action-slot="brands"></div>
+          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
         </section>
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Video</h3><p>Configura los videos locales vinculados a las slides del deck.</p></div></div>
-          <div class="deck-detail-module-slot" data-deck-action-slot="video"></div>
+          <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
         <section id="deckPanelHistory" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabHistory" data-deck-panel="history" hidden>
           <div class="deck-detail-panel-heading"><div><h3>Historial</h3><p>Consulta las ejecuciones y resultados guardados de esta presentación.</p></div></div>
           <section id="qnaHistory" class="qna-history" aria-labelledby="qnaHistoryTitle" hidden><button id="qnaHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="qnaHistoryBody"><span id="qnaHistoryTitle">Historial de preguntas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="qnaHistoryBody" class="qna-history-body" hidden><div class="qna-history-head"><p id="qnaHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div class="qna-history-actions"><button id="qnaHistoryExport" class="qna-history-export" type="button" hidden>Descargar CSV</button><button id="qnaHistoryDelete" class="qna-history-delete" type="button" hidden>Borrar historial</button></div></div><div id="qnaHistoryList" class="qna-history-list"></div><div id="qnaHistoryConfirm" class="qna-history-confirm" role="alertdialog" aria-labelledby="qnaHistoryConfirmTitle" hidden><strong id="qnaHistoryConfirmTitle">Esta acción es permanente</strong><p>Se eliminarán todas las preguntas y ejecuciones anteriores. Si Screen está abierto, se conservará únicamente una ejecución vacía para no interrumpir la sesión.</p><div class="qna-history-confirm-actions"><button id="qnaHistoryCancelDelete" class="qna-history-cancel" type="button">Cancelar</button><button id="qnaHistoryConfirmDelete" class="qna-history-confirm-delete" type="button">Borrar definitivamente</button></div></div></div></section>
         </section>
       </div>
+      <div id="deckEditorLaunchers" hidden aria-hidden="true"></div>
     </section>
   </div>
   <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
@@ -115,6 +113,6 @@
   <script src="/home/video-editor.js?v=105"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=1"></script>
-  <script src="/home/deck-management-shell.js?v=1"></script>
+  <script src="/home/deck-management-shell.js?v=2"></script>
 </body>
 </html>
