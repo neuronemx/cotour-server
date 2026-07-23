@@ -1,0 +1,151 @@
+.live-text-button svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.live-text-button.is-live,
+.live-text-button[aria-pressed="true"] {
+  color: #fff;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(196,150,255,.98) 0%, rgba(139,63,255,.98) 36%, transparent 62%),
+    linear-gradient(135deg, #8b3dff 0%, #684cff 46%, #21b7ff 100%);
+  border-color: rgba(255,255,255,.16);
+  box-shadow:
+    0 0 0 5px rgba(104,76,255,.14),
+    0 0 30px rgba(92,92,255,.42),
+    0 0 28px rgba(33,183,255,.22),
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 -1px 0 rgba(0,0,0,.2);
+}
+
+.controller-live-text-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  place-items: center;
+  padding: 18px;
+}
+
+.controller-live-text-modal.is-open {
+  display: grid;
+}
+
+.controller-live-text-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2,4,8,.72);
+  backdrop-filter: blur(12px);
+}
+
+.controller-live-text-card {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.14);
+  color: #fff;
+  background: linear-gradient(180deg, rgba(18,22,34,.97), rgba(10,13,22,.96));
+  box-shadow: 0 28px 86px rgba(0,0,0,.48), 0 1px 0 rgba(255,255,255,.07) inset;
+}
+
+.controller-live-text-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.controller-live-text-head span {
+  color: #68d8cc;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.controller-live-text-head strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.controller-live-text-form {
+  display: grid;
+  gap: 10px;
+}
+
+.controller-live-text-form label {
+  color: rgba(234,255,251,.64);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.controller-live-text-form textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 18px;
+  padding: 13px 14px;
+  color: #fff;
+  background: rgba(0,0,0,.24);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.35;
+  outline: none;
+}
+
+.controller-live-text-form textarea:focus {
+  border-color: rgba(104,216,204,.52);
+  box-shadow: 0 0 0 4px rgba(104,216,204,.1);
+}
+
+.controller-live-text-form small {
+  color: rgba(234,255,251,.64);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.controller-live-text-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.controller-live-text-actions button {
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  font: inherit;
+  font-weight: 780;
+}
+
+.controller-live-text-actions .primary-action {
+  color: #eafffb;
+  background: rgba(104,216,204,.16);
+  border-color: rgba(104,216,204,.34);
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .live-text-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .controller-live-text-card {
+    padding: 15px;
+    border-radius: 20px;
+  }
+}

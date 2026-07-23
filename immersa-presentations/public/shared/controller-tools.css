@@ -1,0 +1,105 @@
+.drawing-button {
+  position: relative;
+}
+
+.drawing-icon {
+  width: 24px;
+  height: 24px;
+  background-color: currentColor;
+  -webkit-mask-image: url('/assets/icons/marcador-mask.png');
+  mask-image: url('/assets/icons/marcador-mask.png');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* Immersa special-function fill
+   Base visual language for Trazo vivo and future special tools:
+   Encuestas, Sorteos, Juegos, etc. */
+
+.interaction-button {
+  position: relative;
+}
+
+.interaction-button svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+  color: currentColor;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+
+.fx-special-button,
+.fx-btn.special-active,
+.fx-btn.is-special-active,
+.interaction-button.is-active,
+.interaction-button[aria-pressed="true"],
+
+.drawing-button.active,
+.drawing-button[aria-pressed="true"] {
+  color: #fff;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(196,150,255,.98) 0%, rgba(139,63,255,.98) 36%, transparent 62%),
+    linear-gradient(135deg, #8b3dff 0%, #684cff 46%, #21b7ff 100%);
+  border-color: rgba(255,255,255,.16);
+  border-radius: 999px;
+  background-clip: padding-box;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 5px rgba(104, 76, 255, .14),
+    0 0 30px rgba(92, 92, 255, .42),
+    0 0 28px rgba(33, 183, 255, .22),
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 -1px 0 rgba(0,0,0,.20);
+}
+
+.drawing-button.is-active .drawing-icon,
+.drawing-button.active .drawing-icon,
+.drawing-button[aria-pressed="true"] .drawing-icon {
+  background-color: #fff;
+}
+
+.interaction-button.is-active svg,
+.interaction-button[aria-pressed="true"] svg {
+  color: #fff;
+  stroke: #fff;
+}
+
+@media (max-width: 760px) {
+  .drawing-icon { width: 22px; height: 22px; }
+  .interaction-button svg { width: 21px; height: 21px; }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .drawing-icon { width: 20px; height: 20px; }
+  .interaction-button svg { width: 20px; height: 20px; }
+}
+
+
+/* Rocket icon uses the approved filled SVG silhouette. */
+.interaction-button .interaction-rocket-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  color: currentColor;
+  fill: currentColor;
+  stroke: none;
+}
+
+@media (max-width: 760px) {
+  .interaction-button .interaction-rocket-icon { width: 22px; height: 22px; }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .interaction-button .interaction-rocket-icon { width: 20px; height: 20px; }
+}

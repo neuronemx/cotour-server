@@ -12,7 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v8">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v9">
+  <link rel="stylesheet" href="/shared/controller-tools.css?v=1">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
   <link rel="stylesheet" href="/shared/qna-controls.css">
@@ -45,6 +46,10 @@
           <span></span>
           <em>QR público</em>
         </label>
+        <button id="stageTransmissionToggle" class="toolbar-button" type="button" aria-pressed="false">Pausar</button>
+        <button id="stageDrawToggle" class="toolbar-button drawing-button stage-drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
+          <span class="drawing-icon" aria-hidden="true"></span>
+        </button>
         <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
         <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
       </div>
@@ -81,7 +86,7 @@
   </main>
 
   <div id="textModal" class="modal" aria-hidden="true">
-    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-backdrop" data-close-live-text></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="textModalTitle">
       <div class="modal-head">
         <span>Stage</span>
@@ -106,8 +111,9 @@
   <script src="/shared/interactions-shell.js"></script>
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
+  <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js"></script>
-  <script src="/stage/stage.js?v=stage-v8"></script>
+  <script src="/stage/stage.js?v=stage-v9"></script>
   <script src="/shared/breakout-audio.js?v=98"></script>
   <script src="/shared/pong-audio.js?v=2"></script>
 </body>

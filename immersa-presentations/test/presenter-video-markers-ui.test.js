@@ -10,11 +10,11 @@ test("Speaker tools render in the requested visual order", () => {
   const html = read("public/presenter/index.html");
   const css = read("public/presenter/presenter.css");
   const tools = html.match(/<div class="fx-module"[\s\S]*?<\/div>\s*<\/section>/)?.[0] || "";
-  const domOrder = ["audienceQr", "localReactions", "drawToggle", "interactionToggle"]
+  const domOrder = ["audienceQr", "localReactions", "drawToggle", "liveTextToggle", "interactionToggle"]
     .map((id) => [id, tools.indexOf(`id="${id}"`)])
     .sort((a, b) => a[1] - b[1])
     .map(([id]) => id);
-  assert.deepEqual(domOrder, ["audienceQr", "localReactions", "drawToggle", "interactionToggle"]);
+  assert.deepEqual(domOrder, ["audienceQr", "localReactions", "drawToggle", "liveTextToggle", "interactionToggle"]);
   assert.match(css, /\.fx-module[\s\S]*?flex-direction:\s*column-reverse/);
 });
 
