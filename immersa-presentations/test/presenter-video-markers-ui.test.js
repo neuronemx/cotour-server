@@ -49,6 +49,7 @@ test("Speaker fullscreen swaps to the supplied collapse icon without an active c
   assert.match(fullscreenButton, /class="fullscreen-collapse-icon" viewBox="0 0 48 48"/);
   assert.match(fullscreenButton, /M8,26a2,2,0,0,0-2,2\.3/);
   assert.match(fullscreenButton, /M43\.7,4\.8a2,2,0,0,0-3\.1-\.2/);
+  assert.match(css, /\.fullscreen-button \.fullscreen-collapse-icon\s*\{\s*display:\s*none/);
   assert.match(css, /\.fullscreen-button\[aria-pressed="true"\]\s*\{[\s\S]*?background:\s*linear-gradient\(180deg,\s*rgba\(35,43,47,\.54\),\s*rgba\(8,10,14,\.50\)\)/);
   assert.match(css, /\.fullscreen-button\[aria-pressed="true"\] \.fullscreen-expand-icon\s*\{\s*display:\s*none/);
   assert.match(css, /\.fullscreen-button\[aria-pressed="true"\] \.fullscreen-collapse-icon\s*\{[\s\S]*?display:\s*block[\s\S]*?fill:\s*currentColor[\s\S]*?stroke:\s*none/);
