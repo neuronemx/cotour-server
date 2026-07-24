@@ -40,6 +40,20 @@ test("Speaker tools become horizontal in compact landscape", () => {
   assert.match(css, /\.thumbs\s*\{[\s\S]*?bottom:\s*calc\(66px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
+test("Speaker fullscreen swaps to the supplied collapse icon without an active cyan fill", () => {
+  const html = read("public/presenter/index.html");
+  const css = read("public/presenter/presenter.css");
+  const fullscreenButton = html.match(/<button id="fullscreenToggle"[\s\S]*?<\/button>/)?.[0] || "";
+
+  assert.match(fullscreenButton, /class="fullscreen-expand-icon"/);
+  assert.match(fullscreenButton, /class="fullscreen-collapse-icon" viewBox="0 0 48 48"/);
+  assert.match(fullscreenButton, /M8,26a2,2,0,0,0-2,2\.3/);
+  assert.match(fullscreenButton, /M43\.7,4\.8a2,2,0,0,0-3\.1-\.2/);
+  assert.match(css, /\.fullscreen-button\[aria-pressed="true"\]\s*\{[\s\S]*?background:\s*linear-gradient\(180deg,\s*rgba\(35,43,47,\.54\),\s*rgba\(8,10,14,\.50\)\)/);
+  assert.match(css, /\.fullscreen-button\[aria-pressed="true"\] \.fullscreen-expand-icon\s*\{\s*display:\s*none/);
+  assert.match(css, /\.fullscreen-button\[aria-pressed="true"\] \.fullscreen-collapse-icon\s*\{[\s\S]*?display:\s*block[\s\S]*?fill:\s*currentColor[\s\S]*?stroke:\s*none/);
+});
+
 test("Speaker marks only video slides with the 80 percent Immersa gradient icon", () => {
   const script = read("public/presenter/presenter.js");
   const css = read("public/presenter/presenter.css");
