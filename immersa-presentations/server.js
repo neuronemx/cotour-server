@@ -109,7 +109,7 @@ function canControlPresentation(role) {
 
 function canNavigatePresentation(role, session) {
   if (!canControlPresentation(role)) return false;
-  return !session?.transmissionPaused || role === "presenter";
+  return !session?.transmissionPaused || session.transmissionPausedBy === role;
 }
 
 async function ensureDataDirs() {
@@ -427,6 +427,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     presenterSlideIndex: 0,
     liveSlideIndex: 0,
     transmissionPaused: false,
+    transmissionPausedBy: null,
     presenterConnected: false,
     screenConnected: false,
     stageConnected: false,
@@ -490,6 +491,7 @@ function publicState(session) {
     liveSlideIndex: session.liveSlideIndex,
     slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
+    transmissionPausedBy: session.transmissionPausedBy,
     presenterConnected: session.presenterConnected,
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
@@ -707,7 +709,10 @@ io.on("connection", (socket) => {
     if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
-    session.transmissionPaused = true;
+    if (!session.transmissionPaused) {
+      session.transmissionPaused = true;
+      session.transmissionPausedBy = currentRole;
+    }
     emitState(currentRoomKey, session);
   });
 
@@ -716,6 +721,7 @@ io.on("connection", (socket) => {
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     session.transmissionPaused = false;
+    session.transmissionPausedBy = null;
     session.liveSlideIndex = session.presenterSlideIndex;
     session.slideIndex = session.presenterSlideIndex;
     emitState(currentRoomKey, session);

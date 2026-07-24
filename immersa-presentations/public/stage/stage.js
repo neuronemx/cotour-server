@@ -271,7 +271,7 @@ function applySlideOrientation(item, src) {
 
 function updateSlideControls() {
   const slideCount = manifest?.slides?.length || 0;
-  const navigationLocked = Boolean(currentState?.transmissionPaused);
+  const navigationLocked = Boolean(currentState?.transmissionPaused && currentState?.transmissionPausedBy !== "stage");
   const displayIndex = slideCount ? currentSlideIndex + 1 : 0;
   current.textContent = displayIndex;
   total.textContent = slideCount || 0;
@@ -315,7 +315,7 @@ function updateOverlay(patch) {
 }
 
 function emitStageSlide(targetIndex) {
-  if (!manifest?.slides?.length || currentState?.transmissionPaused) return;
+  if (!manifest?.slides?.length || (currentState?.transmissionPaused && currentState?.transmissionPausedBy !== "stage")) return;
   const now = Date.now();
   if (now - lastStageCommandAt < STAGE_COMMAND_DEBOUNCE_MS) return;
   lastStageCommandAt = now;
