@@ -264,7 +264,9 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   width: 46px; min-width: 46px; height: 46px; min-height: 46px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
-.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg { stroke-width: 2; }
+.thumbs-toggle svg { stroke-width: 1.8; }
 /* Thumbnails toggle lives in the tools capsule, but only appears in compact landscape. */
 .fx-module .thumbs-toggle {
   display: none;

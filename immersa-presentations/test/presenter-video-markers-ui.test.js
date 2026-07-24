@@ -27,9 +27,14 @@ test("Speaker tools render in the requested visual order", () => {
 });
 
 test("Speaker tools become horizontal in compact landscape", () => {
+  const html = read("public/presenter/index.html");
+  const presenterCss = read("public/presenter/presenter.css");
   const css = read("public/presenter/mobile-controls-tuning.css");
 
   assert.match(css, /@media \(orientation:\s*landscape\) and \(max-height:\s*520px\)[\s\S]*?\.fx-module\s*\{[\s\S]*?flex-direction:\s*row-reverse/);
+  assert.match(html, /id="thumbsToggle"[\s\S]*?<rect x="9" y="4" width="6" height="16" rx="1\.5"><\/rect><path d="M4 8v8M20 8v8"><\/path>/);
+  assert.match(presenterCss, /\.thumbs-toggle svg\s*\{\s*stroke-width:\s*1\.8/);
+  assert.match(css, /\.thumbs\s*\{[\s\S]*?bottom:\s*calc\(66px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("Speaker marks only video slides with the 80 percent Immersa gradient icon", () => {
