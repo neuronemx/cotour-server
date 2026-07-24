@@ -271,11 +271,15 @@ function applySlideOrientation(item, src) {
 
 function updateSlideControls() {
   const slideCount = manifest?.slides?.length || 0;
+  const navigationLocked = Boolean(currentState?.transmissionPaused);
   const displayIndex = slideCount ? currentSlideIndex + 1 : 0;
   current.textContent = displayIndex;
   total.textContent = slideCount || 0;
-  prevSlide.disabled = !slideCount || currentSlideIndex <= 0;
-  nextSlide.disabled = !slideCount || currentSlideIndex >= slideCount - 1;
+  prevSlide.disabled = navigationLocked || !slideCount || currentSlideIndex <= 0;
+  nextSlide.disabled = navigationLocked || !slideCount || currentSlideIndex >= slideCount - 1;
+  stageThumbs?.querySelectorAll(".stage-thumb").forEach((button) => {
+    button.disabled = navigationLocked;
+  });
 }
 
 function render(state) {
@@ -290,7 +294,7 @@ function render(state) {
     stageTransmissionToggle.setAttribute("aria-pressed", String(paused));
   }
 
-  const index = clampSlideIndex(state.liveSlideIndex ?? state.slideIndex ?? currentSlideIndex);
+  const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
   currentSlideIndex = index;
   const item = manifest.slides[index];
   const src = "/decks/" + deckId + "/" + item.src;
@@ -311,7 +315,7 @@ function updateOverlay(patch) {
 }
 
 function emitStageSlide(targetIndex) {
-  if (!manifest?.slides?.length) return;
+  if (!manifest?.slides?.length || currentState?.transmissionPaused) return;
   const now = Date.now();
   if (now - lastStageCommandAt < STAGE_COMMAND_DEBOUNCE_MS) return;
   lastStageCommandAt = now;

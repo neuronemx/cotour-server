@@ -107,6 +107,11 @@ function canControlPresentation(role) {
   return controllerRoles.has(role);
 }
 
+function canNavigatePresentation(role, session) {
+  if (!canControlPresentation(role)) return false;
+  return !session?.transmissionPaused || role === "presenter";
+}
+
 async function ensureDataDirs() {
   await fs.promises.mkdir(DATA_DECKS_DIR, { recursive: true });
   await fs.promises.mkdir(DATA_TMP_DIR, { recursive: true });
@@ -717,25 +722,25 @@ io.on("connection", (socket) => {
   });
 
   socket.on("slide_next", async () => {
-    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
     emitState(currentRoomKey, session);
   });
 
   socket.on("slide_prev", async () => {
-    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
     emitState(currentRoomKey, session);
   });
 
   socket.on("slide_go", async ({ slideIndex }) => {
-    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
     emitState(currentRoomKey, session);
   });

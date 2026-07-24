@@ -35,6 +35,17 @@ test("server authorizes both controller roles through one capability guard", () 
   assert.match(server, /socket\.on\("transmission_pause"[\s\S]*?!canControlPresentation\(currentRole\)/);
 });
 
+test("only Speaker can navigate while transmission is paused", () => {
+  const server = read("server.js");
+  const stageScript = read("public/stage/stage.js");
+
+  assert.match(server, /function canNavigatePresentation\(role, session\) \{[\s\S]*?!session\?\.transmissionPaused \|\| role === "presenter"/);
+  assert.equal((server.match(/!canNavigatePresentation\(currentRole, session\)/g) || []).length, 3);
+  assert.match(stageScript, /state\.presenterSlideIndex \?\? state\.slideIndex/);
+  assert.match(stageScript, /const navigationLocked = Boolean\(currentState\?\.transmissionPaused\)/);
+  assert.match(stageScript, /if \(!manifest\?\.slides\?\.length \|\| currentState\?\.transmissionPaused\) return/);
+});
+
 test("Stage exposes Speaker transmission pause and live drawing controls", () => {
   const html = read("public/stage/index.html");
   const script = read("public/stage/stage.js");
