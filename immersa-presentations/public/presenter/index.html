@@ -13,8 +13,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/presenter/presenter.css">
-  <link rel="stylesheet" href="/shared/controller-tools.css?v=1">
-  <link rel="stylesheet" href="/shared/live-text-control.css?v=1">
+  <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
+  <link rel="stylesheet" href="/shared/live-text-control.css?v=2">
   <link rel="stylesheet" href="/presenter/mobile-controls-tuning.css">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
@@ -59,11 +59,11 @@
             <input id="localReactions" type="checkbox" checked>
             <svg viewBox="0 0 24 24" aria-hidden="true" class="reaction-icon"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
           </label>
+          <button id="liveTextToggle" class="control-button muted-button live-text-button fx-btn" type="button" aria-pressed="false" title="Texto en vivo" aria-label="Texto en vivo">
+            <span class="live-text-icon" aria-hidden="true"></span>
+          </button>
           <button id="drawToggle" class="control-button muted-button drawing-button fx-btn" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
             <span class="drawing-icon" aria-hidden="true"></span>
-          </button>
-          <button id="liveTextToggle" class="control-button muted-button live-text-button fx-btn" type="button" aria-pressed="false" title="Texto en vivo" aria-label="Texto en vivo">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7V4h14v3"></path><path d="M12 4v16"></path><path d="M9 20h6"></path></svg>
           </button>
           <button id="interactionToggle" class="control-button muted-button interaction-button fx-btn" type="button" aria-pressed="false" aria-expanded="false" title="Interacciones" aria-label="Interacciones">
             <svg class="interaction-rocket-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">

@@ -33,6 +33,7 @@
   }
 
   .fx-module {
+    flex-direction: row-reverse;
     padding: 5px;
     gap: 4px;
     overflow: visible;

@@ -1,27 +1,15 @@
-.live-text-button svg {
-  width: 22px;
-  height: 22px;
-  display: block;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.live-text-button {
+  position: relative;
 }
 
-.live-text-button.is-live,
-.live-text-button[aria-pressed="true"] {
-  color: #fff;
-  background:
-    radial-gradient(circle at 34% 24%, rgba(196,150,255,.98) 0%, rgba(139,63,255,.98) 36%, transparent 62%),
-    linear-gradient(135deg, #8b3dff 0%, #684cff 46%, #21b7ff 100%);
-  border-color: rgba(255,255,255,.16);
-  box-shadow:
-    0 0 0 5px rgba(104,76,255,.14),
-    0 0 30px rgba(92,92,255,.42),
-    0 0 28px rgba(33,183,255,.22),
-    inset 0 1px 0 rgba(255,255,255,.28),
-    inset 0 -1px 0 rgba(0,0,0,.2);
+.live-text-button .live-text-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex: 0 0 auto;
+  background-color: currentColor;
+  -webkit-mask: url("/assets/icons/texto-en-vivo.svg") center / contain no-repeat;
+  mask: url("/assets/icons/texto-en-vivo.svg") center / contain no-repeat;
 }
 
 .controller-live-text-modal {
@@ -139,9 +127,9 @@
 }
 
 @media (max-width: 390px), (max-height: 640px) {
-  .live-text-button svg {
-    width: 20px;
-    height: 20px;
+  .live-text-button .live-text-icon {
+    width: 21px;
+    height: 21px;
   }
 
   .controller-live-text-card {

@@ -44,7 +44,8 @@
 .fx-btn.is-special-active,
 .interaction-button.is-active,
 .interaction-button[aria-pressed="true"],
-
+.live-text-button.is-live,
+.live-text-button[aria-pressed="true"],
 .drawing-button.active,
 .drawing-button[aria-pressed="true"] {
   color: #fff;
@@ -69,6 +70,11 @@
   background-color: #fff;
 }
 
+.live-text-button.is-live .live-text-icon,
+.live-text-button[aria-pressed="true"] .live-text-icon {
+  background-color: #fff;
+}
+
 .interaction-button.is-active svg,
 .interaction-button[aria-pressed="true"] svg {
   color: #fff;
@@ -77,11 +83,13 @@
 
 @media (max-width: 760px) {
   .drawing-icon { width: 22px; height: 22px; }
+  .live-text-button .live-text-icon { width: 22px; height: 22px; }
   .interaction-button svg { width: 21px; height: 21px; }
 }
 
 @media (max-width: 390px), (max-height: 640px) {
   .drawing-icon { width: 20px; height: 20px; }
+  .live-text-button .live-text-icon { width: 20px; height: 20px; }
   .interaction-button svg { width: 20px; height: 20px; }
 }
 
