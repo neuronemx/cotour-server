@@ -46,6 +46,8 @@
 .interaction-button[aria-pressed="true"],
 .live-text-button.is-live,
 .live-text-button[aria-pressed="true"],
+.thumbs-toggle.is-active,
+.thumbs-toggle[aria-expanded="true"],
 .drawing-button.active,
 .drawing-button[aria-pressed="true"] {
   color: #fff;
@@ -77,6 +79,12 @@
 
 .interaction-button.is-active svg,
 .interaction-button[aria-pressed="true"] svg {
+  color: #fff;
+  stroke: #fff;
+}
+
+.thumbs-toggle.is-active svg,
+.thumbs-toggle[aria-expanded="true"] svg {
   color: #fff;
   stroke: #fff;
 }

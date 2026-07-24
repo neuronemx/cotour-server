@@ -30,10 +30,13 @@ test("Speaker tools become horizontal in compact landscape", () => {
   const html = read("public/presenter/index.html");
   const presenterCss = read("public/presenter/presenter.css");
   const css = read("public/presenter/mobile-controls-tuning.css");
+  const controllerCss = read("public/shared/controller-tools.css");
 
   assert.match(css, /@media \(orientation:\s*landscape\) and \(max-height:\s*520px\)[\s\S]*?\.fx-module\s*\{[\s\S]*?flex-direction:\s*row-reverse/);
   assert.match(html, /id="thumbsToggle"[\s\S]*?<rect x="9" y="4" width="6" height="16" rx="1\.5"><\/rect><path d="M4 8v8M20 8v8"><\/path>/);
   assert.match(presenterCss, /\.thumbs-toggle svg\s*\{\s*stroke-width:\s*1\.8/);
+  assert.match(controllerCss, /\.thumbs-toggle\.is-active,[\s\S]*?\.thumbs-toggle\[aria-expanded="true"\][\s\S]*?background:[\s\S]*?linear-gradient\(135deg, #8b3dff 0%, #684cff 46%, #21b7ff 100%\)/);
+  assert.match(controllerCss, /\.thumbs-toggle\.is-active svg,[\s\S]*?\.thumbs-toggle\[aria-expanded="true"\] svg[\s\S]*?stroke:\s*#fff/);
   assert.match(css, /\.thumbs\s*\{[\s\S]*?bottom:\s*calc\(66px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
