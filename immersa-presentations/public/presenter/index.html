@@ -13,7 +13,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/presenter/presenter.css">
-  <link rel="stylesheet" href="/presenter/drawing-control.css">
+  <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
+  <link rel="stylesheet" href="/shared/live-text-control.css?v=2">
   <link rel="stylesheet" href="/presenter/mobile-controls-tuning.css">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
@@ -30,7 +31,11 @@
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
+          <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
+          <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M8,26a2,2,0,0,0-2,2.3A2.1,2.1,0,0,0,8.1,30h7.1L4.7,40.5a2,2,0,0,0-.2,2.8A1.8,1.8,0,0,0,6,44a2,2,0,0,0,1.4-.6L18,32.8v7.1A2.1,2.1,0,0,0,19.7,42,2,2,0,0,0,22,40V28a2,2,0,0,0-2-2Z"></path>
+            <path d="M43.7,4.8a2,2,0,0,0-3.1-.2L30,15.2V8.1A2.1,2.1,0,0,0,28.3,6,2,2,0,0,0,26,8V20a2,2,0,0,0,2,2H39.9A2.1,2.1,0,0,0,42,20.3,2,2,0,0,0,40,18H32.8L43.4,7.5A2.3,2.3,0,0,0,43.7,4.8Z"></path>
+          </svg>
         </button>
       </div>
 
@@ -58,6 +63,9 @@
             <input id="localReactions" type="checkbox" checked>
             <svg viewBox="0 0 24 24" aria-hidden="true" class="reaction-icon"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
           </label>
+          <button id="liveTextToggle" class="control-button muted-button live-text-button fx-btn" type="button" aria-pressed="false" title="Texto en vivo" aria-label="Texto en vivo">
+            <span class="live-text-icon" aria-hidden="true"></span>
+          </button>
           <button id="drawToggle" class="control-button muted-button drawing-button fx-btn" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
             <span class="drawing-icon" aria-hidden="true"></span>
           </button>
@@ -71,7 +79,7 @@
 </svg>
           </button>
           <button id="thumbsToggle" class="control-button muted-button thumbs-toggle fx-btn" type="button" aria-expanded="false" aria-controls="thumbs" title="Mostrar miniaturas" aria-label="Mostrar miniaturas">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14"></path><path d="M5 12h14"></path><path d="M5 17h14"></path></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="4" width="6" height="16" rx="1.5"></rect><path d="M4 8v8M20 8v8"></path></svg>
           </button>
         </div>
       </section>
@@ -85,12 +93,34 @@
       <label>Público<input id="audienceUrl" readonly></label>
     </section>
   </main>
+
+  <div id="presenterTextModal" class="controller-live-text-modal" aria-hidden="true">
+    <div class="controller-live-text-backdrop" data-close-live-text></div>
+    <section class="controller-live-text-card" role="dialog" aria-modal="true" aria-labelledby="presenterTextModalTitle">
+      <div class="controller-live-text-head">
+        <span>Speaker</span>
+        <strong id="presenterTextModalTitle">Texto en vivo</strong>
+      </div>
+      <form id="presenterMessageForm" class="controller-live-text-form">
+        <label for="presenterMessageInput">Mensaje en pantalla</label>
+        <textarea id="presenterMessageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
+        <small>Este mensaje aparece sobre la experiencia en vivo.</small>
+        <div class="controller-live-text-actions">
+          <button id="presenterDisplayLinkButton" type="button">Link Público</button>
+          <button id="presenterCancelMessage" type="button">Cancelar</button>
+          <button class="primary-action" type="submit">Mostrar texto</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/slide-confirm.js"></script>
   <script src="/shared/interactions-shell.js"></script>
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
+  <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js"></script>
-  <script src="/presenter/presenter.js"></script>
+  <script src="/presenter/presenter.js?v=1"></script>
 </body>
 </html>

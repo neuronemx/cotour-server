@@ -33,6 +33,7 @@
   }
 
   .fx-module {
+    flex-direction: row-reverse;
     padding: 5px;
     gap: 4px;
     overflow: visible;
@@ -73,6 +74,6 @@
 
   .thumbs {
     z-index: 9;
-    bottom: calc(58px + env(safe-area-inset-bottom));
+    bottom: calc(66px + env(safe-area-inset-bottom));
   }
 }

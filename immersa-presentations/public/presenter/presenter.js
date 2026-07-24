@@ -5,7 +5,6 @@ const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.dec
 const socket = io();
 const overlaySocket = io();
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
-let overlaySocketJoined = false;
 let manifest = null;
 let interactions = [];
 let videoSlideIds = new Set();
@@ -23,10 +22,13 @@ const streamArea = document.querySelector(".stream-area");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
 const audience = document.getElementById("audience");
+const prevSlide = document.getElementById("prev");
+const nextSlide = document.getElementById("next");
 const playPause = document.getElementById("playPause");
 const localReactions = document.getElementById("localReactions");
 const audienceQr = document.getElementById("audienceQr");
 const drawToggle = document.getElementById("drawToggle");
+const liveTextToggle = document.getElementById("liveTextToggle");
 const interactionToggle = document.getElementById("interactionToggle");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
@@ -41,6 +43,19 @@ const qnaControls = window.ImmersaQnaControls?.create({
     qnaAvailable = Boolean(available);
     interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
   }
+});
+const liveTextControl = window.ImmersaLiveTextControl?.create({
+  socket,
+  button: liveTextToggle,
+  modal: document.getElementById("presenterTextModal"),
+  form: document.getElementById("presenterMessageForm"),
+  input: document.getElementById("presenterMessageInput"),
+  cancelButton: document.getElementById("presenterCancelMessage"),
+  linkButton: document.getElementById("presenterDisplayLinkButton"),
+  getPublicUrl: () => roleUrl("audience"),
+  labelMode: "icon",
+  inactiveLabel: "Texto en vivo",
+  activeLabel: "Apagar texto"
 });
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
@@ -82,8 +97,7 @@ function updateAudienceQrButton(state) { const active = audienceQrVisible(state)
 function publishAudienceQr(visible) {
   const audienceUrl = roleUrl("audience");
   if (visible && !audienceUrl) return;
-  if (!overlaySocketJoined) { overlaySocket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" }); overlaySocketJoined = true; }
-  overlaySocket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl } });
+  socket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl } });
 }
 function reactionsEnabled(state) { return Boolean(state?.overlays?.showReactions ?? state?.overlays?.reactionsOnScreen ?? true); }
 function updateReactionToggle(state) { if (!localReactions) return; localReactions.checked = reactionsEnabled(state); }
@@ -142,8 +156,9 @@ function slideSrc(index) { return assetSrc(manifest.slides[index]); }
 function slideIdentity(item, index) { return String(item?.id || "slide-" + String(index + 1).padStart(3, "0")); }
 function videoThumbMark(index) { const gradientId = "immersa-video-gradient-" + (index + 1); return '<span class="thumb-video-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><defs><linearGradient id="' + gradientId + '" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#68d8cc"/><stop offset=".52" stop-color="#4368f6"/><stop offset="1" stop-color="#9b4cff"/></linearGradient></defs><path d="M6.5 4.75 19 12 6.5 19.25Z" fill="none" stroke="url(#' + gradientId + ')" stroke-width="3.1" stroke-linejoin="round"/></svg></span>'; }
 function applySlideOrientation(container, item, src) { const portrait = item?.orientation === "portrait"; container.classList.toggle("portrait-slide", portrait); if (portrait) container.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else container.style.removeProperty("--slide-bg"); }
-function renderThumbs() { thumbs.innerHTML = ""; manifest.slides.forEach((item, index) => { const slideNumber = index + 1; const hasVideo = videoSlideIds.has(slideIdentity(item, index)); const button = document.createElement("button"); button.type = "button"; button.className = "thumb" + (hasVideo ? " has-video" : ""); button.setAttribute("aria-label", "Ir a lámina " + slideNumber + (item.title ? ": " + item.title : "") + (hasVideo ? " · contiene video" : "")); button.title = (item.title ? "Lámina " + slideNumber + " · " + item.title : "Lámina " + slideNumber) + (hasVideo ? " · Video" : ""); button.innerHTML = '<span class="thumb-number">' + slideNumber + '</span><img alt="" src="' + assetSrc(item, "thumb") + '">' + (hasVideo ? videoThumbMark(index) : ""); button.addEventListener("click", () => { socket.emit("slide_go", { slideIndex: index }); closeThumbsPanel(); }); thumbs.appendChild(button); }); }
-function render(state) { currentState = state; const index = state.presenterSlideIndex ?? state.slideIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = slideSrc(index); slide.src = src; applySlideOrientation(streamArea, item, src); drawingOverlay?.refresh(); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = state.transmissionPaused ? "Reanudar transmisión" : "Pausar transmisión"; playPause.setAttribute("aria-label", playPause.title); updateAudienceQrButton(state); updateReactionToggle(state); document.querySelectorAll(".thumb").forEach((node, i) => { node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
+function presenterNavigationLocked(state = currentState) { return Boolean(state?.transmissionPaused && state?.transmissionPausedBy !== "presenter"); }
+function renderThumbs() { thumbs.innerHTML = ""; manifest.slides.forEach((item, index) => { const slideNumber = index + 1; const hasVideo = videoSlideIds.has(slideIdentity(item, index)); const button = document.createElement("button"); button.type = "button"; button.className = "thumb" + (hasVideo ? " has-video" : ""); button.setAttribute("aria-label", "Ir a lámina " + slideNumber + (item.title ? ": " + item.title : "") + (hasVideo ? " · contiene video" : "")); button.title = (item.title ? "Lámina " + slideNumber + " · " + item.title : "Lámina " + slideNumber) + (hasVideo ? " · Video" : ""); button.innerHTML = '<span class="thumb-number">' + slideNumber + '</span><img alt="" src="' + assetSrc(item, "thumb") + '">' + (hasVideo ? videoThumbMark(index) : ""); button.addEventListener("click", () => { if (presenterNavigationLocked()) return; socket.emit("slide_go", { slideIndex: index }); closeThumbsPanel(); }); thumbs.appendChild(button); }); }
+function render(state) { currentState = state; const index = state.presenterSlideIndex ?? state.slideIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = slideSrc(index); slide.src = src; applySlideOrientation(streamArea, item, src); drawingOverlay?.refresh(); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = state.transmissionPaused ? "Reanudar transmisión" : "Pausar transmisión"; playPause.setAttribute("aria-label", playPause.title); const navigationLocked = presenterNavigationLocked(state); prevSlide.disabled = navigationLocked || index <= 0; nextSlide.disabled = navigationLocked || index >= manifest.slides.length - 1; updateAudienceQrButton(state); updateReactionToggle(state); liveTextControl?.sync(state.overlays || {}); document.querySelectorAll(".thumb").forEach((node, i) => { node.disabled = navigationLocked; node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
 function popReaction(emoji) { if (!localReactions.checked) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(20 + Math.random() * 60) + "%"; node.style.setProperty("--x", Math.round(Math.random() * 240 - 120) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2900); }
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
@@ -313,8 +328,8 @@ function renderInteractionPanel() {
   panel.querySelector("[data-interaction-reveal]")?.addEventListener("click", () => { const eventName = interactionResultsVisible ? "interaction:hide_results" : "interaction:reveal_results"; socket.emit(eventName, { interactionId: activeInteraction?.id }); });
   attachInteractionCloseSlider(panel.querySelector("[data-interaction-close-slider]"), activeInteraction?.id);
 }
-document.getElementById("prev").addEventListener("click", () => socket.emit("slide_prev"));
-document.getElementById("next").addEventListener("click", () => socket.emit("slide_next"));
+prevSlide.addEventListener("click", () => { if (!presenterNavigationLocked()) socket.emit("slide_prev"); });
+nextSlide.addEventListener("click", () => { if (!presenterNavigationLocked()) socket.emit("slide_next"); });
 playPause.addEventListener("click", () => socket.emit(currentState?.transmissionPaused ? "transmission_play" : "transmission_pause"));
 audienceQr.addEventListener("click", () => publishAudienceQr(!audienceQrVisible(currentState)));
 if (localReactions) localReactions.addEventListener("change", () => publishReactionsEnabled(localReactions.checked));
@@ -327,7 +342,10 @@ document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
-socket.on("overlay_update", (overlays) => updateReactionToggle({ overlays }));
+socket.on("overlay_update", (overlays) => {
+  updateReactionToggle({ overlays });
+  liveTextControl?.sync(overlays);
+});
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });

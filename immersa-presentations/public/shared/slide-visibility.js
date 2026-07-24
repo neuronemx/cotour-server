@@ -35,7 +35,7 @@
       return Array.from({length:count},(_,index)=>index).filter(index=>!hiddenIndex(index));
     }
     function currentIndex(){
-      return Number(role==='presenter'?(state?.presenterSlideIndex??state?.slideIndex??0):(state?.liveSlideIndex??state?.slideIndex??0))||0;
+      return Number(state?.presenterSlideIndex??state?.slideIndex??0)||0;
     }
     function targetFrom(index,delta){
       const list=visible();

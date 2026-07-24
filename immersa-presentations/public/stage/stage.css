@@ -336,6 +336,24 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   color: #ffeaf0;
   animation: liveTextPulse 1s infinite;
 }
+.toolbar-button.is-paused {
+  color: #210d02;
+  background: linear-gradient(180deg, rgba(255,179,92,1), rgba(255,128,38,.98));
+  border-color: rgba(255,255,255,.38);
+  box-shadow: 0 0 0 4px rgba(255,157,61,.14), 0 0 28px rgba(255,157,61,.44);
+}
+.stage-drawing-button {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stage-drawing-button .drawing-icon {
+  width: 20px;
+  height: 20px;
+}
 .actions-button {
   background: rgba(143,85,255,.16);
   border-color: rgba(143,85,255,.36);
@@ -365,6 +383,9 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   border-radius: 24px;
   background: #020304;
   box-shadow: 0 26px 74px rgba(0,0,0,.38), 0 1px 0 rgba(255,255,255,.05) inset;
+}
+.screen-frame.is-drawing {
+  touch-action: none;
 }
 .screen-frame::before,
 .screen-frame::after {

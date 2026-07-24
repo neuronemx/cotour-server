@@ -33,6 +33,7 @@ const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
+const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
@@ -100,6 +101,15 @@ function getRoomKey(sessionId, deckId) {
 
 function getRoleRoomKey(roomKey, role) {
   return roomKey + "::" + role;
+}
+
+function canControlPresentation(role) {
+  return controllerRoles.has(role);
+}
+
+function canNavigatePresentation(role, session) {
+  if (!canControlPresentation(role)) return false;
+  return !session?.transmissionPaused || session.transmissionPausedBy === role;
 }
 
 async function ensureDataDirs() {
@@ -417,6 +427,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     presenterSlideIndex: 0,
     liveSlideIndex: 0,
     transmissionPaused: false,
+    transmissionPausedBy: null,
     presenterConnected: false,
     screenConnected: false,
     stageConnected: false,
@@ -480,6 +491,7 @@ function publicState(session) {
     liveSlideIndex: session.liveSlideIndex,
     slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
+    transmissionPausedBy: session.transmissionPausedBy,
     presenterConnected: session.presenterConnected,
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
@@ -512,13 +524,8 @@ function emitReaction(roomKey, session, emoji) {
   }
 }
 
-function normalizeOverlayPatch(overlays = {}, role) {
-  const patch = role === "presenter"
-    ? {
-        showReactions: overlays.showReactions,
-        reactionsOnScreen: overlays.reactionsOnScreen
-      }
-    : { ...overlays };
+function normalizeOverlayPatch(overlays = {}) {
+  const patch = { ...overlays };
   const reactionState = patch.showReactions ?? patch.reactionsOnScreen;
   if (typeof reactionState !== "undefined") {
     const enabled = Boolean(reactionState);
@@ -699,43 +706,47 @@ io.on("connection", (socket) => {
   });
 
   socket.on("transmission_pause", () => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
-    session.transmissionPaused = true;
+    if (!session.transmissionPaused) {
+      session.transmissionPaused = true;
+      session.transmissionPausedBy = currentRole;
+    }
     emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_play", () => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     session.transmissionPaused = false;
+    session.transmissionPausedBy = null;
     session.liveSlideIndex = session.presenterSlideIndex;
     session.slideIndex = session.presenterSlideIndex;
     emitState(currentRoomKey, session);
   });
 
   socket.on("slide_next", async () => {
-    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
     emitState(currentRoomKey, session);
   });
 
   socket.on("slide_prev", async () => {
-    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
     emitState(currentRoomKey, session);
   });
 
   socket.on("slide_go", async ({ slideIndex }) => {
-    if (!currentRoomKey || (currentRole !== "presenter" && currentRole !== "stage")) return;
+    if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
+    if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
     emitState(currentRoomKey, session);
   });
@@ -748,26 +759,26 @@ io.on("connection", (socket) => {
   });
 
   socket.on("drawing_stroke", (stroke) => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     const normalizedStroke = normalizeDrawingStroke(session, stroke);
     if (!normalizedStroke) return;
-    io.to(currentRoomKey).emit("drawing_stroke", normalizedStroke);
+    socket.to(currentRoomKey).emit("drawing_stroke", normalizedStroke);
   });
 
   socket.on("overlay_update", ({ overlays }) => {
-    if (!currentRoomKey || (currentRole !== "stage" && currentRole !== "presenter")) return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
-    const patch = normalizeOverlayPatch(overlays, currentRole);
+    const patch = normalizeOverlayPatch(overlays);
     session.overlays = { ...session.overlays, ...patch };
     io.to(currentRoomKey).emit("overlay_update", session.overlays);
     emitState(currentRoomKey, session);
   });
 
   socket.on("clear_message", () => {
-    if (!currentRoomKey || currentRole !== "stage") return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     session.overlays = { ...session.overlays, messageVisible: false, messageText: "" };
@@ -776,7 +787,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("clear_screen", () => {
-    if (!currentRoomKey || currentRole !== "stage") return;
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     session.overlays = { ...session.overlays, qrVisible: false, messageVisible: false, messageText: "", selectedQuestion: null, questionVisible: false };

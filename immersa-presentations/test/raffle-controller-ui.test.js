@@ -508,11 +508,13 @@ test("slide overlays and controls stay above the scoped interaction scrim", () =
 
 test("Stage production controls remain wired independently of the click-through scrim", () => {
   const stage = readProjectFile("public/stage/stage.js");
+  const liveTextControl = readProjectFile("public/shared/live-text-control.js");
   assert.match(stage, /prevSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex - 1\)\)/);
   assert.match(stage, /nextSlide\.addEventListener\("click", \(\) => emitStageSlide\(currentSlideIndex \+ 1\)\)/);
   assert.match(stage, /qrToggle\.addEventListener\("change", \(\) => \{/);
   assert.match(stage, /reactionsToggle\.addEventListener\("change", \(\) => updateOverlay/);
-  assert.match(stage, /liveTextButton\.addEventListener\("click", \(\) => \{/);
+  assert.match(stage, /ImmersaLiveTextControl\?\.create\(\{[\s\S]+button: liveTextButton/);
+  assert.match(liveTextControl, /button\.addEventListener\("click", \(\) => \{/);
   assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
   assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);
   assert.match(stage, /function closeStageActionsRequest\(\) \{[\s\S]+if \(hasActiveInteractionShellLock\(\)\) return;/);

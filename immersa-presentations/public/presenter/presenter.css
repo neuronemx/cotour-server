@@ -102,6 +102,19 @@ body {
   border-color: rgba(255,255,255,.32);
   box-shadow: 0 0 0 4px rgba(104,216,204,.12), 0 0 28px rgba(104,216,204,.42), inset 0 1px 0 rgba(255,255,255,.24), 0 12px 28px rgba(0,0,0,.25);
 }
+.fullscreen-button .fullscreen-collapse-icon { display: none; }
+.fullscreen-button[aria-pressed="true"] {
+  color: rgba(234,255,251,.78);
+  background: linear-gradient(180deg, rgba(35,43,47,.54), rgba(8,10,14,.50));
+  border-color: rgba(255,255,255,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.25);
+}
+.fullscreen-button[aria-pressed="true"] .fullscreen-expand-icon { display: none; }
+.fullscreen-button[aria-pressed="true"] .fullscreen-collapse-icon {
+  display: block;
+  fill: currentColor;
+  stroke: none;
+}
 .thumbs-toggle { display: none; }
 .reaction-layer { pointer-events: none; position: absolute; z-index: 3; inset: 0; overflow: hidden; }
 .reaction { position: absolute; left: 50%; bottom: 16%; font-size: clamp(34px, 5vw, 68px); filter: drop-shadow(0 14px 28px rgba(0,0,0,.36)); animation: floatReaction 2.8s ease-out forwards; }
@@ -264,7 +277,9 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   width: 46px; min-width: 46px; height: 46px; min-height: 46px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
 }
-.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg, .thumbs-toggle svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.qr-button svg { stroke-width: 2; }
+.thumbs-toggle svg { stroke-width: 1.8; }
 /* Thumbnails toggle lives in the tools capsule, but only appears in compact landscape. */
 .fx-module .thumbs-toggle {
   display: none;

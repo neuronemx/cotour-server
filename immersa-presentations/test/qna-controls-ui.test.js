@@ -49,7 +49,7 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(css, /--immersa-glass/);
 });
 
-test("Q&A control UI does not add live drawing to Stage", async () => {
+test("Stage includes live drawing independently of the Q&A control UI", async () => {
   const stageHtml = await fs.promises.readFile(path.join(root, "public", "stage", "index.html"), "utf8");
-  assert.doesNotMatch(stageHtml, /drawToggle|drawing-button|Trazo vivo/);
+  assert.match(stageHtml, /id="stageDrawToggle"[^>]*drawing-button[^>]*aria-label="Trazo vivo"/);
 });
