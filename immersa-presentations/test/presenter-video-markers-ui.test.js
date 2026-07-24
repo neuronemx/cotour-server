@@ -22,6 +22,7 @@ test("Speaker tools render in the requested visual order", () => {
   assert.match(html, /id="liveTextToggle"[\s\S]*?class="live-text-icon"/);
   assert.match(liveTextCss, /mask:\s*url\("\/assets\/icons\/texto-en-vivo\.svg"\)/);
   assert.match(controllerCss, /\.live-text-button\[aria-pressed="true"\],[\s\S]*?\.drawing-button\.active[\s\S]*?overflow:\s*hidden/);
+  assert.match(liveTextIcon, /<path[^>]*stroke-width="1\.6"/);
   assert.equal((liveTextIcon.match(/<circle/g) || []).length, 3);
 });
 
