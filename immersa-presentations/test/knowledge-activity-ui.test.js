@@ -79,6 +79,14 @@ test("question images render for controller, Público, and Screen question views
   assert.match(css, /\.knowledge-screen-question-image/);
 });
 
+test("lobby entrants are synchronized as people ready without counting as participants", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /state\.state === "LOBBY"[\s\S]*state\.participantCount/);
+  assert.match(source, /lobbyCount === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /count === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
+});
+
 test("history exposes per-execution CSV without adding operational warnings", () => {
   const history = read("public/home/knowledge-activity-history.js");
   const exporter = read("knowledge-activity-export.js");
