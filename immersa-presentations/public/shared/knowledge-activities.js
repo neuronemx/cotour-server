@@ -187,7 +187,8 @@
       let body = '<header class="knowledge-live-head"><div><span>' + LABELS[category] + ' <em>En vivo</em></span><h2>' + escapeHtml(state.title) + "</h2></div>" + timer + "</header>";
 
       if (state.state === "LOBBY") {
-        body += '<div class="knowledge-metric"><strong>' + (state.participantCount || 0) + "</strong><span>en el lobby</span></div>"
+        const lobbyCount = state.participantCount || 0;
+        body += '<div class="knowledge-metric"><strong>' + lobbyCount + "</strong><span>" + (lobbyCount === 1 ? "persona lista" : "personas listas") + "</span></div>"
           + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start">Iniciar</button><button data-knowledge-command="cancel">Cancelar</button></div>';
       } else if (state.state === "COUNTDOWN") {
         body += '<div class="knowledge-countdown">' + timerMarkup(deadline, state, "knowledge-countdown-value") + "</div>";
@@ -446,7 +447,13 @@
         const message = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
           ? "Estamos terminando de preparar los resultados…"
           : state.state === "COUNTDOWN" ? remaining : state.title;
-        root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>" + escapeHtml(message) + '</h1><p>' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
+        const count = state.state === "LOBBY"
+          ? state.participantCount || 0
+          : state.effectiveParticipantCount || 0;
+        const countLabel = state.state === "LOBBY"
+          ? (count === 1 ? "persona lista" : "personas listas")
+          : (count === 1 ? "participante" : "participantes");
+        root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>" + escapeHtml(message) + '</h1><p>' + count + " " + countLabel + "</p></section>";
       }
     }
     socket.on("interaction:execution:state", (next) => { state = { ...next, _receivedAt: Date.now() }; render(); });
