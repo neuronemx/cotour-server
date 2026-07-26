@@ -168,6 +168,14 @@ test("contest locks one answer and advances through reveal automatically", () =>
   });
   tickExecution(item, 5000);
   assert.equal(item.substate, "QUESTION_ACTIVE");
+  const audienceState = stateForRole(item, {
+    role: "audience",
+    participantId: participant.id,
+    tabId: "tab-1",
+    nowMs: 5000
+  });
+  assert.equal(audienceState.questionIndex, 0);
+  assert.equal(audienceState.questionCount, 2);
   const question = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[0]);
   submitAnswer(item, {
     participantId: participant.id,

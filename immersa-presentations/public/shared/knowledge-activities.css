@@ -247,13 +247,15 @@
 
 .knowledge-options button {
   min-height: 48px;
+  color: #182133;
+  font-weight: 700;
   text-align: left;
   background: #f5f7fb;
 }
 
 .knowledge-options button.is-selected {
   color: #fff;
-  background: #596cf1;
+  background: var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%));
 }
 
 .knowledge-options button.is-correct {

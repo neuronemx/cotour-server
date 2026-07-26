@@ -79,6 +79,16 @@ test("question images render for controller, Público, and Screen question views
   assert.match(css, /\.knowledge-screen-question-image/);
 });
 
+test("Público renders safe contest progress and legible answer options", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /Number\.isFinite\(Number\(state\.questionCount\)\)/);
+  assert.match(source, /Number\.isFinite\(Number\(state\.questionIndex\)\)/);
+  assert.match(source, /Pregunta ' \+ questionNumber \+ " de " \+ questionCount/);
+  assert.match(css, /\.knowledge-options button \{[\s\S]*?color: #182133/);
+  assert.match(css, /\.knowledge-options button\.is-selected \{[\s\S]*?var\(--immersa-gradient/);
+});
+
 test("lobby entrants are synchronized as people ready without counting as participants", () => {
   const source = read("public/shared/knowledge-activities.js");
   assert.match(source, /state\.state === "LOBBY"[\s\S]*state\.participantCount/);

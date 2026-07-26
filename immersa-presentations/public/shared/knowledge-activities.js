@@ -341,6 +341,12 @@
       }
       const confirmed = answerMap().get(question.id);
       const pending = readPending();
+      const questionCount = Number.isFinite(Number(state.questionCount))
+        ? Number(state.questionCount)
+        : 1;
+      const questionNumber = Number.isFinite(Number(state.questionIndex))
+        ? Number(state.questionIndex) + 1
+        : Math.min((state.answerCount || 0) + 1, questionCount);
       const options = question.options.map((option) => {
         const selected = confirmed === option.id || (!confirmed && pending?.questionId === question.id && pending?.optionId === option.id);
         const revealClass = state.reveal
@@ -348,7 +354,7 @@
           : "";
         return '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (selected ? "is-selected" : "") + revealClass + '" ' + (confirmed || state.substate === "REVEAL" ? "disabled" : "") + ">" + escapeHtml(option.label) + "</button>";
       }).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + "</div>"
+      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + questionNumber + " de " + questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + "</div>"
         + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
         + "</div>";
     }

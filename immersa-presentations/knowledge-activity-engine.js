@@ -834,6 +834,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
     personalResult: null
   };
   if (execution.category === "contest") {
+    audience.questionIndex = execution.questionIndex;
+    audience.questionCount = execution.definition.questions.length;
     const current = currentQuestion(execution);
     if (current && ["QUESTION_ACTIVE", "REVEAL"].includes(execution.substate)) {
       audience.currentQuestion = questionForParticipant(execution, participant, current.id);
