@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const { readMysqlConfig } = require("../db/mysql");
-const { runMigrations } = require("../db/migrate");
+const { runMigrations, splitSqlStatements } = require("../db/migrate");
 
 const migrationsDir = path.join(__dirname, "..", "db", "migrations");
 
@@ -88,6 +88,28 @@ test("migration runner serializes and records pending SQL files", async () => {
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);
+  const migrationQueries = calls.filter((call) => (
+    call.kind === "query"
+    && /CREATE TABLE IF NOT EXISTS (presentation_sessions|qna_|knowledge_activity_)/.test(call.sql || "")
+  ));
+  assert.equal(migrationQueries.length, 9);
+  assert.ok(migrationQueries.every((call) => (
+    (call.sql.match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 1
+  )));
   assert.ok(calls.some((call) => /RELEASE_LOCK/.test(call.sql || "")));
   assert.equal(calls.at(-1).kind, "release");
+});
+
+test("SQL migration splitting ignores semicolons inside strings and comments", () => {
+  const statements = splitSqlStatements(`
+    CREATE TABLE example (value VARCHAR(32) DEFAULT 'one;two');
+    -- semicolon in a comment;
+    INSERT INTO example (value) VALUES ("three;four");
+    /* another comment; */
+    SELECT \`value;label\` FROM example;
+  `);
+  assert.equal(statements.length, 3);
+  assert.match(statements[0], /one;two/);
+  assert.match(statements[1], /three;four/);
+  assert.match(statements[2], /value;label/);
 });
