@@ -586,6 +586,7 @@ app.get("/api/decks", async (_req, res) => {
 });
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", brandMentionHandlers.createBrand);
 app.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderBrands);

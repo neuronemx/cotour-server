@@ -46,6 +46,25 @@
     return minutes ? minutes + ":" + String(remainder).padStart(2, "0") : String(remainder);
   }
 
+  function timerMarkup(value, state, className = "knowledge-timer") {
+    if (!value) return "";
+    return '<strong class="' + className + '" data-knowledge-deadline="' + escapeHtml(value) + '">'
+      + timeLabel(secondsUntil(value, state?.serverNow, state?._receivedAt))
+      + "</strong>";
+  }
+
+  function updateRenderedTimers(root, state) {
+    root?.querySelectorAll?.("[data-knowledge-deadline]").forEach((node) => {
+      node.textContent = timeLabel(secondsUntil(node.dataset.knowledgeDeadline, state?.serverNow, state?._receivedAt));
+    });
+  }
+
+  function questionImageMarkup(image, className = "knowledge-question-image") {
+    const url = String(image?.url || "");
+    if (!url) return "";
+    return '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
+  }
+
   function stateDeadline(state) {
     if (state?.state === "COUNTDOWN") return state.countdownDeadlineAt;
     if (state?.substate === "QUESTION_ACTIVE") return state.questionDeadlineAt;
@@ -164,17 +183,17 @@
       const count = state.effectiveParticipantCount ?? state.participantCount ?? 0;
       const deadline = stateDeadline(state);
       const remaining = secondsUntil(deadline, state.serverNow, state._receivedAt);
-      const timer = remaining === null ? "" : '<span class="knowledge-timer">' + timeLabel(remaining) + "</span>";
+      const timer = remaining === null ? "" : timerMarkup(deadline, state);
       let body = '<header class="knowledge-live-head"><div><span>' + LABELS[category] + ' <em>En vivo</em></span><h2>' + escapeHtml(state.title) + "</h2></div>" + timer + "</header>";
 
       if (state.state === "LOBBY") {
         body += '<div class="knowledge-metric"><strong>' + (state.participantCount || 0) + "</strong><span>en el lobby</span></div>"
           + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start">Iniciar</button><button data-knowledge-command="cancel">Cancelar</button></div>';
       } else if (state.state === "COUNTDOWN") {
-        body += '<div class="knowledge-countdown">' + timeLabel(remaining) + "</div>";
+        body += '<div class="knowledge-countdown">' + timerMarkup(deadline, state, "knowledge-countdown-value") + "</div>";
       } else if (state.state === "ACTIVE") {
         if (category === "contest") {
-          body += '<div class="knowledge-question-progress"><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + "</span><strong>" + escapeHtml(state.currentQuestion?.prompt || "Preparando pregunta…") + "</strong></div>";
+          body += '<div class="knowledge-question-progress"><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + "</span><strong>" + escapeHtml(state.currentQuestion?.prompt || "Preparando pregunta…") + "</strong>" + questionImageMarkup(state.currentQuestion?.image) + "</div>";
         } else {
           body += '<div class="knowledge-metric"><strong>' + (state.submittedCount || 0) + '</strong><span>entregaron · ' + count + " participantes</span></div>";
         }
@@ -235,7 +254,9 @@
     });
 
     loadDefinitions();
-    const repaintTimer = global.setInterval(render, 500);
+    const repaintTimer = global.setInterval(() => {
+      hosts.forEach((host) => updateRenderedTimers(host.root, state));
+    }, 500);
     return {
       mountHost({ root, category }) {
         const host = { root, category };
@@ -307,7 +328,7 @@
     function contestMarkup() {
       const question = state.currentQuestion;
       if (!question) {
-        if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + timeLabel(secondsUntil(state.countdownDeadlineAt, state.serverNow, state._receivedAt)) + "</div>";
+        if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + timerMarkup(state.countdownDeadlineAt, state, "knowledge-countdown-value") + "</div>";
         if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Estamos terminando de preparar los resultados…</strong></div>';
         if (state.personalResult) {
           const detail = (state.personalResult.answers || []).map((answer, index) =>
@@ -326,7 +347,7 @@
           : "";
         return '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (selected ? "is-selected" : "") + revealClass + '" ' + (confirmed || state.substate === "REVEAL" ? "disabled" : "") + ">" + escapeHtml(option.label) + "</button>";
       }).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span><strong class="knowledge-timer">' + timeLabel(secondsUntil(state.questionDeadlineAt || state.revealDeadlineAt, state.serverNow, state._receivedAt)) + '</strong></header><h2>' + escapeHtml(question.prompt) + '</h2><div class="knowledge-options">' + options + "</div>"
+      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + "</div>"
         + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
         + "</div>";
     }
@@ -342,7 +363,7 @@
       const options = question.options.map((option) =>
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
       ).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span><strong class="knowledge-timer">' + timeLabel(secondsUntil(state.deadlineAt, state.serverNow, state._receivedAt)) + '</strong></header><h2>' + escapeHtml(question.prompt) + '</h2><div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary" data-knowledge-submit ' + (answerMap().size ? "" : "disabled") + ">Entregar evaluación</button></div>";
+      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary" data-knowledge-submit ' + (answerMap().size ? "" : "disabled") + ">Entregar evaluación</button></div>";
     }
 
     function render() {
@@ -400,7 +421,7 @@
     });
     socket.on("connect", render);
     socket.on("disconnect", render);
-    global.setInterval(render, 500);
+    global.setInterval(() => updateRenderedTimers(root, state), 500);
     return { getState: () => state, render };
   }
 
@@ -413,11 +434,12 @@
         return;
       }
       root.hidden = false;
-      const remaining = timeLabel(secondsUntil(stateDeadline(state), state.serverNow, state._receivedAt));
+      const deadline = stateDeadline(state);
+      const remaining = timeLabel(secondsUntil(deadline, state.serverNow, state._receivedAt));
       if (state.state === "RESULTS_VISIBLE" && state.category === "contest") {
         root.innerHTML = '<section class="knowledge-screen-card"><h1>Resultados</h1><div class="knowledge-ranking">' + (state.top10 || []).map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + "</strong></div>").join("") + "</div></section>";
       } else if (state.category === "contest" && state.currentQuestion) {
-        root.innerHTML = '<section class="knowledge-screen-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span><strong>' + remaining + '</strong></header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1><div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></section>";
+        root.innerHTML = '<section class="knowledge-screen-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1>' + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + '<div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></section>";
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
         root.innerHTML = '<section class="knowledge-screen-card"><span>Evaluación en curso</span><h1>' + escapeHtml(state.title) + '</h1><p>' + (state.submittedCount || 0) + ' entregas · ' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
       } else {
@@ -428,7 +450,7 @@
       }
     }
     socket.on("interaction:execution:state", (next) => { state = { ...next, _receivedAt: Date.now() }; render(); });
-    global.setInterval(render, 500);
+    global.setInterval(() => updateRenderedTimers(root, state), 500);
     return { render, getState: () => state };
   }
 

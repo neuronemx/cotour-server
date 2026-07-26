@@ -80,9 +80,7 @@
     const icons = {
       polls: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z"></path><path d="M5 20h14"></path><path d="M8 15v-4"></path><path d="M12 15v-7"></path><path d="M16 15v-5"></path><path d="M8 7h2"></path></svg>',
       assessments: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"></path><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2"></path><path d="M9 14l2 2l4 -4"></path></svg>',
-      raffles: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z"></path><path d="M12 8l0 13"></path><path d="M19 12l0 7a2 2 0 0 1 -2 2l-10 0a2 2 0 0 1 -2 -2l0 -7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0 -5c1.6 0 3 1.5 4.5 5c1.5 -3.5 2.9 -5 4.5 -5a2.5 2.5 0 0 1 0 5"></path></svg>',
       contests: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21l8 0"></path><path d="M12 17l0 4"></path><path d="M7 4l10 0"></path><path d="M17 4v8a5 5 0 0 1 -10 0v-8"></path><path d="M5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M19 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path></svg>',
-      games: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M14 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M6.8 13h2.4"></path><path d="M15.8 13h2.4"></path></svg>'
     };
     return icons[kind] || icons.polls;
   }
@@ -207,9 +205,7 @@
     hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">'
       + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true })
       + moduleCardMarkup("assessments", "Evaluaciones", assessments.length + " creada" + (assessments.length === 1 ? "" : "s"), { enabled: true })
-      + moduleCardMarkup("raffles", "Sorteos", "Ganador aleatorio entre asistentes conectados", { enabled: false, plan: "Pro" })
       + moduleCardMarkup("contests", "Concursos", contests.length + " creado" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: true })
-      + moduleCardMarkup("games", "Juegos colaborativos", "Breakout, Pong, Catcher y más", { enabled: false, plan: "Próximamente" })
       + '</div>';
     hub.querySelectorAll('[data-module]:not(:disabled)').forEach((button) => button.addEventListener("click", () => {
       const kind = button.dataset.module;
@@ -385,6 +381,7 @@
       questions: [{
         id: knowledgeId("question"),
         prompt: "",
+        image: null,
         correctOptionId: "option-1",
         options: [
           { id: "option-1", label: "" },
@@ -398,13 +395,66 @@
     return category === "contest" ? contests : assessments;
   }
 
+  async function uploadKnowledgeQuestionImage(question, file) {
+    if (!file) return null;
+    if (file.size > 5 * 1024 * 1024) throw new Error("La imagen debe pesar máximo 5 MB.");
+    if (file.type && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      throw new Error("La imagen debe ser PNG, JPG o WebP.");
+    }
+    const body = new FormData();
+    body.append("image", file);
+    const response = await fetch(
+      "/api/decks/" + encodeURIComponent(currentDeck.deckId)
+        + "/knowledge-questions/" + encodeURIComponent(question.id) + "/image",
+      { method: "POST", body }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "No se pudo guardar la imagen.");
+    return data.image;
+  }
+
   function knowledgeQuestionEditor(question, questionIndex, rerender) {
     const node = document.createElement("fieldset");
     node.className = "knowledge-question-editor";
-    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
+    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label><div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
     const prompt = node.querySelector("textarea");
     prompt.value = question.prompt || "";
     prompt.addEventListener("input", () => question.prompt = prompt.value);
+    const preview = node.querySelector(".knowledge-question-image-preview");
+    const selectImage = node.querySelector("[data-select-image]");
+    const removeImage = node.querySelector("[data-remove-image]");
+    const imageInput = node.querySelector("[data-image-input]");
+    if (question.image?.url) {
+      const image = document.createElement("img");
+      image.src = question.image.url;
+      image.alt = "Imagen de la pregunta " + (questionIndex + 1);
+      preview.appendChild(image);
+    } else {
+      preview.innerHTML = '<span>Sin imagen</span>';
+    }
+    selectImage.textContent = question.image?.url ? "Cambiar imagen" : "Agregar imagen";
+    removeImage.hidden = !question.image?.url;
+    selectImage.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files?.[0];
+      if (!file) return;
+      try {
+        selectImage.disabled = true;
+        setStatus("Subiendo imagen…");
+        question.image = await uploadKnowledgeQuestionImage(question, file);
+        setStatus("Imagen guardada.", "success");
+        rerender();
+      } catch (error) {
+        selectImage.disabled = false;
+        imageInput.value = "";
+        setStatus(error.message, "error");
+      }
+    });
+    removeImage.addEventListener("click", () => {
+      question.image = null;
+      setStatus("La imagen se eliminará al guardar.", "success");
+      rerender();
+    });
     const optionsNode = node.querySelector(".knowledge-option-editors");
     question.options.forEach((option, optionIndex) => {
       const row = document.createElement("label");

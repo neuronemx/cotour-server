@@ -7,6 +7,15 @@ function parseJson(value) {
   return JSON.parse(Buffer.isBuffer(value) ? value.toString("utf8") : String(value));
 }
 
+function mysqlDateTime(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throw new KnowledgeActivityError("INVALID_DATE", "Knowledge activity contains an invalid date");
+  }
+  return date.toISOString().slice(0, 23).replace("T", " ");
+}
+
 async function inTransaction(pool, operation) {
   const connection = await pool.getConnection();
   try {
@@ -38,14 +47,14 @@ function executionValues(execution) {
     execution.revision,
     activeSessionKey(execution),
     JSON.stringify(execution),
-    execution.openedAt,
-    execution.startedAt,
-    execution.deadlineAt || execution.questionDeadlineAt,
-    execution.processingStartedAt,
-    execution.resultsReadyAt,
-    execution.resultsVisibleAt,
-    execution.cancelledAt,
-    execution.closedAt
+    mysqlDateTime(execution.openedAt),
+    mysqlDateTime(execution.startedAt),
+    mysqlDateTime(execution.deadlineAt || execution.questionDeadlineAt),
+    mysqlDateTime(execution.processingStartedAt),
+    mysqlDateTime(execution.resultsReadyAt),
+    mysqlDateTime(execution.resultsVisibleAt),
+    mysqlDateTime(execution.cancelledAt),
+    mysqlDateTime(execution.closedAt)
   ];
 }
 
@@ -146,9 +155,9 @@ class KnowledgeActivityRepository {
             participant.label,
             participant.activeTabId || null,
             participant.state,
-            participant.joinedAt,
-            participant.submittedAt,
-            participant.completedAt
+            mysqlDateTime(participant.joinedAt),
+            mysqlDateTime(participant.submittedAt),
+            mysqlDateTime(participant.completedAt)
           ]
         );
         await connection.execute(
@@ -189,7 +198,7 @@ class KnowledgeActivityRepository {
             answer.clientAttemptId || null,
             answer.correct ? 1 : 0,
             Number.isFinite(answer.elapsedMs) ? answer.elapsedMs : null,
-            answer.receivedAt
+            mysqlDateTime(answer.receivedAt)
           ]
         );
       }
@@ -206,7 +215,7 @@ class KnowledgeActivityRepository {
             command.intent,
             command.result.revision,
             JSON.stringify(command.result),
-            command.appliedAt
+            mysqlDateTime(command.appliedAt)
           ]
         );
       }
@@ -222,7 +231,7 @@ class KnowledgeActivityRepository {
             execution.revision,
             execution.result.excludedResponseCount || 0,
             JSON.stringify(execution.result),
-            execution.result.calculatedAt
+            mysqlDateTime(execution.result.calculatedAt)
           ]
         );
       }
@@ -278,4 +287,4 @@ class KnowledgeActivityRepository {
   }
 }
 
-module.exports = { KnowledgeActivityRepository, parseJson, inTransaction };
+module.exports = { KnowledgeActivityRepository, parseJson, inTransaction, mysqlDateTime };

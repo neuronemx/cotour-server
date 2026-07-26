@@ -64,6 +64,21 @@ function normalizeOption(option, index) {
   };
 }
 
+function normalizeQuestionImage(image) {
+  if (!image) return null;
+  const url = text(image.url || image.src, 1000);
+  if (!/^\/decks\/[a-z0-9%_-]+\/knowledge-assets\/question-[a-f0-9]{24}\.(?:png|jpg|webp)$/i.test(url)) {
+    fail("INVALID_DEFINITION", "Question image reference is invalid");
+  }
+  return {
+    url,
+    mimeType: text(image.mimeType || image.mime_type, 64),
+    width: finiteInteger(image.width, 0, 0, 4096),
+    height: finiteInteger(image.height, 0, 0, 4096),
+    sizeBytes: finiteInteger(image.sizeBytes || image.size_bytes, 0, 0, 5 * 1024 * 1024)
+  };
+}
+
 function normalizeQuestion(question, index) {
   const prompt = text(question?.prompt, 2000);
   if (!prompt) fail("INVALID_DEFINITION", "Every question requires a prompt");
@@ -87,6 +102,7 @@ function normalizeQuestion(question, index) {
   return {
     id: text(question?.id, 96) || `question-${index + 1}`,
     prompt,
+    image: normalizeQuestionImage(question?.image),
     options: options.map(({ correct, ...option }) => option),
     correctOptionId
   };
@@ -161,7 +177,7 @@ function questionForParticipant(execution, participant, questionId) {
   const options = optionOrderFor(execution, participant, questionId)
     .map((optionId) => question.options.find((option) => option.id === optionId))
     .filter(Boolean);
-  return { id: question.id, prompt: question.prompt, options };
+  return { id: question.id, prompt: question.prompt, image: clone(question.image), options };
 }
 
 function createExecution({
@@ -764,6 +780,7 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       screen.currentQuestion = {
         id: current.id,
         prompt: current.prompt,
+        image: clone(current.image),
         options: current.options.map(({ id, label }) => ({ id, label }))
       };
       if (execution.substate === "REVEAL") {

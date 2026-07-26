@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { createExecution, joinParticipant } = require("../knowledge-activity-engine");
-const { KnowledgeActivityRepository } = require("../db/knowledge-activity-repository");
+const { KnowledgeActivityRepository, mysqlDateTime } = require("../db/knowledge-activity-repository");
 
 function fakePool(responses = []) {
   const queue = responses.slice();
@@ -92,6 +92,14 @@ test("execution insert reserves one active activity for the presentation session
   const insert = pool.calls.find((call) => /INSERT INTO knowledge_activity_executions/.test(call.sql || ""));
   assert.equal(insert.values[8], item.presentationSessionId);
   assert.equal(JSON.parse(insert.values[9]).definitionId, "contest-1");
+  assert.equal(insert.values[10], "1970-01-01 00:00:01.000");
+  assert.doesNotMatch(insert.values[10], /T|Z/);
+});
+
+test("ISO activity dates are converted to MySQL DATETIME(3) values", () => {
+  assert.equal(mysqlDateTime("2026-07-26T08:11:12.345Z"), "2026-07-26 08:11:12.345");
+  assert.equal(mysqlDateTime(null), null);
+  assert.throws(() => mysqlDateTime("not-a-date"), { code: "INVALID_DATE" });
 });
 
 test("save is optimistic and persists participant order without exposing recovery data", async () => {

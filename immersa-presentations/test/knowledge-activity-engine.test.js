@@ -73,6 +73,45 @@ test("definition requires one correct option and category-specific timing", () =
   );
 });
 
+test("optional question images survive normalization and role-specific snapshots", () => {
+  const image = {
+    url: "/decks/deck-1/knowledge-assets/question-aaaaaaaaaaaaaaaaaaaaaaaa.jpg",
+    mimeType: "image/jpeg",
+    width: 1600,
+    height: 900,
+    sizeBytes: 120000
+  };
+  const item = createExecution({
+    id: "execution-image",
+    presentationSessionId: "presentation-1",
+    sourceSessionId: "session-1",
+    deckId: "deck-1",
+    definition: definition("contest", {
+      questions: [{
+        id: "q1",
+        prompt: "Primera",
+        image,
+        options: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
+        correctOptionId: "a"
+      }]
+    }),
+    nowMs: 1000,
+    random: () => 0.999
+  });
+  const participant = joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-image",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 5000);
+  assert.deepEqual(stateForRole(item, { role: "presenter", nowMs: 5000 }).currentQuestion.image, image);
+  assert.deepEqual(stateForRole(item, { role: "screen", nowMs: 5000 }).currentQuestion.image, image);
+  assert.deepEqual(stateForRole(item, { role: "audience", participantId: participant.id, tabId: "tab-1", nowMs: 5000 }).currentQuestion.image, image);
+});
+
 test("contest uses a shared question order and individual option orders", () => {
   const item = execution("contest");
   const first = joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0 });

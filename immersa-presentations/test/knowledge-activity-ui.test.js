@@ -39,6 +39,29 @@ test("Home editor exposes configurable contests and assessments", () => {
   assert.match(editor, /questionDurationSeconds/);
   assert.match(editor, /durationSeconds/);
   assert.match(editor, /correctOptionId/);
+  assert.match(editor, /uploadKnowledgeQuestionImage/);
+  assert.match(editor, /Imagen opcional/);
+  assert.match(editor, /Cambiar imagen/);
+  assert.match(editor, /La imagen se eliminará al guardar/);
+});
+
+test("live countdown repaint does not rebuild selectable activity cards", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /function updateRenderedTimers/);
+  assert.match(source, /data-knowledge-deadline/);
+  assert.doesNotMatch(source, /const repaintTimer = global\.setInterval\(render/);
+  assert.match(source, /const repaintTimer = global\.setInterval\(\(\) => \{[\s\S]*updateRenderedTimers/);
+});
+
+test("question images render for controller, Público, and Screen question views", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function questionImageMarkup/);
+  assert.match(source, /state\.currentQuestion\?\.image/);
+  assert.match(source, /questionImageMarkup\(question\.image\)/);
+  assert.match(source, /knowledge-screen-question-image/);
+  assert.match(css, /\.knowledge-question-image/);
+  assert.match(css, /\.knowledge-screen-question-image/);
 });
 
 test("history exposes per-execution CSV without adding operational warnings", () => {

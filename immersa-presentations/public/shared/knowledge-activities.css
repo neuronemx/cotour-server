@@ -266,6 +266,32 @@
   background: #e34c67;
 }
 
+.knowledge-question-image {
+  display: block;
+  width: min(100%, 560px);
+  max-height: 280px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #eef1f7;
+}
+
+.knowledge-question-progress .knowledge-question-image {
+  width: min(100%, 360px);
+  max-height: 180px;
+  margin: 12px 0 0;
+}
+
+.knowledge-screen-question-image {
+  display: block;
+  width: min(68vw, 760px);
+  max-height: 38vh;
+  margin: -12px auto 26px;
+  border-radius: 20px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, .08);
+}
+
 .knowledge-screen-overlay {
   z-index: 20;
   color: #fff;

@@ -1,10 +1,14 @@
+const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
+const multer = require("multer");
 const { normalizeDefinition, KnowledgeActivityError } = require("./knowledge-activity-engine");
+const { detectLogo } = require("./brand-mentions-api");
 
 const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
 const VIDEO_PREVIEW_HEIGHT = 180;
+const MAX_QUESTION_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
   function normalizeDeckId(value) {
@@ -87,7 +91,30 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     };
   }
 
-  function normalizeKnowledgeDefinition(item, index, category, previous = null) {
+  function questionAssetPrefix(deckId) {
+    return "/decks/" + encodeURIComponent(deckId) + "/knowledge-assets/";
+  }
+
+  function normalizeQuestionImage(image, deckId) {
+    if (!image) return null;
+    const url = String(image.url || image.src || "").trim();
+    const prefix = questionAssetPrefix(deckId);
+    const fileName = url.startsWith(prefix) ? url.slice(prefix.length) : "";
+    if (!/^question-[a-f0-9]{24}\.(?:png|jpg|webp)$/i.test(fileName)) {
+      const error = new Error("Question image reference is invalid");
+      error.statusCode = 400;
+      throw error;
+    }
+    return {
+      url: prefix + fileName,
+      mimeType: String(image.mimeType || image.mime_type || "").slice(0, 64),
+      width: Math.max(0, Number(image.width) || 0),
+      height: Math.max(0, Number(image.height) || 0),
+      sizeBytes: Math.max(0, Number(image.sizeBytes || image.size_bytes) || 0)
+    };
+  }
+
+  function normalizeKnowledgeDefinition(item, index, category, previous = null, deckId = "") {
     try {
       const normalized = normalizeDefinition({
         ...item,
@@ -97,6 +124,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       const now = new Date().toISOString();
       return {
         ...normalized,
+        questions: normalized.questions.map((question) => ({
+          ...question,
+          image: normalizeQuestionImage(question.image, deckId)
+        })),
         createdAt: previous?.createdAt || item?.createdAt || now,
         updatedAt: now
       };
@@ -289,7 +320,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     const normalizeDefinitionList = (category, values, currentValues) => {
       const previousById = new Map((Array.isArray(currentValues) ? currentValues : []).map((item) => [String(item?.id || ""), item]));
       return (Array.isArray(values) ? values : []).map((item, index) =>
-        normalizeKnowledgeDefinition(item, index, category, previousById.get(String(item?.id || "")) || null)
+        normalizeKnowledgeDefinition(item, index, category, previousById.get(String(item?.id || "")) || null, deckId)
       );
     };
     const contests = body.contests === undefined
@@ -325,6 +356,9 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       const payload = await normalizePayload(req.params.deckId, req.body);
       const { deckDir } = await findDeckDir(req.params.deckId);
       await fs.promises.writeFile(path.join(deckDir, "interactions.json"), JSON.stringify(payload, null, 2) + "\n");
+      await cleanupQuestionAssets(deckDir, payload).catch((error) => {
+        console.warn("Unable to clean unused question images", error.message);
+      });
       res.json(payload);
     } catch (error) {
       const status = error.statusCode || 500;
@@ -333,7 +367,91 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     }
   }
 
-  return { getInteractions, putInteractions, readDeckConfig };
+  function normalizeQuestionId(value) {
+    const questionId = String(value || "").trim();
+    if (!/^[a-z0-9_-]{1,96}$/i.test(questionId)) {
+      const error = new Error("Invalid question id");
+      error.statusCode = 400;
+      throw error;
+    }
+    return questionId;
+  }
+
+  async function cleanupQuestionAssets(deckDir, payload) {
+    const assetsDir = path.join(deckDir, "knowledge-assets");
+    const referenced = new Set(
+      [...(payload.contests || []), ...(payload.assessments || [])]
+        .flatMap((definition) => definition.questions || [])
+        .map((question) => path.basename(String(question.image?.url || "")))
+        .filter((fileName) => /^question-[a-f0-9]{24}\.(?:png|jpg|webp)$/i.test(fileName))
+    );
+    let files;
+    try {
+      files = await fs.promises.readdir(assetsDir);
+    } catch (error) {
+      if (error.code === "ENOENT") return;
+      throw error;
+    }
+    await Promise.all(files
+      .filter((fileName) => /^question-[a-f0-9]{24}\.(?:png|jpg|webp)$/i.test(fileName))
+      .filter((fileName) => !referenced.has(fileName))
+      .map((fileName) => fs.promises.rm(path.join(assetsDir, fileName), { force: true })));
+  }
+
+  const questionImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_QUESTION_IMAGE_BYTES, files: 1, fields: 2 }
+  }).single("image");
+
+  function uploadQuestionImage(req, res) {
+    questionImageUpload(req, res, async (uploadError) => {
+      try {
+        if (uploadError) {
+          const error = new Error(uploadError.code === "LIMIT_FILE_SIZE" ? "La imagen debe pesar máximo 5 MB." : "No se pudo leer la imagen.");
+          error.statusCode = uploadError.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+          throw error;
+        }
+        if (!req.file?.buffer) {
+          const error = new Error("Selecciona una imagen.");
+          error.statusCode = 400;
+          throw error;
+        }
+        const detected = detectLogo(req.file.buffer);
+        if (detected.width > 4096 || detected.height > 4096) {
+          const error = new Error("La imagen no puede superar 4096 × 4096 px.");
+          error.statusCode = 400;
+          throw error;
+        }
+        const mimeType = String(req.file.mimetype || "").toLowerCase();
+        if (mimeType && mimeType !== "application/octet-stream" && mimeType !== detected.mimeType) {
+          const error = new Error("El tipo del archivo no coincide con la imagen.");
+          error.statusCode = 400;
+          throw error;
+        }
+        const questionId = normalizeQuestionId(req.params.questionId);
+        const { deckId, deckDir } = await findDeckDir(req.params.deckId);
+        const assetsDir = path.join(deckDir, "knowledge-assets");
+        const fileName = "question-" + crypto.randomBytes(12).toString("hex") + detected.extension;
+        await fs.promises.mkdir(assetsDir, { recursive: true });
+        await fs.promises.writeFile(path.join(assetsDir, fileName), req.file.buffer, { flag: "wx" });
+        res.status(201).json({
+          image: {
+            url: questionAssetPrefix(deckId) + fileName,
+            mimeType: detected.mimeType,
+            width: detected.width,
+            height: detected.height,
+            sizeBytes: req.file.buffer.length
+          }
+        });
+      } catch (error) {
+        const status = error.statusCode || (error.name === "BrandMentionError" ? 400 : 500);
+        if (status >= 500) console.error("Unable to upload question image", error);
+        res.status(status).json({ error: status >= 500 ? "No se pudo guardar la imagen." : error.message });
+      }
+    });
+  }
+
+  return { getInteractions, putInteractions, readDeckConfig, uploadQuestionImage };
 }
 
-module.exports = { createDeckInteractionHandlers };
+module.exports = { createDeckInteractionHandlers, MAX_QUESTION_IMAGE_BYTES };

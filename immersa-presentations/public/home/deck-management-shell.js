@@ -28,6 +28,8 @@
   };
 
   function activateTab(name, focus = false) {
+    modal.classList.toggle("is-compact-header", name !== "links");
+    modal.dataset.activeDeckTab = name;
     tabs.forEach((tab) => {
       const selected = tab.dataset.deckTab === name;
       tab.classList.toggle("is-active", selected);
