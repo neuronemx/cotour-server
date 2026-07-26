@@ -70,6 +70,9 @@ function createPongSocketHandlers({
 
   function clearCompeting(context) {
     const { sessionId, roomKey } = context;
+    if (coordinator?.hasActiveActivity?.(sessionId)) {
+      return { ok: false, reason: "active_interaction_exists" };
+    }
     const interactionStore = coordinator?.interactionStore;
     const raffleStore = coordinator?.raffleStore;
     const canCloseGames = typeof coordinator?.closeActiveGames === "function";

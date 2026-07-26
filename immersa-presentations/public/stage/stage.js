@@ -27,8 +27,22 @@ let interactionShellMount = null;
 let interactionShell = null;
 let pollsRenderer = null;
 let raffleRenderer = null;
+let assessmentRenderer = null;
+let contestRenderer = null;
 let raffleHostRegistration = null;
 let stageActionsOpen = false;
+let knowledgeActivitiesAvailable = false;
+const knowledgeActivityController = window.ImmersaKnowledgeActivities?.createController({
+  socket,
+  deckId,
+  role: "stage",
+  onAvailabilityChange: (available) => {
+    knowledgeActivitiesAvailable = Boolean(available);
+    interactionShell?.setCategoryVisible?.("assessments", knowledgeActivitiesAvailable);
+    interactionShell?.setCategoryVisible?.("contests", knowledgeActivitiesAvailable);
+  },
+  onStateChange: () => syncInteractionShellState()
+});
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 const fallbackDemoInteraction = {
   id: "demo-poll-1",
@@ -399,13 +413,19 @@ function setStageActionsOpen(open) {
   if (stageActionsOpen) renderStageActionsPanel();
 }
 
-function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : "home"); }
-function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active); }
+function knowledgeActivityView() {
+  const category = knowledgeActivityController?.getState?.().category;
+  return category === "contest" ? "contests" : category === "assessment" ? "assessments" : "";
+}
+function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : knowledgeActivityView() || "home"); }
+function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active || knowledgeActivityView()); }
 function resetInactiveRaffleDraft() { if (hasActiveInteractionShellLock()) return false; return raffleController?.resetLocalSetup?.() || false; }
 function syncRendererVisibility() {
   if (!interactionShell) return;
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
   if (raffleRenderer) raffleRenderer.hidden = interactionShell.getView() !== "raffles";
+  if (assessmentRenderer) assessmentRenderer.hidden = interactionShell.getView() !== "assessments";
+  if (contestRenderer) contestRenderer.hidden = interactionShell.getView() !== "contests";
 }
 function returnInteractionsHome() {
   const shell = ensureInteractionsShell();
@@ -423,13 +443,16 @@ function syncInteractionShellState() {
   if (!shell) return;
   const activeRaffle = Boolean(raffleController?.getState?.().active);
   const activePoll = Boolean(activeInteraction);
-  stageActionsModal?.classList.toggle("is-locked", activePoll || activeRaffle);
-  shell.setLocked(activePoll || activeRaffle);
-  shell.setCloseVisible(!(activePoll || activeRaffle));
+  const activeKnowledge = knowledgeActivityView();
+  const locked = activePoll || activeRaffle || Boolean(activeKnowledge);
+  stageActionsModal?.classList.toggle("is-locked", locked);
+  shell.setLocked(locked);
+  shell.setCloseVisible(!locked);
+  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge);
   if (activePoll || activeRaffle || shell.getView() === "home") shell.setView(activeInteractionView());
   shell.setTitleVisible?.(true);
   syncRendererVisibility();
-  if ((activePoll || activeRaffle) && !stageActionsOpen) setStageActionsOpen(true);
+  if (locked && !stageActionsOpen) setStageActionsOpen(true);
 }
 function closeStageActionsRequest() {
   if (hasActiveInteractionShellLock()) return;
@@ -442,7 +465,11 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell || !interactionShellMount) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
-    categoryVisibility: { qna: qnaAvailable },
+    categoryVisibility: {
+      qna: qnaAvailable,
+      assessments: knowledgeActivitiesAvailable,
+      contests: knowledgeActivitiesAvailable
+    },
     onSelectCategory: (view) => {
       if (view === "qna") {
         interactionShell.setView("home");
@@ -453,6 +480,7 @@ function ensureInteractionsShell() {
       }
       if (view === "polls") renderStageActionsPanel();
       if (view === "raffles") { syncRendererVisibility(); raffleController?.setTab?.("raffles"); }
+      if (view === "assessments" || view === "contests") syncRendererVisibility();
       syncInteractionShellState();
     },
     onRequestClose: closeStageActionsRequest
@@ -461,10 +489,18 @@ function ensureInteractionsShell() {
   pollsRenderer.className = "interaction-polls-renderer";
   raffleRenderer = document.createElement("div");
   raffleRenderer.className = "interaction-raffle-renderer";
-  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer);
+  assessmentRenderer = document.createElement("div");
+  assessmentRenderer.className = "interaction-knowledge-renderer";
+  assessmentRenderer.dataset.interactionsView = "assessments";
+  contestRenderer = document.createElement("div");
+  contestRenderer.className = "interaction-knowledge-renderer";
+  contestRenderer.dataset.interactionsView = "contests";
+  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer);
   if (raffleController?.mountHost) {
     raffleHostRegistration = raffleController.mountHost({ role: "stage", root: raffleRenderer, isActive: () => interactionShell.getView() === "raffles" });
   }
+  knowledgeActivityController?.mountHost?.({ root: assessmentRenderer, category: "assessment" });
+  knowledgeActivityController?.mountHost?.({ root: contestRenderer, category: "contest" });
   syncRendererVisibility();
   return interactionShell;
 }

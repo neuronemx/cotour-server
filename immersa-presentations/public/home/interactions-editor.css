@@ -202,6 +202,7 @@
 }
 
 .interaction-module-card.raffles .interaction-module-icon { background: linear-gradient(135deg, #22c55e, #06b6d4); }
+.interaction-module-card.assessments .interaction-module-icon { background: linear-gradient(135deg, #4368f6, #7c3aed); }
 .interaction-module-card.contests .interaction-module-icon { background: linear-gradient(135deg, #f43f5e, #f59e0b); }
 .interaction-module-card.games .interaction-module-icon { background: linear-gradient(135deg, #111827, #6d3bef); }
 
@@ -434,7 +435,8 @@
 }
 
 .interaction-edit-form input,
-.interaction-edit-form textarea {
+.interaction-edit-form textarea,
+.interaction-edit-form select {
   width: 100%;
   border: 1.5px solid rgba(67,104,246,.13);
   border-radius: 15px;
@@ -455,11 +457,80 @@
   padding: 13px 14px;
 }
 
+.interaction-edit-form select {
+  height: 46px;
+  padding: 0 14px;
+}
+
 .interaction-edit-form input:focus,
-.interaction-edit-form textarea:focus {
+.interaction-edit-form textarea:focus,
+.interaction-edit-form select:focus {
   outline: none;
   border-color: var(--blue);
   box-shadow: 0 0 0 4px rgba(67,104,246,.12);
+}
+
+.knowledge-questions-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.knowledge-question-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 15px;
+  border: 1px solid rgba(67,104,246,.14);
+  border-radius: 16px;
+}
+
+.knowledge-question-editor legend {
+  padding: 0 7px;
+  color: var(--violet);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.knowledge-option-editors {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-option-editor {
+  grid-template-columns: 22px minmax(0, 1fr) 34px;
+  align-items: center;
+}
+
+.knowledge-option-editor input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--violet);
+}
+
+.knowledge-option-editor button {
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid rgba(67,104,246,.13);
+  border-radius: 50%;
+}
+
+.knowledge-question-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.knowledge-duration-estimate {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  color: var(--violet);
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(109,59,239,.07);
+  border-radius: 12px;
 }
 
 .interaction-segmented {

@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const { normalizeDefinition, KnowledgeActivityError } = require("./knowledge-activity-engine");
 
 const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
@@ -84,6 +85,25 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
         points: Number.isFinite(Number(settings.points)) ? Number(settings.points) : 0
       }
     };
+  }
+
+  function normalizeKnowledgeDefinition(item, index, category, previous = null) {
+    try {
+      const normalized = normalizeDefinition({
+        ...item,
+        id: String(item?.id || `${category}_${Date.now()}_${index}`).trim(),
+        category
+      });
+      const now = new Date().toISOString();
+      return {
+        ...normalized,
+        createdAt: previous?.createdAt || item?.createdAt || now,
+        updatedAt: now
+      };
+    } catch (error) {
+      if (error instanceof KnowledgeActivityError) error.statusCode = 400;
+      throw error;
+    }
   }
 
   function normalizeEndBehavior(value) {
@@ -199,6 +219,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     return {
       deck_id: deckId,
       interactions: Array.isArray(parsed) ? parsed : Array.isArray(parsed.interactions) ? parsed.interactions : [],
+      contests: Array.isArray(parsed?.contests) ? parsed.contests : [],
+      assessments: Array.isArray(parsed?.assessments) ? parsed.assessments : [],
       hidden_slide_ids: migrateHiddenIds(parsed || {}, slideIds),
       hidden_slide_indexes: normalizeIndexes(parsed?.hidden_slide_indexes),
       videos: Array.isArray(parsed?.videos) ? parsed.videos : []
@@ -215,7 +237,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       return { ...payloadFromParsed(parsed, deckId, slideIds), slides: manifest.slides || [] };
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      return { deck_id: deckId, interactions: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], slides: manifest.slides || [] };
+      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], slides: manifest.slides || [] };
     }
   }
 
@@ -264,9 +286,24 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     }
     videos.sort((a, b) => slideIds.indexOf(a.slide_id) - slideIds.indexOf(b.slide_id));
 
+    const normalizeDefinitionList = (category, values, currentValues) => {
+      const previousById = new Map((Array.isArray(currentValues) ? currentValues : []).map((item) => [String(item?.id || ""), item]));
+      return (Array.isArray(values) ? values : []).map((item, index) =>
+        normalizeKnowledgeDefinition(item, index, category, previousById.get(String(item?.id || "")) || null)
+      );
+    };
+    const contests = body.contests === undefined
+      ? current.contests
+      : normalizeDefinitionList("contest", body.contests, current.contests);
+    const assessments = body.assessments === undefined
+      ? current.assessments
+      : normalizeDefinitionList("assessment", body.assessments, current.assessments);
+
     return {
       deck_id: deckId,
       interactions: body.interactions.map(normalizeInteraction),
+      contests,
+      assessments,
       hidden_slide_ids: hiddenIds,
       hidden_slide_indexes: hiddenIds.map((slideId) => slideIds.indexOf(slideId)).filter((index) => index >= 0),
       videos
@@ -296,7 +333,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     }
   }
 
-  return { getInteractions, putInteractions };
+  return { getInteractions, putInteractions, readDeckConfig };
 }
 
 module.exports = { createDeckInteractionHandlers };

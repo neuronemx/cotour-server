@@ -110,7 +110,8 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(interactions, /interaction-module-list/);
   assert.doesNotMatch(interactions, /interaction-module-grid/);
   assert.match(interactions, /pollsButton\?\.after\(renderPollPanel\(\)\)/);
-  assert.match(interactions, /activeModule = activeModule === "polls" \? null : "polls"/);
+  assert.match(interactions, /activeModule = activeModule === kind \? null : kind/);
+  assert.match(interactions, /renderKnowledgePanel\(category\)/);
   assert.match(interactions, /aria-expanded/);
   assert.match(interactions, /section\.appendChild\(makeButton\("Crear encuesta", "interactions-create-action"/);
   assert.doesNotMatch(interactions, /interaction-form-header"><span>Encuesta<\/span>/);

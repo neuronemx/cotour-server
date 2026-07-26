@@ -44,7 +44,9 @@ test("only the controller that paused can navigate while transmission is paused"
   assert.match(server, /session\.transmissionPausedBy = currentRole/);
   assert.match(server, /session\.transmissionPausedBy = null/);
   assert.match(server, /function canNavigatePresentation\(role, session\) \{[\s\S]*?!session\?\.transmissionPaused \|\| session\.transmissionPausedBy === role/);
-  assert.equal((server.match(/!canNavigatePresentation\(currentRole, session\)/g) || []).length, 3);
+  assert.equal((server.match(/!canNavigatePresentation\(currentRole, session\)/g) || []).length, 1);
+  assert.equal((server.match(/!canStepPresentation\(currentRole, session\)/g) || []).length, 2);
+  assert.match(server, /function canStepPresentation\(role, session\) \{[\s\S]*?role === "screen"/);
   assert.match(presenterScript, /state\?\.transmissionPaused && state\?\.transmissionPausedBy !== "presenter"/);
   assert.match(stageScript, /state\.presenterSlideIndex \?\? state\.slideIndex/);
   assert.match(stageScript, /currentState\?\.transmissionPaused && currentState\?\.transmissionPausedBy !== "stage"/);

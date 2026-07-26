@@ -3,6 +3,7 @@ class ActiveInteractionCoordinator {
     this.interactionStore = interactionStore;
     this.raffleStore = raffleStore;
     this.gameRuntimes = new Map();
+    this.activityRuntimes = new Map();
     this.locks = new Map();
     this.activityListeners = new Set();
 
@@ -23,6 +24,30 @@ class ActiveInteractionCoordinator {
     if (current && current !== runtime) throw new Error(`Game runtime already registered: ${type}`);
     this.gameRuntimes.set(type, runtime);
     return runtime;
+  }
+
+  registerActivity(activityType, runtime) {
+    const type = String(activityType || "").trim();
+    if (!type) throw new Error("activityType is required");
+    if (!runtime || typeof runtime.hasActive !== "function") {
+      throw new Error(`Activity runtime ${type} must expose hasActive(sessionId)`);
+    }
+    const current = this.activityRuntimes.get(type);
+    if (current && current !== runtime) throw new Error(`Activity runtime already registered: ${type}`);
+    this.activityRuntimes.set(type, runtime);
+    return runtime;
+  }
+
+  getActiveActivityType(sessionId, exceptActivityType = "") {
+    const except = String(exceptActivityType || "").replace(/^activity:/, "");
+    for (const [activityType, runtime] of this.activityRuntimes.entries()) {
+      if (activityType !== except && runtime.hasActive(sessionId)) return activityType;
+    }
+    return "";
+  }
+
+  hasActiveActivity(sessionId, exceptActivityType = "") {
+    return Boolean(this.getActiveActivityType(sessionId, exceptActivityType));
   }
 
   getGameRuntime(gameType) {
@@ -94,7 +119,9 @@ class ActiveInteractionCoordinator {
   }
 
   hasActiveInteraction(sessionId) {
-    return Boolean(this.interactionStore?.getSession(sessionId)?.active) || this.hasActiveGame(sessionId);
+    return Boolean(this.interactionStore?.getSession(sessionId)?.active)
+      || this.hasActiveGame(sessionId)
+      || this.hasActiveActivity(sessionId);
   }
 
   hasActiveRaffle(sessionId) {
@@ -109,7 +136,8 @@ class ActiveInteractionCoordinator {
     return (
       (except !== "interaction" && Boolean(this.interactionStore?.getSession(sessionId)?.active)) ||
       (except !== "raffle" && this.hasActiveRaffle(sessionId)) ||
-      this.hasActiveGame(sessionId, except)
+      this.hasActiveGame(sessionId, except) ||
+      this.hasActiveActivity(sessionId, except)
     );
   }
 }

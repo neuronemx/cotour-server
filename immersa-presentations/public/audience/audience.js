@@ -3,6 +3,10 @@ const publicOpenContext = window.IMMERSA_PUBLIC_OPEN || {};
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
+const knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
+  socket,
+  root: document.getElementById("knowledgeActivityAudience")
+});
 let manifest = null;
 let currentSlideIndex = 0;
 let zoom = 1;

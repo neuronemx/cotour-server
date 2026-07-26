@@ -3,6 +3,10 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
+const knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
+  socket,
+  root: document.getElementById("knowledgeActivityScreen")
+});
 let manifest = null;
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
@@ -81,6 +85,18 @@ function renderQnaScreen(payload = {}) {
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+  const tagName = String(event.target?.tagName || "").toLowerCase();
+  if (tagName === "input" || tagName === "textarea" || tagName === "select" || event.target?.isContentEditable) return;
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    if (socket.connected !== false) (socket.volatile || socket).emit("slide_next");
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    if (socket.connected !== false) (socket.volatile || socket).emit("slide_prev");
+  }
+});
 ["mousemove", "mousedown", "touchstart", "pointermove"].forEach((eventName) => {
   screenRoot.addEventListener(eventName, showScreenUi, { passive: true });
 });

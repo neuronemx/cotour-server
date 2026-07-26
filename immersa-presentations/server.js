@@ -16,6 +16,8 @@ const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
+const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
+const { createKnowledgeActivityHistoryHandlers } = require("./knowledge-activity-export");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 
@@ -58,8 +60,20 @@ const raffleSockets = createRaffleSocketHandlers({
   getConnectedAudience,
   coordinator: activeInteractionCoordinator
 });
+const deckInteractionHandlers = createDeckInteractionHandlers({
+  dataDecksDir: DATA_DECKS_DIR,
+  staticDecksDir: STATIC_DECKS_DIR
+});
 const qnaRuntime = createQnaRuntime({
   io,
+  getRoleRoomKey,
+  getRoomKey,
+  getConnectedAudience
+});
+const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
+  io,
+  coordinator: activeInteractionCoordinator,
+  loadDefinitionsForDeck: (deckId) => deckInteractionHandlers.readDeckConfig(deckId),
   getRoleRoomKey,
   getRoomKey,
   getConnectedAudience
@@ -71,11 +85,10 @@ const accessLinkHandlers = createAccessLinkHandlers({
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution
 });
-const deckInteractionHandlers = createDeckInteractionHandlers({
-  dataDecksDir: DATA_DECKS_DIR,
-  staticDecksDir: STATIC_DECKS_DIR
-});
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
+const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
+  runtime: knowledgeActivityRuntime
+});
 const brandMentionHandlers = createBrandMentionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
@@ -110,6 +123,11 @@ function canControlPresentation(role) {
 function canNavigatePresentation(role, session) {
   if (!canControlPresentation(role)) return false;
   return !session?.transmissionPaused || session.transmissionPausedBy === role;
+}
+
+function canStepPresentation(role, session) {
+  if (role === "screen") return true;
+  return canNavigatePresentation(role, session);
 }
 
 async function ensureDataDirs() {
@@ -554,7 +572,7 @@ function normalizeDrawingStroke(session, stroke) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
-app.use(express.json({ limit: "192kb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -574,6 +592,7 @@ app.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderB
 app.put("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", qnaHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", knowledgeActivityHistoryHandlers.listHistory);
 app.delete("/api/decks/:deckId", async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
@@ -588,6 +607,11 @@ app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
+app.get(
+  "/api/knowledge-activities/:executionId/export/:access_token",
+  accessLinkHandlers.guardAccessRoles(["speaker"]),
+  knowledgeActivityHistoryHandlers.exportExecution
+);
 app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.clearHistory);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
@@ -647,6 +671,13 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  knowledgeActivityRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
     if (!role) return;
@@ -700,6 +731,7 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     });
+    await knowledgeActivityRuntime.sendCurrentState(socket, joinedContext);
     if (role === "presenter") await brandMentionRuntime.start(joinedContext);
     if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
     emitState(currentRoomKey, session);
@@ -730,7 +762,7 @@ io.on("connection", (socket) => {
   socket.on("slide_next", async () => {
     if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session || !canNavigatePresentation(currentRole, session)) return;
+    if (!session || !canStepPresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
     emitState(currentRoomKey, session);
   });
@@ -738,7 +770,7 @@ io.on("connection", (socket) => {
   socket.on("slide_prev", async () => {
     if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session || !canNavigatePresentation(currentRole, session)) return;
+    if (!session || !canStepPresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
     emitState(currentRoomKey, session);
   });
@@ -815,5 +847,10 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log("Immersa Presentations running at http://localhost:" + PORT);
   console.log("Q&A runtime enabled:", qnaRuntime.enabled);
+  console.log("Contest and assessment runtime enabled:", knowledgeActivityRuntime.enabled);
   logConversionHealth();
+});
+
+knowledgeActivityRuntime.start().catch((error) => {
+  console.error("Unable to start contest and assessment runtime", error);
 });

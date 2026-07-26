@@ -235,10 +235,9 @@ function createInteractionSocketHandlers({
 
   async function launchInteraction(context, interactionId) {
     const execute = async () => {
-      if (coordinator?.hasActiveRaffle(context.sessionId)) return { ok: false, reason: "active_raffle_exists" };
-      const activeGameType = coordinator?.getActiveGameType?.(context.sessionId)
-        || (coordinator?.hasActiveBreakout?.(context.sessionId) ? "breakout" : "");
-      if (activeGameType) return { ok: false, reason: `active_${activeGameType}_exists` };
+      if (coordinator?.hasAnyActive?.(context.sessionId, "interaction")) {
+        return { ok: false, reason: "active_interaction_exists" };
+      }
       const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
       const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
       const active = store.launch({ sessionId: context.sessionId, interaction });
