@@ -53,6 +53,21 @@ test("live countdown repaint does not rebuild selectable activity cards", () => 
   assert.match(source, /const repaintTimer = global\.setInterval\(\(\) => \{[\s\S]*updateRenderedTimers/);
 });
 
+test("lobby cancellation is immediate and distinct from irreversible finalization", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /intent === "finalize" \|\| intent === "force_results"/);
+  assert.doesNotMatch(source, /intent === "finalize" \|\| intent === "cancel"/);
+});
+
+test("Speaker and Stage activity controls inherit the Immersa dark-glass visual language", () => {
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(css, /\.interaction-panel \.knowledge-controller/);
+  assert.match(css, /\.stage-actions-card \.knowledge-controller/);
+  assert.match(css, /\.interaction-panel \.knowledge-actions \.primary/);
+  assert.match(css, /background: var\(--immersa-gradient\)/);
+  assert.match(css, /color: rgba\(248, 250, 255, \.96\)/);
+});
+
 test("question images render for controller, Público, and Screen question views", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");

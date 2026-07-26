@@ -50,27 +50,30 @@ function createKnowledgeActivitySocketHandlers({
   function emitAll(execution) {
     if (!execution) return;
     const roomKey = getRoomKey(execution.sourceSessionId, execution.deckId);
+    const activeExecution = service.isExecutionActive(execution) ? execution : null;
     io.to(getRoleRoomKey(roomKey, "presenter")).emit(
       "interaction:execution:state",
-      roleState(execution, "presenter")
+      roleState(activeExecution, "presenter")
     );
     io.to(getRoleRoomKey(roomKey, "stage")).emit(
       "interaction:execution:state",
-      roleState(execution, "stage")
+      roleState(activeExecution, "stage")
     );
     io.to(getRoleRoomKey(roomKey, "screen")).emit(
       "interaction:execution:state",
-      roleState(execution, "screen")
+      roleState(activeExecution, "screen")
     );
     io.to(getRoleRoomKey(roomKey, "viewer")).emit(
       "interaction:execution:state",
-      roleState(execution, "viewer")
+      roleState(activeExecution, "viewer")
     );
     for (const audience of getConnectedAudience(roomKey)) {
-      const participantId = participantIdFor(execution.id, audience.audienceId);
+      const participantId = activeExecution
+        ? participantIdFor(activeExecution.id, audience.audienceId)
+        : "";
       io.to(getRoleRoomKey(roomKey, `audience:${audience.audienceId}`)).emit(
         "interaction:execution:state",
-        roleState(execution, "audience", { participantId })
+        roleState(activeExecution, "audience", { participantId })
       );
     }
   }

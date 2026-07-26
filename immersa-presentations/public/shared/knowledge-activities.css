@@ -326,3 +326,96 @@
   background: #168c64;
   border-color: #3fe0aa;
 }
+
+/* Speaker and Stage render this controller inside Immersa's dark glass shell. */
+.interaction-panel .knowledge-controller,
+.stage-actions-card .knowledge-controller {
+  color: rgba(248, 250, 255, .96);
+}
+
+.interaction-panel .knowledge-definition,
+.stage-actions-card .knowledge-definition {
+  color: rgba(248, 250, 255, .96);
+  background: rgba(255, 255, 255, .055);
+  border-color: rgba(255, 255, 255, .11);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.interaction-panel .knowledge-definition:hover,
+.interaction-panel .knowledge-definition:focus-visible,
+.stage-actions-card .knowledge-definition:hover,
+.stage-actions-card .knowledge-definition:focus-visible {
+  background: rgba(255, 255, 255, .085);
+  border-color: rgba(93, 202, 165, .58);
+  box-shadow: none;
+}
+
+.interaction-panel .knowledge-definition span,
+.interaction-panel .knowledge-empty span,
+.interaction-panel .knowledge-processing small,
+.stage-actions-card .knowledge-definition span,
+.stage-actions-card .knowledge-empty span,
+.stage-actions-card .knowledge-processing small {
+  color: rgba(218, 216, 229, .68);
+}
+
+.interaction-panel .knowledge-live-head > div > span,
+.stage-actions-card .knowledge-live-head > div > span {
+  color: rgba(218, 216, 229, .76);
+}
+
+.interaction-panel .knowledge-live-head h2,
+.stage-actions-card .knowledge-live-head h2,
+.interaction-panel .knowledge-empty strong,
+.stage-actions-card .knowledge-empty strong,
+.interaction-panel .knowledge-metric span,
+.stage-actions-card .knowledge-metric span {
+  color: #fff;
+}
+
+.interaction-panel .knowledge-timer,
+.stage-actions-card .knowledge-timer {
+  color: #fff;
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.interaction-panel .knowledge-actions button,
+.stage-actions-card .knowledge-actions button {
+  min-height: 42px;
+  color: rgba(248, 250, 255, .94);
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.interaction-panel .knowledge-actions button:hover:not(:disabled),
+.stage-actions-card .knowledge-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .11);
+  border-color: rgba(255, 255, 255, .2);
+}
+
+.interaction-panel .knowledge-actions .primary,
+.stage-actions-card .knowledge-actions .primary {
+  color: #fff;
+  background: var(--immersa-gradient);
+  border: 0;
+  box-shadow: none;
+}
+
+.interaction-panel .knowledge-metric,
+.stage-actions-card .knowledge-metric,
+.interaction-panel .knowledge-summary,
+.stage-actions-card .knowledge-summary {
+  color: #fff;
+}
+
+.interaction-panel .knowledge-ranking > div,
+.interaction-panel .knowledge-stats > div,
+.stage-actions-card .knowledge-ranking > div,
+.stage-actions-card .knowledge-stats > div {
+  color: rgba(248, 250, 255, .92);
+  background: rgba(255, 255, 255, .065);
+}

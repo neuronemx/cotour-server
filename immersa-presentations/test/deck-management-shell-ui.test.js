@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=10/);
-  assert.match(html, /deck-management-shell\.js\?v=5/);
+  assert.match(html, /deck-management-shell\.css\?v=11/);
+  assert.match(html, /deck-management-shell\.js\?v=6/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
   assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
@@ -46,7 +46,9 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /immersa:deck-detail-open/);
   assert.match(source, /ArrowLeft/);
   assert.match(source, /ArrowRight/);
-  assert.match(source, /modal\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
+  assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
   assert.doesNotMatch(source, /MutationObserver|setInterval|setTimeout/);
 });
 
@@ -98,7 +100,7 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+backdrop-filter: blur\(12px\)/);
   assert.match(css, /\.deck-detail-slide-thumb \{[\s\S]+padding: 1px[\s\S]+background: rgba\(255, 255, 255, \.3\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+padding: 2px[\s\S]+background: var\(--grad\)/);
-  assert.match(html, /deck-management-shell\.css\?v=10/);
+  assert.match(html, /deck-management-shell\.css\?v=11/);
 });
 
 test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {

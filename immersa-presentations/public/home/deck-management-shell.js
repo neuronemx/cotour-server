@@ -2,9 +2,10 @@
   const modal = document.getElementById("deckDetailModal");
   const actionSource = document.getElementById("detailActions");
   const launchers = document.getElementById("deckEditorLaunchers");
+  const shell = modal?.querySelector(".deck-detail-modal");
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
-  if (!modal || !actionSource || !launchers || !tabs.length || !panels.length) return;
+  if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const moduleDetails = {
     interactions: {
@@ -28,7 +29,7 @@
   };
 
   function activateTab(name, focus = false) {
-    modal.classList.toggle("is-compact-header", name !== "links");
+    shell.classList.toggle("is-compact-header", name !== "links");
     modal.dataset.activeDeckTab = name;
     tabs.forEach((tab) => {
       const selected = tab.dataset.deckTab === name;

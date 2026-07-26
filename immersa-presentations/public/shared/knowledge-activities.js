@@ -224,7 +224,7 @@
       host.root.querySelectorAll("[data-knowledge-command]").forEach((button) => {
         button.addEventListener("click", () => {
           const intent = button.dataset.knowledgeCommand;
-          if ((intent === "finalize" || intent === "cancel" || intent === "force_results")
+          if ((intent === "finalize" || intent === "force_results")
             && !global.confirm(intent === "force_results"
               ? "Immersa reconstruirá los resultados con las respuestas guardadas. ¿Continuar?"
               : "¿Finalizar la actividad ahora? No podrá reabrirse.")) return;

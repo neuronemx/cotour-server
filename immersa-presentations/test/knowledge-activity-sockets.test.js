@@ -47,7 +47,12 @@ function service() {
     calls,
     subscribe(next) { listener = next; return () => { listener = null; }; },
     async getActive() { return item; },
-    state(_execution, options) { return { executionId: item.id, role: options.role, participantId: options.participantId || "" }; },
+    isExecutionActive(value) { return Boolean(value && !["CANCELLED", "CLOSED"].includes(value.state)); },
+    state(value, options) {
+      return value
+        ? { executionId: value.id, role: options.role, participantId: options.participantId || "" }
+        : { available: true, execution: null };
+    },
     async open(payload) { calls.push({ action: "open", payload }); return item; },
     async command(_execution, payload) { calls.push({ action: "command", payload }); return { ok: true, revision: 2 }; },
     async join(_execution, payload) { calls.push({ action: "join", payload }); return { id: payload.participantId, label: "Usuario 001" }; },
@@ -57,7 +62,10 @@ function service() {
       return { questionId: payload.questionId, optionId: payload.optionId, receivedAt: "now" };
     },
     async submit(_execution, payload) { calls.push({ action: "submit", payload }); return { submittedAt: "now" }; },
-    notify(eventName) { listener?.({ execution: item, eventName }); }
+    notify(eventName, state = item.state) {
+      item.state = state;
+      listener?.({ execution: item, eventName });
+    }
   };
 }
 
@@ -152,6 +160,23 @@ test("state broadcasts are role-specific and audience payloads use private rooms
   assert.equal(audience.payload.role, "audience");
   assert.equal(screen.payload.role, "screen");
   assert.equal(audience.payload.participantId, participantIdFor("execution-1", "audience-1"));
+});
+
+test("terminal cancellation clears the active execution for every role", () => {
+  const io = fakeIo();
+  const runtimeService = service();
+  createKnowledgeActivitySocketHandlers({
+    io,
+    service: runtimeService,
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getRoomKey: (session, deck) => `${session}::${deck}`,
+    getConnectedAudience: () => [{ audienceId: "audience-1" }]
+  });
+  runtimeService.notify("cancel", "CANCELLED");
+  assert.equal(io.events.length, 5);
+  io.events.forEach((event) => {
+    assert.deepEqual(event.payload, { available: true, execution: null });
+  });
 });
 
 test("runtime is protected by the temporary environment feature flag", async () => {
