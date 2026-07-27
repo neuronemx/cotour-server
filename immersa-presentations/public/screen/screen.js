@@ -136,7 +136,7 @@ document.addEventListener("keydown", (event) => {
 });
 showScreenUi();
 
-socket.on("presentation_state", (state) => { if (manifest) render(state); });
+socket.on("presentation_state", render);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });

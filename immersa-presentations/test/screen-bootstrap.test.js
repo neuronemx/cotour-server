@@ -14,8 +14,10 @@ test("Screen joins independently of manifest loading and recovers a delayed deck
   assert.match(source, /function loadDeckWithRetry\(attempt = 0\)/);
   assert.match(source, /pendingPresentationState = state;/);
   assert.match(source, /if \(pendingPresentationState\) render\(pendingPresentationState\);/);
+  assert.match(source, /socket\.on\("presentation_state", render\);/);
+  assert.doesNotMatch(source, /socket\.on\("presentation_state", \(state\) => \{ if \(manifest\) render\(state\); \}\);/);
   assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deckId\)/);
-  assert.match(html, /\/screen\/screen\.js\?v=2/);
+  assert.match(html, /\/screen\/screen\.js\?v=3/);
 });
 
 test("core presentation state and knowledge activity recovery cannot be blocked by optional snapshots", () => {
