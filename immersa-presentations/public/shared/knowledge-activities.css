@@ -467,7 +467,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(38px, 6vh, 76px);
+  gap: clamp(30px, 4.5vh, 54px);
   text-align: center;
 }
 
@@ -538,20 +538,29 @@
 }
 
 .knowledge-screen-countdown {
-  min-height: clamp(180px, 24vw, 360px);
+  width: 100%;
+  min-height: clamp(220px, 25vw, 420px);
   display: grid;
   place-items: center;
+  overflow: visible;
 }
 
 .knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value {
   min-width: 0;
-  font: 900 clamp(170px, 24vw, 380px)/.72 Poppins, Inter, sans-serif;
+  max-width: 96vw;
+  font: 900 clamp(170px, 24vw, 380px)/.9 Poppins, Inter, sans-serif;
   letter-spacing: -.06em;
   background: linear-gradient(135deg, #fff 8%, #8ee3d2 48%, #9b7bff 92%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 22px 42px rgba(0, 0, 0, .32));
+}
+
+.knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value.is-starting {
+  font-size: clamp(112px, 18vw, 300px);
+  line-height: .95;
+  letter-spacing: -.045em;
 }
 
 .knowledge-screen-card h1 {

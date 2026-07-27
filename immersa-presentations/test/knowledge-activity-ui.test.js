@@ -317,7 +317,10 @@ test("Screen lobby uses contest identity, centered presence, and a dominant coun
   assert.match(source, /knowledge-screen-presence/);
   assert.match(source, /knowledge-screen-countdown/);
   assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(170px, 24vw, 380px\)/);
+  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(220px, 25vw, 420px\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(170px, 24vw, 380px\)\/\.9/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(112px, 18vw, 300px\);[\s\S]*?line-height: \.95;/);
+  assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
   assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
 });
 

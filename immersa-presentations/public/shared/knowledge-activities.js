@@ -88,8 +88,10 @@
   }
 
   function countdownMarkup(state) {
-    return '<strong class="knowledge-countdown-value" data-knowledge-countdown>'
-      + countdownLabel(state)
+    const label = countdownLabel(state);
+    const startingClass = label === "¡Inicia!" ? " is-starting" : "";
+    return '<strong class="knowledge-countdown-value' + startingClass + '" data-knowledge-countdown>'
+      + label
       + "</strong>";
   }
 
@@ -98,7 +100,9 @@
       node.textContent = timeLabel(secondsUntil(node.dataset.knowledgeDeadline, state?.serverNow, state?._receivedAt));
     });
     root?.querySelectorAll?.("[data-knowledge-countdown]").forEach((node) => {
-      node.textContent = countdownLabel(state);
+      const label = countdownLabel(state);
+      node.textContent = label;
+      node.classList?.toggle("is-starting", label === "¡Inicia!");
     });
   }
 
