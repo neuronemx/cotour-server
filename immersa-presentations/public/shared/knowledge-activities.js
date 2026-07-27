@@ -194,13 +194,18 @@
       if (!items.length) {
         return '<div class="knowledge-empty"><strong>No hay ' + (category === "contest" ? "concursos" : "evaluaciones") + ' configurados</strong><span>Créalo desde Deck → Interacciones.</span></div>';
       }
+      const icon = category === "contest"
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v8a5 5 0 0 1-10 0V4ZM3 8v2a3 3 0 0 0 3 3M21 8v2a3 3 0 0 1-3 3"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2ZM9 14l2 2 4-4"/></svg>';
       return '<div class="knowledge-definition-list">' + items.map((item) => {
         const duration = category === "contest"
           ? item.questionDurationSeconds + " s por pregunta"
           : Math.round(item.durationSeconds / 60) + " min";
-        return '<button type="button" class="knowledge-definition" data-knowledge-open="' + escapeHtml(item.id) + '">'
-          + '<strong>' + escapeHtml(item.title) + '</strong>'
-          + '<span>' + item.questions.length + " preguntas · " + escapeHtml(duration) + "</span>"
+        return '<button type="button" class="knowledge-definition knowledge-definition-' + category + '" data-knowledge-open="' + escapeHtml(item.id) + '">'
+          + '<span class="knowledge-definition-icon">' + icon + '</span>'
+          + '<span class="knowledge-definition-copy"><strong>' + escapeHtml(item.title) + '</strong>'
+          + '<small>' + item.questions.length + " preguntas · " + escapeHtml(duration) + "</small></span>"
+          + '<span class="knowledge-definition-arrow" aria-hidden="true">→</span>'
           + "</button>";
       }).join("") + "</div>";
     }
@@ -375,7 +380,7 @@
       if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>La actividad ya comenzó</strong><span>Espera la siguiente interacción.</span></div>';
       const mode = state.identificationMode || "anonymous";
       const input = mode === "anonymous" ? "" : '<label>Nombre' + (mode === "optional_name" ? " (opcional)" : "") + '<input data-knowledge-name maxlength="120" autocomplete="name" ' + (mode === "required_name" ? "required" : "") + "></label>";
-      return '<div class="knowledge-audience-card"><span>' + LABELS[state.category] + '</span><h2>' + escapeHtml(state.title) + '</h2>' + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
+      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-head"><div class="knowledge-registration-copy"><span>' + LABELS[state.category] + '</span><h2>' + escapeHtml(state.title) + '</h2></div><button class="primary" data-knowledge-join>Entrar</button></div>' + input + "</div>";
     }
 
     function contestMarkup() {
@@ -494,17 +499,29 @@
     return (Math.max(0, Number(milliseconds) || 0) / 1000).toFixed(2) + " s";
   }
 
+  function isNewContestQuestion(previous, next) {
+    return Boolean(
+      next?.category === "contest"
+      && next.state === "ACTIVE"
+      && next.currentQuestion?.id
+      && previous?.executionId === next.executionId
+      && (previous.state !== "ACTIVE" || previous.currentQuestion?.id !== next.currentQuestion.id)
+    );
+  }
+
   function createScreenContestAudio() {
     if (typeof global.Audio !== "function") return { sync() {} };
     const AudioContext = global.AudioContext || global.webkitAudioContext;
     const tracks = {
       countdown: new global.Audio("/assets/audio/contests/321.mp3"),
       tick: new global.Audio("/assets/audio/contests/tictac.mp3"),
+      nextQuestion: new global.Audio("/assets/audio/contests/NextQuestion.mp3"),
       reveal: new global.Audio("/assets/audio/contests/Resultado_pregunta.mp3"),
       final: new global.Audio("/assets/audio/contests/Final_concurso.mp3")
     };
     tracks.countdown.preload = "auto";
     tracks.tick.preload = "auto";
+    tracks.nextQuestion.preload = "auto";
     tracks.reveal.preload = "auto";
     tracks.final.preload = "auto";
     tracks.tick.loop = true;
@@ -585,7 +602,7 @@
 
     function stopAll() {
       stopTick();
-      [tracks.countdown, tracks.reveal, tracks.final].forEach((track) => stop(track));
+      [tracks.countdown, tracks.nextQuestion, tracks.reveal, tracks.final].forEach((track) => stop(track));
     }
 
     function unlock() {
@@ -673,6 +690,7 @@
         && next.substate === "REVEAL"
         && previous?.executionId === next.executionId
         && previous?.substate !== "REVEAL";
+      if (isNewContestQuestion(previous, next)) play(tracks.nextQuestion);
       if (enteredReveal) play(tracks.reveal);
     }
 
@@ -681,7 +699,20 @@
 
   function createScreen({ socket, root } = {}) {
     let state = null;
+    let questionFlashTimer = null;
     const contestAudio = createScreenContestAudio();
+
+    function flashQuestion() {
+      root.classList.remove("is-question-flash");
+      void root.offsetWidth;
+      root.classList.add("is-question-flash");
+      if (questionFlashTimer) global.clearTimeout(questionFlashTimer);
+      questionFlashTimer = global.setTimeout(() => {
+        root.classList.remove("is-question-flash");
+        questionFlashTimer = null;
+      }, 760);
+    }
+
     function render() {
       if (!state?.available || !state.executionId) {
         root.hidden = true;
@@ -723,8 +754,10 @@
     socket.on("interaction:execution:state", (next) => {
       const previous = state;
       state = { ...next, _receivedAt: Date.now() };
+      const enteredQuestion = isNewContestQuestion(previous, state);
       contestAudio.sync(previous, state);
       render();
+      if (enteredQuestion) flashQuestion();
     });
     global.setInterval(() => updateRenderedTimers(root, state), 500);
     return { render, getState: () => state };

@@ -16,9 +16,12 @@
 
 .knowledge-definition {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 42px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 14px;
+  min-height: 70px;
+  padding: 12px 14px;
   text-align: left;
   color: #182133;
   background: #fff;
@@ -32,11 +35,60 @@
   box-shadow: 0 8px 24px rgba(54, 78, 170, .12);
 }
 
-.knowledge-definition span,
+.knowledge-definition-copy,
 .knowledge-empty span,
 .knowledge-processing small {
   color: #68748a;
   font-size: 12px;
+}
+
+.knowledge-definition-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%));
+  border-radius: 13px;
+  box-shadow: 0 9px 22px rgba(55, 138, 221, .2);
+}
+
+.knowledge-definition-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.knowledge-definition-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.knowledge-definition-copy strong {
+  overflow: hidden;
+  color: inherit;
+  font: 700 14px/1.2 Poppins, Inter, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-definition-copy small {
+  overflow: hidden;
+  color: inherit;
+  font: 500 11px/1.25 Inter, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-definition-arrow {
+  color: #576ff3;
+  font: 700 20px/1 Inter, sans-serif;
+  text-align: center;
 }
 
 .knowledge-empty,
@@ -279,6 +331,31 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, .25);
 }
 
+.knowledge-registration-card {
+  width: min(100%, 620px);
+}
+
+.knowledge-registration-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.knowledge-registration-copy {
+  min-width: 0;
+}
+
+.knowledge-registration-copy h2 {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.knowledge-registration-head .primary {
+  min-width: clamp(124px, 34vw, 164px);
+  padding-inline: clamp(24px, 7vw, 42px);
+}
+
 .knowledge-audience-card label {
   display: grid;
   gap: 7px;
@@ -333,12 +410,18 @@
 
 .knowledge-screen-question-image {
   display: block;
-  width: min(68vw, 760px);
-  max-height: 38vh;
-  margin: -12px auto 26px;
-  border-radius: 20px;
+  width: auto;
+  max-width: min(62vw, 760px);
+  height: auto;
+  max-height: 35vh;
+  margin: -8px auto 24px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 18px;
   object-fit: contain;
-  background: rgba(255, 255, 255, .08);
+  background: transparent;
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, .34),
+    0 0 0 3px rgba(127, 119, 221, .12);
 }
 
 .knowledge-screen-overlay {
@@ -347,7 +430,28 @@
   background: radial-gradient(circle at top, #263d73, #0c1220 70%);
 }
 
+.knowledge-screen-overlay.is-question-flash::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, .92), transparent 40%),
+    linear-gradient(135deg, rgba(127, 119, 221, .8), rgba(55, 138, 221, .62) 54%, rgba(93, 202, 165, .68));
+  mix-blend-mode: screen;
+  animation: knowledge-question-flash 760ms ease-out both;
+}
+
+@keyframes knowledge-question-flash {
+  0% { opacity: 0; }
+  14% { opacity: .9; }
+  100% { opacity: 0; }
+}
+
 .knowledge-screen-card {
+  position: relative;
+  z-index: 1;
   width: min(100%, 1100px);
   color: #fff;
 }
@@ -361,6 +465,18 @@
   display: block;
   min-width: 7ch;
   text-align: center;
+}
+
+.knowledge-screen-card .knowledge-timer {
+  min-width: 96px;
+  padding: 12px 18px;
+  color: #fff;
+  background: rgba(8, 14, 30, .58);
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 18px;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .24);
+  font: 900 clamp(42px, 5.5vw, 78px)/.9 Poppins, Inter, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 .knowledge-screen-results {
@@ -460,28 +576,54 @@
 .interaction-panel .knowledge-definition,
 .stage-actions-card .knowledge-definition {
   color: rgba(248, 250, 255, .96);
-  background: rgba(255, 255, 255, .055);
-  border-color: rgba(255, 255, 255, .11);
-  border-radius: 14px;
-  box-shadow: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, .055), rgba(255, 255, 255, .055)) padding-box,
+    linear-gradient(135deg, rgba(127, 119, 221, .72), rgba(55, 138, 221, .46), rgba(93, 202, 165, .7)) border-box;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(4, 6, 16, .16);
 }
 
 .interaction-panel .knowledge-definition:hover,
 .interaction-panel .knowledge-definition:focus-visible,
 .stage-actions-card .knowledge-definition:hover,
 .stage-actions-card .knowledge-definition:focus-visible {
-  background: rgba(255, 255, 255, .085);
-  border-color: rgba(93, 202, 165, .58);
-  box-shadow: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, .095), rgba(255, 255, 255, .095)) padding-box,
+    var(--immersa-gradient) border-box;
+  border-color: transparent;
+  box-shadow: 0 14px 34px rgba(4, 6, 16, .22);
 }
 
-.interaction-panel .knowledge-definition span,
+.interaction-panel .knowledge-definition-copy,
 .interaction-panel .knowledge-empty span,
 .interaction-panel .knowledge-processing small,
-.stage-actions-card .knowledge-definition span,
+.stage-actions-card .knowledge-definition-copy,
 .stage-actions-card .knowledge-empty span,
 .stage-actions-card .knowledge-processing small {
   color: rgba(218, 216, 229, .68);
+}
+
+.interaction-panel .knowledge-definition-icon,
+.stage-actions-card .knowledge-definition-icon {
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(55, 138, 221, .25);
+}
+
+.interaction-panel .knowledge-definition-copy strong,
+.stage-actions-card .knowledge-definition-copy strong {
+  color: #fff;
+}
+
+.interaction-panel .knowledge-definition-arrow,
+.stage-actions-card .knowledge-definition-arrow {
+  color: rgba(255, 255, 255, .82);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-screen-overlay.is-question-flash::after {
+    animation-duration: 1ms;
+  }
 }
 
 .interaction-panel .knowledge-live-head > div > span,

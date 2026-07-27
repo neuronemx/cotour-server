@@ -60,12 +60,17 @@ test("lobby cancellation is immediate and distinct from irreversible finalizatio
 });
 
 test("Speaker and Stage activity controls inherit the Immersa dark-glass visual language", () => {
+  const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
   assert.match(css, /\.interaction-panel \.knowledge-controller/);
   assert.match(css, /\.stage-actions-card \.knowledge-controller/);
   assert.match(css, /\.interaction-panel \.knowledge-actions \.primary/);
   assert.match(css, /background: var\(--immersa-gradient\)/);
   assert.match(css, /color: rgba\(248, 250, 255, \.96\)/);
+  assert.match(source, /knowledge-definition-icon/);
+  assert.match(source, /knowledge-definition-copy/);
+  assert.match(source, /knowledge-definition-arrow/);
+  assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?linear-gradient\(135deg, rgba\(127, 119, 221, \.72\)/);
 });
 
 test("question images render for controller, Público, and Screen question views", () => {
@@ -77,6 +82,7 @@ test("question images render for controller, Público, and Screen question views
   assert.match(source, /knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-question-image/);
   assert.match(css, /\.knowledge-screen-question-image/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: auto;[\s\S]*?max-height: 35vh;[\s\S]*?background: transparent;/);
 });
 
 test("Público renders safe contest progress and legible answer options", () => {
@@ -138,6 +144,28 @@ test("Público uses the supplied entrance and answer-selection sounds", () => {
   for (const name of ["click1.mp3", "click2.mp3"]) {
     assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
   }
+});
+
+test("Público lobby places a wide Entrar action beside the activity title", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-registration-head/);
+  assert.match(source, /knowledge-registration-copy/);
+  assert.match(source, /data-knowledge-join>Entrar/);
+  assert.match(css, /\.knowledge-registration-head \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(css, /\.knowledge-registration-head \.primary \{[\s\S]*?min-width: clamp\(124px, 34vw, 164px\);/);
+});
+
+test("Screen announces every real contest question with flash, larger timer, and supplied audio", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function isNewContestQuestion/);
+  assert.match(source, /\/assets\/audio\/contests\/NextQuestion\.mp3/);
+  assert.match(source, /if \(isNewContestQuestion\(previous, next\)\) play\(tracks\.nextQuestion\)/);
+  assert.match(source, /root\.classList\.add\("is-question-flash"\)/);
+  assert.match(css, /\.knowledge-screen-overlay\.is-question-flash::after/);
+  assert.match(css, /\.knowledge-screen-card \.knowledge-timer \{[\s\S]*?font: 900 clamp\(42px, 5\.5vw, 78px\)/);
+  assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/NextQuestion.mp3")).size > 0, true);
 });
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {

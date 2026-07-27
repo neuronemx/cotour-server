@@ -143,7 +143,7 @@
       compact.appendChild(button);
       buttons.get(category.id).push(button);
     });
-    const backButton = createElement(documentRef, "button", "interactions-shell-back", "Ver todas");
+    const backButton = createElement(documentRef, "button", "interactions-shell-back", "Regresar");
     backButton.type = "button";
     backButton.dataset.interactionsBack = "true";
 

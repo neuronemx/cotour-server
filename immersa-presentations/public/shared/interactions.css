@@ -1802,7 +1802,7 @@ body.stage-actions-open .interaction-slide-scrim {
 }
 
 .interactions-shell-category.is-active {
-  color: #12101a !important;
+  color: #fff !important;
   background: var(--immersa-gradient) !important;
   border-color: transparent !important;
   box-shadow: none !important;

@@ -37,6 +37,7 @@ test("interactions shell navigation, lock, close, and destroy", () => {
   const shell = Shell.create({ root, onSelectCategory: (view)=>selected.push(view), onRequestClose: ()=>closes++ });
   assert.equal(shell.getView(), "home");
   assert.equal(root.querySelector("[data-interactions-back]").hidden, true);
+  assert.equal(root.querySelector("[data-interactions-back]").textContent, "Regresar");
   assert.equal(root.querySelector("[data-interactions-close]").hidden, false);
   category(root, "polls").click();
   assert.equal(shell.getView(), "polls");
@@ -214,6 +215,7 @@ test("shared interactions css exposes critical visual contract tokens", () => {
   assert.match(css, /\.interactions-native-shell::before,[\s\S]+content: none;/);
   assert.match(css, /\.interactions-shell-home \{[\s\S]+background: transparent;[\s\S]+border: 0;/);
   assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
+  assert.match(css, /\.interactions-shell-category\.is-active \{[\s\S]+color: #fff !important;/);
   assert.match(css, /\.interactions-shell-group-row \{[\s\S]+grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.interactions-shell-compact \{[\s\S]+grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.interactions-shell-category\.is-live \.interactions-shell-live-label \{[\s\S]+display: block;/);
