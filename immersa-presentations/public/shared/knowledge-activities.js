@@ -554,7 +554,6 @@
     };
     tracks.countdown.preload = "auto";
     tracks.tick.preload = "auto";
-    tracks.nextQuestion.preload = "auto";
     tracks.reveal.preload = "auto";
     tracks.final.preload = "auto";
     tracks.tick.loop = true;

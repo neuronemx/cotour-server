@@ -3,10 +3,15 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
-const knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
-  socket,
-  root: document.getElementById("knowledgeActivityScreen")
-});
+let knowledgeActivityScreen = null;
+try {
+  knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
+    socket,
+    root: document.getElementById("knowledgeActivityScreen")
+  }) || null;
+} catch (error) {
+  console.error("Unable to initialize Screen knowledge activities", error);
+}
 let manifest = null;
 let pendingPresentationState = null;
 let manifestRetryTimer = null;

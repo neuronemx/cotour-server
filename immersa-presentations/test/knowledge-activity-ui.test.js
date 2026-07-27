@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -169,6 +170,36 @@ test("Público announces every real contest question with flash and supplied aud
   assert.match(css, /\.knowledge-screen-overlay\.is-question-flash::after/);
   assert.match(css, /\.knowledge-screen-card \.knowledge-timer \{[\s\S]*?font: 900 clamp\(42px, 5\.5vw, 78px\)/);
   assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/NextQuestion.mp3")).size > 0, true);
+});
+
+test("Screen contest runtime initializes when NextQuestion audio belongs only to Público", () => {
+  class FakeAudio {
+    play() { return Promise.resolve(); }
+    pause() {}
+  }
+  const listeners = new Map();
+  const socket = {
+    on(eventName, handler) { listeners.set(eventName, handler); }
+  };
+  const classList = { add() {}, remove() {} };
+  const screenRoot = {
+    hidden: true,
+    innerHTML: "",
+    classList,
+    querySelectorAll() { return []; }
+  };
+  const window = {
+    Audio: FakeAudio,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+
+  assert.doesNotThrow(() => {
+    window.ImmersaKnowledgeActivities.createScreen({ socket, root: screenRoot });
+  });
+  assert.equal(listeners.has("interaction:execution:state"), true);
 });
 
 test("Screen gives question images presentation scale beside the answers", () => {
