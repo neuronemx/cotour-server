@@ -478,10 +478,12 @@
     const tracks = {
       countdown: new global.Audio("/assets/audio/contests/321.mp3"),
       tick: new global.Audio("/assets/audio/contests/tictac.mp3"),
+      reveal: new global.Audio("/assets/audio/contests/Resultado_pregunta.mp3"),
       final: new global.Audio("/assets/audio/contests/Final_concurso.mp3")
     };
     tracks.countdown.preload = "auto";
     tracks.tick.preload = "auto";
+    tracks.reveal.preload = "auto";
     tracks.final.preload = "auto";
     tracks.tick.loop = true;
     let unlocked = false;
@@ -561,20 +563,28 @@
       if (changedExecution || next.state === "LOBBY") stopAll();
       if (next.state === "COUNTDOWN" && (changedExecution || previous?.state !== "COUNTDOWN")) {
         stop(tracks.tick);
+        stop(tracks.reveal);
         stop(tracks.final);
         const duration = Math.max(3000, Number(next.countdownDurationMs) || 4700);
         const remaining = millisecondsUntil(next.countdownDeadlineAt, next.serverNow, next._receivedAt);
         play(tracks.countdown, Number.isFinite(remaining) ? (duration - remaining) / 1000 : 0);
       } else if (next.state === "ACTIVE" && previous?.state !== "ACTIVE") {
         stop(tracks.countdown);
+        stop(tracks.reveal);
         stop(tracks.final);
         play(tracks.tick);
       } else if (["PROCESSING", "PROCESSING_ERROR"].includes(next.state)
         && !["PROCESSING", "PROCESSING_ERROR"].includes(previous?.state)) {
         stop(tracks.countdown);
         stop(tracks.tick);
+        stop(tracks.reveal);
         play(tracks.final);
       }
+      const enteredReveal = next.state === "ACTIVE"
+        && next.substate === "REVEAL"
+        && previous?.executionId === next.executionId
+        && previous?.substate !== "REVEAL";
+      if (enteredReveal) play(tracks.reveal);
     }
 
     return { sync };

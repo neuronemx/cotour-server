@@ -106,12 +106,15 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(source, /No hubo respuestas correctas/);
   assert.match(source, /\/assets\/audio\/contests\/321\.mp3/);
   assert.match(source, /\/assets\/audio\/contests\/tictac\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/Resultado_pregunta\.mp3/);
   assert.match(source, /\/assets\/audio\/contests\/Final_concurso\.mp3/);
   assert.match(source, /tracks\.tick\.loop = true/);
+  assert.match(source, /next\.substate === "REVEAL"[\s\S]*previous\?\.executionId === next\.executionId[\s\S]*previous\?\.substate !== "REVEAL"/);
+  assert.match(source, /if \(enteredReveal\) play\(tracks\.reveal\)/);
   assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
   assert.match(source, /dataset\.knowledgeAudioBound/);
   assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
-  for (const name of ["321.mp3", "tictac.mp3", "Final_concurso.mp3"]) {
+  for (const name of ["321.mp3", "tictac.mp3", "Resultado_pregunta.mp3", "Final_concurso.mp3"]) {
     assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
   }
 });
