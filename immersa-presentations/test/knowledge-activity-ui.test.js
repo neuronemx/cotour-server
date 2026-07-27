@@ -222,6 +222,37 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
     available: true,
     executionId: "execution-screen-render",
     category: "contest",
+    title: "Trivia 1",
+    state: "LOBBY",
+    participantCount: 1,
+    effectiveParticipantCount: 0
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-presence/);
+  assert.match(screenRoot.innerHTML, />1<\/strong><span>persona lista/);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-activity-icon/);
+  assert.match(screenRoot.innerHTML, />Trivia 1<\/h1>/);
+  assert.doesNotMatch(screenRoot.innerHTML, />Concurso</);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    title: "Trivia 1",
+    state: "COUNTDOWN",
+    participantCount: 1,
+    effectiveParticipantCount: 0,
+    countdownDurationMs: 4700,
+    countdownDeadlineAt: new Date(Date.now() + 4700).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-countdown/);
+  assert.match(screenRoot.innerHTML, />1<\/strong><span>persona lista/);
+  assert.doesNotMatch(screenRoot.innerHTML, /0 participantes/);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
     state: "ACTIVE",
     substate: "QUESTION_ACTIVE",
     questionIndex: 0,
@@ -272,10 +303,22 @@ test("Screen shows only the question and optional image, then centers only the c
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {
   const source = read("public/shared/knowledge-activities.js");
-  assert.match(source, /state\.state === "LOBBY"[\s\S]*state\.participantCount/);
+  assert.match(source, /\["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)[\s\S]*state\.participantCount/);
   assert.match(source, /lobbyCount === 1 \? "persona lista" : "personas listas"/);
   assert.match(source, /count === 1 \? "persona lista" : "personas listas"/);
   assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
+});
+
+test("Screen lobby uses contest identity, centered presence, and a dominant countdown", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-screen-intro-state/);
+  assert.match(source, /categoryIconMarkup\("contest", "knowledge-screen-activity-icon"\)/);
+  assert.match(source, /knowledge-screen-presence/);
+  assert.match(source, /knowledge-screen-countdown/);
+  assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(170px, 24vw, 380px\)/);
+  assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
 });
 
 test("history exposes per-execution CSV without adding operational warnings", () => {

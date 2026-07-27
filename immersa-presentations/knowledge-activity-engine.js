@@ -697,7 +697,8 @@ function controllerCommand(execution, {
   if (!normalizedCommandId) fail("INVALID_COMMAND", "command_id is required");
   const previous = execution.commandLog.find((command) => command.commandId === normalizedCommandId);
   if (previous) return clone(previous.result);
-  if (Number(expectedRevision) !== Number(execution.revision)) {
+  const terminalIntent = intent === "cancel" || intent === "finalize";
+  if (!terminalIntent && Number(expectedRevision) !== Number(execution.revision)) {
     fail("STALE_REVISION", "The execution revision changed");
   }
   let result;

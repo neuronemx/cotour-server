@@ -5,6 +5,16 @@
     contest: "Concurso",
     assessment: "Evaluación"
   };
+  const CATEGORY_ICON_PATHS = {
+    contest: [
+      "M8 21h8M12 17v4M7 4h10v8a5 5 0 0 1-10 0V4Z",
+      "M3 8v2a3 3 0 0 0 3 3M21 8v2a3 3 0 0 1-3 3"
+    ],
+    assessment: [
+      "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",
+      "M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2ZM9 14l2 2 4-4"
+    ]
+  };
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -96,6 +106,13 @@
     const url = String(image?.url || "");
     if (!url) return "";
     return '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
+  }
+
+  function categoryIconMarkup(category, className = "knowledge-definition-icon") {
+    const paths = CATEGORY_ICON_PATHS[category] || CATEGORY_ICON_PATHS.contest;
+    return '<span class="' + className + '"><svg viewBox="0 0 24 24" aria-hidden="true">'
+      + paths.map((path) => '<path d="' + path + '"></path>').join("")
+      + "</svg></span>";
   }
 
   function stateDeadline(state) {
@@ -210,15 +227,12 @@
       if (!items.length) {
         return '<div class="knowledge-empty"><strong>No hay ' + (category === "contest" ? "concursos" : "evaluaciones") + ' configurados</strong><span>Créalo desde Deck → Interacciones.</span></div>';
       }
-      const icon = category === "contest"
-        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v8a5 5 0 0 1-10 0V4ZM3 8v2a3 3 0 0 0 3 3M21 8v2a3 3 0 0 1-3 3"/></svg>'
-        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2ZM9 14l2 2 4-4"/></svg>';
       return '<div class="knowledge-definition-list">' + items.map((item) => {
         const duration = category === "contest"
           ? item.questionDurationSeconds + " s por pregunta"
           : Math.round(item.durationSeconds / 60) + " min";
         return '<button type="button" class="knowledge-definition knowledge-definition-' + category + '" data-knowledge-open="' + escapeHtml(item.id) + '">'
-          + '<span class="knowledge-definition-icon">' + icon + '</span>'
+          + categoryIconMarkup(category)
           + '<span class="knowledge-definition-copy"><strong>' + escapeHtml(item.title) + '</strong>'
           + '<small>' + item.questions.length + " preguntas · " + escapeHtml(duration) + "</small></span>"
           + '<span class="knowledge-definition-arrow" aria-hidden="true">→</span>'
@@ -763,6 +777,17 @@
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-results">' + winnerMarkup
           + (remainingRows.length ? '<div class="knowledge-ranking">' + remainingRows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + " · " + formatContestSeconds(row.correctTimeMs) + "</strong></div>").join("") + "</div>" : "")
           + "</section>";
+      } else if (state.category === "contest" && ["LOBBY", "COUNTDOWN"].includes(state.state)) {
+        const readyCount = state.participantCount || 0;
+        const readyLabel = readyCount === 1 ? "persona lista" : "personas listas";
+        root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-intro-state">'
+          + '<div class="knowledge-screen-presence"><strong>' + readyCount + '</strong><span>' + readyLabel + "</span></div>"
+          + '<div class="knowledge-screen-identity">' + categoryIconMarkup("contest", "knowledge-screen-activity-icon")
+          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
+          + (state.state === "COUNTDOWN"
+            ? '<div class="knowledge-screen-countdown">' + countdownMarkup(state) + "</div>"
+            : "")
+          + "</section>";
       } else if (state.category === "contest" && state.currentQuestion) {
         const hasImage = Boolean(state.currentQuestion.image?.url);
         if (state.substate === "REVEAL" && state.reveal?.correctLabel) {
@@ -776,10 +801,10 @@
         const message = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
           ? "Estamos calculando los resultados…"
           : state.title;
-        const count = state.state === "LOBBY"
+        const count = ["LOBBY", "COUNTDOWN"].includes(state.state)
           ? state.participantCount || 0
           : state.effectiveParticipantCount || 0;
-        const countLabel = state.state === "LOBBY"
+        const countLabel = ["LOBBY", "COUNTDOWN"].includes(state.state)
           ? (count === 1 ? "persona lista" : "personas listas")
           : (count === 1 ? "participante" : "participantes");
         root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>"

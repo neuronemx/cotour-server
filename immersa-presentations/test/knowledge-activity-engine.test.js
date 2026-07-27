@@ -339,9 +339,36 @@ test("controller commands are revision checked and idempotent across Speaker and
     commandId: "stale",
     expectedRevision,
     actorRole: "stage",
-    intent: "cancel",
+    intent: "show_results",
     nowMs: 2200
   }), { code: "STALE_REVISION" });
+});
+
+test("cancel and finalize tolerate an automatic timer revision while confirmation is open", () => {
+  for (const intent of ["cancel", "finalize"]) {
+    const item = execution("contest");
+    joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+    controllerCommand(item, {
+      commandId: `start-${intent}`,
+      expectedRevision: item.revision,
+      actorRole: "presenter",
+      intent: "start",
+      nowMs: 2000
+    });
+    tickExecution(item, 6700);
+    const revisionBeforeReveal = item.revision;
+    tickExecution(item, 16700);
+    assert.equal(item.substate, "REVEAL");
+    assert.notEqual(item.revision, revisionBeforeReveal);
+    controllerCommand(item, {
+      commandId: `after-confirm-${intent}`,
+      expectedRevision: revisionBeforeReveal,
+      actorRole: "stage",
+      intent,
+      nowMs: 16800
+    });
+    assert.equal(item.state, intent === "cancel" ? "CANCELLED" : "PROCESSING");
+  }
 });
 
 test("active tab follows the WhatsApp Web transfer rule", () => {
