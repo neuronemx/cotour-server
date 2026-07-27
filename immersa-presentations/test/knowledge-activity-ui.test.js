@@ -115,7 +115,11 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(css, /\.knowledge-assessment-nav button \{[\s\S]*?flex: 1 1 calc\(50% - 6px\);/);
   assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit \{[\s\S]*?margin: 22px auto 0;/);
   assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit\.is-ready \{[\s\S]*?var\(--immersa-gradient/);
-  assert.match(css, /\.knowledge-assessment-card > header \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
+  assert.match(source, /knowledge-assessment-hud/);
+  assert.match(source, /\(selectedAssessmentIndex \+ 1\) \+ "\/" \+ questions\.length/);
+  assert.match(source, /timerMarkup\(state\.deadlineAt, state, "knowledge-assessment-hud-timer"\)/);
+  assert.doesNotMatch(source, /knowledge-assessment-card"><header>/);
+  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?right: max\(14px, env\(safe-area-inset-right\)\);/);
   assert.match(source, /knowledge-submission-receipt/);
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
@@ -265,14 +269,14 @@ test("Público executes assessment reset and scroll restoration across authorita
   onState(state);
   clickHandlers.get("[data-knowledge-next]")();
   clickHandlers.get("[data-knowledge-next]")();
-  assert.match(rootElement.innerHTML, /Pregunta 3 de 3/);
+  assert.match(rootElement.innerHTML, />3\/3<\/span>/);
 
   card.scrollTop = 143;
   onState({
     ...state,
     answers: [{ questionId: "question-3", optionId: "a-3" }]
   });
-  assert.match(rootElement.innerHTML, /Pregunta 3 de 3/);
+  assert.match(rootElement.innerHTML, />3\/3<\/span>/);
   assert.equal(card.scrollTop, 143);
 
   onState({
@@ -280,7 +284,7 @@ test("Público executes assessment reset and scroll restoration across authorita
     executionId: "assessment-run-2",
     answers: []
   });
-  assert.match(rootElement.innerHTML, /Pregunta 1 de 3/);
+  assert.match(rootElement.innerHTML, />1\/3<\/span>/);
   assert.equal(card.scrollTop, 0);
 });
 

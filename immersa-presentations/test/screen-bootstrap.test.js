@@ -20,7 +20,7 @@ test("Screen joins independently of manifest loading and recovers a delayed deck
   assert.match(source, /try \{[\s\S]*ImmersaKnowledgeActivities\?\.createScreen/);
   assert.match(source, /Unable to initialize Screen knowledge activities/);
   assert.match(html, /\/screen\/screen\.js\?v=4/);
-  assert.match(html, /\/shared\/knowledge-activities\.js\?v=17/);
+  assert.match(html, /\/shared\/knowledge-activities\.js\?v=18/);
 });
 
 test("core presentation state and knowledge activity recovery cannot be blocked by optional snapshots", () => {
