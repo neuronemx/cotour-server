@@ -716,26 +716,29 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     };
-    gameQueueSockets.sendCurrentState(socket, joinedContext);
-    await interactionSockets.sendCurrentState(socket, joinedContext);
-    raffleSockets.sendCurrentState(socket, {
-      roomKey: currentRoomKey,
-      role: currentRole,
-      sessionId: currentSessionId,
-      deckId: currentDeckId,
-      audienceId: currentAudienceId
-    });
-    await qnaRuntime.sendCurrentState(socket, {
-      roomKey: currentRoomKey,
-      role: currentRole,
-      sessionId: currentSessionId,
-      deckId: currentDeckId,
-      audienceId: currentAudienceId
-    });
-    await knowledgeActivityRuntime.sendCurrentState(socket, joinedContext);
-    if (role === "presenter") await brandMentionRuntime.start(joinedContext);
-    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
     emitState(currentRoomKey, session);
+
+    const snapshotJobs = [
+      ["game queue", () => gameQueueSockets.sendCurrentState(socket, joinedContext)],
+      ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
+      ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
+      ["Q&A", () => qnaRuntime.sendCurrentState(socket, joinedContext)],
+      ["knowledge activity", () => knowledgeActivityRuntime.sendCurrentState(socket, joinedContext)]
+    ];
+    void Promise.allSettled(snapshotJobs.map(([, send]) => Promise.resolve().then(send)))
+      .then((results) => {
+        results.forEach((result, index) => {
+          if (result.status === "rejected") {
+            console.error("[join] Unable to synchronize " + snapshotJobs[index][0], result.reason);
+          }
+        });
+      });
+
+    if (role === "presenter") {
+      void Promise.resolve(brandMentionRuntime.start(joinedContext))
+        .catch((error) => console.error("[join] Unable to start brand mentions", error));
+    }
+    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
   });
 
   socket.on("transmission_pause", () => {
