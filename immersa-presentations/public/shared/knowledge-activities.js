@@ -106,6 +106,23 @@
     return null;
   }
 
+  function createAudienceKnowledgeAudio() {
+    if (typeof global.Audio !== "function") return { play() {} };
+    const tracks = {
+      join: new global.Audio("/assets/audio/contests/click1.mp3"),
+      answer: new global.Audio("/assets/audio/contests/click2.mp3")
+    };
+    Object.values(tracks).forEach((track) => { track.preload = "auto"; });
+    return {
+      play(name) {
+        const track = tracks[name];
+        if (!track) return;
+        try { track.currentTime = 0; } catch (_error) {}
+        track.play()?.catch?.(() => {});
+      }
+    };
+  }
+
   function createController({ socket, deckId, role, onAvailabilityChange, onStateChange } = {}) {
     if (!socket?.on || !socket?.emit) throw new Error("A socket is required");
     const hosts = new Set();
@@ -314,6 +331,7 @@
   function createAudience({ socket, root } = {}) {
     if (!socket?.on || !root) throw new Error("A socket and root are required");
     const currentTabId = tabId();
+    const audienceAudio = createAudienceKnowledgeAudio();
     let state = null;
     let selectedAssessmentIndex = 0;
     const pendingKey = "immersaKnowledgePendingAnswer";
@@ -366,9 +384,10 @@
         if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
         if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Estamos terminando de preparar los resultados…</strong></div>';
         if (state.personalResult) {
-          const detail = (state.personalResult.answers || []).map((answer, index) =>
-            '<div class="knowledge-result-detail ' + escapeHtml(answer.status) + '"><b>' + (index + 1) + '</b><span><strong>' + escapeHtml(answer.prompt) + '</strong><small>' + escapeHtml(answer.selectedLabel || "Omitida") + (answer.status === "correct" ? " · Correcta" : " · Correcta: " + escapeHtml(answer.correctLabel)) + "</small></span></div>"
-          ).join("");
+          const detail = (state.personalResult.answers || []).map((answer) => {
+            const correct = answer.status === "correct";
+            return '<div class="knowledge-result-detail ' + (correct ? "correct" : "incorrect") + '"><span><strong>' + escapeHtml(answer.prompt) + '</strong><small>' + escapeHtml(answer.selectedLabel || "Omitida") + '</small></span><i class="knowledge-result-mark" role="img" aria-label="' + (correct ? "Correcta" : "Incorrecta") + '">' + (correct ? "✓" : "×") + "</i></div>";
+          }).join("");
           const qualified = state.personalResult.correctCount > 0;
           const position = qualified ? "#" + (state.personalResult.position || "—") : "Sin posición";
           const time = qualified ? " · " + (state.personalResult.correctTimeMs / 1000).toFixed(2) + " s" : "";
@@ -424,12 +443,14 @@
 
       root.querySelector("[data-knowledge-join]")?.addEventListener("click", () => {
         const name = root.querySelector("[data-knowledge-name]")?.value || "";
+        audienceAudio.play("join");
         emitNow("interaction:participant:join", { name, tabId: currentTabId });
       });
       root.querySelector("[data-knowledge-claim]")?.addEventListener("click", () => emitNow("interaction:participant:claim_tab", { tabId: currentTabId }));
       root.querySelectorAll("[data-knowledge-answer]").forEach((button) => button.addEventListener("click", () => {
         const questions = state.category === "contest" ? [state.currentQuestion] : state.questions;
         const question = state.category === "contest" ? state.currentQuestion : questions[selectedAssessmentIndex];
+        audienceAudio.play("answer");
         submitAnswer(question.id, button.dataset.knowledgeAnswer);
       }));
       root.querySelector("[data-knowledge-prev]")?.addEventListener("click", () => { selectedAssessmentIndex -= 1; render(); });
@@ -475,6 +496,7 @@
 
   function createScreenContestAudio() {
     if (typeof global.Audio !== "function") return { sync() {} };
+    const AudioContext = global.AudioContext || global.webkitAudioContext;
     const tracks = {
       countdown: new global.Audio("/assets/audio/contests/321.mp3"),
       tick: new global.Audio("/assets/audio/contests/tictac.mp3"),
@@ -488,6 +510,36 @@
     tracks.tick.loop = true;
     let unlocked = false;
     let currentState = null;
+    let tickWanted = false;
+    let tickContext = null;
+    let tickBuffer = null;
+    let tickSource = null;
+    let tickWebAudioFailed = false;
+
+    if (typeof AudioContext === "function" && typeof global.fetch === "function") {
+      try {
+        tickContext = new AudioContext();
+        global.fetch("/assets/audio/contests/tictac.mp3")
+          .then((response) => {
+            if (!response.ok) throw new Error("tick_audio_unavailable");
+            return response.arrayBuffer();
+          })
+          .then((bytes) => tickContext.decodeAudioData(bytes))
+          .then((buffer) => {
+            tickBuffer = buffer;
+            if (tickWanted && unlocked) startTick();
+          })
+          .catch(() => {
+            tickWebAudioFailed = true;
+            if (tickWanted && unlocked) play(tracks.tick);
+          });
+      } catch (_error) {
+        tickWebAudioFailed = true;
+        tickContext = null;
+      }
+    } else {
+      tickWebAudioFailed = true;
+    }
 
     function stop(track, reset = true) {
       track.pause();
@@ -496,13 +548,50 @@
       }
     }
 
+    function stopTick() {
+      tickWanted = false;
+      if (tickSource) {
+        const source = tickSource;
+        tickSource = null;
+        try { source.stop(); } catch (_error) {}
+        try { source.disconnect(); } catch (_error) {}
+      }
+      stop(tracks.tick);
+    }
+
+    function startTick() {
+      tickWanted = true;
+      if (!unlocked || tickSource) return;
+      if (!tickContext || tickWebAudioFailed) {
+        play(tracks.tick);
+        return;
+      }
+      Promise.resolve(tickContext.resume()).then(() => {
+        if (!tickWanted || tickSource || !tickBuffer) return;
+        const source = tickContext.createBufferSource();
+        source.buffer = tickBuffer;
+        source.loop = true;
+        source.connect(tickContext.destination);
+        source.onended = () => {
+          if (tickSource === source) tickSource = null;
+        };
+        tickSource = source;
+        source.start(0);
+      }).catch(() => {
+        tickWebAudioFailed = true;
+        if (tickWanted) play(tracks.tick);
+      });
+    }
+
     function stopAll() {
-      Object.values(tracks).forEach((track) => stop(track));
+      stopTick();
+      [tracks.countdown, tracks.reveal, tracks.final].forEach((track) => stop(track));
     }
 
     function unlock() {
       unlocked = true;
       global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
+      tickContext?.resume?.().catch?.(() => {});
       const primers = Object.values(tracks).map((track) => {
         track.muted = true;
         return Promise.resolve(track.play()).catch(() => {}).then(() => {
@@ -562,7 +651,7 @@
       const changedExecution = previous?.executionId && previous.executionId !== next.executionId;
       if (changedExecution || next.state === "LOBBY") stopAll();
       if (next.state === "COUNTDOWN" && (changedExecution || previous?.state !== "COUNTDOWN")) {
-        stop(tracks.tick);
+        stopTick();
         stop(tracks.reveal);
         stop(tracks.final);
         const duration = Math.max(3000, Number(next.countdownDurationMs) || 4700);
@@ -572,11 +661,11 @@
         stop(tracks.countdown);
         stop(tracks.reveal);
         stop(tracks.final);
-        play(tracks.tick);
+        startTick();
       } else if (["PROCESSING", "PROCESSING_ERROR"].includes(next.state)
         && !["PROCESSING", "PROCESSING_ERROR"].includes(previous?.state)) {
         stop(tracks.countdown);
-        stop(tracks.tick);
+        stopTick();
         stop(tracks.reveal);
         play(tracks.final);
       }

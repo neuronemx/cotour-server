@@ -90,6 +90,11 @@ test("Público renders safe contest progress and legible answer options", () => 
   assert.match(source, /qualified = state\.personalResult\.correctCount > 0/);
   assert.match(source, /Sin posición/);
   assert.match(css, /\.knowledge-result-detail \{[\s\S]*?color: #182133/);
+  assert.match(source, /knowledge-result-mark/);
+  assert.match(source, /answer\.selectedLabel \|\| "Omitida"/);
+  assert.doesNotMatch(source, /answer\.correctLabel/);
+  assert.match(css, /\.knowledge-result-detail\.correct \.knowledge-result-mark/);
+  assert.match(css, /\.knowledge-result-detail\.incorrect \.knowledge-result-mark/);
 });
 
 test("contest lobby, synchronized countdown, winner view, and Screen audio follow the live contract", () => {
@@ -109,12 +114,28 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(source, /\/assets\/audio\/contests\/Resultado_pregunta\.mp3/);
   assert.match(source, /\/assets\/audio\/contests\/Final_concurso\.mp3/);
   assert.match(source, /tracks\.tick\.loop = true/);
+  assert.match(source, /global\.AudioContext \|\| global\.webkitAudioContext/);
+  assert.match(source, /createBufferSource\(\)/);
+  assert.match(source, /source\.loop = true/);
+  assert.match(source, /function startTick\(\)/);
+  assert.match(source, /function stopTick\(\)/);
   assert.match(source, /next\.substate === "REVEAL"[\s\S]*previous\?\.executionId === next\.executionId[\s\S]*previous\?\.substate !== "REVEAL"/);
   assert.match(source, /if \(enteredReveal\) play\(tracks\.reveal\)/);
   assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
   assert.match(source, /dataset\.knowledgeAudioBound/);
   assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
   for (const name of ["321.mp3", "tictac.mp3", "Resultado_pregunta.mp3", "Final_concurso.mp3"]) {
+    assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
+  }
+});
+
+test("Público uses the supplied entrance and answer-selection sounds", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /\/assets\/audio\/contests\/click1\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/click2\.mp3/);
+  assert.match(source, /audienceAudio\.play\("join"\)/);
+  assert.match(source, /audienceAudio\.play\("answer"\)/);
+  for (const name of ["click1.mp3", "click2.mp3"]) {
     assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
   }
 });
