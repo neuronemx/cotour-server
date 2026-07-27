@@ -79,11 +79,116 @@ test("question images render for controller, Público, and Screen question views
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /function questionImageMarkup/);
   assert.match(source, /state\.currentQuestion\?\.image/);
-  assert.match(source, /questionImageMarkup\(question\.image\)/);
+  assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
   assert.match(source, /knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-question-image/);
   assert.match(css, /\.knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: min\(92vw, 1200px\);[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
+  assert.match(source, /knowledge-question-image-link/);
+  assert.match(source, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(source, /Abrir imagen de la pregunta en tamaño real/);
+  assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
+  assert.match(css, /\.knowledge-question-image-link \{[\s\S]*?cursor: zoom-in;/);
+});
+
+test("Público resets repeated assessments to question one and keeps scroll position after answering", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /next\?\.category === "assessment"[\s\S]*previous\?\.executionId === next\?\.executionId/);
+  assert.match(source, /if \(next\?\.category === "assessment" && !sameAssessmentExecution\) \{[\s\S]*selectedAssessmentIndex = 0;/);
+  assert.match(source, /root\.querySelector\("\.knowledge-audience-card"\)\?\.scrollTop/);
+  assert.match(source, /render\(retainedScrollTop\)/);
+  assert.match(source, /if \(card\) card\.scrollTop = scrollTop/);
+  assert.match(source, /knowledge-assessment-card/);
+  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 500 clamp\(20px, 5vw, 27px\)\/1\.35 Inter/);
+});
+
+test("Público executes assessment reset and scroll restoration across authoritative updates", () => {
+  const listeners = new Map();
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const storageValues = new Map();
+  const storage = {
+    getItem(key) { return storageValues.get(key) || null; },
+    setItem(key, value) { storageValues.set(key, value); },
+    removeItem(key) { storageValues.delete(key); }
+  };
+  const clickHandlers = new Map();
+  const card = { scrollTop: 0 };
+  const rootElement = {
+    hidden: true,
+    _innerHTML: "",
+    classList: { add() {}, remove() {} },
+    get innerHTML() { return this._innerHTML; },
+    set innerHTML(value) {
+      this._innerHTML = value;
+      card.scrollTop = 0;
+      clickHandlers.clear();
+    },
+    querySelector(selector) {
+      if (selector === ".knowledge-audience-card") {
+        return this._innerHTML.includes("knowledge-audience-card") ? card : null;
+      }
+      if (selector === "[data-knowledge-next]" && this._innerHTML.includes("data-knowledge-next")) {
+        return {
+          addEventListener(_eventName, handler) { clickHandlers.set(selector, handler); }
+        };
+      }
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({ socket, root: rootElement });
+
+  const questions = [1, 2, 3].map((index) => ({
+    id: "question-" + index,
+    prompt: "Pregunta " + index,
+    options: [
+      { id: "a-" + index, label: "Opción A" },
+      { id: "b-" + index, label: "Opción B" }
+    ]
+  }));
+  const state = {
+    available: true,
+    executionId: "assessment-run-1",
+    category: "assessment",
+    state: "ACTIVE",
+    participant: { id: "participant-1" },
+    questions,
+    answers: []
+  };
+  const onState = listeners.get("interaction:execution:state");
+  onState(state);
+  clickHandlers.get("[data-knowledge-next]")();
+  clickHandlers.get("[data-knowledge-next]")();
+  assert.match(rootElement.innerHTML, /Pregunta 3 de 3/);
+
+  card.scrollTop = 143;
+  onState({
+    ...state,
+    answers: [{ questionId: "question-3", optionId: "a-3" }]
+  });
+  assert.match(rootElement.innerHTML, /Pregunta 3 de 3/);
+  assert.equal(card.scrollTop, 143);
+
+  onState({
+    ...state,
+    executionId: "assessment-run-2",
+    answers: []
+  });
+  assert.match(rootElement.innerHTML, /Pregunta 1 de 3/);
+  assert.equal(card.scrollTop, 0);
 });
 
 test("Público renders safe contest progress and legible answer options", () => {
@@ -380,9 +485,9 @@ test("Screen lobby uses activity identity, centered presence, and a balanced cou
   assert.match(source, /knowledge-screen-presence/);
   assert.match(source, /knowledge-screen-countdown/);
   assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
-  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(150px, 17vw, 260px\);[\s\S]*?overflow: visible;/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(104px, 15vw, 240px\)\/\.96/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(72px, 10vw, 160px\);[\s\S]*?line-height: 1;/);
+  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(140px, 15vw, 220px\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(88px, 12vw, 190px\)\/1/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(60px, 8vw, 128px\);[\s\S]*?line-height: 1;/);
   assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
   assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
 });

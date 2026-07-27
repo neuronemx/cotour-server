@@ -106,10 +106,14 @@
     });
   }
 
-  function questionImageMarkup(image, className = "knowledge-question-image") {
+  function questionImageMarkup(image, className = "knowledge-question-image", expandable = false) {
     const url = String(image?.url || "");
     if (!url) return "";
-    return '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
+    const imageMarkup = '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
+    if (!expandable) return imageMarkup;
+    return '<a class="knowledge-question-image-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen de la pregunta en tamaño real">'
+      + imageMarkup
+      + '<span>Ampliar imagen</span></a>';
   }
 
   function categoryIconMarkup(category, className = "knowledge-definition-icon") {
@@ -461,7 +465,7 @@
           : "";
         return '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (selected ? "is-selected" : "") + revealClass + '" ' + (confirmed || state.substate === "REVEAL" ? "disabled" : "") + ">" + escapeHtml(option.label) + "</button>";
       }).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + questionNumber + " de " + questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + "</div>"
+      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + questionNumber + " de " + questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
         + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
         + "</div>";
     }
@@ -477,10 +481,10 @@
       const options = question.options.map((option) =>
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
       ).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary" data-knowledge-submit ' + (answerMap().size ? "" : "disabled") + ">Entregar evaluación</button></div>";
+      return '<div class="knowledge-audience-card knowledge-assessment-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary" data-knowledge-submit ' + (answerMap().size ? "" : "disabled") + ">Entregar evaluación</button></div>";
     }
 
-    function render() {
+    function render(scrollTop = null) {
       if (!state?.available || !state.executionId) {
         root.hidden = true;
         root.innerHTML = "";
@@ -491,6 +495,11 @@
       else if (state.participant.activeTabId && state.participant.activeTabId !== currentTabId) {
         root.innerHTML = '<div class="knowledge-audience-card"><h2>La actividad está abierta en otra pestaña</h2><button class="primary" data-knowledge-claim>Usar esta pestaña</button></div>';
       } else root.innerHTML = state.category === "contest" ? contestMarkup() : assessmentMarkup();
+
+      if (Number.isFinite(scrollTop)) {
+        const card = root.querySelector(".knowledge-audience-card");
+        if (card) card.scrollTop = scrollTop;
+      }
 
       root.querySelector("[data-knowledge-join]")?.addEventListener("click", () => {
         const name = root.querySelector("[data-knowledge-name]")?.value || "";
@@ -515,13 +524,24 @@
 
     socket.on("interaction:execution:state", (next) => {
       const previous = state;
+      const sameAssessmentExecution = Boolean(
+        next?.category === "assessment"
+        && previous?.category === "assessment"
+        && previous?.executionId === next?.executionId
+      );
+      const retainedScrollTop = sameAssessmentExecution
+        ? root.querySelector(".knowledge-audience-card")?.scrollTop
+        : null;
+      if (next?.category === "assessment" && !sameAssessmentExecution) {
+        selectedAssessmentIndex = 0;
+      }
       state = { ...next, _receivedAt: Date.now() };
       const enteredQuestion = isNewContestQuestion(previous, state);
       const pending = readPending();
       const activeQuestionId = state?.category === "contest" ? state.currentQuestion?.id : pending?.questionId;
       const confirmed = (state?.answers || []).some((answer) => answer.questionId === pending?.questionId);
       if (pending && (pending.executionId !== state?.executionId || confirmed || (state?.category === "contest" && activeQuestionId !== pending.questionId))) clearPending();
-      render();
+      render(retainedScrollTop);
       if (enteredQuestion && state.participant) {
         flashQuestion();
         audienceAudio.play("nextQuestion");
