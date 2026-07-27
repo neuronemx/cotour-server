@@ -82,7 +82,7 @@ test("question images render for controller, Público, and Screen question views
   assert.match(source, /knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-question-image/);
   assert.match(css, /\.knowledge-screen-question-image/);
-  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: auto;[\s\S]*?max-height: 35vh;[\s\S]*?background: transparent;/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: 100%;[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
 });
 
 test("Público renders safe contest progress and legible answer options", () => {
@@ -156,16 +156,28 @@ test("Público lobby places a wide Entrar action beside the activity title", () 
   assert.match(css, /\.knowledge-registration-head \.primary \{[\s\S]*?min-width: clamp\(124px, 34vw, 164px\);/);
 });
 
-test("Screen announces every real contest question with flash, larger timer, and supplied audio", () => {
+test("Público announces every real contest question with flash and supplied audio while Screen keeps a silent flash", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /function isNewContestQuestion/);
   assert.match(source, /\/assets\/audio\/contests\/NextQuestion\.mp3/);
-  assert.match(source, /if \(isNewContestQuestion\(previous, next\)\) play\(tracks\.nextQuestion\)/);
+  assert.match(source, /audienceAudio\.play\("nextQuestion"\)/);
+  const screenAudio = source.slice(source.indexOf("function createScreenContestAudio"), source.indexOf("function createScreen"));
+  assert.doesNotMatch(screenAudio, /nextQuestion/);
   assert.match(source, /root\.classList\.add\("is-question-flash"\)/);
+  assert.match(css, /\.knowledge-audience-overlay\.is-question-flash::after/);
   assert.match(css, /\.knowledge-screen-overlay\.is-question-flash::after/);
   assert.match(css, /\.knowledge-screen-card \.knowledge-timer \{[\s\S]*?font: 900 clamp\(42px, 5\.5vw, 78px\)/);
   assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/NextQuestion.mp3")).size > 0, true);
+});
+
+test("Screen gives question images presentation scale beside the answers", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /has-question-image/);
+  assert.match(source, /knowledge-screen-question-body/);
+  assert.match(css, /\.knowledge-screen-card\.has-question-image \.knowledge-screen-question-body \{[\s\S]*?grid-template-columns:/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?max-height: 58vh;/);
 });
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {

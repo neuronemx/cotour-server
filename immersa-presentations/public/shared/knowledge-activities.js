@@ -110,13 +110,29 @@
     if (typeof global.Audio !== "function") return { play() {} };
     const tracks = {
       join: new global.Audio("/assets/audio/contests/click1.mp3"),
-      answer: new global.Audio("/assets/audio/contests/click2.mp3")
+      answer: new global.Audio("/assets/audio/contests/click2.mp3"),
+      nextQuestion: new global.Audio("/assets/audio/contests/NextQuestion.mp3")
     };
     Object.values(tracks).forEach((track) => { track.preload = "auto"; });
+    let primed = false;
+
+    function primeDeferredTracks() {
+      if (primed) return;
+      primed = true;
+      const track = tracks.nextQuestion;
+      track.muted = true;
+      Promise.resolve(track.play()).catch(() => {}).then(() => {
+        track.pause();
+        try { track.currentTime = 0; } catch (_error) {}
+        track.muted = false;
+      });
+    }
+
     return {
       play(name) {
         const track = tracks[name];
         if (!track) return;
+        if (name === "join") primeDeferredTracks();
         try { track.currentTime = 0; } catch (_error) {}
         track.play()?.catch?.(() => {});
       }
@@ -338,8 +354,20 @@
     const currentTabId = tabId();
     const audienceAudio = createAudienceKnowledgeAudio();
     let state = null;
+    let questionFlashTimer = null;
     let selectedAssessmentIndex = 0;
     const pendingKey = "immersaKnowledgePendingAnswer";
+
+    function flashQuestion() {
+      root.classList.remove("is-question-flash");
+      void root.offsetWidth;
+      root.classList.add("is-question-flash");
+      if (questionFlashTimer) global.clearTimeout(questionFlashTimer);
+      questionFlashTimer = global.setTimeout(() => {
+        root.classList.remove("is-question-flash");
+        questionFlashTimer = null;
+      }, 760);
+    }
 
     function emitNow(eventName, payload) {
       if (socket.connected === false) return false;
@@ -468,12 +496,18 @@
     }
 
     socket.on("interaction:execution:state", (next) => {
+      const previous = state;
       state = { ...next, _receivedAt: Date.now() };
+      const enteredQuestion = isNewContestQuestion(previous, state);
       const pending = readPending();
       const activeQuestionId = state?.category === "contest" ? state.currentQuestion?.id : pending?.questionId;
       const confirmed = (state?.answers || []).some((answer) => answer.questionId === pending?.questionId);
       if (pending && (pending.executionId !== state?.executionId || confirmed || (state?.category === "contest" && activeQuestionId !== pending.questionId))) clearPending();
       render();
+      if (enteredQuestion && state.participant) {
+        flashQuestion();
+        audienceAudio.play("nextQuestion");
+      }
       if (pending && socket.connected && pending.executionId === state?.executionId && !confirmed && state?.state === "ACTIVE") {
         if (state.category === "assessment" || state.currentQuestion?.id === pending.questionId) {
           emitNow("interaction:participant:submit_answer", {
@@ -515,7 +549,6 @@
     const tracks = {
       countdown: new global.Audio("/assets/audio/contests/321.mp3"),
       tick: new global.Audio("/assets/audio/contests/tictac.mp3"),
-      nextQuestion: new global.Audio("/assets/audio/contests/NextQuestion.mp3"),
       reveal: new global.Audio("/assets/audio/contests/Resultado_pregunta.mp3"),
       final: new global.Audio("/assets/audio/contests/Final_concurso.mp3")
     };
@@ -602,7 +635,7 @@
 
     function stopAll() {
       stopTick();
-      [tracks.countdown, tracks.nextQuestion, tracks.reveal, tracks.final].forEach((track) => stop(track));
+      [tracks.countdown, tracks.reveal, tracks.final].forEach((track) => stop(track));
     }
 
     function unlock() {
@@ -690,7 +723,6 @@
         && next.substate === "REVEAL"
         && previous?.executionId === next.executionId
         && previous?.substate !== "REVEAL";
-      if (isNewContestQuestion(previous, next)) play(tracks.nextQuestion);
       if (enteredReveal) play(tracks.reveal);
     }
 
@@ -733,7 +765,8 @@
           + (remainingRows.length ? '<div class="knowledge-ranking">' + remainingRows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + " · " + formatContestSeconds(row.correctTimeMs) + "</strong></div>").join("") + "</div>" : "")
           + "</section>";
       } else if (state.category === "contest" && state.currentQuestion) {
-        root.innerHTML = '<section class="knowledge-screen-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1>' + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + '<div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></section>";
+        const hasImage = Boolean(state.currentQuestion.image?.url);
+        root.innerHTML = '<section class="knowledge-screen-card' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1><div class="knowledge-screen-question-body">' + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + '<div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></div></section>";
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
         root.innerHTML = '<section class="knowledge-screen-card"><span>Evaluación en curso</span><h1>' + escapeHtml(state.title) + '</h1><p>' + (state.submittedCount || 0) + ' entregas · ' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
       } else {
