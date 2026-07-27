@@ -408,20 +408,10 @@
   margin: 12px 0 0;
 }
 
-.knowledge-screen-question-body {
-  display: grid;
-}
-
-.knowledge-screen-card.has-question-image .knowledge-screen-question-body {
-  grid-template-columns: minmax(420px, 1.18fr) minmax(420px, 1fr);
-  align-items: center;
-  gap: clamp(30px, 4vw, 72px);
-}
-
 .knowledge-screen-question-image {
   display: block;
-  width: 100%;
-  max-width: none;
+  width: min(92vw, 1200px);
+  max-width: 100%;
   height: auto;
   max-height: 58vh;
   margin: 0 auto;
@@ -476,19 +466,69 @@
   font: 800 clamp(34px, 5vw, 72px)/1.08 Poppins, sans-serif;
 }
 
+.knowledge-screen-question h1 {
+  max-width: 1260px;
+  margin-inline: auto;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.knowledge-screen-question:not(.has-question-image) {
+  min-height: min(64vh, 700px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.knowledge-screen-question:not(.has-question-image) h1 {
+  align-self: center;
+  margin-bottom: 0;
+}
+
 .knowledge-screen-card.has-question-image h1 {
   margin-bottom: clamp(20px, 3vh, 34px);
   font-size: clamp(32px, 4.2vw, 64px);
 }
 
-.knowledge-screen-card.has-question-image .knowledge-screen-options {
-  grid-template-columns: 1fr;
-  align-content: center;
-  gap: 14px;
+.knowledge-screen-reveal {
+  width: min(92vw, 1400px);
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 
-.knowledge-screen-card.has-question-image .knowledge-screen-options > div {
-  padding: clamp(18px, 2.2vh, 26px) clamp(20px, 2vw, 30px);
+.knowledge-screen-correct-answer {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  padding: clamp(48px, 9vh, 112px) clamp(34px, 7vw, 104px);
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(21, 29, 57, .92), rgba(12, 18, 34, .96)) padding-box,
+    var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%)) border-box;
+  border: 2px solid transparent;
+  border-radius: clamp(24px, 3vw, 42px);
+  box-shadow:
+    0 36px 110px rgba(0, 0, 0, .46),
+    0 0 92px rgba(55, 138, 221, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.knowledge-screen-correct-answer::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(93, 202, 165, .18), transparent 62%);
+}
+
+.knowledge-screen-correct-answer strong {
+  display: block;
+  color: #fff;
+  font: 900 clamp(48px, 8vw, 126px)/1.04 Poppins, Inter, sans-serif;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+  text-shadow: 0 12px 42px rgba(0, 0, 0, .34);
 }
 
 .knowledge-screen-card .knowledge-countdown-value {
@@ -578,25 +618,6 @@
   cursor: pointer;
 }
 
-.knowledge-screen-options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.knowledge-screen-options > div {
-  padding: 22px;
-  font-size: clamp(18px, 2vw, 32px);
-  background: rgba(255, 255, 255, .12);
-  border: 2px solid rgba(255, 255, 255, .18);
-  border-radius: 18px;
-}
-
-.knowledge-screen-options > div.is-correct {
-  background: #168c64;
-  border-color: #3fe0aa;
-}
-
 /* Speaker and Stage render this controller inside Immersa's dark glass shell. */
 .interaction-panel .knowledge-controller,
 .stage-actions-card .knowledge-controller {
@@ -658,15 +679,9 @@
 }
 
 @media (max-width: 1050px), (max-height: 720px) {
-  .knowledge-screen-card.has-question-image .knowledge-screen-question-body {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-
   .knowledge-screen-question-image {
-    width: auto;
-    max-width: min(76vw, 760px);
-    max-height: 36vh;
+    width: min(84vw, 920px);
+    max-height: 48vh;
   }
 }
 

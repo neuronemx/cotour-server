@@ -83,7 +83,7 @@ test("question images render for controller, Público, and Screen question views
   assert.match(source, /knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-question-image/);
   assert.match(css, /\.knowledge-screen-question-image/);
-  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: 100%;[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: min\(92vw, 1200px\);[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
 });
 
 test("Público renders safe contest progress and legible answer options", () => {
@@ -182,6 +182,23 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
     on(eventName, handler) { listeners.set(eventName, handler); }
   };
   const classList = { add() {}, remove() {} };
+  let unlockButton = null;
+  const document = {
+    querySelector(selector) {
+      return selector === "[data-knowledge-audio-unlock]" ? unlockButton : null;
+    },
+    createElement() {
+      unlockButton = {
+        dataset: {},
+        addEventListener() {},
+        remove() { unlockButton = null; }
+      };
+      return unlockButton;
+    },
+    body: {
+      appendChild(node) { unlockButton = node; }
+    }
+  };
   const screenRoot = {
     hidden: true,
     innerHTML: "",
@@ -190,25 +207,67 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
   };
   const window = {
     Audio: FakeAudio,
+    document,
     setInterval() { return 1; },
     setTimeout() { return 1; },
     clearTimeout() {}
   };
   vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
 
-  assert.doesNotThrow(() => {
-    window.ImmersaKnowledgeActivities.createScreen({ socket, root: screenRoot });
-  });
+  assert.doesNotThrow(() => window.ImmersaKnowledgeActivities.createScreen({ socket, root: screenRoot }));
   assert.equal(listeners.has("interaction:execution:state"), true);
+
+  const onState = listeners.get("interaction:execution:state");
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    state: "ACTIVE",
+    substate: "QUESTION_ACTIVE",
+    questionIndex: 0,
+    questionCount: 1,
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la correcta?",
+      image: { url: "/question.jpg", alt: "Referencia" }
+    },
+    reveal: null
+  });
+  assert.match(screenRoot.innerHTML, /¿Cuál es la correcta\?/);
+  assert.match(screenRoot.innerHTML, /\/question\.jpg/);
+  assert.doesNotMatch(screenRoot.innerHTML, /knowledge-screen-options|Opción secreta/);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    state: "ACTIVE",
+    substate: "REVEAL",
+    questionIndex: 0,
+    questionCount: 1,
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la correcta?",
+      image: { url: "/question.jpg", alt: "Referencia" }
+    },
+    reveal: { correctLabel: "Opción secreta A" }
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-correct-answer/);
+  assert.match(screenRoot.innerHTML, />Opción secreta A</);
+  assert.doesNotMatch(screenRoot.innerHTML, /¿Cuál es la correcta\?|\/question\.jpg|knowledge-screen-options/);
 });
 
-test("Screen gives question images presentation scale beside the answers", () => {
+test("Screen shows only the question and optional image, then centers only the correct answer", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /has-question-image/);
-  assert.match(source, /knowledge-screen-question-body/);
-  assert.match(css, /\.knowledge-screen-card\.has-question-image \.knowledge-screen-question-body \{[\s\S]*?grid-template-columns:/);
+  assert.match(source, /state\.substate === "REVEAL"/);
+  assert.match(source, /state\.reveal\.correctLabel/);
+  assert.match(source, /knowledge-screen-correct-answer/);
+  assert.doesNotMatch(source, /knowledge-screen-options/);
   assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?max-height: 58vh;/);
+  assert.match(css, /\.knowledge-screen-reveal \{[\s\S]*?place-items: center;/);
+  assert.match(css, /\.knowledge-screen-correct-answer strong \{[\s\S]*?font: 900 clamp\(48px, 8vw, 126px\)/);
 });
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {

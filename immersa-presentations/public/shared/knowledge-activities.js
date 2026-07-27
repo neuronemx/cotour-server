@@ -765,7 +765,11 @@
           + "</section>";
       } else if (state.category === "contest" && state.currentQuestion) {
         const hasImage = Boolean(state.currentQuestion.image?.url);
-        root.innerHTML = '<section class="knowledge-screen-card' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1><div class="knowledge-screen-question-body">' + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + '<div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></div></section>";
+        if (state.substate === "REVEAL" && state.reveal?.correctLabel) {
+          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-reveal"><div class="knowledge-screen-correct-answer"><strong>' + escapeHtml(state.reveal.correctLabel) + "</strong></div></section>";
+        } else {
+          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-question' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + "</h1>" + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + "</section>";
+        }
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
         root.innerHTML = '<section class="knowledge-screen-card"><span>Evaluación en curso</span><h1>' + escapeHtml(state.title) + '</h1><p>' + (state.submittedCount || 0) + ' entregas · ' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
       } else {

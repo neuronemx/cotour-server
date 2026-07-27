@@ -142,6 +142,32 @@ test("optional question images survive normalization and role-specific snapshots
   assert.deepEqual(stateForRole(item, { role: "audience", participantId: participant.id, tabId: "tab-1", nowMs: 7000 }).currentQuestion.image, image);
 });
 
+test("Screen receives no possible answers and only gets the correct label during reveal", () => {
+  const item = execution("contest");
+  joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-screen-answer-contract",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 7000);
+  const activeState = stateForRole(item, { role: "screen", nowMs: 7000 });
+  assert.equal("options" in activeState.currentQuestion, false);
+  assert.equal(activeState.reveal, null);
+
+  const question = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[0]);
+  tickExecution(item, 17000);
+  const revealState = stateForRole(item, { role: "screen", nowMs: 17000 });
+  assert.equal("options" in revealState.currentQuestion, false);
+  assert.deepEqual(revealState.reveal, {
+    correctLabel: question.options.find((option) => option.id === question.correctOptionId).label,
+    responseCount: 0,
+    correctCount: 0
+  });
+});
+
 test("contest uses a shared question order and individual option orders", () => {
   const item = execution("contest");
   const first = joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0 });

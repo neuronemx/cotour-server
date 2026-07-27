@@ -784,13 +784,13 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       screen.currentQuestion = {
         id: current.id,
         prompt: current.prompt,
-        image: clone(current.image),
-        options: current.options.map(({ id, label }) => ({ id, label }))
+        image: clone(current.image)
       };
       if (execution.substate === "REVEAL") {
         const answers = execution.answers.filter((answer) => answer.questionId === current.id);
+        const correctOption = current.options.find((option) => option.id === current.correctOptionId);
         screen.reveal = {
-          correctOptionId: current.correctOptionId,
+          correctLabel: correctOption?.label || "",
           responseCount: answers.length,
           correctCount: answers.filter((answer) => answer.correct).length
         };
