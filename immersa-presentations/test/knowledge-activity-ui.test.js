@@ -85,7 +85,9 @@ test("question images render for controller, Público, and Screen question views
   assert.match(css, /\.knowledge-screen-question-image/);
   assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: min\(92vw, 1200px\);[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
   assert.match(source, /knowledge-question-image-link/);
-  assert.match(source, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(source, /data-knowledge-image-open/);
+  assert.match(source, /data-knowledge-image-close/);
+  assert.match(css, /\.knowledge-image-viewer-close \{/);
   assert.match(source, /Abrir imagen de la pregunta en tamaño real/);
   assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
   assert.match(css, /\.knowledge-question-image-link \{[\s\S]*?cursor: zoom-in;/);
@@ -100,7 +102,15 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /render\(retainedScrollTop\)/);
   assert.match(source, /if \(card\) card\.scrollTop = scrollTop/);
   assert.match(source, /knowledge-assessment-card/);
-  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 500 clamp\(20px, 5vw, 27px\)\/1\.35 Inter/);
+  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 400 clamp\(18px, 4\.4vw, 24px\)\/1\.42 Inter/);
+  assert.match(source, /readyToSubmit = questions\.length > 0 && answerMap\(\)\.size === questions\.length/);
+  assert.match(css, /\.knowledge-assessment-nav button \{[\s\S]*?flex: 1 1 calc\(50% - 6px\);/);
+  assert.match(css, /\.knowledge-assessment-submit \{[\s\S]*?margin: 22px auto 0;/);
+  assert.match(source, /knowledge-submission-receipt/);
+  assert.match(source, /<dt>Nombre<\/dt>/);
+  assert.match(source, /<dt>Respuestas<\/dt>/);
+  assert.match(source, /<dt>Fecha y hora<\/dt>/);
+  assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
 });
 
 test("Público executes assessment reset and scroll restoration across authoritative updates", () => {
@@ -485,9 +495,9 @@ test("Screen lobby uses activity identity, centered presence, and a balanced cou
   assert.match(source, /knowledge-screen-presence/);
   assert.match(source, /knowledge-screen-countdown/);
   assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
-  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(140px, 15vw, 220px\);[\s\S]*?overflow: visible;/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(88px, 12vw, 190px\)\/1/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(60px, 8vw, 128px\);[\s\S]*?line-height: 1;/);
+  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(190px, 19vw, 290px\);[\s\S]*?padding-block: clamp\(18px, 2\.4vw, 36px\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?padding: \.12em \.08em \.18em;[\s\S]*?clamp\(88px, 12vw, 190px\)\/1\.15/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(60px, 8vw, 128px\);[\s\S]*?line-height: 1\.15;/);
   assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
   assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
 });

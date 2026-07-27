@@ -832,6 +832,7 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       submittedAt: participant.submittedAt
     },
     answerCount: ownAnswers.length,
+    questionCount: execution.definition.questions.length,
     answers: ownAnswers.map((answer) => ({ questionId: answer.questionId, optionId: answer.optionId })),
     currentQuestion: null,
     questions: [],

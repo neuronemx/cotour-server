@@ -111,9 +111,22 @@
     if (!url) return "";
     const imageMarkup = '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
     if (!expandable) return imageMarkup;
-    return '<a class="knowledge-question-image-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen de la pregunta en tamaño real">'
+    return '<a class="knowledge-question-image-link" href="' + escapeHtml(url) + '" data-knowledge-image-open aria-label="Abrir imagen de la pregunta en tamaño real">'
       + imageMarkup
       + '<span>Ampliar imagen</span></a>';
+  }
+
+  function submissionDateTime(value) {
+    const date = new Date(value || "");
+    if (!Number.isFinite(date.getTime())) return "—";
+    try {
+      return new Intl.DateTimeFormat("es-MX", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(date);
+    } catch (_error) {
+      return date.toLocaleString("es-MX");
+    }
   }
 
   function categoryIconMarkup(category, className = "knowledge-definition-icon") {
@@ -378,6 +391,8 @@
     let state = null;
     let questionFlashTimer = null;
     let selectedAssessmentIndex = 0;
+    let imageViewer = null;
+    let imageViewerTrigger = null;
     const pendingKey = "immersaKnowledgePendingAnswer";
 
     function flashQuestion() {
@@ -426,6 +441,29 @@
       });
     }
 
+    function closeQuestionImage() {
+      imageViewer?.remove?.();
+      imageViewer = null;
+      imageViewerTrigger?.focus?.();
+      imageViewerTrigger = null;
+    }
+
+    function openQuestionImage(url, trigger) {
+      closeQuestionImage();
+      const viewer = global.document?.createElement?.("section");
+      if (!viewer) return;
+      viewer.className = "knowledge-image-viewer";
+      viewer.setAttribute("role", "dialog");
+      viewer.setAttribute("aria-modal", "true");
+      viewer.setAttribute("aria-label", "Imagen de la pregunta ampliada");
+      viewer.innerHTML = '<button type="button" class="knowledge-image-viewer-close" data-knowledge-image-close aria-label="Cerrar imagen ampliada">Cerrar</button>'
+        + '<div class="knowledge-image-viewer-canvas"><img src="' + escapeHtml(url) + '" alt="Imagen de la pregunta ampliada"></div>';
+      imageViewer = viewer;
+      imageViewerTrigger = trigger || null;
+      global.document.body?.appendChild?.(viewer);
+      viewer.querySelector("[data-knowledge-image-close]")?.addEventListener("click", closeQuestionImage);
+    }
+
     function registrationMarkup() {
       if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>La actividad ya comenzó</strong><span>Espera la siguiente interacción.</span></div>';
       const mode = state.identificationMode || "anonymous";
@@ -472,7 +510,16 @@
 
     function assessmentMarkup() {
       if (state.personalResult) return '<div class="knowledge-personal-result"><strong>' + state.personalResult.grade + '</strong><span>Calificación</span></div>';
-      if (state.submittedAt || state.participant?.submittedAt) return '<div class="knowledge-empty"><strong>Evaluación entregada</strong><span>Espera a que Speaker muestre los resultados.</span></div>';
+      if (state.submittedAt || state.participant?.submittedAt) {
+        const answeredCount = Number.isFinite(Number(state.answerCount)) ? Number(state.answerCount) : answerMap().size;
+        const totalQuestions = Number.isFinite(Number(state.questionCount)) ? Number(state.questionCount) : answeredCount;
+        const submittedAt = state.submittedAt || state.participant?.submittedAt;
+        return '<section class="knowledge-audience-card knowledge-submission-receipt"><strong class="knowledge-submission-title">Evaluación entregada</strong><dl>'
+          + '<div><dt>Nombre</dt><dd>' + escapeHtml(state.participant?.label || "Participante") + '</dd></div>'
+          + '<div><dt>Respuestas</dt><dd>' + answeredCount + "/" + totalQuestions + '</dd></div>'
+          + '<div><dt>Fecha y hora</dt><dd>' + escapeHtml(submissionDateTime(submittedAt)) + '</dd></div>'
+          + "</dl></section>";
+      }
       const questions = state.questions || [];
       if (!questions.length) return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando el inicio…</span></div>";
       selectedAssessmentIndex = Math.max(0, Math.min(questions.length - 1, selectedAssessmentIndex));
@@ -481,7 +528,8 @@
       const options = question.options.map((option) =>
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
       ).join("");
-      return '<div class="knowledge-audience-card knowledge-assessment-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary" data-knowledge-submit ' + (answerMap().size ? "" : "disabled") + ">Entregar evaluación</button></div>";
+      const readyToSubmit = questions.length > 0 && answerMap().size === questions.length;
+      return '<div class="knowledge-audience-card knowledge-assessment-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary knowledge-assessment-submit" data-knowledge-submit ' + (readyToSubmit ? "" : "disabled") + ">Entregar evaluación</button></div>";
     }
 
     function render(scrollTop = null) {
@@ -507,6 +555,10 @@
         emitNow("interaction:participant:join", { name, tabId: currentTabId });
       });
       root.querySelector("[data-knowledge-claim]")?.addEventListener("click", () => emitNow("interaction:participant:claim_tab", { tabId: currentTabId }));
+      root.querySelectorAll("[data-knowledge-image-open]").forEach((link) => link.addEventListener("click", (event) => {
+        event.preventDefault();
+        openQuestionImage(link.href, link);
+      }));
       root.querySelectorAll("[data-knowledge-answer]").forEach((button) => button.addEventListener("click", () => {
         const questions = state.category === "contest" ? [state.currentQuestion] : state.questions;
         const question = state.category === "contest" ? state.currentQuestion : questions[selectedAssessmentIndex];

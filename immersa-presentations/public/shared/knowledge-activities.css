@@ -116,8 +116,8 @@
 }
 
 .knowledge-assessment-card h2 {
-  font: 500 clamp(20px, 5vw, 27px)/1.35 Inter, sans-serif;
-  letter-spacing: -.012em;
+  font: 400 clamp(18px, 4.4vw, 24px)/1.42 Inter, sans-serif;
+  letter-spacing: -.006em;
 }
 
 .knowledge-live-head em {
@@ -179,10 +179,86 @@
   background: linear-gradient(135deg, #5a6cf2, #9a48e8);
 }
 
-.knowledge-actions button:disabled {
+.knowledge-actions button:disabled,
+.knowledge-audience-card button:disabled {
   cursor: not-allowed;
-  opacity: .38;
-  filter: saturate(.25);
+  opacity: .42;
+  filter: saturate(.18);
+}
+
+.knowledge-assessment-nav {
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.knowledge-assessment-nav button {
+  flex: 1 1 calc(50% - 6px);
+  width: calc(50% - 6px);
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.knowledge-assessment-submit {
+  display: block;
+  min-width: min(76%, 320px);
+  min-height: 48px;
+  margin: 22px auto 0;
+  color: #fff;
+  border: 0;
+  background: #aeb6c5;
+  box-shadow: none;
+  transition: opacity .18s ease, filter .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.knowledge-audience-card .knowledge-assessment-submit:not(:disabled) {
+  background: var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%));
+  box-shadow: 0 12px 30px rgba(55, 138, 221, .24);
+}
+
+.knowledge-submission-receipt {
+  display: grid;
+  gap: 20px;
+}
+
+.knowledge-submission-title {
+  color: #182133;
+  font: 700 clamp(24px, 6vw, 34px)/1.15 Poppins, Inter, sans-serif;
+  text-align: center;
+}
+
+.knowledge-submission-receipt dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.knowledge-submission-receipt dl > div {
+  display: grid;
+  grid-template-columns: minmax(92px, .75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 14px;
+  padding: 13px 15px;
+  background: #f5f7fb;
+  border: 1px solid rgba(90, 108, 242, .1);
+  border-radius: 13px;
+}
+
+.knowledge-submission-receipt dt {
+  color: #68748a;
+  font: 600 12px/1.25 Inter, sans-serif;
+}
+
+.knowledge-submission-receipt dd {
+  margin: 0;
+  color: #182133;
+  font: 700 14px/1.35 Inter, sans-serif;
+  overflow-wrap: anywhere;
 }
 
 .knowledge-lobby-hint {
@@ -435,6 +511,43 @@
   backdrop-filter: blur(8px);
 }
 
+.knowledge-image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: rgba(5, 9, 19, .96);
+}
+
+.knowledge-image-viewer-close {
+  justify-self: end;
+  min-height: 42px;
+  padding: 0 20px;
+  color: #fff;
+  font: 700 13px/1 Inter, sans-serif;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .34);
+  border-radius: 999px;
+}
+
+.knowledge-image-viewer-canvas {
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  text-align: center;
+}
+
+.knowledge-image-viewer-canvas img {
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  vertical-align: top;
+}
+
 .knowledge-question-progress .knowledge-question-image {
   width: min(100%, 360px);
   max-height: 180px;
@@ -572,17 +685,19 @@
 
 .knowledge-screen-countdown {
   width: 100%;
-  min-height: clamp(140px, 15vw, 220px);
+  min-height: clamp(190px, 19vw, 290px);
   display: grid;
   place-items: center;
-  padding-block: clamp(4px, 1vh, 12px);
+  padding-block: clamp(18px, 2.4vw, 36px);
   overflow: visible;
 }
 
 .knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value {
   min-width: 0;
   max-width: 96vw;
-  font: 900 clamp(88px, 12vw, 190px)/1 Poppins, Inter, sans-serif;
+  padding: .12em .08em .18em;
+  overflow: visible;
+  font: 900 clamp(88px, 12vw, 190px)/1.15 Poppins, Inter, sans-serif;
   letter-spacing: -.06em;
   background: linear-gradient(135deg, #fff 8%, #8ee3d2 48%, #9b7bff 92%);
   -webkit-background-clip: text;
@@ -593,7 +708,7 @@
 
 .knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value.is-starting {
   font-size: clamp(60px, 8vw, 128px);
-  line-height: 1;
+  line-height: 1.15;
   letter-spacing: -.045em;
 }
 
