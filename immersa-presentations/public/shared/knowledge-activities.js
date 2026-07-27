@@ -393,6 +393,7 @@
     let selectedAssessmentIndex = 0;
     let imageViewer = null;
     let imageViewerTrigger = null;
+    let imageViewerGestureCleanup = null;
     const pendingKey = "immersaKnowledgePendingAnswer";
 
     function flashQuestion() {
@@ -442,10 +443,114 @@
     }
 
     function closeQuestionImage() {
+      imageViewerGestureCleanup?.();
+      imageViewerGestureCleanup = null;
       imageViewer?.remove?.();
       imageViewer = null;
       imageViewerTrigger?.focus?.();
       imageViewerTrigger = null;
+    }
+
+    function attachImageViewerGestures(canvas, image) {
+      if (!canvas || !image) return () => {};
+      const pointers = new Map();
+      let scale = 1;
+      let translateX = 0;
+      let translateY = 0;
+      let gestureStart = null;
+
+      function point(event) {
+        return { x: Number(event.clientX) || 0, y: Number(event.clientY) || 0 };
+      }
+
+      function distance(left, right) {
+        return Math.hypot(right.x - left.x, right.y - left.y);
+      }
+
+      function midpoint(left, right) {
+        return { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+      }
+
+      function applyTransform() {
+        image.style.transform = "translate3d(" + translateX + "px," + translateY + "px,0) scale(" + scale + ")";
+        canvas.classList?.toggle?.("is-zoomed", scale > 1.01);
+      }
+
+      function beginGesture() {
+        const active = [...pointers.values()];
+        if (active.length >= 2) {
+          gestureStart = {
+            kind: "pinch",
+            distance: Math.max(1, distance(active[0], active[1])),
+            midpoint: midpoint(active[0], active[1]),
+            scale,
+            translateX,
+            translateY
+          };
+        } else if (active.length === 1) {
+          gestureStart = {
+            kind: "pan",
+            point: active[0],
+            translateX,
+            translateY
+          };
+        } else {
+          gestureStart = null;
+        }
+      }
+
+      function onPointerDown(event) {
+        pointers.set(event.pointerId, point(event));
+        canvas.setPointerCapture?.(event.pointerId);
+        beginGesture();
+        event.preventDefault?.();
+      }
+
+      function onPointerMove(event) {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.set(event.pointerId, point(event));
+        const active = [...pointers.values()];
+        if (active.length >= 2 && gestureStart?.kind === "pinch") {
+          const currentMidpoint = midpoint(active[0], active[1]);
+          const nextScale = Math.min(6, Math.max(1, gestureStart.scale
+            * distance(active[0], active[1]) / gestureStart.distance));
+          scale = nextScale;
+          translateX = gestureStart.translateX + currentMidpoint.x - gestureStart.midpoint.x;
+          translateY = gestureStart.translateY + currentMidpoint.y - gestureStart.midpoint.y;
+          if (scale === 1) {
+            translateX = 0;
+            translateY = 0;
+          }
+          applyTransform();
+        } else if (active.length === 1 && gestureStart?.kind === "pan" && scale > 1) {
+          translateX = gestureStart.translateX + active[0].x - gestureStart.point.x;
+          translateY = gestureStart.translateY + active[0].y - gestureStart.point.y;
+          applyTransform();
+        }
+        event.preventDefault?.();
+      }
+
+      function onPointerEnd(event) {
+        pointers.delete(event.pointerId);
+        if (canvas.hasPointerCapture?.(event.pointerId)) {
+          canvas.releasePointerCapture?.(event.pointerId);
+        }
+        beginGesture();
+        event.preventDefault?.();
+      }
+
+      canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
+      canvas.addEventListener("pointermove", onPointerMove, { passive: false });
+      canvas.addEventListener("pointerup", onPointerEnd, { passive: false });
+      canvas.addEventListener("pointercancel", onPointerEnd, { passive: false });
+      applyTransform();
+
+      return () => {
+        canvas.removeEventListener?.("pointerdown", onPointerDown);
+        canvas.removeEventListener?.("pointermove", onPointerMove);
+        canvas.removeEventListener?.("pointerup", onPointerEnd);
+        canvas.removeEventListener?.("pointercancel", onPointerEnd);
+      };
     }
 
     function openQuestionImage(url, trigger) {
@@ -462,6 +567,10 @@
       imageViewerTrigger = trigger || null;
       global.document.body?.appendChild?.(viewer);
       viewer.querySelector("[data-knowledge-image-close]")?.addEventListener("click", closeQuestionImage);
+      imageViewerGestureCleanup = attachImageViewerGestures(
+        viewer.querySelector(".knowledge-image-viewer-canvas"),
+        viewer.querySelector(".knowledge-image-viewer-canvas img")
+      );
     }
 
     function registrationMarkup() {
@@ -529,7 +638,7 @@
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
       ).join("");
       const readyToSubmit = questions.length > 0 && answerMap().size === questions.length;
-      return '<div class="knowledge-audience-card knowledge-assessment-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary knowledge-assessment-submit" data-knowledge-submit ' + (readyToSubmit ? "" : "disabled") + ">Entregar evaluación</button></div>";
+      return '<div class="knowledge-audience-card knowledge-assessment-card"><header><span>Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + '</span>' + timerMarkup(state.deadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary knowledge-assessment-submit' + (readyToSubmit ? " is-ready" : "") + '" data-knowledge-submit>Entregar evaluación</button></div>';
     }
 
     function render(scrollTop = null) {

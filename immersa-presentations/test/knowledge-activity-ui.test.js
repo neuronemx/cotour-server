@@ -88,6 +88,12 @@ test("question images render for controller, Público, and Screen question views
   assert.match(source, /data-knowledge-image-open/);
   assert.match(source, /data-knowledge-image-close/);
   assert.match(css, /\.knowledge-image-viewer-close \{/);
+  assert.match(source, /function attachImageViewerGestures/);
+  assert.match(source, /canvas\.addEventListener\("pointerdown"/);
+  assert.match(source, /canvas\.addEventListener\("pointermove"/);
+  assert.match(source, /Math\.min\(6, Math\.max\(1/);
+  assert.match(css, /\.knowledge-image-viewer-canvas \{[\s\S]*?touch-action: none;/);
+  assert.match(css, /\.knowledge-image-viewer-canvas img \{[\s\S]*?max-width: 100%;[\s\S]*?max-height: 100%;[\s\S]*?will-change: transform;/);
   assert.match(source, /Abrir imagen de la pregunta en tamaño real/);
   assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
   assert.match(css, /\.knowledge-question-image-link \{[\s\S]*?cursor: zoom-in;/);
@@ -104,13 +110,90 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /knowledge-assessment-card/);
   assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 400 clamp\(18px, 4\.4vw, 24px\)\/1\.42 Inter/);
   assert.match(source, /readyToSubmit = questions\.length > 0 && answerMap\(\)\.size === questions\.length/);
+  assert.match(source, /knowledge-assessment-submit' \+ \(readyToSubmit \? " is-ready" : ""\)/);
+  assert.doesNotMatch(source, /data-knowledge-submit ' \+ \(readyToSubmit \? "" : "disabled"\)/);
   assert.match(css, /\.knowledge-assessment-nav button \{[\s\S]*?flex: 1 1 calc\(50% - 6px\);/);
-  assert.match(css, /\.knowledge-assessment-submit \{[\s\S]*?margin: 22px auto 0;/);
+  assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit \{[\s\S]*?margin: 22px auto 0;/);
+  assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit\.is-ready \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /\.knowledge-assessment-card > header \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
   assert.match(source, /knowledge-submission-receipt/);
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
   assert.match(source, /<dt>Fecha y hora<\/dt>/);
   assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
+});
+
+test("Público can submit an incomplete assessment while only complete assessments light the button", () => {
+  const listeners = new Map();
+  const emissions = [];
+  const handlers = new Map();
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const card = { scrollTop: 0 };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: { add() {}, remove() {} },
+    querySelector(selector) {
+      if (selector === ".knowledge-audience-card") return card;
+      if (selector === "[data-knowledge-submit]" && this.innerHTML.includes("data-knowledge-submit")) {
+        return {
+          addEventListener(_eventName, handler) { handlers.set(selector, handler); }
+        };
+      }
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit(eventName, payload) { emissions.push({ eventName, payload }); }
+  };
+  const window = {
+    confirm() { return true; },
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({ socket, root: rootElement });
+
+  const questions = [
+    { id: "q-1", prompt: "Uno", options: [{ id: "a-1", label: "A" }] },
+    { id: "q-2", prompt: "Dos", options: [{ id: "a-2", label: "A" }] }
+  ];
+  const onState = listeners.get("interaction:execution:state");
+  const partialState = {
+    available: true,
+    executionId: "assessment-partial",
+    category: "assessment",
+    state: "ACTIVE",
+    participant: { id: "participant-1" },
+    questions,
+    answers: [{ questionId: "q-1", optionId: "a-1" }]
+  };
+
+  onState(partialState);
+  assert.match(rootElement.innerHTML, /data-knowledge-submit/);
+  assert.doesNotMatch(rootElement.innerHTML, /knowledge-assessment-submit is-ready/);
+  assert.doesNotMatch(rootElement.innerHTML, /data-knowledge-submit[^>]*disabled/);
+  handlers.get("[data-knowledge-submit]")();
+  assert.equal(emissions.at(-1).eventName, "interaction:participant:submit_evaluation");
+
+  onState({
+    ...partialState,
+    answers: [
+      { questionId: "q-1", optionId: "a-1" },
+      { questionId: "q-2", optionId: "a-2" }
+    ]
+  });
+  assert.match(rootElement.innerHTML, /knowledge-assessment-submit is-ready/);
 });
 
 test("Público executes assessment reset and scroll restoration across authoritative updates", () => {
