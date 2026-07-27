@@ -39,6 +39,15 @@
     return Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
   }
 
+  function millisecondsUntil(value, serverNow, receivedAt) {
+    const deadline = Date.parse(value || "");
+    const authoritativeBase = Date.parse(serverNow || "");
+    const now = Number.isFinite(authoritativeBase) && Number.isFinite(receivedAt)
+      ? authoritativeBase + Math.max(0, Date.now() - receivedAt)
+      : Date.now();
+    return Number.isFinite(deadline) ? Math.max(0, deadline - now) : null;
+  }
+
   function timeLabel(seconds) {
     if (!Number.isFinite(seconds)) return "";
     const minutes = Math.floor(seconds / 60);
@@ -53,9 +62,33 @@
       + "</strong>";
   }
 
+  function countdownLabel(state) {
+    const remaining = millisecondsUntil(
+      state?.countdownDeadlineAt,
+      state?.serverNow,
+      state?._receivedAt
+    );
+    if (!Number.isFinite(remaining)) return "3";
+    const duration = Math.max(3000, Number(state?.countdownDurationMs) || 4700);
+    const elapsed = Math.max(0, duration - remaining);
+    if (elapsed < 1000) return "3";
+    if (elapsed < 2000) return "2";
+    if (elapsed < 3000) return "1";
+    return "¡Inicia!";
+  }
+
+  function countdownMarkup(state) {
+    return '<strong class="knowledge-countdown-value" data-knowledge-countdown>'
+      + countdownLabel(state)
+      + "</strong>";
+  }
+
   function updateRenderedTimers(root, state) {
     root?.querySelectorAll?.("[data-knowledge-deadline]").forEach((node) => {
       node.textContent = timeLabel(secondsUntil(node.dataset.knowledgeDeadline, state?.serverNow, state?._receivedAt));
+    });
+    root?.querySelectorAll?.("[data-knowledge-countdown]").forEach((node) => {
+      node.textContent = countdownLabel(state);
     });
   }
 
@@ -189,9 +222,10 @@
       if (state.state === "LOBBY") {
         const lobbyCount = state.participantCount || 0;
         body += '<div class="knowledge-metric"><strong>' + lobbyCount + "</strong><span>" + (lobbyCount === 1 ? "persona lista" : "personas listas") + "</span></div>"
-          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start">Iniciar</button><button data-knowledge-command="cancel">Cancelar</button></div>';
+          + (lobbyCount ? "" : '<p class="knowledge-lobby-hint">Espera a que alguien pulse Entrar.</p>')
+          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start" ' + (lobbyCount ? "" : "disabled") + '>Iniciar</button><button data-knowledge-command="cancel">Cancelar</button></div>';
       } else if (state.state === "COUNTDOWN") {
-        body += '<div class="knowledge-countdown">' + timerMarkup(deadline, state, "knowledge-countdown-value") + "</div>";
+        body += '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
       } else if (state.state === "ACTIVE") {
         if (category === "contest") {
           body += '<div class="knowledge-question-progress"><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + "</span><strong>" + escapeHtml(state.currentQuestion?.prompt || "Preparando pregunta…") + "</strong>" + questionImageMarkup(state.currentQuestion?.image) + "</div>";
@@ -329,13 +363,16 @@
     function contestMarkup() {
       const question = state.currentQuestion;
       if (!question) {
-        if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + timerMarkup(state.countdownDeadlineAt, state, "knowledge-countdown-value") + "</div>";
+        if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
         if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Estamos terminando de preparar los resultados…</strong></div>';
         if (state.personalResult) {
           const detail = (state.personalResult.answers || []).map((answer, index) =>
             '<div class="knowledge-result-detail ' + escapeHtml(answer.status) + '"><b>' + (index + 1) + '</b><span><strong>' + escapeHtml(answer.prompt) + '</strong><small>' + escapeHtml(answer.selectedLabel || "Omitida") + (answer.status === "correct" ? " · Correcta" : " · Correcta: " + escapeHtml(answer.correctLabel)) + "</small></span></div>"
           ).join("");
-          return '<div class="knowledge-personal-result"><strong>#' + (state.personalResult.position || "—") + '</strong><span>' + state.personalResult.correctCount + " de " + state.personalResult.totalQuestions + ' correctas · ' + (state.personalResult.correctTimeMs / 1000).toFixed(2) + ' s</span></div><div class="knowledge-result-details">' + detail + "</div>";
+          const qualified = state.personalResult.correctCount > 0;
+          const position = qualified ? "#" + (state.personalResult.position || "—") : "Sin posición";
+          const time = qualified ? " · " + (state.personalResult.correctTimeMs / 1000).toFixed(2) + " s" : "";
+          return '<section class="knowledge-audience-results"><div class="knowledge-personal-result"><strong>' + position + '</strong><span>' + state.personalResult.correctCount + " de " + state.personalResult.totalQuestions + " correctas" + time + '</span></div><div class="knowledge-result-details">' + detail + "</div></section>";
         }
         return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando la siguiente pregunta…</span></div>";
       }
@@ -432,8 +469,120 @@
     return { getState: () => state, render };
   }
 
+  function formatContestSeconds(milliseconds) {
+    return (Math.max(0, Number(milliseconds) || 0) / 1000).toFixed(2) + " s";
+  }
+
+  function createScreenContestAudio() {
+    if (typeof global.Audio !== "function") return { sync() {} };
+    const tracks = {
+      countdown: new global.Audio("/assets/audio/contests/321.mp3"),
+      tick: new global.Audio("/assets/audio/contests/tictac.mp3"),
+      final: new global.Audio("/assets/audio/contests/Final_concurso.mp3")
+    };
+    tracks.countdown.preload = "auto";
+    tracks.tick.preload = "auto";
+    tracks.final.preload = "auto";
+    tracks.tick.loop = true;
+    let unlocked = false;
+    let currentState = null;
+
+    function stop(track, reset = true) {
+      track.pause();
+      if (reset) {
+        try { track.currentTime = 0; } catch (_error) {}
+      }
+    }
+
+    function stopAll() {
+      Object.values(tracks).forEach((track) => stop(track));
+    }
+
+    function unlock() {
+      unlocked = true;
+      global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
+      const primers = Object.values(tracks).map((track) => {
+        track.muted = true;
+        return Promise.resolve(track.play()).catch(() => {}).then(() => {
+          stop(track);
+          track.muted = false;
+        });
+      });
+      Promise.all(primers).then(() => sync(null, currentState));
+    }
+
+    function bindSharedUnlock(button) {
+      if (!button || button.dataset.knowledgeAudioBound === "1") return;
+      button.dataset.knowledgeAudioBound = "1";
+      button.addEventListener("click", unlock, { once: true });
+    }
+
+    function ensureUnlock() {
+      if (unlocked || global.document.querySelector("[data-knowledge-audio-unlock]")) return;
+      const sharedButton = global.document.querySelector(
+        "[data-immersa-media-unlock]:not([data-knowledge-audio-unlock]):not([hidden]), "
+          + "[data-breakout-audio-unlock]:not([hidden]), "
+          + "[data-pong-audio-unlock]:not([hidden])"
+      );
+      if (sharedButton) {
+        bindSharedUnlock(sharedButton);
+        return;
+      }
+      const button = global.document.createElement("button");
+      button.type = "button";
+      button.className = "knowledge-audio-unlock";
+      button.dataset.knowledgeAudioUnlock = "1";
+      button.dataset.immersaMediaUnlock = "1";
+      button.textContent = "🔊 Activar sonido de Concursos";
+      bindSharedUnlock(button);
+      global.document.body.appendChild(button);
+    }
+
+    function play(track, currentTime = 0) {
+      stop(track);
+      try { track.currentTime = Math.max(0, currentTime); } catch (_error) {}
+      const playback = track.play();
+      playback?.catch?.(() => {
+        unlocked = false;
+        ensureUnlock();
+      });
+    }
+
+    function sync(previous, next) {
+      currentState = next;
+      if (!next?.executionId || next.category !== "contest") {
+        stopAll();
+        global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
+        return;
+      }
+      ensureUnlock();
+      if (!unlocked) return;
+      const changedExecution = previous?.executionId && previous.executionId !== next.executionId;
+      if (changedExecution || next.state === "LOBBY") stopAll();
+      if (next.state === "COUNTDOWN" && (changedExecution || previous?.state !== "COUNTDOWN")) {
+        stop(tracks.tick);
+        stop(tracks.final);
+        const duration = Math.max(3000, Number(next.countdownDurationMs) || 4700);
+        const remaining = millisecondsUntil(next.countdownDeadlineAt, next.serverNow, next._receivedAt);
+        play(tracks.countdown, Number.isFinite(remaining) ? (duration - remaining) / 1000 : 0);
+      } else if (next.state === "ACTIVE" && previous?.state !== "ACTIVE") {
+        stop(tracks.countdown);
+        stop(tracks.final);
+        play(tracks.tick);
+      } else if (["PROCESSING", "PROCESSING_ERROR"].includes(next.state)
+        && !["PROCESSING", "PROCESSING_ERROR"].includes(previous?.state)) {
+        stop(tracks.countdown);
+        stop(tracks.tick);
+        play(tracks.final);
+      }
+    }
+
+    return { sync };
+  }
+
   function createScreen({ socket, root } = {}) {
     let state = null;
+    const contestAudio = createScreenContestAudio();
     function render() {
       if (!state?.available || !state.executionId) {
         root.hidden = true;
@@ -442,27 +591,42 @@
       }
       root.hidden = false;
       const deadline = stateDeadline(state);
-      const remaining = timeLabel(secondsUntil(deadline, state.serverNow, state._receivedAt));
       if (state.state === "RESULTS_VISIBLE" && state.category === "contest") {
-        root.innerHTML = '<section class="knowledge-screen-card"><h1>Resultados</h1><div class="knowledge-ranking">' + (state.top10 || []).map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + "</strong></div>").join("") + "</div></section>";
+        const rows = (state.top10 || []).filter((row) => row.correctCount > 0);
+        const winners = rows.filter((row) => row.position === 1);
+        const winnerTitle = winners.length > 1 ? "¡Tenemos ganadores!" : "¡Tenemos ganador!";
+        const winnerMarkup = winners.length
+          ? '<div class="knowledge-winners">' + winners.map((row) => '<article><b>#1</b><div><span>' + winnerTitle + '</span><h1>' + escapeHtml(row.label) + '</h1><p>' + row.correctCount + " de " + row.totalQuestions + " correctas · " + formatContestSeconds(row.correctTimeMs) + "</p></div></article>").join("") + "</div>"
+          : '<div class="knowledge-no-winner"><span>Resultados</span><h1>No hubo respuestas correctas</h1></div>';
+        const remainingRows = rows.filter((row) => row.position !== 1);
+        root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-results">' + winnerMarkup
+          + (remainingRows.length ? '<div class="knowledge-ranking">' + remainingRows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + " · " + formatContestSeconds(row.correctTimeMs) + "</strong></div>").join("") + "</div>" : "")
+          + "</section>";
       } else if (state.category === "contest" && state.currentQuestion) {
         root.innerHTML = '<section class="knowledge-screen-card"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + '</h1>' + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + '<div class="knowledge-screen-options">' + state.currentQuestion.options.map((option) => '<div class="' + (state.reveal?.correctOptionId === option.id ? "is-correct" : "") + '">' + escapeHtml(option.label) + "</div>").join("") + "</div></section>";
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
         root.innerHTML = '<section class="knowledge-screen-card"><span>Evaluación en curso</span><h1>' + escapeHtml(state.title) + '</h1><p>' + (state.submittedCount || 0) + ' entregas · ' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
       } else {
         const message = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
-          ? "Estamos terminando de preparar los resultados…"
-          : state.state === "COUNTDOWN" ? remaining : state.title;
+          ? "Estamos calculando los resultados…"
+          : state.title;
         const count = state.state === "LOBBY"
           ? state.participantCount || 0
           : state.effectiveParticipantCount || 0;
         const countLabel = state.state === "LOBBY"
           ? (count === 1 ? "persona lista" : "personas listas")
           : (count === 1 ? "participante" : "participantes");
-        root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>" + escapeHtml(message) + '</h1><p>' + count + " " + countLabel + "</p></section>";
+        root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>"
+          + (state.state === "COUNTDOWN" ? countdownMarkup(state) : escapeHtml(message))
+          + '</h1><p>' + count + " " + countLabel + "</p></section>";
       }
     }
-    socket.on("interaction:execution:state", (next) => { state = { ...next, _receivedAt: Date.now() }; render(); });
+    socket.on("interaction:execution:state", (next) => {
+      const previous = state;
+      state = { ...next, _receivedAt: Date.now() };
+      contestAudio.sync(previous, state);
+      render();
+    });
     global.setInterval(() => updateRenderedTimers(root, state), 500);
     return { render, getState: () => state };
   }

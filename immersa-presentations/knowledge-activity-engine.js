@@ -5,7 +5,7 @@ const IDENTIFICATION_MODES = new Set(["anonymous", "optional_name", "required_na
 const TERMINAL_STATES = new Set(["CANCELLED", "CLOSED"]);
 const CONTROL_ROLES = new Set(["presenter", "stage"]);
 const CONTRACT_VERSION = "knowledge-activities-v1";
-const COUNTDOWN_MS = 3000;
+const COUNTDOWN_MS = 4700;
 const REVEAL_MS = 5000;
 const RECONCILIATION_MS = 3000;
 const PROCESSING_LIMIT_MS = 10000;
@@ -134,7 +134,7 @@ function normalizeDefinition(definition) {
     title,
     identificationMode,
     questionDurationSeconds: category === "contest"
-      ? finiteInteger(definition?.questionDurationSeconds, 20, 5, 300)
+      ? finiteInteger(definition?.questionDurationSeconds, 15, 5, 300)
       : null,
     durationSeconds: category === "assessment"
       ? finiteInteger(definition?.durationSeconds, 900, 30, 10800)
@@ -310,6 +310,9 @@ function ensureActiveTab(participant, tabId) {
 
 function startExecution(execution, nowMs = Date.now()) {
   if (execution.state !== "LOBBY") fail("INVALID_STATE", "Only a lobby can be started");
+  if (!execution.participants.length) {
+    fail("NO_READY_PARTICIPANTS", "Necesitas al menos una persona lista para iniciar.");
+  }
   execution.state = "COUNTDOWN";
   execution.substate = null;
   execution.startedAt = iso(nowMs);
@@ -729,6 +732,7 @@ function baseRoleState(execution, nowMs) {
     substate: execution.substate,
     revision: execution.revision,
     serverNow: iso(nowMs),
+    countdownDurationMs: COUNTDOWN_MS,
     countdownDeadlineAt: execution.countdownDeadlineAt,
     questionDeadlineAt: execution.questionDeadlineAt,
     revealDeadlineAt: execution.revealDeadlineAt,
@@ -793,7 +797,7 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       }
     }
     if (execution.category === "contest" && execution.resultsVisible) {
-      screen.top10 = execution.result?.top10?.map((row) => ({
+      screen.top10 = execution.result?.top10?.filter((row) => row.correctCount > 0).map((row) => ({
         position: row.position,
         label: row.label,
         correctCount: row.correctCount,

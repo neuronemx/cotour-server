@@ -11,7 +11,8 @@ const {
   forceResults,
   tickExecution,
   controllerCommand,
-  stateForRole
+  stateForRole,
+  COUNTDOWN_MS
 } = require("../knowledge-activity-engine");
 
 function definition(category = "contest", overrides = {}) {
@@ -73,6 +74,35 @@ test("definition requires one correct option and category-specific timing", () =
   );
 });
 
+test("contest defaults to fifteen seconds and cannot start without someone ready", () => {
+  const item = createExecution({
+    id: "execution-default-duration",
+    presentationSessionId: "presentation-1",
+    sourceSessionId: "session-1",
+    deckId: "deck-1",
+    definition: definition("contest", { questionDurationSeconds: undefined }),
+    nowMs: 1000,
+    random: () => 0.999
+  });
+  assert.equal(item.definition.questionDurationSeconds, 15);
+  assert.throws(() => controllerCommand(item, {
+    commandId: "start-empty",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  }), { code: "NO_READY_PARTICIPANTS" });
+  joinParticipant(item, { participantId: "ready", tabId: "tab-ready", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-ready",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  assert.equal(Date.parse(item.countdownDeadlineAt) - 2000, COUNTDOWN_MS);
+});
+
 test("optional question images survive normalization and role-specific snapshots", () => {
   const image = {
     url: "/decks/deck-1/knowledge-assets/question-aaaaaaaaaaaaaaaaaaaaaaaa.jpg",
@@ -106,10 +136,10 @@ test("optional question images survive normalization and role-specific snapshots
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
-  assert.deepEqual(stateForRole(item, { role: "presenter", nowMs: 5000 }).currentQuestion.image, image);
-  assert.deepEqual(stateForRole(item, { role: "screen", nowMs: 5000 }).currentQuestion.image, image);
-  assert.deepEqual(stateForRole(item, { role: "audience", participantId: participant.id, tabId: "tab-1", nowMs: 5000 }).currentQuestion.image, image);
+  tickExecution(item, 7000);
+  assert.deepEqual(stateForRole(item, { role: "presenter", nowMs: 7000 }).currentQuestion.image, image);
+  assert.deepEqual(stateForRole(item, { role: "screen", nowMs: 7000 }).currentQuestion.image, image);
+  assert.deepEqual(stateForRole(item, { role: "audience", participantId: participant.id, tabId: "tab-1", nowMs: 7000 }).currentQuestion.image, image);
 });
 
 test("contest uses a shared question order and individual option orders", () => {
@@ -133,7 +163,7 @@ test("assessment persists an individual question order and supports changed sele
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
+  tickExecution(item, 7000);
   const questionId = participant.questionOrder[0];
   const question = item.definition.questions.find((candidate) => candidate.id === questionId);
   submitAnswer(item, {
@@ -141,18 +171,18 @@ test("assessment persists an individual question order and supports changed sele
     questionId,
     optionId: question.options[0].id,
     tabId: "tab-1",
-    nowMs: 6000
+    nowMs: 8000
   });
   submitAnswer(item, {
     participantId: "p1",
     questionId,
     optionId: question.options[1].id,
     tabId: "tab-1",
-    nowMs: 7000
+    nowMs: 9000
   });
   assert.equal(item.answers.length, 1);
   assert.equal(item.answers[0].optionId, question.options[1].id);
-  submitAssessment(item, { participantId: "p1", tabId: "tab-1", nowMs: 8000 });
+  submitAssessment(item, { participantId: "p1", tabId: "tab-1", nowMs: 10000 });
   assert.equal(participant.state, "INCOMPLETE");
 });
 
@@ -166,13 +196,13 @@ test("contest locks one answer and advances through reveal automatically", () =>
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
+  tickExecution(item, 7000);
   assert.equal(item.substate, "QUESTION_ACTIVE");
   const audienceState = stateForRole(item, {
     role: "audience",
     participantId: participant.id,
     tabId: "tab-1",
-    nowMs: 5000
+    nowMs: 7000
   });
   assert.equal(audienceState.questionIndex, 0);
   assert.equal(audienceState.questionCount, 2);
@@ -182,19 +212,19 @@ test("contest locks one answer and advances through reveal automatically", () =>
     questionId: question.id,
     optionId: question.correctOptionId,
     tabId: "tab-1",
-    nowMs: 6000
+    nowMs: 8000
   });
   assert.throws(() => submitAnswer(item, {
     participantId: participant.id,
     questionId: question.id,
     optionId: question.correctOptionId,
     tabId: "tab-1",
-    nowMs: 6500
+    nowMs: 8500
   }), { code: "DUPLICATE" });
-  tickExecution(item, 15000);
+  tickExecution(item, 17000);
   assert.equal(item.substate, "REVEAL");
   assert.equal(item.questionDeadlineAt, null);
-  tickExecution(item, 20000);
+  tickExecution(item, 22000);
   assert.equal(item.substate, "QUESTION_ACTIVE");
   assert.equal(item.questionIndex, 1);
 });
@@ -209,22 +239,25 @@ test("ranking uses correct answers, correct-answer time, real ties, and competit
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
+  tickExecution(item, 7000);
   const first = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[0]);
-  submitAnswer(item, { participantId: "p1", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p1", nowMs: 6000 });
-  submitAnswer(item, { participantId: "p2", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p2", nowMs: 7000 });
-  submitAnswer(item, { participantId: "p3", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p3", nowMs: 7000 });
-  submitAnswer(item, { participantId: "p4", questionId: first.id, optionId: first.options.find((option) => option.id !== first.correctOptionId).id, tabId: "tab-p4", nowMs: 5500 });
-  tickExecution(item, 20000);
+  submitAnswer(item, { participantId: "p1", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p1", nowMs: 8000 });
+  submitAnswer(item, { participantId: "p2", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p2", nowMs: 9000 });
+  submitAnswer(item, { participantId: "p3", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p3", nowMs: 9000 });
+  submitAnswer(item, { participantId: "p4", questionId: first.id, optionId: first.options.find((option) => option.id !== first.correctOptionId).id, tabId: "tab-p4", nowMs: 7500 });
+  tickExecution(item, 22000);
   const second = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[1]);
-  submitAnswer(item, { participantId: "p1", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p1", nowMs: 21000 });
-  submitAnswer(item, { participantId: "p2", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p2", nowMs: 21000 });
-  submitAnswer(item, { participantId: "p3", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p3", nowMs: 21000 });
-  tickExecution(item, 35000);
-  tickExecution(item, 38000);
+  submitAnswer(item, { participantId: "p1", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p1", nowMs: 23000 });
+  submitAnswer(item, { participantId: "p2", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p2", nowMs: 23000 });
+  submitAnswer(item, { participantId: "p3", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p3", nowMs: 23000 });
+  tickExecution(item, 32000);
+  tickExecution(item, 40000);
   assert.equal(item.state, "RESULTS_VISIBLE");
   assert.deepEqual(item.result.rows.map((row) => row.position), [1, 2, 2, 4]);
   assert.equal(item.result.rows[0].participantId, "p1");
+  const screenRows = stateForRole(item, { role: "screen", nowMs: 40000 }).top10;
+  assert.equal(screenRows.length, 3);
+  assert.equal(screenRows.some((row) => row.correctCount === 0), false);
 });
 
 test("zero answers are ignored and incomplete participation remains in results", () => {
@@ -238,10 +271,10 @@ test("zero answers are ignored and incomplete participation remains in results",
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
-  submitAnswer(item, { participantId: "partial", questionId: "q1", optionId: "a", tabId: "tab-partial", nowMs: 6000 });
-  finalizeExecution(item, 7000);
-  tickExecution(item, 10000);
+  tickExecution(item, 7000);
+  submitAnswer(item, { participantId: "partial", questionId: "q1", optionId: "a", tabId: "tab-partial", nowMs: 8000 });
+  finalizeExecution(item, 9000);
+  tickExecution(item, 12000);
   assert.equal(item.result.participantCount, 1);
   assert.equal(item.result.rows[0].participantId, "partial");
   assert.equal(item.result.rows[0].state, "INCOMPLETE");
@@ -258,6 +291,7 @@ test("zero answers are ignored and incomplete participation remains in results",
 
 test("controller commands are revision checked and idempotent across Speaker and Stage", () => {
   const item = execution("assessment");
+  joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
   const expectedRevision = item.revision;
   const first = controllerCommand(item, {
     commandId: "same-command",
@@ -331,10 +365,10 @@ test("role payloads keep assessment answers private and expose only released gra
     intent: "start",
     nowMs: 2000
   });
-  tickExecution(item, 5000);
-  submitAnswer(item, { participantId: "p1", questionId: "q1", optionId: "a", tabId: "tab-1", nowMs: 6000 });
-  finalizeExecution(item, 7000);
-  forceResults(item, { nowMs: 7001 });
+  tickExecution(item, 7000);
+  submitAnswer(item, { participantId: "p1", questionId: "q1", optionId: "a", tabId: "tab-1", nowMs: 8000 });
+  finalizeExecution(item, 9000);
+  forceResults(item, { nowMs: 9001 });
   const retained = stateForRole(item, { role: "audience", participantId: "p1", tabId: "tab-1" });
   assert.equal(retained.personalResult, null);
   controllerCommand(item, {
@@ -342,7 +376,7 @@ test("role payloads keep assessment answers private and expose only released gra
     expectedRevision: item.revision,
     actorRole: "stage",
     intent: "show_results",
-    nowMs: 8000
+    nowMs: 10000
   });
   const visible = stateForRole(item, { role: "audience", participantId: "p1", tabId: "tab-1" });
   assert.deepEqual(visible.personalResult, { grade: 50 });

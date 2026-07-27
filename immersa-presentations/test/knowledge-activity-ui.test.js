@@ -87,6 +87,33 @@ test("Público renders safe contest progress and legible answer options", () => 
   assert.match(source, /Pregunta ' \+ questionNumber \+ " de " \+ questionCount/);
   assert.match(css, /\.knowledge-options button \{[\s\S]*?color: #182133/);
   assert.match(css, /\.knowledge-options button\.is-selected \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(source, /qualified = state\.personalResult\.correctCount > 0/);
+  assert.match(source, /Sin posición/);
+  assert.match(css, /\.knowledge-result-detail \{[\s\S]*?color: #182133/);
+});
+
+test("contest lobby, synchronized countdown, winner view, and Screen audio follow the live contract", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const engine = read("knowledge-activity-engine.js");
+  const editor = read("public/home/interactions-editor.js");
+  assert.match(engine, /const COUNTDOWN_MS = 4700/);
+  assert.match(engine, /NO_READY_PARTICIPANTS/);
+  assert.match(engine, /Necesitas al menos una persona lista para iniciar/);
+  assert.match(source, /data-knowledge-command="start"[\s\S]*disabled/);
+  assert.match(source, /data-knowledge-countdown/);
+  assert.match(source, /return "¡Inicia!"/);
+  assert.match(source, /¡Tenemos ganador!/);
+  assert.match(source, /No hubo respuestas correctas/);
+  assert.match(source, /\/assets\/audio\/contests\/321\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/tictac\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/Final_concurso\.mp3/);
+  assert.match(source, /tracks\.tick\.loop = true/);
+  assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
+  assert.match(source, /dataset\.knowledgeAudioBound/);
+  assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
+  for (const name of ["321.mp3", "tictac.mp3", "Final_concurso.mp3"]) {
+    assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
+  }
 });
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {

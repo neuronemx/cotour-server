@@ -114,13 +114,14 @@ test("server restart reconstructs and advances an expired countdown", async () =
     definitionId: "contest-1",
     category: "contest"
   });
+  await initial.service.join(execution, { participantId: "participant-1", tabId: "tab-1" });
   await initial.service.command(execution, {
     commandId: "start",
     expectedRevision: execution.revision,
     actorRole: "presenter",
     intent: "start"
   });
-  nowRef.value = 5000;
+  nowRef.value = 7000;
   const coordinator = new ActiveInteractionCoordinator({
     interactionStore: new InteractionStore(),
     raffleStore: new RaffleStore()

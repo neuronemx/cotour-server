@@ -376,7 +376,7 @@
       category,
       title: "",
       identificationMode: "anonymous",
-      questionDurationSeconds: category === "contest" ? 20 : null,
+      questionDurationSeconds: category === "contest" ? 15 : null,
       durationSeconds: category === "assessment" ? 900 : null,
       questions: [{
         id: knowledgeId("question"),
@@ -510,13 +510,13 @@
     form.elements.title.value = draft.title || "";
     form.elements.identificationMode.value = draft.identificationMode || "anonymous";
     form.elements.duration.value = category === "contest"
-      ? draft.questionDurationSeconds || 20
+      ? draft.questionDurationSeconds || 15
       : Math.max(1, Math.round((draft.durationSeconds || 900) / 60));
     const questionsNode = form.querySelector(".knowledge-questions-editor");
     const updateEstimate = () => {
       const output = form.querySelector("[data-knowledge-estimate]");
       if (!output) return;
-      const seconds = 3 + draft.questions.length * (Math.max(5, Number(form.elements.duration.value) || 20) + 5);
+      const seconds = 5 + draft.questions.length * (Math.max(5, Number(form.elements.duration.value) || 15) + 5);
       const minutes = Math.floor(seconds / 60);
       output.textContent = "Duración estimada: " + (minutes ? minutes + " min " : "") + (seconds % 60) + " s";
     };
