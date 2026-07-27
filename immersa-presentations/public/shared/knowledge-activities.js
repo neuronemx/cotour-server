@@ -781,12 +781,12 @@
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-results">' + winnerMarkup
           + (remainingRows.length ? '<div class="knowledge-ranking">' + remainingRows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + " · " + formatContestSeconds(row.correctTimeMs) + "</strong></div>").join("") + "</div>" : "")
           + "</section>";
-      } else if (state.category === "contest" && ["LOBBY", "COUNTDOWN"].includes(state.state)) {
+      } else if (["contest", "assessment"].includes(state.category) && ["LOBBY", "COUNTDOWN"].includes(state.state)) {
         const readyCount = state.participantCount || 0;
         const readyLabel = readyCount === 1 ? "persona lista" : "personas listas";
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-intro-state">'
           + '<div class="knowledge-screen-presence"><strong>' + readyCount + '</strong><span>' + readyLabel + "</span></div>"
-          + '<div class="knowledge-screen-identity">' + categoryIconMarkup("contest", "knowledge-screen-activity-icon")
+          + '<div class="knowledge-screen-identity">' + categoryIconMarkup(state.category, "knowledge-screen-activity-icon")
           + '<h1>' + escapeHtml(state.title) + "</h1></div>"
           + (state.state === "COUNTDOWN"
             ? '<div class="knowledge-screen-countdown">' + countdownMarkup(state) + "</div>"
@@ -800,7 +800,27 @@
           root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-question' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + "</h1>" + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + "</section>";
         }
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
-        root.innerHTML = '<section class="knowledge-screen-card"><span>Evaluación en curso</span><h1>' + escapeHtml(state.title) + '</h1><p>' + (state.submittedCount || 0) + ' entregas · ' + (state.effectiveParticipantCount || 0) + " participantes</p></section>";
+        const participantCount = state.participantCount || 0;
+        const participantLabel = participantCount === 1 ? "participante" : "participantes";
+        root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-assessment-state">'
+          + '<div class="knowledge-screen-presence"><strong>' + participantCount + '</strong><span>' + participantLabel + "</span></div>"
+          + '<div class="knowledge-screen-identity">' + categoryIconMarkup("assessment", "knowledge-screen-activity-icon")
+          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
+          + '<div class="knowledge-screen-assessment-progress"><span>Evaluación en curso</span>'
+          + timerMarkup(deadline, state, "knowledge-screen-assessment-timer")
+          + '<p><strong>' + (state.submittedCount || 0) + "</strong> de " + participantCount + " entregaron</p></div>"
+          + "</section>";
+      } else if (state.category === "assessment" && ["PROCESSING", "PROCESSING_ERROR", "RESULTS_READY", "RESULTS_VISIBLE"].includes(state.state)) {
+        const finishedCount = state.submittedCount || 0;
+        const assessmentMessage = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
+          ? "Calculando resultados…"
+          : "Evaluación finalizada";
+        root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-assessment-state knowledge-screen-assessment-finished">'
+          + '<div class="knowledge-screen-identity">' + categoryIconMarkup("assessment", "knowledge-screen-activity-icon")
+          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
+          + '<div class="knowledge-screen-assessment-progress"><strong class="knowledge-screen-assessment-message">'
+          + escapeHtml(assessmentMessage) + '</strong><p><strong>' + finishedCount + "</strong> entregas</p></div>"
+          + "</section>";
       } else {
         const message = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
           ? "Estamos calculando los resultados…"

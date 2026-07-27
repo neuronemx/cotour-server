@@ -286,6 +286,69 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
   assert.match(screenRoot.innerHTML, /knowledge-screen-correct-answer/);
   assert.match(screenRoot.innerHTML, />Opción secreta A</);
   assert.doesNotMatch(screenRoot.innerHTML, /¿Cuál es la correcta\?|\/question\.jpg|knowledge-screen-options/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "LOBBY",
+    participantCount: 2,
+    effectiveParticipantCount: 0,
+    submittedCount: 0
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-intro-state/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>personas listas/);
+  assert.match(screenRoot.innerHTML, />Evaluación final<\/h1>/);
+  assert.doesNotMatch(screenRoot.innerHTML, />Evaluación<\/span>/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "COUNTDOWN",
+    participantCount: 2,
+    effectiveParticipantCount: 0,
+    submittedCount: 0,
+    countdownDurationMs: 4700,
+    countdownDeadlineAt: new Date(Date.now() + 4700).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-countdown/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>personas listas/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "ACTIVE",
+    participantCount: 2,
+    effectiveParticipantCount: 2,
+    submittedCount: 1,
+    deadlineAt: new Date(Date.now() + 300_000).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-state/);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-timer/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>participantes/);
+  assert.match(screenRoot.innerHTML, /<strong>1<\/strong> de 2 entregaron/);
+  assert.doesNotMatch(screenRoot.innerHTML, /knowledge-screen-question|knowledge-options/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "RESULTS_VISIBLE",
+    participantCount: 2,
+    effectiveParticipantCount: 2,
+    submittedCount: 2
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-finished/);
+  assert.match(screenRoot.innerHTML, /Evaluación finalizada/);
+  assert.match(screenRoot.innerHTML, /<strong>2<\/strong> entregas/);
 });
 
 test("Screen shows only the question and optional image, then centers only the correct answer", () => {
@@ -309,19 +372,35 @@ test("lobby entrants are synchronized as people ready without counting as partic
   assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
 });
 
-test("Screen lobby uses contest identity, centered presence, and a dominant countdown", () => {
+test("Screen lobby uses activity identity, centered presence, and a balanced countdown", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /knowledge-screen-intro-state/);
-  assert.match(source, /categoryIconMarkup\("contest", "knowledge-screen-activity-icon"\)/);
+  assert.match(source, /categoryIconMarkup\(state\.category, "knowledge-screen-activity-icon"\)/);
   assert.match(source, /knowledge-screen-presence/);
   assert.match(source, /knowledge-screen-countdown/);
   assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
-  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(220px, 25vw, 420px\);[\s\S]*?overflow: visible;/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(170px, 24vw, 380px\)\/\.9/);
-  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(112px, 18vw, 300px\);[\s\S]*?line-height: \.95;/);
+  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(150px, 17vw, 260px\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?clamp\(104px, 15vw, 240px\)\/\.96/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(72px, 10vw, 160px\);[\s\S]*?line-height: 1;/);
   assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
   assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
+});
+
+test("Evaluations reuse the approved Immersa lobby and gain a dedicated Screen progress state", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /\["contest", "assessment"\]\.includes\(state\.category\) && \["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)/);
+  assert.match(source, /categoryIconMarkup\("assessment", "knowledge-screen-activity-icon"\)/);
+  assert.match(source, /knowledge-screen-assessment-state/);
+  assert.match(source, /knowledge-screen-assessment-progress/);
+  assert.match(source, /knowledge-screen-assessment-timer/);
+  assert.match(source, /Evaluación en curso/);
+  assert.match(source, /Calculando resultados…/);
+  assert.match(source, /Evaluación finalizada/);
+  assert.match(css, /\.knowledge-screen-assessment-state \{[\s\S]*?min-height: 72vh;/);
+  assert.match(css, /\.knowledge-screen-assessment-progress \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /\.knowledge-screen-assessment-timer \{[\s\S]*?clamp\(72px, 10vw, 150px\)/);
 });
 
 test("history exposes per-execution CSV without adding operational warnings", () => {

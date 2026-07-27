@@ -539,7 +539,7 @@
 
 .knowledge-screen-countdown {
   width: 100%;
-  min-height: clamp(220px, 25vw, 420px);
+  min-height: clamp(150px, 17vw, 260px);
   display: grid;
   place-items: center;
   overflow: visible;
@@ -548,7 +548,7 @@
 .knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value {
   min-width: 0;
   max-width: 96vw;
-  font: 900 clamp(170px, 24vw, 380px)/.9 Poppins, Inter, sans-serif;
+  font: 900 clamp(104px, 15vw, 240px)/.96 Poppins, Inter, sans-serif;
   letter-spacing: -.06em;
   background: linear-gradient(135deg, #fff 8%, #8ee3d2 48%, #9b7bff 92%);
   -webkit-background-clip: text;
@@ -558,9 +558,79 @@
 }
 
 .knowledge-screen-intro-state .knowledge-screen-countdown .knowledge-countdown-value.is-starting {
-  font-size: clamp(112px, 18vw, 300px);
-  line-height: .95;
+  font-size: clamp(72px, 10vw, 160px);
+  line-height: 1;
   letter-spacing: -.045em;
+}
+
+.knowledge-screen-assessment-state {
+  min-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 4vh, 48px);
+  text-align: center;
+}
+
+.knowledge-screen-assessment-state .knowledge-screen-identity {
+  gap: clamp(14px, 2vh, 24px);
+}
+
+.knowledge-screen-assessment-state .knowledge-screen-identity h1 {
+  max-width: min(88vw, 1200px);
+  margin: 0;
+  font: 800 clamp(40px, 5.5vw, 86px)/1.04 Poppins, Inter, sans-serif;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+}
+
+.knowledge-screen-assessment-progress {
+  display: grid;
+  place-items: center;
+  gap: clamp(12px, 2vh, 22px);
+  min-width: min(86vw, 620px);
+  padding: clamp(24px, 4vh, 44px) clamp(32px, 5vw, 64px);
+  background:
+    linear-gradient(rgba(10, 17, 34, .76), rgba(10, 17, 34, .76)) padding-box,
+    var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%)) border-box;
+  border: 1px solid transparent;
+  border-radius: clamp(22px, 2.4vw, 34px);
+  box-shadow:
+    0 28px 82px rgba(0, 0, 0, .3),
+    inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+
+.knowledge-screen-assessment-progress > span {
+  color: rgba(255, 255, 255, .72);
+  font: 800 clamp(14px, 1.4vw, 21px)/1 Inter, sans-serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.knowledge-screen-assessment-timer {
+  color: #fff;
+  font: 900 clamp(72px, 10vw, 150px)/.95 Poppins, Inter, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  text-shadow: 0 14px 42px rgba(0, 0, 0, .32);
+}
+
+.knowledge-screen-assessment-progress p {
+  margin: 0;
+  color: rgba(255, 255, 255, .74);
+  font: 700 clamp(16px, 1.7vw, 26px)/1.2 Inter, sans-serif;
+}
+
+.knowledge-screen-assessment-progress p strong {
+  color: #fff;
+  font-weight: 900;
+}
+
+.knowledge-screen-assessment-finished .knowledge-screen-assessment-message {
+  color: #fff;
+  font: 900 clamp(38px, 5vw, 76px)/1.08 Poppins, Inter, sans-serif;
+  letter-spacing: -.025em;
 }
 
 .knowledge-screen-card h1 {
