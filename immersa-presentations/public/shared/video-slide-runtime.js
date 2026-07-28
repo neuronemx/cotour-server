@@ -151,7 +151,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=109';
+    link.href = '/shared/video-slide-runtime.css?v=110';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }

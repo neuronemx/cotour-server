@@ -73,7 +73,8 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=112/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=113/);
+  assert.match(runtime, /video-slide-runtime\.css\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /position_seconds/);
@@ -97,6 +98,12 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(css, /\.immersa-youtube-slide/);
   assert.match(css, /\.video-media-controls/);
   assert.match(css, /top:\s*50%/);
+  assert.match(css, /\.video-media-controls-row\s*\{[\s\S]*justify-content:\s*center/);
+  assert.match(css, /\.video-media-primary-controls\s*\{[\s\S]*justify-content:\s*center;[\s\S]*width:\s*100%/);
+  assert.match(css, /\[data-video-action="restart"\]\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*0/);
+  assert.match(css, /\[data-video-action="mute"\]\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*0/);
+  assert.match(css, /0 0 30px rgba\(59,\s*130,\s*246,\s*\.12\)/);
+  assert.match(css, /0 0 58px rgba\(139,\s*92,\s*246,\s*\.08\)/);
   assert.match(css, /\.video-media-progress-fill/);
   assert.match(css, /linear-gradient\(135deg,\s*#8b5cf6,\s*#3b82f6,\s*#22d3ee\)/);
   assert.match(css, /\.immersa-media-unlock/);
