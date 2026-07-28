@@ -118,6 +118,59 @@ test('media status is normalized before broadcasting to control roles', () => {
   assert.equal(status.missing, 1);
 });
 
+test('Screen playback state is forwarded only to Speaker and Stage', () => {
+  const emitted = [];
+  const io = {
+    to(room) {
+      return {
+        emit(event, payload) {
+          emitted.push({ room, event, payload });
+        }
+      };
+    }
+  };
+  const handlers = {};
+  const socket = {
+    on(event, handler) {
+      handlers[event] = handler;
+    },
+    emit(event, payload) {
+      emitted.push({ room: 'socket', event, payload });
+    }
+  };
+  const context = { roomKey: 'room', sessionId: 's1', deckId: 'd1', role: 'screen' };
+  const media = mediaSockets.createMediaSocketHandlers({
+    io,
+    getRoleRoomKey: (room, role) => room + ':' + role
+  });
+  media.attach(socket, () => context);
+  handlers['media:playback_update']({
+    slide_index: 4,
+    provider: 'youtube',
+    forced_muted: true
+  });
+
+  assert.deepEqual(
+    emitted.filter(({ event }) => event === 'media:playback').map(({ room }) => room),
+    ['room:presenter', 'room:stage']
+  );
+  assert.equal(emitted[0].payload.slide_index, 4);
+  assert.equal(emitted[0].payload.forced_muted, true);
+
+  emitted.length = 0;
+  context.role = 'audience';
+  handlers['media:playback_update']({
+    slide_index: 4,
+    provider: 'youtube',
+    forced_muted: false
+  });
+  assert.equal(emitted.length, 0);
+
+  media.sendCurrentState(socket, { ...context, role: 'presenter' });
+  assert.equal(emitted[0].event, 'media:playback');
+  assert.equal(emitted[0].payload.forced_muted, true);
+});
+
 test('Screen loads persistent local multimedia preparation and simplified replacement controls', () => {
   const screen = read('public/screen/index.html');
   const audience = read('public/audience/index.html');
@@ -143,9 +196,9 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(screen, /Cache-Control/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
-  assert.match(screen, /video-deck-config-bridge\.js\?v=109/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=108/);
-  assert.match(loader, /video-deck-config-bridge\.js\?v=108/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=110/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=110/);
+  assert.match(loader, /video-deck-config-bridge\.js\?v=110/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /handleEnded/);
   assert.match(bridgeSource, /Multimedia lista/);
@@ -168,4 +221,6 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
   assert.match(socketSource, /media:advance_request/);
+  assert.match(socketSource, /media:playback_update/);
+  assert.match(socketSource, /media:playback/);
 });

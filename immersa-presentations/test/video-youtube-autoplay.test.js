@@ -71,11 +71,14 @@ function createHarness({ autoplay = true, sharedUnlock = null } = {}) {
   };
 
   const handlers = {};
+  const emitted = [];
   const socket = {
     on(name, listener) {
       handlers[name] = listener;
     },
-    emit() {}
+    emit(name, payload) {
+      emitted.push({ name, payload });
+    }
   };
   const manifest = {
     slides: [{
@@ -100,6 +103,7 @@ function createHarness({ autoplay = true, sharedUnlock = null } = {}) {
     socket,
     fetch,
     handlers,
+    emitted,
     createdUnlocks,
     location: {
       pathname: '/screen',
@@ -147,6 +151,11 @@ test('YouTube autoplay falls back to muted playback and reuses the existing medi
   assert.ok(calls.filter((call) => call === 'play').length >= 2, 'play is retried automatically');
   assert.equal(harness.createdUnlocks.length, 0, 'no duplicate unlock button is created');
   assert.equal(sharedUnlock.dataset.videoMediaUnlockBound, '1', 'YouTube binds to the shared unlock');
+  assert.deepEqual(
+    harness.emitted.find(({ name }) => name === 'media:playback_update')?.payload,
+    { slide_index: 0, provider: 'youtube', forced_muted: true },
+    'Screen reports the browser-forced mute to controllers'
+  );
 });
 
 test('manual YouTube playback still waits for Play', async (t) => {

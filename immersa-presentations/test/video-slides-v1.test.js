@@ -37,6 +37,16 @@ test('video media state follows the active role slide index', () => {
     command: 'pause',
     revision: 9
   });
+  const forcedPlayback = { slide_index: 6, forced_muted: true };
+  assert.equal(videoSlides.mediaControlMuted({ muted: false }, forcedPlayback, 6), true);
+  assert.deepEqual(videoSlides.muteControlPatch({ muted: false }, forcedPlayback, 6), {
+    command: 'unmute',
+    muted: false
+  });
+  assert.deepEqual(videoSlides.muteControlPatch({ muted: false }, null, 6), {
+    command: 'mute',
+    muted: true
+  });
 });
 
 test('all roles load the configured video bridge and shared runtime', () => {
@@ -47,15 +57,18 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=109/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=108/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=108/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=110/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=110/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=110/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=109/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
-  assert.match(runtime, /Activar sonido y multimedia/);
+  assert.match(runtime, /Activar sonido/);
+  assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /data-immersa-media-unlock/);
+  assert.match(runtime, /media:playback_update/);
+  assert.match(runtime, /media:playback/);
   assert.match(runtime, /playYouTubeWithAutoplayFallback/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /role === 'screen'/);

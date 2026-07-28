@@ -29,7 +29,7 @@ Immersa can treat a local MP4 or a YouTube link as one slide in the normal prese
 
 ## Audio permission
 
-When the browser blocks autoplay with sound, Screen displays **Activar sonido y multimedia**. The operator taps it once to authorize video audio.
+When the browser blocks autoplay with sound, Screen reuses the single global **Activar sonido** control. Screen reports the forced-muted playback state to Speaker and Stage so either controller can send one explicit unmute command.
 
 ## Deck configuration
 

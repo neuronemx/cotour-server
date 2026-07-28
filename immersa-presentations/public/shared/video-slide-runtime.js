@@ -91,6 +91,20 @@
     return defaultMediaState(item, slideIndex);
   }
 
+  function playbackForcedMuted(playback, slideIndex) {
+    return Boolean(playback?.forced_muted)
+      && Number(playback?.slide_index) === Number(slideIndex);
+  }
+
+  function mediaControlMuted(media, playback, slideIndex) {
+    return Boolean(media?.muted) || playbackForcedMuted(playback, slideIndex);
+  }
+
+  function muteControlPatch(media, playback, slideIndex) {
+    const muted = mediaControlMuted(media, playback, slideIndex);
+    return { command: muted ? 'unmute' : 'mute', muted: !muted };
+  }
+
   function currentIndex(role, state) {
     if (role === 'screen' || role === 'audience') return Number(state?.liveSlideIndex ?? state?.slideIndex ?? 0);
     return Number(state?.presenterSlideIndex ?? state?.slideIndex ?? 0);
@@ -135,6 +149,8 @@
     let controls = null;
     let unlockButton = null;
     let ownsUnlockButton = false;
+    let screenPlayback = null;
+    let lastReportedPlayback = '';
     let lastAppliedRevision = null;
     let lastInitializedIndex = -1;
     let presenterControlJoined = false;
@@ -173,6 +189,18 @@
         revision: Date.now()
       };
       controlSocket.emit('overlay_update', { overlays: { videoMedia: next } });
+    }
+
+    function reportScreenPlayback(forcedMuted, item, index, revision = '') {
+      if (role !== 'screen' || !isYouTubeSlide(item)) return;
+      const key = String(index) + ':' + String(Boolean(forcedMuted)) + ':' + String(revision);
+      if (key === lastReportedPlayback) return;
+      lastReportedPlayback = key;
+      mainSocket.emit('media:playback_update', {
+        slide_index: Number(index),
+        provider: 'youtube',
+        forced_muted: Boolean(forcedMuted)
+      });
     }
 
     function patchPoster(_index, item) {
@@ -304,7 +332,10 @@
         if (!player) return;
         const media = effectiveMediaState(lastState, activeItem, activeIndex);
         if (media.muted) player.mute();
-        else player.unMute();
+        else {
+          player.unMute();
+          reportScreenPlayback(false, activeItem, activeIndex, media.revision);
+        }
         player.playVideo();
         removeUnlock();
         return;
@@ -345,7 +376,7 @@
       unlockButton.type = 'button';
       unlockButton.className = 'immersa-media-unlock';
       unlockButton.dataset.immersaMediaUnlock = '1';
-      unlockButton.textContent = '🔊 Activar sonido y multimedia';
+      unlockButton.textContent = '🔊 Activar sonido';
       bindUnlock(unlockButton);
       document.body.appendChild(unlockButton);
       return unlockButton;
@@ -362,6 +393,7 @@
       if (media.muted) {
         player.mute();
         player.playVideo();
+        reportScreenPlayback(false, item, index, media.revision);
         return;
       }
       player.unMute();
@@ -373,12 +405,20 @@
         const playerState = player.getPlayerState?.();
         const playing = playerState === root.YT?.PlayerState?.PLAYING;
         const buffering = playerState === root.YT?.PlayerState?.BUFFERING;
-        if (playing || buffering) {
+        const stillMuted = Boolean(player.isMuted?.());
+        if ((playing || buffering) && !stillMuted) {
+          reportScreenPlayback(false, item, index, latest.revision);
           removeUnlock();
+          return;
+        }
+        if ((playing || buffering) && stillMuted) {
+          reportScreenPlayback(true, item, index, latest.revision);
+          ensureUnlock();
           return;
         }
         player.mute();
         player.playVideo();
+        reportScreenPlayback(true, item, index, latest.revision);
         ensureUnlock();
       }, 700);
     }
@@ -502,7 +542,13 @@
         const action = button.dataset.videoAction;
         if (action === 'toggle') emitMedia({ command: media.playing ? 'pause' : 'play', playing: !media.playing });
         if (action === 'restart') emitMedia({ command: 'restart', playing: true });
-        if (action === 'mute') emitMedia({ command: media.muted ? 'unmute' : 'mute', muted: !media.muted });
+        if (action === 'mute') {
+          const patch = muteControlPatch(media, screenPlayback, activeIndex);
+          if (patch.muted === false && playbackForcedMuted(screenPlayback, activeIndex)) {
+            screenPlayback = { ...screenPlayback, forced_muted: false };
+          }
+          emitMedia(patch);
+        }
       });
       host.appendChild(controls);
       return controls;
@@ -515,12 +561,13 @@
       bar.hidden = !active;
       if (!active) return;
       const media = effectiveMediaState(state, item, index);
+      const muted = mediaControlMuted(media, screenPlayback, index);
       const toggle = bar.querySelector('[data-video-action="toggle"]');
       const mute = bar.querySelector('[data-video-action="mute"]');
       toggle.textContent = media.playing ? '❚❚' : '▶';
       toggle.title = media.playing ? 'Pausar video' : 'Reproducir video';
-      mute.textContent = media.muted ? '🔇' : '🔊';
-      mute.title = media.muted ? 'Activar sonido' : 'Silenciar video';
+      mute.textContent = muted ? '🔇' : '🔊';
+      mute.title = muted ? 'Activar sonido' : 'Silenciar video';
     }
 
     function maybeInitializeController(state, item, index) {
@@ -591,6 +638,10 @@
       if (!lastState) return;
       render({ ...lastState, overlays: { ...(lastState.overlays || {}), videoMedia: null } });
     });
+    mainSocket.on('media:playback', (playback) => {
+      screenPlayback = playback || null;
+      if (lastState) render(lastState);
+    });
     if (role === 'screen') root.ImmersaLocalMedia?.subscribe?.(() => { if (lastState) render(lastState); });
 
     loadManifest().catch((error) => console.warn('Unable to initialize video slides', error.message));
@@ -624,6 +675,9 @@
     loadYouTubeApi,
     defaultMediaState,
     effectiveMediaState,
+    playbackForcedMuted,
+    mediaControlMuted,
+    muteControlPatch,
     currentIndex,
     createRuntime,
     autoMount
