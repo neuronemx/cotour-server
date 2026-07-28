@@ -15,6 +15,8 @@ function disabledRuntime() {
     listHistory: null,
     exportDeckCsv: null,
     clearHistory: null,
+    resetSessionState: null,
+    repository: null,
     attach() {},
     async sendCurrentState() {},
     async close() {}
@@ -66,6 +68,13 @@ function createQnaRuntime(options = {}) {
       await sockets.resetAfterHistoryDelete(result);
       return result;
     },
+    async resetSessionState({ deckId, sourceSessionId, presentationSessionId }) {
+      await sockets.resetAfterHistoryDelete({
+        deckId,
+        sourceSessionId,
+        presentationSessionId
+      });
+    },
     attach(socket, getContext) {
       sockets.attach(socket, getContext);
     },
@@ -79,7 +88,9 @@ function createQnaRuntime(options = {}) {
     },
     async close() {
       if (pool?.end) await pool.end();
-    }
+    },
+    repository,
+    pool
   };
 }
 

@@ -10,14 +10,21 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <link rel="stylesheet" href="/screen/screen.css">
+  <link rel="stylesheet" href="/screen/screen.css?v=2">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/public-code-display.css?v=101">
+  <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
 </head>
 <body>
   <main id="screen" class="screen">
     <img id="slide" alt="Slide en pantalla">
-    <button id="fullscreenToggle" class="fullscreen-toggle" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
+    <button id="fullscreenToggle" class="fullscreen-toggle fullscreen-button" type="button" aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">
+      <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
+      <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M8,26a2,2,0,0,0-2,2.3A2.1,2.1,0,0,0,8.1,30h7.1L4.7,40.5a2,2,0,0,0-.2,2.8A1.8,1.8,0,0,0,6,44a2,2,0,0,0,1.4-.6L18,32.8v7.1A2.1,2.1,0,0,0,19.7,42,2,2,0,0,0,22,40V28a2,2,0,0,0-2-2Z"></path>
+        <path d="M43.7,4.8a2,2,0,0,0-3.1-.2L30,15.2V8.1A2.1,2.1,0,0,0,28.3,6,2,2,0,0,0,26,8V20a2,2,0,0,0,2,2H39.9A2.1,2.1,0,0,0,42,20.3,2,2,0,0,0,40,18H32.8L43.4,7.5A2.3,2.3,0,0,0,43.7,4.8Z"></path>
+      </svg>
+    </button>
     <div id="message" class="message hidden"></div>
     <div id="qr" class="qr hidden"><div id="qrPattern" class="qr-pattern" aria-label="QR Immersa Live"></div><strong>Immersa Live</strong><span id="audienceUrl"></span></div>
     <div id="reactions" class="reactions"></div>
@@ -31,5 +38,6 @@
       </div>
     </section>
   </main>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/screen/screen.js"></script><script src="/screen/screen-local-file-picker-adapter.js?v=113"></script><script src="/screen/screen-local-media-persistence-fix.js?v=111"></script><script src="/screen/screen-local-media.js?v=111"></script><script src="/screen/screen-multimedia-modal-polish.js?v=113"></script><script src="/screen/screen-media-unlock-host.js?v=107"></script><script src="/shared/video-deck-config-bridge.js?v=107"></script><script src="/shared/public-code-display.js?v=101"></script><script src="/shared/breakout-audio.js?v=98"></script><script src="/shared/pong-audio.js?v=2"></script>
+  <section id="knowledgeActivityScreen" class="knowledge-screen-overlay" aria-live="polite" hidden></section>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=22"></script><script src="/screen/screen.js?v=5"></script><script src="/screen/screen-local-file-picker-adapter.js?v=113"></script><script src="/screen/screen-local-media-persistence-fix.js?v=111"></script><script src="/screen/screen-local-media.js?v=112"></script><script src="/screen/screen-multimedia-modal-polish.js?v=113"></script><script src="/screen/screen-media-unlock-host.js?v=107"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script><script src="/shared/public-code-display.js?v=101"></script><script src="/shared/breakout-audio.js?v=99"></script><script src="/shared/pong-audio.js?v=2"></script>
 </body></html>

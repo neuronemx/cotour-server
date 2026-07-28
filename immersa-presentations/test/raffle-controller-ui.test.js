@@ -25,7 +25,7 @@ const {
 
 function readProjectFile(filePath) { return fs.readFileSync(path.join(__dirname, "..", filePath), "utf8"); }
 function scriptSources(html) { return [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((match) => match[1]); }
-function assertSlideConfirmLoadsBeforeRaffleController(filePath) { const sources = scriptSources(readProjectFile(filePath)); const slideConfirmIndex = sources.indexOf("/shared/slide-confirm.js"); const raffleControllerIndex = sources.indexOf("/shared/raffle-controller.js"); assert.notEqual(slideConfirmIndex, -1); assert.notEqual(raffleControllerIndex, -1); assert.equal(slideConfirmIndex < raffleControllerIndex, true); }
+function assertSlideConfirmLoadsBeforeRaffleController(filePath) { const sources = scriptSources(readProjectFile(filePath)); const slideConfirmIndex = sources.findIndex((source) => source.startsWith("/shared/slide-confirm.js")); const raffleControllerIndex = sources.indexOf("/shared/raffle-controller.js"); assert.notEqual(slideConfirmIndex, -1); assert.notEqual(raffleControllerIndex, -1); assert.equal(slideConfirmIndex < raffleControllerIndex, true); }
 function loadBrowserRaffleControlsWithoutHelper() { const sandbox = { console, setTimeout, clearTimeout, setInterval, clearInterval }; sandbox.globalThis = sandbox; vm.runInNewContext(readProjectFile("public/shared/raffle-controller.js"), sandbox); return sandbox.ImmersaRaffleControls; }
 
 test("Speaker loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/presenter/index.html"); });
@@ -278,7 +278,7 @@ test("Speaker uses sibling stable renderers for polls and raffles", () => {
   assert.match(presenter, /let pollsRenderer = null;[\s\S]+let raffleRenderer = null;/);
   assert.match(presenter, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
   assert.match(presenter, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
-  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer\)/);
   assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
   assert.doesNotMatch(presenter, /root: interactionShell\.getContentRoot\(\)/);
   assert.match(presenter, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
@@ -291,11 +291,11 @@ test("Speaker returns home only on real interaction close events", () => {
   assert.match(presenter, /function setInteractionPanelOpen\(open\) \{[\s\S]+if \(!open\) resetInactiveRaffleDraft\(\);[\s\S]+interactionPanelOpen = Boolean\(open\);/);
   assert.match(presenter, /function toggleInteractionPanel\(\) \{ if \(interactionPanelOpen && hasActiveInteractionShellLock\(\)\) return;/);
   assert.match(presenter, /event\.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock\(\)/);
-  assert.match(presenter, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
+  assert.match(presenter, /shell\.setCloseVisible\(!locked\)/);
   assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
-  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
+  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : knowledgeActivityView\(\) \|\| "home"\); \}/);
 });
 
 
@@ -382,7 +382,7 @@ test("Stage uses native interactions shell with persistent sibling hosts", () =>
   assert.match(stage, /ImmersaInteractionsShell\.create/);
   assert.match(stage, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
   assert.match(stage, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
-  assert.match(stage, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer\)/);
+  assert.match(stage, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer\)/);
   assert.match(stage, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
   assert.match(stage, /raffleRenderer\.hidden = interactionShell\.getView\(\) !== "raffles"/);
 });
@@ -412,11 +412,11 @@ test("Stage poll idle requires explicit selection and clears it on close", () =>
 
 test("Stage locks active poll and raffle views against all external closes", () => {
   const stage = readProjectFile("public/stage/stage.js");
-  assert.match(stage, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : "home"\); \}/);
-  assert.match(stage, /function hasActiveInteractionShellLock\(\) \{ return Boolean\(activeInteraction \|\| raffleController\?\.getState\?\.\(\)\.active\); \}/);
-  assert.match(stage, /shell\.setLocked\(activePoll \|\| activeRaffle\)/);
-  assert.match(stage, /shell\.setCloseVisible\(!\(activePoll \|\| activeRaffle\)\)/);
-  assert.match(stage, /if \(\(activePoll \|\| activeRaffle\) && !stageActionsOpen\) setStageActionsOpen\(true\)/);
+  assert.match(stage, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : knowledgeActivityView\(\) \|\| "home"\); \}/);
+  assert.match(stage, /function hasActiveInteractionShellLock\(\) \{ return Boolean\(activeInteraction \|\| raffleController\?\.getState\?\.\(\)\.active \|\| knowledgeActivityView\(\)\); \}/);
+  assert.match(stage, /shell\.setLocked\(locked\)/);
+  assert.match(stage, /shell\.setCloseVisible\(!locked\)/);
+  assert.match(stage, /if \(locked && !stageActionsOpen\) setStageActionsOpen\(true\)/);
   assert.match(stage, /if \(hasActiveInteractionShellLock\(\)\) return;[\s\S]+clearSelectedInteraction\(\);[\s\S]+returnInteractionsHome\(\);[\s\S]+closeStageActions\(\);/);
   assert.match(stage, /stageActionsButton\?\.addEventListener\("click", \(\) => \{ if \(stageActionsOpen\) closeStageActionsRequest\(\); else openStageActions\(\); \}\)/);
   assert.match(stage, /if \(stageActionsOpen\) closeStageActionsRequest\(\);/);

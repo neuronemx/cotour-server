@@ -1,6 +1,6 @@
 # Video slides v1
 
-Immersa can treat an MP4 as one slide in the normal presentation sequence.
+Immersa can treat a local MP4 or a YouTube link as one slide in the normal presentation sequence.
 
 ## Manifest entry
 
@@ -23,20 +23,21 @@ Immersa can treat an MP4 as one slide in the normal presentation sequence.
 ## Role behavior
 
 - **Screen:** loads and plays the MP4 inside the presentation frame.
-- **Speaker:** displays the poster and provides Play/Pause, Restart and Mute controls.
-- **Stage:** displays the poster and provides the same backup controls.
+- **Speaker:** displays the poster and a centered floating controller with current position, remaining time, timeline seek, Restart, ±10 seconds, Play/Pause and Mute.
+- **Stage:** displays the poster and the same synchronized backup controller.
 - **Audience:** displays the poster only. The MP4 and its audio are not downloaded or played on audience devices.
+
+Screen is authoritative for playback telemetry because only Screen owns the real local or YouTube player. It sends ephemeral position, duration, playing and mute snapshots to Speaker and Stage; these values are not written to presentation History.
 
 ## Audio permission
 
-When the browser blocks autoplay with sound, Screen displays **Activar sonido y multimedia**. The operator taps it once to authorize video audio.
+When the browser blocks autoplay with sound, Screen reuses the single global **Activar sonido** control. Screen reports the forced-muted playback state to Speaker and Stage so either controller can send one explicit unmute command.
 
-## Current installation flow
+## Deck configuration
 
-Video slides are currently manifest-driven:
+From **Deck → Video**, choose the slide and one source:
 
-1. Place the MP4 and poster inside the deck folder.
-2. Replace or insert the corresponding slide object in `manifest.json`.
-3. Keep its position in the `slides` array; that array position is its presentation number.
+- **Archivo MP4:** the file stays local and Screen validates it before presenting.
+- **Link de YouTube:** accepts standard watch, `youtu.be`, Shorts, Live and Embed URLs. The normalized video ID and optional start time are stored; arbitrary embeds are rejected.
 
-Uploading and assigning MP4 files from Home is planned as the next layer and is not part of v1.
+Speaker and Stage use the same synchronized controls for both sources. YouTube requires internet access and the source video must allow embedding.

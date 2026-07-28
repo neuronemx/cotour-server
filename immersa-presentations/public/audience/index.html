@@ -13,23 +13,30 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/audience/audience.css">
+  <link rel="stylesheet" href="/audience/audience.css?v=4">
   <link rel="stylesheet" href="/audience/brand-mention.css?v=4">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/public-code-display.css?v=102">
+  <link rel="stylesheet" href="/shared/knowledge-activities.css?v=20">
 </head>
 <body>
   <main id="viewer" class="audience">
     <section id="slideViewport" class="slide-viewport" aria-label="Slide actual"><img id="slide" alt="Slide actual" draggable="false"></section>
     <div class="interaction-slide-scrim" aria-hidden="true"></div>
-    <a class="brand-lockup" href="https://immersa.mx" target="_blank" rel="noopener noreferrer" aria-label="Abrir Immersa"><img class="brand-mark" src="/audience/immersa-mark.png" alt="Immersa"></a>
+    <div class="brand-lockup"><img class="brand-mark" src="/audience/immersa-mark.png" alt="Immersa"></div>
     <div id="connectionNotice" class="disconnect hidden" role="status">Conexión pausada. Recarga la página para volver a entrar.</div>
     <div id="liveMessage" class="live-message hidden" role="status"></div>
     <div id="reactions" class="reaction-layer"></div>
     <button id="qnaOpen" class="qna-open hidden" type="button" aria-label="Enviar pregunta" title="Enviar pregunta" aria-haspopup="dialog" aria-controls="qnaComposer"><img src="/shared/qna-question-icon.svg" alt="" aria-hidden="true"><span>Enviar pregunta</span></button>
     <div class="top-actions">
       <button id="snapshot" class="icon-action snapshot" type="button" aria-label="Captura pantalla" title="Captura pantalla"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 7.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2.5L15 5H9Z"></path><circle cx="12" cy="13" r="3.25"></circle></svg></button>
-      <button id="fullscreen" class="icon-action" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
+      <button id="fullscreen" class="icon-action fullscreen-button" type="button" aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">
+        <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
+        <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M8,26a2,2,0,0,0-2,2.3A2.1,2.1,0,0,0,8.1,30h7.1L4.7,40.5a2,2,0,0,0-.2,2.8A1.8,1.8,0,0,0,6,44a2,2,0,0,0,1.4-.6L18,32.8v7.1A2.1,2.1,0,0,0,19.7,42,2,2,0,0,0,22,40V28a2,2,0,0,0-2-2Z"></path>
+          <path d="M43.7,4.8a2,2,0,0,0-3.1-.2L30,15.2V8.1A2.1,2.1,0,0,0,28.3,6,2,2,0,0,0,26,8V20a2,2,0,0,0,2,2H39.9A2.1,2.1,0,0,0,42,20.3,2,2,0,0,0,40,18H32.8L43.4,7.5A2.3,2.3,0,0,0,43.7,4.8Z"></path>
+        </svg>
+      </button>
     </div>
     <nav class="reaction-bar" aria-label="Reacciones"><button data-emoji="❤️" aria-label="Enviar corazón">❤️</button><button data-emoji="👏" aria-label="Enviar aplauso">👏</button><button data-emoji="🔥" aria-label="Enviar fuego">🔥</button></nav>
     <section id="qnaComposer" class="qna-composer hidden" role="dialog" aria-modal="true" aria-labelledby="qnaTitle">
@@ -48,5 +55,6 @@
     </section>
     <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/audience/audience.js"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=107"></script><script src="/shared/public-code-display.js?v=102"></script>
+  <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=24"></script><script src="/audience/audience.js?v=4"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script><script src="/shared/public-code-display.js?v=102"></script>
 </body></html>

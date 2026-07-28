@@ -21,6 +21,15 @@
     return (Array.isArray(config.videos) ? config.videos : []).filter((video) => video?.slide_id && !hidden.has(String(video.slide_id)));
   }
 
+  function isYouTubeConfig(video) {
+    return String(video?.source?.type || video?.provider || '').toLowerCase() === 'youtube'
+      && /^[a-z0-9_-]{11}$/i.test(String(video?.source?.video_id || ''));
+  }
+
+  function activeLocalVideoConfigs(config = {}) {
+    return activeVideoConfigs(config).filter((video) => !isYouTubeConfig(video));
+  }
+
   function augmentManifest(manifest = {}, config = {}) {
     const videos = new Map(activeVideoConfigs(config).map((video) => [String(video.slide_id), video]));
     const slides = Array.isArray(manifest.slides) ? manifest.slides : [];
@@ -31,13 +40,14 @@
         const video = videos.get(id);
         if (!video) return slide;
         const playback = video.playback || {};
+        const youtube = isYouTubeConfig(video);
         const originalIsVideo = String(slide?.type || '').toLowerCase() === 'video' || /\.mp4(?:$|[?#])/i.test(String(slide?.src || ''));
         return {
           ...slide,
           id,
           slide_id: id,
           type: 'video',
-          src: originalIsVideo ? slide.src : String(video.remote_src || ''),
+          src: youtube ? String(video.source.url || '') : originalIsVideo ? slide.src : String(video.remote_src || ''),
           poster: slide.poster || slide.src || slide.thumb || '',
           thumb: slide.thumb || slide.src || slide.poster || '',
           autoplay: playback.autoplay !== false,
@@ -45,7 +55,10 @@
           loop: playback.end_behavior === 'loop',
           endBehavior: playback.end_behavior || 'stay',
           expectedFile: video.file || null,
-          localOnly: !originalIsVideo && !video.remote_src
+          localOnly: !youtube && !originalIsVideo && !video.remote_src,
+          videoProvider: youtube ? 'youtube' : 'local',
+          youtubeVideoId: youtube ? String(video.source.video_id) : '',
+          youtubeStartSeconds: youtube ? Math.max(0, Number(video.source.start_seconds) || 0) : 0
         };
       })
     };
@@ -97,7 +110,7 @@
     if (!document || document.querySelector('link[data-video-deck-bridge]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-deck-config-bridge.css?v=107';
+    link.href = '/shared/video-deck-config-bridge.css?v=108';
     link.dataset.videoDeckBridge = '1';
     document.head.appendChild(link);
   }
@@ -106,7 +119,7 @@
     if (!document || root.ImmersaVideoSlides || root.__immersaVideoSlidesLoading) return;
     root.__immersaVideoSlidesLoading = true;
     const script = document.createElement('script');
-    script.src = '/shared/video-slide-runtime.js?v=107';
+    script.src = '/shared/video-slide-runtime.js?v=113';
     script.defer = true;
     script.onerror = () => { root.__immersaVideoSlidesLoading = false; };
     document.head.appendChild(script);
@@ -159,7 +172,7 @@
     }
 
     Promise.resolve(configPromise).then((config) => {
-      total = activeVideoConfigs(config).length;
+      total = activeLocalVideoConfigs(config).length;
       render();
     });
     liveSocket?.on?.('presentation_state', (state) => {
@@ -200,5 +213,5 @@
   if (root.document?.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', autoMount, { once: true });
   else autoMount();
 
-  return { roleFromPath, stableSlideId, activeVideoConfigs, augmentManifest, manifestRequestMatches, installFetchBridge, autoMount };
+  return { roleFromPath, stableSlideId, activeVideoConfigs, activeLocalVideoConfigs, isYouTubeConfig, augmentManifest, manifestRequestMatches, installFetchBridge, autoMount };
 });

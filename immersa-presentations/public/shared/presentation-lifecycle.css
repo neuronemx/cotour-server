@@ -1,0 +1,128 @@
+.presentation-lifecycle-host {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 34px;
+}
+
+.presenter-lifecycle-host {
+  position: absolute;
+  z-index: 9;
+  top: 26px;
+  left: 80px;
+}
+
+.presentation-lifecycle-host[hidden] {
+  display: none !important;
+}
+
+.presentation-lifecycle-slider {
+  --close-progress: 0;
+  --close-x: 0px;
+  position: relative;
+  width: 112px;
+  height: 34px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(31, 37, 46, .68), rgba(5, 8, 13, .72));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 255, 255, .08);
+  backdrop-filter: blur(18px) saturate(1.2);
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.presentation-lifecycle-slider:focus-visible {
+  border-color: rgba(104, 216, 204, .72);
+  box-shadow: 0 0 0 3px rgba(104, 216, 204, .15), 0 10px 28px rgba(0, 0, 0, .26);
+}
+
+.presentation-lifecycle-slider .interaction-close-slider-track {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(var(--close-progress));
+  transform-origin: left center;
+  background: linear-gradient(105deg, rgba(104, 216, 204, .9), rgba(67, 104, 246, .92) 52%, rgba(155, 76, 255, .94));
+  opacity: .72;
+}
+
+.presentation-lifecycle-slider .interaction-close-slider-label {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 0 12px 0 34px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .94);
+  font: 800 11px/1 Inter, "Segoe UI", sans-serif;
+  letter-spacing: .01em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presentation-lifecycle-slider .interaction-close-slider-knob {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  top: 3px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  transform: translateX(var(--close-x));
+  border: 1px solid rgba(255, 255, 255, .24);
+  border-radius: 50%;
+  color: #07100f;
+  background: linear-gradient(135deg, #f6fffd, #8aede3);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .28);
+  font: 900 20px/1 Inter, sans-serif;
+}
+
+.presentation-lifecycle-slider.is-live {
+  border-color: rgba(54, 211, 138, .3);
+}
+
+.presentation-lifecycle-slider.is-live:not(.is-arming):not(.is-pending) .interaction-close-slider-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #36d38a;
+  box-shadow: 0 0 0 4px rgba(54, 211, 138, .16);
+  vertical-align: 1px;
+}
+
+.presentation-lifecycle-slider.is-pending {
+  cursor: wait;
+  opacity: .76;
+}
+
+.presentation-lifecycle-slider.is-complete .interaction-close-slider-knob,
+.presentation-lifecycle-slider.is-pending .interaction-close-slider-knob {
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .presenter-lifecycle-host {
+    top: 16px;
+    left: 64px;
+  }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .presentation-lifecycle-host,
+  .presentation-lifecycle-slider {
+    width: 104px;
+  }
+
+  .presenter-lifecycle-host {
+    top: 13px;
+    left: 58px;
+  }
+}

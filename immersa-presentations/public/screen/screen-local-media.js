@@ -9,7 +9,11 @@
 
   function activeVideos(config = {}) {
     const hidden = new Set(Array.isArray(config.hidden_slide_ids) ? config.hidden_slide_ids.map(String) : []);
-    return (Array.isArray(config.videos) ? config.videos : []).filter((video) => video?.slide_id && !hidden.has(String(video.slide_id)));
+    return (Array.isArray(config.videos) ? config.videos : []).filter((video) =>
+      video?.slide_id
+      && !hidden.has(String(video.slide_id))
+      && String(video?.source?.type || video?.provider || '').toLowerCase() !== 'youtube'
+    );
   }
 
   function normalizeName(value) {

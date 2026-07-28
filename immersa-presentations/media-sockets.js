@@ -27,18 +27,49 @@ function normalizeStatus(payload = {}, context = {}) {
   };
 }
 
+function normalizePlayback(payload = {}, context = {}) {
+  const slideIndex = Number(payload.slide_index ?? payload.slideIndex);
+  if (!Number.isInteger(slideIndex) || slideIndex < 0) return null;
+  const provider = String(payload.provider || "").toLowerCase();
+  if (provider !== "youtube" && provider !== "local") return null;
+  const currentTime = Number(payload.current_time_seconds ?? payload.currentTimeSeconds);
+  const duration = Number(payload.duration_seconds ?? payload.durationSeconds);
+  return {
+    session_id: String(context.sessionId || ""),
+    deck_id: String(context.deckId || ""),
+    slide_index: slideIndex,
+    provider,
+    forced_muted: Boolean(payload.forced_muted ?? payload.forcedMuted),
+    current_time_seconds: Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0,
+    duration_seconds: Number.isFinite(duration) && duration >= 0 ? duration : 0,
+    playing: Boolean(payload.playing),
+    muted: Boolean(payload.muted),
+    updated_at: new Date().toISOString()
+  };
+}
+
 function createMediaSocketHandlers({ io, getRoleRoomKey }) {
   const statuses = new Map();
+  const playbackStates = new Map();
 
   function emitToControlRoles(context, status) {
     io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("media:status", status);
     io.to(getRoleRoomKey(context.roomKey, "stage")).emit("media:status", status);
   }
 
+  function emitPlaybackToControlRoles(context, playback) {
+    io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("media:playback", playback);
+    io.to(getRoleRoomKey(context.roomKey, "stage")).emit("media:playback", playback);
+  }
+
   function sendCurrentState(socket, context) {
     if (!context?.sessionId || !context?.deckId) return;
-    const status = statuses.get(sessionKey(context));
-    if (status && (context.role === "presenter" || context.role === "stage")) socket.emit("media:status", status);
+    if (context.role !== "presenter" && context.role !== "stage") return;
+    const key = sessionKey(context);
+    const status = statuses.get(key);
+    const playback = playbackStates.get(key);
+    if (status) socket.emit("media:status", status);
+    if (playback) socket.emit("media:playback", playback);
   }
 
   function attach(socket, getContext) {
@@ -48,6 +79,15 @@ function createMediaSocketHandlers({ io, getRoleRoomKey }) {
       const status = normalizeStatus(payload, context);
       statuses.set(sessionKey(context), status);
       emitToControlRoles(context, status);
+    });
+
+    socket.on("media:playback_update", (payload = {}) => {
+      const context = getContext();
+      if (!context?.roomKey || !context?.sessionId || !context?.deckId || context.role !== "screen") return;
+      const playback = normalizePlayback(payload, context);
+      if (!playback) return;
+      playbackStates.set(sessionKey(context), playback);
+      emitPlaybackToControlRoles(context, playback);
     });
 
     socket.on("media:advance_request", ({ slideIndex, nextSlideIndex } = {}) => {
@@ -62,7 +102,7 @@ function createMediaSocketHandlers({ io, getRoleRoomKey }) {
     });
   }
 
-  return { attach, sendCurrentState, statuses };
+  return { attach, sendCurrentState, statuses, playbackStates };
 }
 
-module.exports = { createMediaSocketHandlers, normalizeStatus, sessionKey };
+module.exports = { createMediaSocketHandlers, normalizeStatus, normalizePlayback, sessionKey };

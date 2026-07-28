@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=9/);
-  assert.match(html, /deck-management-shell\.js\?v=4/);
+  assert.match(html, /deck-management-shell\.css\?v=11/);
+  assert.match(html, /deck-management-shell\.js\?v=6/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
   assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
@@ -46,6 +46,9 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /immersa:deck-detail-open/);
   assert.match(source, /ArrowLeft/);
   assert.match(source, /ArrowRight/);
+  assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
+  assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
   assert.doesNotMatch(source, /MutationObserver|setInterval|setTimeout/);
 });
 
@@ -63,6 +66,8 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /\.deck-detail-modal \.deck-detail-actions[\s\S]+grid-auto-rows: 51px/);
   assert.match(css, /\.deck-detail-panel\[data-deck-panel="links"\][\s\S]+align-content: start/);
   assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+height: 51px/);
+  assert.match(css, /\.deck-detail-modal\.is-compact-header \.deck-detail-header/);
+  assert.match(css, /\.deck-detail-modal\.is-compact-header \.deck-detail-slide-strip[\s\S]+display: none/);
   assert.match(css, /\.interactions-status:empty \{ display: none; \}/);
   assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
@@ -95,7 +100,7 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+backdrop-filter: blur\(12px\)/);
   assert.match(css, /\.deck-detail-slide-thumb \{[\s\S]+padding: 1px[\s\S]+background: rgba\(255, 255, 255, \.3\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+padding: 2px[\s\S]+background: var\(--grad\)/);
-  assert.match(html, /deck-management-shell\.css\?v=9/);
+  assert.match(html, /deck-management-shell\.css\?v=11/);
 });
 
 test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {
@@ -110,7 +115,10 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(interactions, /interaction-module-list/);
   assert.doesNotMatch(interactions, /interaction-module-grid/);
   assert.match(interactions, /pollsButton\?\.after\(renderPollPanel\(\)\)/);
-  assert.match(interactions, /activeModule = activeModule === "polls" \? null : "polls"/);
+  assert.match(interactions, /activeModule = activeModule === kind \? null : kind/);
+  assert.match(interactions, /renderKnowledgePanel\(category\)/);
+  assert.doesNotMatch(interactions, /moduleCardMarkup\("raffles"/);
+  assert.doesNotMatch(interactions, /moduleCardMarkup\("games"/);
   assert.match(interactions, /aria-expanded/);
   assert.match(interactions, /section\.appendChild\(makeButton\("Crear encuesta", "interactions-create-action"/);
   assert.doesNotMatch(interactions, /interaction-form-header"><span>Encuesta<\/span>/);
@@ -123,11 +131,15 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(videos, /function captureFirstFrame\(file\)/);
   assert.match(videos, /canvas\.toDataURL\("image\/jpeg", \.76\)/);
   assert.match(videos, /video\?\.preview\?\.url/);
-  assert.match(videos, /duration_seconds: selectedDuration/);
+  assert.match(videos, /duration_seconds: sourceType === "local" \? selectedDuration : null/);
   assert.match(videos, /orderedVideos/);
   assert.match(videos, /image\.draggable = false/);
   assert.match(videos, /bodyNode\.appendChild\(add\)/);
+  assert.match(videos, /Link de YouTube/);
+  assert.match(videos, /parseYouTubeUrl/);
+  assert.match(videos, /source_type/);
   assert.match(videosCss, /video-editor-item-thumbnail/);
+  assert.match(videosCss, /video-editor-youtube/);
   assert.match(videosCss, /aspect-ratio:16\/9/);
   assert.match(videosCss, /pointer-events:none/);
 });

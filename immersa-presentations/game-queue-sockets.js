@@ -167,7 +167,17 @@ function createGameQueueSocketHandlers({
     for (const sessionId of Array.from(timers.keys())) clearTimer(sessionId);
   }
 
-  return { attach, sendCurrentState, emitState, handleGameFinished, closeAll, snapshot };
+  function resetSession(context) {
+    if (!context?.roomKey || !context?.sessionId) return;
+    clearTimer(context.sessionId);
+    for (const gameType of coordinator?.getRegisteredGameTypes?.() || []) {
+      coordinator.getGameRuntime?.(gameType)?.resetSession?.(context);
+    }
+    store.reset(context.sessionId);
+    emitState(context.roomKey, context.sessionId);
+  }
+
+  return { attach, sendCurrentState, emitState, handleGameFinished, closeAll, resetSession, snapshot };
 }
 
 module.exports = { createGameQueueSocketHandlers, AUTO_ADVANCE_DELAY_MS };

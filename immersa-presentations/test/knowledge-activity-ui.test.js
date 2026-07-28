@@ -1,0 +1,892 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const root = path.join(__dirname, "..");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+
+test("all live roles load the shared contest and assessment runtime", () => {
+  for (const role of ["presenter", "stage", "audience", "screen"]) {
+    const html = read(`public/${role}/index.html`);
+    assert.match(html, /shared\/knowledge-activities\.css/);
+    assert.match(html, /shared\/knowledge-activities\.js/);
+  }
+});
+
+test("Público preserves one offline answer and uses the active-tab transfer contract", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /immersaKnowledgePendingAnswer/);
+  assert.match(source, /Respuesta guardada\. Esperando conexión/);
+  assert.match(source, /La actividad está abierta en otra pestaña/);
+  assert.match(source, /interaction:participant:claim_tab/);
+  assert.match(source, /pending\.executionId !== state\?\.executionId/);
+});
+
+test("Screen has keyboard backup navigation without receiving interaction controls", () => {
+  const screen = read("public/screen/screen.js");
+  assert.match(screen, /event\.key === "ArrowRight"[\s\S]*?\.emit\("slide_next"\)/);
+  assert.match(screen, /event\.key === "ArrowLeft"[\s\S]*?\.emit\("slide_prev"\)/);
+  assert.match(screen, /socket\.connected !== false/);
+  assert.doesNotMatch(screen, /interaction:execution:(?:start|finalize|force_results)/);
+});
+
+test("Home editor exposes configurable contests and assessments", () => {
+  const editor = read("public/home/interactions-editor.js");
+  assert.match(editor, /moduleCardMarkup\("assessments"/);
+  assert.match(editor, /moduleCardMarkup\("contests"/);
+  assert.match(editor, /identificationMode/);
+  assert.match(editor, /questionDurationSeconds/);
+  assert.match(editor, /durationSeconds/);
+  assert.match(editor, /correctOptionId/);
+  assert.match(editor, /uploadKnowledgeQuestionImage/);
+  assert.match(editor, /Imagen opcional/);
+  assert.match(editor, /Cambiar imagen/);
+  assert.match(editor, /La imagen se eliminará al guardar/);
+});
+
+test("live countdown repaint does not rebuild selectable activity cards", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /function updateRenderedTimers/);
+  assert.match(source, /data-knowledge-deadline/);
+  assert.doesNotMatch(source, /const repaintTimer = global\.setInterval\(render/);
+  assert.match(source, /const repaintTimer = global\.setInterval\(\(\) => \{[\s\S]*updateRenderedTimers/);
+});
+
+test("lobby cancellation is immediate and distinct from irreversible finalization", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /intent === "finalize" \|\| intent === "force_results"/);
+  assert.doesNotMatch(source, /intent === "finalize" \|\| intent === "cancel"/);
+});
+
+test("Speaker and Stage activity controls inherit the Immersa dark-glass visual language", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(css, /\.interaction-panel \.knowledge-controller/);
+  assert.match(css, /\.stage-actions-card \.knowledge-controller/);
+  assert.match(css, /\.interaction-panel \.knowledge-actions \.primary/);
+  assert.match(css, /background: var\(--immersa-gradient\)/);
+  assert.match(css, /color: rgba\(248, 250, 255, \.96\)/);
+  assert.match(source, /knowledge-definition-icon/);
+  assert.match(source, /knowledge-definition-copy/);
+  assert.match(source, /knowledge-definition-arrow/);
+  assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?linear-gradient\(135deg, rgba\(127, 119, 221, \.72\)/);
+});
+
+test("question images render for controller, Público, and Screen question views", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function questionImageMarkup/);
+  assert.match(source, /state\.currentQuestion\?\.image/);
+  assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
+  assert.match(source, /knowledge-screen-question-image/);
+  assert.match(css, /\.knowledge-question-image/);
+  assert.match(css, /\.knowledge-screen-question-image/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?width: min\(92vw, 1200px\);[\s\S]*?max-height: 58vh;[\s\S]*?background: transparent;/);
+  assert.match(source, /knowledge-question-image-link/);
+  assert.match(source, /data-knowledge-image-open/);
+  assert.match(source, /data-knowledge-image-close/);
+  assert.match(css, /\.knowledge-image-viewer-close \{/);
+  assert.match(source, /function attachImageViewerGestures/);
+  assert.match(source, /canvas\.addEventListener\("pointerdown"/);
+  assert.match(source, /canvas\.addEventListener\("pointermove"/);
+  assert.match(source, /Math\.min\(6, Math\.max\(1/);
+  assert.match(css, /\.knowledge-image-viewer-canvas \{[\s\S]*?touch-action: none;/);
+  assert.match(css, /\.knowledge-image-viewer-canvas img \{[\s\S]*?max-width: 100%;[\s\S]*?max-height: 100%;[\s\S]*?will-change: transform;/);
+  assert.match(source, /Abrir imagen de la pregunta en tamaño real/);
+  assert.match(source, /questionImageMarkup\(question\.image, "knowledge-question-image", true\)/);
+  assert.match(css, /\.knowledge-question-image-link \{[\s\S]*?cursor: zoom-in;/);
+});
+
+test("Público resets repeated assessments to question one and keeps scroll position after answering", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /next\?\.category === "assessment"[\s\S]*previous\?\.executionId === next\?\.executionId/);
+  assert.match(source, /if \(next\?\.category === "assessment" && !sameAssessmentExecution\) \{[\s\S]*selectedAssessmentIndex = 0;/);
+  assert.match(source, /root\.querySelector\("\.knowledge-audience-card"\)\?\.scrollTop/);
+  assert.match(source, /render\(retainedScrollTop\)/);
+  assert.match(source, /if \(card\) card\.scrollTop = scrollTop/);
+  assert.match(source, /knowledge-assessment-card/);
+  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 300 clamp\(17px, 4\.1vw, 23px\)\/1\.46 Inter/);
+  assert.match(source, /readyToSubmit = questions\.length > 0 && answerMap\(\)\.size === questions\.length/);
+  assert.match(source, /knowledge-assessment-submit' \+ \(readyToSubmit \? " is-ready" : ""\)/);
+  assert.doesNotMatch(source, /data-knowledge-submit ' \+ \(readyToSubmit \? "" : "disabled"\)/);
+  assert.match(css, /\.knowledge-assessment-nav button \{[\s\S]*?flex: 1 1 calc\(50% - 6px\);/);
+  assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit \{[\s\S]*?margin: 22px auto 0;/);
+  assert.match(css, /\.knowledge-audience-card \.knowledge-assessment-submit\.is-ready \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(source, /knowledge-assessment-hud/);
+  assert.match(source, /\(selectedAssessmentIndex \+ 1\) \+ "\/" \+ questions\.length/);
+  assert.match(source, /timerMarkup\(state\.deadlineAt, state, "knowledge-assessment-hud-timer"\)/);
+  assert.doesNotMatch(source, /knowledge-assessment-card"><header>/);
+  assert.match(css, /\.knowledge-assessment-hud,[\s\S]*?\.knowledge-contest-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?left: 50%;[\s\S]*?transform: translateX\(-50%\);/);
+  assert.match(source, /classList\?\.toggle\?\.\("is-assessment-question", Boolean\(root\.querySelector\("\.knowledge-assessment-card"\)\)\)/);
+  assert.match(css, /\.knowledge-audience-overlay\.is-assessment-question,[\s\S]*?\.knowledge-audience-overlay\.is-contest-question \{[\s\S]*?align-items: start;[\s\S]*?padding:[\s\S]*?54px/);
+  assert.match(css, /\.knowledge-assessment-card,[\s\S]*?\.knowledge-contest-card \{[\s\S]*?max-height: 100%;[\s\S]*?padding-top: 22px;/);
+  assert.match(source, /knowledge-submission-receipt/);
+  assert.match(source, /<dt>Nombre<\/dt>/);
+  assert.match(source, /<dt>Respuestas<\/dt>/);
+  assert.match(source, /<dt>Fecha y hora<\/dt>/);
+  assert.match(source, /knowledge-submission-kicker/);
+  assert.match(source, /escapeHtml\(state\.title\)/);
+  assert.match(source, /state\.submissionReceipt\?\.grade/);
+  assert.match(source, /Calificación \/ 100/);
+  assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
+});
+
+test("Público uses swipe navigation and locks Immersa snapshot for knowledge activities", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const audience = read("public/audience/audience.js");
+  const audienceCss = read("public/audience/audience.css");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function attachAssessmentSwipe/);
+  assert.match(source, /Math\.abs\(deltaX\) < 52/);
+  assert.match(source, /Math\.abs\(deltaX\) < Math\.abs\(deltaY\) \* 1\.25/);
+  assert.match(source, /moveAssessmentQuestion\(deltaX < 0 \? 1 : -1\)/);
+  assert.match(css, /\.knowledge-assessment-card,[\s\S]*?\.knowledge-contest-card \{[\s\S]*?touch-action: pan-y;/);
+  assert.match(source, /state\?\.available === true[\s\S]*?\["contest", "assessment"\]\.includes\(state\?\.category\)[\s\S]*?Boolean\(state\?\.executionId\)/);
+  assert.match(source, /onSnapshotAvailabilityChange\?\.\(!snapshotLocked\)/);
+  assert.match(audience, /onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed/);
+  assert.match(audience, /snapshot\.disabled = !allowed/);
+  assert.match(audience, /snapshot\.hidden = !allowed/);
+  assert.match(audienceCss, /\.top-actions > \.snapshot\[hidden\],[\s\S]*?display: none !important;/);
+  assert.match(audienceCss, /@media \(max-width: 520px\)[\s\S]*?\.brand-lockup \{[^}]*padding: 4px;[^}]*overflow: hidden;[\s\S]*?\.brand-mark \{ width: 32px; height: 32px;/);
+});
+
+test("Público keeps Snapshot hidden on the assessment receipt and restores it only after close", () => {
+  const listeners = new Map();
+  const snapshotAvailability = [];
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: { add() {}, remove() {}, toggle() {} },
+    querySelector() { return null; },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({
+    socket,
+    root: rootElement,
+    onSnapshotAvailabilityChange(allowed) { snapshotAvailability.push(allowed); }
+  });
+
+  const onState = listeners.get("interaction:execution:state");
+  const receipt = {
+    available: true,
+    executionId: "assessment-receipt",
+    category: "assessment",
+    state: "RESULTS_READY",
+    title: "Evaluación final",
+    participant: { id: "participant-1", label: "Arturo", submittedAt: "2026-07-28T06:00:00.000Z" },
+    submittedAt: "2026-07-28T06:00:00.000Z",
+    answerCount: 3,
+    questionCount: 3
+  };
+
+  onState(receipt);
+  onState({ ...receipt, state: "RESULTS_VISIBLE", submissionReceipt: { submittedAt: receipt.submittedAt, grade: 100 } });
+  onState({ available: true, execution: null });
+
+  assert.deepEqual(snapshotAvailability, [false, false, true]);
+});
+
+test("Público contest removes the lobby label, reserves the three-zone header, and keeps Snapshot hidden", () => {
+  const listeners = new Map();
+  const snapshotAvailability = [];
+  const activeClasses = new Map();
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: {
+      add(name) { activeClasses.set(name, true); },
+      remove(name) { activeClasses.set(name, false); },
+      toggle(name, enabled) { activeClasses.set(name, Boolean(enabled)); }
+    },
+    querySelector(selector) {
+      if (selector === ".knowledge-contest-card" && this.innerHTML.includes("knowledge-contest-card")) return {};
+      if (selector === ".knowledge-assessment-card" && this.innerHTML.includes("knowledge-assessment-card")) return {};
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({
+    socket,
+    root: rootElement,
+    onSnapshotAvailabilityChange(allowed) { snapshotAvailability.push(allowed); }
+  });
+
+  const onState = listeners.get("interaction:execution:state");
+  const lobby = {
+    available: true,
+    executionId: "contest-run-1",
+    category: "contest",
+    state: "LOBBY",
+    registrationOpen: true,
+    title: "Trivia Immersa",
+    participant: null
+  };
+  onState(lobby);
+  assert.match(rootElement.innerHTML, /<h2>Trivia Immersa<\/h2>/);
+  assert.doesNotMatch(rootElement.innerHTML, /<span>Concurso<\/span>/);
+
+  onState({
+    ...lobby,
+    state: "ACTIVE",
+    substate: "QUESTION_ACTIVE",
+    participant: { id: "participant-1", label: "Arturo" },
+    questionIndex: 0,
+    questionCount: 2,
+    questionDeadlineAt: "2026-07-28T18:00:15.000Z",
+    serverNow: "2026-07-28T18:00:00.000Z",
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la respuesta?",
+      options: [
+        { id: "option-1", label: "A" },
+        { id: "option-2", label: "B" }
+      ]
+    },
+    answers: []
+  });
+  assert.match(rootElement.innerHTML, /knowledge-contest-hud/);
+  assert.match(rootElement.innerHTML, /<span>1\/2<\/span><i aria-hidden="true">·<\/i>/);
+  assert.doesNotMatch(rootElement.innerHTML, /<header><span>Pregunta 1 de 2/);
+  assert.equal(activeClasses.get("is-contest-question"), true);
+
+  onState({
+    ...lobby,
+    state: "ACTIVE",
+    substate: "REVEAL",
+    participant: { id: "participant-1", label: "Arturo" },
+    questionIndex: 0,
+    questionCount: 2,
+    questionDeadlineAt: null,
+    revealDeadlineAt: "2026-07-28T18:00:20.000Z",
+    serverNow: "2026-07-28T18:00:15.000Z",
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la respuesta?",
+      options: [
+        { id: "option-1", label: "A" },
+        { id: "option-2", label: "B" }
+      ]
+    },
+    answers: [{ questionId: "question-1", optionId: "option-2" }],
+    reveal: {
+      correctOptionId: "option-1",
+      selectedOptionId: "option-2",
+      correct: false
+    }
+  });
+  assert.match(rootElement.innerHTML, /class=" is-correct" disabled>A<\/button>/);
+  assert.match(rootElement.innerHTML, /class="is-selected" disabled>B<\/button>/);
+  assert.doesNotMatch(rootElement.innerHTML, /is-incorrect|data-knowledge-deadline|knowledge-contest-hud-timer/);
+  assert.match(rootElement.innerHTML, /aria-label="Pregunta 1 de 2, respuesta revelada"/);
+
+  onState({ available: true, execution: null });
+  assert.deepEqual(snapshotAvailability, [false, false, false, true]);
+});
+
+test("Speaker and Stage show Sin ganadores when every contest result has zero correct answers", () => {
+  const listeners = new Map();
+  const rootElement = {
+    innerHTML: "",
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    crypto: { randomUUID() { return "command-1"; } },
+    setInterval() { return 1; },
+    clearInterval() {}
+  };
+  const fetch = async () => ({
+    ok: true,
+    async json() { return { contests: [], assessments: [] }; }
+  });
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window, fetch });
+  const controller = window.ImmersaKnowledgeActivities.createController({
+    socket,
+    deckId: "deck-1",
+    role: "speaker"
+  });
+  controller.mountHost({ root: rootElement, category: "contest" });
+
+  const onState = listeners.get("interaction:execution:state");
+  onState({
+    available: true,
+    executionId: "contest-run-1",
+    category: "contest",
+    state: "RESULTS_READY",
+    title: "Trivia Immersa",
+    result: {
+      top10: [
+        { position: 1, label: "Participante 1", correctCount: 0, totalQuestions: 2 }
+      ]
+    }
+  });
+
+  assert.match(rootElement.innerHTML, /<strong>Sin ganadores<\/strong>/);
+  assert.match(rootElement.innerHTML, /Nadie respondió correctamente\./);
+  assert.doesNotMatch(rootElement.innerHTML, /Participante 1|0\/2/);
+});
+
+test("Público fullscreen keeps the Evaluación mounted and preserves portrait orientation", () => {
+  const audience = read("public/audience/audience.js");
+  assert.match(audience, /const target = document\.documentElement;/);
+  assert.match(audience, /target\?\.requestFullscreen \|\| target\?\.webkitRequestFullscreen/);
+  assert.match(audience, /document\.fullscreenElement \|\| document\.webkitFullscreenElement/);
+  assert.match(audience, /document\.addEventListener\("webkitfullscreenchange", updateFullscreenButton\)/);
+  assert.doesNotMatch(audience, /viewer\.requestFullscreen/);
+  assert.doesNotMatch(audience, /orientation\?\.lock/);
+  assert.doesNotMatch(audience, /lock\("landscape"\)/);
+});
+
+test("Público places the lighter Evaluación entry action at the bottom and centered", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-registration-copy[\s\S]*<\/h2><\/div>" \+ input \+ '<button class="primary" data-knowledge-join/);
+  assert.match(css, /\.knowledge-registration-copy h2 \{[\s\S]*?font: 400 clamp\(22px, 5\.8vw, 32px\)\/1\.25 Inter/);
+  assert.match(css, /\.knowledge-registration-card > \.primary \{[\s\S]*?justify-self: center;/);
+});
+
+test("Público can submit an incomplete assessment while only complete assessments light the button", () => {
+  const listeners = new Map();
+  const emissions = [];
+  const handlers = new Map();
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const card = { scrollTop: 0 };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: { add() {}, remove() {} },
+    querySelector(selector) {
+      if (selector === ".knowledge-audience-card") return card;
+      if (selector === "[data-knowledge-submit]" && this.innerHTML.includes("data-knowledge-submit")) {
+        return {
+          addEventListener(_eventName, handler) { handlers.set(selector, handler); }
+        };
+      }
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit(eventName, payload) { emissions.push({ eventName, payload }); }
+  };
+  const window = {
+    confirm() { return true; },
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({ socket, root: rootElement });
+
+  const questions = [
+    { id: "q-1", prompt: "Uno", options: [{ id: "a-1", label: "A" }] },
+    { id: "q-2", prompt: "Dos", options: [{ id: "a-2", label: "A" }] }
+  ];
+  const onState = listeners.get("interaction:execution:state");
+  const partialState = {
+    available: true,
+    executionId: "assessment-partial",
+    category: "assessment",
+    state: "ACTIVE",
+    participant: { id: "participant-1" },
+    questions,
+    answers: [{ questionId: "q-1", optionId: "a-1" }]
+  };
+
+  onState(partialState);
+  assert.match(rootElement.innerHTML, /data-knowledge-submit/);
+  assert.doesNotMatch(rootElement.innerHTML, /knowledge-assessment-submit is-ready/);
+  assert.doesNotMatch(rootElement.innerHTML, /data-knowledge-submit[^>]*disabled/);
+  handlers.get("[data-knowledge-submit]")();
+  assert.equal(emissions.at(-1).eventName, "interaction:participant:submit_evaluation");
+
+  onState({
+    ...partialState,
+    answers: [
+      { questionId: "q-1", optionId: "a-1" },
+      { questionId: "q-2", optionId: "a-2" }
+    ]
+  });
+  assert.match(rootElement.innerHTML, /knowledge-assessment-submit is-ready/);
+});
+
+test("Público executes assessment reset and scroll restoration across authoritative updates", () => {
+  const listeners = new Map();
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const storageValues = new Map();
+  const storage = {
+    getItem(key) { return storageValues.get(key) || null; },
+    setItem(key, value) { storageValues.set(key, value); },
+    removeItem(key) { storageValues.delete(key); }
+  };
+  const clickHandlers = new Map();
+  const card = { scrollTop: 0 };
+  const rootElement = {
+    hidden: true,
+    _innerHTML: "",
+    classList: { add() {}, remove() {} },
+    get innerHTML() { return this._innerHTML; },
+    set innerHTML(value) {
+      this._innerHTML = value;
+      card.scrollTop = 0;
+      clickHandlers.clear();
+    },
+    querySelector(selector) {
+      if (selector === ".knowledge-audience-card") {
+        return this._innerHTML.includes("knowledge-audience-card") ? card : null;
+      }
+      if (selector === "[data-knowledge-next]" && this._innerHTML.includes("data-knowledge-next")) {
+        return {
+          addEventListener(_eventName, handler) { clickHandlers.set(selector, handler); }
+        };
+      }
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({ socket, root: rootElement });
+
+  const questions = [1, 2, 3].map((index) => ({
+    id: "question-" + index,
+    prompt: "Pregunta " + index,
+    options: [
+      { id: "a-" + index, label: "Opción A" },
+      { id: "b-" + index, label: "Opción B" }
+    ]
+  }));
+  const state = {
+    available: true,
+    executionId: "assessment-run-1",
+    category: "assessment",
+    state: "ACTIVE",
+    participant: { id: "participant-1" },
+    questions,
+    answers: []
+  };
+  const onState = listeners.get("interaction:execution:state");
+  onState(state);
+  clickHandlers.get("[data-knowledge-next]")();
+  clickHandlers.get("[data-knowledge-next]")();
+  assert.match(rootElement.innerHTML, />3\/3<\/span>/);
+
+  card.scrollTop = 143;
+  onState({
+    ...state,
+    answers: [{ questionId: "question-3", optionId: "a-3" }]
+  });
+  assert.match(rootElement.innerHTML, />3\/3<\/span>/);
+  assert.equal(card.scrollTop, 143);
+
+  onState({
+    ...state,
+    executionId: "assessment-run-2",
+    answers: []
+  });
+  assert.match(rootElement.innerHTML, />1\/3<\/span>/);
+  assert.equal(card.scrollTop, 0);
+});
+
+test("Público renders safe contest progress and legible answer options", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /Number\.isFinite\(Number\(state\.questionCount\)\)/);
+  assert.match(source, /Number\.isFinite\(Number\(state\.questionIndex\)\)/);
+  assert.match(source, /const hudLabel = "Pregunta " \+ questionNumber \+ " de " \+ questionCount/);
+  assert.match(source, /state\.substate === "REVEAL" \? ", respuesta revelada" : ", tiempo restante"/);
+  assert.match(css, /\.knowledge-options button \{[\s\S]*?color: #182133/);
+  assert.match(css, /\.knowledge-options button\.is-selected \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /\.knowledge-options button\.is-correct \{[\s\S]*?background: #19a974/);
+  assert.match(css, /\.knowledge-options button\.is-selected:disabled,[\s\S]*?\.knowledge-options button\.is-correct:disabled \{[\s\S]*?opacity: 1;[\s\S]*?filter: none;/);
+  assert.doesNotMatch(source, /is-incorrect/);
+  assert.match(source, /qualified = state\.personalResult\.correctCount > 0/);
+  assert.match(source, /Sin posición/);
+  assert.match(css, /\.knowledge-result-detail \{[\s\S]*?color: #182133/);
+  assert.match(source, /knowledge-result-mark/);
+  assert.match(source, /answer\.selectedLabel \|\| "Omitida"/);
+  assert.doesNotMatch(source, /answer\.correctLabel/);
+  assert.match(css, /\.knowledge-result-detail\.correct \.knowledge-result-mark/);
+  assert.match(css, /\.knowledge-result-detail\.incorrect \.knowledge-result-mark/);
+});
+
+test("contest lobby, synchronized countdown, winner view, and Screen audio follow the live contract", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const engine = read("knowledge-activity-engine.js");
+  const editor = read("public/home/interactions-editor.js");
+  assert.match(engine, /const COUNTDOWN_MS = 4700/);
+  assert.match(engine, /NO_READY_PARTICIPANTS/);
+  assert.match(engine, /Necesitas al menos una persona lista para iniciar/);
+  assert.match(source, /data-knowledge-command="start"[\s\S]*disabled/);
+  assert.match(source, /data-knowledge-countdown/);
+  assert.match(source, /return "¡Inicia!"/);
+  assert.match(source, /¡Tenemos ganador!/);
+  assert.match(source, /No hubo respuestas correctas/);
+  assert.match(source, /\/assets\/audio\/contests\/321\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/tictac\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/Resultado_pregunta\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/Final_concurso\.mp3/);
+  assert.match(source, /tracks\.tick\.loop = true/);
+  assert.match(source, /global\.AudioContext \|\| global\.webkitAudioContext/);
+  assert.match(source, /createBufferSource\(\)/);
+  assert.match(source, /source\.loop = true/);
+  assert.match(source, /function startTick\(\)/);
+  assert.match(source, /function stopTick\(\)/);
+  assert.match(source, /next\.substate === "REVEAL"[\s\S]*previous\?\.executionId === next\.executionId[\s\S]*previous\?\.substate !== "REVEAL"/);
+  assert.match(source, /if \(enteredReveal\) play\(tracks\.reveal\)/);
+  assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
+  assert.match(source, /dataset\.knowledgeAudioBound/);
+  assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
+  for (const name of ["321.mp3", "tictac.mp3", "Resultado_pregunta.mp3", "Final_concurso.mp3"]) {
+    assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
+  }
+});
+
+test("Público uses the supplied entrance and answer-selection sounds", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /\/assets\/audio\/contests\/click1\.mp3/);
+  assert.match(source, /\/assets\/audio\/contests\/click2\.mp3/);
+  assert.match(source, /audienceAudio\.play\("join"\)/);
+  assert.match(source, /audienceAudio\.play\("answer"\)/);
+  for (const name of ["click1.mp3", "click2.mp3"]) {
+    assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
+  }
+});
+
+test("Público lobby places a wide Entrar action below the participant field", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-registration-copy/);
+  assert.match(source, /data-knowledge-join>Entrar/);
+  assert.doesNotMatch(source, /knowledge-registration-head/);
+  assert.match(css, /\.knowledge-registration-card > \.primary \{[\s\S]*?justify-self: center;[\s\S]*?min-width: clamp\(124px, 34vw, 164px\);/);
+});
+
+test("Público announces every real contest question with flash and supplied audio while Screen keeps a silent flash", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function isNewContestQuestion/);
+  assert.match(source, /\/assets\/audio\/contests\/NextQuestion\.mp3/);
+  assert.match(source, /audienceAudio\.play\("nextQuestion"\)/);
+  const screenAudio = source.slice(source.indexOf("function createScreenContestAudio"), source.indexOf("function createScreen"));
+  assert.doesNotMatch(screenAudio, /nextQuestion/);
+  assert.match(source, /root\.classList\.add\("is-question-flash"\)/);
+  assert.match(css, /\.knowledge-audience-overlay\.is-question-flash::after/);
+  assert.match(css, /\.knowledge-screen-overlay\.is-question-flash::after/);
+  assert.match(css, /\.knowledge-screen-card \.knowledge-timer \{[\s\S]*?font: 900 clamp\(42px, 5\.5vw, 78px\)/);
+  assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/NextQuestion.mp3")).size > 0, true);
+});
+
+test("Público announces a Speaker-released assessment grade with flash and display audio", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /\/assets\/audio\/contests\/display\.mp3/);
+  assert.match(source, /function isAssessmentGradeReveal/);
+  assert.match(source, /assessmentGrade\(previous\) === null/);
+  assert.match(source, /assessmentGrade\(next\) !== null/);
+  assert.match(source, /if \(revealedAssessmentGrade\) \{[\s\S]*?flashQuestion\(\);[\s\S]*?audienceAudio\.play\("display"\)/);
+  assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/display.mp3")).size > 0, true);
+});
+
+test("Screen contest runtime initializes when NextQuestion audio belongs only to Público", () => {
+  class FakeAudio {
+    play() { return Promise.resolve(); }
+    pause() {}
+  }
+  const listeners = new Map();
+  const socket = {
+    on(eventName, handler) { listeners.set(eventName, handler); }
+  };
+  const classList = { add() {}, remove() {} };
+  let unlockButton = null;
+  const document = {
+    querySelector(selector) {
+      return selector === "[data-knowledge-audio-unlock]" ? unlockButton : null;
+    },
+    createElement() {
+      unlockButton = {
+        dataset: {},
+        addEventListener() {},
+        remove() { unlockButton = null; }
+      };
+      return unlockButton;
+    },
+    body: {
+      appendChild(node) { unlockButton = node; }
+    }
+  };
+  const screenRoot = {
+    hidden: true,
+    innerHTML: "",
+    classList,
+    querySelectorAll() { return []; }
+  };
+  const window = {
+    Audio: FakeAudio,
+    document,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+
+  assert.doesNotThrow(() => window.ImmersaKnowledgeActivities.createScreen({ socket, root: screenRoot }));
+  assert.equal(listeners.has("interaction:execution:state"), true);
+
+  const onState = listeners.get("interaction:execution:state");
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    title: "Trivia 1",
+    state: "LOBBY",
+    participantCount: 1,
+    effectiveParticipantCount: 0
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-presence/);
+  assert.match(screenRoot.innerHTML, />1<\/strong><span>persona lista/);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-activity-icon/);
+  assert.match(screenRoot.innerHTML, />Trivia 1<\/h1>/);
+  assert.doesNotMatch(screenRoot.innerHTML, />Concurso</);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    title: "Trivia 1",
+    state: "COUNTDOWN",
+    participantCount: 1,
+    effectiveParticipantCount: 0,
+    countdownDurationMs: 4700,
+    countdownDeadlineAt: new Date(Date.now() + 4700).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-countdown/);
+  assert.match(screenRoot.innerHTML, />1<\/strong><span>persona lista/);
+  assert.doesNotMatch(screenRoot.innerHTML, /0 participantes/);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    state: "ACTIVE",
+    substate: "QUESTION_ACTIVE",
+    questionIndex: 0,
+    questionCount: 1,
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la correcta?",
+      image: { url: "/question.jpg", alt: "Referencia" }
+    },
+    reveal: null
+  });
+  assert.match(screenRoot.innerHTML, /¿Cuál es la correcta\?/);
+  assert.match(screenRoot.innerHTML, /\/question\.jpg/);
+  assert.doesNotMatch(screenRoot.innerHTML, /knowledge-screen-options|Opción secreta/);
+
+  onState({
+    available: true,
+    executionId: "execution-screen-render",
+    category: "contest",
+    state: "ACTIVE",
+    substate: "REVEAL",
+    questionIndex: 0,
+    questionCount: 1,
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la correcta?",
+      image: { url: "/question.jpg", alt: "Referencia" }
+    },
+    reveal: { correctLabel: "Opción secreta A" }
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-correct-answer/);
+  assert.match(screenRoot.innerHTML, />Opción secreta A</);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-next-progress/);
+  assert.match(screenRoot.innerHTML, /aria-label="Preparando la siguiente pregunta"/);
+  assert.doesNotMatch(screenRoot.innerHTML, /¿Cuál es la correcta\?|\/question\.jpg|knowledge-screen-options|data-knowledge-deadline|knowledge-timer/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "LOBBY",
+    participantCount: 2,
+    effectiveParticipantCount: 0,
+    submittedCount: 0
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-intro-state/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>personas listas/);
+  assert.match(screenRoot.innerHTML, />Evaluación final<\/h1>/);
+  assert.doesNotMatch(screenRoot.innerHTML, />Evaluación<\/span>/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "COUNTDOWN",
+    participantCount: 2,
+    effectiveParticipantCount: 0,
+    submittedCount: 0,
+    countdownDurationMs: 4700,
+    countdownDeadlineAt: new Date(Date.now() + 4700).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-countdown/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>personas listas/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "ACTIVE",
+    participantCount: 2,
+    effectiveParticipantCount: 2,
+    submittedCount: 1,
+    deadlineAt: new Date(Date.now() + 300_000).toISOString(),
+    serverNow: new Date().toISOString()
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-state/);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-timer/);
+  assert.match(screenRoot.innerHTML, />2<\/strong><span>participantes/);
+  assert.match(screenRoot.innerHTML, /<strong>1<\/strong> de 2 entregaron/);
+  assert.doesNotMatch(screenRoot.innerHTML, /knowledge-screen-question|knowledge-options/);
+
+  onState({
+    available: true,
+    executionId: "execution-assessment-render",
+    category: "assessment",
+    title: "Evaluación final",
+    state: "RESULTS_VISIBLE",
+    participantCount: 2,
+    effectiveParticipantCount: 2,
+    submittedCount: 2
+  });
+  assert.match(screenRoot.innerHTML, /knowledge-screen-assessment-finished/);
+  assert.match(screenRoot.innerHTML, /Evaluación finalizada/);
+  assert.match(screenRoot.innerHTML, /<strong>2<\/strong> entregas/);
+});
+
+test("Screen shows only the question and optional image, then centers only the correct answer", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /has-question-image/);
+  assert.match(source, /state\.substate === "REVEAL"/);
+  assert.match(source, /state\.reveal\.correctLabel/);
+  assert.match(source, /knowledge-screen-correct-answer/);
+  assert.match(source, /revealProgressMarkup\(state\)/);
+  assert.doesNotMatch(source, /knowledge-screen-options/);
+  assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?max-height: 58vh;/);
+  assert.match(css, /\.knowledge-screen-reveal \{[\s\S]*?grid-template-rows: 1fr auto;[\s\S]*?place-items: center;/);
+  assert.match(css, /\.knowledge-screen-correct-answer strong \{[\s\S]*?font: 900 clamp\(48px, 8vw, 126px\)/);
+  assert.match(css, /\.knowledge-screen-next-progress \{[\s\S]*?border-radius: 999px;/);
+  assert.match(css, /\.knowledge-screen-next-progress span \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /@keyframes knowledgeScreenNextProgress \{[\s\S]*?width: 100%/);
+});
+
+test("lobby entrants are synchronized as people ready without counting as participants", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /\["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)[\s\S]*state\.participantCount/);
+  assert.match(source, /lobbyCount === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /count === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
+});
+
+test("Screen lobby uses activity identity, centered presence, and a balanced countdown", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-screen-intro-state/);
+  assert.match(source, /categoryIconMarkup\(state\.category, "knowledge-screen-activity-icon"\)/);
+  assert.match(source, /knowledge-screen-presence/);
+  assert.match(source, /knowledge-screen-countdown/);
+  assert.match(css, /\.knowledge-screen-presence \{[\s\S]*?left: 50%;[\s\S]*?border-radius: 999px;/);
+  assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(190px, 19vw, 290px\);[\s\S]*?padding-block: clamp\(18px, 2\.4vw, 36px\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?padding: \.12em \.08em \.18em;[\s\S]*?clamp\(88px, 12vw, 190px\)\/1\.15/);
+  assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(60px, 8vw, 128px\);[\s\S]*?line-height: 1\.15;/);
+  assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
+  assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
+});
+
+test("Evaluations reuse the approved Immersa lobby and gain a dedicated Screen progress state", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /\["contest", "assessment"\]\.includes\(state\.category\) && \["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)/);
+  assert.match(source, /categoryIconMarkup\("assessment", "knowledge-screen-activity-icon"\)/);
+  assert.match(source, /knowledge-screen-assessment-state/);
+  assert.match(source, /knowledge-screen-assessment-progress/);
+  assert.match(source, /knowledge-screen-assessment-timer/);
+  assert.match(source, /Evaluación en curso/);
+  assert.match(source, /Calculando resultados…/);
+  assert.match(source, /Evaluación finalizada/);
+  assert.match(css, /\.knowledge-screen-assessment-state \{[\s\S]*?min-height: 72vh;/);
+  assert.match(css, /\.knowledge-screen-assessment-progress \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /\.knowledge-screen-assessment-timer \{[\s\S]*?clamp\(72px, 10vw, 150px\)/);
+});
+
+test("history exposes per-execution CSV without adding operational warnings", () => {
+  const history = read("public/home/knowledge-activity-history.js");
+  const exporter = read("knowledge-activity-export.js");
+  assert.match(history, /knowledge-activities\/" \+ encodeURIComponent\(execution\.executionId\) \+ "\/export/);
+  assert.doesNotMatch(exporter, /respuestas excluidas|error de procesamiento/i);
+});

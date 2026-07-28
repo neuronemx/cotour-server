@@ -3,6 +3,81 @@ const path = require("path");
 
 const MIGRATION_LOCK = "immersa_schema_migrations";
 
+function splitSqlStatements(sql) {
+  const statements = [];
+  let statement = "";
+  let quote = null;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let index = 0; index < sql.length; index += 1) {
+    const character = sql[index];
+    const nextCharacter = sql[index + 1];
+
+    if (lineComment) {
+      statement += character;
+      if (character === "\n") lineComment = false;
+      continue;
+    }
+
+    if (blockComment) {
+      statement += character;
+      if (character === "*" && nextCharacter === "/") {
+        statement += nextCharacter;
+        index += 1;
+        blockComment = false;
+      }
+      continue;
+    }
+
+    if (quote) {
+      statement += character;
+      if (character === "\\" && nextCharacter) {
+        statement += nextCharacter;
+        index += 1;
+      } else if (character === quote) {
+        if (nextCharacter === quote) {
+          statement += nextCharacter;
+          index += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (character === "'" || character === '"' || character === "`") {
+      quote = character;
+      statement += character;
+      continue;
+    }
+
+    if ((character === "-" && nextCharacter === "-" && /\s/.test(sql[index + 2] || "")) || character === "#") {
+      lineComment = true;
+      statement += character;
+      continue;
+    }
+
+    if (character === "/" && nextCharacter === "*") {
+      blockComment = true;
+      statement += character + nextCharacter;
+      index += 1;
+      continue;
+    }
+
+    if (character === ";") {
+      if (statement.trim()) statements.push(statement.trim());
+      statement = "";
+      continue;
+    }
+
+    statement += character;
+  }
+
+  if (statement.trim()) statements.push(statement.trim());
+  return statements;
+}
+
 async function migrationFiles(migrationsDir) {
   const entries = await fs.promises.readdir(migrationsDir, { withFileTypes: true });
   return entries
@@ -39,7 +114,9 @@ async function runMigrations(pool, options = {}) {
       if (applied.has(file)) continue;
       const sql = await fs.promises.readFile(path.join(migrationsDir, file), "utf8");
       if (!sql.trim()) continue;
-      await connection.query(sql);
+      for (const statement of splitSqlStatements(sql)) {
+        await connection.query(statement);
+      }
       await connection.execute("INSERT INTO schema_migrations (id) VALUES (?)", [file]);
       executed.push(file);
     }
@@ -51,4 +128,4 @@ async function runMigrations(pool, options = {}) {
   }
 }
 
-module.exports = { runMigrations, migrationFiles, MIGRATION_LOCK };
+module.exports = { runMigrations, migrationFiles, splitSqlStatements, MIGRATION_LOCK };

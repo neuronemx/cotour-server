@@ -19,7 +19,7 @@ test('Screen loads picker adapter and canonical persistence before the media man
   const fix = read('public/screen/screen-local-media-persistence-fix.js');
   const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=113');
   const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=111');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=112');
   const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
 
   assert.ok(adapterPosition >= 0);

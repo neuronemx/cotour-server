@@ -16,6 +16,12 @@ const { registerAudience, unregisterAudience } = require("./audience-registry");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
+const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
+const { createKnowledgeActivityHistoryHandlers } = require("./knowledge-activity-export");
+const {
+  PresentationLifecycleRepository,
+  createPresentationLifecycleRuntime
+} = require("./presentation-lifecycle");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 
@@ -23,6 +29,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const AUTO_START_AUDIENCE_THRESHOLD = 10;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const STATIC_DECKS_DIR = path.join(PUBLIC_DIR, "decks");
 const DATA_DIR = process.env.IMMERSA_DATA_DIR
@@ -58,12 +65,74 @@ const raffleSockets = createRaffleSocketHandlers({
   getConnectedAudience,
   coordinator: activeInteractionCoordinator
 });
+const deckInteractionHandlers = createDeckInteractionHandlers({
+  dataDecksDir: DATA_DECKS_DIR,
+  staticDecksDir: STATIC_DECKS_DIR
+});
 const qnaRuntime = createQnaRuntime({
   io,
   getRoleRoomKey,
   getRoomKey,
   getConnectedAudience
 });
+const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
+  io,
+  coordinator: activeInteractionCoordinator,
+  loadDefinitionsForDeck: (deckId) => deckInteractionHandlers.readDeckConfig(deckId),
+  getRoleRoomKey,
+  getRoomKey,
+  getConnectedAudience
+});
+const lifecyclePool = qnaRuntime.pool || knowledgeActivityRuntime.pool || null;
+const presentationLifecycleRuntime = lifecyclePool
+  ? createPresentationLifecycleRuntime({
+      io,
+      repository: new PresentationLifecycleRepository(lifecyclePool),
+      getRoleRoomKey,
+      beforeStart: async (context) => {
+        await knowledgeActivityRuntime.resetSession(context);
+        interactionSockets.resetSession(context);
+        raffleSockets.resetSession(context);
+        gameQueueSockets.resetSession(context);
+      },
+      preserveAutomaticStart: async (context) => (
+        activeInteractionCoordinator.hasAnyActive(context.sessionId)
+      ),
+      afterStart: async (context, state) => {
+        await qnaRuntime.resetSessionState?.({
+          deckId: context.deckId,
+          sourceSessionId: context.sessionId,
+          presentationSessionId: state.presentationSessionId
+        });
+      },
+      beforeFinish: async (context) => (
+        activeInteractionCoordinator.hasAnyActive(context.sessionId)
+          ? {
+              ok: false,
+              reason: "ACTIVE_INTERACTION",
+              message: "Cierra la interacción activa antes de finalizar"
+            }
+          : { ok: true }
+      ),
+      afterFinish: async (context, state) => {
+        await knowledgeActivityRuntime.resetSession(context);
+        interactionSockets.resetSession(context);
+        raffleSockets.resetSession(context);
+        gameQueueSockets.resetSession(context);
+        await qnaRuntime.resetSessionState?.({
+          deckId: context.deckId,
+          sourceSessionId: context.sessionId,
+          presentationSessionId: state.presentationSessionId
+        });
+      }
+    })
+  : {
+      attach() {},
+      async startAutomatically() {},
+      async sendCurrentState(socket) {
+        socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
+      }
+    };
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
@@ -71,11 +140,10 @@ const accessLinkHandlers = createAccessLinkHandlers({
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution
 });
-const deckInteractionHandlers = createDeckInteractionHandlers({
-  dataDecksDir: DATA_DECKS_DIR,
-  staticDecksDir: STATIC_DECKS_DIR
-});
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
+const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
+  runtime: knowledgeActivityRuntime
+});
 const brandMentionHandlers = createBrandMentionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
@@ -110,6 +178,11 @@ function canControlPresentation(role) {
 function canNavigatePresentation(role, session) {
   if (!canControlPresentation(role)) return false;
   return !session?.transmissionPaused || session.transmissionPausedBy === role;
+}
+
+function canStepPresentation(role, session) {
+  if (role === "screen") return true;
+  return canNavigatePresentation(role, session);
 }
 
 async function ensureDataDirs() {
@@ -431,6 +504,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     presenterConnected: false,
     screenConnected: false,
     stageConnected: false,
+    automaticLifecycleStarted: false,
     audience: new Map(),
     overlays: {
       reactionsOnScreen: true,
@@ -554,7 +628,7 @@ function normalizeDrawingStroke(session, stroke) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
-app.use(express.json({ limit: "192kb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -568,12 +642,14 @@ app.get("/api/decks", async (_req, res) => {
 });
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", brandMentionHandlers.createBrand);
 app.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderBrands);
 app.put("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", qnaHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", knowledgeActivityHistoryHandlers.listHistory);
 app.delete("/api/decks/:deckId", async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
@@ -588,6 +664,11 @@ app.post("/api/access-links", accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
+app.get(
+  "/api/knowledge-activities/:executionId/export/:access_token",
+  accessLinkHandlers.guardAccessRoles(["speaker"]),
+  knowledgeActivityHistoryHandlers.exportExecution
+);
 app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.clearHistory);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
@@ -647,6 +728,20 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  knowledgeActivityRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
+  presentationLifecycleRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
     if (!role) return;
@@ -684,25 +779,41 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     };
-    gameQueueSockets.sendCurrentState(socket, joinedContext);
-    await interactionSockets.sendCurrentState(socket, joinedContext);
-    raffleSockets.sendCurrentState(socket, {
-      roomKey: currentRoomKey,
-      role: currentRole,
-      sessionId: currentSessionId,
-      deckId: currentDeckId,
-      audienceId: currentAudienceId
-    });
-    await qnaRuntime.sendCurrentState(socket, {
-      roomKey: currentRoomKey,
-      role: currentRole,
-      sessionId: currentSessionId,
-      deckId: currentDeckId,
-      audienceId: currentAudienceId
-    });
-    if (role === "presenter") await brandMentionRuntime.start(joinedContext);
-    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
     emitState(currentRoomKey, session);
+    if (
+      role === "audience"
+      && session.audience.size >= AUTO_START_AUDIENCE_THRESHOLD
+      && !session.automaticLifecycleStarted
+    ) {
+      session.automaticLifecycleStarted = true;
+      void presentationLifecycleRuntime.startAutomatically(joinedContext)
+        .then((state) => {
+          if (state?.mode !== "live") session.automaticLifecycleStarted = false;
+        });
+    }
+
+    const snapshotJobs = [
+      ["game queue", () => gameQueueSockets.sendCurrentState(socket, joinedContext)],
+      ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
+      ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
+      ["Q&A", () => qnaRuntime.sendCurrentState(socket, joinedContext)],
+      ["knowledge activity", () => knowledgeActivityRuntime.sendCurrentState(socket, joinedContext)],
+      ["presentation lifecycle", () => presentationLifecycleRuntime.sendCurrentState(socket, joinedContext)]
+    ];
+    void Promise.allSettled(snapshotJobs.map(([, send]) => Promise.resolve().then(send)))
+      .then((results) => {
+        results.forEach((result, index) => {
+          if (result.status === "rejected") {
+            console.error("[join] Unable to synchronize " + snapshotJobs[index][0], result.reason);
+          }
+        });
+      });
+
+    if (role === "presenter") {
+      void Promise.resolve(brandMentionRuntime.start(joinedContext))
+        .catch((error) => console.error("[join] Unable to start brand mentions", error));
+    }
+    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
   });
 
   socket.on("transmission_pause", () => {
@@ -730,7 +841,7 @@ io.on("connection", (socket) => {
   socket.on("slide_next", async () => {
     if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session || !canNavigatePresentation(currentRole, session)) return;
+    if (!session || !canStepPresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex + 1);
     emitState(currentRoomKey, session);
   });
@@ -738,7 +849,7 @@ io.on("connection", (socket) => {
   socket.on("slide_prev", async () => {
     if (!currentRoomKey) return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session || !canNavigatePresentation(currentRole, session)) return;
+    if (!session || !canStepPresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, session.presenterSlideIndex - 1);
     emitState(currentRoomKey, session);
   });
@@ -815,5 +926,10 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log("Immersa Presentations running at http://localhost:" + PORT);
   console.log("Q&A runtime enabled:", qnaRuntime.enabled);
+  console.log("Contest and assessment runtime enabled:", knowledgeActivityRuntime.enabled);
   logConversionHealth();
+});
+
+knowledgeActivityRuntime.start().catch((error) => {
+  console.error("Unable to start contest and assessment runtime", error);
 });

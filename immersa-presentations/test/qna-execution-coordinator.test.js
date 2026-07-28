@@ -34,7 +34,7 @@ const screen = {
   screenLinkId: "screen-link-1"
 };
 
-test("opening a new Screen link creates a historical presentation session", async () => {
+test("opening a new Screen link creates only a non-historical draft session", async () => {
   const repository = repositoryStub();
   const result = await new QnaExecutionCoordinator(repository).openScreen(screen);
   assert.equal(result.presentationSessionId, "presentation-1");
@@ -53,7 +53,7 @@ test("refreshing the same Screen link resumes its active execution", async () =>
   assert.equal(repository.calls.filter((call) => call.method === "startPresentationSession").length, 1);
 });
 
-test("a new Screen link replaces the active execution", async () => {
+test("a new Screen link replaces the active draft execution", async () => {
   const repository = repositoryStub();
   const coordinator = new QnaExecutionCoordinator(repository);
   await coordinator.openScreen(screen);

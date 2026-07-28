@@ -80,6 +80,76 @@ test('legacy hidden slide indexes migrate to stable slide ids', async () => {
   fs.rmSync(temp, { recursive: true, force: true });
 });
 
+test('YouTube links are normalized without accepting arbitrary embeds', async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'immersa-youtube-model-'));
+  const dataDecksDir = path.join(temp, 'data');
+  const staticDecksDir = path.join(temp, 'static');
+  const deckDir = path.join(dataDecksDir, 'youtube');
+  fs.mkdirSync(deckDir, { recursive: true });
+  fs.mkdirSync(staticDecksDir, { recursive: true });
+  fs.writeFileSync(path.join(deckDir, 'manifest.json'), JSON.stringify({
+    deckId: 'youtube',
+    slides: [
+      { id: 'watch', src: 'slides/slide-001.jpg' },
+      { id: 'short', src: 'slides/slide-002.jpg' },
+      { id: 'embed', src: 'slides/slide-003.jpg' }
+    ]
+  }));
+
+  const handlers = createDeckInteractionHandlers({ dataDecksDir, staticDecksDir });
+  const putRes = responseCapture();
+  await handlers.putInteractions({
+    params: { deckId: 'youtube' },
+    body: {
+      interactions: [],
+      videos: [{
+        id: 'vid_watch',
+        slide_id: 'watch',
+        source: { type: 'youtube', url: 'youtu.be/M7lc1UVf-VE?t=1m2s' },
+        playback: { autoplay: true, end_behavior: 'next' }
+      }, {
+        id: 'vid_short',
+        slide_id: 'short',
+        source: { type: 'youtube', url: 'https://www.youtube.com/shorts/9bZkp7q19f0?start=7' },
+        playback: { autoplay: false, end_behavior: 'stay' }
+      }, {
+        id: 'vid_embed',
+        slide_id: 'embed',
+        source: { type: 'youtube', url: 'https://www.youtube-nocookie.com/embed/ScMzIvxBSi4' },
+        playback: { autoplay: true, end_behavior: 'loop' }
+      }]
+    }
+  }, putRes);
+
+  assert.equal(putRes.statusCode, 200);
+  assert.deepEqual(putRes.body.videos.map((video) => video.source.video_id), [
+    'M7lc1UVf-VE',
+    '9bZkp7q19f0',
+    'ScMzIvxBSi4'
+  ]);
+  assert.equal(putRes.body.videos[0].source.start_seconds, 62);
+  assert.equal(putRes.body.videos[0].source.url, 'https://www.youtube.com/watch?v=M7lc1UVf-VE&t=62s');
+  assert.equal(putRes.body.videos[0].file, null);
+  assert.equal(putRes.body.videos[0].duration_seconds, null);
+  assert.equal(putRes.body.videos[0].preview.url, 'https://i.ytimg.com/vi/M7lc1UVf-VE/mqdefault.jpg');
+
+  const invalidRes = responseCapture();
+  await handlers.putInteractions({
+    params: { deckId: 'youtube' },
+    body: {
+      interactions: [],
+      videos: [{
+        id: 'vid_bad',
+        slide_id: 'watch',
+        source: { type: 'youtube', url: 'https://example.com/embed/M7lc1UVf-VE' }
+      }]
+    }
+  }, invalidRes);
+  assert.equal(invalidRes.statusCode, 400);
+  assert.match(invalidRes.body.error, /YouTube/);
+  fs.rmSync(temp, { recursive: true, force: true });
+});
+
 test('Home exposes compact multimedia configuration with visible linked file', () => {
   const html = read('public/home/index.html');
   const editor = read('public/home/video-editor.js');
@@ -87,15 +157,19 @@ test('Home exposes compact multimedia configuration with visible linked file', (
   const css = read('public/home/video-editor.css');
   const visibility = read('public/shared/slide-visibility.js');
 
-  assert.match(html, /video-editor\.css\?v=107/);
-  assert.match(html, /video-editor\.js\?v=107/);
+  assert.match(html, /video-editor\.css\?v=108/);
+  assert.match(html, /video-editor\.js\?v=108/);
   assert.match(html, /video-slide-labels\.js\?v=106/);
   assert.match(editor, /button\.textContent = "Videos"/);
   assert.match(editor, /Configuración Multimedia/);
   assert.match(editor, /Archivo vinculado/);
   assert.match(editor, /Reemplazar MP4/);
   assert.doesNotMatch(editor, />Video local</);
-  assert.match(editor, /El archivo no se sube/);
+  assert.match(editor, /Elige un MP4 local o pega un link de YouTube/);
+  assert.match(editor, /Link de YouTube/);
+  assert.match(editor, /youtube_url/);
+  assert.match(editor, /\["embed", "shorts", "live"\]/);
+  assert.match(editor, /i\.ytimg\.com/);
   assert.match(editor, /end_behavior/);
   assert.match(editor, /Repetir hasta recibir Siguiente/);
   assert.match(editor, /slide_id/);

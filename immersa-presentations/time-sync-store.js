@@ -72,6 +72,11 @@ class TimeSyncStore {
     return this.sessions.get(key);
   }
 
+  resetSession(sessionId) {
+    this.sessions.delete(String(sessionId || ""));
+    return this.getSession(sessionId);
+  }
+
   normalizeExpired(sessionId, nowMs = this.now()) {
     const session = this.getSession(sessionId);
     const timer = session.timer;
@@ -238,7 +243,14 @@ function createTimeSyncSocketHandlers({ io, store = new TimeSyncStore(), getRole
     socket.emit("time:state", store.snapshot(context.sessionId, context.role, { reason: "join", nowMs }));
   }
 
-  return { attach, sendCurrentState, emitStates, schedule, clearDeadline, store };
+  function resetSession(context) {
+    if (!context?.roomKey || !context?.sessionId) return;
+    clearDeadline(context.sessionId);
+    store.resetSession(context.sessionId);
+    emitStates(context.roomKey, context.sessionId, "presentation_start");
+  }
+
+  return { attach, sendCurrentState, emitStates, schedule, clearDeadline, resetSession, store };
 }
 
 module.exports = { TimeSyncStore, createTimeSyncSocketHandlers, SCHEMA_VERSION, DEFAULT_DURATION_MS, MIN_DURATION_MS, MAX_DURATION_MS, CONTROL_ROLES };

@@ -19,6 +19,8 @@
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
   <link rel="stylesheet" href="/shared/qna-controls.css">
+  <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
+  <link rel="stylesheet" href="/shared/presentation-lifecycle.css?v=1">
 </head>
 <body>
   <main class="presenter-shell">
@@ -28,6 +30,7 @@
       <div class="brand-lockup" aria-label="Immersa">
         <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
       </div>
+      <div id="presentationLifecycle" class="presentation-lifecycle-host presenter-lifecycle-host" hidden></div>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
@@ -115,12 +118,14 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/shared/slide-confirm.js"></script>
+  <script src="/shared/slide-confirm.js?v=111"></script>
+  <script src="/shared/presentation-lifecycle-control.js?v=1"></script>
   <script src="/shared/interactions-shell.js"></script>
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js"></script>
-  <script src="/presenter/presenter.js?v=1"></script>
+  <script src="/shared/knowledge-activities.js?v=22"></script>
+  <script src="/presenter/presenter.js?v=2"></script>
 </body>
 </html>

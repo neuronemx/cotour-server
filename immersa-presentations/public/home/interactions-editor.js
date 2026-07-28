@@ -5,6 +5,8 @@
   const optionDotClasses = ["dot-a", "dot-b", "dot-c", "dot-d", "dot-e", "dot-f"];
   let currentDeck = null;
   let interactions = [];
+  let contests = [];
+  let assessments = [];
   let editingIndex = null;
   let pendingDeleteIndex = null;
   let activeModule = null;
@@ -77,9 +79,8 @@
   function moduleIconSvg(kind) {
     const icons = {
       polls: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z"></path><path d="M5 20h14"></path><path d="M8 15v-4"></path><path d="M12 15v-7"></path><path d="M16 15v-5"></path><path d="M8 7h2"></path></svg>',
-      raffles: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z"></path><path d="M12 8l0 13"></path><path d="M19 12l0 7a2 2 0 0 1 -2 2l-10 0a2 2 0 0 1 -2 -2l0 -7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0 -5c1.6 0 3 1.5 4.5 5c1.5 -3.5 2.9 -5 4.5 -5a2.5 2.5 0 0 1 0 5"></path></svg>',
+      assessments: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"></path><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2"></path><path d="M9 14l2 2l4 -4"></path></svg>',
       contests: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21l8 0"></path><path d="M12 17l0 4"></path><path d="M7 4l10 0"></path><path d="M17 4v8a5 5 0 0 1 -10 0v-8"></path><path d="M5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M19 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path></svg>',
-      games: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M14 6.5h5a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"></path><path d="M6.8 13h2.4"></path><path d="M15.8 13h2.4"></path></svg>'
     };
     return icons[kind] || icons.polls;
   }
@@ -122,17 +123,25 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "No se pudieron cargar las interacciones.");
     interactions = Array.isArray(data.interactions) ? data.interactions : [];
+    contests = Array.isArray(data.contests) ? data.contests : [];
+    assessments = Array.isArray(data.assessments) ? data.assessments : [];
   }
 
-  async function saveInteractions(nextInteractions = interactions) {
+  async function saveInteractions(nextInteractions = interactions, nextContests = contests, nextAssessments = assessments) {
     const res = await fetch("/api/decks/" + encodeURIComponent(currentDeck.deckId) + "/interactions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ interactions: nextInteractions })
+      body: JSON.stringify({
+        interactions: nextInteractions,
+        contests: nextContests,
+        assessments: nextAssessments
+      })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "No se pudieron guardar las interacciones.");
     interactions = Array.isArray(data.interactions) ? data.interactions : [];
+    contests = Array.isArray(data.contests) ? data.contests : [];
+    assessments = Array.isArray(data.assessments) ? data.assessments : [];
     return data;
   }
 
@@ -182,7 +191,7 @@
       ? '<span class="interaction-module-badge">' + escapeHtml(plan) + '</span>'
       : '<svg class="interaction-module-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
     const disabled = enabled ? "" : " disabled aria-disabled=\"true\"";
-    const expanded = kind === "polls" ? ' aria-expanded="' + String(selected) + '"' : "";
+    const expanded = ['polls', 'contests', 'assessments'].includes(kind) ? ' aria-expanded="' + String(selected) + '"' : "";
     return '<button type="button" class="' + classes + '" data-module="' + kind + '"' + expanded + disabled + '><span class="interaction-module-icon">' + moduleIconSvg(kind) + '</span><span class="interaction-module-copy"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : '') + '</span>' + trailing + '</button>';
   }
 
@@ -193,14 +202,19 @@
       : "Ninguna creada · Selecciona para comenzar";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
-    hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">' + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true }) + moduleCardMarkup("raffles", "Sorteos", "Ganador aleatorio entre asistentes conectados", { enabled: false, plan: "Pro" }) + moduleCardMarkup("contests", "Concursos", "Preguntas, respuestas y clasificación en vivo", { enabled: false, plan: "Próximamente" }) + moduleCardMarkup("games", "Juegos colaborativos", "Breakout, Pong, Catcher y más", { enabled: false, plan: "Próximamente" }) + '</div>';
-    hub.querySelector('[data-module="polls"]').addEventListener("click", () => {
-      activeModule = activeModule === "polls" ? null : "polls";
+    hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">'
+      + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true })
+      + moduleCardMarkup("assessments", "Evaluaciones", assessments.length + " creada" + (assessments.length === 1 ? "" : "s"), { enabled: true })
+      + moduleCardMarkup("contests", "Concursos", contests.length + " creado" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: true })
+      + '</div>';
+    hub.querySelectorAll('[data-module]:not(:disabled)').forEach((button) => button.addEventListener("click", () => {
+      const kind = button.dataset.module;
+      activeModule = activeModule === kind ? null : kind;
       activeDraft = null;
       editingIndex = null;
       pendingDeleteIndex = null;
       renderList();
-    });
+    }));
     return hub;
   }
 
@@ -352,6 +366,263 @@
     return section;
   }
 
+  function knowledgeId(category) {
+    return category + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+  }
+
+  function defaultKnowledgeDraft(category) {
+    return {
+      id: knowledgeId(category),
+      category,
+      title: "",
+      identificationMode: "anonymous",
+      questionDurationSeconds: category === "contest" ? 15 : null,
+      durationSeconds: category === "assessment" ? 900 : null,
+      questions: [{
+        id: knowledgeId("question"),
+        prompt: "",
+        image: null,
+        correctOptionId: "option-1",
+        options: [
+          { id: "option-1", label: "" },
+          { id: "option-2", label: "" }
+        ]
+      }]
+    };
+  }
+
+  function knowledgeList(category) {
+    return category === "contest" ? contests : assessments;
+  }
+
+  async function uploadKnowledgeQuestionImage(question, file) {
+    if (!file) return null;
+    if (file.size > 5 * 1024 * 1024) throw new Error("La imagen debe pesar máximo 5 MB.");
+    if (file.type && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      throw new Error("La imagen debe ser PNG, JPG o WebP.");
+    }
+    const body = new FormData();
+    body.append("image", file);
+    const response = await fetch(
+      "/api/decks/" + encodeURIComponent(currentDeck.deckId)
+        + "/knowledge-questions/" + encodeURIComponent(question.id) + "/image",
+      { method: "POST", body }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "No se pudo guardar la imagen.");
+    return data.image;
+  }
+
+  function knowledgeQuestionEditor(question, questionIndex, rerender) {
+    const node = document.createElement("fieldset");
+    node.className = "knowledge-question-editor";
+    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label><div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
+    const prompt = node.querySelector("textarea");
+    prompt.value = question.prompt || "";
+    prompt.addEventListener("input", () => question.prompt = prompt.value);
+    const preview = node.querySelector(".knowledge-question-image-preview");
+    const selectImage = node.querySelector("[data-select-image]");
+    const removeImage = node.querySelector("[data-remove-image]");
+    const imageInput = node.querySelector("[data-image-input]");
+    if (question.image?.url) {
+      const image = document.createElement("img");
+      image.src = question.image.url;
+      image.alt = "Imagen de la pregunta " + (questionIndex + 1);
+      preview.appendChild(image);
+    } else {
+      preview.innerHTML = '<span>Sin imagen</span>';
+    }
+    selectImage.textContent = question.image?.url ? "Cambiar imagen" : "Agregar imagen";
+    removeImage.hidden = !question.image?.url;
+    selectImage.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files?.[0];
+      if (!file) return;
+      try {
+        selectImage.disabled = true;
+        setStatus("Subiendo imagen…");
+        question.image = await uploadKnowledgeQuestionImage(question, file);
+        setStatus("Imagen guardada.", "success");
+        rerender();
+      } catch (error) {
+        selectImage.disabled = false;
+        imageInput.value = "";
+        setStatus(error.message, "error");
+      }
+    });
+    removeImage.addEventListener("click", () => {
+      question.image = null;
+      setStatus("La imagen se eliminará al guardar.", "success");
+      rerender();
+    });
+    const optionsNode = node.querySelector(".knowledge-option-editors");
+    question.options.forEach((option, optionIndex) => {
+      const row = document.createElement("label");
+      row.className = "knowledge-option-editor";
+      row.innerHTML = '<input type="radio" name="correct-' + escapeHtml(question.id) + '" aria-label="Marcar como correcta"><input type="text" autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
+      const radio = row.querySelector('[type="radio"]');
+      const input = row.querySelector('[type="text"]');
+      radio.checked = question.correctOptionId === option.id;
+      radio.addEventListener("change", () => question.correctOptionId = option.id);
+      input.value = option.label || "";
+      input.addEventListener("input", () => option.label = input.value);
+      const remove = row.querySelector("button");
+      remove.disabled = question.options.length <= MIN_OPTIONS;
+      remove.addEventListener("click", () => {
+        if (question.options.length <= MIN_OPTIONS) return;
+        const removed = question.options.splice(optionIndex, 1)[0];
+        if (removed.id === question.correctOptionId) question.correctOptionId = question.options[0].id;
+        rerender();
+      });
+      optionsNode.appendChild(row);
+    });
+    if (question.options.length < MAX_OPTIONS) {
+      optionsNode.appendChild(makeButton("+ Agregar opción", "interactions-add-option", () => {
+        const option = { id: knowledgeId("option"), label: "" };
+        question.options.push(option);
+        if (!question.correctOptionId) question.correctOptionId = option.id;
+        rerender();
+      }));
+    }
+    if (activeDraft.questions.length > 1) {
+      node.querySelector(".knowledge-question-actions").appendChild(makeButton("Eliminar pregunta", "interactions-text-action danger", () => {
+        activeDraft.questions.splice(questionIndex, 1);
+        rerender();
+      }));
+    }
+    return node;
+  }
+
+  function renderKnowledgeForm(category, draft, index) {
+    const noun = category === "contest" ? "concurso" : "evaluación";
+    const form = document.createElement("form");
+    form.className = "interaction-edit-form knowledge-definition-form";
+    form.noValidate = true;
+    form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Concurso" : "Evaluación") + '</h3></div>'
+      + '<label><span>Título</span><input name="title" maxlength="240" required placeholder="Ej. Conocimiento del producto"></label>'
+      + '<label><span>Identificación</span><select name="identificationMode"><option value="anonymous">Anónima</option><option value="optional_name">Nombre opcional</option><option value="required_name">Nombre obligatorio</option></select></label>'
+      + (category === "contest"
+        ? '<label><span>Tiempo por pregunta (segundos)</span><input name="duration" type="number" min="5" max="300" required></label>'
+        : '<label><span>Tiempo total (minutos)</span><input name="duration" type="number" min="1" max="180" required></label>')
+      + (category === "contest" ? '<p class="knowledge-duration-estimate" data-knowledge-estimate></p>' : "")
+      + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question>+ Agregar pregunta</button>'
+      + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar ' + noun + "</button></div>";
+    form.elements.title.value = draft.title || "";
+    form.elements.identificationMode.value = draft.identificationMode || "anonymous";
+    form.elements.duration.value = category === "contest"
+      ? draft.questionDurationSeconds || 15
+      : Math.max(1, Math.round((draft.durationSeconds || 900) / 60));
+    const questionsNode = form.querySelector(".knowledge-questions-editor");
+    const updateEstimate = () => {
+      const output = form.querySelector("[data-knowledge-estimate]");
+      if (!output) return;
+      const seconds = 5 + draft.questions.length * (Math.max(5, Number(form.elements.duration.value) || 15) + 5);
+      const minutes = Math.floor(seconds / 60);
+      output.textContent = "Duración estimada: " + (minutes ? minutes + " min " : "") + (seconds % 60) + " s";
+    };
+    const renderQuestions = () => {
+      questionsNode.innerHTML = "";
+      draft.questions.forEach((question, questionIndex) => {
+        questionsNode.appendChild(knowledgeQuestionEditor(question, questionIndex, renderQuestions));
+      });
+      updateEstimate();
+    };
+    renderQuestions();
+    form.elements.duration.addEventListener("input", updateEstimate);
+    form.querySelector("[data-add-question]").addEventListener("click", () => {
+      if (draft.questions.length >= 100) return;
+      const nextQuestion = defaultKnowledgeDraft(category).questions[0];
+      draft.questions.push(nextQuestion);
+      renderQuestions();
+    });
+    form.querySelector("[data-cancel]").addEventListener("click", () => {
+      activeDraft = null;
+      editingIndex = null;
+      renderList();
+    });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      draft.title = form.elements.title.value.trim();
+      draft.identificationMode = form.elements.identificationMode.value;
+      if (category === "contest") draft.questionDurationSeconds = Number(form.elements.duration.value);
+      else draft.durationSeconds = Number(form.elements.duration.value) * 60;
+      draft.questions = draft.questions.map((question) => ({
+        ...question,
+        prompt: String(question.prompt || "").trim(),
+        options: question.options.map((option) => ({ ...option, label: String(option.label || "").trim() })).filter((option) => option.label)
+      }));
+      if (!draft.title) return setStatus("El título es obligatorio.", "error");
+      if (draft.questions.some((question) => !question.prompt || question.options.length < MIN_OPTIONS || !question.options.some((option) => option.id === question.correctOptionId))) {
+        return setStatus("Cada pregunta necesita texto, al menos dos opciones y una respuesta correcta.", "error");
+      }
+      const next = knowledgeList(category).slice();
+      if (index === null) next.push(draft);
+      else next[index] = draft;
+      try {
+        setStatus("Guardando…");
+        await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
+        activeDraft = null;
+        editingIndex = null;
+        setStatus((category === "contest" ? "Concurso" : "Evaluación") + " guardado.", "success");
+        renderList();
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
+    return form;
+  }
+
+  function renderKnowledgePanel(category) {
+    const section = document.createElement("section");
+    section.className = "interactions-polls-section knowledge-definitions-section";
+    const items = knowledgeList(category);
+    if (activeDraft) {
+      section.appendChild(renderKnowledgeForm(category, activeDraft, editingIndex));
+      return section;
+    }
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "interactions-empty";
+      empty.textContent = "Aún no hay ninguno.";
+      section.appendChild(empty);
+    } else {
+      const list = document.createElement("div");
+      list.className = "interaction-list-stack";
+      items.forEach((item, index) => {
+        const card = document.createElement("article");
+        card.className = "interaction-list-item";
+        card.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(item.title) + '</strong><span>' + item.questions.length + ' preguntas</span><small>' + (category === "contest" ? item.questionDurationSeconds + " s por pregunta" : Math.round(item.durationSeconds / 60) + " min") + '</small></div><div class="interaction-list-actions"></div>';
+        const actions = card.querySelector(".interaction-list-actions");
+        actions.append(
+          makeButton("Editar", "interactions-text-action", () => {
+            activeDraft = JSON.parse(JSON.stringify(item));
+            editingIndex = index;
+            renderList();
+          }),
+          makeButton("Eliminar", "interactions-text-action danger", async () => {
+            if (!window.confirm("¿Eliminar " + (category === "contest" ? "este concurso" : "esta evaluación") + "?")) return;
+            const next = items.filter((_value, itemIndex) => itemIndex !== index);
+            try {
+              await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
+              setStatus("Actividad eliminada.", "success");
+              renderList();
+            } catch (error) {
+              setStatus(error.message, "error");
+            }
+          })
+        );
+        list.appendChild(card);
+      });
+      section.appendChild(list);
+    }
+    section.appendChild(makeButton(category === "contest" ? "Crear concurso" : "Crear evaluación", "interactions-create-action", () => {
+      activeDraft = defaultKnowledgeDraft(category);
+      editingIndex = null;
+      renderList();
+    }));
+    return section;
+  }
+
   function renderList() {
     listNode.innerHTML = "";
     const hub = renderHub();
@@ -359,6 +630,9 @@
     if (activeModule === "polls") {
       const pollsButton = hub.querySelector('[data-module="polls"]');
       pollsButton?.after(renderPollPanel());
+    } else if (activeModule === "contests" || activeModule === "assessments") {
+      const category = activeModule === "contests" ? "contest" : "assessment";
+      hub.querySelector('[data-module="' + activeModule + '"]')?.after(renderKnowledgePanel(category));
     }
   }
 

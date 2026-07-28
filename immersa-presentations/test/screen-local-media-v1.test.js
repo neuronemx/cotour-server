@@ -41,6 +41,40 @@ test('hidden videos are excluded from Screen preparation', () => {
   assert.deepEqual(localMedia.activeVideos(config).map((video) => video.slide_id), ['closing']);
 });
 
+test('YouTube videos do not enter Screen local-file preparation', () => {
+  const config = {
+    hidden_slide_ids: [],
+    videos: [
+      { slide_id: 'local', source: { type: 'local' }, file: { name: 'local.mp4' } },
+      { slide_id: 'youtube', source: { type: 'youtube', video_id: 'M7lc1UVf-VE' } }
+    ]
+  };
+  assert.deepEqual(localMedia.activeVideos(config).map((video) => video.slide_id), ['local']);
+  assert.deepEqual(bridge.activeLocalVideoConfigs(config).map((video) => video.slide_id), ['local']);
+});
+
+test('YouTube configuration augments the slide with a normalized remote provider', () => {
+  const augmented = bridge.augmentManifest({
+    slides: [{ id: 'demo', src: 'slides/slide-001.jpg' }]
+  }, {
+    videos: [{
+      slide_id: 'demo',
+      source: {
+        type: 'youtube',
+        video_id: 'M7lc1UVf-VE',
+        url: 'https://www.youtube.com/watch?v=M7lc1UVf-VE&t=62s',
+        start_seconds: 62
+      },
+      playback: { autoplay: true, end_behavior: 'next' }
+    }]
+  });
+  assert.equal(augmented.slides[0].videoProvider, 'youtube');
+  assert.equal(augmented.slides[0].youtubeVideoId, 'M7lc1UVf-VE');
+  assert.equal(augmented.slides[0].youtubeStartSeconds, 62);
+  assert.equal(augmented.slides[0].localOnly, false);
+  assert.equal(augmented.slides[0].src, 'https://www.youtube.com/watch?v=M7lc1UVf-VE&t=62s');
+});
+
 test('Screen matches official files but accepts a local replacement', () => {
   const expected = [
     { slide_id: 'demo', file: { name: 'Demo.mp4', size: 20 } },
@@ -84,6 +118,75 @@ test('media status is normalized before broadcasting to control roles', () => {
   assert.equal(status.missing, 1);
 });
 
+test('Screen playback telemetry normalizes local and YouTube position data', () => {
+  const local = mediaSockets.normalizePlayback({
+    slide_index: 2,
+    provider: 'local',
+    current_time_seconds: 12.75,
+    duration_seconds: 98.5,
+    playing: true,
+    muted: false
+  }, { sessionId: 's1', deckId: 'd1' });
+  assert.equal(local.provider, 'local');
+  assert.equal(local.current_time_seconds, 12.75);
+  assert.equal(local.duration_seconds, 98.5);
+  assert.equal(local.playing, true);
+  assert.equal(mediaSockets.normalizePlayback({ slide_index: 2, provider: 'vimeo' }), null);
+});
+
+test('Screen playback state is forwarded only to Speaker and Stage', () => {
+  const emitted = [];
+  const io = {
+    to(room) {
+      return {
+        emit(event, payload) {
+          emitted.push({ room, event, payload });
+        }
+      };
+    }
+  };
+  const handlers = {};
+  const socket = {
+    on(event, handler) {
+      handlers[event] = handler;
+    },
+    emit(event, payload) {
+      emitted.push({ room: 'socket', event, payload });
+    }
+  };
+  const context = { roomKey: 'room', sessionId: 's1', deckId: 'd1', role: 'screen' };
+  const media = mediaSockets.createMediaSocketHandlers({
+    io,
+    getRoleRoomKey: (room, role) => room + ':' + role
+  });
+  media.attach(socket, () => context);
+  handlers['media:playback_update']({
+    slide_index: 4,
+    provider: 'youtube',
+    forced_muted: true
+  });
+
+  assert.deepEqual(
+    emitted.filter(({ event }) => event === 'media:playback').map(({ room }) => room),
+    ['room:presenter', 'room:stage']
+  );
+  assert.equal(emitted[0].payload.slide_index, 4);
+  assert.equal(emitted[0].payload.forced_muted, true);
+
+  emitted.length = 0;
+  context.role = 'audience';
+  handlers['media:playback_update']({
+    slide_index: 4,
+    provider: 'youtube',
+    forced_muted: false
+  });
+  assert.equal(emitted.length, 0);
+
+  media.sendCurrentState(socket, { ...context, role: 'presenter' });
+  assert.equal(emitted[0].event, 'media:playback');
+  assert.equal(emitted[0].payload.forced_muted, true);
+});
+
 test('Screen loads persistent local multimedia preparation and simplified replacement controls', () => {
   const screen = read('public/screen/index.html');
   const audience = read('public/audience/index.html');
@@ -99,7 +202,7 @@ test('Screen loads persistent local multimedia preparation and simplified replac
 
   const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=113');
   const storePosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=111');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=112');
   const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
   assert.ok(adapterPosition >= 0);
   assert.ok(storePosition > adapterPosition);
@@ -109,9 +212,9 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(screen, /Cache-Control/);
   assert.match(screen, /screen-media-unlock-host\.js\?v=107/);
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
-  assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(loader, /video-deck-config-bridge\.js\?v=107/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(loader, /video-deck-config-bridge\.js\?v=111/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /handleEnded/);
   assert.match(bridgeSource, /Multimedia lista/);
@@ -134,4 +237,6 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(unlockHost, /fullscreenchange/);
   assert.match(socketSource, /media:status_update/);
   assert.match(socketSource, /media:advance_request/);
+  assert.match(socketSource, /media:playback_update/);
+  assert.match(socketSource, /media:playback/);
 });

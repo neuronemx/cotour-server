@@ -11,6 +11,8 @@ test('video slide manifest entries are detected and normalized', () => {
   assert.equal(videoSlides.isVideoSlide({ type: 'video', src: 'slides/clip.bin' }), true);
   assert.equal(videoSlides.isVideoSlide({ src: 'slides/slide-007.mp4' }), true);
   assert.equal(videoSlides.isVideoSlide({ src: 'slides/slide-007.jpg' }), false);
+  assert.equal(videoSlides.isYouTubeSlide({ videoProvider: 'youtube', youtubeVideoId: 'M7lc1UVf-VE' }), true);
+  assert.equal(videoSlides.isYouTubeSlide({ videoProvider: 'youtube', youtubeVideoId: 'invalid' }), false);
   assert.equal(videoSlides.posterPath({ poster: 'poster.jpg', thumb: 'thumb.jpg' }), 'poster.jpg');
   assert.equal(videoSlides.posterPath({ thumb: 'thumb.jpg' }), 'thumb.jpg');
   assert.equal(videoSlides.assetUrl('sales-deck', 'slides/slide-007.mp4'), '/decks/sales-deck/slides/slide-007.mp4');
@@ -35,6 +37,28 @@ test('video media state follows the active role slide index', () => {
     command: 'pause',
     revision: 9
   });
+  const forcedPlayback = { slide_index: 6, forced_muted: true };
+  assert.equal(videoSlides.mediaControlMuted({ muted: false }, forcedPlayback, 6), true);
+  assert.deepEqual(videoSlides.muteControlPatch({ muted: false }, forcedPlayback, 6), {
+    command: 'unmute',
+    muted: false
+  });
+  assert.deepEqual(videoSlides.muteControlPatch({ muted: false }, null, 6), {
+    command: 'mute',
+    muted: true
+  });
+  const playback = {
+    slide_index: 6,
+    current_time_seconds: 94.8,
+    duration_seconds: 352.2,
+    playing: true
+  };
+  assert.equal(videoSlides.playbackPosition(playback, 6), 94.8);
+  assert.equal(videoSlides.playbackDuration(playback, 6), 352.2);
+  assert.equal(videoSlides.mediaControlPlaying({ playing: false }, playback, 6), true);
+  assert.equal(videoSlides.formatMediaTime(94.8), '1:34');
+  assert.equal(videoSlides.formatMediaTime(3661), '1:01:01');
+  assert.equal(videoSlides.remainingMediaTime(94.8, 352.2), '−4:17');
 });
 
 test('all roles load the configured video bridge and shared runtime', () => {
@@ -45,17 +69,42 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=107/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=107/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=113/);
+  assert.match(runtime, /video-slide-runtime\.css\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
-  assert.match(runtime, /Activar sonido y multimedia/);
+  assert.match(runtime, /position_seconds/);
+  assert.match(runtime, /data-video-seek-track/);
+  assert.match(runtime, /Retroceder 10 segundos/);
+  assert.match(runtime, /Avanzar 10 segundos/);
+  assert.match(runtime, /Activar sonido/);
+  assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
+  assert.match(runtime, /data-immersa-media-unlock/);
+  assert.match(runtime, /media:playback_update/);
+  assert.match(runtime, /media:playback/);
+  assert.match(runtime, /playYouTubeWithAutoplayFallback/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /role === 'screen'/);
+  assert.match(runtime, /youtube\.com\/iframe_api/);
+  assert.match(runtime, /cueVideoById/);
+  assert.match(runtime, /playVideo/);
+  assert.match(runtime, /pauseVideo/);
+  assert.match(runtime, /seekTo/);
   assert.match(css, /\.immersa-video-slide/);
+  assert.match(css, /\.immersa-youtube-slide/);
   assert.match(css, /\.video-media-controls/);
+  assert.match(css, /top:\s*50%/);
+  assert.match(css, /\.video-media-controls-row\s*\{[\s\S]*justify-content:\s*center/);
+  assert.match(css, /\.video-media-primary-controls\s*\{[\s\S]*justify-content:\s*center;[\s\S]*width:\s*100%/);
+  assert.match(css, /\[data-video-action="restart"\]\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*0/);
+  assert.match(css, /\[data-video-action="mute"\]\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*0/);
+  assert.match(css, /0 0 30px rgba\(59,\s*130,\s*246,\s*\.12\)/);
+  assert.match(css, /0 0 58px rgba\(139,\s*92,\s*246,\s*\.08\)/);
+  assert.match(css, /\.video-media-progress-fill/);
+  assert.match(css, /linear-gradient\(135deg,\s*#8b5cf6,\s*#3b82f6,\s*#22d3ee\)/);
   assert.match(css, /\.immersa-media-unlock/);
 });

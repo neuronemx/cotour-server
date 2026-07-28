@@ -60,7 +60,7 @@ function request(params) {
   };
 }
 
-test('opening Screen persists and injects its historical presentation session', async (t) => {
+test('opening Screen persists and injects its non-historical draft session', async (t) => {
   const paths = await fixture(t);
   const calls = [];
   const handlers = createAccessLinkHandlers({

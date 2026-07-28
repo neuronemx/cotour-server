@@ -79,6 +79,11 @@ test("audience logo uses contained inner mark while preserving lockup capsule", 
   assert.equal(lockup.padding, "8px");
   assert.equal(lockup["border-radius"], "20px");
   assert.equal(lockup.overflow, "visible");
+  assert.equal(lockup["z-index"], "36");
+  assert.equal(lockup["pointer-events"], "none");
+
+  const topActions = declarations(cssBlock(audienceCss, ".top-actions"));
+  assert.equal(topActions["z-index"], "36");
 });
 
 test("hotfix stays scoped away from speaker logo css and PNG assets", () => {
@@ -114,7 +119,7 @@ test("audience public interactions are centered in the viewport", () => {
 
 test("audience reuses the shared interaction slide scrim", () => {
   assert.equal((audienceIndex.match(/class="interaction-slide-scrim"/g) || []).length, 1);
-  assert.match(audienceIndex, /<section id="slideViewport" class="slide-viewport"[^>]*>[\s\S]*?<\/section>\n    <div class="interaction-slide-scrim" aria-hidden="true"><\/div>\n    <a class="brand-lockup"/);
+  assert.match(audienceIndex, /<section id="slideViewport" class="slide-viewport"[^>]*>[\s\S]*?<\/section>\n    <div class="interaction-slide-scrim" aria-hidden="true"><\/div>\n    <div class="brand-lockup"/);
 
   const scrim = declarations(cssBlock(interactionsCss, ".interaction-slide-scrim"));
   assert.equal(scrim["z-index"], "2");
