@@ -39,6 +39,36 @@
     return String(slide?.id || "slide-" + String(index + 1).padStart(3, "0"));
   }
 
+  function isYouTubeVideo(video) {
+    return String(video?.source?.type || video?.provider || "").toLowerCase() === "youtube";
+  }
+
+  function parseYouTubeUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    let url;
+    try {
+      url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw);
+    } catch (_error) {
+      return null;
+    }
+    const host = url.hostname.toLowerCase().replace(/^(?:www\.|m\.|music\.)/, "");
+    let videoId = "";
+    if (host === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] || "";
+    if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      if (url.pathname === "/watch") videoId = url.searchParams.get("v") || "";
+      else {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0])) videoId = parts[1] || "";
+      }
+    }
+    if (!/^[a-z0-9_-]{11}$/i.test(videoId)) return null;
+    return {
+      videoId,
+      thumbnail: "https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg"
+    };
+  }
+
   function thumbnailStorageKey(video) {
     return "immersa:video-thumbnail:" + String(currentDeck?.deckId || "") + ":" + String(video?.id || "");
   }
@@ -122,7 +152,7 @@
     modal.className = "modal-backdrop video-editor-backdrop";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
-    modal.innerHTML = '<section class="video-editor-modal" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle"><button class="video-editor-close" type="button" aria-label="Cerrar videos">×</button><div class="video-editor-scroll"><header class="video-editor-header"><span class="video-editor-kicker">Multimedia local</span><h2 id="videoEditorTitle">Videos</h2><p id="videoEditorDeckTitle"></p></header><div class="video-editor-status" aria-live="polite"></div><div class="video-editor-body"></div></div></section>';
+    modal.innerHTML = '<section class="video-editor-modal" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle"><button class="video-editor-close" type="button" aria-label="Cerrar videos">×</button><div class="video-editor-scroll"><header class="video-editor-header"><span class="video-editor-kicker">Multimedia</span><h2 id="videoEditorTitle">Videos</h2><p id="videoEditorDeckTitle"></p></header><div class="video-editor-status" aria-live="polite"></div><div class="video-editor-body"></div></div></section>';
     document.body.appendChild(modal);
     bodyNode = modal.querySelector(".video-editor-body");
     statusNode = modal.querySelector(".video-editor-status");
@@ -191,7 +221,7 @@
     if (!config.videos.length) {
       const empty = document.createElement("div");
       empty.className = "video-editor-empty";
-      empty.innerHTML = '<strong>Este deck todavía no tiene videos.</strong><p>Asigna un MP4 a una slide. Immersa guardará su identidad y Screen vinculará después el archivo local.</p>';
+      empty.innerHTML = '<strong>Este deck todavía no tiene videos.</strong><p>Asigna a una slide un archivo MP4 local o un link de YouTube.</p>';
       bodyNode.appendChild(empty);
     } else {
       const stack = document.createElement("div");
@@ -204,14 +234,19 @@
       orderedVideos.forEach((video) => {
         const index = config.slides.findIndex((slide, slideIndex) => slideId(slide, slideIndex) === video.slide_id);
         const thumbnail = storedThumbnail(video);
+        const youtube = isYouTubeVideo(video);
+        const title = youtube ? "YouTube · " + String(video.source?.video_id || "video") : video.file?.name || "Video";
+        const details = youtube
+          ? "Slide " + (index >= 0 ? index + 1 : "no encontrada") + " · Link en línea"
+          : "Slide " + (index >= 0 ? index + 1 : "no encontrada") + " · " + formatDuration(video.duration_seconds) + " · " + formatBytes(video.file?.size);
         const item = document.createElement("article");
         item.className = "video-editor-item" + (thumbnail ? " has-thumbnail" : "") + (config.hidden_slide_ids.includes(video.slide_id) ? " is-hidden" : "");
-        item.innerHTML = '<div class="video-editor-item-copy"><strong>' + escapeHtml(video.file?.name || "Video") + '</strong><span>Slide ' + (index >= 0 ? index + 1 : "no encontrada") + " · " + escapeHtml(formatDuration(video.duration_seconds)) + " · " + escapeHtml(formatBytes(video.file?.size)) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
+        item.innerHTML = '<div class="video-editor-item-copy"><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(details) + '</span><small>' + escapeHtml(behaviorLabel(video)) + (config.hidden_slide_ids.includes(video.slide_id) ? " · apagado" : "") + '</small></div><div class="video-editor-item-actions"></div>';
         if (thumbnail) {
           const image = document.createElement("img");
           image.className = "video-editor-item-thumbnail";
           image.src = thumbnail;
-          image.alt = "Primer frame de " + (video.file?.name || "video");
+          image.alt = youtube ? "Thumbnail del video de YouTube" : "Primer frame de " + (video.file?.name || "video");
           image.draggable = false;
           item.prepend(image);
         }
@@ -255,10 +290,12 @@
       const assigned = config.videos.some((video) => video.slide_id === id && id !== editingSlideId);
       return '<option value="' + escapeHtml(id) + '"' + (assigned ? " disabled" : "") + ">" + (index + 1) + " · " + escapeHtml(slide?.title || id) + (assigned ? " — ya tiene video" : "") + "</option>";
     }).join("");
-    const linkedFile = existing
+    const existingIsYouTube = isYouTubeVideo(existing);
+    const existingLocal = existing && !existingIsYouTube;
+    const linkedFile = existingLocal
       ? '<div class="video-editor-linked-file" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo vinculado</span><strong data-file-name>' + escapeHtml(existing.file?.name || "Archivo registrado") + '</strong><small data-file-size>' + escapeHtml(formatBytes(existing.file?.size)) + '</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Reemplazar MP4</button></div>'
       : '<div class="video-editor-linked-file is-empty" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo MP4</span><strong data-file-name>Ningún archivo seleccionado</strong><small data-file-size>Selecciona el archivo que se utilizará en Screen.</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Seleccionar MP4</button></div>';
-    form.innerHTML = '<div class="video-editor-form-heading"><h3>' + (existing ? "Configuración Multimedia" : "Agregar video") + '</h3><p>El archivo no se sube; Screen lo validará localmente antes de presentar.</p></div><label><span>Slide</span><select name="slide_id" required>' + options + '</select></label><div class="video-editor-file">' + linkedFile + '<input class="video-editor-native-file" name="file" type="file" accept=".mp4,video/mp4" aria-label="Seleccionar archivo MP4"></div><fieldset><legend>Inicio</legend><label class="video-editor-radio"><input type="radio" name="autoplay" value="true" checked><span>Play automático <small>Recomendado</small></span></label><label class="video-editor-radio"><input type="radio" name="autoplay" value="false"><span>Esperar Play de Speaker o Stage</span></label></fieldset><fieldset><legend>Al terminar</legend><label class="video-editor-radio"><input type="radio" name="end_behavior" value="next"><span>Avanzar automáticamente</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="stay" checked><span>Permanecer en esta slide</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="loop"><span>Repetir hasta recibir Siguiente</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-action" data-cancel>Cancelar</button><button type="submit" class="primary-action">' + (existing ? "Guardar configuración" : "Guardar video") + '</button></div>';
+    form.innerHTML = '<div class="video-editor-form-heading"><h3>' + (existing ? "Configuración Multimedia" : "Agregar video") + '</h3><p>Elige un MP4 local o pega un link de YouTube.</p></div><label><span>Slide</span><select name="slide_id" required>' + options + '</select></label><fieldset class="video-editor-source-choice"><legend>Fuente</legend><label class="video-editor-radio"><input type="radio" name="source_type" value="local"' + (existingIsYouTube ? "" : " checked") + '><span>Archivo MP4</span></label><label class="video-editor-radio"><input type="radio" name="source_type" value="youtube"' + (existingIsYouTube ? " checked" : "") + '><span>Link de YouTube</span></label></fieldset><div class="video-editor-file" data-local-source>' + linkedFile + '<input class="video-editor-native-file" name="file" type="file" accept=".mp4,video/mp4" aria-label="Seleccionar archivo MP4"></div><label class="video-editor-youtube" data-youtube-source><span>Link de YouTube</span><input name="youtube_url" type="text" inputmode="url" autocomplete="off" placeholder="https://youtu.be/..." value="' + escapeHtml(existingIsYouTube ? existing.source?.url || "" : "") + '"><small data-youtube-help>Puedes usar links normales, youtu.be, Shorts o Embed.</small><img data-youtube-preview alt="" hidden></label><fieldset><legend>Inicio</legend><label class="video-editor-radio"><input type="radio" name="autoplay" value="true" checked><span>Play automático <small>Recomendado</small></span></label><label class="video-editor-radio"><input type="radio" name="autoplay" value="false"><span>Esperar Play de Speaker o Stage</span></label></fieldset><fieldset><legend>Al terminar</legend><label class="video-editor-radio"><input type="radio" name="end_behavior" value="next"><span>Avanzar automáticamente</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="stay" checked><span>Permanecer en esta slide</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="loop"><span>Repetir hasta recibir Siguiente</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-action" data-cancel>Cancelar</button><button type="submit" class="primary-action">' + (existing ? "Guardar configuración" : "Guardar video") + '</button></div>';
     bodyNode.appendChild(form);
 
     const slideSelect = form.elements.slide_id;
@@ -271,8 +308,13 @@
     const sizeNode = form.querySelector("[data-file-size]");
     const previewNode = form.querySelector("[data-file-preview]");
     const badgeNode = form.querySelector("[data-file-badge]");
-    let selectedThumbnail = existing ? storedThumbnail(existing) : "";
-    let selectedDuration = Number(existing?.duration_seconds) || null;
+    const localSourceNode = form.querySelector("[data-local-source]");
+    const youtubeSourceNode = form.querySelector("[data-youtube-source]");
+    const youtubeInput = form.elements.youtube_url;
+    const youtubeHelp = form.querySelector("[data-youtube-help]");
+    const youtubePreview = form.querySelector("[data-youtube-preview]");
+    let selectedThumbnail = existingLocal ? storedThumbnail(existing) : "";
+    let selectedDuration = Number(existingLocal ? existing?.duration_seconds : 0) || null;
     let thumbnailPromise = null;
 
     function showThumbnail(value) {
@@ -289,6 +331,26 @@
     }
 
     showThumbnail(selectedThumbnail);
+    function syncSource() {
+      const youtube = form.elements.source_type.value === "youtube";
+      localSourceNode.hidden = youtube;
+      youtubeSourceNode.hidden = !youtube;
+      if (!youtube) return;
+      const parsed = parseYouTubeUrl(youtubeInput.value);
+      youtubeInput.setCustomValidity(youtubeInput.value && !parsed ? "Pega un link válido de YouTube." : "");
+      youtubeHelp.textContent = parsed ? "Video reconocido · " + parsed.videoId : "Puedes usar links normales, youtu.be, Shorts o Embed.";
+      youtubePreview.hidden = !parsed;
+      if (parsed) {
+        youtubePreview.src = parsed.thumbnail;
+        youtubePreview.alt = "Thumbnail del video de YouTube";
+      } else {
+        youtubePreview.removeAttribute("src");
+        youtubePreview.alt = "";
+      }
+    }
+    form.querySelectorAll('input[name="source_type"]').forEach((input) => input.addEventListener("change", syncSource));
+    youtubeInput.addEventListener("input", syncSource);
+    syncSource();
     form.querySelector("[data-select-file]").addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => {
       const file = fileInput.files[0];
@@ -309,25 +371,32 @@
     form.querySelector("[data-cancel]").addEventListener("click", renderList);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const sourceType = form.elements.source_type.value;
       const file = fileInput.files[0];
-      if (!existing && !file) return setStatus("Selecciona un archivo MP4.", "error");
-      if (file && !/\.mp4$/i.test(file.name)) return setStatus("El archivo debe ser MP4.", "error");
+      const currentLocalFile = existingLocal ? existing.file : null;
+      const youtube = sourceType === "youtube" ? parseYouTubeUrl(youtubeInput.value) : null;
+      if (sourceType === "local" && !file && !currentLocalFile) return setStatus("Selecciona un archivo MP4.", "error");
+      if (sourceType === "local" && file && !/\.mp4$/i.test(file.name)) return setStatus("El archivo debe ser MP4.", "error");
+      if (sourceType === "youtube" && !youtube) return setStatus("Pega un link válido de YouTube.", "error");
       try {
         setStatus("Guardando…");
-        if (thumbnailPromise) await thumbnailPromise;
+        if (sourceType === "local" && thumbnailPromise) await thumbnailPromise;
         const video = {
           id: existing?.id || "vid_" + Date.now().toString(36),
           slide_id: slideSelect.value,
-          file: file ? { name: file.name, size: file.size, type: file.type || "video/mp4", last_modified: file.lastModified || null } : existing.file,
+          source: sourceType === "youtube" ? { type: "youtube", url: youtubeInput.value.trim() } : { type: "local" },
+          file: sourceType === "local"
+            ? file ? { name: file.name, size: file.size, type: file.type || "video/mp4", last_modified: file.lastModified || null } : currentLocalFile
+            : null,
           playback: {
             autoplay: form.elements.autoplay.value === "true",
             end_behavior: form.elements.end_behavior.value,
             muted: false
           },
-          duration_seconds: selectedDuration,
-          preview: /^data:image\/jpeg;base64,/i.test(selectedThumbnail)
+          duration_seconds: sourceType === "local" ? selectedDuration : null,
+          preview: sourceType === "local" && /^data:image\/jpeg;base64,/i.test(selectedThumbnail)
             ? { data_url: selectedThumbnail, width: 320, height: 180 }
-            : file ? null : existing?.preview || null
+            : sourceType === "local" && !file ? existing?.preview || null : null
         };
         const next = config.videos.filter((item) => item.slide_id !== editingSlideId && item.slide_id !== video.slide_id);
         next.push(video);
@@ -377,7 +446,7 @@
     button.type = "button";
     button.className = "detail-role-action role-videos";
     button.textContent = "Videos";
-    button.title = "Asignar y configurar videos locales de este deck";
+    button.title = "Asignar archivos MP4 o links de YouTube a este deck";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       openModal(deck);

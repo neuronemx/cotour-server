@@ -131,11 +131,15 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(videos, /function captureFirstFrame\(file\)/);
   assert.match(videos, /canvas\.toDataURL\("image\/jpeg", \.76\)/);
   assert.match(videos, /video\?\.preview\?\.url/);
-  assert.match(videos, /duration_seconds: selectedDuration/);
+  assert.match(videos, /duration_seconds: sourceType === "local" \? selectedDuration : null/);
   assert.match(videos, /orderedVideos/);
   assert.match(videos, /image\.draggable = false/);
   assert.match(videos, /bodyNode\.appendChild\(add\)/);
+  assert.match(videos, /Link de YouTube/);
+  assert.match(videos, /parseYouTubeUrl/);
+  assert.match(videos, /source_type/);
   assert.match(videosCss, /video-editor-item-thumbnail/);
+  assert.match(videosCss, /video-editor-youtube/);
   assert.match(videosCss, /aspect-ratio:16\/9/);
   assert.match(videosCss, /pointer-events:none/);
 });

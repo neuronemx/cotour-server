@@ -11,6 +11,8 @@ test('video slide manifest entries are detected and normalized', () => {
   assert.equal(videoSlides.isVideoSlide({ type: 'video', src: 'slides/clip.bin' }), true);
   assert.equal(videoSlides.isVideoSlide({ src: 'slides/slide-007.mp4' }), true);
   assert.equal(videoSlides.isVideoSlide({ src: 'slides/slide-007.jpg' }), false);
+  assert.equal(videoSlides.isYouTubeSlide({ videoProvider: 'youtube', youtubeVideoId: 'M7lc1UVf-VE' }), true);
+  assert.equal(videoSlides.isYouTubeSlide({ videoProvider: 'youtube', youtubeVideoId: 'invalid' }), false);
   assert.equal(videoSlides.posterPath({ poster: 'poster.jpg', thumb: 'thumb.jpg' }), 'poster.jpg');
   assert.equal(videoSlides.posterPath({ thumb: 'thumb.jpg' }), 'thumb.jpg');
   assert.equal(videoSlides.assetUrl('sales-deck', 'slides/slide-007.mp4'), '/decks/sales-deck/slides/slide-007.mp4');
@@ -45,17 +47,23 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=107/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=107/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=108/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=108/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=108/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=107/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=108/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /role === 'screen'/);
+  assert.match(runtime, /youtube\.com\/iframe_api/);
+  assert.match(runtime, /cueVideoById/);
+  assert.match(runtime, /playVideo/);
+  assert.match(runtime, /pauseVideo/);
+  assert.match(runtime, /seekTo/);
   assert.match(css, /\.immersa-video-slide/);
+  assert.match(css, /\.immersa-youtube-slide/);
   assert.match(css, /\.video-media-controls/);
   assert.match(css, /\.immersa-media-unlock/);
 });

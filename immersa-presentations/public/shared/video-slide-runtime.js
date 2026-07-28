@@ -18,6 +18,11 @@
     return Boolean(item && (String(item.type || '').toLowerCase() === 'video' || VIDEO_RE.test(String(item.src || ''))));
   }
 
+  function isYouTubeSlide(item) {
+    return String(item?.videoProvider || '').toLowerCase() === 'youtube'
+      && /^[a-z0-9_-]{11}$/i.test(String(item?.youtubeVideoId || ''));
+  }
+
   function posterPath(item) {
     return String(item?.poster || item?.thumb || item?.fallback || '').trim();
   }
@@ -27,6 +32,39 @@
     if (!path) return '';
     if (/^(?:https?:)?\/\//i.test(path) || /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('/')) return path;
     return '/decks/' + encodeURIComponent(deckId) + '/' + path.replace(/^\/+/, '');
+  }
+
+  function loadYouTubeApi(document) {
+    if (root.YT?.Player) return Promise.resolve(root.YT);
+    if (root.__immersaYouTubeApiPromise) return root.__immersaYouTubeApiPromise;
+    root.__immersaYouTubeApiPromise = new Promise((resolve, reject) => {
+      const previousReady = root.onYouTubeIframeAPIReady;
+      let settled = false;
+      const finish = () => {
+        if (settled || !root.YT?.Player) return;
+        settled = true;
+        resolve(root.YT);
+      };
+      root.onYouTubeIframeAPIReady = function () {
+        if (typeof previousReady === 'function') previousReady();
+        finish();
+      };
+      let script = document.querySelector('script[data-immersa-youtube-api]');
+      if (!script) {
+        script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        script.dataset.immersaYoutubeApi = '1';
+        document.head.appendChild(script);
+      }
+      script.addEventListener?.('load', finish, { once: true });
+      script.addEventListener?.('error', () => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('YouTube player unavailable'));
+      }, { once: true });
+    });
+    return root.__immersaYouTubeApiPromise;
   }
 
   function defaultMediaState(item, slideIndex) {
@@ -62,7 +100,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=107';
+    link.href = '/shared/video-slide-runtime.css?v=108';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }
@@ -89,6 +127,11 @@
     let activeIndex = -1;
     let activeItem = null;
     let video = null;
+    let youtubeHost = null;
+    let youtubePlayer = null;
+    let youtubePlayerPromise = null;
+    let youtubePendingState = null;
+    let youtubeLoadedIndex = -1;
     let controls = null;
     let unlockButton = null;
     let lastAppliedRevision = null;
@@ -166,6 +209,86 @@
       return video;
     }
 
+    function requestAdvance(item, index) {
+      if (String(item?.endBehavior || '') !== 'next') return;
+      if (root.ImmersaLocalMedia?.handleEnded) {
+        root.ImmersaLocalMedia.handleEnded({ slideIndex: index, item });
+        return;
+      }
+      mainSocket.emit('media:advance_request', { slideIndex: Number(index), nextSlideIndex: Number(index) + 1 });
+    }
+
+    function youtubePlayerVars(item) {
+      const origin = String(location.origin || root.location?.origin || '');
+      return {
+        autoplay: 0,
+        controls: 0,
+        disablekb: 1,
+        enablejsapi: 1,
+        fs: 0,
+        iv_load_policy: 3,
+        playsinline: 1,
+        rel: 0,
+        ...(origin && origin !== 'null' ? { origin } : {})
+      };
+    }
+
+    function ensureYouTube(item, index) {
+      const host = hostElement();
+      if (!host) return Promise.resolve(null);
+      if (!youtubeHost) {
+        youtubeHost = document.createElement('div');
+        youtubeHost.className = 'immersa-youtube-slide';
+        youtubeHost.dataset.youtubeSlide = '1';
+        youtubeHost.hidden = false;
+        const target = document.createElement('div');
+        target.dataset.youtubeTarget = '1';
+        youtubeHost.appendChild(target);
+        host.appendChild(youtubeHost);
+        youtubePlayerPromise = loadYouTubeApi(document).then((YT) => new Promise((resolve) => {
+          youtubePlayer = new YT.Player(target, {
+            width: '100%',
+            height: '100%',
+            videoId: String(item.youtubeVideoId),
+            playerVars: youtubePlayerVars(item),
+            events: {
+              onReady: (event) => resolve(event.target),
+              onStateChange: (event) => {
+                if (event.data !== root.YT?.PlayerState?.ENDED || !isYouTubeSlide(activeItem)) return;
+                if (activeItem.loop) {
+                  event.target.seekTo(Math.max(0, Number(activeItem.youtubeStartSeconds) || 0), true);
+                  event.target.playVideo();
+                } else {
+                  requestAdvance(activeItem, activeIndex);
+                }
+              },
+              onError: showYouTubeError
+            }
+          });
+        })).then((player) => {
+          if (youtubePendingState) {
+            const pending = youtubePendingState;
+            youtubePendingState = null;
+            applyYouTubeState(pending.item, pending.state, pending.index);
+          }
+          return player;
+        }).catch((error) => {
+          console.warn('Unable to initialize YouTube video', error.message);
+          showYouTubeError();
+          return null;
+        });
+      }
+      if (youtubeLoadedIndex !== index && youtubePlayer) {
+        youtubeLoadedIndex = index;
+        lastAppliedRevision = null;
+        youtubePlayer.cueVideoById({
+          videoId: String(item.youtubeVideoId),
+          startSeconds: Math.max(0, Number(item.youtubeStartSeconds) || 0)
+        });
+      }
+      return youtubePlayerPromise || Promise.resolve(youtubePlayer);
+    }
+
     function removeUnlock() {
       unlockButton?.remove();
       unlockButton = null;
@@ -179,6 +302,16 @@
       unlockButton.dataset.immersaMediaUnlock = '1';
       unlockButton.textContent = '🔊 Activar sonido y multimedia';
       unlockButton.addEventListener('click', async () => {
+        if (isYouTubeSlide(activeItem)) {
+          const player = await ensureYouTube(activeItem, activeIndex);
+          if (!player) return;
+          const media = effectiveMediaState(lastState, activeItem, activeIndex);
+          if (media.muted) player.mute();
+          else player.unMute();
+          player.playVideo();
+          removeUnlock();
+          return;
+        }
         if (!video) return;
         try {
           video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
@@ -189,6 +322,53 @@
         }
       });
       document.body.appendChild(unlockButton);
+    }
+
+    function showYouTubeError() {
+      ensureUnlock();
+      if (!unlockButton) return;
+      unlockButton.textContent = 'YouTube no está disponible';
+      unlockButton.disabled = true;
+    }
+
+    function applyYouTubeState(item, state, index) {
+      const image = slideElement();
+      const media = effectiveMediaState(state, item, index);
+      youtubePendingState = { item, state, index };
+      if (image) image.style.visibility = 'hidden';
+      if (youtubeHost) youtubeHost.hidden = false;
+      ensureYouTube(item, index).then((player) => {
+        if (!player || activeIndex !== index || !isYouTubeSlide(activeItem)) return;
+        youtubePendingState = null;
+        if (youtubeHost) youtubeHost.hidden = false;
+        if (youtubeLoadedIndex !== index) {
+          youtubeLoadedIndex = index;
+          lastAppliedRevision = null;
+          player.cueVideoById({
+            videoId: String(item.youtubeVideoId),
+            startSeconds: Math.max(0, Number(item.youtubeStartSeconds) || 0)
+          });
+        }
+        const revision = String(media.revision ?? '0');
+        if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter')) {
+          player.seekTo(Math.max(0, Number(item.youtubeStartSeconds) || 0), true);
+        }
+        lastAppliedRevision = revision;
+        if (media.muted) player.mute();
+        else player.unMute();
+        if (media.playing) {
+          player.playVideo();
+          root.setTimeout?.(() => {
+            const playerState = player.getPlayerState?.();
+            const playing = playerState === root.YT?.PlayerState?.PLAYING;
+            const buffering = playerState === root.YT?.PlayerState?.BUFFERING;
+            if (!playing && !buffering) ensureUnlock();
+          }, 700);
+        } else {
+          player.pauseVideo();
+          removeUnlock();
+        }
+      });
     }
 
     function applyVideoState(item, state, index) {
@@ -241,6 +421,17 @@
         video.pause();
         video.hidden = true;
       }
+    }
+
+    function hideYouTube() {
+      youtubePendingState = null;
+      youtubePlayer?.pauseVideo?.();
+      if (youtubeHost) youtubeHost.hidden = true;
+    }
+
+    function hidePlayers() {
+      hideVideo();
+      hideYouTube();
       const image = slideElement();
       if (image) image.style.visibility = '';
       removeUnlock();
@@ -313,7 +504,7 @@
       activeItem = item;
 
       if (!isVideoSlide(item)) {
-        hideVideo();
+        hidePlayers();
         if (controls) controls.hidden = true;
         if (changed) lastInitializedIndex = -1;
         return;
@@ -323,8 +514,15 @@
       syncControls(state, item, index);
       maybeInitializeController(state, item, index);
 
-      if (role === 'screen') applyVideoState(item, state, index);
-      else hideVideo();
+      if (role === 'screen' && isYouTubeSlide(item)) {
+        hideVideo();
+        applyYouTubeState(item, state, index);
+      } else if (role === 'screen') {
+        hideYouTube();
+        applyVideoState(item, state, index);
+      } else {
+        hidePlayers();
+      }
     }
 
     async function loadManifest() {
@@ -376,8 +574,10 @@
   return {
     roleFromPath,
     isVideoSlide,
+    isYouTubeSlide,
     posterPath,
     assetUrl,
+    loadYouTubeApi,
     defaultMediaState,
     effectiveMediaState,
     currentIndex,

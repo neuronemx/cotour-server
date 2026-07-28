@@ -157,6 +157,71 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     return Math.round(duration * 1000) / 1000;
   }
 
+  function normalizeYouTubeStart(value) {
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (!raw) return 0;
+    if (/^\d+(?:\.\d+)?$/.test(raw)) return Math.max(0, Math.floor(Number(raw)));
+    if (/^\d{1,2}:\d{1,2}(?::\d{1,2})?$/.test(raw)) {
+      const parts = raw.split(":").map(Number);
+      return Math.max(0, parts.reduce((total, part) => total * 60 + part, 0));
+    }
+    const match = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(raw);
+    if (!match || !match[0]) return 0;
+    return (Number(match[1]) || 0) * 3600 + (Number(match[2]) || 0) * 60 + (Number(match[3]) || 0);
+  }
+
+  function parseYouTubeUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    let parsed;
+    try {
+      parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw);
+    } catch (_error) {
+      return null;
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    const host = parsed.hostname.toLowerCase().replace(/^(?:www\.|m\.|music\.)/, "");
+    let videoId = "";
+    if (host === "youtu.be") {
+      videoId = parsed.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      if (parsed.pathname === "/watch") videoId = parsed.searchParams.get("v") || "";
+      else {
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0])) videoId = parts[1] || "";
+      }
+    }
+    if (!/^[a-z0-9_-]{11}$/i.test(videoId)) return null;
+    const startSeconds = normalizeYouTubeStart(parsed.searchParams.get("start") || parsed.searchParams.get("t"));
+    return {
+      type: "youtube",
+      video_id: videoId,
+      url: "https://www.youtube.com/watch?v=" + videoId + (startSeconds ? "&t=" + startSeconds + "s" : ""),
+      start_seconds: startSeconds
+    };
+  }
+
+  function normalizeVideoSource(item) {
+    const requestedType = String(item?.source?.type || item?.source_type || item?.provider || "").trim().toLowerCase();
+    const youtubeValue = item?.source?.url || item?.youtube_url || item?.url || "";
+    if (requestedType !== "youtube" && !youtubeValue) return { type: "local" };
+    const source = parseYouTubeUrl(youtubeValue);
+    if (!source) {
+      const error = new Error("El link de YouTube no es válido");
+      error.statusCode = 400;
+      throw error;
+    }
+    const explicitStart = item?.source?.start_seconds ?? item?.start_seconds;
+    const startSeconds = explicitStart === undefined || explicitStart === null || explicitStart === ""
+      ? source.start_seconds
+      : normalizeYouTubeStart(explicitStart);
+    return {
+      ...source,
+      url: "https://www.youtube.com/watch?v=" + source.video_id + (startSeconds ? "&t=" + startSeconds + "s" : ""),
+      start_seconds: startSeconds
+    };
+  }
+
   function previewUrlPrefix(deckId) {
     return "/decks/" + deckId + "/video-previews/";
   }
@@ -176,28 +241,37 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
 
   function normalizeVideo(item, index, deckId) {
     const slideId = String(item?.slide_id || "").trim();
+    const source = normalizeVideoSource(item);
     const fileName = String(item?.file?.name || item?.file_name || "").trim();
-    if (!slideId || !fileName) {
-      const error = new Error("Video slide and file name are required");
+    if (!slideId || (source.type === "local" && !fileName)) {
+      const error = new Error(source.type === "youtube" ? "Video slide is required" : "Video slide and file name are required");
       error.statusCode = 400;
       throw error;
     }
+    const preview = source.type === "youtube"
+      ? {
+        url: "https://i.ytimg.com/vi/" + source.video_id + "/mqdefault.jpg",
+        width: VIDEO_PREVIEW_WIDTH,
+        height: VIDEO_PREVIEW_HEIGHT
+      }
+      : normalizePreview(item, deckId);
     return {
       id: normalizeVideoId(item?.id, index),
       slide_id: slideId,
-      file: {
+      source,
+      file: source.type === "local" ? {
         name: fileName,
         size: Math.max(0, Number(item?.file?.size || item?.file_size || 0) || 0),
         type: String(item?.file?.type || item?.file_type || "video/mp4").trim() || "video/mp4",
         last_modified: Number(item?.file?.last_modified || item?.last_modified || 0) || null
-      },
+      } : null,
       playback: {
         autoplay: item?.playback?.autoplay !== false,
         end_behavior: normalizeEndBehavior(item?.playback?.end_behavior),
         muted: Boolean(item?.playback?.muted)
       },
-      duration_seconds: normalizeDuration(item?.duration_seconds || item?.duration),
-      preview: normalizePreview(item, deckId)
+      duration_seconds: source.type === "local" ? normalizeDuration(item?.duration_seconds || item?.duration) : null,
+      preview
     };
   }
 
