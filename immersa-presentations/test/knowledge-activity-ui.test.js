@@ -119,7 +119,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /\(selectedAssessmentIndex \+ 1\) \+ "\/" \+ questions\.length/);
   assert.match(source, /timerMarkup\(state\.deadlineAt, state, "knowledge-assessment-hud-timer"\)/);
   assert.doesNotMatch(source, /knowledge-assessment-card"><header>/);
-  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?right: max\(14px, env\(safe-area-inset-right\)\);/);
+  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?right: calc\(max\(14px, env\(safe-area-inset-right\)\) \+ 50px\);/);
   assert.match(source, /knowledge-submission-receipt/);
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
@@ -398,6 +398,16 @@ test("Público announces every real contest question with flash and supplied aud
   assert.match(css, /\.knowledge-screen-overlay\.is-question-flash::after/);
   assert.match(css, /\.knowledge-screen-card \.knowledge-timer \{[\s\S]*?font: 900 clamp\(42px, 5\.5vw, 78px\)/);
   assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/NextQuestion.mp3")).size > 0, true);
+});
+
+test("Público announces a Speaker-released assessment grade with flash and display audio", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /\/assets\/audio\/contests\/display\.mp3/);
+  assert.match(source, /function isAssessmentGradeReveal/);
+  assert.match(source, /assessmentGrade\(previous\) === null/);
+  assert.match(source, /assessmentGrade\(next\) !== null/);
+  assert.match(source, /if \(revealedAssessmentGrade\) \{[\s\S]*?flashQuestion\(\);[\s\S]*?audienceAudio\.play\("display"\)/);
+  assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests/display.mp3")).size > 0, true);
 });
 
 test("Screen contest runtime initializes when NextQuestion audio belongs only to Público", () => {

@@ -149,7 +149,8 @@
     const tracks = {
       join: new global.Audio("/assets/audio/contests/click1.mp3"),
       answer: new global.Audio("/assets/audio/contests/click2.mp3"),
-      nextQuestion: new global.Audio("/assets/audio/contests/NextQuestion.mp3")
+      nextQuestion: new global.Audio("/assets/audio/contests/NextQuestion.mp3"),
+      display: new global.Audio("/assets/audio/contests/display.mp3")
     };
     Object.values(tracks).forEach((track) => { track.preload = "auto"; });
     let primed = false;
@@ -157,12 +158,13 @@
     function primeDeferredTracks() {
       if (primed) return;
       primed = true;
-      const track = tracks.nextQuestion;
-      track.muted = true;
-      Promise.resolve(track.play()).catch(() => {}).then(() => {
-        track.pause();
-        try { track.currentTime = 0; } catch (_error) {}
-        track.muted = false;
+      [tracks.nextQuestion, tracks.display].forEach((track) => {
+        track.muted = true;
+        Promise.resolve(track.play()).catch(() => {}).then(() => {
+          track.pause();
+          try { track.currentTime = 0; } catch (_error) {}
+          track.muted = false;
+        });
       });
     }
 
@@ -722,6 +724,7 @@
 
     socket.on("interaction:execution:state", (next) => {
       const previous = state;
+      const revealedAssessmentGrade = isAssessmentGradeReveal(previous, next);
       const sameAssessmentExecution = Boolean(
         next?.category === "assessment"
         && previous?.category === "assessment"
@@ -748,6 +751,10 @@
       if (enteredQuestion && state.participant) {
         flashQuestion();
         audienceAudio.play("nextQuestion");
+      }
+      if (revealedAssessmentGrade) {
+        flashQuestion();
+        audienceAudio.play("display");
       }
       if (pending && socket.connected && pending.executionId === state?.executionId && !confirmed && state?.state === "ACTIVE") {
         if (state.category === "assessment" || state.currentQuestion?.id === pending.questionId) {
@@ -781,6 +788,22 @@
       && next.currentQuestion?.id
       && previous?.executionId === next.executionId
       && (previous.state !== "ACTIVE" || previous.currentQuestion?.id !== next.currentQuestion.id)
+    );
+  }
+
+  function assessmentGrade(state) {
+    const grade = Number(state?.submissionReceipt?.grade ?? state?.personalResult?.grade);
+    return Number.isFinite(grade) ? grade : null;
+  }
+
+  function isAssessmentGradeReveal(previous, next) {
+    return Boolean(
+      previous?.category === "assessment"
+      && next?.category === "assessment"
+      && previous.executionId === next.executionId
+      && (previous.participant?.submittedAt || previous.submittedAt)
+      && assessmentGrade(previous) === null
+      && assessmentGrade(next) !== null
     );
   }
 

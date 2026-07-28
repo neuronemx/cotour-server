@@ -877,17 +877,14 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       } : null;
     }
   } else if (participant.submittedAt) {
-    const correctCount = ownAnswers.filter((answer) => answer.correct).length;
     const totalQuestions = execution.definition.questions.length;
     audience.submissionReceipt = {
       submittedAt: participant.submittedAt,
       answeredCount: ownAnswers.length,
-      totalQuestions,
-      grade: totalQuestions
-        ? Math.round((correctCount / totalQuestions) * 10000) / 100
-        : 0
+      totalQuestions
     };
     if (execution.resultsVisible && ownResult) {
+      audience.submissionReceipt.grade = ownResult.grade;
       audience.personalResult = { grade: ownResult.grade };
     }
   } else if (execution.state === "ACTIVE") {

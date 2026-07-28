@@ -437,7 +437,7 @@ test("role payloads keep assessment answers private and expose only released gra
   assert.equal(Object.prototype.hasOwnProperty.call(visible.personalResult, "answers"), false);
 });
 
-test("submitted assessments expose an immediate private receipt grade without answer keys", () => {
+test("submitted assessments withhold the receipt grade until Speaker releases results", () => {
   const item = execution("assessment");
   joinParticipant(item, { participantId: "p1", tabId: "tab-1", name: "Arturo", random: () => 0.999 });
   controllerCommand(item, {
@@ -460,10 +460,34 @@ test("submitted assessments expose an immediate private receipt grade without an
   assert.deepEqual(audience.submissionReceipt, {
     submittedAt: new Date(8100).toISOString(),
     answeredCount: 1,
-    totalQuestions: 2,
-    grade: 50
+    totalQuestions: 2
   });
   assert.equal(audience.personalResult, null);
   assert.equal(audience.questions.length, 0);
   assert.equal(Object.prototype.hasOwnProperty.call(audience.submissionReceipt, "answers"), false);
+
+  finalizeExecution(item, 9000);
+  forceResults(item, { nowMs: 9001 });
+  const ready = stateForRole(item, {
+    role: "audience",
+    participantId: "p1",
+    tabId: "tab-1",
+    nowMs: 9100
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(ready.submissionReceipt, "grade"), false);
+
+  controllerCommand(item, {
+    commandId: "show-receipt-grade",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "show_results",
+    nowMs: 10000
+  });
+  const released = stateForRole(item, {
+    role: "audience",
+    participantId: "p1",
+    tabId: "tab-1",
+    nowMs: 10100
+  });
+  assert.equal(released.submissionReceipt.grade, 50);
 });
