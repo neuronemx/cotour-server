@@ -29,6 +29,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const AUTO_START_AUDIENCE_THRESHOLD = 10;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const STATIC_DECKS_DIR = path.join(PUBLIC_DIR, "decks");
 const DATA_DIR = process.env.IMMERSA_DATA_DIR
@@ -94,6 +95,9 @@ const presentationLifecycleRuntime = lifecyclePool
         raffleSockets.resetSession(context);
         gameQueueSockets.resetSession(context);
       },
+      preserveAutomaticStart: async (context) => (
+        activeInteractionCoordinator.hasAnyActive(context.sessionId)
+      ),
       afterStart: async (context, state) => {
         await qnaRuntime.resetSessionState?.({
           deckId: context.deckId,
@@ -124,6 +128,7 @@ const presentationLifecycleRuntime = lifecyclePool
     })
   : {
       attach() {},
+      async startAutomatically() {},
       async sendCurrentState(socket) {
         socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
       }
@@ -499,6 +504,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     presenterConnected: false,
     screenConnected: false,
     stageConnected: false,
+    automaticLifecycleStarted: false,
     audience: new Map(),
     overlays: {
       reactionsOnScreen: true,
@@ -774,6 +780,17 @@ io.on("connection", (socket) => {
       audienceId: currentAudienceId
     };
     emitState(currentRoomKey, session);
+    if (
+      role === "audience"
+      && session.audience.size >= AUTO_START_AUDIENCE_THRESHOLD
+      && !session.automaticLifecycleStarted
+    ) {
+      session.automaticLifecycleStarted = true;
+      void presentationLifecycleRuntime.startAutomatically(joinedContext)
+        .then((state) => {
+          if (state?.mode !== "live") session.automaticLifecycleStarted = false;
+        });
+    }
 
     const snapshotJobs = [
       ["game queue", () => gameQueueSockets.sendCurrentState(socket, joinedContext)],

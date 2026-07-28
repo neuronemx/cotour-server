@@ -81,28 +81,31 @@ class PresentationLifecycleRepository {
     return presentationSessionId;
   }
 
-  async start(payload) {
+  async start(payload, options = {}) {
     const deckId = required(payload?.deckId, "deckId");
     const sourceSessionId = required(payload?.sourceSessionId, "sourceSessionId");
+    const preserveTestData = Boolean(options.preserveTestData);
     return inTransaction(this.pool, async (connection) => {
       let active = await this.activeRow(connection, { deckId, sourceSessionId }, true);
       if (active?.recording_started_at) return rowState(active);
       const presentationSessionId = active?.id
         || await this.insertDraft(connection, { deckId, sourceSessionId });
 
-      await connection.execute(
-        "DELETE FROM knowledge_activity_executions WHERE presentation_session_id = ?",
-        [presentationSessionId]
-      );
-      await connection.execute(
-        "DELETE FROM qna_rounds WHERE presentation_session_id = ?",
-        [presentationSessionId]
-      );
-      await connection.execute(
-        `INSERT INTO qna_rounds (id, presentation_session_id, round_number, questions_open)
-         VALUES (?, ?, 1, 0)`,
-        [this.createId(), presentationSessionId]
-      );
+      if (!preserveTestData) {
+        await connection.execute(
+          "DELETE FROM knowledge_activity_executions WHERE presentation_session_id = ?",
+          [presentationSessionId]
+        );
+        await connection.execute(
+          "DELETE FROM qna_rounds WHERE presentation_session_id = ?",
+          [presentationSessionId]
+        );
+        await connection.execute(
+          `INSERT INTO qna_rounds (id, presentation_session_id, round_number, questions_open)
+           VALUES (?, ?, 1, 0)`,
+          [this.createId(), presentationSessionId]
+        );
+      }
       await connection.execute(
         `UPDATE presentation_sessions
          SET started_at = CURRENT_TIMESTAMP(3),
@@ -146,6 +149,7 @@ function createPresentationLifecycleRuntime({
   getRoleRoomKey,
   beforeStart = async () => {},
   afterStart = async () => {},
+  preserveAutomaticStart = async () => false,
   beforeFinish = async () => ({ ok: true }),
   afterFinish = async () => {},
   logger = console
@@ -196,6 +200,24 @@ function createPresentationLifecycleRuntime({
     return Boolean(context?.roomKey && context?.sessionId && context?.deckId && CONTROL_ROLES.has(context.role));
   }
 
+  function validAutomaticStart(context) {
+    return Boolean(context?.roomKey && context?.sessionId && context?.deckId && context.role === "audience");
+  }
+
+  async function start(context, { automatic = false } = {}) {
+    const state = await withLock(context, async () => {
+      const current = await repository.state(payload(context));
+      if (current.mode === "live") return current;
+      const preserveTestData = automatic && Boolean(await preserveAutomaticStart(context));
+      if (!preserveTestData) await beforeStart(context);
+      const started = await repository.start(payload(context), { preserveTestData });
+      if (!preserveTestData) await afterStart(context, started);
+      return started;
+    });
+    emitState(context, state);
+    return state;
+  }
+
   function attach(socket, getContext) {
     socket.on("presentation:lifecycle:request", async () => {
       const context = getContext();
@@ -212,15 +234,7 @@ function createPresentationLifecycleRuntime({
       const context = getContext();
       if (!validControl(context)) return;
       try {
-        const state = await withLock(context, async () => {
-          const current = await repository.state(payload(context));
-          if (current.mode === "live") return current;
-          await beforeStart(context);
-          const started = await repository.start(payload(context));
-          await afterStart(context, started);
-          return started;
-        });
-        emitState(context, state);
+        await start(context);
       } catch (error) {
         logger.error("Unable to start presentation lifecycle", error);
         reject(socket, "start", error);
@@ -256,7 +270,17 @@ function createPresentationLifecycleRuntime({
     socket.emit("presentation:lifecycle:state", await repository.state(payload(context)));
   }
 
-  return { attach, sendCurrentState, emitState };
+  async function startAutomatically(context) {
+    if (!validAutomaticStart(context)) return null;
+    try {
+      return await start(context, { automatic: true });
+    } catch (error) {
+      logger.error("Unable to start presentation lifecycle automatically", error);
+      return null;
+    }
+  }
+
+  return { attach, sendCurrentState, startAutomatically, emitState };
 }
 
 module.exports = {

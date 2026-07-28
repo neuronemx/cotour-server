@@ -88,6 +88,37 @@ test("starting promotes the draft session after deleting all test answers", asyn
   assert.equal(pool.calls.some((call) => call.kind === "commit"), true);
 });
 
+test("automatic promotion preserves an active interaction and its test data", async () => {
+  const draft = {
+    id: "draft-active",
+    deck_id: "deck-a",
+    source_session_id: "source-a",
+    recording_started_at: null
+  };
+  const live = {
+    ...draft,
+    recording_started_at: new Date("2026-07-28T10:00:00.000Z")
+  };
+  const pool = fakePool([
+    [[draft], []],
+    [{ affectedRows: 1 }, []],
+    [[live], []]
+  ]);
+  const repository = new PresentationLifecycleRepository(pool);
+
+  const state = await repository.start(
+    { deckId: "deck-a", sourceSessionId: "source-a" },
+    { preserveTestData: true }
+  );
+
+  assert.equal(state.mode, "live");
+  const sql = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.doesNotMatch(sql, /DELETE FROM knowledge_activity_executions/);
+  assert.doesNotMatch(sql, /DELETE FROM qna_rounds/);
+  assert.doesNotMatch(sql, /INSERT INTO qna_rounds/);
+  assert.match(sql, /recording_started_at = CURRENT_TIMESTAMP/);
+});
+
 test("finishing closes the live session and creates a fresh test session", async () => {
   const live = {
     id: "live-1",
@@ -150,6 +181,100 @@ test("Speaker and Stage receive one synchronized live state", async () => {
     io.events.map(({ room, payload }) => [room, payload.mode]),
     [["room-a::presenter", "live"], ["room-a::stage", "live"]]
   );
+});
+
+test("ten-person automatic start preserves an interaction and synchronizes En vivo", async () => {
+  const io = ioStub();
+  const order = [];
+  let startOptions = null;
+  const runtime = createPresentationLifecycleRuntime({
+    io,
+    repository: {
+      async state() { return { available: true, mode: "test" }; },
+      async start(_payload, options) {
+        order.push("repository");
+        startOptions = options;
+        return { available: true, mode: "live", presentationSessionId: "live-auto" };
+      },
+      async finish() { throw new Error("not used"); }
+    },
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    beforeStart: async () => order.push("reset"),
+    afterStart: async () => order.push("sync"),
+    preserveAutomaticStart: async () => true
+  });
+
+  const state = await runtime.startAutomatically({
+    roomKey: "room-a",
+    role: "audience",
+    sessionId: "source-a",
+    deckId: "deck-a",
+    audienceId: "audience-10"
+  });
+
+  assert.equal(state.mode, "live");
+  assert.deepEqual(order, ["repository"]);
+  assert.deepEqual(startOptions, { preserveTestData: true });
+  assert.deepEqual(
+    io.events.map(({ room, payload }) => [room, payload.mode]),
+    [["room-a::presenter", "live"], ["room-a::stage", "live"]]
+  );
+});
+
+test("automatic start without an active interaction clears test state normally", async () => {
+  const io = ioStub();
+  const order = [];
+  let startOptions = null;
+  const runtime = createPresentationLifecycleRuntime({
+    io,
+    repository: {
+      async state() { return { available: true, mode: "test" }; },
+      async start(_payload, options) {
+        order.push("repository");
+        startOptions = options;
+        return { available: true, mode: "live", presentationSessionId: "live-auto" };
+      },
+      async finish() { throw new Error("not used"); }
+    },
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    beforeStart: async () => order.push("reset"),
+    afterStart: async () => order.push("sync"),
+    preserveAutomaticStart: async () => false
+  });
+
+  await runtime.startAutomatically({
+    roomKey: "room-a",
+    role: "audience",
+    sessionId: "source-a",
+    deckId: "deck-a",
+    audienceId: "audience-10"
+  });
+
+  assert.deepEqual(order, ["reset", "repository", "sync"]);
+  assert.deepEqual(startOptions, { preserveTestData: false });
+});
+
+test("only Público can trigger the automatic lifecycle entrypoint", async () => {
+  let states = 0;
+  const runtime = createPresentationLifecycleRuntime({
+    io: ioStub(),
+    repository: {
+      async state() { states += 1; return { available: true, mode: "test" }; },
+      async start() { return { available: true, mode: "live" }; },
+      async finish() { return { available: true, mode: "test" }; }
+    },
+    getRoleRoomKey: (room, role) => `${room}::${role}`
+  });
+
+  const result = await runtime.startAutomatically({
+    roomKey: "room-a",
+    role: "screen",
+    sessionId: "source-a",
+    deckId: "deck-a"
+  });
+
+  assert.equal(result, null);
+  assert.equal(states, 0);
 });
 
 test("finalization is rejected while an interaction is active", async () => {
@@ -217,4 +342,16 @@ test("only explicitly started sessions appear in Q&A and knowledge history", () 
   assert.match(knowledge, /ps\.recording_started_at IS NOT NULL/);
   assert.match(migration, /recording_started_at DATETIME\(3\) NULL/);
   assert.match(migration, /SET recording_started_at = started_at/);
+});
+
+test("server starts immediately at ten unique connected Público participants", () => {
+  const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
+
+  assert.match(server, /const AUTO_START_AUDIENCE_THRESHOLD = 10/);
+  assert.match(
+    server,
+    /role === "audience"[\s\S]*session\.audience\.size >= AUTO_START_AUDIENCE_THRESHOLD[\s\S]*!session\.automaticLifecycleStarted[\s\S]*session\.automaticLifecycleStarted = true;[\s\S]*presentationLifecycleRuntime\.startAutomatically\(joinedContext\)/
+  );
+  assert.match(server, /if \(state\?\.mode !== "live"\) session\.automaticLifecycleStarted = false/);
+  assert.doesNotMatch(server, /AUTO_START_AUDIENCE_THRESHOLD[\s\S]{0,240}(?:setTimeout|15000)/);
 });
