@@ -134,7 +134,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
 });
 
-test("Público uses swipe navigation and explicitly locks Immersa snapshot during an assessment", () => {
+test("Público uses swipe navigation and locks Immersa snapshot for the full assessment lifecycle", () => {
   const source = read("public/shared/knowledge-activities.js");
   const audience = read("public/audience/audience.js");
   const audienceCss = read("public/audience/audience.css");
@@ -144,12 +144,66 @@ test("Público uses swipe navigation and explicitly locks Immersa snapshot durin
   assert.match(source, /Math\.abs\(deltaX\) < Math\.abs\(deltaY\) \* 1\.25/);
   assert.match(source, /moveAssessmentQuestion\(deltaX < 0 \? 1 : -1\)/);
   assert.match(css, /\.knowledge-assessment-card \{[\s\S]*?touch-action: pan-y;/);
+  assert.match(source, /state\?\.available === true[\s\S]*?state\?\.category === "assessment"[\s\S]*?Boolean\(state\?\.executionId\)/);
   assert.match(source, /onSnapshotAvailabilityChange\?\.\(!snapshotLocked\)/);
   assert.match(audience, /onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed/);
   assert.match(audience, /snapshot\.disabled = !allowed/);
   assert.match(audience, /snapshot\.hidden = !allowed/);
   assert.match(audienceCss, /\.top-actions > \.snapshot\[hidden\],[\s\S]*?display: none !important;/);
   assert.match(audienceCss, /@media \(max-width: 520px\)[\s\S]*?\.brand-lockup \{[^}]*padding: 4px;[^}]*overflow: hidden;[\s\S]*?\.brand-mark \{ width: 32px; height: 32px;/);
+});
+
+test("Público keeps Snapshot hidden on the assessment receipt and restores it only after close", () => {
+  const listeners = new Map();
+  const snapshotAvailability = [];
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: { add() {}, remove() {}, toggle() {} },
+    querySelector() { return null; },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({
+    socket,
+    root: rootElement,
+    onSnapshotAvailabilityChange(allowed) { snapshotAvailability.push(allowed); }
+  });
+
+  const onState = listeners.get("interaction:execution:state");
+  const receipt = {
+    available: true,
+    executionId: "assessment-receipt",
+    category: "assessment",
+    state: "RESULTS_READY",
+    title: "Evaluación final",
+    participant: { id: "participant-1", label: "Arturo", submittedAt: "2026-07-28T06:00:00.000Z" },
+    submittedAt: "2026-07-28T06:00:00.000Z",
+    answerCount: 3,
+    questionCount: 3
+  };
+
+  onState(receipt);
+  onState({ ...receipt, state: "RESULTS_VISIBLE", submissionReceipt: { submittedAt: receipt.submittedAt, grade: 100 } });
+  onState({ available: true, execution: null });
+
+  assert.deepEqual(snapshotAvailability, [false, false, true]);
 });
 
 test("Público fullscreen keeps the Evaluación mounted and preserves portrait orientation", () => {

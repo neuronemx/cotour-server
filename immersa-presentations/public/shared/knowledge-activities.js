@@ -739,10 +739,9 @@
         selectedAssessmentIndex = 0;
       }
       state = { ...next, _receivedAt: Date.now() };
-      const snapshotLocked = state?.category === "assessment"
-        && ["LOBBY", "COUNTDOWN", "ACTIVE"].includes(state?.state)
-        && !state?.participant?.submittedAt
-        && !state?.submittedAt;
+      const snapshotLocked = state?.available === true
+        && state?.category === "assessment"
+        && Boolean(state?.executionId);
       onSnapshotAvailabilityChange?.(!snapshotLocked);
       const enteredQuestion = isNewContestQuestion(previous, state);
       const pending = readPending();
