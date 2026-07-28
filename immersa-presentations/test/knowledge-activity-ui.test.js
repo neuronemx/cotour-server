@@ -287,8 +287,38 @@ test("Público contest removes the lobby label, reserves the three-zone header, 
   assert.doesNotMatch(rootElement.innerHTML, /<header><span>Pregunta 1 de 2/);
   assert.equal(activeClasses.get("is-contest-question"), true);
 
+  onState({
+    ...lobby,
+    state: "ACTIVE",
+    substate: "REVEAL",
+    participant: { id: "participant-1", label: "Arturo" },
+    questionIndex: 0,
+    questionCount: 2,
+    questionDeadlineAt: null,
+    revealDeadlineAt: "2026-07-28T18:00:20.000Z",
+    serverNow: "2026-07-28T18:00:15.000Z",
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la respuesta?",
+      options: [
+        { id: "option-1", label: "A" },
+        { id: "option-2", label: "B" }
+      ]
+    },
+    answers: [{ questionId: "question-1", optionId: "option-2" }],
+    reveal: {
+      correctOptionId: "option-1",
+      selectedOptionId: "option-2",
+      correct: false
+    }
+  });
+  assert.match(rootElement.innerHTML, /class=" is-correct" disabled>A<\/button>/);
+  assert.match(rootElement.innerHTML, /class="is-selected" disabled>B<\/button>/);
+  assert.doesNotMatch(rootElement.innerHTML, /is-incorrect|data-knowledge-deadline|knowledge-contest-hud-timer/);
+  assert.match(rootElement.innerHTML, /aria-label="Pregunta 1 de 2, respuesta revelada"/);
+
   onState({ available: true, execution: null });
-  assert.deepEqual(snapshotAvailability, [false, false, true]);
+  assert.deepEqual(snapshotAvailability, [false, false, false, true]);
 });
 
 test("Speaker and Stage show Sin ganadores when every contest result has zero correct answers", () => {
@@ -523,9 +553,13 @@ test("Público renders safe contest progress and legible answer options", () => 
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /Number\.isFinite\(Number\(state\.questionCount\)\)/);
   assert.match(source, /Number\.isFinite\(Number\(state\.questionIndex\)\)/);
-  assert.match(source, /Pregunta ' \+ questionNumber \+ " de " \+ questionCount/);
+  assert.match(source, /const hudLabel = "Pregunta " \+ questionNumber \+ " de " \+ questionCount/);
+  assert.match(source, /state\.substate === "REVEAL" \? ", respuesta revelada" : ", tiempo restante"/);
   assert.match(css, /\.knowledge-options button \{[\s\S]*?color: #182133/);
   assert.match(css, /\.knowledge-options button\.is-selected \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /\.knowledge-options button\.is-correct \{[\s\S]*?background: #19a974/);
+  assert.match(css, /\.knowledge-options button\.is-selected:disabled,[\s\S]*?\.knowledge-options button\.is-correct:disabled \{[\s\S]*?opacity: 1;[\s\S]*?filter: none;/);
+  assert.doesNotMatch(source, /is-incorrect/);
   assert.match(source, /qualified = state\.personalResult\.correctCount > 0/);
   assert.match(source, /Sin posición/);
   assert.match(css, /\.knowledge-result-detail \{[\s\S]*?color: #182133/);
@@ -726,7 +760,9 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
   });
   assert.match(screenRoot.innerHTML, /knowledge-screen-correct-answer/);
   assert.match(screenRoot.innerHTML, />Opción secreta A</);
-  assert.doesNotMatch(screenRoot.innerHTML, /¿Cuál es la correcta\?|\/question\.jpg|knowledge-screen-options/);
+  assert.match(screenRoot.innerHTML, /knowledge-screen-next-progress/);
+  assert.match(screenRoot.innerHTML, /aria-label="Preparando la siguiente pregunta"/);
+  assert.doesNotMatch(screenRoot.innerHTML, /¿Cuál es la correcta\?|\/question\.jpg|knowledge-screen-options|data-knowledge-deadline|knowledge-timer/);
 
   onState({
     available: true,
@@ -799,10 +835,14 @@ test("Screen shows only the question and optional image, then centers only the c
   assert.match(source, /state\.substate === "REVEAL"/);
   assert.match(source, /state\.reveal\.correctLabel/);
   assert.match(source, /knowledge-screen-correct-answer/);
+  assert.match(source, /revealProgressMarkup\(state\)/);
   assert.doesNotMatch(source, /knowledge-screen-options/);
   assert.match(css, /\.knowledge-screen-question-image \{[\s\S]*?max-height: 58vh;/);
-  assert.match(css, /\.knowledge-screen-reveal \{[\s\S]*?place-items: center;/);
+  assert.match(css, /\.knowledge-screen-reveal \{[\s\S]*?grid-template-rows: 1fr auto;[\s\S]*?place-items: center;/);
   assert.match(css, /\.knowledge-screen-correct-answer strong \{[\s\S]*?font: 900 clamp\(48px, 8vw, 126px\)/);
+  assert.match(css, /\.knowledge-screen-next-progress \{[\s\S]*?border-radius: 999px;/);
+  assert.match(css, /\.knowledge-screen-next-progress span \{[\s\S]*?var\(--immersa-gradient/);
+  assert.match(css, /@keyframes knowledgeScreenNextProgress \{[\s\S]*?width: 100%/);
 });
 
 test("lobby entrants are synchronized as people ready without counting as participants", () => {

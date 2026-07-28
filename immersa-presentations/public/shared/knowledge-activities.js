@@ -15,6 +15,7 @@
       "M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2ZM9 14l2 2 4-4"
     ]
   };
+  const CONTEST_REVEAL_MS = 5000;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -70,6 +71,23 @@
     return '<strong class="' + className + '" data-knowledge-deadline="' + escapeHtml(value) + '">'
       + timeLabel(secondsUntil(value, state?.serverNow, state?._receivedAt))
       + "</strong>";
+  }
+
+  function revealProgressMarkup(state) {
+    const remaining = millisecondsUntil(
+      state?.revealDeadlineAt,
+      state?.serverNow,
+      state?._receivedAt
+    );
+    const safeRemaining = Number.isFinite(remaining)
+      ? Math.max(120, Math.min(CONTEST_REVEAL_MS, remaining))
+      : CONTEST_REVEAL_MS;
+    const elapsedPercent = Number.isFinite(remaining)
+      ? Math.max(0, Math.min(100, ((CONTEST_REVEAL_MS - remaining) / CONTEST_REVEAL_MS) * 100))
+      : 0;
+    return '<div class="knowledge-screen-next-progress" role="progressbar" aria-label="Preparando la siguiente pregunta" aria-valuemin="0" aria-valuemax="100">'
+      + '<span style="width:' + elapsedPercent.toFixed(2) + "%;animation-duration:" + Math.round(safeRemaining) + 'ms"></span>'
+      + "</div>";
   }
 
   function countdownLabel(state) {
@@ -616,11 +634,16 @@
       const options = question.options.map((option) => {
         const selected = confirmed === option.id || (!confirmed && pending?.questionId === question.id && pending?.optionId === option.id);
         const revealClass = state.reveal
-          ? option.id === state.reveal.correctOptionId ? " is-correct" : selected ? " is-incorrect" : ""
+          ? option.id === state.reveal.correctOptionId ? " is-correct" : ""
           : "";
         return '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (selected ? "is-selected" : "") + revealClass + '" ' + (confirmed || state.substate === "REVEAL" ? "disabled" : "") + ">" + escapeHtml(option.label) + "</button>";
       }).join("");
-      return '<div class="knowledge-audience-card knowledge-contest-card"><div class="knowledge-contest-hud" role="status" aria-label="Pregunta ' + questionNumber + " de " + questionCount + ', tiempo restante"><span>' + questionNumber + "/" + questionCount + '</span><i aria-hidden="true">·</i>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state, "knowledge-contest-hud-timer") + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
+      const contestTimer = state.substate === "REVEAL"
+        ? ""
+        : '<i aria-hidden="true">·</i>' + timerMarkup(state.questionDeadlineAt, state, "knowledge-contest-hud-timer");
+      const hudLabel = "Pregunta " + questionNumber + " de " + questionCount
+        + (state.substate === "REVEAL" ? ", respuesta revelada" : ", tiempo restante");
+      return '<div class="knowledge-audience-card knowledge-contest-card"><div class="knowledge-contest-hud" role="status" aria-label="' + hudLabel + '"><span>' + questionNumber + "/" + questionCount + "</span>" + contestTimer + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
         + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
         + "</div>";
     }
@@ -1049,7 +1072,8 @@
       } else if (state.category === "contest" && state.currentQuestion) {
         const hasImage = Boolean(state.currentQuestion.image?.url);
         if (state.substate === "REVEAL" && state.reveal?.correctLabel) {
-          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-reveal"><div class="knowledge-screen-correct-answer"><strong>' + escapeHtml(state.reveal.correctLabel) + "</strong></div></section>";
+          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-reveal"><div class="knowledge-screen-correct-answer"><strong>' + escapeHtml(state.reveal.correctLabel) + "</strong></div>"
+            + revealProgressMarkup(state) + "</section>";
         } else {
           root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-question' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + "</h1>" + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + "</section>";
         }
