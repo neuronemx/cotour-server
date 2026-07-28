@@ -87,8 +87,8 @@ async function toggleFullscreen() {
 }
 function updateFullscreenButton() {
   const active = Boolean(fullscreenElement());
-  fullscreen.textContent = active ? "×" : "⛶";
   fullscreen.classList.toggle("is-active", active);
+  fullscreen.setAttribute("aria-pressed", String(active));
   fullscreen.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
   fullscreen.title = active ? "Salir de pantalla completa" : "Pantalla completa";
 }

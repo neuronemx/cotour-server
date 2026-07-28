@@ -251,7 +251,7 @@ test("audience poll card uses Immersa visual contract without changing runtime m
   assert.match(css, /\.interaction-card \.interaction-card-actions \.primary \{[\s\S]+background: var\(--immersa-gradient\) !important;/);
   assert.match(css, /\.interaction-card \.interaction-accepted \{\n  display: none !important;\n\}/);
   assert.match(topActions, /id="snapshot"[\s\S]+id="fullscreen"/);
-  assert.match(topActions.trim(), /<button id="fullscreen" class="icon-action" type="button" aria-label="Pantalla completa" title="Pantalla completa">⛶<\/button>$/);
+  assert.match(topActions.trim(), /<button id="fullscreen" class="icon-action fullscreen-button" type="button" aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">[\s\S]+class="fullscreen-expand-icon"[\s\S]+class="fullscreen-collapse-icon"[\s\S]+<\/button>$/);
   assert.match(topActions, /<button id="snapshot"[\s\S]+<svg viewBox="0 0 24 24" aria-hidden="true">[\s\S]*<path d="M9 5 7\.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\.5L15 5H9Z"><\/path>[\s\S]*<circle cx="12" cy="13" r="3\.25"><\/circle>[\s\S]*<\/svg>/);
   assert.doesNotMatch(topActions, /📷/);
   assert.match(css, /\.snapshot svg \{[\s\S]+width: 20px;[\s\S]+height: 20px;[\s\S]+fill: none;[\s\S]+stroke: currentColor;[\s\S]+stroke-width: 1\.8;/);

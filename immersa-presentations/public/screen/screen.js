@@ -33,11 +33,12 @@ let interactionOverlay = null;
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? next.reactionsOnScreen ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 
+function getFullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 function updateFullscreenButton() {
-  const active = Boolean(document.fullscreenElement);
+  const active = Boolean(getFullscreenElement());
   if (!fullscreenToggle) return;
   fullscreenToggle.classList.toggle("is-active", active);
-  fullscreenToggle.textContent = active ? "×" : "⛶";
+  fullscreenToggle.setAttribute("aria-pressed", String(active));
   fullscreenToggle.title = active ? "Salir de pantalla completa" : "Pantalla completa";
   fullscreenToggle.setAttribute("aria-label", fullscreenToggle.title);
 }
@@ -51,8 +52,14 @@ function showScreenUi() {
 }
 async function toggleFullscreen() {
   try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else if (screenRoot.requestFullscreen) await screenRoot.requestFullscreen();
+    if (getFullscreenElement()) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+    } else if (screenRoot.requestFullscreen) {
+      await screenRoot.requestFullscreen();
+    } else if (screenRoot.webkitRequestFullscreen) {
+      await screenRoot.webkitRequestFullscreen();
+    }
   } catch (error) {
     console.warn("Fullscreen request failed", error);
   } finally {
@@ -124,6 +131,7 @@ function renderQnaScreen(payload = {}) {
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
   const tagName = String(event.target?.tagName || "").toLowerCase();
