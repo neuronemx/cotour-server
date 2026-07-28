@@ -596,7 +596,8 @@
   -webkit-user-drag: none;
 }
 
-.knowledge-assessment-hud {
+.knowledge-assessment-hud,
+.knowledge-contest-hud {
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
@@ -618,22 +619,26 @@
   transform: translateX(-50%);
 }
 
-.knowledge-assessment-hud i {
+.knowledge-assessment-hud i,
+.knowledge-contest-hud i {
   color: rgba(255, 255, 255, .56);
   font-style: normal;
 }
 
-.knowledge-assessment-hud-timer {
+.knowledge-assessment-hud-timer,
+.knowledge-contest-hud-timer {
   min-width: 3.2ch;
   text-align: center;
 }
 
-.knowledge-assessment-card {
+.knowledge-assessment-card,
+.knowledge-contest-card {
   touch-action: pan-y;
 }
 
 @media (max-width: 640px) {
-  .knowledge-audience-overlay.is-assessment-question {
+  .knowledge-audience-overlay.is-assessment-question,
+  .knowledge-audience-overlay.is-contest-question {
     align-items: start;
     padding:
       calc(max(10px, env(safe-area-inset-top)) + 54px)
@@ -642,12 +647,14 @@
       max(10px, env(safe-area-inset-left));
   }
 
-  .knowledge-assessment-card {
+  .knowledge-assessment-card,
+  .knowledge-contest-card {
     max-height: 100%;
     padding-top: 22px;
   }
 
-  .knowledge-assessment-hud {
+  .knowledge-assessment-hud,
+  .knowledge-contest-hud {
     top: max(10px, env(safe-area-inset-top));
   }
 }

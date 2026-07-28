@@ -119,10 +119,10 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /\(selectedAssessmentIndex \+ 1\) \+ "\/" \+ questions\.length/);
   assert.match(source, /timerMarkup\(state\.deadlineAt, state, "knowledge-assessment-hud-timer"\)/);
   assert.doesNotMatch(source, /knowledge-assessment-card"><header>/);
-  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?left: 50%;[\s\S]*?transform: translateX\(-50%\);/);
+  assert.match(css, /\.knowledge-assessment-hud,[\s\S]*?\.knowledge-contest-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?left: 50%;[\s\S]*?transform: translateX\(-50%\);/);
   assert.match(source, /classList\?\.toggle\?\.\("is-assessment-question", Boolean\(root\.querySelector\("\.knowledge-assessment-card"\)\)\)/);
-  assert.match(css, /\.knowledge-audience-overlay\.is-assessment-question \{[\s\S]*?align-items: start;[\s\S]*?padding:[\s\S]*?54px/);
-  assert.match(css, /\.knowledge-assessment-card \{[\s\S]*?max-height: 100%;[\s\S]*?padding-top: 22px;/);
+  assert.match(css, /\.knowledge-audience-overlay\.is-assessment-question,[\s\S]*?\.knowledge-audience-overlay\.is-contest-question \{[\s\S]*?align-items: start;[\s\S]*?padding:[\s\S]*?54px/);
+  assert.match(css, /\.knowledge-assessment-card,[\s\S]*?\.knowledge-contest-card \{[\s\S]*?max-height: 100%;[\s\S]*?padding-top: 22px;/);
   assert.match(source, /knowledge-submission-receipt/);
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
@@ -134,7 +134,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
 });
 
-test("Público uses swipe navigation and locks Immersa snapshot for the full assessment lifecycle", () => {
+test("Público uses swipe navigation and locks Immersa snapshot for knowledge activities", () => {
   const source = read("public/shared/knowledge-activities.js");
   const audience = read("public/audience/audience.js");
   const audienceCss = read("public/audience/audience.css");
@@ -143,8 +143,8 @@ test("Público uses swipe navigation and locks Immersa snapshot for the full ass
   assert.match(source, /Math\.abs\(deltaX\) < 52/);
   assert.match(source, /Math\.abs\(deltaX\) < Math\.abs\(deltaY\) \* 1\.25/);
   assert.match(source, /moveAssessmentQuestion\(deltaX < 0 \? 1 : -1\)/);
-  assert.match(css, /\.knowledge-assessment-card \{[\s\S]*?touch-action: pan-y;/);
-  assert.match(source, /state\?\.available === true[\s\S]*?state\?\.category === "assessment"[\s\S]*?Boolean\(state\?\.executionId\)/);
+  assert.match(css, /\.knowledge-assessment-card,[\s\S]*?\.knowledge-contest-card \{[\s\S]*?touch-action: pan-y;/);
+  assert.match(source, /state\?\.available === true[\s\S]*?\["contest", "assessment"\]\.includes\(state\?\.category\)[\s\S]*?Boolean\(state\?\.executionId\)/);
   assert.match(source, /onSnapshotAvailabilityChange\?\.\(!snapshotLocked\)/);
   assert.match(audience, /onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed/);
   assert.match(audience, /snapshot\.disabled = !allowed/);
@@ -204,6 +204,138 @@ test("Público keeps Snapshot hidden on the assessment receipt and restores it o
   onState({ available: true, execution: null });
 
   assert.deepEqual(snapshotAvailability, [false, false, true]);
+});
+
+test("Público contest removes the lobby label, reserves the three-zone header, and keeps Snapshot hidden", () => {
+  const listeners = new Map();
+  const snapshotAvailability = [];
+  const activeClasses = new Map();
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  const rootElement = {
+    hidden: true,
+    innerHTML: "",
+    classList: {
+      add(name) { activeClasses.set(name, true); },
+      remove(name) { activeClasses.set(name, false); },
+      toggle(name, enabled) { activeClasses.set(name, Boolean(enabled)); }
+    },
+    querySelector(selector) {
+      if (selector === ".knowledge-contest-card" && this.innerHTML.includes("knowledge-contest-card")) return {};
+      if (selector === ".knowledge-assessment-card" && this.innerHTML.includes("knowledge-assessment-card")) return {};
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    sessionStorage: storage,
+    localStorage: storage,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createAudience({
+    socket,
+    root: rootElement,
+    onSnapshotAvailabilityChange(allowed) { snapshotAvailability.push(allowed); }
+  });
+
+  const onState = listeners.get("interaction:execution:state");
+  const lobby = {
+    available: true,
+    executionId: "contest-run-1",
+    category: "contest",
+    state: "LOBBY",
+    registrationOpen: true,
+    title: "Trivia Immersa",
+    participant: null
+  };
+  onState(lobby);
+  assert.match(rootElement.innerHTML, /<h2>Trivia Immersa<\/h2>/);
+  assert.doesNotMatch(rootElement.innerHTML, /<span>Concurso<\/span>/);
+
+  onState({
+    ...lobby,
+    state: "ACTIVE",
+    substate: "QUESTION_ACTIVE",
+    participant: { id: "participant-1", label: "Arturo" },
+    questionIndex: 0,
+    questionCount: 2,
+    questionDeadlineAt: "2026-07-28T18:00:15.000Z",
+    serverNow: "2026-07-28T18:00:00.000Z",
+    currentQuestion: {
+      id: "question-1",
+      prompt: "¿Cuál es la respuesta?",
+      options: [
+        { id: "option-1", label: "A" },
+        { id: "option-2", label: "B" }
+      ]
+    },
+    answers: []
+  });
+  assert.match(rootElement.innerHTML, /knowledge-contest-hud/);
+  assert.match(rootElement.innerHTML, /<span>1\/2<\/span><i aria-hidden="true">·<\/i>/);
+  assert.doesNotMatch(rootElement.innerHTML, /<header><span>Pregunta 1 de 2/);
+  assert.equal(activeClasses.get("is-contest-question"), true);
+
+  onState({ available: true, execution: null });
+  assert.deepEqual(snapshotAvailability, [false, false, true]);
+});
+
+test("Speaker and Stage show Sin ganadores when every contest result has zero correct answers", () => {
+  const listeners = new Map();
+  const rootElement = {
+    innerHTML: "",
+    querySelectorAll() { return []; }
+  };
+  const socket = {
+    connected: true,
+    on(eventName, handler) { listeners.set(eventName, handler); },
+    emit() {}
+  };
+  const window = {
+    crypto: { randomUUID() { return "command-1"; } },
+    setInterval() { return 1; },
+    clearInterval() {}
+  };
+  const fetch = async () => ({
+    ok: true,
+    async json() { return { contests: [], assessments: [] }; }
+  });
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window, fetch });
+  const controller = window.ImmersaKnowledgeActivities.createController({
+    socket,
+    deckId: "deck-1",
+    role: "speaker"
+  });
+  controller.mountHost({ root: rootElement, category: "contest" });
+
+  const onState = listeners.get("interaction:execution:state");
+  onState({
+    available: true,
+    executionId: "contest-run-1",
+    category: "contest",
+    state: "RESULTS_READY",
+    title: "Trivia Immersa",
+    result: {
+      top10: [
+        { position: 1, label: "Participante 1", correctCount: 0, totalQuestions: 2 }
+      ]
+    }
+  });
+
+  assert.match(rootElement.innerHTML, /<strong>Sin ganadores<\/strong>/);
+  assert.match(rootElement.innerHTML, /Nadie respondió correctamente\./);
+  assert.doesNotMatch(rootElement.innerHTML, /Participante 1|0\/2/);
 });
 
 test("Público fullscreen keeps the Evaluación mounted and preserves portrait orientation", () => {

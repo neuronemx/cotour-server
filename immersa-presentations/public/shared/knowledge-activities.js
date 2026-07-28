@@ -270,10 +270,12 @@
         ? '<p class="knowledge-error">Resultados generados. ' + result.excludedResponseCount + " respuestas no pudieron incluirse.</p>"
         : "";
       if (state.category === "contest") {
-        const rows = Array.isArray(result.top10) ? result.top10 : [];
-        return warning + '<div class="knowledge-ranking">' + (rows.length
-          ? rows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + "</strong></div>").join("")
-          : "<p>Sin participaciones con respuestas.</p>") + "</div>";
+        const rows = Array.isArray(result.top10)
+          ? result.top10.filter((row) => Number(row.correctCount) > 0)
+          : [];
+        return warning + (rows.length
+          ? '<div class="knowledge-ranking">' + rows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + "</strong></div>").join("") + "</div>"
+          : '<div class="knowledge-empty"><strong>Sin ganadores</strong><span>Nadie respondió correctamente.</span></div>');
       }
       const distribution = (result.gradeDistribution || []).map((bucket) =>
         '<div><span>' + escapeHtml(bucket.range) + '</span><strong>' + bucket.count + "</strong></div>"
@@ -580,7 +582,10 @@
       if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>La actividad ya comenzó</strong><span>Espera la siguiente interacción.</span></div>';
       const mode = state.identificationMode || "anonymous";
       const input = mode === "anonymous" ? "" : '<label>Nombre' + (mode === "optional_name" ? " (opcional)" : "") + '<input data-knowledge-name maxlength="120" autocomplete="name" ' + (mode === "required_name" ? "required" : "") + "></label>";
-      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy"><span>' + LABELS[state.category] + '</span><h2>' + escapeHtml(state.title) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
+      const categoryLabel = state.category === "contest"
+        ? ""
+        : "<span>" + LABELS[state.category] + "</span>";
+      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy">' + categoryLabel + "<h2>" + escapeHtml(state.title) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
     }
 
     function contestMarkup() {
@@ -615,7 +620,7 @@
           : "";
         return '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (selected ? "is-selected" : "") + revealClass + '" ' + (confirmed || state.substate === "REVEAL" ? "disabled" : "") + ">" + escapeHtml(option.label) + "</button>";
       }).join("");
-      return '<div class="knowledge-audience-card"><header><span>Pregunta ' + questionNumber + " de " + questionCount + '</span>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state) + '</header><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
+      return '<div class="knowledge-audience-card knowledge-contest-card"><div class="knowledge-contest-hud" role="status" aria-label="Pregunta ' + questionNumber + " de " + questionCount + ', tiempo restante"><span>' + questionNumber + "/" + questionCount + '</span><i aria-hidden="true">·</i>' + timerMarkup(state.questionDeadlineAt || state.revealDeadlineAt, state, "knowledge-contest-hud-timer") + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
         + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
         + "</div>";
     }
@@ -684,6 +689,7 @@
         root.hidden = true;
         root.innerHTML = "";
         root.classList?.remove("is-assessment-question");
+        root.classList?.remove("is-contest-question");
         return;
       }
       root.hidden = false;
@@ -692,6 +698,7 @@
         root.innerHTML = '<div class="knowledge-audience-card"><h2>La actividad está abierta en otra pestaña</h2><button class="primary" data-knowledge-claim>Usar esta pestaña</button></div>';
       } else root.innerHTML = state.category === "contest" ? contestMarkup() : assessmentMarkup();
       root.classList?.toggle?.("is-assessment-question", Boolean(root.querySelector(".knowledge-assessment-card")));
+      root.classList?.toggle?.("is-contest-question", Boolean(root.querySelector(".knowledge-contest-card")));
 
       if (Number.isFinite(scrollTop)) {
         const card = root.querySelector(".knowledge-audience-card");
@@ -740,7 +747,7 @@
       }
       state = { ...next, _receivedAt: Date.now() };
       const snapshotLocked = state?.available === true
-        && state?.category === "assessment"
+        && ["contest", "assessment"].includes(state?.category)
         && Boolean(state?.executionId);
       onSnapshotAvailabilityChange?.(!snapshotLocked);
       const enteredQuestion = isNewContestQuestion(previous, state);
