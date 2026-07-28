@@ -837,7 +837,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
     currentQuestion: null,
     questions: [],
     reveal: null,
-    personalResult: null
+    personalResult: null,
+    submissionReceipt: null
   };
   if (execution.category === "contest") {
     audience.questionIndex = execution.questionIndex;
@@ -875,7 +876,21 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
         })
       } : null;
     }
-  } else if (execution.state === "ACTIVE" && !participant.submittedAt) {
+  } else if (participant.submittedAt) {
+    const correctCount = ownAnswers.filter((answer) => answer.correct).length;
+    const totalQuestions = execution.definition.questions.length;
+    audience.submissionReceipt = {
+      submittedAt: participant.submittedAt,
+      answeredCount: ownAnswers.length,
+      totalQuestions,
+      grade: totalQuestions
+        ? Math.round((correctCount / totalQuestions) * 10000) / 100
+        : 0
+    };
+    if (execution.resultsVisible && ownResult) {
+      audience.personalResult = { grade: ownResult.grade };
+    }
+  } else if (execution.state === "ACTIVE") {
     audience.questions = participant.questionOrder
       .map((questionId) => questionForParticipant(execution, participant, questionId))
       .filter(Boolean);

@@ -116,7 +116,7 @@
 }
 
 .knowledge-assessment-card h2 {
-  font: 400 clamp(18px, 4.4vw, 24px)/1.42 Inter, sans-serif;
+  font: 300 clamp(17px, 4.1vw, 23px)/1.46 Inter, sans-serif;
   letter-spacing: -.006em;
 }
 
@@ -223,13 +223,41 @@
 
 .knowledge-submission-receipt {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
-.knowledge-submission-title {
-  color: #182133;
-  font: 700 clamp(24px, 6vw, 34px)/1.15 Poppins, Inter, sans-serif;
+.knowledge-submission-kicker {
+  color: #68748a;
+  font: 500 12px/1.2 Inter, sans-serif;
+  letter-spacing: .08em;
   text-align: center;
+  text-transform: uppercase;
+}
+
+.knowledge-submission-receipt h2 {
+  margin: -4px 0 0;
+  color: #182133;
+  font: 500 clamp(22px, 5.5vw, 32px)/1.2 Inter, sans-serif;
+  text-align: center;
+}
+
+.knowledge-submission-grade {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  padding: 18px;
+  color: #fff;
+  background: var(--immersa-gradient, linear-gradient(135deg, #7f77dd 0%, #378add 55%, #5dcaa5 100%));
+  border-radius: 18px;
+  box-shadow: 0 14px 34px rgba(55, 138, 221, .24);
+}
+
+.knowledge-submission-grade strong {
+  font: 700 clamp(42px, 12vw, 64px)/1 Inter, sans-serif;
+}
+
+.knowledge-submission-grade span {
+  font: 500 12px/1.2 Inter, sans-serif;
 }
 
 .knowledge-submission-receipt dl {
@@ -414,13 +442,8 @@
 
 .knowledge-registration-card {
   width: min(100%, 620px);
-}
-
-.knowledge-registration-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .knowledge-registration-copy {
@@ -428,12 +451,21 @@
 }
 
 .knowledge-registration-copy h2 {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
+  font: 400 clamp(22px, 5.8vw, 32px)/1.25 Inter, sans-serif;
   overflow-wrap: anywhere;
 }
 
-.knowledge-registration-head .primary {
+.knowledge-registration-copy > span,
+.knowledge-registration-card label {
+  color: #68748a;
+  font-weight: 400;
+}
+
+.knowledge-registration-card > .primary {
+  justify-self: center;
   min-width: clamp(124px, 34vw, 164px);
+  margin-top: 4px;
   padding-inline: clamp(24px, 7vw, 42px);
 }
 
@@ -593,6 +625,10 @@
 .knowledge-assessment-hud-timer {
   min-width: 3.2ch;
   text-align: center;
+}
+
+.knowledge-assessment-card {
+  touch-action: pan-y;
 }
 
 @media (max-width: 640px) {

@@ -108,7 +108,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /render\(retainedScrollTop\)/);
   assert.match(source, /if \(card\) card\.scrollTop = scrollTop/);
   assert.match(source, /knowledge-assessment-card/);
-  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 400 clamp\(18px, 4\.4vw, 24px\)\/1\.42 Inter/);
+  assert.match(css, /\.knowledge-assessment-card h2 \{[\s\S]*?font: 300 clamp\(17px, 4\.1vw, 23px\)\/1\.46 Inter/);
   assert.match(source, /readyToSubmit = questions\.length > 0 && answerMap\(\)\.size === questions\.length/);
   assert.match(source, /knowledge-assessment-submit' \+ \(readyToSubmit \? " is-ready" : ""\)/);
   assert.doesNotMatch(source, /data-knowledge-submit ' \+ \(readyToSubmit \? "" : "disabled"\)/);
@@ -124,7 +124,34 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
   assert.match(source, /<dt>Fecha y hora<\/dt>/);
+  assert.match(source, /knowledge-submission-kicker/);
+  assert.match(source, /escapeHtml\(state\.title\)/);
+  assert.match(source, /state\.submissionReceipt\?\.grade/);
+  assert.match(source, /Calificación \/ 100/);
   assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
+});
+
+test("Público uses swipe navigation and explicitly locks Immersa snapshot during an assessment", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const audience = read("public/audience/audience.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /function attachAssessmentSwipe/);
+  assert.match(source, /Math\.abs\(deltaX\) < 52/);
+  assert.match(source, /Math\.abs\(deltaX\) < Math\.abs\(deltaY\) \* 1\.25/);
+  assert.match(source, /moveAssessmentQuestion\(deltaX < 0 \? 1 : -1\)/);
+  assert.match(css, /\.knowledge-assessment-card \{[\s\S]*?touch-action: pan-y;/);
+  assert.match(source, /onSnapshotAvailabilityChange\?\.\(!snapshotLocked\)/);
+  assert.match(audience, /onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed/);
+  assert.match(audience, /snapshot\.disabled = !allowed/);
+  assert.match(audience, /snapshot\.hidden = !allowed/);
+});
+
+test("Público places the lighter Evaluación entry action at the bottom and centered", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  const css = read("public/shared/knowledge-activities.css");
+  assert.match(source, /knowledge-registration-copy[\s\S]*<\/h2><\/div>" \+ input \+ '<button class="primary" data-knowledge-join/);
+  assert.match(css, /\.knowledge-registration-copy h2 \{[\s\S]*?font: 400 clamp\(22px, 5\.8vw, 32px\)\/1\.25 Inter/);
+  assert.match(css, /\.knowledge-registration-card > \.primary \{[\s\S]*?justify-self: center;/);
 });
 
 test("Público can submit an incomplete assessment while only complete assessments light the button", () => {
@@ -349,14 +376,13 @@ test("Público uses the supplied entrance and answer-selection sounds", () => {
   }
 });
 
-test("Público lobby places a wide Entrar action beside the activity title", () => {
+test("Público lobby places a wide Entrar action below the participant field", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
-  assert.match(source, /knowledge-registration-head/);
   assert.match(source, /knowledge-registration-copy/);
   assert.match(source, /data-knowledge-join>Entrar/);
-  assert.match(css, /\.knowledge-registration-head \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
-  assert.match(css, /\.knowledge-registration-head \.primary \{[\s\S]*?min-width: clamp\(124px, 34vw, 164px\);/);
+  assert.doesNotMatch(source, /knowledge-registration-head/);
+  assert.match(css, /\.knowledge-registration-card > \.primary \{[\s\S]*?justify-self: center;[\s\S]*?min-width: clamp\(124px, 34vw, 164px\);/);
 });
 
 test("Público announces every real contest question with flash and supplied audio while Screen keeps a silent flash", () => {

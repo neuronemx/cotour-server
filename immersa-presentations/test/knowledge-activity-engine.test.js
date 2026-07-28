@@ -436,3 +436,34 @@ test("role payloads keep assessment answers private and expose only released gra
   assert.equal(visible.questions.length, 0);
   assert.equal(Object.prototype.hasOwnProperty.call(visible.personalResult, "answers"), false);
 });
+
+test("submitted assessments expose an immediate private receipt grade without answer keys", () => {
+  const item = execution("assessment");
+  joinParticipant(item, { participantId: "p1", tabId: "tab-1", name: "Arturo", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-receipt",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 7000);
+  submitAnswer(item, { participantId: "p1", questionId: "q1", optionId: "a", tabId: "tab-1", nowMs: 8000 });
+  submitAssessment(item, { participantId: "p1", tabId: "tab-1", nowMs: 8100 });
+
+  const audience = stateForRole(item, {
+    role: "audience",
+    participantId: "p1",
+    tabId: "tab-1",
+    nowMs: 8200
+  });
+  assert.deepEqual(audience.submissionReceipt, {
+    submittedAt: new Date(8100).toISOString(),
+    answeredCount: 1,
+    totalQuestions: 2,
+    grade: 50
+  });
+  assert.equal(audience.personalResult, null);
+  assert.equal(audience.questions.length, 0);
+  assert.equal(Object.prototype.hasOwnProperty.call(audience.submissionReceipt, "answers"), false);
+});

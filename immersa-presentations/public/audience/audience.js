@@ -3,10 +3,7 @@ const publicOpenContext = window.IMMERSA_PUBLIC_OPEN || {};
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
-const knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
-  socket,
-  root: document.getElementById("knowledgeActivityAudience")
-});
+let knowledgeActivityAudience = null;
 let manifest = null;
 let currentSlideIndex = 0;
 let zoom = 1;
@@ -45,6 +42,17 @@ const qnaFormStatus = document.getElementById("qnaFormStatus");
 const qnaSubmit = document.getElementById("qnaSubmit");
 const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
+function setKnowledgeSnapshotAllowed(allowed) {
+  if (!snapshot) return;
+  snapshot.disabled = !allowed;
+  snapshot.hidden = !allowed;
+  snapshot.setAttribute("aria-hidden", allowed ? "false" : "true");
+}
+knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
+  socket,
+  root: document.getElementById("knowledgeActivityAudience"),
+  onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed
+});
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
@@ -55,7 +63,7 @@ function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
 function applyLiveMessage(overlays = {}) { if (!liveMessage) return; const text = overlays.messageText || ""; const visible = Boolean(overlays.messageVisible && text); liveMessage.textContent = visible ? text : ""; liveMessage.classList.toggle("hidden", !visible); }
 function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); applyLiveMessage(state.overlays || {}); drawingOverlay?.refresh(); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
-function takeSnapshot() { if (!manifest) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
+function takeSnapshot() { if (!manifest || snapshot?.disabled) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
 function center(a, b) { return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
 function pointerList() { return Array.from(pointers.values()); }

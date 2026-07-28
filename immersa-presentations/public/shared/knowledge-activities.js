@@ -384,7 +384,7 @@
     };
   }
 
-  function createAudience({ socket, root } = {}) {
+  function createAudience({ socket, root, onSnapshotAvailabilityChange } = {}) {
     if (!socket?.on || !root) throw new Error("A socket and root are required");
     const currentTabId = tabId();
     const audienceAudio = createAudienceKnowledgeAudio();
@@ -394,6 +394,7 @@
     let imageViewer = null;
     let imageViewerTrigger = null;
     let imageViewerGestureCleanup = null;
+    let assessmentSwipe = null;
     const pendingKey = "immersaKnowledgePendingAnswer";
 
     function flashQuestion() {
@@ -577,7 +578,7 @@
       if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>La actividad ya comenzó</strong><span>Espera la siguiente interacción.</span></div>';
       const mode = state.identificationMode || "anonymous";
       const input = mode === "anonymous" ? "" : '<label>Nombre' + (mode === "optional_name" ? " (opcional)" : "") + '<input data-knowledge-name maxlength="120" autocomplete="name" ' + (mode === "required_name" ? "required" : "") + "></label>";
-      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-head"><div class="knowledge-registration-copy"><span>' + LABELS[state.category] + '</span><h2>' + escapeHtml(state.title) + '</h2></div><button class="primary" data-knowledge-join>Entrar</button></div>' + input + "</div>";
+      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy"><span>' + LABELS[state.category] + '</span><h2>' + escapeHtml(state.title) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
     }
 
     function contestMarkup() {
@@ -618,17 +619,21 @@
     }
 
     function assessmentMarkup() {
-      if (state.personalResult) return '<div class="knowledge-personal-result"><strong>' + state.personalResult.grade + '</strong><span>Calificación</span></div>';
       if (state.submittedAt || state.participant?.submittedAt) {
         const answeredCount = Number.isFinite(Number(state.answerCount)) ? Number(state.answerCount) : answerMap().size;
         const totalQuestions = Number.isFinite(Number(state.questionCount)) ? Number(state.questionCount) : answeredCount;
-        const submittedAt = state.submittedAt || state.participant?.submittedAt;
-        return '<section class="knowledge-audience-card knowledge-submission-receipt"><strong class="knowledge-submission-title">Evaluación entregada</strong><dl>'
+        const submittedAt = state.submissionReceipt?.submittedAt || state.submittedAt || state.participant?.submittedAt;
+        const grade = Number(state.submissionReceipt?.grade ?? state.personalResult?.grade);
+        const gradeMarkup = Number.isFinite(grade)
+          ? '<div class="knowledge-submission-grade"><strong>' + escapeHtml(grade) + '</strong><span>Calificación / 100</span></div>'
+          : "";
+        return '<section class="knowledge-audience-card knowledge-submission-receipt"><span class="knowledge-submission-kicker">Evaluación entregada</span><h2>' + escapeHtml(state.title) + "</h2>" + gradeMarkup + "<dl>"
           + '<div><dt>Nombre</dt><dd>' + escapeHtml(state.participant?.label || "Participante") + '</dd></div>'
           + '<div><dt>Respuestas</dt><dd>' + answeredCount + "/" + totalQuestions + '</dd></div>'
           + '<div><dt>Fecha y hora</dt><dd>' + escapeHtml(submissionDateTime(submittedAt)) + '</dd></div>'
           + "</dl></section>";
       }
+      if (state.personalResult) return '<div class="knowledge-personal-result"><strong>' + state.personalResult.grade + '</strong><span>Calificación</span></div>';
       const questions = state.questions || [];
       if (!questions.length) return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando el inicio…</span></div>";
       selectedAssessmentIndex = Math.max(0, Math.min(questions.length - 1, selectedAssessmentIndex));
@@ -639,6 +644,37 @@
       ).join("");
       const readyToSubmit = questions.length > 0 && answerMap().size === questions.length;
       return '<div class="knowledge-audience-card knowledge-assessment-card"><div class="knowledge-assessment-hud" role="status" aria-label="Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + ', tiempo restante"><span>' + (selectedAssessmentIndex + 1) + "/" + questions.length + '</span><i aria-hidden="true">·</i>' + timerMarkup(state.deadlineAt, state, "knowledge-assessment-hud-timer") + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary knowledge-assessment-submit' + (readyToSubmit ? " is-ready" : "") + '" data-knowledge-submit>Entregar evaluación</button></div>';
+    }
+
+    function moveAssessmentQuestion(direction) {
+      const questions = state?.questions || [];
+      if (!questions.length) return;
+      const nextIndex = Math.max(0, Math.min(questions.length - 1, selectedAssessmentIndex + direction));
+      if (nextIndex === selectedAssessmentIndex) return;
+      selectedAssessmentIndex = nextIndex;
+      render();
+    }
+
+    function attachAssessmentSwipe(card) {
+      if (!card?.addEventListener) return;
+      assessmentSwipe = null;
+      card.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" || event.button > 0) return;
+        assessmentSwipe = {
+          pointerId: event.pointerId,
+          startX: Number(event.clientX) || 0,
+          startY: Number(event.clientY) || 0
+        };
+      });
+      card.addEventListener("pointerup", (event) => {
+        if (!assessmentSwipe || assessmentSwipe.pointerId !== event.pointerId) return;
+        const deltaX = (Number(event.clientX) || 0) - assessmentSwipe.startX;
+        const deltaY = (Number(event.clientY) || 0) - assessmentSwipe.startY;
+        assessmentSwipe = null;
+        if (Math.abs(deltaX) < 52 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+        moveAssessmentQuestion(deltaX < 0 ? 1 : -1);
+      });
+      card.addEventListener("pointercancel", () => { assessmentSwipe = null; });
     }
 
     function render(scrollTop = null) {
@@ -674,8 +710,9 @@
         audienceAudio.play("answer");
         submitAnswer(question.id, button.dataset.knowledgeAnswer);
       }));
-      root.querySelector("[data-knowledge-prev]")?.addEventListener("click", () => { selectedAssessmentIndex -= 1; render(); });
-      root.querySelector("[data-knowledge-next]")?.addEventListener("click", () => { selectedAssessmentIndex += 1; render(); });
+      root.querySelector("[data-knowledge-prev]")?.addEventListener("click", () => moveAssessmentQuestion(-1));
+      root.querySelector("[data-knowledge-next]")?.addEventListener("click", () => moveAssessmentQuestion(1));
+      attachAssessmentSwipe(root.querySelector(".knowledge-assessment-card"));
       root.querySelector("[data-knowledge-submit]")?.addEventListener("click", () => {
         if (global.confirm("¿Entregar la evaluación? Ya no podrás cambiar tus respuestas.")) {
           emitNow("interaction:participant:submit_evaluation", { tabId: currentTabId });
@@ -697,6 +734,11 @@
         selectedAssessmentIndex = 0;
       }
       state = { ...next, _receivedAt: Date.now() };
+      const snapshotLocked = state?.category === "assessment"
+        && ["LOBBY", "COUNTDOWN", "ACTIVE"].includes(state?.state)
+        && !state?.participant?.submittedAt
+        && !state?.submittedAt;
+      onSnapshotAvailabilityChange?.(!snapshotLocked);
       const enteredQuestion = isNewContestQuestion(previous, state);
       const pending = readPending();
       const activeQuestionId = state?.category === "contest" ? state.currentQuestion?.id : pending?.questionId;
