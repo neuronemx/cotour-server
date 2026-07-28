@@ -25,6 +25,7 @@ function pollResults(raffle) { if (!raffle || raffle.mode !== "poll") return nul
 class RaffleStore {
   constructor(random = Math.random) { this.random = random; this.sessions = new Map(); }
   getSession(sessionId) { const key = String(sessionId || ""); if (!this.sessions.has(key)) this.sessions.set(key, { active: null, winners: [], previousWinnerAudienceIds: new Set(), visualKeyDraftEntryKey: "" }); return this.sessions.get(key); }
+  reset(sessionId) { this.sessions.delete(String(sessionId || "")); return this.getSession(sessionId); }
   getActive(sessionId) { return this.getSession(sessionId).active; }
   configureVisualKey(sessionId, entryKey) { const session = this.getSession(sessionId); if (session.active && session.active.state !== "closed") return { ok: false, reason: "active_raffle_exists" }; session.visualKeyDraftEntryKey = normalizeText(entryKey); return { ok: true, entryKey: session.visualKeyDraftEntryKey }; }
   normalizeRaffle(config = {}) {
@@ -80,7 +81,8 @@ function createRaffleSocketHandlers({ io, store, getRoleRoomKey, getConnectedAud
     socket.on("raffle:reset_winners", () => { const context = getContext(); if (!context?.roomKey || !context?.sessionId || !canControlRaffles(context)) return; const result = store.resetWinners(context.sessionId); if (!result.ok) return reject(socket, "raffle:reset_winners", result.reason); io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("raffle:winners_reset", store.getControllerState(context.sessionId)); io.to(getRoleRoomKey(context.roomKey, "stage")).emit("raffle:winners_reset", store.getControllerState(context.sessionId)); emitAllStates(context); });
   }
   function sendCurrentState(socket, context) { if (!context?.sessionId) return; if (context.role === "presenter" || context.role === "stage") { socket.emit("raffle:state", store.getControllerState(context.sessionId)); return; } if (context.role === "screen" || context.role === "viewer") { socket.emit("raffle:state", store.getScreenState(context.sessionId)); return; } socket.emit("raffle:state", store.getAudienceState(context.sessionId, context.audienceId)); }
-  return { attach, sendCurrentState };
+  function resetSession(context) { if (!context?.roomKey || !context?.sessionId) return; clearAutoReveal(context.sessionId); store.reset(context.sessionId); emitAllStates(context); coordinator?.notifyActivityChange?.(context.sessionId); }
+  return { attach, sendCurrentState, resetSession };
 }
 
 module.exports = { RaffleStore, createRaffleSocketHandlers, RAFFLE_STATES, RAFFLE_MODES, RAFFLE_REVEAL_DELAY_MS, AUTO_REVEAL_DELAY_MS, countdownRemainingMs };

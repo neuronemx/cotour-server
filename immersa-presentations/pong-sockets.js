@@ -237,6 +237,14 @@ function createPongSocketHandlers({
     for (const sessionId of Array.from(loops.keys())) stopLoop(sessionId);
   }
 
+  function resetSession(context) {
+    if (!context?.roomKey || !context?.sessionId) return;
+    stopLoop(context.sessionId);
+    store.sessions?.delete?.(String(context.sessionId));
+    audioBySession.delete(String(context.sessionId));
+    io.to(context.roomKey).emit("pong:closed", store.snapshot(context.sessionId));
+  }
+
   return {
     attach,
     sendCurrentState,
@@ -246,6 +254,7 @@ function createPongSocketHandlers({
     prepare: prepareSession,
     close: closeSession,
     closeSession,
+    resetSession,
     closeAll,
     hasActive: (sessionId) => store.hasActive(sessionId),
     queueAvailable: Boolean(queueAvailable),

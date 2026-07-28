@@ -26,6 +26,7 @@ function createBreakoutSocketHandlers({io,store,coordinator=null,onFinished=null
  function sendCurrentState(socket,context){if(!context?.sessionId)return;const state=store.snapshot(context.sessionId);socket.emit('breakout:audio:state',audioState(context.sessionId));socket.emit('breakout:state',state);if(LOOP_STATUSES.has(state.status)&&context.roomKey)ensureLoop(context.roomKey,context.sessionId);}
  function closeSession(context){if(!context?.roomKey||!context?.sessionId||!canControl(context))return{ok:false,reason:'unauthorized_role'};const result=store.close(context.sessionId,context.role);if(!result.ok)return result;stopLoop(context.sessionId);coordinator?.notifyActivityChange?.(context.sessionId);io.to(context.roomKey).emit('breakout:closed',store.snapshot(context.sessionId));return result;}
  function closeAll(){for(const sessionId of Array.from(loops.keys()))stopLoop(sessionId);}
- return{attach,sendCurrentState,emitState,ensureLoop,stopLoop,prepare:prepareSession,close:closeSession,closeSession,closeAll,hasActive:sessionId=>store.hasActive(sessionId),constants:{TICK_MS,BROADCAST_MS}};
+ function resetSession(context){if(!context?.roomKey||!context?.sessionId)return;stopLoop(context.sessionId);store.sessions?.delete?.(String(context.sessionId));audioBySession.delete(String(context.sessionId));io.to(context.roomKey).emit('breakout:closed',store.snapshot(context.sessionId));}
+ return{attach,sendCurrentState,emitState,ensureLoop,stopLoop,prepare:prepareSession,close:closeSession,closeSession,resetSession,closeAll,hasActive:sessionId=>store.hasActive(sessionId),constants:{TICK_MS,BROADCAST_MS}};
 }
 module.exports={createBreakoutSocketHandlers,TICK_MS,BROADCAST_MS};

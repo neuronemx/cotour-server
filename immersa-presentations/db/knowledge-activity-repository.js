@@ -279,7 +279,7 @@ class KnowledgeActivityRepository {
       `SELECT e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
-       WHERE ps.deck_id = ?
+       WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
        ORDER BY e.opened_at DESC, e.id DESC`,
       [String(deckId || "")]
     );

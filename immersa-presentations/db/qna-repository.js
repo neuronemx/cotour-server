@@ -366,7 +366,7 @@ class QnaRepository {
     const [rows] = await this.pool.execute(
       `SELECT
          ps.id AS presentation_session_id,
-         ps.started_at,
+         ps.recording_started_at AS started_at,
          ps.ended_at,
          COUNT(DISTINCT r.id) AS round_count,
          COUNT(q.id) AS question_count,
@@ -374,9 +374,9 @@ class QnaRepository {
        FROM presentation_sessions ps
        LEFT JOIN qna_rounds r ON r.presentation_session_id = ps.id
        LEFT JOIN qna_questions q ON q.qna_round_id = r.id
-       WHERE ps.deck_id = ?
-       GROUP BY ps.id, ps.started_at, ps.ended_at
-       ORDER BY ps.started_at DESC, ps.id DESC`,
+       WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
+       GROUP BY ps.id, ps.recording_started_at, ps.ended_at
+       ORDER BY ps.recording_started_at DESC, ps.id DESC`,
       [normalizedDeckId]
     );
     return rows.map((row) => ({
@@ -395,7 +395,7 @@ class QnaRepository {
       `SELECT
          ps.id AS presentation_session_id,
          ps.deck_id,
-         ps.started_at,
+         ps.recording_started_at AS started_at,
          r.round_number,
          q.id AS question_id,
          q.question_text,
@@ -405,8 +405,8 @@ class QnaRepository {
        FROM presentation_sessions ps
        INNER JOIN qna_rounds r ON r.presentation_session_id = ps.id
        INNER JOIN qna_questions q ON q.qna_round_id = r.id
-       WHERE ps.deck_id = ?
-       ORDER BY ps.started_at, ps.id, r.round_number, q.created_at, q.id`,
+       WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
+       ORDER BY ps.recording_started_at, ps.id, r.round_number, q.created_at, q.id`,
       [normalizedDeckId]
     );
     return rows.map((row) => ({
@@ -425,7 +425,7 @@ class QnaRepository {
     const normalizedDeckId = requiredText(deckId, "deckId", 191);
     return inTransaction(this.pool, async (connection) => {
       const [activeRows] = await connection.execute(
-        `SELECT id, source_session_id
+        `SELECT id, source_session_id, recording_started_at
          FROM presentation_sessions
          WHERE deck_id = ? AND ended_at IS NULL
          ORDER BY started_at DESC, id DESC
@@ -440,7 +440,7 @@ class QnaRepository {
          FROM presentation_sessions ps
          LEFT JOIN qna_rounds r ON r.presentation_session_id = ps.id
          LEFT JOIN qna_questions q ON q.qna_round_id = r.id
-         WHERE ps.deck_id = ?`,
+         WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL`,
         [normalizedDeckId]
       );
       const counts = countRows[0] || {};
@@ -466,7 +466,10 @@ class QnaRepository {
 
       return {
         deckId: normalizedDeckId,
-        deletedSessionCount: Math.max(0, Number(counts.session_count) - (active ? 1 : 0)),
+        deletedSessionCount: Math.max(
+          0,
+          Number(counts.session_count) - (active?.recording_started_at ? 1 : 0)
+        ),
         deletedQuestionCount: Number(counts.question_count) || 0,
         activePresentationSessionId: active?.id || null,
         sourceSessionId: active?.source_session_id || null

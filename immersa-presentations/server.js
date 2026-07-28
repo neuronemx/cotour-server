@@ -18,6 +18,10 @@ const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
 const { createKnowledgeActivityHistoryHandlers } = require("./knowledge-activity-export");
+const {
+  PresentationLifecycleRepository,
+  createPresentationLifecycleRuntime
+} = require("./presentation-lifecycle");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 
@@ -78,6 +82,52 @@ const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
   getRoomKey,
   getConnectedAudience
 });
+const lifecyclePool = qnaRuntime.pool || knowledgeActivityRuntime.pool || null;
+const presentationLifecycleRuntime = lifecyclePool
+  ? createPresentationLifecycleRuntime({
+      io,
+      repository: new PresentationLifecycleRepository(lifecyclePool),
+      getRoleRoomKey,
+      beforeStart: async (context) => {
+        await knowledgeActivityRuntime.resetSession(context);
+        interactionSockets.resetSession(context);
+        raffleSockets.resetSession(context);
+        gameQueueSockets.resetSession(context);
+      },
+      afterStart: async (context, state) => {
+        await qnaRuntime.resetSessionState?.({
+          deckId: context.deckId,
+          sourceSessionId: context.sessionId,
+          presentationSessionId: state.presentationSessionId
+        });
+      },
+      beforeFinish: async (context) => (
+        activeInteractionCoordinator.hasAnyActive(context.sessionId)
+          ? {
+              ok: false,
+              reason: "ACTIVE_INTERACTION",
+              message: "Cierra la interacción activa antes de finalizar"
+            }
+          : { ok: true }
+      ),
+      afterFinish: async (context, state) => {
+        await knowledgeActivityRuntime.resetSession(context);
+        interactionSockets.resetSession(context);
+        raffleSockets.resetSession(context);
+        gameQueueSockets.resetSession(context);
+        await qnaRuntime.resetSessionState?.({
+          deckId: context.deckId,
+          sourceSessionId: context.sessionId,
+          presentationSessionId: state.presentationSessionId
+        });
+      }
+    })
+  : {
+      attach() {},
+      async sendCurrentState(socket) {
+        socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
+      }
+    };
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
@@ -679,6 +729,13 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  presentationLifecycleRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey,
+    role: currentRole,
+    sessionId: currentSessionId,
+    deckId: currentDeckId,
+    audienceId: currentAudienceId
+  }));
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
     if (!role) return;
@@ -723,7 +780,8 @@ io.on("connection", (socket) => {
       ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
       ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
       ["Q&A", () => qnaRuntime.sendCurrentState(socket, joinedContext)],
-      ["knowledge activity", () => knowledgeActivityRuntime.sendCurrentState(socket, joinedContext)]
+      ["knowledge activity", () => knowledgeActivityRuntime.sendCurrentState(socket, joinedContext)],
+      ["presentation lifecycle", () => presentationLifecycleRuntime.sendCurrentState(socket, joinedContext)]
     ];
     void Promise.allSettled(snapshotJobs.map(([, send]) => Promise.resolve().then(send)))
       .then((results) => {

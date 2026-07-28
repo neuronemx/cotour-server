@@ -246,11 +246,21 @@ function createKnowledgeActivitySocketHandlers({
     socket.emit("interaction:execution:state", roleState(execution, context.role, { participantId }));
   }
 
+  function clearState(context) {
+    if (!context?.roomKey) return;
+    for (const role of ["presenter", "stage", "screen", "viewer", "audience"]) {
+      io.to(getRoleRoomKey(context.roomKey, role)).emit(
+        "interaction:execution:state",
+        roleState(null, role)
+      );
+    }
+  }
+
   function close() {
     unsubscribe();
   }
 
-  return { attach, sendCurrentState, emitAll, close, participantIdFor };
+  return { attach, sendCurrentState, emitAll, clearState, close, participantIdFor };
 }
 
 module.exports = {

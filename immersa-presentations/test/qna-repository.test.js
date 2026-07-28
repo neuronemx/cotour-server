@@ -31,7 +31,7 @@ function ids() {
   return () => values.shift();
 }
 
-test("starts each deck execution as a distinct historical session and first round", async () => {
+test("starts each Screen execution as a distinct draft session and first round", async () => {
   const pool = fakePool();
   const repository = new QnaRepository(pool, { createId: ids() });
   const result = await repository.startPresentationSession({ deckId: "deck-a", sourceSessionId: "room-a" });
@@ -260,7 +260,11 @@ test("exports every existing deck question with Respondida Sí/No and spreadshee
 
 test("clears deck history while preserving an empty active execution", async () => {
   const pool = fakePool([
-    [[{ id: "session-active", source_session_id: "source-session-1" }], []],
+    [[{
+      id: "session-active",
+      source_session_id: "source-session-1",
+      recording_started_at: new Date("2026-07-28T10:00:00.000Z")
+    }], []],
     [[{ session_count: 3, question_count: 7 }], []],
     [{ affectedRows: 2 }, []],
     [{ affectedRows: 2 }, []],

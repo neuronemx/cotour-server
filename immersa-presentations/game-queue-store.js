@@ -36,6 +36,11 @@ class GameQueueStore {
     return this.sessions.get(key);
   }
 
+  reset(sessionId) {
+    this.sessions.delete(String(sessionId || ""));
+    return this.getSession(sessionId);
+  }
+
   orderedSelection(gameTypes) {
     const requested = new Set(Array.from(gameTypes || []).map((gameType) => String(gameType || "")));
     return this.catalog.filter((game) => requested.has(game.id)).map((game) => game.id);

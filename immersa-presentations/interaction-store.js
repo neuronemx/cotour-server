@@ -44,6 +44,11 @@ class InteractionStore {
     return Boolean(this.getSession(sessionId).active);
   }
 
+  reset(sessionId) {
+    this.sessions.delete(String(sessionId || ""));
+    return this.getState(sessionId);
+  }
+
   normalizeInteraction(interaction) {
     if (!interaction || !interaction.id || !interaction.type) return null;
     const options = Array.isArray(interaction.options)
@@ -233,6 +238,21 @@ function createInteractionSocketHandlers({
     mediaSockets.sendCurrentState(socket, context);
   }
 
+  function resetSession(context) {
+    if (!context?.roomKey || !context?.sessionId) return;
+    timeSyncSockets.resetSession(context);
+    breakoutSockets.resetSession?.(context);
+    pongSockets.resetSession?.(context);
+    const previous = store.getSession(context.sessionId).active;
+    store.reset(context.sessionId);
+    io.to(context.roomKey).emit("interaction:closed", { interactionId: previous?.id || "" });
+    io.to(context.roomKey).emit("interaction:state", store.getState(context.sessionId));
+    io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", {
+      interactionId: previous?.id || ""
+    });
+    coordinator?.notifyActivityChange?.(context.sessionId);
+  }
+
   async function launchInteraction(context, interactionId) {
     const execute = async () => {
       if (coordinator?.hasAnyActive?.(context.sessionId, "interaction")) {
@@ -321,7 +341,8 @@ function createInteractionSocketHandlers({
     breakoutSockets,
     pongStore,
     pongSockets,
-    mediaSockets
+    mediaSockets,
+    resetSession
   };
 }
 

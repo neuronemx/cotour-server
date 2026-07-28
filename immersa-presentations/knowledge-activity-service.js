@@ -232,6 +232,14 @@ class KnowledgeActivityService {
     return execution ? stateForRole(execution, { ...options, nowMs: this.now() }) : { available: true, execution: null };
   }
 
+  discard(sourceSessionId) {
+    const key = this.key(sourceSessionId);
+    const handle = this.timers.get(key);
+    if (handle) this.clearTimeoutFn(handle);
+    this.timers.delete(key);
+    return this.executions.delete(key);
+  }
+
   async close() {
     for (const handle of this.timers.values()) this.clearTimeoutFn(handle);
     this.timers.clear();

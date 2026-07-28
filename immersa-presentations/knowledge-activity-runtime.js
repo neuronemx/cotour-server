@@ -15,6 +15,7 @@ function disabledRuntime() {
       socket.emit("interaction:execution:state", { available: false, execution: null });
     },
     async listHistory() { return []; },
+    async resetSession() {},
     async close() {}
   };
 }
@@ -61,13 +62,18 @@ function createKnowledgeActivityRuntime(options = {}) {
     },
     sendCurrentState: sockets.sendCurrentState,
     listHistory: ({ deckId }) => repository.listHistory(deckId),
+    async resetSession(context) {
+      service.discard(context?.sessionId);
+      sockets.clearState(context);
+    },
     async close() {
       sockets.close();
       await service.close();
       if (pool?.end) await pool.end();
     },
     service,
-    repository
+    repository,
+    pool
   };
 }
 
