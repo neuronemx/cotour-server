@@ -23,9 +23,11 @@ Immersa can treat a local MP4 or a YouTube link as one slide in the normal prese
 ## Role behavior
 
 - **Screen:** loads and plays the MP4 inside the presentation frame.
-- **Speaker:** displays the poster and provides Play/Pause, Restart and Mute controls.
-- **Stage:** displays the poster and provides the same backup controls.
+- **Speaker:** displays the poster and a centered floating controller with current position, remaining time, timeline seek, Restart, ±10 seconds, Play/Pause and Mute.
+- **Stage:** displays the poster and the same synchronized backup controller.
 - **Audience:** displays the poster only. The MP4 and its audio are not downloaded or played on audience devices.
+
+Screen is authoritative for playback telemetry because only Screen owns the real local or YouTube player. It sends ephemeral position, duration, playing and mute snapshots to Speaker and Stage; these values are not written to presentation History.
 
 ## Audio permission
 
@@ -38,4 +40,4 @@ From **Deck → Video**, choose the slide and one source:
 - **Archivo MP4:** the file stays local and Screen validates it before presenting.
 - **Link de YouTube:** accepts standard watch, `youtu.be`, Shorts, Live and Embed URLs. The normalized video ID and optional start time are stored; arbitrary embeds are rejected.
 
-Speaker and Stage use the same Play/Pause, Restart and Mute controls for both sources. YouTube requires internet access and the source video must allow embedding.
+Speaker and Stage use the same synchronized controls for both sources. YouTube requires internet access and the source video must allow embedding.

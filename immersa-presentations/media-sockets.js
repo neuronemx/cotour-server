@@ -31,13 +31,19 @@ function normalizePlayback(payload = {}, context = {}) {
   const slideIndex = Number(payload.slide_index ?? payload.slideIndex);
   if (!Number.isInteger(slideIndex) || slideIndex < 0) return null;
   const provider = String(payload.provider || "").toLowerCase();
-  if (provider !== "youtube") return null;
+  if (provider !== "youtube" && provider !== "local") return null;
+  const currentTime = Number(payload.current_time_seconds ?? payload.currentTimeSeconds);
+  const duration = Number(payload.duration_seconds ?? payload.durationSeconds);
   return {
     session_id: String(context.sessionId || ""),
     deck_id: String(context.deckId || ""),
     slide_index: slideIndex,
     provider,
     forced_muted: Boolean(payload.forced_muted ?? payload.forcedMuted),
+    current_time_seconds: Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0,
+    duration_seconds: Number.isFinite(duration) && duration >= 0 ? duration : 0,
+    playing: Boolean(payload.playing),
+    muted: Boolean(payload.muted),
     updated_at: new Date().toISOString()
   };
 }

@@ -151,11 +151,15 @@ test('YouTube autoplay falls back to muted playback and reuses the existing medi
   assert.ok(calls.filter((call) => call === 'play').length >= 2, 'play is retried automatically');
   assert.equal(harness.createdUnlocks.length, 0, 'no duplicate unlock button is created');
   assert.equal(sharedUnlock.dataset.videoMediaUnlockBound, '1', 'YouTube binds to the shared unlock');
-  assert.deepEqual(
-    harness.emitted.find(({ name }) => name === 'media:playback_update')?.payload,
-    { slide_index: 0, provider: 'youtube', forced_muted: true },
-    'Screen reports the browser-forced mute to controllers'
-  );
+  const playback = harness.emitted
+    .filter(({ name }) => name === 'media:playback_update')
+    .map(({ payload }) => payload)
+    .findLast(({ forced_muted: forcedMuted }) => forcedMuted);
+  assert.equal(playback?.slide_index, 0);
+  assert.equal(playback?.provider, 'youtube');
+  assert.equal(playback?.forced_muted, true, 'Screen reports the browser-forced mute to controllers');
+  assert.equal(playback?.current_time_seconds, 0);
+  assert.equal(playback?.duration_seconds, 0);
 });
 
 test('manual YouTube playback still waits for Play', async (t) => {
@@ -246,8 +250,9 @@ test('successful controller unmute dismisses the shared Screen audio prompt', as
   await new Promise((resolve) => setTimeout(resolve, 760));
 
   assert.equal(sharedUnlock.isConnected, false, 'confirmed audio removes the shared prompt');
-  assert.deepEqual(
-    harness.emitted.filter(({ name }) => name === 'media:playback_update').at(-1)?.payload,
-    { slide_index: 0, provider: 'youtube', forced_muted: false }
-  );
+  const playback = harness.emitted.filter(({ name }) => name === 'media:playback_update').at(-1)?.payload;
+  assert.equal(playback?.slide_index, 0);
+  assert.equal(playback?.provider, 'youtube');
+  assert.equal(playback?.forced_muted, false);
+  assert.equal(playback?.playing, true);
 });

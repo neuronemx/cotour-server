@@ -119,7 +119,7 @@
     if (!document || root.ImmersaVideoSlides || root.__immersaVideoSlidesLoading) return;
     root.__immersaVideoSlidesLoading = true;
     const script = document.createElement('script');
-    script.src = '/shared/video-slide-runtime.js?v=111';
+    script.src = '/shared/video-slide-runtime.js?v=112';
     script.defer = true;
     script.onerror = () => { root.__immersaVideoSlidesLoading = false; };
     document.head.appendChild(script);

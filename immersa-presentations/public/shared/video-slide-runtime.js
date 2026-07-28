@@ -105,6 +105,43 @@
     return { command: muted ? 'unmute' : 'mute', muted: !muted };
   }
 
+  function playbackMatches(playback, slideIndex) {
+    return Boolean(playback) && Number(playback.slide_index) === Number(slideIndex);
+  }
+
+  function finiteMediaTime(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : 0;
+  }
+
+  function playbackPosition(playback, slideIndex) {
+    return playbackMatches(playback, slideIndex) ? finiteMediaTime(playback.current_time_seconds) : 0;
+  }
+
+  function playbackDuration(playback, slideIndex) {
+    return playbackMatches(playback, slideIndex) ? finiteMediaTime(playback.duration_seconds) : 0;
+  }
+
+  function mediaControlPlaying(media, playback, slideIndex) {
+    if (playbackMatches(playback, slideIndex) && typeof playback.playing === 'boolean') {
+      return playback.playing;
+    }
+    return media?.playing !== false;
+  }
+
+  function formatMediaTime(value) {
+    const total = Math.max(0, Math.floor(finiteMediaTime(value)));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    if (hours) return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+    return minutes + ':' + String(seconds).padStart(2, '0');
+  }
+
+  function remainingMediaTime(currentTime, duration) {
+    return '\u2212' + formatMediaTime(Math.max(0, finiteMediaTime(duration) - finiteMediaTime(currentTime)));
+  }
+
   function currentIndex(role, state) {
     if (role === 'screen' || role === 'audience') return Number(state?.liveSlideIndex ?? state?.slideIndex ?? 0);
     return Number(state?.presenterSlideIndex ?? state?.slideIndex ?? 0);
@@ -114,7 +151,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=108';
+    link.href = '/shared/video-slide-runtime.css?v=109';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }
@@ -150,6 +187,8 @@
     let unlockButton = null;
     let ownsUnlockButton = false;
     let screenPlayback = null;
+    let screenForcedMuted = false;
+    let playbackTimer = null;
     let lastReportedPlayback = '';
     let lastAppliedRevision = null;
     let lastInitializedIndex = -1;
@@ -191,16 +230,64 @@
       controlSocket.emit('overlay_update', { overlays: { videoMedia: next } });
     }
 
-    function reportScreenPlayback(forcedMuted, item, index, revision = '') {
-      if (role !== 'screen' || !isYouTubeSlide(item)) return;
-      const key = String(index) + ':' + String(Boolean(forcedMuted)) + ':' + String(revision);
-      if (key === lastReportedPlayback) return;
-      lastReportedPlayback = key;
-      mainSocket.emit('media:playback_update', {
+    function playbackSnapshot(item, index) {
+      const youtube = isYouTubeSlide(item);
+      if (youtube) {
+        const playerState = youtubePlayer?.getPlayerState?.();
+        const playing = playerState === root.YT?.PlayerState?.PLAYING
+          || playerState === root.YT?.PlayerState?.BUFFERING;
+        return {
+          slide_index: Number(index),
+          provider: 'youtube',
+          forced_muted: Boolean(screenForcedMuted),
+          current_time_seconds: finiteMediaTime(youtubePlayer?.getCurrentTime?.()),
+          duration_seconds: finiteMediaTime(youtubePlayer?.getDuration?.()),
+          playing,
+          muted: Boolean(youtubePlayer?.isMuted?.())
+        };
+      }
+      return {
         slide_index: Number(index),
-        provider: 'youtube',
-        forced_muted: Boolean(forcedMuted)
-      });
+        provider: 'local',
+        forced_muted: false,
+        current_time_seconds: finiteMediaTime(video?.currentTime),
+        duration_seconds: finiteMediaTime(video?.duration),
+        playing: Boolean(video && !video.paused && !video.ended),
+        muted: Boolean(video?.muted)
+      };
+    }
+
+    function reportScreenPlayback(forcedMuted, item, index, revision = '', force = false) {
+      if (role !== 'screen' || !isVideoSlide(item)) return;
+      if (typeof forcedMuted === 'boolean') screenForcedMuted = forcedMuted;
+      const payload = playbackSnapshot(item, index);
+      const key = [
+        payload.slide_index,
+        payload.provider,
+        payload.forced_muted,
+        payload.playing,
+        payload.muted,
+        Math.round(payload.current_time_seconds * 4) / 4,
+        Math.round(payload.duration_seconds * 4) / 4,
+        revision
+      ].join(':');
+      if (!force && key === lastReportedPlayback) return;
+      lastReportedPlayback = key;
+      mainSocket.emit('media:playback_update', payload);
+    }
+
+    function startPlaybackTicker() {
+      if (role !== 'screen' || playbackTimer) return;
+      playbackTimer = root.setInterval?.(() => {
+        if (isVideoSlide(activeItem)) reportScreenPlayback(undefined, activeItem, activeIndex);
+      }, 500);
+      playbackTimer?.unref?.();
+    }
+
+    function stopPlaybackTicker() {
+      if (!playbackTimer) return;
+      root.clearInterval?.(playbackTimer);
+      playbackTimer = null;
     }
 
     function patchPoster(_index, item) {
@@ -231,8 +318,14 @@
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
       video.addEventListener('ended', () => {
+        reportScreenPlayback(undefined, activeItem, activeIndex, '', true);
         if (role !== 'screen' || !activeItem) return;
         root.ImmersaLocalMedia?.handleEnded?.({ slideIndex: activeIndex, item: activeItem });
+      });
+      ['loadedmetadata', 'durationchange', 'play', 'pause', 'timeupdate', 'volumechange'].forEach((eventName) => {
+        video.addEventListener(eventName, () => {
+          if (role === 'screen' && activeItem) reportScreenPlayback(undefined, activeItem, activeIndex);
+        });
       });
       host.appendChild(video);
       return video;
@@ -283,6 +376,7 @@
             events: {
               onReady: (event) => resolve(event.target),
               onStateChange: (event) => {
+                reportScreenPlayback(undefined, activeItem, activeIndex, '', true);
                 if (event.data !== root.YT?.PlayerState?.ENDED || !isYouTubeSlide(activeItem)) return;
                 if (activeItem.loop) {
                   event.target.seekTo(Math.max(0, Number(activeItem.youtubeStartSeconds) || 0), true);
@@ -442,8 +536,11 @@
           });
         }
         const revision = String(media.revision ?? '0');
-        if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter')) {
-          player.seekTo(Math.max(0, Number(item.youtubeStartSeconds) || 0), true);
+        if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
+          const targetSeconds = media.command === 'seek'
+            ? finiteMediaTime(media.position_seconds)
+            : Math.max(0, Number(item.youtubeStartSeconds) || 0);
+          player.seekTo(targetSeconds, true);
         }
         lastAppliedRevision = revision;
         if (media.playing) {
@@ -486,8 +583,9 @@
       player.muted = Boolean(media.muted);
 
       const revision = String(media.revision ?? '0');
-      if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter')) {
-        try { player.currentTime = 0; } catch (_error) {}
+      if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
+        const targetSeconds = media.command === 'seek' ? finiteMediaTime(media.position_seconds) : 0;
+        try { player.currentTime = targetSeconds; } catch (_error) {}
       }
       lastAppliedRevision = revision;
 
@@ -514,6 +612,7 @@
     }
 
     function hidePlayers() {
+      stopPlaybackTicker();
       hideVideo();
       hideYouTube();
       const image = slideElement();
@@ -530,18 +629,45 @@
       controls.dataset.videoMediaControls = '1';
       controls.hidden = true;
       controls.innerHTML = [
-        '<span class="video-media-label">Video</span>',
-        '<button type="button" data-video-action="toggle" aria-label="Play o pausa">▶</button>',
-        '<button type="button" data-video-action="restart" aria-label="Reiniciar video">↺</button>',
-        '<button type="button" data-video-action="mute" aria-label="Silenciar o activar sonido">🔊</button>'
+        '<div class="video-media-progress-row">',
+          '<span class="video-media-time" data-video-current-time>0:00</span>',
+          '<div class="video-media-progress-track" data-video-seek-track role="slider" tabindex="0" aria-label="Posición del video" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">',
+            '<div class="video-media-progress-visual"><div class="video-media-progress-fill" data-video-progress-fill><span class="video-media-progress-handle"></span></div></div>',
+          '</div>',
+          '<span class="video-media-time is-remaining" data-video-remaining-time>\u22120:00</span>',
+        '</div>',
+        '<div class="video-media-controls-row">',
+          '<div class="video-media-primary-controls">',
+            '<button class="video-media-icon-button" type="button" data-video-action="restart" aria-label="Ir al inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5v14l-12 -7l12 -7"/><path d="M4 5l0 14"/></svg></button>',
+            '<button class="video-media-icon-button" type="button" data-video-action="rewind" aria-label="Retroceder 10 segundos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9l-3 -3l3 -3"/><path d="M15.997 17.918a6.002 6.002 0 0 0 -.997 -11.918h-11"/><path d="M6 14v6"/><path d="M9 15.5v3a1.5 1.5 0 0 0 3 0v-3a1.5 1.5 0 0 0 -3 0"/></svg></button>',
+            '<button class="video-media-play-button" type="button" data-video-action="toggle" aria-label="Reproducir"><svg data-video-play-icon viewBox="0 0 24 24" fill="none" stroke="#12101a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13 -8l-13 -8"/></svg></button>',
+            '<button class="video-media-icon-button" type="button" data-video-action="forward" aria-label="Avanzar 10 segundos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 9l3 -3l-3 -3"/><path d="M8 17.918a5.997 5.997 0 0 1 -5 -5.918a6 6 0 0 1 6 -6h11"/><path d="M12 14v6"/><path d="M15 15.5v3a1.5 1.5 0 0 0 3 0v-3a1.5 1.5 0 0 0 -3 0"/></svg></button>',
+          '</div>',
+          '<button class="video-media-icon-button" type="button" data-video-action="mute" aria-label="Silenciar"><svg data-video-volume-icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"/></svg></button>',
+        '</div>'
       ].join('');
       controls.addEventListener('click', (event) => {
+        const track = event.target.closest('[data-video-seek-track]');
+        if (track && activeItem) {
+          const duration = playbackDuration(screenPlayback, activeIndex);
+          if (!duration) return;
+          const rect = track.getBoundingClientRect();
+          const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+          const media = effectiveMediaState(lastState, activeItem, activeIndex);
+          emitMedia({ command: 'seek', position_seconds: ratio * duration, playing: mediaControlPlaying(media, screenPlayback, activeIndex) });
+          return;
+        }
         const button = event.target.closest('[data-video-action]');
         if (!button || !activeItem) return;
         const media = effectiveMediaState(lastState, activeItem, activeIndex);
         const action = button.dataset.videoAction;
-        if (action === 'toggle') emitMedia({ command: media.playing ? 'pause' : 'play', playing: !media.playing });
+        const playing = mediaControlPlaying(media, screenPlayback, activeIndex);
+        const position = playbackPosition(screenPlayback, activeIndex);
+        const duration = playbackDuration(screenPlayback, activeIndex);
+        if (action === 'toggle') emitMedia({ command: playing ? 'pause' : 'play', playing: !playing });
         if (action === 'restart') emitMedia({ command: 'restart', playing: true });
+        if (action === 'rewind') emitMedia({ command: 'seek', position_seconds: Math.max(0, position - 10), playing });
+        if (action === 'forward') emitMedia({ command: 'seek', position_seconds: duration ? Math.min(duration, position + 10) : position + 10, playing });
         if (action === 'mute') {
           const patch = muteControlPatch(media, screenPlayback, activeIndex);
           if (patch.muted === false && playbackForcedMuted(screenPlayback, activeIndex)) {
@@ -549,6 +675,20 @@
           }
           emitMedia(patch);
         }
+      });
+      controls.addEventListener('keydown', (event) => {
+        const track = event.target.closest('[data-video-seek-track]');
+        if (!track || !activeItem || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        const media = effectiveMediaState(lastState, activeItem, activeIndex);
+        const position = playbackPosition(screenPlayback, activeIndex);
+        const duration = playbackDuration(screenPlayback, activeIndex);
+        const delta = event.key === 'ArrowLeft' ? -10 : 10;
+        emitMedia({
+          command: 'seek',
+          position_seconds: Math.min(duration || Infinity, Math.max(0, position + delta)),
+          playing: mediaControlPlaying(media, screenPlayback, activeIndex)
+        });
       });
       host.appendChild(controls);
       return controls;
@@ -562,12 +702,33 @@
       if (!active) return;
       const media = effectiveMediaState(state, item, index);
       const muted = mediaControlMuted(media, screenPlayback, index);
+      const playing = mediaControlPlaying(media, screenPlayback, index);
+      const currentTime = playbackPosition(screenPlayback, index);
+      const duration = playbackDuration(screenPlayback, index);
       const toggle = bar.querySelector('[data-video-action="toggle"]');
       const mute = bar.querySelector('[data-video-action="mute"]');
-      toggle.textContent = media.playing ? '❚❚' : '▶';
-      toggle.title = media.playing ? 'Pausar video' : 'Reproducir video';
-      mute.textContent = muted ? '🔇' : '🔊';
+      const playIcon = bar.querySelector('[data-video-play-icon]');
+      const volumeIcon = bar.querySelector('[data-video-volume-icon]');
+      const currentTimeNode = bar.querySelector('[data-video-current-time]');
+      const remainingTimeNode = bar.querySelector('[data-video-remaining-time]');
+      const progressFill = bar.querySelector('[data-video-progress-fill]');
+      const progressTrack = bar.querySelector('[data-video-seek-track]');
+      playIcon.innerHTML = playing
+        ? '<path d="M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/><path d="M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/>'
+        : '<path d="M7 4v16l13 -8l-13 -8"/>';
+      volumeIcon.innerHTML = muted
+        ? '<path d="M15 8a5 5 0 0 1 1.912 4.934m-1.377 2.602a5 5 0 0 1 -.535 .464"/><path d="M17.7 5a9 9 0 0 1 2.362 11.086m-1.676 2.299a9 9 0 0 1 -.686 .615"/><path d="M9.069 5.054l.431 -.554a.8 .8 0 0 1 1.5 .5v2m0 4v8a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l1.294 -1.664"/><path d="M3 3l18 18"/>'
+        : '<path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"/>';
+      toggle.setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir');
+      toggle.title = playing ? 'Pausar video' : 'Reproducir video';
+      mute.setAttribute('aria-label', muted ? 'Activar sonido' : 'Silenciar');
       mute.title = muted ? 'Activar sonido' : 'Silenciar video';
+      currentTimeNode.textContent = formatMediaTime(currentTime);
+      remainingTimeNode.textContent = remainingMediaTime(currentTime, duration);
+      progressFill.style.width = (duration ? Math.min(100, Math.max(0, currentTime / duration * 100)) : 0) + '%';
+      progressTrack.setAttribute('aria-valuemax', String(Math.floor(duration)));
+      progressTrack.setAttribute('aria-valuenow', String(Math.floor(currentTime)));
+      progressTrack.setAttribute('aria-valuetext', formatMediaTime(currentTime) + ' de ' + formatMediaTime(duration));
     }
 
     function maybeInitializeController(state, item, index) {
@@ -595,6 +756,8 @@
       activeItem = item;
 
       if (!isVideoSlide(item)) {
+        screenForcedMuted = false;
+        lastReportedPlayback = '';
         hidePlayers();
         if (controls) controls.hidden = true;
         if (changed) lastInitializedIndex = -1;
@@ -606,9 +769,19 @@
       maybeInitializeController(state, item, index);
 
       if (role === 'screen' && isYouTubeSlide(item)) {
+        if (changed) {
+          screenForcedMuted = false;
+          lastReportedPlayback = '';
+        }
+        startPlaybackTicker();
         hideVideo();
         applyYouTubeState(item, state, index);
       } else if (role === 'screen') {
+        if (changed) {
+          screenForcedMuted = false;
+          lastReportedPlayback = '';
+        }
+        startPlaybackTicker();
         hideYouTube();
         applyVideoState(item, state, index);
       } else {
@@ -678,6 +851,12 @@
     playbackForcedMuted,
     mediaControlMuted,
     muteControlPatch,
+    playbackMatches,
+    playbackPosition,
+    playbackDuration,
+    mediaControlPlaying,
+    formatMediaTime,
+    remainingMediaTime,
     currentIndex,
     createRuntime,
     autoMount

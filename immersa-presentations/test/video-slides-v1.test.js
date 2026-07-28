@@ -47,6 +47,18 @@ test('video media state follows the active role slide index', () => {
     command: 'mute',
     muted: true
   });
+  const playback = {
+    slide_index: 6,
+    current_time_seconds: 94.8,
+    duration_seconds: 352.2,
+    playing: true
+  };
+  assert.equal(videoSlides.playbackPosition(playback, 6), 94.8);
+  assert.equal(videoSlides.playbackDuration(playback, 6), 352.2);
+  assert.equal(videoSlides.mediaControlPlaying({ playing: false }, playback, 6), true);
+  assert.equal(videoSlides.formatMediaTime(94.8), '1:34');
+  assert.equal(videoSlides.formatMediaTime(3661), '1:01:01');
+  assert.equal(videoSlides.remainingMediaTime(94.8, 352.2), '−4:17');
 });
 
 test('all roles load the configured video bridge and shared runtime', () => {
@@ -61,9 +73,13 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=111/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=112/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
+  assert.match(runtime, /position_seconds/);
+  assert.match(runtime, /data-video-seek-track/);
+  assert.match(runtime, /Retroceder 10 segundos/);
+  assert.match(runtime, /Avanzar 10 segundos/);
   assert.match(runtime, /Activar sonido/);
   assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /data-immersa-media-unlock/);
@@ -80,5 +96,8 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(css, /\.immersa-video-slide/);
   assert.match(css, /\.immersa-youtube-slide/);
   assert.match(css, /\.video-media-controls/);
+  assert.match(css, /top:\s*50%/);
+  assert.match(css, /\.video-media-progress-fill/);
+  assert.match(css, /linear-gradient\(135deg,\s*#8b5cf6,\s*#3b82f6,\s*#22d3ee\)/);
   assert.match(css, /\.immersa-media-unlock/);
 });

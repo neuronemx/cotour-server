@@ -118,6 +118,22 @@ test('media status is normalized before broadcasting to control roles', () => {
   assert.equal(status.missing, 1);
 });
 
+test('Screen playback telemetry normalizes local and YouTube position data', () => {
+  const local = mediaSockets.normalizePlayback({
+    slide_index: 2,
+    provider: 'local',
+    current_time_seconds: 12.75,
+    duration_seconds: 98.5,
+    playing: true,
+    muted: false
+  }, { sessionId: 's1', deckId: 'd1' });
+  assert.equal(local.provider, 'local');
+  assert.equal(local.current_time_seconds, 12.75);
+  assert.equal(local.duration_seconds, 98.5);
+  assert.equal(local.playing, true);
+  assert.equal(mediaSockets.normalizePlayback({ slide_index: 2, provider: 'vimeo' }), null);
+});
+
 test('Screen playback state is forwarded only to Speaker and Stage', () => {
   const emitted = [];
   const io = {
