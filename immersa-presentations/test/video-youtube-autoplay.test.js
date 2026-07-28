@@ -191,3 +191,63 @@ test('manual YouTube playback still waits for Play', async (t) => {
   assert.equal(calls.includes('play'), false);
   assert.ok(calls.includes('pause'));
 });
+
+test('successful controller unmute dismisses the shared Screen audio prompt', async (t) => {
+  const sharedUnlock = createNode('button');
+  sharedUnlock.dataset.immersaMediaUnlock = '1';
+  sharedUnlock.isConnected = true;
+  const harness = createHarness({ autoplay: true, sharedUnlock });
+  let playerState = -1;
+  let muted = false;
+  const previousYT = globalThis.YT;
+  globalThis.YT = {
+    PlayerState: { PLAYING: 1, BUFFERING: 3, ENDED: 0 },
+    Player: function (_target, options) {
+      const player = {
+        cueVideoById() {},
+        seekTo() {},
+        unMute() {
+          muted = false;
+        },
+        mute() {
+          muted = true;
+        },
+        playVideo() {},
+        pauseVideo() {},
+        getPlayerState: () => playerState,
+        isMuted: () => muted
+      };
+      queueMicrotask(() => options.events.onReady({ target: player }));
+      return player;
+    }
+  };
+  t.after(() => {
+    if (previousYT === undefined) delete globalThis.YT;
+    else globalThis.YT = previousYT;
+  });
+
+  const runtime = videoSlides.createRuntime(harness);
+  await new Promise((resolve) => setImmediate(resolve));
+  runtime.render({ liveSlideIndex: 0, overlays: {} });
+  await new Promise((resolve) => setTimeout(resolve, 760));
+
+  assert.equal(sharedUnlock.isConnected, true, 'forced-muted autoplay keeps the prompt visible');
+
+  playerState = globalThis.YT.PlayerState.PLAYING;
+  harness.handlers.overlay_update({
+    videoMedia: {
+      slideIndex: 0,
+      playing: true,
+      muted: false,
+      command: 'unmute',
+      revision: 2
+    }
+  });
+  await new Promise((resolve) => setTimeout(resolve, 760));
+
+  assert.equal(sharedUnlock.isConnected, false, 'confirmed audio removes the shared prompt');
+  assert.deepEqual(
+    harness.emitted.filter(({ name }) => name === 'media:playback_update').at(-1)?.payload,
+    { slide_index: 0, provider: 'youtube', forced_muted: false }
+  );
+});

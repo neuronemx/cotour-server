@@ -318,9 +318,9 @@
       return youtubePlayerPromise || Promise.resolve(youtubePlayer);
     }
 
-    function removeUnlock() {
+    function removeUnlock(resolved = false) {
       const button = unlockButton;
-      const shouldRemove = ownsUnlockButton;
+      const shouldRemove = ownsUnlockButton || Boolean(resolved);
       unlockButton = null;
       ownsUnlockButton = false;
       if (shouldRemove) button?.remove();
@@ -337,14 +337,14 @@
           reportScreenPlayback(false, activeItem, activeIndex, media.revision);
         }
         player.playVideo();
-        removeUnlock();
+        removeUnlock(true);
         return;
       }
       if (!video) return;
       try {
         video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
         await video.play();
-        removeUnlock();
+        removeUnlock(true);
       } catch (_error) {
         if (unlockButton) unlockButton.textContent = 'Toca de nuevo para reproducir';
       }
@@ -408,7 +408,7 @@
         const stillMuted = Boolean(player.isMuted?.());
         if ((playing || buffering) && !stillMuted) {
           reportScreenPlayback(false, item, index, latest.revision);
-          removeUnlock();
+          removeUnlock(true);
           return;
         }
         if ((playing || buffering) && stillMuted) {

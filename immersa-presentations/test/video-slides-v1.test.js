@@ -57,11 +57,11 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=110/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=110/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=110/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=111/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=110/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=111/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /Activar sonido/);
