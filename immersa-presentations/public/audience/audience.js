@@ -71,9 +71,22 @@ function beginGesture() { const active = pointerList(); startZoom = zoom; startP
 function handlePointerDown(event) { viewport.setPointerCapture(event.pointerId); pointers.set(event.pointerId, event); beginGesture(); }
 function handlePointerMove(event) { if (!pointers.has(event.pointerId)) return; pointers.set(event.pointerId, event); const active = pointerList(); if (active.length >= 2 && startDistance > 0) { const nextCenter = center(active[0], active[1]); zoom = clamp(startZoom * (distance(active[0], active[1]) / startDistance), 1, 3); panX = startPanX + (nextCenter.x - startCenter.x); panY = startPanY + (nextCenter.y - startCenter.y); if (zoom === 1) { panX = 0; panY = 0; } applyTransform(); return; } if (active.length === 1 && zoom > 1 && startCenter) { panX = startPanX + (active[0].clientX - startCenter.x); panY = startPanY + (active[0].clientY - startCenter.y); applyTransform(); } }
 function handlePointerUp(event) { pointers.delete(event.pointerId); if (pointers.size) beginGesture(); const now = Date.now(); if (now - lastTapAt < 280) { resetZoom(); lastTapAt = 0; } else { lastTapAt = now; } }
-async function toggleFullscreen() { try { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (viewer.requestFullscreen) { await viewer.requestFullscreen(); if (screen.orientation?.lock) screen.orientation.lock("landscape").catch(() => {}); } } catch (_error) {} }
+function fullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+async function toggleFullscreen() {
+  try {
+    const active = fullscreenElement();
+    if (active) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) await Promise.resolve(exit.call(document));
+      return;
+    }
+    const target = document.documentElement;
+    const request = target?.requestFullscreen || target?.webkitRequestFullscreen;
+    if (request) await Promise.resolve(request.call(target));
+  } catch (_error) {}
+}
 function updateFullscreenButton() {
-  const active = Boolean(document.fullscreenElement);
+  const active = Boolean(fullscreenElement());
   fullscreen.textContent = active ? "×" : "⛶";
   fullscreen.classList.toggle("is-active", active);
   fullscreen.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
@@ -145,6 +158,7 @@ qnaComposer?.addEventListener("click", (event) => { if (event.target === qnaComp
 qnaForm?.addEventListener("submit", submitQna);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !qnaComposer?.classList.contains("hidden")) closeQnaComposer(); });
 document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 viewport.addEventListener("pointerdown", handlePointerDown);
 viewport.addEventListener("pointermove", handlePointerMove);
 viewport.addEventListener("pointerup", handlePointerUp);

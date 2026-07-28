@@ -599,8 +599,8 @@
 .knowledge-assessment-hud {
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
-  right: calc(max(14px, env(safe-area-inset-right)) + 50px);
-  z-index: 32;
+  left: 50%;
+  z-index: 36;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -615,6 +615,7 @@
   border-radius: 999px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
   backdrop-filter: blur(12px);
+  transform: translateX(-50%);
 }
 
 .knowledge-assessment-hud i {
@@ -632,8 +633,22 @@
 }
 
 @media (max-width: 640px) {
+  .knowledge-audience-overlay.is-assessment-question {
+    align-items: start;
+    padding:
+      calc(max(10px, env(safe-area-inset-top)) + 54px)
+      max(10px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left));
+  }
+
   .knowledge-assessment-card {
-    padding-top: 68px;
+    max-height: 100%;
+    padding-top: 22px;
+  }
+
+  .knowledge-assessment-hud {
+    top: max(10px, env(safe-area-inset-top));
   }
 }
 

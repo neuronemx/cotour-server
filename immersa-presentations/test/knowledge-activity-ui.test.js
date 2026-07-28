@@ -119,7 +119,10 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /\(selectedAssessmentIndex \+ 1\) \+ "\/" \+ questions\.length/);
   assert.match(source, /timerMarkup\(state\.deadlineAt, state, "knowledge-assessment-hud-timer"\)/);
   assert.doesNotMatch(source, /knowledge-assessment-card"><header>/);
-  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?right: calc\(max\(14px, env\(safe-area-inset-right\)\) \+ 50px\);/);
+  assert.match(css, /\.knowledge-assessment-hud \{[\s\S]*?position: fixed;[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\);[\s\S]*?left: 50%;[\s\S]*?transform: translateX\(-50%\);/);
+  assert.match(source, /classList\?\.toggle\?\.\("is-assessment-question", Boolean\(root\.querySelector\("\.knowledge-assessment-card"\)\)\)/);
+  assert.match(css, /\.knowledge-audience-overlay\.is-assessment-question \{[\s\S]*?align-items: start;[\s\S]*?padding:[\s\S]*?54px/);
+  assert.match(css, /\.knowledge-assessment-card \{[\s\S]*?max-height: 100%;[\s\S]*?padding-top: 22px;/);
   assert.match(source, /knowledge-submission-receipt/);
   assert.match(source, /<dt>Nombre<\/dt>/);
   assert.match(source, /<dt>Respuestas<\/dt>/);
@@ -134,6 +137,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
 test("Público uses swipe navigation and explicitly locks Immersa snapshot during an assessment", () => {
   const source = read("public/shared/knowledge-activities.js");
   const audience = read("public/audience/audience.js");
+  const audienceCss = read("public/audience/audience.css");
   const css = read("public/shared/knowledge-activities.css");
   assert.match(source, /function attachAssessmentSwipe/);
   assert.match(source, /Math\.abs\(deltaX\) < 52/);
@@ -144,6 +148,19 @@ test("Público uses swipe navigation and explicitly locks Immersa snapshot durin
   assert.match(audience, /onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed/);
   assert.match(audience, /snapshot\.disabled = !allowed/);
   assert.match(audience, /snapshot\.hidden = !allowed/);
+  assert.match(audienceCss, /\.top-actions > \.snapshot\[hidden\],[\s\S]*?display: none !important;/);
+  assert.match(audienceCss, /@media \(max-width: 520px\)[\s\S]*?\.brand-lockup \{[^}]*padding: 4px;[^}]*overflow: hidden;[\s\S]*?\.brand-mark \{ width: 32px; height: 32px;/);
+});
+
+test("Público fullscreen keeps the Evaluación mounted and preserves portrait orientation", () => {
+  const audience = read("public/audience/audience.js");
+  assert.match(audience, /const target = document\.documentElement;/);
+  assert.match(audience, /target\?\.requestFullscreen \|\| target\?\.webkitRequestFullscreen/);
+  assert.match(audience, /document\.fullscreenElement \|\| document\.webkitFullscreenElement/);
+  assert.match(audience, /document\.addEventListener\("webkitfullscreenchange", updateFullscreenButton\)/);
+  assert.doesNotMatch(audience, /viewer\.requestFullscreen/);
+  assert.doesNotMatch(audience, /orientation\?\.lock/);
+  assert.doesNotMatch(audience, /lock\("landscape"\)/);
 });
 
 test("Público places the lighter Evaluación entry action at the bottom and centered", () => {

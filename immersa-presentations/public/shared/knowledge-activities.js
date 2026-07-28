@@ -683,6 +683,7 @@
       if (!state?.available || !state.executionId) {
         root.hidden = true;
         root.innerHTML = "";
+        root.classList?.remove("is-assessment-question");
         return;
       }
       root.hidden = false;
@@ -690,6 +691,7 @@
       else if (state.participant.activeTabId && state.participant.activeTabId !== currentTabId) {
         root.innerHTML = '<div class="knowledge-audience-card"><h2>La actividad está abierta en otra pestaña</h2><button class="primary" data-knowledge-claim>Usar esta pestaña</button></div>';
       } else root.innerHTML = state.category === "contest" ? contestMarkup() : assessmentMarkup();
+      root.classList?.toggle?.("is-assessment-question", Boolean(root.querySelector(".knowledge-assessment-card")));
 
       if (Number.isFinite(scrollTop)) {
         const card = root.querySelector(".knowledge-audience-card");
