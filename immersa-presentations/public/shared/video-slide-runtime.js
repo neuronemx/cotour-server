@@ -134,6 +134,7 @@
     let youtubeLoadedIndex = -1;
     let controls = null;
     let unlockButton = null;
+    let ownsUnlockButton = false;
     let lastAppliedRevision = null;
     let lastInitializedIndex = -1;
     let presenterControlJoined = false;
@@ -290,38 +291,64 @@
     }
 
     function removeUnlock() {
-      unlockButton?.remove();
+      const button = unlockButton;
+      const shouldRemove = ownsUnlockButton;
       unlockButton = null;
+      ownsUnlockButton = false;
+      if (shouldRemove) button?.remove();
+    }
+
+    async function unlockActiveMedia() {
+      if (isYouTubeSlide(activeItem)) {
+        const player = await ensureYouTube(activeItem, activeIndex);
+        if (!player) return;
+        const media = effectiveMediaState(lastState, activeItem, activeIndex);
+        if (media.muted) player.mute();
+        else player.unMute();
+        player.playVideo();
+        removeUnlock();
+        return;
+      }
+      if (!video) return;
+      try {
+        video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
+        await video.play();
+        removeUnlock();
+      } catch (_error) {
+        if (unlockButton) unlockButton.textContent = 'Toca de nuevo para reproducir';
+      }
+    }
+
+    function bindUnlock(button) {
+      if (!button || button.dataset.videoMediaUnlockBound === '1') return;
+      button.dataset.videoMediaUnlockBound = '1';
+      button.addEventListener('click', unlockActiveMedia);
     }
 
     function ensureUnlock() {
-      if (role !== 'screen' || unlockButton) return;
+      if (role !== 'screen') return null;
+      const sharedButton = document.querySelector('[data-immersa-media-unlock]:not([hidden])');
+      if (sharedButton) {
+        if (unlockButton && unlockButton !== sharedButton && ownsUnlockButton) unlockButton.remove();
+        unlockButton = sharedButton;
+        ownsUnlockButton = false;
+        bindUnlock(unlockButton);
+        return unlockButton;
+      }
+      if (unlockButton && document.documentElement?.contains && !document.documentElement.contains(unlockButton)) {
+        unlockButton = null;
+        ownsUnlockButton = false;
+      }
+      if (unlockButton) return unlockButton;
       unlockButton = document.createElement('button');
+      ownsUnlockButton = true;
       unlockButton.type = 'button';
       unlockButton.className = 'immersa-media-unlock';
       unlockButton.dataset.immersaMediaUnlock = '1';
       unlockButton.textContent = '🔊 Activar sonido y multimedia';
-      unlockButton.addEventListener('click', async () => {
-        if (isYouTubeSlide(activeItem)) {
-          const player = await ensureYouTube(activeItem, activeIndex);
-          if (!player) return;
-          const media = effectiveMediaState(lastState, activeItem, activeIndex);
-          if (media.muted) player.mute();
-          else player.unMute();
-          player.playVideo();
-          removeUnlock();
-          return;
-        }
-        if (!video) return;
-        try {
-          video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
-          await video.play();
-          removeUnlock();
-        } catch (_error) {
-          unlockButton.textContent = 'Toca de nuevo para reproducir';
-        }
-      });
+      bindUnlock(unlockButton);
       document.body.appendChild(unlockButton);
+      return unlockButton;
     }
 
     function showYouTubeError() {
@@ -329,6 +356,31 @@
       if (!unlockButton) return;
       unlockButton.textContent = 'YouTube no está disponible';
       unlockButton.disabled = true;
+    }
+
+    function playYouTubeWithAutoplayFallback(player, item, index, media) {
+      if (media.muted) {
+        player.mute();
+        player.playVideo();
+        return;
+      }
+      player.unMute();
+      player.playVideo();
+      root.setTimeout?.(() => {
+        if (activeIndex !== index || activeItem !== item) return;
+        const latest = effectiveMediaState(lastState, item, index);
+        if (!latest.playing) return;
+        const playerState = player.getPlayerState?.();
+        const playing = playerState === root.YT?.PlayerState?.PLAYING;
+        const buffering = playerState === root.YT?.PlayerState?.BUFFERING;
+        if (playing || buffering) {
+          removeUnlock();
+          return;
+        }
+        player.mute();
+        player.playVideo();
+        ensureUnlock();
+      }, 700);
     }
 
     function applyYouTubeState(item, state, index) {
@@ -354,16 +406,8 @@
           player.seekTo(Math.max(0, Number(item.youtubeStartSeconds) || 0), true);
         }
         lastAppliedRevision = revision;
-        if (media.muted) player.mute();
-        else player.unMute();
         if (media.playing) {
-          player.playVideo();
-          root.setTimeout?.(() => {
-            const playerState = player.getPlayerState?.();
-            const playing = playerState === root.YT?.PlayerState?.PLAYING;
-            const buffering = playerState === root.YT?.PlayerState?.BUFFERING;
-            if (!playing && !buffering) ensureUnlock();
-          }, 700);
+          playYouTubeWithAutoplayFallback(player, item, index, media);
         } else {
           player.pauseVideo();
           removeUnlock();

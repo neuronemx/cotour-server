@@ -47,14 +47,16 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=108/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=109/);
   assert.match(audience, /video-deck-config-bridge\.js\?v=108/);
   assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=108/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=108/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=109/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /Activar sonido y multimedia/);
+  assert.match(runtime, /data-immersa-media-unlock/);
+  assert.match(runtime, /playYouTubeWithAutoplayFallback/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /role === 'screen'/);
   assert.match(runtime, /youtube\.com\/iframe_api/);
