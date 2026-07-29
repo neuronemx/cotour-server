@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v10">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v11">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=1">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
@@ -46,13 +46,8 @@
         <label class="mini-switch">
           <input id="qrToggle" type="checkbox">
           <span></span>
-          <em>QR público</em>
+          <em>QR</em>
         </label>
-        <button id="stageDrawToggle" class="toolbar-button drawing-button stage-drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
-          <span class="drawing-icon" aria-hidden="true"></span>
-        </button>
-        <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
-        <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
       </div>
     </header>
 
@@ -73,6 +68,11 @@
           <div id="stageQrPattern" class="stage-qr-pattern" aria-label="QR Immersa Live"></div>
           <strong>Immersa Live</strong>
           <span id="stageQrUrl"></span>
+        </div>
+
+        <div class="stage-slide-tools" aria-label="Herramientas de Stage">
+          <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
+          <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
         </div>
 
         <section class="main-controls" aria-label="Controles principales">
