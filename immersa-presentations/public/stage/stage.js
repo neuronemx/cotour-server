@@ -110,7 +110,7 @@ const liveTextControl = window.ImmersaLiveTextControl?.create({
   input: messageInput,
   cancelButton: cancelMessage,
   linkButton: displayLinkButton,
-  getPublicUrl: publicUrl,
+  getPublicUrl: () => publicUrl().replace(/^https:\/\//i, ""),
   inactiveLabel: "Texto en vivo",
   activeLabel: "Apagar texto"
 });
