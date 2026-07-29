@@ -49,7 +49,6 @@
           <span></span>
           <em>QR público</em>
         </label>
-        <button id="stageTransmissionToggle" class="toolbar-button" type="button" aria-pressed="false">Pausar</button>
         <button id="stageDrawToggle" class="toolbar-button drawing-button stage-drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
           <span class="drawing-icon" aria-hidden="true"></span>
         </button>
@@ -79,10 +78,11 @@
 
         <section class="main-controls" aria-label="Controles principales">
           <button id="prevSlide" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
+          <button id="stageTransmissionToggle" class="status-pause-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
+          <button id="nextSlide" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
           <div class="slide-status" aria-label="Lámina actual">
             <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
           </div>
-          <button id="nextSlide" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
         </section>
       </div>
     </section>
