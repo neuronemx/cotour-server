@@ -39,6 +39,14 @@
       </button>
     </div>
     <nav class="reaction-bar" aria-label="Reacciones"><button data-emoji="❤️" aria-label="Enviar corazón">❤️</button><button data-emoji="👏" aria-label="Enviar aplauso">👏</button><button data-emoji="🔥" aria-label="Enviar fuego">🔥</button></nav>
+    <button id="audienceQrToggle" class="audience-qr-toggle" type="button" aria-pressed="false" aria-label="Mostrar QR" title="Mostrar QR">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20v.01"></path></svg>
+    </button>
+    <section id="audienceQrPanel" class="audience-qr-panel hidden" aria-label="QR de acceso a la presentación">
+      <button id="audienceQrClose" class="audience-qr-close" type="button" aria-label="Cerrar QR">×</button>
+      <div id="audienceQrPattern" class="audience-qr-pattern"></div>
+      <strong>Escanea para entrar</strong>
+    </section>
     <section id="qnaComposer" class="qna-composer hidden" role="dialog" aria-modal="true" aria-labelledby="qnaTitle">
       <form id="qnaForm" class="qna-card">
         <button id="qnaClose" class="qna-close" type="button" aria-label="Cerrar preguntas">×</button>
@@ -56,5 +64,5 @@
     <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
   <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=24"></script><script src="/audience/audience.js?v=4"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script><script src="/shared/public-code-display.js?v=102"></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=24"></script><script src="/audience/audience.js?v=5"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script><script src="/shared/public-code-display.js?v=102"></script>
 </body></html>
