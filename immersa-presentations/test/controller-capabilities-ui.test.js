@@ -52,13 +52,19 @@ test("only the controller that paused can navigate while transmission is paused"
   assert.match(stageScript, /currentState\?\.transmissionPaused && currentState\?\.transmissionPausedBy !== "stage"/);
 });
 
-test("Stage exposes Speaker transmission pause and live drawing controls", () => {
+test("Stage exposes Speaker transmission pause inside the slide navigation capsule", () => {
   const html = read("public/stage/index.html");
   const script = read("public/stage/stage.js");
+  const css = read("public/stage/stage.css");
 
-  assert.match(html, /id="stageTransmissionToggle"/);
+  assert.doesNotMatch(html, /class="toolbar-button"[^>]+id="stageTransmissionToggle"/);
+  assert.match(html, /class="main-controls"[\s\S]*id="prevSlide"[\s\S]*id="stageTransmissionToggle"[\s\S]*id="nextSlide"[\s\S]*class="slide-status"/);
+  assert.equal((html.match(/id="stageTransmissionToggle"/g) || []).length, 1);
   assert.match(html, /id="stageDrawToggle"/);
   assert.match(script, /stageTransmissionToggle\?\.addEventListener\("click"/);
   assert.match(script, /currentState\?\.transmissionPaused \? "transmission_play" : "transmission_pause"/);
+  assert.match(script, /stageTransmissionToggle\.innerHTML = paused \? playIcon : pauseIcon/);
+  assert.match(script, /stageTransmissionToggle\.classList\.toggle\("is-paused", paused\)/);
+  assert.match(css, /\.status-pause-button\.is-paused/);
   assert.match(script, /stageDrawToggle\?\.addEventListener\("click"/);
 });
