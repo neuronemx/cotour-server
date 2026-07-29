@@ -24,6 +24,17 @@ test("Speaker and Stage share live text behavior", () => {
   assert.match(sharedControl, /socket\.emit\("overlay_update"/);
 });
 
+test("Stage live text modal uses the concise public-facing copy and action order", () => {
+  const stageHtml = read("public/stage/index.html");
+  const modal = stageHtml.match(/<div id="textModal"[\s\S]*?<\/section>/)?.[0] || "";
+
+  assert.doesNotMatch(modal, />Stage</i);
+  assert.doesNotMatch(modal, /Mensaje en pantalla/i);
+  assert.match(modal, /<strong id="textModalTitle">Texto en vivo<\/strong>/);
+  assert.match(modal, /<label for="messageInput">Este mensaje aparecerá en vivo para todos\.<\/label>/);
+  assert.match(modal, />Mostrar texto<[\s\S]*>Link presentación<[\s\S]*>Cancelar</);
+});
+
 test("server authorizes both controller roles through one capability guard", () => {
   const server = read("server.js");
 
