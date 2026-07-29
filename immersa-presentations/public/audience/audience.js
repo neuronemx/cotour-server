@@ -31,7 +31,6 @@ const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 const audienceQrToggle = document.getElementById("audienceQrToggle");
 const audienceQrPanel = document.getElementById("audienceQrPanel");
-const audienceQrClose = document.getElementById("audienceQrClose");
 const audienceQrPattern = document.getElementById("audienceQrPattern");
 const connectionNotice = document.getElementById("connectionNotice");
 const liveMessage = document.getElementById("liveMessage");
@@ -191,7 +190,6 @@ document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventLis
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
 audienceQrToggle?.addEventListener("click", () => setAudienceQrVisible(audienceQrPanel?.classList.contains("hidden")));
-audienceQrClose?.addEventListener("click", () => setAudienceQrVisible(false));
 qnaOpen?.addEventListener("click", openQnaComposer);
 qnaClose?.addEventListener("click", closeQnaComposer);
 qnaComposer?.addEventListener("click", (event) => { if (event.target === qnaComposer) closeQnaComposer(); });
