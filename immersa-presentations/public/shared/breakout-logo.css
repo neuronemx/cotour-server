@@ -1,0 +1,20 @@
+.breakout-ready-logo {
+  content: url("/shared/magnific-logo.svg?v=104");
+}
+
+.breakout-screen header span {
+  width: clamp(150px, 18vw, 260px);
+  height: 64px;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+  letter-spacing: 0;
+  background: url("/shared/magnific-logo.svg?v=104") left center / contain no-repeat;
+}
+
+@media (max-width: 620px) {
+  .breakout-screen header span {
+    width: clamp(130px, 42vw, 190px);
+    height: 48px;
+  }
+}
