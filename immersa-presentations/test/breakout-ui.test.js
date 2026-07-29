@@ -69,7 +69,9 @@ test("audience receives exactly two collective controls and fullscreen action", 
   assert.match(html, /direction="left"/);
   assert.match(html, /direction="right"/);
   assert.match(html, /data-breakout-fullscreen/);
-  assert.match(html, /PRÁCTICA/);
+  assert.match(html, /magnific-logo\.svg/);
+  assert.match(html, /Demuestra tu destreza en equipo/);
+  assert.doesNotMatch(html, /BREAKOUT|PRÁCTICA|LISTOS/);
 });
 
 test("browser module requests current state and preserves approved shell source", () => {
