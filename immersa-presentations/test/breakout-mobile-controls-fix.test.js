@@ -25,11 +25,12 @@ test('mobile hold controls suppress native long-press gestures', () => {
   assert.match(css, /-webkit-user-drag:none/);
 });
 
-test('portrait audience stacks the illustrated controls and enlarges the centered logo', () => {
+test('portrait audience keeps the illustrated controls side by side and joined', () => {
   const css = fs.readFileSync(path.join(__dirname, '../public/shared/breakout-controls-art.css'), 'utf8');
   assert.match(css, /\.breakout-audience-logo\{[^}]*width:clamp\(147px,38\.4vw,221px\)/);
-  assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?grid-template-rows:minmax\(0,1fr\) auto minmax\(260px,48dvh\)/);
-  assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-pad\{[^}]*grid-template-columns:1fr;[^}]*grid-template-rows:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-pad\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*grid-template-rows:minmax\(0,1fr\);[^}]*gap:0/);
+  assert.match(css, /\.breakout-audience \.breakout-pad button:first-child\{border-radius:22px 0 0 22px\}/);
+  assert.match(css, /\.breakout-audience \.breakout-pad button:last-child\{border-radius:0 22px 22px 0\}/);
   assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-control-art\{[^}]*object-fit:contain/);
 });
 
