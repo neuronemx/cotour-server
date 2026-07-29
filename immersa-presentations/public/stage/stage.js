@@ -82,7 +82,6 @@ const stageDrawToggle = document.getElementById("stageDrawToggle");
 const textModal = document.getElementById("textModal");
 const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
-const displayLinkButton = document.getElementById("displayLinkButton");
 const stageActionsButton = document.getElementById("stageActionsButton");
 const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
@@ -109,8 +108,6 @@ const liveTextControl = window.ImmersaLiveTextControl?.create({
   form: messageForm,
   input: messageInput,
   cancelButton: cancelMessage,
-  linkButton: displayLinkButton,
-  getPublicUrl: () => publicUrl().replace(/^https:\/\//i, ""),
   inactiveLabel: "Texto en vivo",
   activeLabel: "Apagar texto"
 });
