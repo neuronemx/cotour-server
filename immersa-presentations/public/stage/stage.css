@@ -336,17 +336,25 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   color: #ffeaf0;
   animation: liveTextPulse 1s infinite;
 }
-.stage-drawing-button {
-  width: 34px;
-  min-width: 34px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.stage-slide-tools {
+  position: absolute;
+  z-index: 9;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
-.stage-drawing-button .drawing-icon {
-  width: 20px;
-  height: 20px;
+.stage-slide-tools .toolbar-button {
+  min-height: 38px;
+  padding: 0 14px;
+  background:
+    linear-gradient(180deg, rgba(38,43,47,.62), rgba(7,9,12,.78)),
+    radial-gradient(circle at 50% 0%, rgba(83,224,212,.14), transparent 60%);
+  border-color: rgba(234,255,251,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.11), 0 12px 30px rgba(0,0,0,.34);
+  backdrop-filter: blur(20px) saturate(1.28);
 }
 .actions-button {
   background: rgba(143,85,255,.16);
@@ -639,11 +647,12 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   pointer-events: none;
 }
 .stage-audio-controls {
-  min-height: 48px;
+  height: 42px;
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 7px;
+  padding: 4px 7px;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 999px;
   background: rgba(18,16,26,.75);
@@ -654,10 +663,10 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
 }
 .stage-audio-controls[hidden] { display: none !important; }
 .stage-audio-controls button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -667,14 +676,14 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   color: #c9c6d4;
 }
 .stage-audio-controls button:hover { color: #f5f4fa; background: rgba(255,255,255,.08); }
-.stage-audio-controls button svg { width: 20px; height: 20px; }
+.stage-audio-controls button svg { width: 18px; height: 18px; }
 .stage-audio-controls input[type="range"] {
-  width: 88px;
+  width: 72px;
   accent-color: #22d3ee;
 }
 .stage-audio-controls select {
-  height: 34px;
-  padding: 0 28px 0 11px;
+  height: 30px;
+  padding: 0 25px 0 10px;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 999px;
   background: rgba(255,255,255,.06);
@@ -883,8 +892,12 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .status-pause-button { width: 29px; min-width: 29px; height: 29px; min-height: 29px; }
   .status-pause-button svg { width: 19px; height: 19px; }
   .stage-audio-controls-host { left: 10px; bottom: 10px; }
-  .stage-audio-controls { min-height: 43px; gap: 7px; padding: 4px 7px; }
+  .stage-audio-controls { height: 37px; min-height: 37px; gap: 5px; padding: 3px 6px; }
+  .stage-audio-controls button { width: 29px; min-width: 29px; height: 29px; min-height: 29px; }
   .stage-audio-controls input[type="range"] { width: 66px; }
+  .stage-audio-controls select { height: 28px; }
+  .stage-slide-tools { right: 10px; bottom: 10px; gap: 6px; }
+  .stage-slide-tools .toolbar-button { min-height: 34px; padding: 0 11px; font-size: 11px; }
   .live-text-overlay { bottom: 86px; max-width: calc(100% - 28px); padding: 13px 16px; border-radius: 18px; }
   .stage-actions-card { width: min(352px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); }
   .stage-actions-card .interaction-active-actions { gap: 6px; }
