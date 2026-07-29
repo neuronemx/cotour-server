@@ -336,12 +336,6 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   color: #ffeaf0;
   animation: liveTextPulse 1s infinite;
 }
-.toolbar-button.is-paused {
-  color: #210d02;
-  background: linear-gradient(180deg, rgba(255,179,92,1), rgba(255,128,38,.98));
-  border-color: rgba(255,255,255,.38);
-  box-shadow: 0 0 0 4px rgba(255,157,61,.14), 0 0 28px rgba(255,157,61,.44);
-}
 .stage-drawing-button {
   width: 34px;
   min-width: 34px;
@@ -601,6 +595,41 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   white-space: nowrap;
 }
 .slide-divider { opacity: .5; }
+.status-pause-button {
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+  color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.14);
+  transition: transform .15s ease, filter .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.status-pause-button svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2.7;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.status-pause-button .play-icon path { fill: currentColor; stroke: none; }
+.status-pause-button.is-paused {
+  color: #210d02;
+  background: linear-gradient(180deg, rgba(255,179,92,1), rgba(255,128,38,.98));
+  border-color: rgba(255,255,255,.38);
+  box-shadow: 0 0 0 5px rgba(255,157,61,.15), 0 0 32px rgba(255,157,61,.56), inset 0 1px 0 rgba(255,255,255,.28);
+  animation: pulsePaused 1.25s ease-in-out infinite;
+}
+@keyframes pulsePaused { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.055); } }
 
 .stage-actions-modal {
   position: fixed;
@@ -799,6 +828,8 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   .nav-button svg { width: 25px; height: 25px; }
   .slide-status { height: 37px; min-height: 37px; }
   .slide-count { min-width: 70px; height: 31px; min-height: 31px; padding: 0 8px; font-size: 13px; }
+  .status-pause-button { width: 37px; min-width: 37px; height: 37px; min-height: 37px; }
+  .status-pause-button svg { width: 19px; height: 19px; }
   .live-text-overlay { bottom: 86px; max-width: calc(100% - 28px); padding: 13px 16px; border-radius: 18px; }
   .stage-actions-card { width: min(352px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); }
   .stage-actions-card .interaction-active-actions { gap: 6px; }
