@@ -27,11 +27,14 @@ test('mobile hold controls suppress native long-press gestures', () => {
 
 test('portrait audience keeps the illustrated controls side by side and joined', () => {
   const css = fs.readFileSync(path.join(__dirname, '../public/shared/breakout-controls-art.css'), 'utf8');
+  const portraitCss = css.split('@media (orientation:landscape)')[0];
   assert.match(css, /\.breakout-audience-logo\{[^}]*width:clamp\(147px,38\.4vw,221px\)/);
   assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-pad\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*grid-template-rows:minmax\(0,1fr\);[^}]*gap:0/);
-  assert.match(css, /\.breakout-audience \.breakout-pad button:first-child\{border-radius:22px 0 0 22px\}/);
-  assert.match(css, /\.breakout-audience \.breakout-pad button:last-child\{border-radius:0 22px 22px 0\}/);
-  assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-control-art\{[^}]*object-fit:contain/);
+  assert.match(css, /\.breakout-audience \.breakout-pad button:last-child\{[^}]*margin-left:-1px/);
+  assert.match(css, /@media \(orientation:portrait\)\{[\s\S]*?\.breakout-audience \.breakout-control-art\{[^}]*object-fit:cover/);
+  assert.doesNotMatch(portraitCss, /content:url\('\/shared\/breakout-controls\/(?:left|right)-(?:off|on)\.svg/);
+  assert.match(css, /\.breakout-audience \.breakout-pad button:active,[^}]*button\.is-held\{transform:none;filter:none\}/);
+  assert.match(css, /@media \(orientation:portrait\)\{\.breakout-audience\{[^}]*align-content:center!important;[^}]*grid-template-rows:auto auto auto/);
 });
 
 test('Screen countdown is pinned above the play field', () => {
