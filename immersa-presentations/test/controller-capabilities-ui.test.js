@@ -24,7 +24,7 @@ test("Speaker and Stage share live text behavior", () => {
   assert.match(sharedControl, /socket\.emit\("overlay_update"/);
 });
 
-test("Stage live text modal uses the concise public-facing copy and action order", () => {
+test("Stage live text modal is dedicated to text only", () => {
   const stageHtml = read("public/stage/index.html");
   const stageScript = read("public/stage/stage.js");
   const modal = stageHtml.match(/<div id="textModal"[\s\S]*?<\/section>/)?.[0] || "";
@@ -33,8 +33,23 @@ test("Stage live text modal uses the concise public-facing copy and action order
   assert.doesNotMatch(modal, /Mensaje en pantalla/i);
   assert.match(modal, /<strong id="textModalTitle">Texto en vivo<\/strong>/);
   assert.match(modal, /<label for="messageInput">Este mensaje aparecerá en vivo para todos\.<\/label>/);
-  assert.match(modal, />Mostrar texto<[\s\S]*>Link presentación<[\s\S]*>Cancelar</);
-  assert.ok(stageScript.includes('getPublicUrl: () => publicUrl().replace(/^https:\\/\\//i, "")'));
+  assert.match(modal, />Mostrar texto<[\s\S]*>Cancelar</);
+  assert.doesNotMatch(modal, /Link presentación|displayLinkButton/);
+  assert.doesNotMatch(stageScript, /displayLinkButton|getPublicUrl/);
+});
+
+test("Audience can open its own local QR from the bottom-right corner", () => {
+  const html = read("public/audience/index.html");
+  const script = read("public/audience/audience.js");
+  const css = read("public/audience/audience.css");
+
+  assert.match(html, /id="audienceQrToggle"[\s\S]*?<svg[\s\S]*?<rect x="3" y="3" width="7" height="7"/);
+  assert.match(html, /id="audienceQrPanel"[^>]*hidden/);
+  assert.match(html, /qrcodejs@1\.0\.0/);
+  assert.match(script, /publicOpenContext\.public_url \|\| window\.location\.href/);
+  assert.match(script, /new window\.QRCode\(audienceQrPattern/);
+  assert.match(script, /audienceQrToggle\?\.addEventListener\("click"/);
+  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
 });
 
 test("server authorizes both controller roles through one capability guard", () => {
