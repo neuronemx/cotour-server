@@ -53,9 +53,9 @@ test("screen board renders blocks, paddle, ball, score, and countdown while runn
   assert.match(html, /is-hit/);
 });
 
-test("ready preview locks the board behind the Breakout identity", () => {
+test("ready preview locks the board behind the Breakout identity while keeping the paddle", () => {
   const html = BreakoutUi.boardMarkup({ ...state, status: "ready", score: 0, remaining_ms: 60000 }, "screen");
-  assert.match(html, /breakout-ready-logo[^>]*>BREAKOUT</);
+  assert.match(html, /breakout-ready-logo" src="\/shared\/magnific-logo\.svg"/);
   assert.match(html, /Destreza en equipo/);
   assert.doesNotMatch(html, /¿ESTÁN LISTOS\?|Muevan la barra/);
   assert.match(html, /breakout-paddle/);
