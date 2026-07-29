@@ -38,7 +38,7 @@
     if (!root.document.querySelector("link[data-immersa-breakout-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
-      link.href = "/shared/breakout-ui.css?v=102";
+      link.href = "/shared/breakout-ui.css?v=103";
       link.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(link);
     }
@@ -57,7 +57,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-breakout-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/breakout-ui.js?v=102";
+      script.src = "/shared/breakout-ui.js?v=103";
       script.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(script);
     }
