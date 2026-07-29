@@ -34,7 +34,7 @@ test("Stage live text modal uses the concise public-facing copy and action order
   assert.match(modal, /<strong id="textModalTitle">Texto en vivo<\/strong>/);
   assert.match(modal, /<label for="messageInput">Este mensaje aparecerá en vivo para todos\.<\/label>/);
   assert.match(modal, />Mostrar texto<[\s\S]*>Link presentación<[\s\S]*>Cancelar</);
-  assert.ok(stageScript.includes('getPublicUrl: () => publicUrl().replace(/^https:\\\/\\\//i, "")'));
+  assert.ok(stageScript.includes('getPublicUrl: () => publicUrl().replace(/^https:\\/\\//i, "")'));
 });
 
 test("server authorizes both controller roles through one capability guard", () => {
