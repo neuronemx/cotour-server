@@ -48,6 +48,8 @@ const knowledgeActivityController = window.ImmersaKnowledgeActivities?.createCon
   onStateChange: () => syncInteractionShellState()
 });
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
+const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
+const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
 const fallbackDemoInteraction = {
   id: "demo-poll-1",
   type: "poll",
@@ -307,9 +309,10 @@ function render(state) {
   setToggles();
   if (stageTransmissionToggle) {
     const paused = Boolean(state.transmissionPaused);
-    stageTransmissionToggle.textContent = paused ? "Reanudar" : "Pausar";
+    stageTransmissionToggle.innerHTML = paused ? playIcon : pauseIcon;
     stageTransmissionToggle.classList.toggle("is-paused", paused);
-    stageTransmissionToggle.setAttribute("aria-pressed", String(paused));
+    stageTransmissionToggle.title = paused ? "Reanudar transmisión" : "Pausar transmisión";
+    stageTransmissionToggle.setAttribute("aria-label", stageTransmissionToggle.title);
   }
 
   const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
