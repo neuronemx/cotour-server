@@ -1,6 +1,6 @@
 (function(root,factory){const api=factory(root||{});if(typeof module==='object'&&module.exports)module.exports=api;else{root.ImmersaBreakoutUi=api;api.autoMount();}})(typeof window!=='undefined'?window:globalThis,function(root){
 const ACTIVE=new Set(['ready','running','paused','finished']),HOLD_MS=75;
-function ensureArt(doc){if(doc.querySelector('link[data-breakout-controls-art]'))return;const link=doc.createElement('link');link.rel='stylesheet';link.href='/shared/breakout-controls-art.css?v=97';link.dataset.breakoutControlsArt='1';doc.head.appendChild(link);}
+function ensureArt(doc){if(doc.querySelector('link[data-breakout-controls-art]'))return;const link=doc.createElement('link');link.rel='stylesheet';link.href='/shared/breakout-controls-art.css?v=98';link.dataset.breakoutControlsArt='1';doc.head.appendChild(link);}
 function roleFromPath(path){if(/^\/(?:speaker|presenter)(?:\/|$)/.test(path))return'presenter';if(/^\/stage(?:\/|$)/.test(path))return'stage';if(/^\/(?:screen|viewer)(?:\/|$)/.test(path))return'screen';if(/^\/(?:audience(?:\/|$)|p_[a-z0-9]+$)/i.test(path))return'audience';return'';}
 function seconds(ms){return Math.max(0,Math.ceil(Number(ms||0)/1000));}
 function actionButton(label,event,klass=''){return'<button type="button" class="breakout-action '+klass+'" data-breakout-event="'+event+'">'+label+'</button>';}
