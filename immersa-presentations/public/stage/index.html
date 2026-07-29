@@ -93,17 +93,15 @@
     <div class="modal-backdrop" data-close-live-text></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="textModalTitle">
       <div class="modal-head">
-        <span>Stage</span>
         <strong id="textModalTitle">Texto en vivo</strong>
       </div>
       <form id="messageForm" class="message-form">
-        <label for="messageInput">Mensaje en pantalla</label>
+        <label for="messageInput">Este mensaje aparecerá en vivo para todos.</label>
         <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
-        <small>Este mensaje aparece sobre la experiencia en vivo.</small>
         <div class="modal-actions">
-          <button id="displayLinkButton" class="soft-action" type="button">Link Público</button>
-          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
           <button class="primary-action" type="submit">Mostrar texto</button>
+          <button id="displayLinkButton" class="soft-action" type="button">Link presentación</button>
+          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
         </div>
       </form>
     </section>
