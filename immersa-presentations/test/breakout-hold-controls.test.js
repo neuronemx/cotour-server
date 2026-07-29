@@ -41,9 +41,9 @@ test("Landscape control art uses image layers for all four visual states", () =>
   assert.ok(css.includes("orientation:landscape"));
   assert.ok(css.includes(".breakout-control-art.is-off"));
   assert.ok(css.includes(".breakout-control-art.is-on"));
-  assert.ok(html.includes("left-off.jpg"));
-  assert.ok(html.includes("left-on.jpg"));
-  assert.ok(html.includes("right-off.jpg"));
-  assert.ok(html.includes("right-on.jpg"));
+  assert.ok(html.includes("left-off.svg"));
+  assert.ok(html.includes("left-on.svg"));
+  assert.ok(html.includes("right-off.svg"));
+  assert.ok(html.includes("right-on.svg"));
   assert.ok(css.includes(".breakout-countdown.is-urgent"));
 });
