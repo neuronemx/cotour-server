@@ -13,7 +13,7 @@ test("Pong audio loads only on Screen and Stage", () => {
   const stage = read("../public/stage/index.html");
   const audience = read("../public/audience/index.html");
   assert.match(screen, /pong-audio\.js\?v=2/);
-  assert.match(stage, /pong-audio\.js\?v=2/);
+  assert.match(stage, /pong-audio\.js\?v=3/);
   assert.doesNotMatch(audience, /pong-audio\.js/);
 });
 

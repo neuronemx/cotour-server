@@ -70,7 +70,6 @@ const screenFrame = document.querySelector(".screen-frame");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
 const audience = document.getElementById("audience");
-const presenterStatus = document.getElementById("presenterStatus");
 const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
@@ -324,7 +323,6 @@ function render(state) {
   drawingOverlay?.refresh();
 
   audience.textContent = state.audienceCount || 0;
-  presenterStatus.textContent = state.presenterConnected ? "On" : "Off";
   updateSlideControls();
   syncStageThumbSelection(index);
 }

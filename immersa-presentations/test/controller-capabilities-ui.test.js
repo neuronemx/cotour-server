@@ -58,7 +58,7 @@ test("Stage exposes Speaker transmission pause inside the slide navigation capsu
   const css = read("public/stage/stage.css");
 
   assert.doesNotMatch(html, /class="toolbar-button"[^>]+id="stageTransmissionToggle"/);
-  assert.match(html, /class="main-controls"[\s\S]*id="prevSlide"[\s\S]*id="stageTransmissionToggle"[\s\S]*id="nextSlide"[\s\S]*class="slide-status"/);
+  assert.match(html, /class="main-controls"[\s\S]*id="prevSlide"[\s\S]*class="slide-status"[\s\S]*id="stageTransmissionToggle"[\s\S]*id="nextSlide"/);
   assert.equal((html.match(/id="stageTransmissionToggle"/g) || []).length, 1);
   assert.match(html, /id="stageDrawToggle"/);
   assert.match(script, /stageTransmissionToggle\?\.addEventListener\("click"/);
@@ -67,4 +67,20 @@ test("Stage exposes Speaker transmission pause inside the slide navigation capsu
   assert.match(script, /stageTransmissionToggle\.classList\.toggle\("is-paused", paused\)/);
   assert.match(css, /\.status-pause-button\.is-paused/);
   assert.match(script, /stageDrawToggle\?\.addEventListener\("click"/);
+});
+
+test("Stage removes Speaker status and docks game audio controls at bottom left", () => {
+  const html = read("public/stage/index.html");
+  const script = read("public/stage/stage.js");
+  const css = read("public/stage/stage.css");
+  const breakoutAudio = read("public/shared/breakout-audio.js");
+  const pongAudio = read("public/shared/pong-audio.js");
+
+  assert.doesNotMatch(html, /id="presenterStatus"/);
+  assert.doesNotMatch(script, /presenterStatus/);
+  assert.match(html, /id="stageAudioControls" class="stage-audio-controls-host"/);
+  assert.match(css, /\.stage-audio-controls-host\s*\{[\s\S]*left:\s*16px;[\s\S]*bottom:\s*16px;/);
+  assert.match(css, /\.stage-audio-controls\s*\{[\s\S]*background:\s*rgba\(18,16,26,.75\)/);
+  assert.match(breakoutAudio, /getElementById\('stageAudioControls'\)/);
+  assert.match(pongAudio, /getElementById\("stageAudioControls"\)/);
 });

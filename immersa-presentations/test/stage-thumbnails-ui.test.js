@@ -12,7 +12,7 @@ test("Stage owns a responsive collapsible thumbnail navigator", () => {
   const css = read("public/stage/stage.css");
   assert.match(html, /id="stageThumbsToggle"[^>]*aria-expanded="true"/);
   assert.match(html, /id="stageThumbs"[^>]*aria-label="Miniaturas de slides"/);
-  assert.match(html, /stage-v9/);
+  assert.match(html, /stage-v10/);
   assert.match(script, /renderStageThumbs\(\)/);
   assert.match(script, /button\.addEventListener\("click", \(\) => emitStageSlide\(index\)\)/);
   assert.match(script, /stageThumbs\.scrollTo\(\{ left: Math\.max\(0, left\), behavior: "smooth" \}\)/);
