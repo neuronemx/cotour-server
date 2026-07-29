@@ -29,6 +29,10 @@ const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
+const audienceQrToggle = document.getElementById("audienceQrToggle");
+const audienceQrPanel = document.getElementById("audienceQrPanel");
+const audienceQrClose = document.getElementById("audienceQrClose");
+const audienceQrPattern = document.getElementById("audienceQrPattern");
 const connectionNotice = document.getElementById("connectionNotice");
 const liveMessage = document.getElementById("liveMessage");
 const qnaOpen = document.getElementById("qnaOpen");
@@ -42,6 +46,40 @@ const qnaFormStatus = document.getElementById("qnaFormStatus");
 const qnaSubmit = document.getElementById("qnaSubmit");
 const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
+let audienceQrReady = false;
+function audiencePublicUrl() {
+  return publicOpenContext.public_url || window.location.href;
+}
+function ensureAudienceQr() {
+  if (audienceQrReady || !audienceQrPattern) return;
+  const url = audiencePublicUrl();
+  if (!url) return;
+  audienceQrPattern.innerHTML = "";
+  if (window.QRCode) {
+    new window.QRCode(audienceQrPattern, {
+      text: url,
+      width: 220,
+      height: 220,
+      colorDark: "#111111",
+      colorLight: "#ffffff",
+      correctLevel: window.QRCode.CorrectLevel.M
+    });
+  } else {
+    audienceQrPattern.textContent = url;
+    audienceQrPattern.classList.add("is-fallback");
+  }
+  audienceQrReady = true;
+}
+function setAudienceQrVisible(visible) {
+  if (visible) ensureAudienceQr();
+  audienceQrPanel?.classList.toggle("hidden", !visible);
+  audienceQrToggle?.classList.toggle("is-active", visible);
+  audienceQrToggle?.setAttribute("aria-pressed", String(visible));
+  if (audienceQrToggle) {
+    audienceQrToggle.title = visible ? "Ocultar QR" : "Mostrar QR";
+    audienceQrToggle.setAttribute("aria-label", audienceQrToggle.title);
+  }
+}
 function setKnowledgeSnapshotAllowed(allowed) {
   if (!snapshot) return;
   snapshot.disabled = !allowed;
@@ -152,11 +190,17 @@ function renderInteractionCard() { const card = ensureInteractionCard(); if (!ac
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
+audienceQrToggle?.addEventListener("click", () => setAudienceQrVisible(audienceQrPanel?.classList.contains("hidden")));
+audienceQrClose?.addEventListener("click", () => setAudienceQrVisible(false));
 qnaOpen?.addEventListener("click", openQnaComposer);
 qnaClose?.addEventListener("click", closeQnaComposer);
 qnaComposer?.addEventListener("click", (event) => { if (event.target === qnaComposer) closeQnaComposer(); });
 qnaForm?.addEventListener("submit", submitQna);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !qnaComposer?.classList.contains("hidden")) closeQnaComposer(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!audienceQrPanel?.classList.contains("hidden")) setAudienceQrVisible(false);
+  else if (!qnaComposer?.classList.contains("hidden")) closeQnaComposer();
+});
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 viewport.addEventListener("pointerdown", handlePointerDown);
