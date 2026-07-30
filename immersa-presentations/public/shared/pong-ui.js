@@ -12,6 +12,9 @@
   const HOLD_MS = 75;
   const CELEBRATION_MS = 1200;
   const AUDIENCE_GOAL_MS = 1000;
+  const PONG_INTRO_URL = "/assets/games/pong/intro.mp4";
+  const PONG_INTRO_REVEAL_AT_SECONDS = 10;
+  const PONG_INTRO_LOAD_TIMEOUT_MS = 6000;
 
   function roleFromPath(path) {
     if (/^\/(?:speaker|presenter)(?:\/|$)/.test(path)) return "presenter";
@@ -160,6 +163,27 @@
       +'</div>';
   }
 
+  function introMarkup(role, status) {
+    if (role !== "screen" || status !== "ready") return "";
+    return '<div class="pong-intro" data-pong-intro>'
+      +'<video data-pong-intro-video src="'+PONG_INTRO_URL+'" preload="auto" playsinline></video>'
+      +'</div>';
+  }
+
+  function introStorageKey(id) {
+    return "immersa:pong:intro:" + String(id || "");
+  }
+
+  function ensureIntroPreload(doc, role) {
+    if (role !== "screen" || doc.querySelector?.("[data-pong-intro-preload]")) return;
+    const link = doc.createElement("link");
+    link.rel = "preload";
+    link.as = "video";
+    link.href = PONG_INTRO_URL;
+    link.dataset.pongIntroPreload = "1";
+    doc.head?.appendChild?.(link);
+  }
+
   function boardMarkup(state = {}, role = "screen") {
     const status = state.status || "idle";
     const left = team(state, "left");
@@ -167,6 +191,7 @@
     const ball = state.ball || { x: 0.5, y: 0.5, radius: 0.014 };
     const remaining = seconds(state.remaining_ms);
     return '<section class="pong-overlay pong-'+role+' '+status+'">'
+      +introMarkup(role, status)
       +'<header class="pong-scoreboard '+(status === "ready" ? "is-lobby" : "")+'">'
       +'<div class="pong-score-team is-left"><span data-pong-screen-name="left">'+escapeHtml(left.name)+'</span><strong data-pong-screen-score="left">'+Number(left.score || 0)+'</strong></div>'
       +(status === "ready" ? "" : '<div class="pong-clock '+(remaining <= 10 && status === "running" ? "is-urgent" : "")+'" data-pong-screen-time>'+remaining+'</div>')
@@ -268,6 +293,7 @@
     const socket = options.socket || root.socket;
     const role = options.role || roleFromPath(root.location?.pathname || "");
     if (!doc || !socket || !role) return null;
+    ensureIntroPreload(doc, role);
     let state = {
       status: "idle",
       remaining_ms: 60000,
@@ -295,6 +321,9 @@
     let lastAudienceGoalId = "";
     let namesTimer = null;
     let mountTimer = null;
+    let introLoadTimer = null;
+    let introVideo = null;
+    let introId = "";
     let destroyed = false;
     let wasActive = false;
     let activateGamesOnce = false;
@@ -515,19 +544,92 @@
       for (const [name, value] of Object.entries(values)) node.style.setProperty("--" + name, value);
     }
 
+    function introWasPlayed(id) {
+      if (!id) return true;
+      try { return root.sessionStorage?.getItem(introStorageKey(id)) === "played"; }
+      catch (_error) { return introId === id; }
+    }
+
+    function markIntroPlayed(id) {
+      introId = id;
+      try { root.sessionStorage?.setItem(introStorageKey(id), "played"); }
+      catch (_error) {}
+    }
+
+    function revealLobby() {
+      const overlay = host?.querySelector?.(".pong-screen.ready");
+      overlay?.classList?.add("is-intro-revealed");
+    }
+
+    function finishIntro() {
+      root.clearTimeout(introLoadTimer);
+      introLoadTimer = null;
+      revealLobby();
+      const layer = host?.querySelector?.("[data-pong-intro]");
+      layer?.classList?.add("is-finished");
+      introVideo?.pause?.();
+      introVideo = null;
+    }
+
+    function stopIntro() {
+      root.clearTimeout(introLoadTimer);
+      introLoadTimer = null;
+      introVideo?.pause?.();
+      introVideo = null;
+    }
+
+    function playIntro() {
+      if (!introVideo || state.status !== "ready") return;
+      const result = introVideo.play?.();
+      result?.catch?.((error) => {
+        if (error?.name !== "NotAllowedError") finishIntro();
+      });
+    }
+
+    function setupIntro() {
+      if (role !== "screen" || state.status !== "ready") {
+        stopIntro();
+        return;
+      }
+      const id = String(state.id || "");
+      const layer = host?.querySelector?.("[data-pong-intro]");
+      const video = layer?.querySelector?.("[data-pong-intro-video]");
+      if (!layer || !video) return;
+      if (introWasPlayed(id)) {
+        finishIntro();
+        return;
+      }
+      introVideo = video;
+      const overlay = layer.closest?.(".pong-overlay");
+      overlay?.classList?.add("is-intro-playing");
+      video.addEventListener("playing", () => markIntroPlayed(id), { once: true });
+      video.addEventListener("timeupdate", () => {
+        if (Number(video.currentTime || 0) >= PONG_INTRO_REVEAL_AT_SECONDS) revealLobby();
+      });
+      video.addEventListener("ended", finishIntro, { once: true });
+      video.addEventListener("error", finishIntro, { once: true });
+      introLoadTimer = root.setTimeout(() => {
+        if (video.readyState < 2) finishIntro();
+      }, PONG_INTRO_LOAD_TIMEOUT_MS);
+      playIntro();
+    }
+
     function patchScreen() {
       const overlayHost = ensureOverlay();
       const active = ACTIVE_STATUSES.has(state.status);
       overlayHost.hidden = !active;
       if (!active) {
+        stopIntro();
         overlayHost.innerHTML = "";
         screenKey = "";
         return;
       }
       const key = [state.id || "", state.status || ""].join(":");
       if (screenKey !== key) {
+        stopIntro();
         overlayHost.innerHTML = boardMarkup(state, role);
         screenKey = key;
+        setupIntro();
       }
       for (const id of ["left", "right"]) {
         const currentTeam = team(state, id);
@@ -699,6 +801,13 @@
     socket.on("interaction:active", closeForOther);
     socket.on("raffle:active", closeForOther);
     socket.on("connect", requestState);
+    if (role === "screen") {
+      listen(doc, "click", (event) => {
+        if (event.target.closest?.("[data-immersa-media-unlock], [data-pong-audio-unlock], [data-breakout-audio-unlock]")) {
+          playIntro();
+        }
+      });
+    }
     if (CONTROL_ROLES.has(role)) {
       mountTimer = root.setInterval(() => {
         if (!destroyed && !renderer) render();
@@ -718,6 +827,7 @@
         root.clearTimeout(namesTimer);
         root.clearTimeout(celebrationTimer);
         root.clearTimeout(audienceGoalTimer);
+        stopIntro();
         root.clearInterval(mountTimer);
         socket.off?.("pong:state", handle);
         socket.off?.("pong:closed", handle);
@@ -756,5 +866,19 @@
     return null;
   }
 
-  return { create, autoMount, roleFromPath, controllerMarkup, boardMarkup, audienceMarkup, isAudienceGoal, statusLabel, escapeHtml };
+  return {
+    create,
+    autoMount,
+    roleFromPath,
+    controllerMarkup,
+    boardMarkup,
+    audienceMarkup,
+    isAudienceGoal,
+    statusLabel,
+    escapeHtml,
+    introStorageKey,
+    ensureIntroPreload,
+    PONG_INTRO_URL,
+    PONG_INTRO_REVEAL_AT_SECONDS
+  };
 });

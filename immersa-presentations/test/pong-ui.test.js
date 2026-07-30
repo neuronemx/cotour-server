@@ -187,8 +187,8 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(ui, /IMMERSA_PONG_GOAL_VIDEO_URL/);
   assert.match(ui, /queueState\.revision[\s\S]*teamsReady\(state\)/);
   assert.match(interactionStore, /createPongSocketHandlers\(\{[\s\S]+queueAvailable: true/);
-  assert.match(runtime, /pong-ui\.css\?v=5/);
-  assert.match(runtime, /pong-ui\.js\?v=4/);
+  assert.match(runtime, /pong-ui\.css\?v=6/);
+  assert.match(runtime, /pong-ui\.js\?v=5/);
   assert.match(css, /#2f80ed/);
   assert.match(css, /#f2994a/);
   assert.match(css, /pong-goal-celebration/);
