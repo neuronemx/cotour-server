@@ -240,6 +240,7 @@
   position: fixed;
   z-index: 8;
   inset: 0;
+  background: #000;
   pointer-events: none;
 }
 
@@ -247,7 +248,7 @@
   position: absolute;
   inset: 0;
   color: #fff;
-  background: radial-gradient(circle at 50% 28%, rgba(70, 80, 135, .28), rgba(4, 6, 14, .94) 67%);
+  background: radial-gradient(circle at 50% 28%, rgba(70, 80, 135, .28), #000 67%);
   font-family: Inter, "Segoe UI", sans-serif;
   pointer-events: none;
 }
@@ -258,7 +259,7 @@
   inset: 0;
   overflow: hidden;
   opacity: 1;
-  background: #02030a;
+  background: #000;
   transition: opacity .45s ease;
 }
 
@@ -669,7 +670,7 @@
   gap: 18px;
   padding: max(18px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
   overflow: hidden;
-  background: radial-gradient(circle at 50% 15%, rgba(86, 92, 154, .28), rgba(4, 6, 14, .97) 62%);
+  background: radial-gradient(circle at 50% 15%, rgba(86, 92, 154, .28), #000 62%);
   pointer-events: auto;
   touch-action: manipulation;
   user-select: none;
