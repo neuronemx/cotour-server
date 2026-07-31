@@ -247,7 +247,7 @@
   }
 
   function pongControlImages(direction) {
-    const breakoutDirection = direction === "up" ? "right" : "left";
+    const breakoutDirection = direction === "up" ? "left" : "right";
     const glyph = direction === "up" ? "↑" : "↓";
     return '<span class="pong-direction-glyph" aria-hidden="true">'+glyph+'</span>'
       +'<img class="pong-control-art is-off" src="/shared/breakout-controls/'+breakoutDirection+'-off.svg?v=100" alt="" draggable="false">'
