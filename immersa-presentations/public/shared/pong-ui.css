@@ -1087,7 +1087,14 @@
     -webkit-user-select: none;
     -webkit-user-drag: none;
     background: #05070f;
-    transform: rotate(-90deg) scale(.88);
+  }
+
+  .pong-direction-pad [data-pong-direction="up"] .pong-control-art {
+    object-position: right center;
+  }
+
+  .pong-direction-pad [data-pong-direction="down"] .pong-control-art {
+    object-position: left center;
   }
 
   .pong-direction-pad .pong-control-art.is-off {
