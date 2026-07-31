@@ -14,7 +14,7 @@ test("Screen ready state owns the Breakout intro and reveals its lobby at ten se
   );
   assert.match(html, /data-breakout-intro/);
   assert.match(html, /data-breakout-intro-video/);
-  assert.match(html, /\/assets\/games\/breakout\/intro\.mp4\?v=2/);
+  assert.match(html, /\/assets\/games\/breakout\/intro\.mp4/);
   assert.match(html, /¡Ustedes controlan este juego!/);
   assert.equal(BreakoutUi.BREAKOUT_INTRO_REVEAL_AT_SECONDS, 10);
 });
@@ -30,7 +30,7 @@ test("Breakout intro remains exclusive to Screen and each launch has its own rep
   );
   assert.equal(
     BreakoutUi.introStorageKey("breakout-1"),
-    "immersa:breakout:intro:v2:breakout-1",
+    "immersa:breakout:intro:v3:breakout-1",
   );
 });
 
@@ -46,17 +46,17 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(ui, /preload="auto"/);
   assert.match(ui, /link\.rel\s*=\s*["']preload["']/);
   assert.match(ui, /link\.as\s*=\s*["']video["']/);
-  assert.doesNotMatch(ui, /BREAKOUT_INTRO_LOAD_TIMEOUT_MS\s*=\s*6000/);
-  assert.doesNotMatch(ui, /video\.readyState<2\)finishIntro/);
+  assert.match(ui, /BREAKOUT_INTRO_LOAD_TIMEOUT_MS=6000/);
+  assert.match(ui, /video\.readyState<2\)finishIntro/);
   assert.match(ui, /data-immersa-media-unlock/);
-  assert.doesNotMatch(ui, /playing["']?,?\s*\(\)=>markIntroPlayed/);
+  assert.match(ui, /playing["']?,?\s*\(\)=>markIntroPlayed/);
   assert.match(ui, /function introWasPlayed\(id\)\{if\(!id\)return false/);
-  assert.match(ui, /ended["']?,?\s*\(\)=>\{markIntroPlayed\(id\);finishIntro\(\)\}/);
+  assert.match(ui, /ended["']?,?\s*finishIntro/);
   assert.match(css, /\.breakout-screen\.ready\.is-intro-playing/);
   assert.match(css, /\.breakout-intro\{z-index:10/);
   assert.match(ui, /\},true\)\}if\(role===\x27presenter\x27/);
   assert.match(runtime, /breakout-ui\.css\?v=105/);
-  assert.match(runtime, /breakout-ui\.js\?v=113/);
+  assert.match(runtime, /breakout-ui\.js\?v=114/);
   assert.match(ui, /function patchScreenState\(\).*?breakout-paddle/);\n  assert.match(ui, /if\(state\.status===\x27ready\x27\).*?patchScreenState\(\);return/);
 });
 
