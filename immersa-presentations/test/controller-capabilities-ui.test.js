@@ -106,6 +106,7 @@ test("Stage simplifies its toolbar and docks compact tools over the slide", () =
   const css = read("public/stage/stage.css");
   const breakoutAudio = read("public/shared/breakout-audio.js");
   const pongAudio = read("public/shared/pong-audio.js");
+  const stageAudio = read("public/shared/stage-game-audio.js");
   const toolbarActions = html.match(/<div class="toolbar-actions"[\s\S]*?<\/div>/)?.[0] || "";
 
   assert.doesNotMatch(html, /id="presenterStatus"/);
@@ -116,8 +117,13 @@ test("Stage simplifies its toolbar and docks compact tools over the slide", () =
   assert.doesNotMatch(toolbarActions, /<button/);
   assert.match(html, /class="stage-slide-tools"[\s\S]*id="stageActionsButton"[\s\S]*id="liveTextButton"/);
   assert.match(css, /\.stage-slide-tools\s*\{[\s\S]*right:\s*16px;[\s\S]*bottom:\s*16px;[\s\S]*flex-direction:\s*column;/);
-  assert.doesNotMatch(html, /id="stageAudioControls"|breakout-audio\.js|pong-audio\.js/);
+  assert.match(html, /id="stageAudioControls" class="stage-audio-controls-host"/);
+  assert.match(html, /stage-game-audio\.js\?v=1/);
+  assert.doesNotMatch(html, /breakout-audio\.js|pong-audio\.js/);
   assert.doesNotMatch(html, /Arcade|Paquete de audio/);
+  assert.doesNotMatch(stageAudio, /Arcade|Paquete de audio|<select/);
+  assert.match(stageAudio, /breakout:audio:set/);
+  assert.match(stageAudio, /pong:audio:set/);
   assert.match(breakoutAudio, /getElementById\('stageAudioControls'\)/);
   assert.match(pongAudio, /getElementById\("stageAudioControls"\)/);
 });
