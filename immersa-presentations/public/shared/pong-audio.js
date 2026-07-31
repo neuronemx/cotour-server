@@ -91,13 +91,23 @@
   }
 
   function unlock() {
+    const first = !root.__immersaMediaUnlocked;
     if (AudioContext) {
       context = context || new AudioContext();
       context.resume?.();
     }
     unlocked = true;
+    root.__immersaMediaUnlocked = true;
     root.document.querySelector("[data-pong-audio-unlock]")?.remove();
     if (previousState?.status === "ready") playCue("lobby");
+    if (first) root.document.dispatchEvent(new Event("immersa:media-unlocked"));
+  }
+
+  if (role === "screen") {
+    root.document.addEventListener("click", (event) => {
+      if (event.target.closest?.("[data-immersa-media-unlock], [data-pong-audio-unlock], [data-breakout-audio-unlock]")) unlock();
+    }, true);
+    root.document.addEventListener("immersa:media-unlocked", unlock);
   }
 
   function bindSharedUnlock(button) {
@@ -108,6 +118,10 @@
 
   function ensureUnlock(state) {
     if (role !== "screen" || unlocked || !["ready", "running", "paused", "finished"].includes(state?.status)) return;
+    if (root.__immersaMediaUnlocked) {
+      unlock();
+      return;
+    }
     const ownButton = root.document.querySelector("[data-pong-audio-unlock]");
     const sharedButton = root.document.querySelector("[data-immersa-media-unlock]:not([hidden]), [data-breakout-audio-unlock]:not([hidden])");
     if (sharedButton) {
