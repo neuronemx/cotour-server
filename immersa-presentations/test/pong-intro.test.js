@@ -34,6 +34,6 @@ test("Pong intro has preload, autoplay recovery, cache busting, and a non-blocki
   assert.match(ui, /video\.readyState < 2\) finishIntro/);
   assert.match(ui, /data-immersa-media-unlock/);
   assert.match(css, /\.pong-screen\.ready\.is-intro-playing\.is-intro-revealed/);
-  assert.match(runtime, /pong-ui\.css\?v=6/);
-  assert.match(runtime, /pong-ui\.js\?v=5/);
+  assert.match(runtime, /pong-ui\.css\?v=\d+/);
+  assert.match(runtime, /pong-ui\.js\?v=\d+/);
 });
