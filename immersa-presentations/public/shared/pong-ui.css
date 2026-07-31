@@ -887,11 +887,11 @@
   background: #05070f;
 }
 
-.pong-direction-pad [data-pong-direction="up"] .pong-control-art {
+.pong-direction-pad [data-pong-control-side="left"] .pong-control-art {
   object-position: right center;
 }
 
-.pong-direction-pad [data-pong-direction="down"] .pong-control-art {
+.pong-direction-pad [data-pong-control-side="right"] .pong-control-art {
   object-position: left center;
 }
 
