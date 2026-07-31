@@ -88,7 +88,7 @@ function fixture(brands = [brand("a", 1), brand("b", 2)]) {
     intervalMs: 120000,
     displayMs: 8000
   });
-  const context = { roomKey: "session-a::deck-a", sessionId: "session-a", deckId: "deck-a", role: "presenter" };
+  const context = { roomKey: "session-a::deck-a", sessionId: "session-a", deckId: "deck-a", role: "audience" };
   return { clock, coordinator, events, runtime, context };
 }
 
@@ -140,7 +140,7 @@ test("late Público receives the one current mention while other roles receive n
   assert.deepEqual(screenEvents, []);
 });
 
-test("a brand activated after Speaker joins is discovered by the running cycle", async () => {
+test("a brand activated after Público joins is discovered by the running cycle", async () => {
   const brands = [brand("late", 1, false)];
   const { clock, events, runtime, context } = fixture(brands);
   assert.equal(await runtime.start(context), true);
@@ -211,7 +211,10 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   assert.match(css, /justify-self: center/);
   assert.match(css, /color: #19b9f2/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(server, /brandMentionRuntime\.start\(joinedContext\)/);
-  assert.match(server, /role === "audience"\) brandMentionRuntime\.sendCurrentState/);
+  assert.match(server, /if \(role === "audience"\) \{[\s\S]*brandMentionRuntime\.start\(joinedContext\)/);
+  assert.match(server, /then\(\(\) => brandMentionRuntime\.sendCurrentState\(socket, joinedContext\)\)/);
+  assert.doesNotMatch(server, /if \(role === "presenter"\) \{[\s\S]{0,180}brandMentionRuntime\.start/);
+  assert.match(server, /if \(session\.audience\.size === 0\) brandMentionRuntime\.stop\(currentRoomKey\)/);
+  assert.doesNotMatch(server, /session\.presenterConnected = false;[\s\S]{0,120}brandMentionRuntime\.stop/);
   assert.doesNotMatch(client, /\bQR\b|\bScreen\b/);
 });
