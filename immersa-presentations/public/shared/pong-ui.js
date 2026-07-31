@@ -276,11 +276,6 @@
     return '<div class="pong-audience-spectator"><strong>'+escapeHtml(title)+'</strong><span>'+escapeHtml(copy)+'</span></div>';
   }
 
-  function fullscreenIcons() {
-    return '<svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>'
-      +'<svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8,26a2,2,0,0,0-2,2.3A2.1,2.1,0,0,0,8.1,30h7.1L4.7,40.5a2,2,0,0,0-.2,2.8A1.8,1.8,0,0,0,6,44a2,2,0,0,0,1.4-.6L18,32.8v7.1A2.1,2.1,0,0,0,19.7,42,2,2,0,0,0,22,40V28a2,2,0,0,0-2-2Z"></path><path d="M43.7,4.8a2,2,0,0,0-3.1-.2L30,15.2V8.1A2.1,2.1,0,0,0,28.3,6,2,2,0,0,0,26,8V20a2,2,0,0,0,2,2H39.9A2.1,2.1,0,0,0,42,20.3,2,2,0,0,0,40,18H32.8L43.4,7.5A2.3,2.3,0,0,0,43.7,4.8Z"></path></svg>';
-  }
-
   function audienceMarkup(state = {}, membership = {}, choosingTeam = false) {
     const status = state.status || "idle";
     const canChoose = status === "ready" && (!membership.team || choosingTeam);
@@ -290,7 +285,6 @@
       : canControl ? directionControlsMarkup(state, membership) : spectatorMarkup(state, membership);
     return '<section class="pong-overlay pong-audience '+status+' '+(membership.team ? "is-team-"+membership.team : "is-spectator")+'">'
       +audienceHeaderMarkup(state)
-      +'<button type="button" class="pong-fullscreen fullscreen-button" data-pong-fullscreen aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">'+fullscreenIcons()+'</button>'
       +'<main>'+content+'</main>'
       +audienceGoalMarkup()
       +'</section>';
@@ -458,10 +452,6 @@
             render();
             return;
           }
-          if (event.target.closest?.("[data-pong-fullscreen]")) {
-            event.preventDefault();
-            toggleFullscreen();
-          }
         });
         listen(host, "pointerdown", (event) => {
           const button = event.target.closest?.("[data-pong-direction]");
@@ -472,8 +462,6 @@
         }, { passive: false });
         for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) listen(host, name, stopHold);
         for (const name of ["contextmenu", "dragstart", "selectstart"]) listen(host, name, suppressNativeGesture, { passive: false });
-        listen(doc, "fullscreenchange", syncFullscreen);
-        listen(doc, "webkitfullscreenchange", syncFullscreen);
       }
       return host;
     }
@@ -508,43 +496,6 @@
 
     function suppressNativeGesture(event) {
       if (event.target.closest?.("[data-pong-direction]")) event.preventDefault();
-    }
-
-    function fullscreenElement() {
-      return doc.fullscreenElement || doc.webkitFullscreenElement || null;
-    }
-
-    function syncFullscreen() {
-      const button = host?.querySelector?.("[data-pong-fullscreen]");
-      if (!button) return;
-      const active = Boolean(fullscreenElement());
-      button.setAttribute("aria-pressed", String(active));
-      button.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
-      button.title = active ? "Salir de pantalla completa" : "Pantalla completa";
-    }
-
-    function toggleFullscreen() {
-      const active = fullscreenElement();
-      if (active) {
-        const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
-        if (exit) {
-          try {
-            const result = exit.call(doc);
-            result?.catch?.(() => {});
-          } catch (_error) {}
-        }
-        root.setTimeout(syncFullscreen, 120);
-        return;
-      }
-      const target = doc.documentElement || host;
-      const request = target?.requestFullscreen || target?.webkitRequestFullscreen;
-      if (request) {
-        try {
-          const result = request.call(target);
-          result?.catch?.(() => {});
-        } catch (_error) {}
-      }
-      root.setTimeout(syncFullscreen, 120);
     }
 
     function setPosition(node, values) {
