@@ -14,7 +14,7 @@ test("Screen ready state owns the Breakout intro and reveals its lobby at ten se
   );
   assert.match(html, /data-breakout-intro/);
   assert.match(html, /data-breakout-intro-video/);
-  assert.match(html, /\/assets\/games\/breakout\/intro\.mp4/);
+  assert.match(html, /\/assets\/games\/breakout\/intro\.mp4\?v=2/);
   assert.match(html, /¡Ustedes controlan este juego!/);
   assert.equal(BreakoutUi.BREAKOUT_INTRO_REVEAL_AT_SECONDS, 10);
 });
@@ -56,8 +56,8 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(css, /\.breakout-intro\{z-index:10/);
   assert.match(ui, /\},true\)\}if\(role===\x27presenter\x27/);
   assert.match(runtime, /breakout-ui\.css\?v=105/);
-  assert.match(runtime, /breakout-ui\.js\?v=112/);
-  assert.match(ui, /if\(state\.status===\x27ready\x27\).*?return\}stopIntro\(\);overlay\.innerHTML=boardMarkup\(state,role\)/);
+  assert.match(runtime, /breakout-ui\.js\?v=113/);
+  assert.match(ui, /function patchScreenState\(\).*?breakout-paddle/);\n  assert.match(ui, /if\(state\.status===\x27ready\x27\).*?patchScreenState\(\);return/);
 });
 
 
