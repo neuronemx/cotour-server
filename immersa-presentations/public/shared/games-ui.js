@@ -25,7 +25,9 @@
         +(order?'<em>'+order+'</em>':'')
         +'</label>';
     }).join("");
-    const content = cards || '<p class="games-queue-empty">No hay juegos disponibles.</p>';
+    const content = cards || (state.hydrated
+      ? '<p class="games-queue-empty">No hay juegos disponibles.</p>'
+      : '<p class="games-queue-empty">Cargando juegos…</p>');
     return '<section class="games-queue-selector">'
       +'<div class="games-queue-heading"><span>Secuencia de juegos</span><h3>Selecciona los juegos</h3><p>Immersa los ordenará automáticamente de menor a mayor dificultad.</p></div>'
       +'<div class="games-queue-list">'+content+'</div>'
@@ -38,7 +40,7 @@
     const socket = options.socket || root.socket;
     const role = options.role || roleFromPath(root.location?.pathname || "");
     if (!doc || !socket || !role) return null;
-    let state = { status: "idle", selected: [], catalog: [], locked: false };
+    let state = { status: "idle", selected: [], catalog: [], locked: false, hydrated: false };
     let renderer = null;
     let mountTimer = null;
     let destroyed = false;
@@ -89,7 +91,7 @@
     }
 
     function handle(next) {
-      state = next || state;
+      state = { ...(next || state), hydrated: true };
       render();
     }
 
@@ -98,6 +100,7 @@
     }
 
     socket.on("games:queue:state", handle);
+    socket.on("presentation_state", requestState);
     socket.on("connect", requestState);
     mountTimer = root.setInterval(() => {
       if (destroyed || renderer) return;
@@ -105,6 +108,8 @@
     }, 250);
     render();
     requestState();
+    root.setTimeout(requestState, 350);
+    root.setTimeout(requestState, 1000);
     return {
       getState: () => state,
       render,
@@ -113,6 +118,7 @@
         destroyed = true;
         root.clearInterval(mountTimer);
         socket.off?.("games:queue:state", handle);
+        socket.off?.("presentation_state", requestState);
         socket.off?.("connect", requestState);
         listeners.splice(0).forEach(([target, name, handler]) => target.removeEventListener(name, handler));
         renderer?.remove();
