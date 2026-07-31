@@ -198,12 +198,14 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(css, /\.pong-lobby-message\s*\{[\s\S]*?backdrop-filter:\s*none/);
   assert.match(css, /\.pong-board\s*\{[\s\S]*?width:\s*min\(94vw, 145vh\)/);
   assert.match(css, /\.pong-lobby-content\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
-  assert.match(css, /@media \(orientation: portrait\)[\s\S]*?\.pong-direction-pad\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.pong-direction-pad\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.doesNotMatch(css, /\.pong-direction-pad\s*\{[\s\S]{0,300}flex-direction:\s*column/);
   assert.match(css, /\.pong-audience\s*\{[\s\S]*?padding-top:\s*max\(72px/);
   assert.match(css, /button\.is-held \.pong-control-art\.is-on\s*\{[\s\S]*?display:\s*block/);
   assert.match(css, /data-pong-direction="up"[\s\S]*object-position:\s*right center/);
   assert.match(css, /data-pong-direction="down"[\s\S]*object-position:\s*left center/);
   assert.doesNotMatch(css, /pong-control-art[\s\S]{0,400}rotate/);
+  assert.doesNotMatch(css, /@media \(orientation: landscape\)[\s\S]*?\.pong-direction-pad button\s*\{[\s\S]*?border-radius/);
   assert.match(css, /pong-audience-goal-flash/);
   assert.match(ui, /isAudienceGoal\(membership, goal\)/);
   assert.match(css, /prefers-reduced-motion/);
