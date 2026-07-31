@@ -1084,21 +1084,7 @@
     width: min(72vw, 680px);
   }
 
-  .pong-audience main {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    align-content: stretch;
-    gap: 12px;
-    width: min(100%, 980px);
-    justify-self: center;
-  }
-
-  .pong-audience-copy {
-    max-width: 220px;
-  }
-
-  .pong-team-choice,
-  .pong-direction-pad {
+  .pong-team-choice {
     width: 100%;
     height: 100%;
     max-height: calc(100dvh - 76px);
@@ -1107,6 +1093,49 @@
   .pong-team-choice button {
     min-height: 0;
     border-radius: 20px;
+  }
+
+  .pong-audience.is-team-left,
+  .pong-audience.is-team-right {
+    display: block;
+    padding: 0 !important;
+    overflow: hidden;
+    background: #05070f;
+  }
+
+  .pong-audience.is-team-left .pong-audience-header,
+  .pong-audience.is-team-right .pong-audience-header {
+    position: absolute;
+    z-index: 7;
+    top: max(8px, env(safe-area-inset-top));
+    left: 50%;
+    width: min(72vw, 680px);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .pong-audience.is-team-left main,
+  .pong-audience.is-team-right main {
+    display: block;
+  }
+
+  .pong-audience.is-team-left .pong-audience-copy,
+  .pong-audience.is-team-right .pong-audience-copy {
+    display: none;
+  }
+
+  .pong-audience.is-team-left .pong-direction-pad,
+  .pong-audience.is-team-right .pong-direction-pad {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    pointer-events: auto;
   }
 
   .pong-change-team {
