@@ -149,7 +149,7 @@ test("Público gets two same-team directional controls and may switch during lob
   assert.match(left, /pong-direction-pad is-left/);
   assert.match(left, /data-pong-audience-goal/);
   assert.match(left, /data-pong-change-team/);
-  assert.match(left, /data-pong-fullscreen/);
+  assert.doesNotMatch(left, /data-pong-fullscreen|pong-fullscreen/);
   assert.equal((right.match(/data-pong-direction=/g) || []).length, 2);
   assert.equal((left.match(/class="pong-control-art/g) || []).length, 4);
   assert.match(left, /data-pong-direction="up"[\s\S]*breakout-controls\/left-off\.svg[\s\S]*breakout-controls\/left-on\.svg/);
@@ -211,5 +211,7 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(css, /\.pong-audience\.is-team-left \.pong-direction-pad[\s\S]*?position:\s*absolute[\s\S]*?inset:\s*0[\s\S]*?width:\s*100%[\s\S]*?height:\s*100%/);
   assert.match(css, /pong-audience-goal-flash/);
   assert.match(ui, /isAudienceGoal\(membership, goal\)/);
+  assert.doesNotMatch(ui, /data-pong-fullscreen|toggleFullscreen|syncFullscreen/);
+  assert.doesNotMatch(css, /\.pong-fullscreen/);
   assert.match(css, /prefers-reduced-motion/);
 });
