@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/stage/stage.css?v=stage-v9">
+  <link rel="stylesheet" href="/stage/stage.css?v=stage-v11">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=1">
   <link rel="stylesheet" href="/shared/interactions.css">
   <link rel="stylesheet" href="/shared/raffle-controller.css">
@@ -35,7 +35,6 @@
 
       <div class="toolbar-status" aria-label="Estado de sesión">
         <span class="status-pill"><em>Público</em><strong id="audience">0</strong></span>
-        <span class="status-pill"><em>Speaker</em><strong id="presenterStatus">Off</strong></span>
       </div>
 
       <div class="toolbar-actions" aria-label="Controles de pantalla">
@@ -47,14 +46,8 @@
         <label class="mini-switch">
           <input id="qrToggle" type="checkbox">
           <span></span>
-          <em>QR público</em>
+          <em>QR</em>
         </label>
-        <button id="stageTransmissionToggle" class="toolbar-button" type="button" aria-pressed="false">Pausar</button>
-        <button id="stageDrawToggle" class="toolbar-button drawing-button stage-drawing-button" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
-          <span class="drawing-icon" aria-hidden="true"></span>
-        </button>
-        <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
-        <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
       </div>
     </header>
 
@@ -77,14 +70,22 @@
           <span id="stageQrUrl"></span>
         </div>
 
+        <div class="stage-slide-tools" aria-label="Herramientas de Stage">
+          <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones</button>
+          <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
+        </div>
+
         <section class="main-controls" aria-label="Controles principales">
           <button id="prevSlide" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
-          <div class="slide-status" aria-label="Lámina actual">
+          <div class="slide-status" aria-label="Estado de transmisión">
             <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
+            <button id="stageTransmissionToggle" class="status-pause-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
           </div>
           <button id="nextSlide" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
         </section>
-      </div>
+
+        <div id="stageAudioControls" class="stage-audio-controls-host" aria-label="Control de audio"></div>
+</div>
     </section>
   </main>
 
@@ -92,17 +93,14 @@
     <div class="modal-backdrop" data-close-live-text></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="textModalTitle">
       <div class="modal-head">
-        <span>Stage</span>
         <strong id="textModalTitle">Texto en vivo</strong>
       </div>
       <form id="messageForm" class="message-form">
-        <label for="messageInput">Mensaje en pantalla</label>
+        <label for="messageInput">Este mensaje aparecerá en vivo para todos.</label>
         <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
-        <small>Este mensaje aparece sobre la experiencia en vivo.</small>
         <div class="modal-actions">
-          <button id="displayLinkButton" class="soft-action" type="button">Link Público</button>
-          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
           <button class="primary-action" type="submit">Mostrar texto</button>
+          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
         </div>
       </form>
     </section>
@@ -118,8 +116,7 @@
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js"></script>
   <script src="/shared/knowledge-activities.js?v=22"></script>
-  <script src="/stage/stage.js?v=stage-v11"></script>
-  <script src="/shared/breakout-audio.js?v=99"></script>
-  <script src="/shared/pong-audio.js?v=2"></script>
+  <script src="/stage/stage.js?v=stage-v12"></script>
+  <script src="/shared/stage-game-audio.js?v=1"></script>
 </body>
 </html>

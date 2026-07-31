@@ -88,7 +88,7 @@ function fixture(brands = [brand("a", 1), brand("b", 2)]) {
     intervalMs: 120000,
     displayMs: 8000
   });
-  const context = { roomKey: "session-a::deck-a", sessionId: "session-a", deckId: "deck-a", role: "presenter" };
+  const context = { roomKey: "session-a::deck-a", sessionId: "session-a", deckId: "deck-a", role: "audience" };
   return { clock, coordinator, events, runtime, context };
 }
 
@@ -140,12 +140,20 @@ test("late Público receives the one current mention while other roles receive n
   assert.deepEqual(screenEvents, []);
 });
 
-test("sessions with no active brands do not keep a rotation timer", async () => {
-  const { clock, events, runtime, context } = fixture([brand("off", 1, false)]);
-  assert.equal(await runtime.start(context), false);
-  assert.equal(clock.timers.size, 0);
-  await clock.advance(360000);
+test("a brand activated after Público joins is discovered by the running cycle", async () => {
+  const brands = [brand("late", 1, false)];
+  const { clock, events, runtime, context } = fixture(brands);
+  assert.equal(await runtime.start(context), true);
+  assert.equal(clock.timers.size, 1);
+
+  await clock.advance(120000);
   assert.deepEqual(events, []);
+  assert.equal(clock.timers.size, 1);
+
+  brands[0].active = true;
+  await clock.advance(120000);
+  assert.equal(events.at(-1).event, "brand_mention:show");
+  assert.equal(events.at(-1).payload.id, "late");
 });
 
 test("ActiveInteractionCoordinator publishes activity boundary changes", async () => {
@@ -178,7 +186,7 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   const linkIcon = path.join(__dirname, "..", "public/audience/external-link.png");
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
 
-  assert.match(audienceHtml, /brand-mention\.css\?v=4/);
+  assert.match(audienceHtml, /brand-mention\.css\?v=5/);
   assert.match(audienceHtml, /brand-mention\.js\?v=4/);
   assert.doesNotMatch(screenHtml, /brand-mention/i);
   assert.match(client, /target = "_blank"/);
@@ -198,12 +206,15 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   assert.match(css, /\.brand-mention-host\.is-exiting/);
   assert.match(css, /transition: opacity \.72s ease-in-out/);
   assert.match(css, /-webkit-line-clamp: 2/);
-  assert.match(css, /aspect-ratio: 4 \/ 3/);
+  assert.match(css, /\.brand-mention-card-logo \{[\s\S]*?align-self: stretch/);
   assert.match(css, /\.brand-mention-card-link/);
   assert.match(css, /justify-self: center/);
   assert.match(css, /color: #19b9f2/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(server, /brandMentionRuntime\.start\(joinedContext\)/);
-  assert.match(server, /role === "audience"\) brandMentionRuntime\.sendCurrentState/);
+  assert.match(server, /if \(role === "audience"\) \{[\s\S]*brandMentionRuntime\.start\(joinedContext\)/);
+  assert.match(server, /then\(\(\) => brandMentionRuntime\.sendCurrentState\(socket, joinedContext\)\)/);
+  assert.doesNotMatch(server, /if \(role === "presenter"\) \{[\s\S]{0,180}brandMentionRuntime\.start/);
+  assert.match(server, /if \(session\.audience\.size === 0\) brandMentionRuntime\.stop\(currentRoomKey\)/);
+  assert.doesNotMatch(server, /session\.presenterConnected = false;[\s\S]{0,120}brandMentionRuntime\.stop/);
   assert.doesNotMatch(client, /\bQR\b|\bScreen\b/);
 });

@@ -113,8 +113,8 @@ class BrandMentionRuntime {
     const generation = state.generation;
     state.blocked = Boolean(this.coordinator?.hasAnyActive?.(state.sessionId));
     if (state.blocked) return true;
-    const hasBrands = await this.hasActiveBrands(state.deckId);
-    if (!state.running || state.generation !== generation || !hasBrands) return false;
+    await this.hasActiveBrands(state.deckId);
+    if (!state.running || state.generation !== generation) return false;
     return this.schedule(state);
   }
 
@@ -151,7 +151,11 @@ class BrandMentionRuntime {
       this.schedule(state);
       return false;
     }
-    if (!state.running || state.blocked || !brands.length) return false;
+    if (!state.running || state.blocked) return false;
+    if (!brands.length) {
+      this.schedule(state);
+      return false;
+    }
     const brand = this.nextBrand(brands, state.lastBrandId);
     const shownAt = this.now();
     state.lastBrandId = brand.id;

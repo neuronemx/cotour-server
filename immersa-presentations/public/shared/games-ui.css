@@ -1,4 +1,5 @@
 .interaction-games-queue-renderer[data-games-queue-hidden="true"],
+.interaction-pong-renderer[data-games-queue-hidden="true"],
 .interaction-breakout-renderer[data-games-queue-hidden="true"] {
   display: none !important;
 }

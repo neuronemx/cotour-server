@@ -31,39 +31,39 @@
     if (!root.document.querySelector("link[data-immersa-games-ui]")) {
       const gamesLink = root.document.createElement("link");
       gamesLink.rel = "stylesheet";
-      gamesLink.href = "/shared/games-ui.css";
+      gamesLink.href = "/shared/games-ui.css?v=2";
       gamesLink.dataset.immersaGamesUi = "1";
       root.document.head.appendChild(gamesLink);
     }
     if (!root.document.querySelector("link[data-immersa-breakout-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
-      link.href = "/shared/breakout-ui.css";
+      link.href = "/shared/breakout-ui.css?v=105";
       link.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(link);
     }
     if (!root.document.querySelector("link[data-immersa-pong-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
-      link.href = "/shared/pong-ui.css?v=5";
+      link.href = "/shared/pong-ui.css?v=12";
       link.dataset.immersaPongUi = "1";
       root.document.head.appendChild(link);
     }
     if (!root.document.querySelector("script[data-immersa-games-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/games-ui.js";
+      script.src = "/shared/games-ui.js?v=2";
       script.dataset.immersaGamesUi = "1";
       root.document.head.appendChild(script);
     }
     if (!root.document.querySelector("script[data-immersa-breakout-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/breakout-ui.js";
+      script.src = "/shared/breakout-ui.js?v=114";
       script.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(script);
     }
     if (!root.document.querySelector("script[data-immersa-pong-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/pong-ui.js?v=4";
+      script.src = "/shared/pong-ui.js?v=10";
       script.dataset.immersaPongUi = "1";
       root.document.head.appendChild(script);
     }

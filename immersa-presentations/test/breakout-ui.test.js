@@ -53,10 +53,11 @@ test("screen board renders blocks, paddle, ball, score, and countdown while runn
   assert.match(html, /is-hit/);
 });
 
-test("ready preview renders only the movable paddle and preparation message", () => {
+test("ready preview locks the board behind the Breakout identity while keeping the paddle", () => {
   const html = BreakoutUi.boardMarkup({ ...state, status: "ready", score: 0, remaining_ms: 60000 }, "screen");
-  assert.match(html, /¿ESTÁN LISTOS\?/);
-  assert.match(html, /Muevan la barra/);
+  assert.match(html, /breakout-ready-logo" src="\/shared\/magnific-logo\.svg"/);
+  assert.match(html, /¡Ustedes controlan este juego!/);
+  assert.doesNotMatch(html, /¿ESTÁN LISTOS\?|Muevan la barra/);
   assert.match(html, /breakout-paddle/);
   assert.doesNotMatch(html, /breakout-block/);
   assert.doesNotMatch(html, /breakout-ball/);
@@ -69,7 +70,9 @@ test("audience receives exactly two collective controls and fullscreen action", 
   assert.match(html, /direction="left"/);
   assert.match(html, /direction="right"/);
   assert.match(html, /data-breakout-fullscreen/);
-  assert.match(html, /PRÁCTICA/);
+  assert.match(html, /magnific-logo\.svg/);
+  assert.doesNotMatch(html, /Demuestra tu destreza en equipo/);
+  assert.doesNotMatch(html, /BREAKOUT|PRÁCTICA|LISTOS/);
 });
 
 test("browser module requests current state and preserves approved shell source", () => {

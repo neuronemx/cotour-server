@@ -170,6 +170,48 @@
     return confirm;
   }
 
+  function centerTransparentLogo(image) {
+    function apply() {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      const sample = document.createElement("canvas");
+      const maxSide = 320;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      sample.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      sample.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = sample.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      try {
+        context.drawImage(image, 0, 0, sample.width, sample.height);
+        const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+        let left = sample.width, top = sample.height, right = -1, bottom = -1, transparent = 0;
+        for (let y = 0; y < sample.height; y += 1) {
+          for (let x = 0; x < sample.width; x += 1) {
+            const alpha = pixels[(y * sample.width + x) * 4 + 3];
+            if (alpha <= 16) {
+              transparent += 1;
+              continue;
+            }
+            left = Math.min(left, x);
+            top = Math.min(top, y);
+            right = Math.max(right, x);
+            bottom = Math.max(bottom, y);
+          }
+        }
+        const pixelCount = sample.width * sample.height;
+        if (right < left || transparent / pixelCount < 0.04) return;
+        const visibleCenterX = (left + right + 1) / 2;
+        const visibleCenterY = (top + bottom + 1) / 2;
+        const shiftX = ((sample.width / 2 - visibleCenterX) / sample.width) * 100;
+        const shiftY = ((sample.height / 2 - visibleCenterY) / sample.height) * 100;
+        image.style.transform = "translate(" + shiftX.toFixed(2) + "%," + shiftY.toFixed(2) + "%)";
+      } catch (_) {
+        image.style.transform = "";
+      }
+    }
+    if (image.complete) apply();
+    else image.addEventListener("load", apply, { once: true });
+  }
+
   function renderBrandCard(brand, index) {
     const wrapper = document.createElement("div");
     wrapper.className = "brand-mention-entry";
@@ -181,6 +223,7 @@
     const image = document.createElement("img");
     image.src = brand.logo?.src || "";
     image.alt = "Logo de " + brand.name;
+    centerTransparentLogo(image);
     logo.appendChild(image);
 
     const copy = document.createElement("div");

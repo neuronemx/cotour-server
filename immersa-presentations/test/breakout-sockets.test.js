@@ -40,7 +40,7 @@ function createIntervals() {
   };
 }
 
-test("controller starts and pauses authoritative Breakout loop", async () => {
+test("controller starts synchronized countdown before authoritative Breakout loop", async () => {
   const io = createIo();
   const intervals = createIntervals();
   const store = new BreakoutStore();
@@ -50,10 +50,11 @@ test("controller starts and pauses authoritative Breakout loop", async () => {
   handlers.attach(socket, () => context);
 
   await socket.handlers.get("breakout:start")();
-  assert.equal(store.snapshot("s1").status, "running");
+  assert.equal(store.snapshot("s1").status, "countdown");
   assert.equal(intervals.active.size, 1);
   assert.equal(io.emitted.at(-1).event, "breakout:state");
 
+  store.step("s1", 50, Date.now() + 5000);
   socket.handlers.get("breakout:pause")();
   assert.equal(store.snapshot("s1").status, "paused");
   assert.equal(intervals.active.size, 0);

@@ -690,6 +690,11 @@ app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_re
 app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "viewer"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", accessLinkHandlers.guardLegacyRoute("stage", "stage"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
 app.get("/audience", accessLinkHandlers.guardLegacyRoute("audience", "audience"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
+app.get("/assets/games/breakout/intro.mp4", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.type("video/mp4");
+  res.sendFile(path.join(PUBLIC_DIR, "assets", "games", "breakout", "intro.mp4"));
+});
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
@@ -809,11 +814,11 @@ io.on("connection", (socket) => {
         });
       });
 
-    if (role === "presenter") {
+    if (role === "audience") {
       void Promise.resolve(brandMentionRuntime.start(joinedContext))
+        .then(() => brandMentionRuntime.sendCurrentState(socket, joinedContext))
         .catch((error) => console.error("[join] Unable to start brand mentions", error));
     }
-    if (role === "audience") brandMentionRuntime.sendCurrentState(socket, joinedContext);
   });
 
   socket.on("transmission_pause", () => {
@@ -913,12 +918,14 @@ io.on("connection", (socket) => {
     if (!session) return;
     if (currentRole === "presenter") {
       session.presenterConnected = false;
-      brandMentionRuntime.stop(currentRoomKey);
       socket.to(currentRoomKey).emit("presenter_disconnected");
     }
     if (currentRole === "screen") session.screenConnected = false;
     if (currentRole === "stage") session.stageConnected = false;
-    if (currentRole === "audience" && currentAudienceId) unregisterAudience(session, currentAudienceId, socket.id);
+    if (currentRole === "audience" && currentAudienceId) {
+      unregisterAudience(session, currentAudienceId, socket.id);
+      if (session.audience.size === 0) brandMentionRuntime.stop(currentRoomKey);
+    }
     emitState(currentRoomKey, session);
   });
 });

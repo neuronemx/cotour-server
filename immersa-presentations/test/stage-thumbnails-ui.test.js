@@ -12,7 +12,7 @@ test("Stage owns a responsive collapsible thumbnail navigator", () => {
   const css = read("public/stage/stage.css");
   assert.match(html, /id="stageThumbsToggle"[^>]*aria-expanded="true"/);
   assert.match(html, /id="stageThumbs"[^>]*aria-label="Miniaturas de slides"/);
-  assert.match(html, /stage-v9/);
+  assert.match(html, /stage-v11/);
   assert.match(script, /renderStageThumbs\(\)/);
   assert.match(script, /button\.addEventListener\("click", \(\) => emitStageSlide\(index\)\)/);
   assert.match(script, /stageThumbs\.scrollTo\(\{ left: Math\.max\(0, left\), behavior: "smooth" \}\)/);
@@ -30,7 +30,7 @@ test("Stage owns a responsive collapsible thumbnail navigator", () => {
   assert.match(css, /\.stage-thumb\.active img/);
 });
 
-test("Stage reuses the Immersa video marker and exposes the shared live drawing control", () => {
+test("Stage reuses the Immersa video marker without exposing live drawing", () => {
   const html = read("public/stage/index.html");
   const script = read("public/stage/stage.js");
   const css = read("public/stage/stage.css");
@@ -42,7 +42,7 @@ test("Stage reuses the Immersa video marker and exposes the shared live drawing 
   assert.match(script, /#9b4cff/);
   assert.match(css, /\.stage-thumb-video-mark\s*\{[\s\S]*?opacity:\s*\.8/);
   assert.match(css, /pointer-events:\s*none/);
-  assert.match(html, /id="stageDrawToggle"[^>]*drawing-button[^>]*aria-label="Trazo vivo"/);
+  assert.doesNotMatch(html, /id="stageDrawToggle"/);
   assert.match(script, /emitStroke: \(stroke\) => socket\.emit\("drawing_stroke", stroke\)/);
   assert.match(script, /drawingOverlay\.setInteractive\(drawingMode\)/);
 });

@@ -48,6 +48,8 @@ const knowledgeActivityController = window.ImmersaKnowledgeActivities?.createCon
   onStateChange: () => syncInteractionShellState()
 });
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
+const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
+const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
 const fallbackDemoInteraction = {
   id: "demo-poll-1",
   type: "poll",
@@ -68,7 +70,6 @@ const screenFrame = document.querySelector(".screen-frame");
 const current = document.getElementById("current");
 const total = document.getElementById("total");
 const audience = document.getElementById("audience");
-const presenterStatus = document.getElementById("presenterStatus");
 const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
@@ -81,7 +82,6 @@ const stageDrawToggle = document.getElementById("stageDrawToggle");
 const textModal = document.getElementById("textModal");
 const messageForm = document.getElementById("messageForm");
 const cancelMessage = document.getElementById("cancelMessage");
-const displayLinkButton = document.getElementById("displayLinkButton");
 const stageActionsButton = document.getElementById("stageActionsButton");
 const stageLiveText = document.getElementById("stageLiveText");
 const stageQr = document.getElementById("stageQr");
@@ -108,8 +108,6 @@ const liveTextControl = window.ImmersaLiveTextControl?.create({
   form: messageForm,
   input: messageInput,
   cancelButton: cancelMessage,
-  linkButton: displayLinkButton,
-  getPublicUrl: publicUrl,
   inactiveLabel: "Texto en vivo",
   activeLabel: "Apagar texto"
 });
@@ -307,9 +305,10 @@ function render(state) {
   setToggles();
   if (stageTransmissionToggle) {
     const paused = Boolean(state.transmissionPaused);
-    stageTransmissionToggle.textContent = paused ? "Reanudar" : "Pausar";
+    stageTransmissionToggle.innerHTML = paused ? playIcon : pauseIcon;
     stageTransmissionToggle.classList.toggle("is-paused", paused);
-    stageTransmissionToggle.setAttribute("aria-pressed", String(paused));
+    stageTransmissionToggle.title = paused ? "Reanudar transmisión" : "Pausar transmisión";
+    stageTransmissionToggle.setAttribute("aria-label", stageTransmissionToggle.title);
   }
 
   const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
@@ -321,7 +320,6 @@ function render(state) {
   drawingOverlay?.refresh();
 
   audience.textContent = state.audienceCount || 0;
-  presenterStatus.textContent = state.presenterConnected ? "On" : "Off";
   updateSlideControls();
   syncStageThumbSelection(index);
 }

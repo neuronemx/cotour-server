@@ -240,6 +240,7 @@
   position: fixed;
   z-index: 8;
   inset: 0;
+  background: #000;
   pointer-events: none;
 }
 
@@ -247,9 +248,47 @@
   position: absolute;
   inset: 0;
   color: #fff;
-  background: radial-gradient(circle at 50% 28%, rgba(70, 80, 135, .28), rgba(4, 6, 14, .94) 67%);
+  background: radial-gradient(circle at 50% 28%, rgba(70, 80, 135, .28), #000 67%);
   font-family: Inter, "Segoe UI", sans-serif;
   pointer-events: none;
+}
+
+.pong-intro {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  opacity: 1;
+  background: #000;
+  transition: opacity .45s ease;
+}
+
+.pong-intro.is-finished {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pong-intro video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.pong-screen.ready.is-intro-playing .pong-scoreboard,
+.pong-screen.ready.is-intro-playing .pong-board {
+  opacity: 0;
+  transition: opacity .6s ease;
+}
+
+.pong-screen.ready.is-intro-playing.is-intro-revealed .pong-scoreboard,
+.pong-screen.ready.is-intro-playing.is-intro-revealed .pong-board {
+  opacity: 1;
+}
+
+.pong-screen.ready.is-intro-playing.is-intro-revealed .pong-board {
+  background: rgba(7, 11, 23, .76);
+  backdrop-filter: blur(3px);
 }
 
 .pong-scoreboard {
@@ -631,7 +670,7 @@
   gap: 18px;
   padding: max(18px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
   overflow: hidden;
-  background: radial-gradient(circle at 50% 15%, rgba(86, 92, 154, .28), rgba(4, 6, 14, .97) 62%);
+  background: radial-gradient(circle at 50% 15%, rgba(86, 92, 154, .28), #000 62%);
   pointer-events: auto;
   touch-action: manipulation;
   user-select: none;
@@ -778,45 +817,98 @@
   opacity: .8;
 }
 
+.pong-control-art {
+  display: none;
+}
+
+.pong-direction-glyph {
+  display: none;
+}
+
 .pong-direction-pad {
-  width: min(100%, 420px);
-  height: min(58dvh, 460px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  width: min(100%, 560px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border-radius: 22px;
 }
 
 .pong-direction-pad button {
-  min-width: 0;
+  position: relative;
   width: 100%;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
-  flex: 1 1 0;
-  display: grid;
-  place-content: center;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, .22);
-  border-radius: 26px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
   color: #fff;
-  box-shadow: 0 22px 60px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .16);
+  background: #05070f;
+  box-shadow: none;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: none;
 }
 
-.pong-direction-pad.is-left button {
-  background: linear-gradient(145deg, #3c8cf5, #1d64c7);
+.pong-direction-pad button:last-child {
+  width: calc(100% + 1px);
+  margin-left: -1px;
 }
 
-.pong-direction-pad.is-right button {
-  background: linear-gradient(145deg, #ffad63, #df7620);
-}
-
-.pong-direction-pad span {
-  font: 850 clamp(58px, 18vw, 112px)/.8 Poppins, Inter, sans-serif;
+.pong-direction-pad button:active,
+.pong-direction-pad button.is-held {
+  transform: none;
+  filter: none;
 }
 
 .pong-direction-pad small {
-  font-size: clamp(11px, 3vw, 15px);
-  font-weight: 850;
-  letter-spacing: .12em;
+  display: none;
+}
+
+.pong-direction-pad .pong-control-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  background: #05070f;
+}
+
+.pong-direction-pad [data-pong-control-side="left"] .pong-control-art {
+  object-position: right center;
+}
+
+.pong-direction-pad [data-pong-control-side="right"] .pong-control-art {
+  object-position: left center;
+}
+
+.pong-direction-pad .pong-control-art.is-off {
+  display: block;
+}
+
+.pong-direction-pad .pong-control-art.is-on {
+  display: none;
+}
+
+.pong-direction-pad button.is-held .pong-control-art.is-off {
+  display: none;
+}
+
+.pong-direction-pad button.is-held .pong-control-art.is-on {
+  display: block;
 }
 
 .pong-change-team {
@@ -827,59 +919,6 @@
   background: rgba(5, 8, 18, .72);
   font: 800 12px/1 Inter, sans-serif;
   backdrop-filter: blur(10px);
-}
-
-.pong-fullscreen {
-  position: absolute;
-  z-index: 9;
-  right: max(10px, env(safe-area-inset-right));
-  bottom: max(10px, env(safe-area-inset-bottom));
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 999px;
-  color: rgba(234, 255, 251, .78);
-  background: linear-gradient(180deg, rgba(35, 43, 47, .54), rgba(8, 10, 14, .50));
-  border: 1px solid rgba(255, 255, 255, .14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 12px 28px rgba(0, 0, 0, .25);
-  backdrop-filter: blur(18px) saturate(1.25);
-}
-
-.pong-fullscreen svg {
-  width: 17px;
-  height: 17px;
-  display: block;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.pong-fullscreen .fullscreen-collapse-icon {
-  display: none;
-}
-
-.pong-fullscreen[aria-pressed="true"] {
-  color: rgba(234, 255, 251, .78);
-  background: linear-gradient(180deg, rgba(35, 43, 47, .54), rgba(8, 10, 14, .50));
-  border-color: rgba(255, 255, 255, .14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 12px 28px rgba(0, 0, 0, .25);
-}
-
-.pong-fullscreen[aria-pressed="true"] .fullscreen-expand-icon {
-  display: none;
-}
-
-.pong-fullscreen[aria-pressed="true"] .fullscreen-collapse-icon {
-  display: block;
-  fill: currentColor;
-  stroke: none;
 }
 
 .pong-audience-goal-flash {
@@ -970,6 +1009,17 @@
   font-weight: 650;
 }
 
+
+@media (orientation: portrait) {
+  .pong-audience {
+    padding-top: max(72px, calc(env(safe-area-inset-top) + 58px));
+  }
+
+  .pong-audience-header {
+    transform: translateY(6px);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 620px) {
   .pong-audience {
     grid-template-rows: auto minmax(0, 1fr);
@@ -981,21 +1031,7 @@
     width: min(72vw, 680px);
   }
 
-  .pong-audience main {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    align-content: stretch;
-    gap: 12px;
-    width: min(100%, 980px);
-    justify-self: center;
-  }
-
-  .pong-audience-copy {
-    max-width: 220px;
-  }
-
-  .pong-team-choice,
-  .pong-direction-pad {
+  .pong-team-choice {
     width: 100%;
     height: 100%;
     max-height: calc(100dvh - 76px);
@@ -1006,8 +1042,47 @@
     border-radius: 20px;
   }
 
-  .pong-direction-pad button {
-    border-radius: 20px;
+  .pong-audience.is-team-left,
+  .pong-audience.is-team-right {
+    display: block;
+    padding: 0 !important;
+    overflow: hidden;
+    background: #05070f;
+  }
+
+  .pong-audience.is-team-left .pong-audience-header,
+  .pong-audience.is-team-right .pong-audience-header {
+    position: absolute;
+    z-index: 7;
+    top: max(8px, env(safe-area-inset-top));
+    left: 50%;
+    width: min(72vw, 680px);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .pong-audience.is-team-left main,
+  .pong-audience.is-team-right main {
+    display: block;
+  }
+
+  .pong-audience.is-team-left .pong-audience-copy,
+  .pong-audience.is-team-right .pong-audience-copy {
+    display: none;
+  }
+
+  .pong-audience.is-team-left .pong-direction-pad,
+  .pong-audience.is-team-right .pong-direction-pad {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    pointer-events: auto;
   }
 
   .pong-change-team {

@@ -12,6 +12,9 @@
   const HOLD_MS = 75;
   const CELEBRATION_MS = 1200;
   const AUDIENCE_GOAL_MS = 1000;
+  const PONG_INTRO_URL = "/assets/games/pong/intro.mp4";
+  const PONG_INTRO_REVEAL_AT_SECONDS = 10;
+  const PONG_INTRO_LOAD_TIMEOUT_MS = 6000;
 
   function roleFromPath(path) {
     if (/^\/(?:speaker|presenter)(?:\/|$)/.test(path)) return "presenter";
@@ -160,6 +163,27 @@
       +'</div>';
   }
 
+  function introMarkup(role, status) {
+    if (role !== "screen" || status !== "ready") return "";
+    return '<div class="pong-intro" data-pong-intro>'
+      +'<video data-pong-intro-video src="'+PONG_INTRO_URL+'" preload="auto" playsinline></video>'
+      +'</div>';
+  }
+
+  function introStorageKey(id) {
+    return "immersa:pong:intro:" + String(id || "");
+  }
+
+  function ensureIntroPreload(doc, role) {
+    if (role !== "screen" || doc.querySelector?.("[data-pong-intro-preload]")) return;
+    const link = doc.createElement("link");
+    link.rel = "preload";
+    link.as = "video";
+    link.href = PONG_INTRO_URL;
+    link.dataset.pongIntroPreload = "1";
+    doc.head?.appendChild?.(link);
+  }
+
   function boardMarkup(state = {}, role = "screen") {
     const status = state.status || "idle";
     const left = team(state, "left");
@@ -167,6 +191,7 @@
     const ball = state.ball || { x: 0.5, y: 0.5, radius: 0.014 };
     const remaining = seconds(state.remaining_ms);
     return '<section class="pong-overlay pong-'+role+' '+status+'">'
+      +introMarkup(role, status)
       +'<header class="pong-scoreboard '+(status === "ready" ? "is-lobby" : "")+'">'
       +'<div class="pong-score-team is-left"><span data-pong-screen-name="left">'+escapeHtml(left.name)+'</span><strong data-pong-screen-score="left">'+Number(left.score || 0)+'</strong></div>'
       +(status === "ready" ? "" : '<div class="pong-clock '+(remaining <= 10 && status === "running" ? "is-urgent" : "")+'" data-pong-screen-time>'+remaining+'</div>')
@@ -221,13 +246,23 @@
       +'</div>';
   }
 
+  function pongControlImages(side) {
+    const glyph = side === "left" ? "←" : "→";
+    return '<span class="pong-direction-glyph" aria-hidden="true">'+glyph+'</span>'
+      +'<img class="pong-control-art is-off" src="/shared/breakout-controls/'+side+'-off.svg?v=100" alt="" draggable="false">'
+      +'<img class="pong-control-art is-on" src="/shared/breakout-controls/'+side+'-on.svg?v=100" alt="" draggable="false">';
+  }
+
   function directionControlsMarkup(state, membership) {
     const current = team(state, membership.team);
     const practice = state.status === "ready";
+    const mirrored = membership.team === "right";
+    const leftDirection = mirrored ? "down" : "up";
+    const rightDirection = mirrored ? "up" : "down";
     return '<div class="pong-audience-copy"><strong>'+(practice ? "Prueba tu paleta" : escapeHtml(current.name))+'</strong><span>'+(practice ? "Mantén presionado para practicar." : "Mantén presionado para mover.")+'</span></div>'
       +'<div class="pong-direction-pad is-'+membership.team+'">'
-      +'<button type="button" data-pong-direction="up" aria-label="Mover paleta hacia arriba"><span aria-hidden="true">↑</span><small>ARRIBA</small></button>'
-      +'<button type="button" data-pong-direction="down" aria-label="Mover paleta hacia abajo"><span aria-hidden="true">↓</span><small>ABAJO</small></button>'
+      +'<button type="button" data-pong-control-side="left" data-pong-direction="'+leftDirection+'" aria-label="Mover paleta hacia '+(leftDirection === "up" ? "arriba" : "abajo")+'">'+pongControlImages("left")+'<small>IZQUIERDA</small></button>'
+      +'<button type="button" data-pong-control-side="right" data-pong-direction="'+rightDirection+'" aria-label="Mover paleta hacia '+(rightDirection === "up" ? "arriba" : "abajo")+'">'+pongControlImages("right")+'<small>DERECHA</small></button>'
       +'</div>'
       +(practice ? '<button type="button" class="pong-change-team" data-pong-change-team>Cambiar equipo</button>' : "");
   }
@@ -243,11 +278,6 @@
     return '<div class="pong-audience-spectator"><strong>'+escapeHtml(title)+'</strong><span>'+escapeHtml(copy)+'</span></div>';
   }
 
-  function fullscreenIcons() {
-    return '<svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>'
-      +'<svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8,26a2,2,0,0,0-2,2.3A2.1,2.1,0,0,0,8.1,30h7.1L4.7,40.5a2,2,0,0,0-.2,2.8A1.8,1.8,0,0,0,6,44a2,2,0,0,0,1.4-.6L18,32.8v7.1A2.1,2.1,0,0,0,19.7,42,2,2,0,0,0,22,40V28a2,2,0,0,0-2-2Z"></path><path d="M43.7,4.8a2,2,0,0,0-3.1-.2L30,15.2V8.1A2.1,2.1,0,0,0,28.3,6,2,2,0,0,0,26,8V20a2,2,0,0,0,2,2H39.9A2.1,2.1,0,0,0,42,20.3,2,2,0,0,0,40,18H32.8L43.4,7.5A2.3,2.3,0,0,0,43.7,4.8Z"></path></svg>';
-  }
-
   function audienceMarkup(state = {}, membership = {}, choosingTeam = false) {
     const status = state.status || "idle";
     const canChoose = status === "ready" && (!membership.team || choosingTeam);
@@ -257,7 +287,6 @@
       : canControl ? directionControlsMarkup(state, membership) : spectatorMarkup(state, membership);
     return '<section class="pong-overlay pong-audience '+status+' '+(membership.team ? "is-team-"+membership.team : "is-spectator")+'">'
       +audienceHeaderMarkup(state)
-      +'<button type="button" class="pong-fullscreen fullscreen-button" data-pong-fullscreen aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">'+fullscreenIcons()+'</button>'
       +'<main>'+content+'</main>'
       +audienceGoalMarkup()
       +'</section>';
@@ -268,6 +297,7 @@
     const socket = options.socket || root.socket;
     const role = options.role || roleFromPath(root.location?.pathname || "");
     if (!doc || !socket || !role) return null;
+    ensureIntroPreload(doc, role);
     let state = {
       status: "idle",
       remaining_ms: 60000,
@@ -295,6 +325,9 @@
     let lastAudienceGoalId = "";
     let namesTimer = null;
     let mountTimer = null;
+    let introLoadTimer = null;
+    let introVideo = null;
+    let introId = "";
     let destroyed = false;
     let wasActive = false;
     let activateGamesOnce = false;
@@ -421,10 +454,6 @@
             render();
             return;
           }
-          if (event.target.closest?.("[data-pong-fullscreen]")) {
-            event.preventDefault();
-            toggleFullscreen();
-          }
         });
         listen(host, "pointerdown", (event) => {
           const button = event.target.closest?.("[data-pong-direction]");
@@ -435,8 +464,6 @@
         }, { passive: false });
         for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) listen(host, name, stopHold);
         for (const name of ["contextmenu", "dragstart", "selectstart"]) listen(host, name, suppressNativeGesture, { passive: false });
-        listen(doc, "fullscreenchange", syncFullscreen);
-        listen(doc, "webkitfullscreenchange", syncFullscreen);
       }
       return host;
     }
@@ -473,46 +500,79 @@
       if (event.target.closest?.("[data-pong-direction]")) event.preventDefault();
     }
 
-    function fullscreenElement() {
-      return doc.fullscreenElement || doc.webkitFullscreenElement || null;
-    }
-
-    function syncFullscreen() {
-      const button = host?.querySelector?.("[data-pong-fullscreen]");
-      if (!button) return;
-      const active = Boolean(fullscreenElement());
-      button.setAttribute("aria-pressed", String(active));
-      button.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Pantalla completa");
-      button.title = active ? "Salir de pantalla completa" : "Pantalla completa";
-    }
-
-    function toggleFullscreen() {
-      const active = fullscreenElement();
-      if (active) {
-        const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
-        if (exit) {
-          try {
-            const result = exit.call(doc);
-            result?.catch?.(() => {});
-          } catch (_error) {}
-        }
-        root.setTimeout(syncFullscreen, 120);
-        return;
-      }
-      const target = doc.documentElement || host;
-      const request = target?.requestFullscreen || target?.webkitRequestFullscreen;
-      if (request) {
-        try {
-          const result = request.call(target);
-          result?.catch?.(() => {});
-        } catch (_error) {}
-      }
-      root.setTimeout(syncFullscreen, 120);
-    }
-
     function setPosition(node, values) {
       if (!node || !values) return;
       for (const [name, value] of Object.entries(values)) node.style.setProperty("--" + name, value);
+    }
+
+    function introWasPlayed(id) {
+      if (!id) return true;
+      try { return root.sessionStorage?.getItem(introStorageKey(id)) === "played"; }
+      catch (_error) { return introId === id; }
+    }
+
+    function markIntroPlayed(id) {
+      introId = id;
+      try { root.sessionStorage?.setItem(introStorageKey(id), "played"); }
+      catch (_error) {}
+    }
+
+    function revealLobby() {
+      const overlay = host?.querySelector?.(".pong-screen.ready");
+      overlay?.classList?.add("is-intro-revealed");
+    }
+
+    function finishIntro() {
+      root.clearTimeout(introLoadTimer);
+      introLoadTimer = null;
+      revealLobby();
+      const layer = host?.querySelector?.("[data-pong-intro]");
+      layer?.classList?.add("is-finished");
+      introVideo?.pause?.();
+      introVideo = null;
+    }
+
+    function stopIntro() {
+      root.clearTimeout(introLoadTimer);
+      introLoadTimer = null;
+      introVideo?.pause?.();
+      introVideo = null;
+    }
+
+    function playIntro() {
+      if (!introVideo || state.status !== "ready") return;
+      const result = introVideo.play?.();
+      result?.catch?.((error) => {
+        if (error?.name !== "NotAllowedError") finishIntro();
+      });
+    }
+
+    function setupIntro() {
+      if (role !== "screen" || state.status !== "ready") {
+        stopIntro();
+        return;
+      }
+      const id = String(state.id || "");
+      const layer = host?.querySelector?.("[data-pong-intro]");
+      const video = layer?.querySelector?.("[data-pong-intro-video]");
+      if (!layer || !video) return;
+      if (introWasPlayed(id)) {
+        finishIntro();
+        return;
+      }
+      introVideo = video;
+      const overlay = layer.closest?.(".pong-overlay");
+      overlay?.classList?.add("is-intro-playing");
+      video.addEventListener("playing", () => markIntroPlayed(id), { once: true });
+      video.addEventListener("timeupdate", () => {
+        if (Number(video.currentTime || 0) >= PONG_INTRO_REVEAL_AT_SECONDS) revealLobby();
+      });
+      video.addEventListener("ended", finishIntro, { once: true });
+      video.addEventListener("error", finishIntro, { once: true });
+      introLoadTimer = root.setTimeout(() => {
+        if (video.readyState < 2) finishIntro();
+      }, PONG_INTRO_LOAD_TIMEOUT_MS);
+      playIntro();
     }
 
     function patchScreen() {
@@ -520,14 +580,17 @@
       const active = ACTIVE_STATUSES.has(state.status);
       overlayHost.hidden = !active;
       if (!active) {
+        stopIntro();
         overlayHost.innerHTML = "";
         screenKey = "";
         return;
       }
       const key = [state.id || "", state.status || ""].join(":");
       if (screenKey !== key) {
+        stopIntro();
         overlayHost.innerHTML = boardMarkup(state, role);
         screenKey = key;
+        setupIntro();
       }
       for (const id of ["left", "right"]) {
         const currentTeam = team(state, id);
@@ -584,7 +647,6 @@
       if (time) time.textContent = seconds(state.remaining_ms) + " s";
       if (!playable()) stopHold();
       else syncHeld();
-      syncFullscreen();
     }
 
     function showCelebration(goal) {
@@ -699,6 +761,13 @@
     socket.on("interaction:active", closeForOther);
     socket.on("raffle:active", closeForOther);
     socket.on("connect", requestState);
+    if (role === "screen") {
+      listen(doc, "click", (event) => {
+        if (event.target.closest?.("[data-immersa-media-unlock], [data-pong-audio-unlock], [data-breakout-audio-unlock]")) {
+          playIntro();
+        }
+      });
+    }
     if (CONTROL_ROLES.has(role)) {
       mountTimer = root.setInterval(() => {
         if (!destroyed && !renderer) render();
@@ -718,6 +787,7 @@
         root.clearTimeout(namesTimer);
         root.clearTimeout(celebrationTimer);
         root.clearTimeout(audienceGoalTimer);
+        stopIntro();
         root.clearInterval(mountTimer);
         socket.off?.("pong:state", handle);
         socket.off?.("pong:closed", handle);
@@ -756,5 +826,19 @@
     return null;
   }
 
-  return { create, autoMount, roleFromPath, controllerMarkup, boardMarkup, audienceMarkup, isAudienceGoal, statusLabel, escapeHtml };
+  return {
+    create,
+    autoMount,
+    roleFromPath,
+    controllerMarkup,
+    boardMarkup,
+    audienceMarkup,
+    isAudienceGoal,
+    statusLabel,
+    escapeHtml,
+    introStorageKey,
+    ensureIntroPreload,
+    PONG_INTRO_URL,
+    PONG_INTRO_REVEAL_AT_SECONDS
+  };
 });

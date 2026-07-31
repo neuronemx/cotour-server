@@ -91,13 +91,23 @@
   }
 
   function unlock() {
+    const first = !root.__immersaMediaUnlocked;
     if (AudioContext) {
       context = context || new AudioContext();
       context.resume?.();
     }
     unlocked = true;
+    root.__immersaMediaUnlocked = true;
     root.document.querySelector("[data-pong-audio-unlock]")?.remove();
     if (previousState?.status === "ready") playCue("lobby");
+    if (first) root.document.dispatchEvent(new Event("immersa:media-unlocked"));
+  }
+
+  if (role === "screen") {
+    root.document.addEventListener("click", (event) => {
+      if (event.target.closest?.("[data-immersa-media-unlock], [data-pong-audio-unlock], [data-breakout-audio-unlock]")) unlock();
+    }, true);
+    root.document.addEventListener("immersa:media-unlocked", unlock);
   }
 
   function bindSharedUnlock(button) {
@@ -108,6 +118,10 @@
 
   function ensureUnlock(state) {
     if (role !== "screen" || unlocked || !["ready", "running", "paused", "finished"].includes(state?.status)) return;
+    if (root.__immersaMediaUnlocked) {
+      unlock();
+      return;
+    }
     const ownButton = root.document.querySelector("[data-pong-audio-unlock]");
     const sharedButton = root.document.querySelector("[data-immersa-media-unlock]:not([hidden]), [data-breakout-audio-unlock]:not([hidden])");
     if (sharedButton) {
@@ -166,7 +180,12 @@
     const mute = controls.querySelector("[data-pong-audio-mute]");
     const volume = controls.querySelector("[data-pong-audio-volume]");
     const pack = controls.querySelector("[data-pong-audio-pack]");
-    if (mute) mute.textContent = config.muted ? "🔇" : "🔊";
+    if (mute) {
+      mute.innerHTML = config.muted
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 11v8a.8.8 0 0 1-1.5.5L6 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l1.3-1.7"/><path d="M3 3l18 18"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15h-2a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5a.8.8 0 0 1 1.5.5v14a.8.8 0 0 1-1.5.5L6 15"/></svg>';
+      mute.setAttribute("aria-label", config.muted ? "Activar audio de Pong" : "Silenciar audio de Pong");
+    }
     if (volume) volume.value = String(Math.round(config.volume * 100));
     if (pack) {
       if (![...pack.options].some((option) => option.value === config.pack)) config.pack = "arcade";
@@ -176,16 +195,15 @@
 
   function mountStageControls() {
     if (role !== "stage" || controls) return;
-    const host = root.document.querySelector(".toolbar-actions");
+    const host = root.document.getElementById("stageAudioControls");
     if (!host) return;
     controls = root.document.createElement("span");
-    controls.className = "pong-audio-controls";
+    controls.className = "pong-audio-controls stage-audio-controls";
     controls.dataset.pongAudioControls = "1";
     controls.hidden = true;
 
     const mute = root.document.createElement("button");
     mute.type = "button";
-    mute.className = "toolbar-button";
     mute.dataset.pongAudioMute = "1";
     mute.setAttribute("aria-label", "Silenciar audio de Pong");
 
@@ -226,7 +244,7 @@
     });
 
     controls.append(mute, volume, select);
-    host.prepend(controls);
+    host.appendChild(controls);
     syncControls();
   }
 

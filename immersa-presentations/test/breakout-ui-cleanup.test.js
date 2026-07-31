@@ -9,13 +9,14 @@ function source(relativePath) {
 
 test("Breakout landscape art preserves each supplied image without crop or blend", () => {
   const css = source("public/shared/breakout-controls-art.css");
-  assert.match(css, /object-fit:contain/);
-  assert.match(css, /\.breakout-control-art\.is-off\{display:block\}/);
-  assert.match(css, /\.breakout-control-art\.is-on\{display:none\}/);
-  assert.match(css, /button\.is-held \.breakout-control-art\.is-on\{display:block\}/);
-  assert.doesNotMatch(css, /object-fit:cover/);
-  assert.doesNotMatch(css, /mix-blend-mode/);
-  assert.doesNotMatch(css, /data-breakout-direction="left"\]::before/);
+  const landscapeCss = css.slice(css.indexOf("@media (orientation:landscape)"));
+  assert.match(landscapeCss, /object-fit:contain/);
+  assert.match(landscapeCss, /\.breakout-control-art\.is-off\{display:block\}/);
+  assert.match(landscapeCss, /\.breakout-control-art\.is-on\{display:none\}/);
+  assert.match(landscapeCss, /button\.is-held \.breakout-control-art\.is-on\{display:block\}/);
+  assert.doesNotMatch(landscapeCss, /object-fit:cover/);
+  assert.doesNotMatch(landscapeCss, /mix-blend-mode/);
+  assert.doesNotMatch(landscapeCss, /data-breakout-direction="left"\]::before/);
 });
 
 test("Breakout registers as the Games renderer and does not force the tab repeatedly", () => {
