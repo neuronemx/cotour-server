@@ -897,3 +897,10 @@ test("successful definition loading restores controller category availability", 
   assert.match(source, /definitionsAvailable = true;[\s\S]*onAvailabilityChange\?\.\(true\)/);
   assert.match(source, /state\.available \|\| definitionsAvailable/);
 });
+
+
+test("Speaker and Stage knowledge commands use reliable socket delivery", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /socket\.emit\(eventName, payload\)/);
+  assert.doesNotMatch(source, /socket\.volatile/);
+});
