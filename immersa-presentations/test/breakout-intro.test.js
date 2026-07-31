@@ -46,7 +46,7 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(ui, /preload="auto"/);
   assert.match(ui, /link\.rel\s*=\s*["']preload["']/);
   assert.match(ui, /link\.as\s*=\s*["']video["']/);
-  assert.match(ui, /BREAKOUT_INTRO_LOAD_TIMEOUT_MS\\s*=\\s*6000/);
+  assert.match(ui, /BREAKOUT_INTRO_LOAD_TIMEOUT_MS\s*=\s*6000/);
   assert.match(ui, /video\.readyState<2\)finishIntro/);
   assert.match(ui, /data-immersa-media-unlock/);
   assert.match(ui, /playing["']?,?\s*\(\)=>markIntroPlayed/);
