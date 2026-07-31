@@ -57,7 +57,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-breakout-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/breakout-ui.js?v=113";
+      script.src = "/shared/breakout-ui.js?v=114";
       script.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(script);
     }
