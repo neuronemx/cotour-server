@@ -212,7 +212,7 @@
         render();
         return false;
       }
-      (socket.volatile || socket).emit(eventName, payload);
+      socket.emit(eventName, payload);
       return true;
     }
 
