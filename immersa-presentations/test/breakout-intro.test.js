@@ -30,7 +30,7 @@ test("Breakout intro remains exclusive to Screen and each launch has its own rep
   );
   assert.equal(
     BreakoutUi.introStorageKey("breakout-1"),
-    "immersa:breakout:intro:breakout-1",
+    "immersa:breakout:intro:v2:breakout-1",
   );
 });
 
@@ -49,6 +49,8 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(ui, /BREAKOUT_INTRO_LOAD_TIMEOUT_MS\s*=\s*(?:6000|6e3)/);
   assert.match(ui, /video\.readyState\s*<\s*2\)finishIntro/);
   assert.match(ui, /data-immersa-media-unlock/);
+  assert.doesNotMatch(ui, /playing["']?,?\s*\(\)=>markIntroPlayed/);
+  assert.match(ui, /ended["']?,?\s*\(\)=>\{markIntroPlayed\(id\);finishIntro\(\)\}/);
   assert.match(css, /\.breakout-screen\.ready\.is-intro-playing/);
   assert.match(runtime, /breakout-ui\.css\?v=104/);
   assert.match(runtime, /breakout-ui\.js\?v=105/);
