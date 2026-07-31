@@ -31,7 +31,7 @@
     if (!root.document.querySelector("link[data-immersa-games-ui]")) {
       const gamesLink = root.document.createElement("link");
       gamesLink.rel = "stylesheet";
-      gamesLink.href = "/shared/games-ui.css";
+      gamesLink.href = "/shared/games-ui.css?v=2";
       gamesLink.dataset.immersaGamesUi = "1";
       root.document.head.appendChild(gamesLink);
     }
@@ -51,7 +51,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-games-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/games-ui.js";
+      script.src = "/shared/games-ui.js?v=2";
       script.dataset.immersaGamesUi = "1";
       root.document.head.appendChild(script);
     }
