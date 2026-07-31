@@ -890,3 +890,10 @@ test("history exposes per-execution CSV without adding operational warnings", ()
   assert.match(history, /knowledge-activities\/" \+ encodeURIComponent\(execution\.executionId\) \+ "\/export/);
   assert.doesNotMatch(exporter, /respuestas excluidas|error de procesamiento/i);
 });
+
+
+test("successful definition loading restores controller category availability", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /definitionsAvailable = true;[\s\S]*onAvailabilityChange\?\.\(true\)/);
+  assert.match(source, /state\.available \|\| definitionsAvailable/);
+});
