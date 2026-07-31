@@ -50,10 +50,11 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(ui, /video\.networkState\s*===\s*3\)finishIntro/);
   assert.match(ui, /data-immersa-media-unlock/);
   assert.doesNotMatch(ui, /playing["']?,?\s*\(\)=>markIntroPlayed/);
+  assert.match(ui, /function introWasPlayed\(id\)\{if\(!id\)return false/);
   assert.match(ui, /ended["']?,?\s*\(\)=>\{markIntroPlayed\(id\);finishIntro\(\)\}/);
   assert.match(css, /\.breakout-screen\.ready\.is-intro-playing/);
   assert.match(css, /\.breakout-intro\{z-index:10/);
   assert.match(ui, /\},true\)\}if\(role===\x27presenter\x27/);
   assert.match(runtime, /breakout-ui\.css\?v=105/);
-  assert.match(runtime, /breakout-ui\.js\?v=108/);
+  assert.match(runtime, /breakout-ui\.js\?v=109/);
 });
