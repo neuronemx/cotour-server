@@ -202,6 +202,7 @@
     const hosts = new Set();
     let state = { available: false, execution: null };
     let definitions = { contest: [], assessment: [] };
+    let definitionsAvailable = false;
     let loadPromise = null;
     let rejected = null;
 
@@ -227,6 +228,8 @@
             contest: Array.isArray(payload.contests) ? payload.contests : [],
             assessment: Array.isArray(payload.assessments) ? payload.assessments : []
           };
+          definitionsAvailable = true;
+          onAvailabilityChange?.(true);
           render();
           return definitions;
         })
@@ -373,7 +376,7 @@
       state = { ...(next || { available: false, execution: null }), _receivedAt: Date.now() };
       rejected = null;
       render();
-      onAvailabilityChange?.(Boolean(state.available));
+      onAvailabilityChange?.(Boolean(state.available || definitionsAvailable));
       onStateChange?.(state);
     }
 
