@@ -28,7 +28,7 @@
 
 .brand-mention-sponsor-label {
   display: block;
-  margin: 0 0 1px 14px;
+  margin: 0 0 3px 14px;
   color: rgba(255, 255, 255, .56);
   font: 300 14px/1.05 Inter, sans-serif;
 }
@@ -80,8 +80,11 @@
 
 .brand-mention-card-copy {
   display: grid;
-  gap: 1px;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 4px;
   min-width: 0;
+  padding: 8px 0;
 }
 
 .brand-mention-card-copy strong {
@@ -157,6 +160,11 @@
     border-radius: 17px 0 0 17px;
   }
 
+  .brand-mention-card-copy {
+    gap: 3px;
+    padding: 7px 0;
+  }
+
   .brand-mention-card-copy strong {
     font-size: clamp(16px, calc(5.5vw - 1px), 19px);
   }
@@ -193,6 +201,11 @@
   .brand-mention-card-logo {
     width: 64px;
     border-radius: 15px 0 0 15px;
+  }
+
+  .brand-mention-card-copy {
+    gap: 2px;
+    padding: 5px 0;
   }
 
   .brand-mention-card-copy strong {
