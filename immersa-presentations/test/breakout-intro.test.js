@@ -59,3 +59,13 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(runtime, /breakout-ui\.js\?v=112/);
   assert.match(ui, /if\(state\.status===\x27ready\x27\).*?return\}stopIntro\(\);overlay\.innerHTML=boardMarkup\(state,role\)/);
 });
+
+
+test("Breakout intro has an explicit MP4 route before the public-id catch-all", () => {
+  const server = read("../server.js");
+  const route = server.indexOf('app.get("/assets/games/breakout/intro.mp4"');
+  const catchAll = server.indexOf('app.get("/:public_id"');
+  assert.ok(route >= 0);
+  assert.ok(catchAll > route);
+  assert.match(server, /res\.type\("video\/mp4"\)/);
+});
