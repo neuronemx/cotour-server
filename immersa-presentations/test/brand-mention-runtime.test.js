@@ -140,12 +140,20 @@ test("late Público receives the one current mention while other roles receive n
   assert.deepEqual(screenEvents, []);
 });
 
-test("sessions with no active brands do not keep a rotation timer", async () => {
-  const { clock, events, runtime, context } = fixture([brand("off", 1, false)]);
-  assert.equal(await runtime.start(context), false);
-  assert.equal(clock.timers.size, 0);
-  await clock.advance(360000);
+test("a brand activated after Speaker joins is discovered by the running cycle", async () => {
+  const brands = [brand("late", 1, false)];
+  const { clock, events, runtime, context } = fixture(brands);
+  assert.equal(await runtime.start(context), true);
+  assert.equal(clock.timers.size, 1);
+
+  await clock.advance(120000);
   assert.deepEqual(events, []);
+  assert.equal(clock.timers.size, 1);
+
+  brands[0].active = true;
+  await clock.advance(120000);
+  assert.equal(events.at(-1).event, "brand_mention:show");
+  assert.equal(events.at(-1).payload.id, "late");
 });
 
 test("ActiveInteractionCoordinator publishes activity boundary changes", async () => {
