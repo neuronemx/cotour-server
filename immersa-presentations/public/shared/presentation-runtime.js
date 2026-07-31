@@ -45,7 +45,7 @@
     if (!root.document.querySelector("link[data-immersa-pong-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
-      link.href = "/shared/pong-ui.css?v=8";
+      link.href = "/shared/pong-ui.css?v=9";
       link.dataset.immersaPongUi = "1";
       root.document.head.appendChild(link);
     }
