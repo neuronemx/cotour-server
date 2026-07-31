@@ -92,7 +92,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #fff;
-  font: 500 clamp(17px, calc(4.5vw - 1px), 22px)/1.08 Inter, sans-serif;
+  font: 500 clamp(15px, calc(4vw - 1px), 19px)/1.08 Inter, sans-serif;
 }
 
 .brand-mention-card-pitch {
@@ -166,7 +166,7 @@
   }
 
   .brand-mention-card-copy strong {
-    font-size: clamp(16px, calc(5.5vw - 1px), 19px);
+    font-size: clamp(14px, calc(4.8vw - 1px), 17px);
   }
 
   .brand-mention-card-pitch {
@@ -209,7 +209,7 @@
   }
 
   .brand-mention-card-copy strong {
-    font-size: 15px;
+    font-size: 13px;
   }
 
   .brand-mention-card-pitch {
