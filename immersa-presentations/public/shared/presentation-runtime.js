@@ -63,7 +63,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-pong-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/pong-ui.js?v=8";
+      script.src = "/shared/pong-ui.js?v=9";
       script.dataset.immersaPongUi = "1";
       root.document.head.appendChild(script);
     }
