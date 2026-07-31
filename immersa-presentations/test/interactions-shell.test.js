@@ -272,3 +272,9 @@ test("poll home CTA uses the existing Speaker rocket SVG", () => {
   assert.match(presenter, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
   assert.match(stage, /interactionLaunchRocketMarkup \+ '<span>Lanzar encuesta<\/span>/);
 });
+
+
+test("hidden interaction categories cannot remain visible as dead buttons", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  assert.match(css, /\[data-interactions-category\]\[hidden\][\s\S]*display: none !important/);
+});

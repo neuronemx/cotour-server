@@ -1,3 +1,7 @@
+[data-interactions-category][hidden] {
+  display: none !important;
+}
+
 .interaction-panel,
 .interaction-card,
 .interaction-results-overlay,
