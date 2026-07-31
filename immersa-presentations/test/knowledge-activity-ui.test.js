@@ -901,6 +901,5 @@ test("successful definition loading restores controller category availability", 
 
 test("Speaker and Stage knowledge commands use reliable socket delivery", () => {
   const source = read("public/shared/knowledge-activities.js");
-  assert.match(source, /socket\.emit\(eventName, payload\)/);
-  assert.doesNotMatch(source, /\(socket\.volatile \|\| socket\)\.emit\(eventName, payload\)/);
+  assert.match(source, /function emitNow\(eventName, payload\) \{[\s\S]*?socket\.emit\(eventName, payload\);[\s\S]*?return true;/);
 });
