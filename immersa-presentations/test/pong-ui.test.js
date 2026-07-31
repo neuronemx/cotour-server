@@ -152,8 +152,8 @@ test("Público gets two same-team directional controls and may switch during lob
   assert.match(left, /data-pong-fullscreen/);
   assert.equal((right.match(/data-pong-direction=/g) || []).length, 2);
   assert.equal((left.match(/class="pong-control-art/g) || []).length, 4);
-  assert.match(left, /breakout-controls\/right-off\.svg/);
-  assert.match(left, /breakout-controls\/left-off\.svg/);
+  assert.match(left, /data-pong-direction="up"[\s\S]*breakout-controls\/left-off\.svg[\s\S]*breakout-controls\/left-on\.svg/);
+  assert.match(left, /data-pong-direction="down"[\s\S]*breakout-controls\/right-off\.svg[\s\S]*breakout-controls\/right-on\.svg/);
   assert.match(right, /pong-direction-pad is-right/);
   assert.doesNotMatch(right, /data-pong-change-team/);
 });
@@ -201,7 +201,9 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(css, /@media \(orientation: portrait\)[\s\S]*?\.pong-direction-pad\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.pong-audience\s*\{[\s\S]*?padding-top:\s*max\(72px/);
   assert.match(css, /button\.is-held \.pong-control-art\.is-on\s*\{[\s\S]*?display:\s*block/);
-  assert.match(ui, /breakout-controls\/["'+breakoutDirection+'"']?/);
+  assert.match(css, /data-pong-direction="up"[\s\S]*object-position:\s*right center/);
+  assert.match(css, /data-pong-direction="down"[\s\S]*object-position:\s*left center/);
+  assert.doesNotMatch(css, /pong-control-art[\s\S]{0,400}rotate/);
   assert.match(css, /pong-audience-goal-flash/);
   assert.match(ui, /isAudienceGoal\(membership, goal\)/);
   assert.match(css, /prefers-reduced-motion/);
