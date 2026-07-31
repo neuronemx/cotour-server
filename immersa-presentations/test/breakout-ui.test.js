@@ -75,6 +75,11 @@ test("audience receives exactly two collective controls and fullscreen action", 
   assert.doesNotMatch(html, /BREAKOUT|PRÁCTICA|LISTOS/);
 });
 
+test("controller render safely waits for the interactions shell", () => {
+  const ui = fs.readFileSync(path.join(__dirname, "../public/shared/breakout-ui.js"), "utf8");
+  assert.match(ui, /function patchController\(\)\{if\(!renderer\)return;/);
+});
+
 test("browser module requests current state and preserves approved shell source", () => {
   const ui = fs.readFileSync(path.join(__dirname, "../public/shared/breakout-ui.js"), "utf8");
   const shell = fs.readFileSync(path.join(__dirname, "../public/shared/interactions-shell.js"), "utf8");
