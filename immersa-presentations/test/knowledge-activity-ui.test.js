@@ -903,3 +903,9 @@ test("Speaker and Stage knowledge commands use reliable socket delivery", () => 
   const source = read("public/shared/knowledge-activities.js");
   assert.match(source, /function emitNow\(eventName, payload\) \{[\s\S]*?socket\.emit\(eventName, payload\);[\s\S]*?return true;/);
 });
+
+
+test("Speaker and Stage apply the server open acknowledgement immediately", () => {
+  const source = read("public/shared/knowledge-activities.js");
+  assert.match(source, /socket\.on\("interaction:execution:opened", setState\)/);
+});

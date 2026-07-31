@@ -381,6 +381,7 @@
     }
 
     socket.on("interaction:execution:state", setState);
+    socket.on("interaction:execution:opened", setState);
     socket.on("interaction:knowledge:rejected", (payload = {}) => {
       rejected = payload.message || "No se pudo completar la acción";
       render();
