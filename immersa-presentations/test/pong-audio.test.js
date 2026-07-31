@@ -12,7 +12,7 @@ test("Pong audio loads only on Screen and Stage", () => {
   const screen = read("../public/screen/index.html");
   const stage = read("../public/stage/index.html");
   const audience = read("../public/audience/index.html");
-  assert.match(screen, /pong-audio\.js\?v=2/);
+  assert.match(screen, /pong-audio\.js\?v=3/);
   assert.match(stage, /pong-audio\.js\?v=3/);
   assert.doesNotMatch(audience, /pong-audio\.js/);
 });
@@ -29,6 +29,8 @@ test("Pong audio exposes every frozen cue and replaceable custom packs", () => {
   assert.match(audio, /data-immersa-media-unlock/);
   assert.match(audio, /data-breakout-audio-unlock/);
   assert.match(audio, /bindSharedUnlock/);
+  assert.match(audio, /__immersaMediaUnlocked/);
+  assert.match(audio, /immersa:media-unlocked/);
   assert.match(audio, /role !== "screen"/);
 });
 
