@@ -822,48 +822,93 @@
 }
 
 .pong-direction-glyph {
-  display: inline;
+  display: none;
 }
 
 .pong-direction-pad {
-  width: min(100%, 420px);
-  height: min(58dvh, 460px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  width: min(100%, 560px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border-radius: 22px;
 }
 
 .pong-direction-pad button {
-  min-width: 0;
+  position: relative;
   width: 100%;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
-  flex: 1 1 0;
-  display: grid;
-  place-content: center;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, .22);
-  border-radius: 26px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
   color: #fff;
-  box-shadow: 0 22px 60px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .16);
+  background: #05070f;
+  box-shadow: none;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: none;
 }
 
-.pong-direction-pad.is-left button {
-  background: linear-gradient(145deg, #3c8cf5, #1d64c7);
+.pong-direction-pad button:last-child {
+  width: calc(100% + 1px);
+  margin-left: -1px;
 }
 
-.pong-direction-pad.is-right button {
-  background: linear-gradient(145deg, #ffad63, #df7620);
-}
-
-.pong-direction-pad span {
-  font: 850 clamp(58px, 18vw, 112px)/.8 Poppins, Inter, sans-serif;
+.pong-direction-pad button:active,
+.pong-direction-pad button.is-held {
+  transform: none;
+  filter: none;
 }
 
 .pong-direction-pad small {
-  font-size: clamp(11px, 3vw, 15px);
-  font-weight: 850;
-  letter-spacing: .12em;
+  display: none;
+}
+
+.pong-direction-pad .pong-control-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  background: #05070f;
+}
+
+.pong-direction-pad [data-pong-direction="up"] .pong-control-art {
+  object-position: right center;
+}
+
+.pong-direction-pad [data-pong-direction="down"] .pong-control-art {
+  object-position: left center;
+}
+
+.pong-direction-pad .pong-control-art.is-off {
+  display: block;
+}
+
+.pong-direction-pad .pong-control-art.is-on {
+  display: none;
+}
+
+.pong-direction-pad button.is-held .pong-control-art.is-off {
+  display: none;
+}
+
+.pong-direction-pad button.is-held .pong-control-art.is-on {
+  display: block;
 }
 
 .pong-change-team {
@@ -1026,92 +1071,6 @@
   .pong-audience-header {
     transform: translateY(6px);
   }
-
-  .pong-direction-pad {
-    width: min(100%, 560px);
-    height: auto;
-    aspect-ratio: 16 / 9;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 1fr);
-    gap: 0;
-    overflow: hidden;
-    border-radius: 22px;
-  }
-
-  .pong-direction-pad button {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    padding: 0;
-    overflow: hidden;
-    border: 0;
-    border-radius: 0;
-    background: #05070f;
-    box-shadow: none;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
-    transition: none;
-  }
-
-  .pong-direction-pad button:last-child {
-    width: calc(100% + 1px);
-    margin-left: -1px;
-  }
-
-  .pong-direction-pad button:active,
-  .pong-direction-pad button.is-held {
-    transform: none;
-    filter: none;
-  }
-
-  .pong-direction-pad .pong-direction-glyph,
-  .pong-direction-pad small {
-    display: none;
-  }
-
-  .pong-direction-pad .pong-control-art {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: none;
-    object-fit: contain;
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-user-drag: none;
-    background: #05070f;
-  }
-
-  .pong-direction-pad [data-pong-direction="up"] .pong-control-art {
-    object-position: right center;
-  }
-
-  .pong-direction-pad [data-pong-direction="down"] .pong-control-art {
-    object-position: left center;
-  }
-
-  .pong-direction-pad .pong-control-art.is-off {
-    display: block;
-  }
-
-  .pong-direction-pad .pong-control-art.is-on {
-    display: none;
-  }
-
-  .pong-direction-pad button.is-held .pong-control-art.is-off {
-    display: none;
-  }
-
-  .pong-direction-pad button.is-held .pong-control-art.is-on {
-    display: block;
-  }
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
@@ -1147,10 +1106,6 @@
 
   .pong-team-choice button {
     min-height: 0;
-    border-radius: 20px;
-  }
-
-  .pong-direction-pad button {
     border-radius: 20px;
   }
 
