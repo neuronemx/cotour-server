@@ -690,6 +690,11 @@ app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_re
 app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "viewer"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/stage", accessLinkHandlers.guardLegacyRoute("stage", "stage"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "stage", "index.html")));
 app.get("/audience", accessLinkHandlers.guardLegacyRoute("audience", "audience"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "audience", "index.html")));
+app.get("/assets/games/breakout/intro.mp4", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.type("video/mp4");
+  res.sendFile(path.join(PUBLIC_DIR, "assets", "games", "breakout", "intro.mp4"));
+});
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
