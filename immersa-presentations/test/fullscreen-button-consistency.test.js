@@ -15,7 +15,6 @@ test("Público and Screen copy Speaker fullscreen expand and collapse icons", ()
     "public/presenter/index.html",
     "public/audience/index.html",
     "public/screen/index.html",
-    "public/shared/pong-ui.js",
     "public/shared/breakout-ui.js"
   ]) {
     const source = read(file);
@@ -31,7 +30,6 @@ test("all fullscreen controls retain the dark Speaker glass while active", () =>
     "public/presenter/presenter.css",
     "public/audience/audience.css",
     "public/screen/screen.css",
-    "public/shared/pong-ui.css",
     "public/shared/breakout-controls-art.css"
   ]) {
     assert.match(read(file), activeGlass, file);
@@ -40,12 +38,14 @@ test("all fullscreen controls retain the dark Speaker glass while active", () =>
   assert.doesNotMatch(read("public/screen/screen.js"), /fullscreenToggle\.textContent\s*=/);
 });
 
-test("Pong and Breakout keep their fullscreen control available to exit", () => {
-  for (const file of ["public/shared/pong-ui.js", "public/shared/breakout-ui.js"]) {
-    const source = read(file);
-    assert.match(source, /aria-pressed/, file);
-    assert.match(source, /exitFullscreen/, file);
-    assert.match(source, /webkitExitFullscreen/, file);
-    assert.doesNotMatch(source, /button\.hidden\s*=\s*Boolean\(fullscreenElement\(\)\)/, file);
-  }
+test("Breakout keeps its local fullscreen exit while Pong relies on Público global fullscreen", () => {
+  const breakout = read("public/shared/breakout-ui.js");
+  assert.match(breakout, /aria-pressed/);
+  assert.match(breakout, /exitFullscreen/);
+  assert.match(breakout, /webkitExitFullscreen/);
+  assert.doesNotMatch(breakout, /button\.hidden\s*=\s*Boolean\(fullscreenElement\(\)\)/);
+
+  const pong = read("public/shared/pong-ui.js");
+  assert.doesNotMatch(pong, /data-pong-fullscreen|toggleFullscreen|syncFullscreen|exitFullscreen/);
+  assert.match(read("public/audience/index.html"), /id="fullscreen"/);
 });
