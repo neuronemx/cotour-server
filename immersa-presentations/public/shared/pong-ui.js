@@ -645,7 +645,6 @@
       if (time) time.textContent = seconds(state.remaining_ms) + " s";
       if (!playable()) stopHold();
       else syncHeld();
-      syncFullscreen();
     }
 
     function showCelebration(goal) {
