@@ -206,6 +206,9 @@ test("shared runtime loads the complete Pong UI and production enables its queue
   assert.match(css, /data-pong-direction="down"[\s\S]*object-position:\s*left center/);
   assert.doesNotMatch(css, /pong-control-art[\s\S]{0,400}rotate/);
   assert.doesNotMatch(css, /@media \(orientation: landscape\)[\s\S]*?\.pong-direction-pad button\s*\{[\s\S]*?border-radius/);
+  assert.match(css, /@media \(orientation: landscape\)[\s\S]*?\.pong-audience\.is-team-left[\s\S]*?padding:\s*0 !important/);
+  assert.match(css, /\.pong-audience\.is-team-left \.pong-audience-copy[\s\S]*?display:\s*none/);
+  assert.match(css, /\.pong-audience\.is-team-left \.pong-direction-pad[\s\S]*?position:\s*absolute[\s\S]*?inset:\s*0[\s\S]*?width:\s*100%[\s\S]*?height:\s*100%/);
   assert.match(css, /pong-audience-goal-flash/);
   assert.match(ui, /isAudienceGoal\(membership, goal\)/);
   assert.match(css, /prefers-reduced-motion/);
