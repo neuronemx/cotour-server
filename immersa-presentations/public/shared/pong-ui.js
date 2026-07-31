@@ -246,21 +246,23 @@
       +'</div>';
   }
 
-  function pongControlImages(direction) {
-    const breakoutDirection = direction === "up" ? "left" : "right";
-    const glyph = direction === "up" ? "↑" : "↓";
+  function pongControlImages(side) {
+    const glyph = side === "left" ? "←" : "→";
     return '<span class="pong-direction-glyph" aria-hidden="true">'+glyph+'</span>'
-      +'<img class="pong-control-art is-off" src="/shared/breakout-controls/'+breakoutDirection+'-off.svg?v=100" alt="" draggable="false">'
-      +'<img class="pong-control-art is-on" src="/shared/breakout-controls/'+breakoutDirection+'-on.svg?v=100" alt="" draggable="false">';
+      +'<img class="pong-control-art is-off" src="/shared/breakout-controls/'+side+'-off.svg?v=100" alt="" draggable="false">'
+      +'<img class="pong-control-art is-on" src="/shared/breakout-controls/'+side+'-on.svg?v=100" alt="" draggable="false">';
   }
 
   function directionControlsMarkup(state, membership) {
     const current = team(state, membership.team);
     const practice = state.status === "ready";
+    const mirrored = membership.team === "right";
+    const leftDirection = mirrored ? "down" : "up";
+    const rightDirection = mirrored ? "up" : "down";
     return '<div class="pong-audience-copy"><strong>'+(practice ? "Prueba tu paleta" : escapeHtml(current.name))+'</strong><span>'+(practice ? "Mantén presionado para practicar." : "Mantén presionado para mover.")+'</span></div>'
       +'<div class="pong-direction-pad is-'+membership.team+'">'
-      +'<button type="button" data-pong-direction="up" aria-label="Mover paleta hacia arriba">'+pongControlImages("up")+'<small>ARRIBA</small></button>'
-      +'<button type="button" data-pong-direction="down" aria-label="Mover paleta hacia abajo">'+pongControlImages("down")+'<small>ABAJO</small></button>'
+      +'<button type="button" data-pong-control-side="left" data-pong-direction="'+leftDirection+'" aria-label="Mover paleta hacia '+(leftDirection === "up" ? "arriba" : "abajo")+'">'+pongControlImages("left")+'<small>IZQUIERDA</small></button>'
+      +'<button type="button" data-pong-control-side="right" data-pong-direction="'+rightDirection+'" aria-label="Mover paleta hacia '+(rightDirection === "up" ? "arriba" : "abajo")+'">'+pongControlImages("right")+'<small>DERECHA</small></button>'
       +'</div>'
       +(practice ? '<button type="button" class="pong-change-team" data-pong-change-team>Cambiar equipo</button>' : "");
   }
