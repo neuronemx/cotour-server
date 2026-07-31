@@ -246,13 +246,21 @@
       +'</div>';
   }
 
+  function pongControlImages(direction) {
+    const breakoutDirection = direction === "up" ? "right" : "left";
+    const glyph = direction === "up" ? "↑" : "↓";
+    return '<span class="pong-direction-glyph" aria-hidden="true">'+glyph+'</span>'
+      +'<img class="pong-control-art is-off" src="/shared/breakout-controls/'+breakoutDirection+'-off.svg?v=100" alt="" draggable="false">'
+      +'<img class="pong-control-art is-on" src="/shared/breakout-controls/'+breakoutDirection+'-on.svg?v=100" alt="" draggable="false">';
+  }
+
   function directionControlsMarkup(state, membership) {
     const current = team(state, membership.team);
     const practice = state.status === "ready";
     return '<div class="pong-audience-copy"><strong>'+(practice ? "Prueba tu paleta" : escapeHtml(current.name))+'</strong><span>'+(practice ? "Mantén presionado para practicar." : "Mantén presionado para mover.")+'</span></div>'
       +'<div class="pong-direction-pad is-'+membership.team+'">'
-      +'<button type="button" data-pong-direction="up" aria-label="Mover paleta hacia arriba"><span aria-hidden="true">↑</span><small>ARRIBA</small></button>'
-      +'<button type="button" data-pong-direction="down" aria-label="Mover paleta hacia abajo"><span aria-hidden="true">↓</span><small>ABAJO</small></button>'
+      +'<button type="button" data-pong-direction="up" aria-label="Mover paleta hacia arriba">'+pongControlImages("up")+'<small>ARRIBA</small></button>'
+      +'<button type="button" data-pong-direction="down" aria-label="Mover paleta hacia abajo">'+pongControlImages("down")+'<small>ABAJO</small></button>'
       +'</div>'
       +(practice ? '<button type="button" class="pong-change-team" data-pong-change-team>Cambiar equipo</button>' : "");
   }
