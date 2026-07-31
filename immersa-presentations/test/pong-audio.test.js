@@ -8,13 +8,29 @@ function read(relativePath) {
   return fs.readFileSync(path.join(__dirname, relativePath), "utf8");
 }
 
-test("Pong audio loads only on Screen and Stage", () => {
-  const screen = read("../public/screen/index.html");
-  const stage = read("../public/stage/index.html");
-  const audience = read("../public/audience/index.html");
-  assert.match(screen, /pong-audio\.js\?v=3/);
-  assert.match(stage, /pong-audio\.js\?v=3/);
-  assert.doesNotMatch(audience, /pong-audio\.js/);
+function scriptPaths(html) {
+  return [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/g)].map(
+    ([, src]) => src.split("?")[0],
+  );
+}
+
+test("Pong audio loads only on Screen regardless of cache busting", () => {
+  const screenScripts = scriptPaths(read("../public/screen/index.html"));
+  const stageScripts = scriptPaths(read("../public/stage/index.html"));
+  const audienceScripts = scriptPaths(read("../public/audience/index.html"));
+
+  assert.ok(
+    screenScripts.some((src) => src.endsWith("/pong-audio.js")),
+    "pong-audio.js not found on Screen",
+  );
+  assert.ok(
+    !stageScripts.some((src) => src.endsWith("/pong-audio.js")),
+    "pong-audio.js must not load on Stage",
+  );
+  assert.ok(
+    !audienceScripts.some((src) => src.endsWith("/pong-audio.js")),
+    "pong-audio.js must not load on Público",
+  );
 });
 
 test("Pong audio exposes every frozen cue and replaceable custom packs", () => {
