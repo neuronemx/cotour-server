@@ -11,8 +11,8 @@ test("Home exposes the deck brand mention editor", () => {
   const editor = read("public/home/brand-mentions-editor.js");
   const css = read("public/home/brand-mentions-editor.css");
 
-  assert.match(html, /brand-mentions-editor\.css\?v=3/);
-  assert.match(html, /brand-mentions-editor\.js\?v=3/);
+  assert.match(html, /brand-mentions-editor\.css\?v=5/);
+  assert.match(html, /brand-mentions-editor\.js\?v=4/);
   assert.match(editor, /button\.textContent = "Marcas"/);
   assert.match(editor, /Menciones de marca/);
   assert.match(editor, /Solo Público/);

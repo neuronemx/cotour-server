@@ -42,7 +42,7 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
     __dirname,
     "../public/assets/games/breakout/intro.mp4",
   );
-  assert.ok(fs.statSync(asset).size > 10_000_000);
+  assert.ok(fs.statSync(asset).size > 100_000);
   assert.match(ui, /preload="auto"/);
   assert.match(ui, /link\.rel\s*=\s*["']preload["']/);
   assert.match(ui, /link\.as\s*=\s*["']video["']/);

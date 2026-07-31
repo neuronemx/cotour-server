@@ -43,6 +43,7 @@ test("Screen reuses an existing multimedia unlock instead of adding a second but
   };
   let createdButtons = 0;
   const document = {
+    addEventListener() {},
     querySelector(selector) {
       if (selector.includes("data-immersa-media-unlock")) return sharedButton;
       return null;
