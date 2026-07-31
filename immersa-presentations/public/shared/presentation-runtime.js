@@ -45,7 +45,7 @@
     if (!root.document.querySelector("link[data-immersa-pong-ui]")) {
       const link = root.document.createElement("link");
       link.rel = "stylesheet";
-      link.href = "/shared/pong-ui.css?v=7";
+      link.href = "/shared/pong-ui.css?v=8";
       link.dataset.immersaPongUi = "1";
       root.document.head.appendChild(link);
     }
@@ -63,7 +63,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-pong-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/pong-ui.js?v=6";
+      script.src = "/shared/pong-ui.js?v=7";
       script.dataset.immersaPongUi = "1";
       root.document.head.appendChild(script);
     }
