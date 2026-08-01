@@ -29,6 +29,11 @@ export function createBetterAuthOptions(options = {}) {
     baseURL: readBaseUrl(env),
     secret,
     database,
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders: ["x-real-ip"]
+      }
+    },
     emailAndPassword: { enabled: true }
   };
 }
