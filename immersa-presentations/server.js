@@ -24,6 +24,7 @@ const {
 } = require("./presentation-lifecycle");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
+const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 
 const app = express();
 const server = http.createServer(app);
@@ -154,6 +155,7 @@ const brandMentionRuntime = new BrandMentionRuntime({
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
+const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 
 function normalizeSessionId(sessionId) {
   return String(sessionId || "demo01");
@@ -628,6 +630,8 @@ function normalizeDrawingStroke(session, stroke) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
+app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
+app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -698,6 +702,7 @@ app.get("/assets/games/breakout/intro.mp4", (_req, res) => {
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
+io.use(betterAuthCompatibilityBridge.socketMiddleware);
 io.on("connection", (socket) => {
   let currentRoomKey = null;
   let currentRole = null;

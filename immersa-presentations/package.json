@@ -13,10 +13,11 @@
     "flush:decks": "node scripts/flush-decks.js"
   },
   "dependencies": {
+    "better-auth": "1.6.25",
     "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
     "mysql2": "^3.14.4",
-    "socket.io": "^4.7.5",
-    "multer": "^1.4.5-lts.1"
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
