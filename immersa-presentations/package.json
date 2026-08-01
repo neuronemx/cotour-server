@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "test": "node --test",
     "db:migrate": "node scripts/migrate-db.js",
+    "auth-spike:migrate": "node auth/migrate-compatibility-spike.mjs",
     "backup:decks": "node scripts/backup-decks.js",
     "flush:test-decks": "node scripts/flush-test-decks.js",
     "flush:decks": "node scripts/flush-decks.js"

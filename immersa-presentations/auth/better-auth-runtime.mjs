@@ -16,7 +16,7 @@ function readBaseUrl(env) {
   }
 }
 
-export function createBetterAuthRuntime(options = {}) {
+export function createBetterAuthOptions(options = {}) {
   const env = options.env || process.env;
   const database = options.database;
   if (!database) throw new Error("A MySQL pool is required by the Better Auth compatibility spike");
@@ -24,13 +24,17 @@ export function createBetterAuthRuntime(options = {}) {
   const secret = requireSetting(env, "BETTER_AUTH_SECRET");
   if (secret.length < 32) throw new Error("BETTER_AUTH_SECRET must contain at least 32 characters");
 
-  const auth = betterAuth({
+  return {
     appName: "IMMERSA",
     baseURL: readBaseUrl(env),
     secret,
     database,
     emailAndPassword: { enabled: true }
-  });
+  };
+}
+
+export function createBetterAuthRuntime(options = {}) {
+  const auth = betterAuth(createBetterAuthOptions(options));
 
   return {
     auth,
@@ -40,4 +44,3 @@ export function createBetterAuthRuntime(options = {}) {
     }
   };
 }
-

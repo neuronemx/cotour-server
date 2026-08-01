@@ -109,3 +109,46 @@ test("Better Auth handler is mounted before express.json and socket connections"
   assert.ok(socketAuth >= 0 && socketAuth < socketConnections);
 });
 
+test("compatibility migration requires two explicit opt-ins", async () => {
+  const { runCompatibilityMigration } = await import("../auth/migrate-compatibility-spike.mjs");
+  const database = { end: async () => {} };
+  const getMigrations = async () => {
+    throw new Error("migration must not run");
+  };
+
+  await assert.rejects(
+    runCompatibilityMigration({
+      env: { ...validEnv },
+      database,
+      getMigrations
+    }),
+    /IMMERSA_AUTH_SPIKE_MIGRATE=true/
+  );
+});
+
+test("compatibility migration delegates schema creation to Better Auth", async () => {
+  const { runCompatibilityMigration } = await import("../auth/migrate-compatibility-spike.mjs");
+  let ran = false;
+  const database = { end: async () => {} };
+  const result = await runCompatibilityMigration({
+    env: {
+      ...validEnv,
+      IMMERSA_AUTH_SPIKE_MIGRATE: "true"
+    },
+    database,
+    getMigrations: async (options) => {
+      assert.equal(options.database, database);
+      assert.equal(options.emailAndPassword.enabled, true);
+      return {
+        toBeCreated: [{ table: "user" }, { table: "session" }],
+        toBeAdded: [],
+        async runMigrations() {
+          ran = true;
+        }
+      };
+    }
+  });
+
+  assert.equal(ran, true);
+  assert.deepEqual(result, { created: ["user", "session"], updated: [] });
+});
