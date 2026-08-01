@@ -73,6 +73,14 @@ test("CommonJS bridge loads the real ESM Better Auth handler", async () => {
   }
 });
 
+test("Better Auth uses Railway\'s trusted client IP header", async () => {
+  const { createBetterAuthOptions } = await import("../auth/better-auth-runtime.mjs");
+  const database = {};
+  const options = createBetterAuthOptions({ env: validEnv, database });
+
+  assert.deepEqual(options.advanced?.ipAddress?.ipAddressHeaders, ["x-real-ip"]);
+});
+
 test("bridge can attach an account session to a Socket.IO handshake", async () => {
   const expectedSession = { user: { id: "user-1" }, session: { id: "session-1" } };
   const bridge = createBetterAuthCompatibilityBridge({
