@@ -260,9 +260,31 @@ async function createAccessLink(role, deck) {
 
 async function copyText(value) {
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return true;
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (_error) {
+      // iOS and in-app browsers can expose Clipboard API but reject writeText.
+    }
   }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch (_error) {}
+  textarea.remove();
+  if (copied) return true;
+
   window.prompt("Copia este link:", value);
   return false;
 }
@@ -270,13 +292,22 @@ async function copyText(value) {
 async function copyRoleLink(role, deck, button) {
   const label = labels[role] || role;
   const original = button.textContent;
+  let speakerWindow = null;
+
+  if (role === "speaker") {
+    // Open synchronously from the tap. Safari/iOS blocks window.open after an await.
+    speakerWindow = window.open("about:blank", "_blank");
+    if (speakerWindow) speakerWindow.opener = null;
+  }
+
   button.disabled = true;
   button.textContent = role === "speaker" ? "Abriendo" : "Generando";
 
   try {
+    if (role === "speaker" && !speakerWindow) throw new Error("El navegador bloqueó la nueva pestaña.");
     const url = await createAccessLink(role, deck);
     if (role === "speaker") {
-      window.open(url, "_blank", "noopener,noreferrer");
+      speakerWindow.location.replace(url);
       button.textContent = "Speaker abierto";
     } else {
       const copied = await copyText(url);
@@ -284,8 +315,9 @@ async function copyRoleLink(role, deck, button) {
       button.classList.add("copied");
     }
   } catch (error) {
+    if (speakerWindow && !speakerWindow.closed) speakerWindow.close();
     button.textContent = role === "speaker" ? "No se pudo abrir" : "No se pudo copiar";
-    setUploadStatus("Error: " + (error.message || "No se pudo generar el link " + label + "."), "error");
+    console.error("No se pudo preparar el acceso " + label + ":", error);
   } finally {
     window.setTimeout(() => {
       button.textContent = original;
