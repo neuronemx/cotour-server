@@ -546,7 +546,45 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     };
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles };
+  function guardDeckRoles(allowedRoles = [], deckParam = 'deckId') {
+    const roles = allowedRoles.map((role) => String(role || '').trim()).filter(Boolean);
+    return async (req, res, next) => {
+      const deckId = String(req.params?.[deckParam] || '').trim();
+      const headerToken = String(req.headers['x-immersa-access-token'] || '').trim();
+      if (ACCESS_TOKEN_PATTERN.test(headerToken)) {
+        try {
+          const result = await findActiveAccessLink(headerToken);
+          if (!result.error && roles.includes(result.accessLink.role)) {
+            const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+            if (deck?.deckId === deckId) {
+              req.immersaAccess = { accessLink: result.accessLink, deck };
+              return next();
+            }
+          }
+        } catch (error) {
+          console.error('Unable to validate deck access token', error);
+          return res.status(500).json({ error: 'Unable to validate deck access' });
+        }
+      }
+      for (const role of roles) {
+        const payload = parseRoleAccessCookie(req.headers.cookie, role);
+        if (!payload || payload.deckId !== deckId || payload.role !== role) continue;
+        try {
+          const result = await findActiveAccessLink(String(payload.access_token || ''));
+          if (!result.error && result.accessLink.session_id === payload.session_id && result.accessLink.role === role) {
+            req.immersaAccess = { accessLink: result.accessLink, deck: { deckId } };
+            return next();
+          }
+        } catch (error) {
+          console.error('Unable to validate deck role access', error);
+          return res.status(500).json({ error: 'Unable to validate deck access' });
+        }
+      }
+      return res.status(401).json({ error: 'Authentication required' });
+    };
+  }
+
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles };
 }
 
 module.exports = {

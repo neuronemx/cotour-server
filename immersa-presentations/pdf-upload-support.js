@@ -303,7 +303,7 @@ async function convertDeckPdf({ deckDir, pdfPath, manifest }) {
   return convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType: 'pdf', sourceFilename: 'original.pdf', titlePrefix: 'Pagina', ratio: 'mixed' });
 }
 
-function createUploadHandler() {
+function createUploadHandler(options = {}) {
   const multer = require('multer');
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
   return (req, res) => {
@@ -356,7 +356,16 @@ function createUploadHandler() {
         }
 
         manifest = await writeManifest(deckDir, manifest, session_id);
-        return res.status(201).json(manifestSummary(manifest));
+        const summary = manifestSummary(manifest);
+        if (options.onDeckCreated) {
+          try {
+            await options.onDeckCreated({ req, manifest, deck: summary });
+          } catch (ownershipError) {
+            await fs.promises.rm(deckDir, { recursive: true, force: true }).catch(() => {});
+            throw ownershipError;
+          }
+        }
+        return res.status(201).json(summary);
       } catch (writeError) {
         console.error('Unable to store presentation', writeError);
         return res.status(500).json({ error: 'No se pudo guardar la presentacion' });
