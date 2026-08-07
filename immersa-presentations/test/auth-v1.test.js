@@ -153,6 +153,20 @@ test("Auth UI keeps onboarding plan-free and exposes Google, email verification,
   assert.match(homeAccount, /api\/auth\/sign-out/);
 });
 
+test("Auth and Home expose the official square IMMERSA M for favicons and link previews", () => {
+  const homeHtml = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
+  const previewIconPath = path.join(appDir, "public", "icon-512.png");
+  for (const html of [authHtml, homeHtml]) {
+    assert.match(html, /<link rel="icon" href="\/favicon\.ico" sizes="any">/);
+    assert.match(html, /<link rel="apple-touch-icon" href="\/apple-touch-icon\.png">/);
+    assert.match(html, /<meta property="og:image" content="https:\/\/app\.immersalive\.com\/icon-512\.png">/);
+    assert.match(html, /<meta property="og:image:width" content="512">/);
+    assert.match(html, /<meta property="og:image:height" content="512">/);
+    assert.match(html, /<meta name="twitter:card" content="summary">/);
+  }
+  assert.equal(fs.existsSync(previewIconPath), true);
+});
+
 test("stale unverified credential accounts are eligible for 48-hour cleanup only without sessions or Decks", async () => {
   const calls = [];
   const candidateId = "user-stale";
