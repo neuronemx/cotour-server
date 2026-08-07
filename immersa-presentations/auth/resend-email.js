@@ -14,7 +14,7 @@ function escapeHtml(value) {
 }
 
 function emailCopy(kind, name, url) {
-  const safeName = escapeHtml(name || "");
+  const safeName = escapeHtml(String(name || "").trim());
   const greeting = safeName ? `Hola ${safeName},` : "Hola,";
   const verification = kind === "email-verification";
   const subject = verification ? "Confirma tu correo en IMMERSA" : "Restablece tu contraseña de IMMERSA";
@@ -24,9 +24,10 @@ function emailCopy(kind, name, url) {
     ? "Sólo falta confirmar este correo para entrar a IMMERSA."
     : "Recibimos una solicitud para cambiar la contraseña de tu cuenta IMMERSA.";
   const safeUrl = escapeHtml(url);
+  const logoUrl = "https://app.immersalive.com/home/Logo-Immersa-gris.png?v=1";
   return {
     subject,
-    html: `<!doctype html><html><body style="margin:0;background:#f5f6fb;font-family:Inter,Arial,sans-serif;color:#0a0d28"><div style="max-width:560px;margin:0 auto;padding:48px 20px"><div style="background:#fff;border-radius:24px;padding:38px;box-shadow:0 18px 50px rgba(26,28,70,.08)"><div style="font-size:13px;font-weight:800;letter-spacing:.16em;color:#7057ff">IMMERSA</div><h1 style="font-size:28px;line-height:1.15;margin:18px 0 14px">${title}</h1><p style="font-size:16px;line-height:1.65;margin:0 0 10px">${greeting}</p><p style="font-size:16px;line-height:1.65;margin:0 0 26px;color:#555b72">${intro}</p><a href="${safeUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:linear-gradient(100deg,#5e5bff,#b20de9);color:#fff;text-decoration:none;font-weight:700">${action}</a><p style="font-size:12px;line-height:1.6;margin:28px 0 0;color:#8b90a3">Si tú no solicitaste esto, puedes ignorar este correo.</p></div></div></body></html>`
+    html: `<!doctype html><html><body style="margin:0;padding:0;background-color:#f3f4fb;font-family:Arial,sans-serif;color:#0a0d28"><table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f3f4fb"><tr><td align="center" style="padding:42px 18px"><table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border-radius:22px;overflow:hidden"><tr><td height="7" bgcolor="#7057ff" style="height:7px;background-color:#7057ff;background-image:linear-gradient(90deg,#06cfe0,#7057ff 52%,#b20de9)"></td></tr><tr><td bgcolor="#ffffff" style="padding:32px 42px 14px;background-color:#ffffff"><img src="${logoUrl}" width="184" alt="IMMERSA" style="display:block;width:184px;max-width:100%;height:auto;border:0"></td></tr><tr><td style="padding:18px 42px 42px"><h1 style="margin:0 0 20px;font-size:28px;line-height:1.2;color:#0a0d28">${title}</h1><p style="margin:0 0 10px;font-size:16px;line-height:1.65;color:#0a0d28">${greeting}</p><p style="margin:0 0 28px;font-size:16px;line-height:1.65;color:#555b72">${intro}</p><table role="presentation" border="0" cellspacing="0" cellpadding="0"><tr><td bgcolor="#7057ff" style="border-radius:999px;background-color:#7057ff;background-image:linear-gradient(100deg,#5e5bff,#b20de9)"><a href="${safeUrl}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold">${action}</a></td></tr></table><p style="margin:30px 0 0;font-size:12px;line-height:1.6;color:#8b90a3">Si tú no solicitaste esto, puedes ignorar este correo.</p></td></tr><tr><td bgcolor="#f7f7fb" style="padding:19px 42px;background-color:#f7f7fb;color:#8b90a3;font-size:11px;line-height:1.5;letter-spacing:.02em">IMMERSA · Presenta e interactúa.</td></tr></table></td></tr></table></body></html>`
   };
 }
 

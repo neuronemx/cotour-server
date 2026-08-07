@@ -6,12 +6,14 @@ const test = require("node:test");
 const express = require("express");
 const { createBetterAuthCompatibilityBridge } = require("../auth/better-auth-bridge");
 const { createResendEmailSender, RESEND_EMAILS_URL } = require("../auth/resend-email");
+const { WorkspaceRepository, UNVERIFIED_RETENTION_MS } = require("../auth/workspace-repository");
 
 const appDir = path.join(__dirname, "..");
 const serverSource = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
 const authHtml = fs.readFileSync(path.join(appDir, "public", "auth", "index.html"), "utf8");
 const authJs = fs.readFileSync(path.join(appDir, "public", "auth", "auth.js"), "utf8");
 const authMigration = fs.readFileSync(path.join(appDir, "db", "migrations", "006_auth_workspaces.sql"), "utf8");
+const emailLogoPath = path.join(appDir, "public", "home", "Logo-Immersa-gris.png");
 
 async function withServer(app, operation) {
   const server = http.createServer(app);
@@ -61,7 +63,7 @@ test("Auth v1 schema starts personal workspaces on FREE and associates every use
 test("Resend transport keeps credentials server-side and sends the two Auth action URLs", async () => {
   const calls = [];
   const sender = createResendEmailSender({
-    env: { RESEND_API_KEY: "re_test_secret", IMMERSA_EMAIL_FROM: "IMMERSA <acceso@auth.immersalive.com>" },
+    env: { RESEND_API_KEY: "re_test_secret", IMMERSA_EMAIL_FROM: "IMMERSA <access@auth.immersalive.com>" },
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
       return { ok: true, async json() { return { id: "email-1" }; } };
@@ -73,7 +75,14 @@ test("Resend transport keeps credentials server-side and sends the two Auth acti
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, RESEND_EMAILS_URL);
   assert.equal(calls[0].options.headers.Authorization, "Bearer re_test_secret");
-  assert.match(JSON.parse(calls[0].options.body).subject, /Confirma tu correo/);
+  const verificationEmail = JSON.parse(calls[0].options.body);
+  assert.match(verificationEmail.subject, /Confirma tu correo/);
+  assert.match(verificationEmail.html, /<td bgcolor="#7057ff"/);
+  assert.match(verificationEmail.html, /background-color:#7057ff/);
+  assert.match(verificationEmail.html, /Logo-Immersa-gris\.png\?v=1/);
+  assert.match(verificationEmail.html, /<td bgcolor="#ffffff"[^>]*><img[^>]+Logo-Immersa-gris/);
+  assert.equal(fs.existsSync(emailLogoPath), true);
+  assert.match(verificationEmail.html, />Hola A,<\/p>/);
   assert.match(JSON.parse(calls[1].options.body).subject, /Restablece tu contraseña/);
   assert.doesNotMatch(authHtml + authJs, /re_test_secret|RESEND_API_KEY/);
 });
@@ -126,11 +135,79 @@ test("Auth UI keeps onboarding plan-free and exposes Google, email verification,
   const homeAccount = fs.readFileSync(path.join(appDir, "public", "home", "home-account.js"), "utf8");
   assert.match(authHtml, /Continuar con Google/);
   assert.match(authHtml, /Crear cuenta/);
+  assert.match(authHtml, /Presenta e interactúa/);
+  assert.match(authHtml, /Conecta con tu audiencia <span>en vivo\.<\/span>/);
+  assert.match(authHtml, /Pregunta, premia, mide y evalúa mientras hablas\./);
+  assert.match(authHtml, /Logo-Immersa\.png\?v=2/);
+  assert.match(authHtml, /id="name"[^>]+autocomplete="name"/);
+  assert.match(authJs, /name: nameInput\.value\.trim\(\)/);
   assert.match(authHtml, /Olvidé mi contraseña/);
   assert.match(authJs, /sign-up\/email/);
+  assert.match(authHtml, /Corregir correo/);
+  assert.match(authJs, /send-verification-email/);
+  assert.match(authJs, /Reenviar correo/);
   assert.match(authJs, /request-password-reset/);
   assert.match(authJs, /reset-password/);
   assert.doesNotMatch(authHtml + authJs, /elegir plan|selecciona.*plan|workspace/i);
   assert.match(homeHtml, /id="logoutButton"/);
   assert.match(homeAccount, /api\/auth\/sign-out/);
+});
+
+test("stale unverified credential accounts are eligible for 48-hour cleanup only without sessions or Decks", async () => {
+  const calls = [];
+  const candidateId = "user-stale";
+  const connection = {
+    async beginTransaction() { calls.push({ sql: "BEGIN" }); },
+    async rollback() { calls.push({ sql: "ROLLBACK" }); },
+    async commit() { calls.push({ sql: "COMMIT" }); },
+    release() {},
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/SELECT id FROM `user`/.test(sql)) return [[{ id: candidateId }]];
+      if (/AS credential_account/.test(sql)) return [[{ credential_account: 1, has_session: 0, has_decks: 0 }]];
+      if (/DELETE FROM `user`/.test(sql)) return [{ affectedRows: 1 }];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const pool = {
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      return [[{ id: candidateId }]];
+    },
+    async getConnection() { return connection; }
+  };
+  const repository = new WorkspaceRepository(pool);
+  const now = Date.UTC(2026, 7, 6, 12, 0, 0);
+  assert.equal(UNVERIFIED_RETENTION_MS, 48 * 60 * 60 * 1000);
+  assert.equal(await repository.cleanupStaleUnverifiedAccounts({ now }), 1);
+  assert.match(calls[0].sql, /emailVerified = 0/);
+  assert.match(calls[0].sql, /providerId = 'credential'/);
+  assert.match(calls[0].sql, /NOT EXISTS \(SELECT 1 FROM session/);
+  assert.match(calls[0].sql, /INNER JOIN decks/);
+  assert.equal(calls.some((call) => /DELETE FROM workspaces/.test(call.sql)), true);
+  assert.equal(calls.some((call) => /DELETE FROM `user`/.test(call.sql)), true);
+});
+
+test("unverified cleanup rechecks account activity before deleting anything", async () => {
+  const calls = [];
+  const connection = {
+    async beginTransaction() {},
+    async rollback() { calls.push("ROLLBACK"); },
+    async commit() { calls.push("COMMIT"); },
+    release() {},
+    async execute(sql) {
+      calls.push(sql);
+      if (/SELECT id FROM `user`/.test(sql)) return [[{ id: "user-now-active" }]];
+      if (/AS credential_account/.test(sql)) return [[{ credential_account: 1, has_session: 1, has_decks: 0 }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const repository = new WorkspaceRepository({
+    async execute() { return [[{ id: "user-now-active" }]]; },
+    async getConnection() { return connection; }
+  });
+
+  assert.equal(await repository.cleanupStaleUnverifiedAccounts({ now: Date.UTC(2026, 7, 6, 12, 0, 0) }), 0);
+  assert.equal(calls.includes("ROLLBACK"), true);
+  assert.equal(calls.some((sql) => typeof sql === "string" && /^DELETE FROM/.test(sql)), false);
 });

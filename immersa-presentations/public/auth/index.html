@@ -7,13 +7,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/auth/auth.css?v=1">
+  <link rel="stylesheet" href="/auth/auth.css?v=4">
 </head>
 <body>
   <main class="auth-shell">
     <section class="auth-brand" aria-label="IMMERSA">
-      <a class="brand" href="/auth" aria-label="IMMERSA"><img src="/home/M-Immersa2.png" alt=""><span>immersa</span></a>
-      <div class="brand-copy"><p>Presenta distinto.</p><h1>Haz que tus presentaciones <span>se vivan.</span></h1><small>Speaker · Público · Screen · Stage</small></div>
+      <a class="brand" href="/auth" aria-label="IMMERSA"><img src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></a>
+      <div class="brand-copy"><p>Presenta e interactúa</p><h1>Conecta con tu audiencia <span>en vivo.</span></h1><small>Pregunta, premia, mide y evalúa mientras hablas.</small></div>
       <span class="orb orb-a" aria-hidden="true"></span><span class="orb orb-b" aria-hidden="true"></span>
     </section>
     <section class="auth-panel">
@@ -21,14 +21,14 @@
         <div id="loginView">
           <header><p class="eyebrow">Bienvenido</p><h2 id="authTitle">Entra a IMMERSA</h2><p id="authSubtitle">Tus presentaciones, listas para conectar con todos.</p></header>
           <button id="googleButton" class="google-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.6-2.4L15.4 17c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6Z"/><path fill="#ea4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-8.9 5.5l3.3 2.6A6 6 0 0 1 12 6Z"/></svg><span>Continuar con Google</span></button>
-          <div id="emailArea"><div class="divider"><span>o con tu correo</span></div><form id="emailForm" novalidate><label>Correo electrónico<input id="email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required></label><label>Contraseña<input id="password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="8 caracteres o más" required></label><button id="submitButton" class="primary" type="submit">Entrar</button></form><button id="forgotButton" class="text-button" type="button">Olvidé mi contraseña</button><p class="switch-copy"><span id="switchPrompt">¿Primera vez en IMMERSA?</span> <button id="switchMode" type="button">Crear cuenta</button></p></div>
+          <div id="emailArea"><div class="divider"><span>o con tu correo</span></div><form id="emailForm" novalidate><label id="nameLabel" hidden>Nombre<input id="name" name="name" type="text" autocomplete="name" maxlength="120" placeholder="Tu nombre"></label><label>Correo electrónico<input id="email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required></label><label>Contraseña<input id="password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="8 caracteres o más" required></label><button id="submitButton" class="primary" type="submit">Entrar</button></form><button id="forgotButton" class="text-button" type="button">Olvidé mi contraseña</button><p class="switch-copy"><span id="switchPrompt">¿Primera vez en IMMERSA?</span> <button id="switchMode" type="button">Crear cuenta</button></p></div>
           <p id="authStatus" class="status" role="status" aria-live="polite"></p>
         </div>
-        <div id="messageView" class="message-view" hidden><span class="mail-icon" aria-hidden="true">✦</span><h2 id="messageTitle">Revisa tu correo</h2><p id="messageText"></p><button id="messageAction" class="primary" type="button">Volver a entrar</button></div>
+        <div id="messageView" class="message-view" hidden><span class="mail-icon" aria-hidden="true">✦</span><h2 id="messageTitle">Revisa tu correo</h2><p id="messageText"></p><button id="messageAction" class="primary" type="button">Volver a entrar</button><button id="messageSecondary" class="text-button" style="margin:16px auto 0" type="button" hidden>Corregir correo</button><p id="messageStatus" class="status" role="status" aria-live="polite"></p></div>
         <div id="resetView" hidden><header><p class="eyebrow">Tu cuenta</p><h2>Nueva contraseña</h2><p>Elige una contraseña nueva para volver a IMMERSA.</p></header><form id="resetForm"><label>Nueva contraseña<input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="8 caracteres o más" required></label><button class="primary" type="submit">Guardar contraseña</button></form><p id="resetStatus" class="status" role="status" aria-live="polite"></p></div>
       </div>
     </section>
   </main>
-  <script src="/auth/auth.js?v=1"></script>
+  <script src="/auth/auth.js?v=3"></script>
 </body>
 </html>
