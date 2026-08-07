@@ -388,7 +388,7 @@ async function readDecksFrom(rootDir, seen, usedSessionIds, canPersistSessionId 
   return decks;
 }
 
-async function listDecks() {
+async function listDecks(allowedDeckIds = null) {
   await ensureDataDirs();
   const seen = new Set();
   const usedSessionIds = new Set();
@@ -396,7 +396,10 @@ async function listDecks() {
     ...(await readDecksFrom(STATIC_DECKS_DIR, seen, usedSessionIds, false)),
     ...(await readDecksFrom(DATA_DECKS_DIR, seen, usedSessionIds, true))
   ];
-  return decks.sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
+  const allowed = allowedDeckIds ? new Set(allowedDeckIds.map(String)) : null;
+  return decks
+    .filter((deck) => !allowed || allowed.has(String(deck.deckId)))
+    .sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
 }
 
 function execFileAsync(command, args, options = {}) {
@@ -634,29 +637,43 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
-app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
-app.get("/home", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
-app.get("/api/decks", async (_req, res) => {
+app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
+app.get("/api/account/capabilities", betterAuthCompatibilityBridge.capabilitiesHandler);
+app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+
+const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
+const requireOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
+const requireDeckAccount = [requireAccount, requireOwnedDeck];
+const requireControllerDeck = accessLinkHandlers.guardDeckRoles(["speaker", "stage"]);
+function requireAccountOrControllerDeck(req, res, next) {
+  return betterAuthCompatibilityBridge.attachOptionalAccount(req, res, () => {
+    if (req.accountContext) return requireOwnedDeck(req, res, next);
+    return requireControllerDeck(req, res, next);
+  });
+}
+app.get("/api/decks", requireAccount, async (req, res) => {
   try {
-    res.json(await listDecks());
+    res.json(await listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)));
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
   }
 });
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", deckInteractionHandlers.putInteractions);
-app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", deckInteractionHandlers.uploadQuestionImage);
-app.get("/api/decks/:deckId/brand-mentions", brandMentionHandlers.getConfig);
-app.post("/api/decks/:deckId/brand-mentions", brandMentionHandlers.createBrand);
-app.put("/api/decks/:deckId/brand-mentions/order", brandMentionHandlers.reorderBrands);
-app.put("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.updateBrand);
-app.delete("/api/decks/:deckId/brand-mentions/:brandId", brandMentionHandlers.deleteBrand);
-app.get("/api/decks/:deckId/qna/history", qnaHistoryHandlers.listHistory);
-app.get("/api/decks/:deckId/knowledge-activities/history", knowledgeActivityHistoryHandlers.listHistory);
-app.delete("/api/decks/:deckId", async (req, res) => {
+app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, deckInteractionHandlers.putInteractions);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, deckInteractionHandlers.uploadQuestionImage);
+app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
+app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);
+app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, brandMentionHandlers.reorderBrands);
+app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.updateBrand);
+app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
+app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, qnaHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, knowledgeActivityHistoryHandlers.listHistory);
+app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
+    await betterAuthCompatibilityBridge.unregisterDeck(req, deckId);
     res.json({ ok: true, deckId });
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -664,7 +681,7 @@ app.delete("/api/decks/:deckId", async (req, res) => {
     res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : statusCode === 400 ? "Invalid deck id" : "Unable to delete deck" });
   }
 });
-app.post("/api/access-links", accessLinkHandlers.createAccessLink);
+app.post("/api/access-links", requireAccount, betterAuthCompatibilityBridge.requireOwnedSession, accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
@@ -688,7 +705,9 @@ app.get("/api/conversion-health", async (_req, res) => {
     res.status(500).json({ error: "Unable to check conversion health" });
   }
 });
-app.post("/api/upload-pptx", createUploadHandler());
+app.post("/api/upload-pptx", requireAccount, createUploadHandler({
+  onDeckCreated: ({ req, deck }) => betterAuthCompatibilityBridge.registerDeck(req, deck)
+}));
 app.get("/presenter", accessLinkHandlers.guardLegacyRoute("speaker", "presenter"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
 app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));
 app.get("/viewer", accessLinkHandlers.guardLegacyRoute("viewer", "viewer"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));

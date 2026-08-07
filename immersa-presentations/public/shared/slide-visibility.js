@@ -110,7 +110,10 @@
       try{
         const response=await fetch('/api/decks/'+encodeURIComponent(deckId)+'/interactions',{
           method:'PUT',
-          headers:{'Content-Type':'application/json'},
+          headers:{
+            'Content-Type':'application/json',
+            ...(window.IMMERSA_ROLE_OPEN?.access_token?{'X-Immersa-Access-Token':window.IMMERSA_ROLE_OPEN.access_token}:{})
+          },
           body:JSON.stringify({interactions,videos,hidden_slide_ids:[...hiddenIds]})
         });
         if(!response.ok)throw new Error('Unable to save slide visibility');

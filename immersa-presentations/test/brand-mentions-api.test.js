@@ -238,9 +238,9 @@ test("HTTP API returns a controlled error for an unexpected upload field", async
 
 test("server exposes only deck administration routes and does not add Screen or QR runtime", async () => {
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
-  assert.match(server, /app\.get\("\/api\/decks\/:deckId\/brand-mentions", brandMentionHandlers\.getConfig\)/);
-  assert.match(server, /app\.post\("\/api\/decks\/:deckId\/brand-mentions", brandMentionHandlers\.createBrand\)/);
-  assert.match(server, /app\.put\("\/api\/decks\/:deckId\/brand-mentions\/order", brandMentionHandlers\.reorderBrands\)/);
+  assert.match(server, /app\.get\("\/api\/decks\/:deckId\/brand-mentions", \.\.\.requireDeckAccount, brandMentionHandlers\.getConfig\)/);
+  assert.match(server, /app\.post\("\/api\/decks\/:deckId\/brand-mentions", \.\.\.requireDeckAccount, brandMentionHandlers\.createBrand\)/);
+  assert.match(server, /app\.put\("\/api\/decks\/:deckId\/brand-mentions\/order", \.\.\.requireDeckAccount, brandMentionHandlers\.reorderBrands\)/);
   assert.doesNotMatch(server, /brand_mention:state/);
   assert.doesNotMatch(server, /brand.*(?:screen|qr)|(?:screen|qr).*brand/i);
 });
