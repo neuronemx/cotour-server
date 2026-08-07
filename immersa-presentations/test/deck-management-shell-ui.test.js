@@ -83,7 +83,7 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   const css = read("public/home/deck-management-shell.css");
 
   assert.match(html, /id="detailSlideStrip"[^>]+aria-label="Miniaturas del deck"[^>]+hidden/);
-  assert.match(html, /home\.js\?v=47/);
+  assert.match(html, /home\.js\?v=48/);
   assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deck\.deckId\) \+ "\/manifest\.json"/);
   assert.match(source, /cache: "no-store"/);
   assert.match(source, /slide\?\.thumb/);
@@ -101,6 +101,18 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   assert.match(css, /\.deck-detail-slide-thumb \{[\s\S]+padding: 1px[\s\S]+background: rgba\(255, 255, 255, \.3\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+padding: 2px[\s\S]+background: var\(--grad\)/);
   assert.match(html, /deck-management-shell\.css\?v=11/);
+});
+
+test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {
+  const source = read("public/home/home.js");
+
+  assert.match(source, /speakerWindow = window\.open\("about:blank", "_blank"\)/);
+  assert.match(source, /speakerWindow\.location\.replace\(url\)/);
+  assert.match(source, /speakerWindow\.opener = null/);
+  assert.match(source, /document\.execCommand\("copy"\)/);
+  assert.match(source, /window\.prompt\("Copia este link:", value\)/);
+  assert.doesNotMatch(source, /window\.open\(url, "_blank"/);
+  assert.doesNotMatch(source, /setUploadStatus\("Error: " \+ \(error\.message \|\| "No se pudo generar el link/);
 });
 
 test("Deck pages use lists, bottom actions, and real local video thumbnails", () => {
