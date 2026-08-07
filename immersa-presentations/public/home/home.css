@@ -87,15 +87,8 @@ button:disabled { cursor: wait; opacity: .65; }
   padding: 26px 0 0;
 }
 .account-pill{display:flex;align-items:center;gap:9px;max-width:min(46vw,360px);padding:7px 8px 7px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.07);backdrop-filter:blur(12px);color:#fff;font-size:12px}.account-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.account-pill #logoutButton{flex:none;border:0;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.78);font-size:11px;font-weight:700;cursor:pointer}.account-pill #logoutButton:hover{background:rgba(255,255,255,.17);color:#fff}.account-pill #logoutButton:disabled{opacity:.55}.account-pill .live-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#36d49a;box-shadow:0 0 0 3px rgba(54,212,154,.12)}
-.brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
-.brand-logo-full { width: 30px; height: 30px; display: block; }
-.brand-word {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: -.01em;
-  color: #fff;
-}
+.brand { display: inline-flex; align-items: center; min-width: 0; }
+.brand-logo-full { width: clamp(120px, 11vw, 156px); height: auto; display: block; }
 .admin-pill {
   display: inline-flex; align-items: center; gap: 8px;
   color: rgba(255,255,255,.72);

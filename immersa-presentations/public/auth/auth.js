@@ -4,6 +4,8 @@ const loginView = document.getElementById("loginView");
 const messageView = document.getElementById("messageView");
 const resetView = document.getElementById("resetView");
 const emailForm = document.getElementById("emailForm");
+const nameLabel = document.getElementById("nameLabel");
+const nameInput = document.getElementById("name");
 const email = document.getElementById("email");
 const password = document.getElementById("password");
 const submitButton = document.getElementById("submitButton");
@@ -14,7 +16,11 @@ const authSubtitle = document.getElementById("authSubtitle");
 const authStatus = document.getElementById("authStatus");
 const googleButton = document.getElementById("googleButton");
 const emailArea = document.getElementById("emailArea");
+const messageAction = document.getElementById("messageAction");
+const messageSecondary = document.getElementById("messageSecondary");
+const messageStatus = document.getElementById("messageStatus");
 let createMode = false;
+let pendingVerificationEmail = "";
 
 function safeReturnTo(value) {
   const path = String(value || "").trim();
@@ -59,7 +65,16 @@ function showMessage(title, text, actionText = "Volver a entrar") {
   messageView.hidden = false;
   document.getElementById("messageTitle").textContent = title;
   document.getElementById("messageText").textContent = text;
-  document.getElementById("messageAction").textContent = actionText;
+  messageAction.textContent = actionText;
+  messageSecondary.hidden = true;
+  messageStatus.textContent = "";
+  messageStatus.classList.remove("success");
+}
+
+function showVerificationMessage(emailValue) {
+  pendingVerificationEmail = emailValue;
+  showMessage("Revisa tu correo", `Enviamos un enlace a ${emailValue}. Confírmalo y entrarás directo a IMMERSA.`, "Reenviar correo");
+  messageSecondary.hidden = false;
 }
 
 function setCreateMode(next) {
@@ -69,6 +84,8 @@ function setCreateMode(next) {
   submitButton.textContent = createMode ? "Crear cuenta" : "Entrar";
   switchPrompt.textContent = createMode ? "¿Ya tienes cuenta?" : "¿Primera vez en IMMERSA?";
   switchMode.textContent = createMode ? "Entrar" : "Crear cuenta";
+  nameLabel.hidden = !createMode;
+  nameInput.required = createMode;
   password.autocomplete = createMode ? "new-password" : "current-password";
   authStatus.textContent = "";
 }
@@ -84,13 +101,13 @@ emailForm.addEventListener("submit", async (event) => {
     if (createMode) {
       const emailValue = email.value.trim();
       await api("/api/auth/sign-up/email", {
-        name: emailValue.split("@")[0],
+        name: nameInput.value.trim(),
         email: emailValue,
         password: password.value,
         callbackURL: returnTo,
         rememberMe: true
       });
-      showMessage("Revisa tu correo", `Enviamos un enlace a ${emailValue}. Confírmalo y entrarás directo a IMMERSA.`);
+      showVerificationMessage(emailValue);
     } else {
       await api("/api/auth/sign-in/email", {
         email: email.value.trim(), password: password.value, callbackURL: returnTo, rememberMe: true
@@ -135,8 +152,33 @@ document.getElementById("forgotButton").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("messageAction").addEventListener("click", () => {
-  window.location.assign("/auth");
+messageAction.addEventListener("click", async () => {
+  if (!pendingVerificationEmail) {
+    window.location.assign("/auth");
+    return;
+  }
+  messageAction.disabled = true;
+  messageStatus.textContent = "";
+  try {
+    await api("/api/auth/send-verification-email", { email: pendingVerificationEmail, callbackURL: returnTo });
+    messageStatus.textContent = "Listo. Te enviamos un nuevo enlace.";
+    messageStatus.classList.add("success");
+  } catch (error) {
+    messageStatus.textContent = friendlyError(error);
+    messageStatus.classList.remove("success");
+  } finally {
+    messageAction.disabled = false;
+  }
+});
+
+messageSecondary.addEventListener("click", () => {
+  pendingVerificationEmail = "";
+  messageView.hidden = true;
+  loginView.hidden = false;
+  setCreateMode(true);
+  email.value = "";
+  password.value = "";
+  email.focus();
 });
 
 document.getElementById("resetForm").addEventListener("submit", async (event) => {

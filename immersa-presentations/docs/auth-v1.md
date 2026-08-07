@@ -5,7 +5,7 @@ Auth v1 is the account boundary for the IMMERSA Home and deck administration. Be
 ## Product contract
 
 - Google sign-in and email/password are the two entry paths.
-- Email/password requires email verification before sign-in.
+- Email/password requires email verification before sign-in. The confirmation view can resend the verification email or return to registration to correct a mistyped address. Credential accounts that remain unverified for 48 hours, have never opened a session, and own no Decks are removed automatically.
 - Password recovery is available from the Auth screen.
 - Sessions are persistent unless the user explicitly signs out.
 - Every new Better Auth user receives one invisible personal workspace with plan `FREE`.
@@ -29,7 +29,7 @@ BETTER_AUTH_SECRET=<random secret, at least 32 characters>
 GOOGLE_CLIENT_ID=<Google OAuth client id>
 GOOGLE_CLIENT_SECRET=<Google OAuth client secret>
 RESEND_API_KEY=<Resend API key>
-IMMERSA_EMAIL_FROM=IMMERSA <acceso@auth.immersalive.com>
+IMMERSA_EMAIL_FROM=IMMERSA <access@auth.immersalive.com>
 ```
 
 The existing MySQL/MariaDB variables remain required. `IMMERSA_ROUTE_GUARD_SECRET` should also be a stable production secret so live role cookies remain valid across process restarts.

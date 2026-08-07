@@ -1,6 +1,8 @@
 const { createMysqlPool } = require("../db/mysql");
 const { createResendEmailSender } = require("./resend-email");
 
+const UNVERIFIED_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 function isEnabled(value) {
   return /^(1|true|yes|on)$/i.test(String(value || "").trim());
 }
@@ -15,18 +17,32 @@ function sendUnavailable(res) {
 function createBetterAuthCompatibilityBridge(options = {}) {
   const env = options.env || process.env;
   const enabled = options.enabled ?? (isEnabled(env.IMMERSA_AUTH_ENABLED) || isEnabled(env.IMMERSA_AUTH_SPIKE_ENABLED));
+  const unverifiedCleanupEnabled = options.unverifiedCleanupEnabled ?? isEnabled(env.IMMERSA_AUTH_ENABLED);
   const loadRuntime = options.loadRuntime || (() => import("./better-auth-runtime.mjs"));
   const databaseFactory = options.databaseFactory || (() => createMysqlPool({ env }));
   const emailSenderFactory = options.emailSenderFactory || ((runtimeEnv) => createResendEmailSender({ env: runtimeEnv }));
   let runtimePromise = null;
   let database = null;
+  let cleanupTimer = null;
+
+  function startUnverifiedCleanup(runtime) {
+    if (cleanupTimer || typeof runtime?.workspaces?.cleanupStaleUnverifiedAccounts !== "function") return;
+    const run = () => runtime.workspaces.cleanupStaleUnverifiedAccounts().then((removed) => {
+      if (removed) console.log(`Removed ${removed} stale unverified Immersa account(s)`);
+    }).catch((error) => console.error("Unable to clean stale unverified Immersa accounts", error));
+    run();
+    cleanupTimer = setInterval(run, UNVERIFIED_CLEANUP_INTERVAL_MS);
+    cleanupTimer.unref?.();
+  }
 
   function initialize() {
     if (!enabled) return Promise.resolve(null);
     if (!runtimePromise) {
       runtimePromise = Promise.resolve(loadRuntime()).then((runtimeModule) => {
         database = databaseFactory();
-        return runtimeModule.createBetterAuthRuntime({ database, env, emailSender: emailSenderFactory(env) });
+        const runtime = runtimeModule.createBetterAuthRuntime({ database, env, emailSender: emailSenderFactory(env) });
+        if (unverifiedCleanupEnabled) startUnverifiedCleanup(runtime);
+        return runtime;
       }).catch(async (error) => {
         if (database?.end) await database.end().catch(() => {});
         database = null;
@@ -187,6 +203,8 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   }
 
   async function close() {
+    if (cleanupTimer) clearInterval(cleanupTimer);
+    cleanupTimer = null;
     if (database?.end) await database.end();
     database = null;
     runtimePromise = null;
@@ -211,4 +229,4 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   };
 }
 
-module.exports = { createBetterAuthCompatibilityBridge, isEnabled };
+module.exports = { createBetterAuthCompatibilityBridge, isEnabled, UNVERIFIED_CLEANUP_INTERVAL_MS };

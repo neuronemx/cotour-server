@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
+const UNVERIFIED_RETENTION_MS = 48 * 60 * 60 * 1000;
 
 class WorkspaceRepository {
   constructor(pool) {
@@ -110,6 +111,72 @@ class WorkspaceRepository {
     );
     return Number(result?.affectedRows || 0) > 0;
   }
+
+  async cleanupStaleUnverifiedAccounts(options = {}) {
+    const now = Number(options.now ?? Date.now());
+    const retentionMs = Number(options.retentionMs ?? UNVERIFIED_RETENTION_MS);
+    const cutoff = new Date(now - retentionMs);
+    const [candidates] = await this.pool.execute(
+      `SELECT DISTINCT u.id
+       FROM \`user\` u
+       INNER JOIN account a ON a.userId = u.id AND a.providerId = 'credential'
+       WHERE u.emailVerified = 0
+         AND u.createdAt < ?
+         AND NOT EXISTS (SELECT 1 FROM session s WHERE s.userId = u.id)
+         AND NOT EXISTS (
+           SELECT 1 FROM workspaces w
+           INNER JOIN decks d ON d.workspace_id = w.id
+           WHERE w.personal_owner_user_id = u.id
+         )
+       LIMIT 100`,
+      [cutoff]
+    );
+
+    let removed = 0;
+    for (const candidate of candidates || []) {
+      const userId = String(candidate.id);
+      const connection = await this.pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const [users] = await connection.execute(
+          `SELECT id FROM \`user\`
+           WHERE id = ? AND emailVerified = 0 AND createdAt < ?
+           FOR UPDATE`,
+          [userId, cutoff]
+        );
+        if (!users?.[0]) {
+          await connection.rollback();
+          continue;
+        }
+        const [proof] = await connection.execute(
+          `SELECT
+             EXISTS(SELECT 1 FROM account WHERE userId = ? AND providerId = 'credential') AS credential_account,
+             EXISTS(SELECT 1 FROM session WHERE userId = ?) AS has_session,
+             EXISTS(
+               SELECT 1 FROM workspaces w
+               INNER JOIN decks d ON d.workspace_id = w.id
+               WHERE w.personal_owner_user_id = ?
+             ) AS has_decks`,
+          [userId, userId, userId]
+        );
+        const state = proof?.[0] || {};
+        if (!state.credential_account || state.has_session || state.has_decks) {
+          await connection.rollback();
+          continue;
+        }
+        await connection.execute("DELETE FROM workspaces WHERE personal_owner_user_id = ?", [userId]);
+        const [result] = await connection.execute("DELETE FROM `user` WHERE id = ? AND emailVerified = 0", [userId]);
+        await connection.commit();
+        removed += Number(result?.affectedRows || 0);
+      } catch (error) {
+        await connection.rollback().catch(() => {});
+        throw error;
+      } finally {
+        connection.release();
+      }
+    }
+    return removed;
+  }
 }
 
-module.exports = { WorkspaceRepository, PERSONAL_WORKSPACE_KIND, FREE_PLAN };
+module.exports = { WorkspaceRepository, PERSONAL_WORKSPACE_KIND, FREE_PLAN, UNVERIFIED_RETENTION_MS };
