@@ -86,6 +86,12 @@ test("audience logo uses contained inner mark while preserving lockup capsule", 
   assert.equal(topActions["z-index"], "36");
 });
 
+test("audience logo stays contained in compact mobile landscape", () => {
+  assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*width: 36px;[^}]*height: 36px;[^}]*padding: 3px;[^}]*overflow: hidden;[^}]*\}[\s\S]*?\.brand-mark \{[^}]*width: 28px;[^}]*height: 28px;[^}]*\}/);
+  assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*top: max\(9px, env\(safe-area-inset-top\)\);[^}]*left: max\(9px, env\(safe-area-inset-left\)\);/);
+  assert.match(audienceIndex, /\/audience\/audience\.css\?v=6/);
+});
+
 test("hotfix stays scoped away from speaker logo css and PNG assets", () => {
   const presenterCss = fs.readFileSync(path.join(root, "public/presenter/presenter.css"), "utf8");
   assert.doesNotMatch(presenterCss, /\.brand-mark\s*\{[^}]*width:\s*88%/);
