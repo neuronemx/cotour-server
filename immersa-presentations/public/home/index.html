@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/video-editor.css?v=108">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
+  <link rel="stylesheet" href="/home/profile-editor.css?v=1">
   <style>
     .deck-detail-modal{width:min(560px,100%);max-height:min(92vh,780px);overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);border-radius:var(--radius-xl);background:#fff;box-shadow:var(--shadow-lg)}
     .deck-detail-hero{position:relative}.deck-detail-thumb{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;display:grid;place-items:center;background:var(--grad-soft)}
@@ -54,7 +55,7 @@
     <div class="stage-inner">
       <header class="stage-header">
         <a class="brand" href="/home" aria-label="Immersa Home"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></a>
-        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><button id="logoutButton" type="button">Salir</button></div>
+        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
       </header>
       <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
@@ -124,10 +125,37 @@
       <div id="deckEditorLaunchers" hidden aria-hidden="true"></div>
     </section>
   </div>
+  <div id="profileModal" class="profile-modal-backdrop" hidden aria-hidden="true">
+    <section class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+      <header class="profile-modal-header">
+        <div><p>Tu identidad en IMMERSA</p><h2 id="profileTitle">Mi perfil</h2><span>Esta información será visible para Público en todos tus Decks.</span></div>
+        <button id="profileClose" class="profile-close" type="button" aria-label="Cerrar Mi perfil">×</button>
+      </header>
+      <form id="profileForm" class="profile-form">
+        <section class="profile-photo-field" aria-label="Foto de perfil">
+          <div class="profile-avatar-ring"><div id="profileAvatar" class="profile-avatar"><img id="profileAvatarImage" alt="Foto de perfil" hidden><svg id="profileAvatarFallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/><path d="M6.2 18.8A4 4 0 0 1 10 16h4a4 4 0 0 1 3.8 2.8"/></svg></div></div>
+          <div><strong>Foto</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="profile-photo-actions"><button id="profilePhotoSelect" class="profile-secondary" type="button">Seleccionar foto</button><button id="profilePhotoRemove" class="profile-text-action" type="button" hidden>Eliminar</button></div></div>
+          <input id="profilePhotoInput" type="file" name="photo" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" hidden>
+        </section>
+        <div class="profile-fields-grid">
+          <label class="profile-field profile-field-wide"><span>Nombre completo</span><input id="profileDisplayName" name="displayName" maxlength="120" autocomplete="name" required></label>
+          <label class="profile-field"><span>Cargo / especialidad</span><input id="profileRoleTitle" name="roleTitle" maxlength="120" autocomplete="organization-title" placeholder="Directora de Fotografía"></label>
+          <label class="profile-field"><span>Empresa</span><input id="profileCompany" name="company" maxlength="120" autocomplete="organization" placeholder="Estudios Churubusco"></label>
+          <label class="profile-field profile-field-wide"><span>Acerca de</span><textarea id="profileBio" name="bio" maxlength="600" rows="5" placeholder="Cuéntale a tu Público quién eres y qué haces."></textarea><small id="profileBioCounter">0/600</small></label>
+          <label class="profile-field profile-field-wide"><span>Sitio web</span><input id="profileWebsite" name="websiteUrl" maxlength="500" inputmode="url" autocomplete="url" placeholder="tu-sitio.com"></label>
+          <label class="profile-field"><span>LinkedIn</span><input id="profileLinkedin" name="linkedinUrl" maxlength="500" inputmode="url" placeholder="linkedin.com/in/tu-perfil"></label>
+          <label class="profile-field"><span>Instagram</span><input id="profileInstagram" name="instagramUrl" maxlength="500" inputmode="url" placeholder="instagram.com/tu-perfil"></label>
+        </div>
+        <p id="profileStatus" class="profile-status" role="status" aria-live="polite"></p>
+        <footer class="profile-actions"><button id="profileCancel" class="profile-secondary" type="button">Cancelar</button><button id="profileSave" class="profile-primary" type="submit">Guardar perfil</button></footer>
+      </form>
+    </section>
+  </div>
   <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=1"></script>
+  <script src="/home/profile-editor.js?v=1"></script>
   <script src="/home/home.js?v=48"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>

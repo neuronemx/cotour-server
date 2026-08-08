@@ -174,6 +174,31 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     return runtime.workspaces.unregisterDeck(req.accountContext.user.id, deckId);
   }
 
+  async function getAccountProfile(req) {
+    const runtime = await initialize();
+    return runtime.profiles.getAccountProfile(req.accountContext.user.id);
+  }
+
+  async function saveAccountProfile(req, profile) {
+    const runtime = await initialize();
+    return runtime.profiles.saveAccountProfile(req.accountContext.user.id, profile);
+  }
+
+  async function getAccountPhotoKey(req) {
+    const runtime = await initialize();
+    return runtime.profiles.getPhotoKey(req.accountContext.user.id);
+  }
+
+  async function setAccountPhotoKey(req, photoKey) {
+    const runtime = await initialize();
+    return runtime.profiles.setPhotoKey(req.accountContext.user.id, photoKey);
+  }
+
+  async function getDeckSpeakerProfile(deckId) {
+    const runtime = await initialize();
+    return runtime?.profiles ? runtime.profiles.getDeckSpeakerProfile(deckId) : null;
+  }
+
   async function requireOwnedSession(req, res, next) {
     const sessionId = String(req.body?.session_id || "").trim();
     if (!sessionId) return res.status(400).json({ error: "session_id is required" });
@@ -224,6 +249,11 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     listDeckIds,
     registerDeck,
     unregisterDeck,
+    getAccountProfile,
+    saveAccountProfile,
+    getAccountPhotoKey,
+    setAccountPhotoKey,
+    getDeckSpeakerProfile,
     initialize,
     close
   };
