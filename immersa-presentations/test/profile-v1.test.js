@@ -101,11 +101,15 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(home, />Acerca de: \(en 3ra persona\)</);
   assert.match(home, /Esta información estará siempre disponible para toda tu audiencia/);
   assert.match(home, /id="profilePhotoStatus"[^>]+role="alert"/);
+  assert.match(home, /id="profilePhotoSelect"[^>]*>Subir foto<\/button>/);
+  assert.match(home, /id="profileAvatarButton"[^>]+aria-label="Subir foto"/);
+  assert.doesNotMatch(home, /id="profilePhotoRemove"/);
   assert.match(home, /id="profileClose"[\s\S]*?<svg[^>]+viewBox="0 0 24 24"/);
   assert.match(editor, /\/api\/account\/profile/);
   assert.match(editor, /\/api\/account\/profile\/photo/);
   assert.match(editor, /Formato no admitido\. Usa PNG, JPG o WebP\./);
   assert.match(editor, /file\.size > 5 \* 1024 \* 1024/);
+  assert.match(editor, /avatarButton\.addEventListener\("click", selectPhoto\)/);
   assert.match(audience, /id="speakerProfileTab"/);
   assert.match(audience, />Speaker<\/span>/);
   assert.match(audience, />Acerca de<\/p>/);

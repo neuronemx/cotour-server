@@ -19,13 +19,12 @@
   const counter = document.getElementById("profileBioCounter");
   const photoInput = document.getElementById("profilePhotoInput");
   const photoSelect = document.getElementById("profilePhotoSelect");
-  const photoRemove = document.getElementById("profilePhotoRemove");
+  const avatarButton = document.getElementById("profileAvatarButton");
   const photoStatus = document.getElementById("profilePhotoStatus");
   const avatarImage = document.getElementById("profileAvatarImage");
   const avatarFallback = document.getElementById("profileAvatarFallback");
   let currentProfile = null;
   let selectedPhoto = null;
-  let removePhoto = false;
   let previewObjectUrl = "";
 
   if (!modal || !form || !openButton) return;
@@ -55,6 +54,10 @@
     avatarFallback.hidden = Boolean(value);
     if (value) avatarImage.src = value;
     else avatarImage.removeAttribute("src");
+    const actionLabel = value ? "Cambiar foto" : "Subir foto";
+    photoSelect.textContent = actionLabel;
+    avatarButton.setAttribute("aria-label", actionLabel);
+    avatarButton.title = actionLabel;
   }
 
   function applyProfile(profile) {
@@ -62,11 +65,8 @@
     Object.entries(fields).forEach(([key, input]) => { input.value = String(currentProfile[key] || ""); });
     if (accountName && currentProfile.displayName) accountName.textContent = currentProfile.displayName;
     selectedPhoto = null;
-    removePhoto = false;
     revokePreview();
     showPhoto(currentProfile.photoUrl);
-    photoRemove.hidden = !currentProfile.hasUploadedPhoto;
-    photoSelect.textContent = currentProfile.photoUrl ? "Cambiar foto" : "Seleccionar foto";
     setPhotoStatus();
     updateCounter();
   }
@@ -109,7 +109,6 @@
     document.body.classList.remove("profile-modal-open");
     revokePreview();
     selectedPhoto = null;
-    removePhoto = false;
     setStatus();
     openButton.focus();
   }
@@ -132,10 +131,6 @@
       const body = new FormData();
       body.append("photo", selectedPhoto);
       const response = await fetch("/api/account/profile/photo", { method: "POST", body });
-      return (await readJson(response)).profile;
-    }
-    if (removePhoto && profile.hasUploadedPhoto) {
-      const response = await fetch("/api/account/profile/photo", { method: "DELETE" });
       return (await readJson(response)).profile;
     }
     return profile;
@@ -167,12 +162,9 @@
 
   function rejectPhoto(message) {
     selectedPhoto = null;
-    removePhoto = false;
     photoInput.value = "";
     revokePreview();
     showPhoto(currentProfile?.photoUrl);
-    photoRemove.hidden = !currentProfile?.hasUploadedPhoto;
-    photoSelect.textContent = currentProfile?.photoUrl ? "Cambiar foto" : "Seleccionar foto";
     setStatus();
     setPhotoStatus(message);
   }
@@ -189,25 +181,11 @@
       return rejectPhoto("Formato no admitido. Usa PNG, JPG o WebP.");
     }
     selectedPhoto = file;
-    removePhoto = false;
     revokePreview();
     previewObjectUrl = URL.createObjectURL(file);
     showPhoto(previewObjectUrl);
-    photoSelect.textContent = "Cambiar foto";
-    photoRemove.hidden = false;
     setPhotoStatus();
     setStatus();
-  }
-
-  function clearPhoto() {
-    selectedPhoto = null;
-    removePhoto = Boolean(currentProfile?.hasUploadedPhoto);
-    photoInput.value = "";
-    revokePreview();
-    showPhoto(removePhoto ? "" : currentProfile?.photoUrl);
-    photoRemove.hidden = true;
-    photoSelect.textContent = "Seleccionar foto";
-    setPhotoStatus();
   }
 
   openButton.addEventListener("click", openProfile);
@@ -216,8 +194,8 @@
   form.addEventListener("submit", submitProfile);
   fields.bio.addEventListener("input", updateCounter);
   photoSelect.addEventListener("click", selectPhoto);
+  avatarButton.addEventListener("click", selectPhoto);
   photoInput.addEventListener("change", previewPhoto);
-  photoRemove.addEventListener("click", clearPhoto);
   modal.addEventListener("click", (event) => { if (event.target === modal) closeProfile(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) closeProfile(); });
   avatarImage.addEventListener("error", () => showPhoto(""));
