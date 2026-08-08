@@ -53,8 +53,8 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
   assert.match(script, /audienceQrToggle\?\.addEventListener\("click"/);
   assert.doesNotMatch(script, /audienceQrClose/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
-  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*hidden;/);
-  assert.match(html, /audience\.css\?v=9/);
+  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*visible;/);
+  assert.match(html, /audience\.css\?v=10/);
 });
 
 test("Audience glass controls paint their fills continuously under inset rings", () => {
@@ -66,6 +66,19 @@ test("Audience glass controls paint their fills continuously under inset rings",
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(234,255,251,\.16\)/);
   assert.match(css, /\.reaction-bar\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(234,255,251,\.14\)/);
   assert.match(css, /\.reaction-bar button\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(255,255,255,\.105\)/);
+});
+
+test("Audience reaction and QR surfaces avoid directional seams", () => {
+  const css = read("public/audience/audience.css");
+  const qrRule = css.match(/\.audience-qr-toggle\s*\{([^}]*)\}/)?.[1] || "";
+  const qrActiveRule = css.match(/\.audience-qr-toggle\.is-active\s*\{([^}]*)\}/)?.[1] || "";
+  const reactionBarRule = css.match(/\.reaction-bar\s*\{([^}]*)\}/)?.[1] || "";
+  const reactionButtonRule = css.match(/\.reaction-bar button\s*\{([^}]*)\}/)?.[1] || "";
+
+  assert.doesNotMatch(qrRule, /radial-gradient|overflow:\s*hidden|inset 0 [+-]?1px/);
+  assert.doesNotMatch(qrActiveRule, /inset 0 [+-]?1px/);
+  assert.doesNotMatch(reactionBarRule, /radial-gradient|inset 0 [+-]?1px/);
+  assert.doesNotMatch(reactionButtonRule, /inset 0 [+-]?1px/);
 });
 
 test("server authorizes both controller roles through one capability guard", () => {
