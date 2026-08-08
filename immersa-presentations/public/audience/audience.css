@@ -12,32 +12,25 @@ body { margin: 0; min-height: 100vh; background: #030406; overscroll-behavior: n
   position: fixed; z-index: 36; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left));
   width: 58px; height: 58px; padding: 8px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 20px; overflow: visible; pointer-events: none;
-  background: rgba(7,9,12,.26); border: 1px solid rgba(255,255,255,.13);
-  box-shadow: 0 12px 34px rgba(0,0,0,.34), 0 0 28px rgba(104,216,204,.18), 0 0 34px rgba(155,76,255,.16), inset 0 1px 0 rgba(255,255,255,.08);
+  background: rgba(7,9,12,.26); border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.13), 0 12px 34px rgba(0,0,0,.34), 0 0 28px rgba(104,216,204,.18), 0 0 34px rgba(155,76,255,.16), inset 0 1px 0 rgba(255,255,255,.08);
   backdrop-filter: blur(18px) saturate(1.2);
 }
 .brand-mark { width: 42px; height: 42px; display: block; border-radius: 13px; object-fit: contain; object-position: center; flex: 0 0 auto; }
 .top-actions { position: fixed; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 36; display: flex; gap: 8px; align-items: center; }
 button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; }
-.brand-lockup,
-.icon-action,
-.audience-qr-toggle,
-.reaction-bar,
-.reaction-bar button {
-  background-clip: padding-box;
-}
 .icon-action {
   width: 42px; min-width: 42px; height: 42px; min-height: 42px; display: inline-grid; place-items: center; padding: 0;
   color: rgba(234,255,251,.76); font-size: 18px; line-height: 1;
   background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.028));
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.25);
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.25);
   backdrop-filter: blur(20px) saturate(1.25);
   transition: transform .15s ease, filter .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease, opacity .15s ease;
 }
-.icon-action:hover { transform: translateY(-1px); filter: brightness(1.12); border-color: rgba(104,216,204,.26); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 26px rgba(104,216,204,.18), 0 14px 32px rgba(0,0,0,.32); }
+.icon-action:hover { transform: translateY(-1px); filter: brightness(1.12); border-color: transparent; box-shadow: inset 0 0 0 1px rgba(104,216,204,.26), inset 0 1px 0 rgba(255,255,255,.12), 0 0 26px rgba(104,216,204,.18), 0 14px 32px rgba(0,0,0,.32); }
 .icon-action:active { transform: translateY(1px) scale(.985); }
-.icon-action.is-active { color: #041211; background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98)); border-color: rgba(255,255,255,.34); box-shadow: 0 0 0 4px rgba(104,216,204,.12), 0 0 28px rgba(104,216,204,.42), inset 0 1px 0 rgba(255,255,255,.24), 0 12px 28px rgba(0,0,0,.25); }
+.icon-action.is-active { color: #041211; background: linear-gradient(180deg, rgba(111,247,232,1), rgba(62,202,191,.98)); border-color: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.34), 0 0 0 4px rgba(104,216,204,.12), 0 0 28px rgba(104,216,204,.42), inset 0 1px 0 rgba(255,255,255,.24), 0 12px 28px rgba(0,0,0,.25); }
 .fullscreen-button svg {
   width: 17px; height: 17px; display: block;
   stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
@@ -46,8 +39,8 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .icon-action.fullscreen-button[aria-pressed="true"] {
   color: rgba(234,255,251,.78);
   background: linear-gradient(180deg, rgba(35,43,47,.54), rgba(8,10,14,.50));
-  border-color: rgba(255,255,255,.14);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.25);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.25);
 }
 .fullscreen-button[aria-pressed="true"] .fullscreen-expand-icon { display: none; }
 .fullscreen-button[aria-pressed="true"] .fullscreen-collapse-icon {
@@ -62,12 +55,12 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
   border-radius: 50%; overflow: hidden; isolation: isolate; appearance: none; -webkit-appearance: none;
   color: rgba(234,255,251,.84);
   background: linear-gradient(180deg, rgba(38,43,47,.62), rgba(7,9,12,.78)), radial-gradient(circle at 50% 0%, rgba(83,224,212,.15), transparent 58%);
-  border: 1px solid rgba(234,255,251,.16);
-  box-shadow: 0 16px 38px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.11);
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(234,255,251,.16), 0 16px 38px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.11);
   backdrop-filter: blur(20px) saturate(1.28);
 }
 .audience-qr-toggle svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.audience-qr-toggle.is-active { color: #041211; background: linear-gradient(135deg, #8b5cf6, #3b82f6, #22d3ee); border-color: rgba(255,255,255,.36); box-shadow: 0 0 0 4px rgba(59,130,246,.12), 0 0 30px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.28); }
+.audience-qr-toggle.is-active { color: #041211; background: linear-gradient(135deg, #8b5cf6, #3b82f6, #22d3ee); border-color: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.36), 0 0 0 4px rgba(59,130,246,.12), 0 0 30px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.28); }
 .audience-qr-panel {
   position: fixed; z-index: 40; right: max(14px, env(safe-area-inset-right)); bottom: max(72px, calc(62px + env(safe-area-inset-bottom)));
   width: min(270px, calc(100vw - 28px)); display: grid; justify-items: center; gap: 12px; padding: 20px;
@@ -117,17 +110,17 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
   position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5;
   display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px; border-radius: 999px;
   background: linear-gradient(180deg, rgba(38,43,47,.48), rgba(7,9,12,.66)), radial-gradient(circle at 50% 0%, rgba(104,216,204,.12), transparent 54%);
-  border: 1px solid rgba(234,255,251,.14);
-  box-shadow: 0 18px 48px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.1), inset 0 -1px 0 rgba(0,0,0,.5);
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(234,255,251,.14), 0 18px 48px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.1), inset 0 -1px 0 rgba(0,0,0,.5);
   backdrop-filter: blur(24px) saturate(1.32);
 }
 .reaction-bar button {
   width: 44px; height: 44px; display: inline-grid; place-items: center; padding: 0; font-size: 23px;
   color: rgba(234,255,251,.86); background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.026));
-  border: 1px solid rgba(255,255,255,.105); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.18);
+  border: 1px solid transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.105), inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.18);
   transition: transform .15s ease, filter .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-.reaction-bar button:hover { transform: translateY(-1px); filter: brightness(1.12); border-color: rgba(104,216,204,.22); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 24px rgba(104,216,204,.14), 0 13px 28px rgba(0,0,0,.28); }
+.reaction-bar button:hover { transform: translateY(-1px); filter: brightness(1.12); border-color: transparent; box-shadow: inset 0 0 0 1px rgba(104,216,204,.22), inset 0 1px 0 rgba(255,255,255,.12), 0 0 24px rgba(104,216,204,.14), 0 13px 28px rgba(0,0,0,.28); }
 .reaction-bar button:active { transform: translateY(1px) scale(.985); background: linear-gradient(180deg, rgba(243,210,122,.28), rgba(255,255,255,.035)); }
 .disconnect { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 50%; z-index: 6; transform: translateX(-50%); width: min(88vw, 380px); padding: 11px 13px; text-align: center; border-radius: 999px; background: rgba(12,12,12,.72); border: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.88); backdrop-filter: blur(14px); }
 .live-message { position: fixed; left: 50%; bottom: max(86px, calc(76px + env(safe-area-inset-bottom))); z-index: 6; transform: translateX(-50%); width: min(86vw, 760px); padding: 13px 17px; border-radius: 18px; text-align: center; color: rgba(255,255,255,.94); font-size: clamp(18px, 4.8vw, 38px); font-weight: 820; line-height: 1.12; overflow-wrap: anywhere; background: linear-gradient(180deg, rgba(7,9,12,.78), rgba(7,9,12,.64)); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 48px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.1); backdrop-filter: blur(18px) saturate(1.2); pointer-events: none; }
