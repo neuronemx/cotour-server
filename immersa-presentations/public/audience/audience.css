@@ -19,6 +19,13 @@ body { margin: 0; min-height: 100vh; background: #030406; overscroll-behavior: n
 .brand-mark { width: 42px; height: 42px; display: block; border-radius: 13px; object-fit: contain; object-position: center; flex: 0 0 auto; }
 .top-actions { position: fixed; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 36; display: flex; gap: 8px; align-items: center; }
 button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; }
+.brand-lockup,
+.icon-action,
+.audience-qr-toggle,
+.reaction-bar,
+.reaction-bar button {
+  background-clip: padding-box;
+}
 .icon-action {
   width: 42px; min-width: 42px; height: 42px; min-height: 42px; display: inline-grid; place-items: center; padding: 0;
   color: rgba(234,255,251,.76); font-size: 18px; line-height: 1;
@@ -52,7 +59,7 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .audience-qr-toggle {
   position: fixed; z-index: 36; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));
   width: 46px; min-width: 46px; height: 46px; min-height: 46px; aspect-ratio: 1; display: inline-grid; place-items: center; padding: 0;
-  border-radius: 50%; overflow: hidden; isolation: isolate; appearance: none; -webkit-appearance: none; background-clip: border-box;
+  border-radius: 50%; overflow: hidden; isolation: isolate; appearance: none; -webkit-appearance: none;
   color: rgba(234,255,251,.84);
   background: linear-gradient(180deg, rgba(38,43,47,.62), rgba(7,9,12,.78)), radial-gradient(circle at 50% 0%, rgba(83,224,212,.15), transparent 58%);
   border: 1px solid rgba(234,255,251,.16);

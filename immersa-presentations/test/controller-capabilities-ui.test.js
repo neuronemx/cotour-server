@@ -53,8 +53,15 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
   assert.match(script, /audienceQrToggle\?\.addEventListener\("click"/);
   assert.doesNotMatch(script, /audienceQrClose/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
-  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*hidden;[\s\S]*background-clip:\s*border-box;/);
-  assert.match(html, /audience\.css\?v=7/);
+  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*hidden;/);
+  assert.match(html, /audience\.css\?v=8/);
+});
+
+test("Audience glass controls keep translucent fills inside their borders", () => {
+  const css = read("public/audience/audience.css");
+
+  assert.match(css, /\.brand-lockup,\s*\.icon-action,\s*\.audience-qr-toggle,\s*\.reaction-bar,\s*\.reaction-bar button\s*\{\s*background-clip:\s*padding-box;/);
+  assert.doesNotMatch(css, /background-clip:\s*border-box/);
 });
 
 test("server authorizes both controller roles through one capability guard", () => {
