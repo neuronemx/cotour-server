@@ -54,31 +54,31 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
   assert.doesNotMatch(script, /audienceQrClose/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*visible;/);
-  assert.match(html, /audience\.css\?v=10/);
+  assert.match(html, /audience\.css\?v=11/);
 });
 
-test("Audience glass controls paint their fills continuously under inset rings", () => {
+test("Audience glass controls paint their fills continuously", () => {
   const css = read("public/audience/audience.css");
 
   assert.doesNotMatch(css, /background-clip:\s*padding-box/);
   assert.match(css, /\.brand-lockup\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(255,255,255,\.13\)/);
   assert.match(css, /\.icon-action\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(255,255,255,\.12\)/);
-  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(234,255,251,\.16\)/);
-  assert.match(css, /\.reaction-bar\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(234,255,251,\.14\)/);
-  assert.match(css, /\.reaction-bar button\s*\{[\s\S]*?border:\s*1px solid transparent;[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(255,255,255,\.105\)/);
+  assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*?border:\s*0;[\s\S]*?box-shadow:\s*0 16px 38px/);
+  assert.match(css, /\.reaction-bar\s*\{[\s\S]*?border:\s*0;[\s\S]*?box-shadow:\s*0 18px 48px/);
+  assert.match(css, /\.reaction-bar button\s*\{[\s\S]*?border:\s*0;[\s\S]*?box-shadow:\s*0 10px 22px/);
 });
 
-test("Audience reaction and QR surfaces avoid directional seams", () => {
+test("Audience reaction and QR surfaces avoid rasterized rings and directional seams", () => {
   const css = read("public/audience/audience.css");
   const qrRule = css.match(/\.audience-qr-toggle\s*\{([^}]*)\}/)?.[1] || "";
   const qrActiveRule = css.match(/\.audience-qr-toggle\.is-active\s*\{([^}]*)\}/)?.[1] || "";
   const reactionBarRule = css.match(/\.reaction-bar\s*\{([^}]*)\}/)?.[1] || "";
   const reactionButtonRule = css.match(/\.reaction-bar button\s*\{([^}]*)\}/)?.[1] || "";
 
-  assert.doesNotMatch(qrRule, /radial-gradient|overflow:\s*hidden|inset 0 [+-]?1px/);
-  assert.doesNotMatch(qrActiveRule, /inset 0 [+-]?1px/);
-  assert.doesNotMatch(reactionBarRule, /radial-gradient|inset 0 [+-]?1px/);
-  assert.doesNotMatch(reactionButtonRule, /inset 0 [+-]?1px/);
+  assert.doesNotMatch(qrRule, /radial-gradient|overflow:\s*hidden|border:\s*1px|box-shadow:[^;]*inset/);
+  assert.doesNotMatch(qrActiveRule, /border-color|box-shadow:[^;]*inset/);
+  assert.doesNotMatch(reactionBarRule, /radial-gradient|border:\s*1px|box-shadow:[^;]*inset/);
+  assert.doesNotMatch(reactionButtonRule, /border:\s*1px|box-shadow:[^;]*inset/);
 });
 
 test("server authorizes both controller roles through one capability guard", () => {
