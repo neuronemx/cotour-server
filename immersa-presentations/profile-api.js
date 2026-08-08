@@ -81,7 +81,14 @@ function createProfileHandlers({ bridge, profilesDir }) {
         : uploadError
           ? "No se pudo leer la foto."
           : "No se pudo guardar el perfil.";
-    return res.status(statusCode).json({ error: message, code: validation ? error.code : "PROFILE_UNAVAILABLE" });
+    const code = validation
+      ? error.code
+      : statusCode === 413
+        ? "PHOTO_TOO_LARGE"
+        : uploadError
+          ? "INVALID_PHOTO"
+          : "PROFILE_UNAVAILABLE";
+    return res.status(statusCode).json({ error: message, code });
   }
 
   async function getProfile(req, res) {

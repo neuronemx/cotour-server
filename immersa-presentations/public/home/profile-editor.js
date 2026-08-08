@@ -20,6 +20,7 @@
   const photoInput = document.getElementById("profilePhotoInput");
   const photoSelect = document.getElementById("profilePhotoSelect");
   const photoRemove = document.getElementById("profilePhotoRemove");
+  const photoStatus = document.getElementById("profilePhotoStatus");
   const avatarImage = document.getElementById("profileAvatarImage");
   const avatarFallback = document.getElementById("profileAvatarFallback");
   let currentProfile = null;
@@ -32,6 +33,11 @@
   function setStatus(message = "", kind = "") {
     status.textContent = message;
     status.className = "profile-status" + (kind ? ` is-${kind}` : "");
+  }
+
+  function setPhotoStatus(message = "") {
+    photoStatus.textContent = message;
+    photoStatus.hidden = !message;
   }
 
   function updateCounter() {
@@ -61,12 +67,17 @@
     showPhoto(currentProfile.photoUrl);
     photoRemove.hidden = !currentProfile.hasUploadedPhoto;
     photoSelect.textContent = currentProfile.photoUrl ? "Cambiar foto" : "Seleccionar foto";
+    setPhotoStatus();
     updateCounter();
   }
 
   async function readJson(response) {
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "No se pudo guardar el perfil.");
+    if (!response.ok) {
+      const error = new Error(data.error || "No se pudo guardar el perfil.");
+      error.code = data.code || "";
+      throw error;
+    }
     return data;
   }
 
@@ -141,8 +152,9 @@
       let profile = await saveTextProfile();
       profile = await savePhoto(profile);
       applyProfile(profile);
-      setStatus("¡Tu perfil está listo! Esta información aparecerá para Público en todos tus Decks.", "success");
+      setStatus("¡Tu perfil está listo! Esta información estará siempre disponible para toda tu audiencia.", "success");
     } catch (error) {
+      if (/^(?:PHOTO_|INVALID_PHOTO)/.test(error.code || "")) setPhotoStatus(error.message);
       setStatus(error.message, "error");
     } finally {
       saveButton.disabled = false;
@@ -153,16 +165,28 @@
 
   function selectPhoto() { photoInput.click(); }
 
+  function rejectPhoto(message) {
+    selectedPhoto = null;
+    removePhoto = false;
+    photoInput.value = "";
+    revokePreview();
+    showPhoto(currentProfile?.photoUrl);
+    photoRemove.hidden = !currentProfile?.hasUploadedPhoto;
+    photoSelect.textContent = currentProfile?.photoUrl ? "Cambiar foto" : "Seleccionar foto";
+    setStatus();
+    setPhotoStatus(message);
+  }
+
   function previewPhoto() {
     const file = photoInput.files?.[0];
     if (!file) return;
+    const acceptedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+    const hasAcceptedExtension = /\.(?:png|jpe?g|webp)$/i.test(file.name || "");
     if (file.size > 5 * 1024 * 1024) {
-      photoInput.value = "";
-      return setStatus("La foto debe pesar máximo 5 MB.", "error");
+      return rejectPhoto("La foto debe pesar máximo 5 MB.");
     }
-    if (file.type && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      photoInput.value = "";
-      return setStatus("La foto debe ser PNG, JPG o WebP.", "error");
+    if (!hasAcceptedExtension || (file.type && !acceptedTypes.has(file.type.toLowerCase()))) {
+      return rejectPhoto("Formato no admitido. Usa PNG, JPG o WebP.");
     }
     selectedPhoto = file;
     removePhoto = false;
@@ -171,6 +195,7 @@
     showPhoto(previewObjectUrl);
     photoSelect.textContent = "Cambiar foto";
     photoRemove.hidden = false;
+    setPhotoStatus();
     setStatus();
   }
 
@@ -182,6 +207,7 @@
     showPhoto(removePhoto ? "" : currentProfile?.photoUrl);
     photoRemove.hidden = true;
     photoSelect.textContent = "Seleccionar foto";
+    setPhotoStatus();
   }
 
   openButton.addEventListener("click", openProfile);

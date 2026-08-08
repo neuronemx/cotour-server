@@ -98,10 +98,14 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(home, /id="profileButton"[^>]*>Mi perfil</);
   assert.match(home, /id="profileDisplayName"[^>]+maxlength="120"/);
   assert.match(home, /id="profileBio"[^>]+maxlength="600"/);
-  assert.match(home, />Acerca de</);
-  assert.match(home, /visible para Público en todos tus Decks/);
+  assert.match(home, />Acerca de: \(en 3ra persona\)</);
+  assert.match(home, /Esta información estará siempre disponible para toda tu audiencia/);
+  assert.match(home, /id="profilePhotoStatus"[^>]+role="alert"/);
+  assert.match(home, /id="profileClose"[\s\S]*?<svg[^>]+viewBox="0 0 24 24"/);
   assert.match(editor, /\/api\/account\/profile/);
   assert.match(editor, /\/api\/account\/profile\/photo/);
+  assert.match(editor, /Formato no admitido\. Usa PNG, JPG o WebP\./);
+  assert.match(editor, /file\.size > 5 \* 1024 \* 1024/);
   assert.match(audience, /id="speakerProfileTab"/);
   assert.match(audience, />Speaker<\/span>/);
   assert.match(audience, />Acerca de<\/p>/);
