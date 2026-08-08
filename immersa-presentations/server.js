@@ -25,6 +25,7 @@ const {
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
+const { createProfileHandlers } = require("./profile-api");
 
 const app = express();
 const server = http.createServer(app);
@@ -38,6 +39,7 @@ const DATA_DIR = process.env.IMMERSA_DATA_DIR
   : path.join(__dirname, "data");
 const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
+const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const sessions = new Map();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
@@ -156,6 +158,10 @@ const brandMentionRuntime = new BrandMentionRuntime({
   getRoleRoomKey
 });
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
+const profileHandlers = createProfileHandlers({
+  bridge: betterAuthCompatibilityBridge,
+  profilesDir: DATA_PROFILES_DIR
+});
 
 function normalizeSessionId(sessionId) {
   return String(sessionId || "demo01");
@@ -637,6 +643,7 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
+app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
 app.get("/api/account/capabilities", betterAuthCompatibilityBridge.capabilitiesHandler);
 app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
@@ -660,6 +667,11 @@ app.get("/api/decks", requireAccount, async (req, res) => {
     res.status(500).json({ error: "Unable to list decks" });
   }
 });
+app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
+app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
+app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);
+app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
+app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, deckInteractionHandlers.putInteractions);
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, deckInteractionHandlers.uploadQuestionImage);

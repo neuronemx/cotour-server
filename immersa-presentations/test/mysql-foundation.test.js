@@ -51,7 +51,9 @@ test("Q&A schema preserves the frozen storage contract", async () => {
     "003_qna_questions.sql",
     "004_knowledge_activities.sql",
     "005_presentation_lifecycle.sql",
-    "006_auth_workspaces.sql"
+    "006_auth_workspaces.sql",
+    "007_user_profiles.sql",
+    "008_user_profile_public_title.sql"
   ]);
   const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
   assert.match(schema, /ENGINE=InnoDB/g);
@@ -88,7 +90,9 @@ test("migration runner serializes and records pending SQL files", async () => {
     "003_qna_questions.sql",
     "004_knowledge_activities.sql",
     "005_presentation_lifecycle.sql",
-    "006_auth_workspaces.sql"
+    "006_auth_workspaces.sql",
+    "007_user_profiles.sql",
+    "008_user_profile_public_title.sql"
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);

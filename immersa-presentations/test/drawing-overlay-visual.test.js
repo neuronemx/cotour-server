@@ -63,7 +63,7 @@ test("drawPath preserves a single stroke pass and existing coordinate, TTL, and 
   assert.match(drawingSource, /const alpha = age <= fadeStart \? 1 : Math\.max\(0, 1 - \(age - fadeStart\) \/ FADE_MS\);/);
 });
 
-test("audience logo uses contained inner mark while preserving lockup capsule", () => {
+test("audience logo uses a contained inner mark on a borderless lockup", () => {
   const mark = declarations(cssBlock(audienceCss, ".brand-mark"));
   assert.equal(mark.width, "42px");
   assert.equal(mark.height, "42px");
@@ -78,12 +78,19 @@ test("audience logo uses contained inner mark while preserving lockup capsule", 
   assert.equal(lockup.height, "58px");
   assert.equal(lockup.padding, "8px");
   assert.equal(lockup["border-radius"], "20px");
+  assert.equal(lockup.border, "0");
   assert.equal(lockup.overflow, "visible");
   assert.equal(lockup["z-index"], "36");
   assert.equal(lockup["pointer-events"], "none");
 
   const topActions = declarations(cssBlock(audienceCss, ".top-actions"));
   assert.equal(topActions["z-index"], "36");
+});
+
+test("audience logo stays contained in compact mobile landscape", () => {
+  assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*width: 36px;[^}]*height: 36px;[^}]*padding: 3px;[^}]*overflow: hidden;[^}]*\}[\s\S]*?\.brand-mark \{[^}]*width: 28px;[^}]*height: 28px;[^}]*\}/);
+  assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*top: max\(9px, env\(safe-area-inset-top\)\);[^}]*left: max\(9px, env\(safe-area-inset-left\)\);/);
+  assert.match(audienceIndex, /\/audience\/audience\.css\?v=12/);
 });
 
 test("hotfix stays scoped away from speaker logo css and PNG assets", () => {

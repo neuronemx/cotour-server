@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import workspaceModule from "./workspace-repository.js";
+import profileModule from "./profile-repository.js";
 
 const { WorkspaceRepository } = workspaceModule;
+const { ProfileRepository } = profileModule;
 
 function requireSetting(env, name) {
   const value = String(env?.[name] || "").trim();
@@ -91,11 +93,13 @@ export function createBetterAuthOptions(options = {}) {
 
 export function createBetterAuthRuntime(options = {}) {
   const workspaces = options.workspaces || new WorkspaceRepository(options.database);
+  const profiles = options.profiles || new ProfileRepository(options.database);
   const auth = betterAuth(createBetterAuthOptions({ ...options, workspaces }));
 
   return {
     auth,
     workspaces,
+    profiles,
     capabilities: {
       email: Boolean(options.emailSender),
       google: Boolean(String((options.env || process.env).GOOGLE_CLIENT_ID || "").trim())
