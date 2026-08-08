@@ -51,7 +51,8 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .snapshot { font-size: 17px; }
 .audience-qr-toggle {
   position: fixed; z-index: 36; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));
-  width: 46px; min-width: 46px; height: 46px; min-height: 46px; display: inline-grid; place-items: center; padding: 0;
+  width: 46px; min-width: 46px; height: 46px; min-height: 46px; aspect-ratio: 1; display: inline-grid; place-items: center; padding: 0;
+  border-radius: 50%; overflow: hidden; isolation: isolate; appearance: none; -webkit-appearance: none; background-clip: border-box;
   color: rgba(234,255,251,.84);
   background: linear-gradient(180deg, rgba(38,43,47,.62), rgba(7,9,12,.78)), radial-gradient(circle at 50% 0%, rgba(83,224,212,.15), transparent 58%);
   border: 1px solid rgba(234,255,251,.16);
