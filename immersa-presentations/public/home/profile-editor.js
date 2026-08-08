@@ -9,6 +9,7 @@
   const accountName = document.getElementById("accountName");
   const fields = {
     displayName: document.getElementById("profileDisplayName"),
+    publicTitle: document.getElementById("profilePublicTitle"),
     roleTitle: document.getElementById("profileRoleTitle"),
     company: document.getElementById("profileCompany"),
     bio: document.getElementById("profileBio"),

@@ -46,11 +46,11 @@
       <div id="audienceQrPattern" class="audience-qr-pattern"></div>
       <strong>Comparte esta presentación</strong>
     </section>
-    <aside id="speakerProfileLauncher" class="speaker-profile-launcher" hidden aria-label="Perfil del Speaker">
+    <aside id="speakerProfileLauncher" class="speaker-profile-launcher" hidden aria-label="Perfil de Speaker">
       <section id="speakerProfilePanel" class="speaker-profile-panel" aria-labelledby="speakerProfileName" aria-hidden="true">
-        <button id="speakerProfileClose" class="speaker-profile-close" type="button" aria-label="Cerrar perfil del Speaker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
+        <button id="speakerProfileClose" class="speaker-profile-close" type="button" aria-label="Cerrar perfil de Speaker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
         <div class="speaker-profile-scroll">
-          <p class="speaker-profile-eyebrow">Speaker</p>
+          <p id="speakerProfilePublicTitle" class="speaker-profile-eyebrow">Speaker</p>
           <div class="speaker-profile-avatar-ring"><div class="speaker-profile-avatar"><img id="speakerProfilePhoto" alt="" hidden><svg id="speakerProfilePhotoFallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/><path d="M6.2 18.8A4 4 0 0 1 10 16h4a4 4 0 0 1 3.8 2.8"/></svg></div></div>
           <h2 id="speakerProfileName" class="speaker-profile-name"></h2>
           <p id="speakerProfileRole" class="speaker-profile-role" hidden></p>
@@ -66,7 +66,7 @@
           </div>
         </div>
       </section>
-      <button id="speakerProfileTab" class="speaker-profile-tab" type="button" aria-label="Mostrar perfil del Speaker" aria-expanded="false" aria-controls="speakerProfilePanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg><span>Speaker</span><i aria-hidden="true"></i></button>
+      <button id="speakerProfileTab" class="speaker-profile-tab" type="button" aria-label="Mostrar perfil de Speaker" aria-expanded="false" aria-controls="speakerProfilePanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg><span>Speaker</span><i aria-hidden="true"></i></button>
     </aside>
     <section id="qnaComposer" class="qna-composer hidden" role="dialog" aria-modal="true" aria-labelledby="qnaTitle">
       <form id="qnaForm" class="qna-card">
@@ -85,5 +85,5 @@
     <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
   <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=24"></script><script src="/audience/audience.js?v=6"></script><script src="/audience/speaker-profile.js?v=1"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/raffle-public-ui.js"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/knowledge-activities.js?v=24"></script><script src="/audience/audience.js?v=6"></script><script src="/audience/speaker-profile.js?v=2"></script><script src="/audience/brand-mention.js?v=4"></script><script src="/shared/video-deck-config-bridge.js?v=111"></script>
 </body></html>

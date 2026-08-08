@@ -73,9 +73,10 @@
 .profile-field { min-width: 0; display: grid; gap: 7px; }
 .profile-field-wide { grid-column: 1 / -1; }
 .profile-field > span { color: #626377; font: 650 11.5px/1.25 Poppins, Inter, sans-serif; letter-spacing: .015em; }
-.profile-field input, .profile-field textarea { width: 100%; border: 1px solid #dedfe8; border-radius: 13px; padding: 12px 13px; color: #17172c; background: #fafafd; font: 450 15px/1.45 Inter, sans-serif; outline: none; transition: border-color .16s, box-shadow .16s, background .16s; }
+.profile-field input, .profile-field textarea, .profile-field select { width: 100%; border: 1px solid #dedfe8; border-radius: 13px; padding: 12px 13px; color: #17172c; background: #fafafd; font: 450 15px/1.45 Inter, sans-serif; outline: none; transition: border-color .16s, box-shadow .16s, background .16s; }
 .profile-field textarea { min-height: 116px; resize: vertical; }
-.profile-field input:focus, .profile-field textarea:focus { border-color: rgba(59, 130, 246, .62); background: #fff; box-shadow: 0 0 0 4px rgba(59, 130, 246, .1); }
+.profile-field select { cursor: pointer; }
+.profile-field input:focus, .profile-field textarea:focus, .profile-field select:focus { border-color: rgba(59, 130, 246, .62); background: #fff; box-shadow: 0 0 0 4px rgba(59, 130, 246, .1); }
 .profile-field ::placeholder { color: #aaaaba; }
 .profile-field small { justify-self: end; color: #8b8b9d; font-size: 11px; }
 .profile-status { min-height: 20px; margin: -5px 0 0; color: #5f6074; font-size: 13px; font-weight: 650; }

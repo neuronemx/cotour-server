@@ -4,7 +4,9 @@ const path = require("node:path");
 const test = require("node:test");
 const {
   ProfileRepository,
+  PUBLIC_TITLES,
   normalizeProfileInput,
+  normalizePublicTitle,
   normalizeProfileUrl,
   publicPhotoUrl
 } = require("../auth/profile-repository");
@@ -21,11 +23,14 @@ test("Profile v1 stores one reusable account profile without public email fields
   assert.match(migration, /bio VARCHAR\(600\) NOT NULL/);
   assert.match(migration, /photo_key VARCHAR\(191\)/);
   assert.doesNotMatch(migration, /email|phone|telephone/i);
+  const publicTitleMigration = read("db/migrations/008_user_profile_public_title.sql");
+  assert.match(publicTitleMigration, /public_title VARCHAR\(32\) NOT NULL DEFAULT 'Speaker'/);
 });
 
 test("Profile input trims fields, normalizes HTTPS links, and enforces the approved limits", () => {
   const profile = normalizeProfileInput({
     displayName: "  Renata Cifuentes ",
+    publicTitle: "Presentadora",
     roleTitle: " Directora de Fotografía ",
     company: " Estudios Churubusco ",
     bio: " Cine y narrativa visual. ",
@@ -34,6 +39,7 @@ test("Profile input trims fields, normalizes HTTPS links, and enforces the appro
     instagramUrl: ""
   });
   assert.equal(profile.displayName, "Renata Cifuentes");
+  assert.equal(profile.publicTitle, "Presentadora");
   assert.equal(profile.roleTitle, "Directora de Fotografía");
   assert.equal(profile.websiteUrl, "https://renata.example/perfil");
   assert.equal(profile.instagramUrl, "");
@@ -41,6 +47,9 @@ test("Profile input trims fields, normalizes HTTPS links, and enforces the appro
   assert.throws(() => normalizeProfileInput({ displayName: "A", bio: "x".repeat(601) }), /máximo 600/);
   assert.throws(() => normalizeProfileUrl("http://example.com", "website_url"), /HTTPS válida/);
   assert.throws(() => normalizeProfileUrl("https://user:secret@example.com", "website_url"), /sin credenciales/);
+  assert.deepEqual(PUBLIC_TITLES, ["Speaker", "Ponente", "Presentador", "Presentadora", "Profesor", "Profesora", "Facilitador", "Facilitadora"]);
+  assert.equal(normalizePublicTitle(undefined), "Speaker");
+  assert.throws(() => normalizePublicTitle("Instructor"), /forma válida/);
 });
 
 test("Deck public profile resolves through the owning personal workspace and omits account-only identity", async () => {
@@ -52,6 +61,7 @@ test("Deck public profile resolves through the owning personal workspace and omi
         auth_name: "Renata Cifuentes",
         auth_image: "https://images.example/renata.jpg",
         display_name: "",
+        public_title: "Ponente",
         role_title: "Directora de Fotografía",
         company: "Estudios Churubusco",
         bio: "Narrativa visual",
@@ -64,6 +74,7 @@ test("Deck public profile resolves through the owning personal workspace and omi
   });
   const profile = await repository.getDeckSpeakerProfile("deck-amc");
   assert.equal(profile.displayName, "Renata Cifuentes");
+  assert.equal(profile.publicTitle, "Ponente");
   assert.equal(profile.photoUrl, "https://images.example/renata.jpg");
   assert.equal(Object.hasOwn(profile, "email"), false);
   assert.match(calls[0].sql, /INNER JOIN workspaces w ON w\.id = d\.workspace_id/);
@@ -97,6 +108,7 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(server, /app\.get\("\/api\/decks\/:deckId\/speaker-profile", profileHandlers\.getDeckSpeakerProfile/);
   assert.match(home, /id="profileButton"[^>]*>Mi perfil</);
   assert.match(home, /id="profileDisplayName"[^>]+maxlength="120"/);
+  assert.match(home, /id="profilePublicTitle"[^>]*>[\s\S]*?<option>Speaker<\/option>[\s\S]*?<option>Ponente<\/option>[\s\S]*?<option>Presentador<\/option>[\s\S]*?<option>Presentadora<\/option>[\s\S]*?<option>Profesor<\/option>[\s\S]*?<option>Profesora<\/option>[\s\S]*?<option>Facilitador<\/option>[\s\S]*?<option>Facilitadora<\/option>/);
   assert.match(home, /id="profileBio"[^>]+maxlength="600"/);
   assert.match(home, />Acerca de: \(en 3ra persona\)</);
   assert.match(home, /Esta información estará siempre disponible para toda tu audiencia/);
@@ -111,9 +123,11 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(editor, /file\.size > 5 \* 1024 \* 1024/);
   assert.match(editor, /avatarButton\.addEventListener\("click", selectPhoto\)/);
   assert.match(audience, /id="speakerProfileTab"/);
-  assert.match(audience, />Speaker<\/span>/);
+  assert.match(audience, /id="speakerProfileTab"[\s\S]*?>Speaker<\/span>/);
   assert.match(audience, />Acerca de<\/p>/);
   assert.match(publicProfile, /\/api\/decks\/\$\{encodeURIComponent\(deckId\)\}\/speaker-profile/);
+  assert.match(publicProfile, /profile\.publicTitle \|\| "Speaker"/);
+  assert.match(publicProfile, /tab\.querySelector\("span"\)\.textContent = title/);
   assert.match(publicCss, /--speaker-panel-width: 314px/);
   assert.match(publicCss, /--speaker-panel-height: min\(78dvh, 660px\)/);
   assert.match(publicCss, /backdrop-filter: blur\(22px\)/);
@@ -123,6 +137,6 @@ test("Speaker profile is included only in Público, not Screen", () => {
   const audience = read("public/audience/index.html");
   const screen = read("public/screen/index.html");
   assert.match(audience, /speaker-profile\.css\?v=1/);
-  assert.match(audience, /speaker-profile\.js\?v=1/);
+  assert.match(audience, /speaker-profile\.js\?v=2/);
   assert.doesNotMatch(screen, /speaker-profile|Mi perfil|Acerca de/);
 });

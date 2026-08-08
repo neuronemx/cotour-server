@@ -6,6 +6,7 @@
   const panel = document.getElementById("speakerProfilePanel");
   const tab = document.getElementById("speakerProfileTab");
   const close = document.getElementById("speakerProfileClose");
+  const publicTitle = document.getElementById("speakerProfilePublicTitle");
   const photo = document.getElementById("speakerProfilePhoto");
   const photoFallback = document.getElementById("speakerProfilePhotoFallback");
   const name = document.getElementById("speakerProfileName");
@@ -45,6 +46,12 @@
   }
 
   function render(profile) {
+    const title = String(profile.publicTitle || "Speaker").trim() || "Speaker";
+    publicTitle.textContent = title;
+    tab.querySelector("span").textContent = title;
+    launcher.setAttribute("aria-label", `Perfil de ${title}`);
+    tab.setAttribute("aria-label", `Mostrar perfil de ${title}`);
+    close.setAttribute("aria-label", `Cerrar perfil de ${title}`);
     name.textContent = String(profile.displayName || "").trim();
     const hasRole = setOptionalText(role, profile.roleTitle);
     const companyName = String(profile.company || "").trim();

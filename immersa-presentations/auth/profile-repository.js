@@ -6,6 +6,18 @@ const PROFILE_LIMITS = Object.freeze({
   url: 500
 });
 
+const PUBLIC_TITLES = Object.freeze([
+  "Speaker",
+  "Ponente",
+  "Presentador",
+  "Presentadora",
+  "Profesor",
+  "Profesora",
+  "Facilitador",
+  "Facilitadora"
+]);
+const PUBLIC_TITLE_SET = new Set(PUBLIC_TITLES);
+
 class ProfileValidationError extends Error {
   constructor(code, message) {
     super(message);
@@ -54,9 +66,18 @@ function normalizeProfileUrl(value, field) {
   return parsed.href;
 }
 
+function normalizePublicTitle(value) {
+  const normalized = String(value ?? "Speaker").trim() || "Speaker";
+  if (!PUBLIC_TITLE_SET.has(normalized)) {
+    throw new ProfileValidationError("INVALID_PUBLIC_TITLE", "Selecciona una forma válida de presentarte ante tu audiencia.");
+  }
+  return normalized;
+}
+
 function normalizeProfileInput(input = {}) {
   return {
     displayName: normalizeText(input.displayName, "display_name", PROFILE_LIMITS.displayName, { required: true }),
+    publicTitle: normalizePublicTitle(input.publicTitle),
     roleTitle: normalizeText(input.roleTitle, "role_title", PROFILE_LIMITS.roleTitle),
     company: normalizeText(input.company, "company", PROFILE_LIMITS.company),
     bio: normalizeText(input.bio, "bio", PROFILE_LIMITS.bio),
@@ -79,6 +100,7 @@ function mapProfileRow(row) {
   if (!row) return null;
   return {
     displayName: String(row.display_name || row.auth_name || "").trim(),
+    publicTitle: PUBLIC_TITLE_SET.has(String(row.public_title || "").trim()) ? String(row.public_title).trim() : "Speaker",
     roleTitle: String(row.role_title || "").trim(),
     company: String(row.company || "").trim(),
     bio: String(row.bio || "").trim(),
@@ -99,7 +121,7 @@ class ProfileRepository {
   async getAccountProfile(userId) {
     const [rows] = await this.pool.execute(
       `SELECT u.name AS auth_name, u.image AS auth_image,
-              p.display_name, p.role_title, p.company, p.bio,
+              p.display_name, p.public_title, p.role_title, p.company, p.bio,
               p.website_url, p.linkedin_url, p.instagram_url, p.photo_key
        FROM \`user\` u
        LEFT JOIN user_profiles p ON p.user_id = u.id
@@ -114,10 +136,11 @@ class ProfileRepository {
     const profile = normalizeProfileInput(input);
     await this.pool.execute(
       `INSERT INTO user_profiles
-         (user_id, display_name, role_title, company, bio, website_url, linkedin_url, instagram_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         (user_id, display_name, public_title, role_title, company, bio, website_url, linkedin_url, instagram_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          display_name = VALUES(display_name),
+         public_title = VALUES(public_title),
          role_title = VALUES(role_title),
          company = VALUES(company),
          bio = VALUES(bio),
@@ -127,6 +150,7 @@ class ProfileRepository {
       [
         String(userId),
         profile.displayName,
+        profile.publicTitle,
         profile.roleTitle,
         profile.company,
         profile.bio,
@@ -162,7 +186,7 @@ class ProfileRepository {
   async getDeckSpeakerProfile(deckId) {
     const [rows] = await this.pool.execute(
       `SELECT u.name AS auth_name, u.image AS auth_image,
-              p.display_name, p.role_title, p.company, p.bio,
+              p.display_name, p.public_title, p.role_title, p.company, p.bio,
               p.website_url, p.linkedin_url, p.instagram_url, p.photo_key
        FROM decks d
        INNER JOIN workspaces w ON w.id = d.workspace_id
@@ -180,7 +204,9 @@ module.exports = {
   ProfileRepository,
   ProfileValidationError,
   PROFILE_LIMITS,
+  PUBLIC_TITLES,
   normalizeProfileInput,
+  normalizePublicTitle,
   normalizeProfileUrl,
   publicPhotoUrl,
   mapProfileRow
