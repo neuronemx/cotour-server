@@ -58,10 +58,10 @@
 .speaker-profile-socials { display: flex; gap: 9px; }
 .speaker-profile-socials .speaker-profile-link { justify-content: center; padding: 10px; }
 .speaker-profile-socials .speaker-profile-link span { display: none; }
-.speaker-profile-tab { width: 32px; height: 104px; flex: 0 0 32px; margin-top: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0; border: 1px solid rgba(139, 92, 246, .22); border-left: 0; border-radius: 0 10px 10px 0; color: #f5f3ff; background: rgba(14, 12, 24, .94); box-shadow: 14px 0 40px -18px rgba(0, 0, 0, .55); cursor: pointer; opacity: 1; -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); transition: opacity .25s, border-color .2s; }
+.speaker-profile-tab { width: 32px; min-height: 104px; flex: 0 0 32px; margin-top: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; border: 1px solid rgba(139, 92, 246, .22); border-left: 0; border-radius: 0 10px 10px 0; color: #f5f3ff; background: rgba(14, 12, 24, .94); box-shadow: 14px 0 40px -18px rgba(0, 0, 0, .55); cursor: pointer; opacity: 1; -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); transition: opacity .25s, border-color .2s; }
 .speaker-profile-tab:hover { border-color: #8b5cf6; }
 .speaker-profile-tab svg { width: 10px; height: 10px; fill: none; stroke: #c9b8ff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.speaker-profile-tab span { color: #9a93ac; font: 600 9px/1 Poppins, Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg); }
+.speaker-profile-tab span { color: #9a93ac; font: 600 9px/1 Poppins, Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; writing-mode: vertical-rl; transform: rotate(180deg); }
 .speaker-profile-tab i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6, #3b82f6, #22d3ee); }
 
 @media (max-width: 420px) {

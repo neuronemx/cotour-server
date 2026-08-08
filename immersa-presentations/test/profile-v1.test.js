@@ -130,13 +130,15 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(publicProfile, /tab\.querySelector\("span"\)\.textContent = title/);
   assert.match(publicCss, /--speaker-panel-width: 314px/);
   assert.match(publicCss, /--speaker-panel-height: min\(78dvh, 660px\)/);
+  assert.match(publicCss, /\.speaker-profile-tab \{[^}]*min-height: 104px/);
+  assert.match(publicCss, /\.speaker-profile-tab span \{[^}]*white-space: nowrap/);
   assert.match(publicCss, /backdrop-filter: blur\(22px\)/);
 });
 
 test("Speaker profile is included only in Público, not Screen", () => {
   const audience = read("public/audience/index.html");
   const screen = read("public/screen/index.html");
-  assert.match(audience, /speaker-profile\.css\?v=1/);
+  assert.match(audience, /speaker-profile\.css\?v=2/);
   assert.match(audience, /speaker-profile\.js\?v=2/);
   assert.doesNotMatch(screen, /speaker-profile|Mi perfil|Acerca de/);
 });
