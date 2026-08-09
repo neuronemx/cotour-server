@@ -68,6 +68,12 @@
     <section class="create-panel" aria-label="Crear nueva presentación">
       <form id="uploadForm" class="upload-form">
         <div class="panel-heading"><div class="heading-icon" aria-hidden="true">↥</div><div><h2>Crear nueva presentación</h2><p>Arrastra tu PPTX o PDF y conviértelo en una experiencia Immersa.</p></div></div>
+        <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
+          <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+          <span class="upload-cloud" aria-hidden="true"><svg class="upload-cloud-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 19V6"/><path d="M7 11l5-5 5 5"/></svg></span>
+          <span class="drop-zone-copy"><strong>Arrastra PPTX o PDF</strong><span>o <u>selecciona archivo</u></span><span class="format-pills" aria-label="Formatos aceptados"><span class="format-pill"><i aria-hidden="true">PP</i>PPTX</span><span class="format-pill"><i aria-hidden="true">PDF</i>PDF</span></span><small id="selectedFileName">Ningún archivo seleccionado</small></span>
+        </label>
+        <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
         <section id="planUsage" class="plan-usage" aria-label="Uso del plan FREE">
           <div class="plan-usage-head"><span>Plan personal</span><strong id="planName">FREE</strong></div>
           <div class="plan-usage-metrics">
@@ -76,12 +82,6 @@
           </div>
           <p id="planLimitMessage" class="plan-limit-message" role="status" hidden></p>
         </section>
-        <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
-          <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
-          <span class="upload-cloud" aria-hidden="true"><svg class="upload-cloud-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 19V6"/><path d="M7 11l5-5 5 5"/></svg></span>
-          <span class="drop-zone-copy"><strong>Arrastra PPTX o PDF</strong><span>o <u>selecciona archivo</u></span><span class="format-pills" aria-label="Formatos aceptados"><span class="format-pill"><i aria-hidden="true">PP</i>PPTX</span><span class="format-pill"><i aria-hidden="true">PDF</i>PDF</span></span><small id="selectedFileName">Ningún archivo seleccionado</small></span>
-        </label>
-        <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
       </form>
     </section>
     <section id="presentaciones" class="presentations-panel presentations-list-panel" aria-label="Mis presentaciones">
