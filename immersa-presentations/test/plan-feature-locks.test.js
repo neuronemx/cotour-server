@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
-const { featureAccessForPlan, canUseFeature, isPaidControllerEvent } = require("../auth/plan-features");
+const { featureAccessForPlan, canUseFeature, isPaidControllerEvent, changesPaidDeckContent } = require("../auth/plan-features");
 const { WorkspaceRepository } = require("../auth/workspace-repository");
 
 test("FREE locks Interacciones and Métricas while paid plans enable them", () => {
@@ -43,6 +43,24 @@ test("the central live guard covers paid interaction commands without blocking F
     "overlay_update",
     "media:play"
   ]) assert.equal(isPaidControllerEvent(event), false, event);
+});
+
+test("FREE can save Videos and slide visibility without changing paid Deck content", () => {
+  const current = {
+    interactions: [{ id: "poll-1", prompt: "Actual" }],
+    contests: [{ id: "contest-1" }],
+    assessments: []
+  };
+  assert.equal(changesPaidDeckContent({
+    interactions: current.interactions,
+    videos: [{ id: "video-1", slide_id: "slide-001" }],
+    hidden_slide_ids: ["slide-002"]
+  }, current), false);
+  assert.equal(changesPaidDeckContent({
+    interactions: [{ id: "poll-1", prompt: "Alterada" }],
+    videos: []
+  }, current), true);
+  assert.equal(changesPaidDeckContent({ contests: [] }, current), true);
 });
 
 test("workspace plan is resolved from the Deck owner rather than the access link", async () => {
@@ -84,7 +102,8 @@ test("server enforces Interacciones and Métricas independently of disabled butt
   assert.match(server, /socket\.use\(\(\[eventName\], next\) =>/);
   assert.match(server, /isPaidControllerEvent\(eventName\)/);
   assert.match(server, /socket\.emit\("plan:feature_locked"/);
-  assert.match(server, /app\.put\("\/api\/decks\/:deckId\/interactions", requireAccountOrControllerDeck, requireDeckFeature\("interactions"\)/);
+  assert.match(server, /app\.put\("\/api\/decks\/:deckId\/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite/);
+  assert.match(server, /changesPaidDeckContent\(req\.body, current\)/);
   assert.match(server, /\/api\/decks\/:deckId\/qna\/history"[\s\S]*requireDeckFeature\("metrics"\)/);
   assert.match(server, /\/api\/knowledge-activities\/:executionId\/export\/:access_token"[\s\S]*requireDeckFeature\("metrics"\)/);
   assert.match(server, /\/api\/qna\/history\/:access_token"[\s\S]*requireDeckFeature\("metrics"\)/);

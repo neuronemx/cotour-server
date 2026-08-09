@@ -315,7 +315,7 @@ test("finalization is rejected while an interaction is active", async () => {
   });
 });
 
-test("the compact shared control uses Iniciar, En vivo and Finalizar beside the M", () => {
+test("the lifecycle slider remains on Stage and is hidden from Speaker", () => {
   const root = path.join(__dirname, "..");
   const control = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle-control.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle.css"), "utf8");
@@ -326,9 +326,9 @@ test("the compact shared control uses Iniciar, En vivo and Finalizar beside the 
   assert.match(control, /arming \? "Finalizar" : "En vivo"/);
   assert.match(control, /presentation:lifecycle:\$\{action\}/);
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
-  assert.match(presenter, /brand-lockup[\s\S]*presentationLifecycle/);
+  assert.doesNotMatch(presenter, /presentationLifecycle/);
   assert.match(stage, /stage-brand[\s\S]*presentationLifecycle/);
-  assert.match(presenter, /presentation-lifecycle-control\.js\?v=1/);
+  assert.doesNotMatch(presenter, /presentation-lifecycle-control\.js/);
   assert.match(stage, /presentation-lifecycle-control\.js\?v=1/);
 });
 

@@ -26,7 +26,7 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
-const { canUseFeature, isPaidControllerEvent } = require("./auth/plan-features");
+const { canUseFeature, isPaidControllerEvent, changesPaidDeckContent } = require("./auth/plan-features");
 
 const app = express();
 const server = http.createServer(app);
@@ -751,6 +751,28 @@ function requireDeckFeature(feature) {
     }
   };
 }
+function requireDeckConfigurationWrite(req, res, next) {
+  return (async () => {
+    try {
+      const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
+      const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      if (canUseFeature(access, "interactions")) return next();
+      const current = await deckInteractionHandlers.readDeckConfig(deckId);
+      if (changesPaidDeckContent(req.body, current)) {
+        return res.status(403).json({
+          error: "Interacciones está disponible en planes de pago",
+          code: "PLAN_FEATURE_LOCKED",
+          feature: "interactions"
+        });
+      }
+      req.immersaFeatureAccess = access;
+      return next();
+    } catch (error) {
+      console.error("Unable to validate Deck configuration access", error);
+      return res.status(503).json({ error: "No se pudo validar el plan" });
+    }
+  })();
+}
 function requireAccountOrControllerDeck(req, res, next) {
   return betterAuthCompatibilityBridge.attachOptionalAccount(req, res, () => {
     if (req.accountContext) return requireOwnedDeck(req, res, next);
@@ -781,7 +803,7 @@ app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPho
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
 app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckFeature("interactions"), deckInteractionHandlers.putInteractions);
+app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);

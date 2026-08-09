@@ -5,10 +5,6 @@ const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.dec
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
 const overlaySocket = io();
-const presentationLifecycleControl = window.ImmersaPresentationLifecycle?.create({
-  socket,
-  host: document.getElementById("presentationLifecycle")
-});
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 let manifest = null;
 let interactions = [];

@@ -1,4 +1,7 @@
+const { isDeepStrictEqual } = require("node:util");
+
 const PAID_FEATURES = Object.freeze(["interactions", "metrics"]);
+const PAID_DECK_CONTENT_FIELDS = Object.freeze(["interactions", "contests", "assessments"]);
 
 function normalizePlan(plan) {
   return String(plan || "").trim().toUpperCase();
@@ -32,10 +35,19 @@ function isPaidControllerEvent(eventName) {
     || event === "time:command";
 }
 
+function changesPaidDeckContent(body = {}, current = {}) {
+  return PAID_DECK_CONTENT_FIELDS.some((field) =>
+    body[field] !== undefined
+      && !isDeepStrictEqual(body[field], Array.isArray(current[field]) ? current[field] : [])
+  );
+}
+
 module.exports = {
   PAID_FEATURES,
+  PAID_DECK_CONTENT_FIELDS,
   normalizePlan,
   featureAccessForPlan,
   canUseFeature,
-  isPaidControllerEvent
+  isPaidControllerEvent,
+  changesPaidDeckContent
 };
