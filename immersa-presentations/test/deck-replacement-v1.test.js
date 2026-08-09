@@ -204,8 +204,10 @@ test("Home puts presentations beside creation and uses the approved concise copy
   assert.match(html, /Encuestas[\s\S]*Sorteos[\s\S]*Trivias[\s\S]*Q&amp;A[\s\S]*Evaluaciones/);
   assert.match(html, /Tus experiencias listas para compartir en las manos de tu público\./);
   assert.doesNotMatch(html + source, /presentaciónes/);
+  assert.doesNotMatch(html + source, /deckCount/);
+  assert.doesNotMatch(source, /Elimina una para subir otra/);
   assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(340px, 390px\)/);
-  assert.match(css, /\.presentations-panel \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*padding-top: 142px;/);
+  assert.match(css, /\.presentations-panel \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*padding-top: 162px;/);
 });
 
 test("Rename opens above Deck detail and owns Escape while active", () => {

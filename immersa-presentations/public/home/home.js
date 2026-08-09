@@ -7,7 +7,6 @@ let detailDeck = null;
 let planUsage = null;
 
 const deckList = document.getElementById("deckList");
-const deckCount = document.getElementById("deckCount");
 const deckNotice = document.getElementById("deckNotice");
 const uploadForm = document.getElementById("uploadForm");
 const uploadButton = document.getElementById("uploadButton"); // Puede no existir: el flujo abre el modal al seleccionar archivo.
@@ -101,7 +100,7 @@ function storageLabel(bytes) {
 function currentPlanBlockMessage() {
   if (!planUsage) return "";
   if (planUsage.remaining?.decks < 1) {
-    return "Alcanzaste las " + planUsage.limits.decks + " presentaciones de tu plan " + planUsage.plan + ". Elimina una para subir otra.";
+    return "Alcanzaste las " + planUsage.limits.decks + " presentaciones de tu plan " + planUsage.plan + ".";
   }
   if (planUsage.remaining?.storageBytes < 1) {
     return "Alcanzaste los " + storageLabel(planUsage.limits.storageBytes) + " de tu plan " + planUsage.plan + ". Elimina una presentación para liberar espacio.";
@@ -692,8 +691,6 @@ function renderEmptyDecks() {
 }
 
 function renderDecks() {
-  const countLabel = decks.length + " presentación" + (decks.length === 1 ? "" : "es");
-  deckCount.textContent = countLabel;
   deckList.innerHTML = "";
 
   if (!decks.length) {

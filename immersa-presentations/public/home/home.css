@@ -272,13 +272,6 @@ button:disabled { cursor: wait; opacity: .65; }
 .presentations-panel { padding: 0; margin-top: 42px; }
 .section-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 30px; }
 .section-header p { margin: 6px 0 0; color: var(--muted); font-size: 14.5px; }
-.view-all {
-  flex: none;
-  color: var(--violet);
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .deck-list-rows {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
@@ -507,7 +500,7 @@ body.modal-open { overflow: hidden; }
     grid-column: 1;
     grid-row: 1;
     margin-top: 0;
-    padding-top: 142px;
+    padding-top: 162px;
   }
 }
 
