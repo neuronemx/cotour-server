@@ -10,19 +10,20 @@ test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
   assert.match(html, /deck-management-shell\.css\?v=14/);
-  assert.match(html, /deck-management-shell\.js\?v=8/);
-  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="interactions"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Interacciones<\/span>[\s\S]*?data-deck-tab="brands"[^>]+disabled[\s\S]*?<span>Marcas<\/span>[\s\S]*?data-deck-tab="history"[^>]+disabled[\s\S]*?<span>Historial<\/span>/);
-  assert.match(html, /data-deck-editor-host="interactions"/);
-  assert.match(html, /data-deck-editor-host="brands"/);
+  assert.match(html, /deck-management-shell\.js\?v=9/);
+  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
+  assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
   assert.doesNotMatch(html, /id="detailDelete"/);
-  assert.match(html, /data-deck-panel="history"[\s\S]+id="qnaHistory"/);
+  assert.match(html, /data-deck-panel="metrics"[\s\S]+id="qnaHistory"/);
+  assert.doesNotMatch(html, /data-deck-tab="brands"|data-deck-panel="brands"|<span>Marcas<\/span>/);
+  assert.match(html, /data-deck-panel="metrics"[\s\S]*?<h3>Métricas<\/h3>[\s\S]*?Consulta la participación y los resultados de esta presentación\./);
   assert.doesNotMatch(html, /deck-detail-kicker/);
   assert.doesNotMatch(html, /Enlaces de presentación/);
   assert.doesNotMatch(html, />Business</);
   assert.doesNotMatch(html, /id="detailStatus"/);
-  assert.match(html, /data-deck-tab="interactions"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Interacciones<\/span>/);
+  assert.match(html, /data-deck-tab="participation"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Participación<\/span>/);
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
@@ -32,6 +33,7 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /const original = window\.renderDetailActions/);
   assert.match(source, /original\(deck\)/);
   assert.match(source, /\.role-interactions/);
+  assert.match(source, /participation:\s*\{[\s\S]*?selector: "\.role-interactions"/);
   assert.match(source, /\.role-brand-mentions/);
   assert.match(source, /\.role-videos/);
   assert.match(source, /launchers\.appendChild\(button\)/);

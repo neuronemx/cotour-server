@@ -8,7 +8,7 @@
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const moduleDetails = {
-    interactions: {
+    participation: {
       selector: ".role-interactions",
       backdrop: ".interactions-backdrop",
       editor: ".interactions-modal",

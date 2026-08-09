@@ -105,26 +105,22 @@
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
-        <button id="deckTabInteractions" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelInteractions" data-deck-tab="interactions" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Interacciones</span></button>
-        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41 11 3.83 4 4l-.17 7 9.58 9.6a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.84Z"/><circle cx="8.5" cy="8.5" r="1"/></svg><span>Marcas</span></button>
-        <button id="deckTabHistory" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelHistory" data-deck-tab="history" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span>Historial</span></button>
+        <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
+        <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
       <div class="deck-detail-content">
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
         </section>
-        <section id="deckPanelInteractions" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabInteractions" data-deck-panel="interactions" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="interactions"></div>
-        </section>
-        <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
+        <section id="deckPanelParticipation" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabParticipation" data-deck-panel="participation" hidden>
+          <div class="deck-detail-editor-host" data-deck-editor-host="participation"></div>
         </section>
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
-        <section id="deckPanelHistory" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabHistory" data-deck-panel="history" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Historial</h3><p>Consulta las ejecuciones y resultados guardados de esta presentación.</p></div></div>
+        <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
+          <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
           <section id="qnaHistory" class="qna-history" aria-labelledby="qnaHistoryTitle" hidden><button id="qnaHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="qnaHistoryBody"><span id="qnaHistoryTitle">Historial de preguntas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="qnaHistoryBody" class="qna-history-body" hidden><div class="qna-history-head"><p id="qnaHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div class="qna-history-actions"><button id="qnaHistoryExport" class="qna-history-export" type="button" hidden>Descargar CSV</button><button id="qnaHistoryDelete" class="qna-history-delete" type="button" hidden>Borrar historial</button></div></div><div id="qnaHistoryList" class="qna-history-list"></div><div id="qnaHistoryConfirm" class="qna-history-confirm" role="alertdialog" aria-labelledby="qnaHistoryConfirmTitle" hidden><strong id="qnaHistoryConfirmTitle">Esta acción es permanente</strong><p>Se eliminarán todas las preguntas y ejecuciones anteriores. Si Screen está abierto, se conservará únicamente una ejecución vacía para no interrumpir la sesión.</p><div class="qna-history-confirm-actions"><button id="qnaHistoryCancelDelete" class="qna-history-cancel" type="button">Cancelar</button><button id="qnaHistoryConfirmDelete" class="qna-history-confirm-delete" type="button">Borrar definitivamente</button></div></div></div></section>
           <section id="knowledgeActivityHistory" class="qna-history" aria-labelledby="knowledgeActivityHistoryTitle" hidden><button id="knowledgeActivityHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="knowledgeActivityHistoryBody"><span id="knowledgeActivityHistoryTitle">Concursos y evaluaciones</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="knowledgeActivityHistoryBody" class="qna-history-body" hidden><p id="knowledgeActivityHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div id="knowledgeActivityHistoryList" class="qna-history-list"></div></div></section>
         </section>
@@ -173,6 +169,6 @@
   <script src="/home/video-editor.js?v=111"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
-  <script src="/home/deck-management-shell.js?v=8"></script>
+  <script src="/home/deck-management-shell.js?v=9"></script>
 </body>
 </html>
