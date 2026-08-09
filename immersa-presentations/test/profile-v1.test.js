@@ -110,7 +110,7 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(home, /id="profileDisplayName"[^>]+maxlength="120"/);
   assert.match(home, /id="profilePublicTitle"[^>]*>[\s\S]*?<option>Speaker<\/option>[\s\S]*?<option>Ponente<\/option>[\s\S]*?<option>Presentador<\/option>[\s\S]*?<option>Presentadora<\/option>[\s\S]*?<option>Profesor<\/option>[\s\S]*?<option>Profesora<\/option>[\s\S]*?<option>Facilitador<\/option>[\s\S]*?<option>Facilitadora<\/option>/);
   assert.match(home, /id="profileBio"[^>]+maxlength="600"/);
-  assert.match(home, />Acerca de: \(en 3ra persona\)</);
+  assert.match(home, />Acerca de<\/span>/);
   assert.match(home, /Esta información estará siempre disponible para toda tu audiencia/);
   assert.match(home, /id="profilePhotoStatus"[^>]+role="alert"/);
   assert.match(home, /id="profilePhotoSelect"[^>]*>Subir foto<\/button>/);
