@@ -129,6 +129,8 @@ test("Successful replacement preserves Deck configuration and flags structural c
   const manifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
   assert.equal(manifest.session_id, "s_abcdefghij");
   assert.equal(manifest.source.sizeBytes, 12);
+  assert.match(manifest.slides[0].src, /^slides\/slide-1\.jpg\?v=[0-9a-f-]+$/);
+  assert.match(manifest.slides[0].thumb, /^thumbs\/slide-1\.jpg\?v=[0-9a-f-]+$/);
 });
 
 test("Failed conversion leaves the previous Deck and configuration untouched", async (t) => {
@@ -164,8 +166,10 @@ test("Home offers replacement and explains preserved configuration", () => {
   const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   assert.match(html, /id="detailReplace"[^>]*>[\s\S]*Sustituir presentación/);
+  assert.doesNotMatch(html, /id="detailDelete"|Eliminar presentación/);
   assert.match(html, /id="replacementReview"/);
   assert.match(source, /Se conservarán Interacciones, Videos, enlaces y configuración/);
   assert.match(source, /Tu versión anterior permanece intacta/);
   assert.match(source, /encodeURIComponent\(deck\.deckId\) \+ "\/replace"/);
+  assert.match(source, /const \[rawPath, \.\.\.queryParts\] = value\.split\("\?"\)/);
 });

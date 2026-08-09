@@ -130,6 +130,25 @@ function manifestSummary(manifest) {
   };
 }
 
+function withAssetRevision(value, revision) {
+  if (!value || typeof value !== 'string' || /^(?:https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  const separator = value.includes('?') ? '&' : '?';
+  return value + separator + 'v=' + encodeURIComponent(revision);
+}
+
+function reviseSlideAssets(manifest, revision) {
+  return {
+    ...manifest,
+    slides: Array.isArray(manifest.slides) ? manifest.slides.map((slide) => ({
+      ...slide,
+      src: withAssetRevision(slide.src, revision),
+      thumb: withAssetRevision(slide.thumb, revision),
+      poster: withAssetRevision(slide.poster, revision),
+      fallback: withAssetRevision(slide.fallback, revision)
+    })) : []
+  };
+}
+
 async function writeManifest(deckDir, manifest, sessionId) {
   const manifestToWrite = sessionId ? ensureManifestHasSessionId(manifest, sessionId) : manifest;
   await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify(manifestToWrite, null, 2) + '\n');
@@ -517,6 +536,7 @@ function createDeckReplacementHandler(options = {}) {
           throw replacementError(422, conversionError.message || 'La conversión no pudo completarse', 'CONVERSION_FAILED');
         }
 
+        nextManifest = reviseSlideAssets(nextManifest, replacementId);
         const nextSlideCount = Array.isArray(nextManifest.slides) ? nextManifest.slides.length : 0;
         const associationsReviewRequired = previousSlideCount !== nextSlideCount;
         nextManifest.replacement = {

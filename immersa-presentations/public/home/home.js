@@ -37,7 +37,6 @@ const detailSlides = document.getElementById("detailSlides");
 const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
 const detailReplace = document.getElementById("detailReplace");
-const detailDelete = document.getElementById("detailDelete");
 const replacementFile = document.getElementById("replacementFile");
 const replacementReview = document.getElementById("replacementReview");
 const replacementReviewed = document.getElementById("replacementReviewed");
@@ -506,13 +505,15 @@ function deckAssetUrl(deckId, value) {
   if (!value || typeof value !== "string") return "";
   if (/^(https?:)?\/\//.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
   if (value.startsWith("/")) return value;
-  const safePath = value
+  const [rawPath, ...queryParts] = value.split("?");
+  const safePath = rawPath
     .replace(/^\.\//, "")
     .split("/")
     .filter(Boolean)
     .map((part) => encodeURIComponent(part))
     .join("/");
-  return safePath ? "/decks/" + encodeURIComponent(deckId) + "/" + safePath : "";
+  const query = queryParts.length ? "?" + queryParts.join("?") : "";
+  return safePath ? "/decks/" + encodeURIComponent(deckId) + "/" + safePath + query : "";
 }
 
 function slideImageCandidates(deck, slide, preferThumbnail = false) {
@@ -958,13 +959,6 @@ if (closeDeckDetail) {
 if (deckDetailModal) {
   deckDetailModal.addEventListener("click", (event) => {
     if (event.target === deckDetailModal) closeDeckModal();
-  });
-}
-
-if (detailDelete) {
-  detailDelete.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (detailDeck) deleteDeck(detailDeck);
   });
 }
 

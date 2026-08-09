@@ -20,7 +20,7 @@ test("Deck detail exposes the approved management sections", () => {
   assert.match(html, /data-deck-editor-host="brands"/);
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
-  assert.match(html, /id="detailDelete"[\s\S]+<\/header>/);
+  assert.doesNotMatch(html, /id="detailDelete"/);
   assert.match(html, /data-deck-panel="history"[\s\S]+id="qnaHistory"/);
   assert.doesNotMatch(html, /deck-detail-kicker/);
   assert.doesNotMatch(html, /Enlaces de presentación/);
@@ -83,7 +83,7 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   const css = read("public/home/deck-management-shell.css");
 
   assert.match(html, /id="detailSlideStrip"[^>]+aria-label="Miniaturas del deck"[^>]+hidden/);
-  assert.match(html, /home\.js\?v=50/);
+  assert.match(html, /home\.js\?v=\d+/);
   assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deck\.deckId\) \+ "\/manifest\.json"/);
   assert.match(source, /cache: "no-store"/);
   assert.match(source, /slide\?\.thumb/);
