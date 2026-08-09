@@ -65,6 +65,9 @@
     currentProfile = profile || {};
     Object.entries(fields).forEach(([key, input]) => { input.value = String(currentProfile[key] || ""); });
     if (accountName && currentProfile.displayName) accountName.textContent = currentProfile.displayName;
+    const publicTitle = String(currentProfile.publicTitle || "Speaker").trim() || "Speaker";
+    window.IMMERSA_PROFILE_PUBLIC_TITLE = publicTitle;
+    window.dispatchEvent(new CustomEvent("immersa:profile-public-title", { detail: { publicTitle } }));
     selectedPhoto = null;
     revokePreview();
     showPhoto(currentProfile.photoUrl);
@@ -148,7 +151,10 @@
       let profile = await saveTextProfile();
       profile = await savePhoto(profile);
       applyProfile(profile);
-      setStatus("¡Tu perfil está listo! Esta información estará siempre disponible para toda tu audiencia.", "success");
+      saveButton.disabled = false;
+      cancelButton.disabled = false;
+      closeButton.disabled = false;
+      closeProfile();
     } catch (error) {
       if (/^(?:PHOTO_|INVALID_PHOTO)/.test(error.code || "")) setPhotoStatus(error.message);
       setStatus(error.message, "error");

@@ -1,12 +1,12 @@
 (function (root) {
-  const BUILD = 'v113';
+  const BUILD = 'v115';
   const MODE_NATIVE = 'native';
   const MODE_ADAPTER = 'input-adapter';
 
   function createTransientHandle(file) {
     return {
       kind: 'file',
-      name: String(file?.name || 'video.mp4'),
+      name: String(file?.name || 'video'),
       __immersaTransientHandle: true,
       async getFile() { return file; },
       async queryPermission() { return 'granted'; },
@@ -18,7 +18,7 @@
     return new Promise((resolve) => {
       const input = root.document.createElement('input');
       input.type = 'file';
-      input.accept = '.mp4,video/mp4';
+      input.accept = '.mp4,.mov';
       input.multiple = Boolean(options.multiple);
       input.hidden = true;
 

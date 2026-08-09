@@ -4,7 +4,7 @@ const express = require("express");
 const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
-const { createUploadHandler } = require("./pdf-upload-support");
+const { createUploadHandler, createDeckReplacementHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -304,6 +304,10 @@ function manifestSummary(manifest, manifestStats = null) {
     status,
     conversionStatus,
     conversionMessage: manifest.conversion?.message || "",
+    sourceSizeBytes: Number(manifest.source?.sizeBytes || 0),
+    associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
+    replacement: manifest.replacement || null,
+    thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || "",
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -351,6 +355,53 @@ async function deleteDataDeck(deckId) {
   await fs.promises.rm(resolved.deckDir, { recursive: true, force: true });
   delete deckSlideCounts[resolved.deckId];
   return resolved.deckId;
+}
+
+function deckHasActiveConnections(deckId) {
+  const normalizedDeckId = normalizeDeckId(deckId);
+  return [...sessions.values()].some((session) => (
+    session.deckId === normalizedDeckId
+    && (session.presenterConnected || session.stageConnected || session.screenConnected || session.audience.size > 0)
+  ));
+}
+
+function assertDeckCanBeReplaced(deckId) {
+  if (!deckHasActiveConnections(deckId)) return;
+  const error = new Error("Cierra Speaker, Stage, Screen y Público antes de sustituir esta presentación.");
+  error.statusCode = 409;
+  error.code = "DECK_IN_USE";
+  error.publicMessage = error.message;
+  throw error;
+}
+
+async function markDeckAssociationsReviewed(deckId) {
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  if (!manifest.replacement) return manifestSummary(manifest);
+  manifest.replacement = {
+    ...manifest.replacement,
+    associationsReviewRequired: false,
+    reviewedAt: new Date().toISOString()
+  };
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
+}
+
+async function renameDeck(deckId, requestedTitle) {
+  const title = String(requestedTitle || "").trim();
+  if (!title || title.length > 120) {
+    const error = new Error("Invalid presentation name");
+    error.statusCode = 400;
+    throw error;
+  }
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  manifest.title = title;
+  manifest.updatedAt = new Date().toISOString();
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
 }
 
 async function ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersist) {
@@ -406,6 +457,35 @@ async function listDecks(allowedDeckIds = null) {
   return decks
     .filter((deck) => !allowed || allowed.has(String(deck.deckId)))
     .sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
+}
+
+async function sourceSizeForDeck(deckId) {
+  try {
+    const deckDir = await findDeckDir(deckId);
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
+    const sourceFilename = String(manifest.source?.filename || "").trim();
+    if (!sourceFilename || path.basename(sourceFilename) !== sourceFilename) return 0;
+    const stats = await fs.promises.stat(path.join(deckDir, sourceFilename));
+    return stats.isFile() ? Number(stats.size || 0) : 0;
+  } catch (error) {
+    if (error.code === "ENOENT") return 0;
+    console.warn("Unable to measure original Deck file", deckId, error.message);
+    return null;
+  }
+}
+
+async function synchronizeWorkspaceSourceSizes(req) {
+  const deckIds = await betterAuthCompatibilityBridge.listUnmeteredDeckIds(req);
+  await Promise.all(deckIds.map(async (deckId) => {
+    const sourceSizeBytes = await sourceSizeForDeck(deckId);
+    if (sourceSizeBytes === null) return;
+    await betterAuthCompatibilityBridge.setDeckSourceSize(req, deckId, sourceSizeBytes);
+  }));
+}
+
+async function reserveUploadedDeck(req, deck) {
+  await synchronizeWorkspaceSourceSizes(req);
+  return betterAuthCompatibilityBridge.reserveDeck(req, deck);
 }
 
 function execFileAsync(command, args, options = {}) {
@@ -661,10 +741,20 @@ function requireAccountOrControllerDeck(req, res, next) {
 }
 app.get("/api/decks", requireAccount, async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
     res.json(await listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)));
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
+  }
+});
+app.get("/api/account/plan", requireAccount, async (req, res) => {
+  try {
+    await synchronizeWorkspaceSourceSizes(req);
+    res.json(await betterAuthCompatibilityBridge.getPlanUsage(req));
+  } catch (error) {
+    console.error("Unable to load account plan", error);
+    res.status(500).json({ error: "Unable to load account plan" });
   }
 });
 app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
@@ -682,6 +772,36 @@ app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, bra
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, knowledgeActivityHistoryHandlers.listHistory);
+app.post(
+  "/api/decks/:deckId/replace",
+  ...requireDeckAccount,
+  createDeckReplacementHandler({
+    beforeDeckSwap: ({ deck }) => assertDeckCanBeReplaced(deck.deckId),
+    onDeckReplaced: async ({ req, deck }) => {
+      const result = await betterAuthCompatibilityBridge.replaceDeckSource(req, deck);
+      delete deckSlideCounts[deck.deckId];
+      return result;
+    }
+  })
+);
+app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (req, res) => {
+  try {
+    res.json(await markDeckAssociationsReviewed(req.params.deckId));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to mark replacement associations reviewed", error);
+    res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : "Unable to update presentation review" });
+  }
+});
+app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
+  try {
+    res.json(await renameDeck(req.params.deckId, req.body?.title));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to rename deck", error);
+    res.status(statusCode).json({ error: statusCode === 400 ? "Escribe un nombre de hasta 120 caracteres" : statusCode === 404 ? "Deck not found" : "Unable to rename presentation" });
+  }
+});
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
@@ -718,7 +838,8 @@ app.get("/api/conversion-health", async (_req, res) => {
   }
 });
 app.post("/api/upload-pptx", requireAccount, createUploadHandler({
-  onDeckCreated: ({ req, deck }) => betterAuthCompatibilityBridge.registerDeck(req, deck)
+  onDeckCreateStart: ({ req, deck }) => reserveUploadedDeck(req, deck),
+  onDeckCreateFailed: ({ req, deck }) => betterAuthCompatibilityBridge.unregisterDeck(req, deck.deckId)
 }));
 app.get("/presenter", accessLinkHandlers.guardLegacyRoute("speaker", "presenter"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
 app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));

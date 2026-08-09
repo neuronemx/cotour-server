@@ -8,7 +8,7 @@
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const moduleDetails = {
-    interactions: {
+    participation: {
       selector: ".role-interactions",
       backdrop: ".interactions-backdrop",
       editor: ".interactions-modal",
@@ -29,6 +29,8 @@
   };
 
   function activateTab(name, focus = false) {
+    const targetTab = tabs.find((tab) => tab.dataset.deckTab === name);
+    if (!targetTab || targetTab.disabled) return;
     shell.classList.toggle("is-compact-header", name !== "links");
     modal.dataset.activeDeckTab = name;
     tabs.forEach((tab) => {
@@ -104,21 +106,31 @@
   }
 
   tabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => activateTab(tab.dataset.deckTab));
+    tab.addEventListener("click", () => {
+      if (!tab.disabled) activateTab(tab.dataset.deckTab);
+    });
     tab.addEventListener("keydown", (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      let nextIndex = index;
-      if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
-      if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+      const availableTabs = tabs.filter((item) => !item.disabled);
+      const availableIndex = Math.max(0, availableTabs.indexOf(tab));
+      let nextIndex = availableIndex;
+      if (event.key === "ArrowLeft") nextIndex = (availableIndex - 1 + availableTabs.length) % availableTabs.length;
+      if (event.key === "ArrowRight") nextIndex = (availableIndex + 1) % availableTabs.length;
       if (event.key === "Home") nextIndex = 0;
-      if (event.key === "End") nextIndex = tabs.length - 1;
-      activateTab(tabs[nextIndex].dataset.deckTab, true);
+      if (event.key === "End") nextIndex = availableTabs.length - 1;
+      activateTab(availableTabs[nextIndex].dataset.deckTab, true);
     });
   });
 
   document.addEventListener("immersa:deck-detail-open", () => activateTab("links"));
   document.addEventListener("immersa:deck-detail-close", restoreEditors);
+  document.addEventListener("immersa:deck-video-slide-request", (event) => {
+    const slideId = String(event.detail?.slideId || "");
+    if (!slideId) return;
+    window.ImmersaVideoEditor?.selectSlide(slideId, event.detail?.deck?.deckId);
+    activateTab("video", true);
+  });
   patchDetailActions();
   activateTab("links");
 })();

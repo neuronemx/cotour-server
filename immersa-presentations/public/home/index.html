@@ -27,10 +27,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=44">
+  <link rel="stylesheet" href="/home/home.css?v=55">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=6">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
-  <link rel="stylesheet" href="/home/video-editor.css?v=108">
+  <link rel="stylesheet" href="/home/video-editor.css?v=109">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
   <link rel="stylesheet" href="/home/profile-editor.css?v=4">
   <style>
@@ -44,10 +44,9 @@
     .deck-detail-close{position:absolute;right:12px;top:12px;z-index:2;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;color:#fff;background:rgba(10,10,30,.42);backdrop-filter:blur(6px);font-size:20px;line-height:1}.deck-detail-close:hover{background:rgba(10,10,30,.65)}
     .deck-detail-content{min-height:0;display:grid;gap:20px;padding:22px 24px 24px;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:rgba(67,74,112,.32) transparent}.deck-detail-content::-webkit-scrollbar{width:8px}.deck-detail-content::-webkit-scrollbar-track{background:transparent}.deck-detail-content::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:99px;background:rgba(67,74,112,.32);background-clip:padding-box}.deck-detail-copy{display:grid;gap:7px;min-width:0}.deck-detail-copy h2{margin:0;font-family:var(--font-display);color:#0a0d28;font-size:22px;letter-spacing:-.01em}.deck-detail-meta{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--muted);font-size:13px;font-weight:600}.deck-detail-meta span+span::before{content:"•";margin-right:12px;color:var(--muted-2)}
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
-    .deck-detail-delete{justify-self:start;color:var(--muted-2);font-size:13px;font-weight:700;border-bottom:1px solid transparent}.deck-detail-delete:hover{color:var(--red);border-bottom-color:var(--red)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=11">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=14">
 </head>
 <body>
   <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
@@ -55,13 +54,13 @@
     <div class="stage-inner">
       <header class="stage-header">
         <a class="brand" href="/home" aria-label="Immersa Home"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></a>
-        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
+        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><span id="accountPlanBadge" class="account-plan-badge">FREE</span><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
       </header>
       <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
         <h1 class="hero-title">Haz que tus presentaciones<br><span class="gradient-text">se vivan.</span></h1>
         <p class="hero-subtitle">Crea y administra experiencias sincronizadas para presentar frente a todos y en las manos de cada persona.</p>
-        <div class="role-strip" aria-hidden="true"><span class="role-chip role-chip-presenter">Speaker</span><span class="role-chip role-chip-audience">Público</span><span class="role-chip role-chip-screen">Screen</span><span class="role-chip role-chip-stage">Stage</span></div>
+        <div class="role-strip" aria-hidden="true"><span class="role-chip role-chip-presenter">Encuestas</span><span class="role-chip role-chip-audience">Sorteos</span><span class="role-chip role-chip-screen">Trivias</span><span class="role-chip role-chip-stage">Q&amp;A</span><span class="role-chip role-chip-evaluations">Evaluaciones</span><span class="role-chip role-chip-metrics">Métricas</span></div>
       </div>
     </div>
   </section>
@@ -69,6 +68,14 @@
     <section class="create-panel" aria-label="Crear nueva presentación">
       <form id="uploadForm" class="upload-form">
         <div class="panel-heading"><div class="heading-icon" aria-hidden="true">↥</div><div><h2>Crear nueva presentación</h2><p>Arrastra tu PPTX o PDF y conviértelo en una experiencia Immersa.</p></div></div>
+        <section id="planUsage" class="plan-usage" aria-label="Uso del plan FREE">
+          <div class="plan-usage-head"><span>Plan personal</span><strong id="planName">FREE</strong></div>
+          <div class="plan-usage-metrics">
+            <div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div>
+            <div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div>
+          </div>
+          <p id="planLimitMessage" class="plan-limit-message" role="status" hidden></p>
+        </section>
         <label id="fileDrop" class="drop-zone" for="pptxFile" tabindex="0">
           <input id="pptxFile" name="pptx" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
           <span class="upload-cloud" aria-hidden="true"><svg class="upload-cloud-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 19V6"/><path d="M7 11l5-5 5 5"/></svg></span>
@@ -77,9 +84,8 @@
         <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
       </form>
     </section>
-    <nav class="content-tabs" aria-label="Secciones"><a class="active" href="#inicio" aria-current="page">Inicio</a><a href="#presentaciones">Presentaciones</a></nav>
     <section id="presentaciones" class="presentations-panel presentations-list-panel" aria-label="Mis presentaciones">
-      <div class="section-header"><div><h2>Mis presentaciones</h2><p>Tus experiencias listas para Speaker, Público, Screen o Stage.</p></div><a href="#presentaciones" class="view-all"><span id="deckCount">Cargando</span> ›</a></div>
+      <div class="section-header"><div><h2>Mis presentaciones</h2><p>Tus experiencias listas para compartir en las manos de tu público.</p></div></div>
       <div id="deckList" class="deck-list deck-list-rows"></div>
       <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
     </section>
@@ -92,32 +98,29 @@
   <div id="deckDetailModal" class="modal-backdrop" hidden aria-hidden="true">
     <section class="deck-detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <header class="deck-detail-header">
-        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
-        <div class="deck-detail-copy"><div><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><button id="detailDelete" class="deck-detail-delete" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>Eliminar presentación</button></div>
-        <button id="closeDeckDetail" class="deck-detail-close" type="button" aria-label="Cerrar detalle">×</button>
+        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><button id="detailPreviousSlide" class="deck-detail-slide-arrow is-previous" type="button" aria-label="Ver slide anterior" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button id="detailNextSlide" class="deck-detail-slide-arrow is-next" type="button" aria-label="Ver slide siguiente" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button id="detailVideoAction" class="deck-detail-video-action" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg><span>Agregar video</span></button><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
+        <div class="deck-detail-copy"><div><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><div class="deck-file-actions"><button id="detailRename" class="deck-file-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>Renombrar</button><button id="detailReplace" class="deck-file-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9M16 3l4 4-4 4M4 17h9M8 13l-4 4 4 4"/></svg>Sustituir</button></div><input id="replacementFile" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden></div>
+        <button id="closeDeckDetail" class="deck-detail-close" type="button" aria-label="Cerrar detalle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </header>
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
-        <button id="deckTabInteractions" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelInteractions" data-deck-tab="interactions"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Interacciones</span></button>
-        <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Video</span></button>
-        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41 11 3.83 4 4l-.17 7 9.58 9.6a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.84Z"/><circle cx="8.5" cy="8.5" r="1"/></svg><span>Marcas</span></button>
-        <button id="deckTabHistory" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelHistory" data-deck-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span>Historial</span></button>
+        <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
+        <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
+        <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
       <div class="deck-detail-content">
+        <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
         </section>
-        <section id="deckPanelInteractions" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabInteractions" data-deck-panel="interactions" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="interactions"></div>
-        </section>
-        <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
+        <section id="deckPanelParticipation" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabParticipation" data-deck-panel="participation" hidden>
+          <div class="deck-detail-editor-host" data-deck-editor-host="participation"></div>
         </section>
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
-        <section id="deckPanelHistory" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabHistory" data-deck-panel="history" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Historial</h3><p>Consulta las ejecuciones y resultados guardados de esta presentación.</p></div></div>
+        <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
+          <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
           <section id="qnaHistory" class="qna-history" aria-labelledby="qnaHistoryTitle" hidden><button id="qnaHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="qnaHistoryBody"><span id="qnaHistoryTitle">Historial de preguntas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="qnaHistoryBody" class="qna-history-body" hidden><div class="qna-history-head"><p id="qnaHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div class="qna-history-actions"><button id="qnaHistoryExport" class="qna-history-export" type="button" hidden>Descargar CSV</button><button id="qnaHistoryDelete" class="qna-history-delete" type="button" hidden>Borrar historial</button></div></div><div id="qnaHistoryList" class="qna-history-list"></div><div id="qnaHistoryConfirm" class="qna-history-confirm" role="alertdialog" aria-labelledby="qnaHistoryConfirmTitle" hidden><strong id="qnaHistoryConfirmTitle">Esta acción es permanente</strong><p>Se eliminarán todas las preguntas y ejecuciones anteriores. Si Screen está abierto, se conservará únicamente una ejecución vacía para no interrumpir la sesión.</p><div class="qna-history-confirm-actions"><button id="qnaHistoryCancelDelete" class="qna-history-cancel" type="button">Cancelar</button><button id="qnaHistoryConfirmDelete" class="qna-history-confirm-delete" type="button">Borrar definitivamente</button></div></div></div></section>
           <section id="knowledgeActivityHistory" class="qna-history" aria-labelledby="knowledgeActivityHistoryTitle" hidden><button id="knowledgeActivityHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="knowledgeActivityHistoryBody"><span id="knowledgeActivityHistoryTitle">Concursos y evaluaciones</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="knowledgeActivityHistoryBody" class="qna-history-body" hidden><p id="knowledgeActivityHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div id="knowledgeActivityHistoryList" class="qna-history-list"></div></div></section>
         </section>
@@ -158,14 +161,14 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=1"></script>
-  <script src="/home/profile-editor.js?v=4"></script>
-  <script src="/home/home.js?v=48"></script>
+  <script src="/home/profile-editor.js?v=6"></script>
+  <script src="/home/home.js?v=58"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
   <script src="/home/interactions-editor.js?v=6"></script>
-  <script src="/home/video-editor.js?v=108"></script>
+  <script src="/home/video-editor.js?v=111"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
-  <script src="/home/deck-management-shell.js?v=6"></script>
+  <script src="/home/deck-management-shell.js?v=9"></script>
 </body>
 </html>

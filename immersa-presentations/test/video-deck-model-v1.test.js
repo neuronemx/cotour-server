@@ -57,7 +57,7 @@ test('legacy hidden slide indexes migrate to stable slide ids', async () => {
       }, {
         id: 'vid_intro',
         slide_id: 'intro',
-        file: { name: 'intro.mp4', size: 123456, type: 'video/mp4', last_modified: 456 },
+        file: { name: 'intro.MOV', size: 123456, type: 'video/quicktime', last_modified: 456 },
         playback: { autoplay: false, end_behavior: 'stay', muted: false },
         duration_seconds: 9.8
       }]
@@ -71,6 +71,7 @@ test('legacy hidden slide indexes migrate to stable slide ids', async () => {
   assert.equal(productVideo.playback.end_behavior, 'loop');
   assert.equal(productVideo.duration_seconds, 125.432);
   assert.equal(productVideo.preview.url, '/decks/sales/video-previews/vid_product.jpg');
+  assert.equal(putRes.body.videos.find((video) => video.id === 'vid_intro').file.type, 'video/quicktime');
   assert.equal(fs.readFileSync(path.join(deckDir, 'video-previews', 'vid_product.jpg')).toString('hex'), 'ffd8ffd9');
 
   const stored = JSON.parse(fs.readFileSync(path.join(deckDir, 'interactions.json'), 'utf8'));
@@ -157,15 +158,17 @@ test('Home exposes compact multimedia configuration with visible linked file', (
   const css = read('public/home/video-editor.css');
   const visibility = read('public/shared/slide-visibility.js');
 
-  assert.match(html, /video-editor\.css\?v=108/);
-  assert.match(html, /video-editor\.js\?v=108/);
+  assert.match(html, /video-editor\.css\?v=109/);
+  assert.match(html, /video-editor\.js\?v=111/);
   assert.match(html, /video-slide-labels\.js\?v=106/);
   assert.match(editor, /button\.textContent = "Videos"/);
   assert.match(editor, /Configuración Multimedia/);
   assert.match(editor, /Archivo vinculado/);
-  assert.match(editor, /Reemplazar MP4/);
+  assert.match(editor, /Reemplazar/);
   assert.doesNotMatch(editor, />Video local</);
-  assert.match(editor, /Elige un MP4 local o pega un link de YouTube/);
+  assert.match(editor, /Elige un MP4 \/ MOV local o pega un link de Youtube/);
+  assert.match(editor, /Archivo MP4 \/ MOV/);
+  assert.match(editor, /video\/quicktime/);
   assert.match(editor, /Link de YouTube/);
   assert.match(editor, /youtube_url/);
   assert.match(editor, /\["embed", "shorts", "live"\]/);

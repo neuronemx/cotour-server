@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const { summarizePlanUsage, assertCanReserveDeck, assertCanReplaceDeck } = require("./plan-limits");
 
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
@@ -94,12 +95,171 @@ class WorkspaceRepository {
     return rows?.[0] ? String(rows[0].deck_id) : null;
   }
 
-  async registerDeck({ userId, workspaceId, deckId, sessionId }) {
-    await this.pool.execute(
-      `INSERT INTO decks (deck_id, workspace_id, session_id, created_by_user_id)
-       VALUES (?, ?, ?, ?)`,
-      [String(deckId), String(workspaceId), String(sessionId), String(userId)]
+  async getPlanUsage({ userId, workspaceId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT w.plan,
+              COUNT(d.deck_id) AS deck_count,
+              COALESCE(SUM(d.source_size_bytes), 0) AS storage_bytes
+       FROM workspaces w
+       INNER JOIN workspace_members wm ON wm.workspace_id = w.id
+       LEFT JOIN decks d ON d.workspace_id = w.id
+       WHERE w.id = ? AND wm.user_id = ?
+       GROUP BY w.id, w.plan
+       LIMIT 1`,
+      [String(workspaceId), String(userId)]
     );
+    const row = rows?.[0];
+    if (!row) throw new Error("Immersa workspace not found");
+    return summarizePlanUsage(row.plan, {
+      decks: row.deck_count,
+      storageBytes: row.storage_bytes
+    });
+  }
+
+  async listUnmeteredDeckIds({ userId, workspaceId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT d.deck_id
+       FROM decks d
+       INNER JOIN workspace_members wm ON wm.workspace_id = d.workspace_id
+       WHERE d.workspace_id = ?
+         AND wm.user_id = ?
+         AND d.source_size_bytes IS NULL`,
+      [String(workspaceId), String(userId)]
+    );
+    return (rows || []).map((row) => String(row.deck_id));
+  }
+
+  async setDeckSourceSize({ userId, workspaceId, deckId, sourceSizeBytes }) {
+    const bytes = Math.max(0, Math.floor(Number(sourceSizeBytes) || 0));
+    const [result] = await this.pool.execute(
+      `UPDATE decks d
+       INNER JOIN workspace_members wm ON wm.workspace_id = d.workspace_id
+       SET d.source_size_bytes = ?
+       WHERE d.workspace_id = ?
+         AND d.deck_id = ?
+         AND wm.user_id = ?
+         AND d.source_size_bytes IS NULL`,
+      [bytes, String(workspaceId), String(deckId), String(userId)]
+    );
+    return Number(result?.affectedRows || 0) > 0;
+  }
+
+  async reserveDeck({ userId, workspaceId, deckId, sessionId, sourceSizeBytes }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [workspaces] = await connection.execute(
+        `SELECT w.id, w.plan
+         FROM workspaces w
+         INNER JOIN workspace_members wm ON wm.workspace_id = w.id
+         WHERE w.id = ? AND wm.user_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(userId)]
+      );
+      const workspace = workspaces?.[0];
+      if (!workspace) throw new Error("Immersa workspace not found");
+
+      const [usageRows] = await connection.execute(
+        `SELECT COUNT(*) AS deck_count,
+                COALESCE(SUM(source_size_bytes), 0) AS storage_bytes
+         FROM decks
+         WHERE workspace_id = ?`,
+        [String(workspaceId)]
+      );
+      const usage = summarizePlanUsage(workspace.plan, {
+        decks: usageRows?.[0]?.deck_count,
+        storageBytes: usageRows?.[0]?.storage_bytes
+      });
+      const bytes = assertCanReserveDeck(usage, sourceSizeBytes);
+
+      await connection.execute(
+        `INSERT INTO decks (deck_id, workspace_id, session_id, created_by_user_id, source_size_bytes)
+         VALUES (?, ?, ?, ?, ?)`,
+        [String(deckId), String(workspaceId), String(sessionId), String(userId), bytes]
+      );
+      await connection.commit();
+      return summarizePlanUsage(workspace.plan, {
+        decks: usage.usage.decks + 1,
+        storageBytes: usage.usage.storageBytes + bytes
+      });
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async registerDeck(payload) {
+    return this.reserveDeck(payload);
+  }
+
+  async replaceDeckSource({ userId, workspaceId, deckId, sourceSizeBytes }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [workspaces] = await connection.execute(
+        `SELECT w.id, w.plan
+         FROM workspaces w
+         INNER JOIN workspace_members wm ON wm.workspace_id = w.id
+         WHERE w.id = ? AND wm.user_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(userId)]
+      );
+      const workspace = workspaces?.[0];
+      if (!workspace) throw new Error("Immersa workspace not found");
+
+      const [deckRows] = await connection.execute(
+        `SELECT d.source_size_bytes
+         FROM decks d
+         WHERE d.workspace_id = ? AND d.deck_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(deckId)]
+      );
+      const deck = deckRows?.[0];
+      if (!deck) {
+        const error = new Error("Deck not found");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const [usageRows] = await connection.execute(
+        `SELECT COUNT(*) AS deck_count,
+                COALESCE(SUM(source_size_bytes), 0) AS storage_bytes
+         FROM decks
+         WHERE workspace_id = ?`,
+        [String(workspaceId)]
+      );
+      const usage = summarizePlanUsage(workspace.plan, {
+        decks: usageRows?.[0]?.deck_count,
+        storageBytes: usageRows?.[0]?.storage_bytes
+      });
+      const previousSourceSizeBytes = Math.max(0, Math.floor(Number(deck.source_size_bytes) || 0));
+      const nextSourceSizeBytes = assertCanReplaceDeck(usage, previousSourceSizeBytes, sourceSizeBytes);
+
+      await connection.execute(
+        `UPDATE decks
+         SET source_size_bytes = ?
+         WHERE workspace_id = ? AND deck_id = ?`,
+        [nextSourceSizeBytes, String(workspaceId), String(deckId)]
+      );
+      await connection.commit();
+      return {
+        previousSourceSizeBytes,
+        plan: summarizePlanUsage(workspace.plan, {
+          decks: usage.usage.decks,
+          storageBytes: usage.usage.storageBytes - previousSourceSizeBytes + nextSourceSizeBytes
+        })
+      };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async unregisterDeck(userId, deckId) {

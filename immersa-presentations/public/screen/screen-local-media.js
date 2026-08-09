@@ -182,7 +182,7 @@
     function pickerOptions(multiple) {
       return {
         multiple: Boolean(multiple),
-        types: [{ description: 'Video MP4', accept: { 'video/mp4': ['.mp4'] } }],
+        types: [{ description: 'Video MP4 / MOV', accept: { 'video/mp4': ['.mp4'], 'video/quicktime': ['.mov'] } }],
         excludeAcceptAllOption: false
       };
     }
@@ -220,7 +220,7 @@
       modal = document.createElement('div');
       modal.className = 'screen-media-backdrop';
       modal.hidden = true;
-      modal.innerHTML = '<section class="screen-media-modal" role="dialog" aria-modal="true" aria-labelledby="screenMediaTitle"><button class="screen-media-close" type="button" aria-label="Cerrar">×</button><header><span>Multimedia local</span><h2 id="screenMediaTitle">Preparar videos</h2><p>Los vínculos se guardan en esta computadora. Los archivos nunca se suben.</p></header><div class="screen-media-summary"></div><div class="screen-media-list"></div><div class="screen-media-actions"><button type="button" class="screen-media-secondary" data-close>Presentar con posters</button><button type="button" class="screen-media-primary" data-pick>Seleccionar MP4</button></div><input class="screen-media-input" data-multi-input type="file" accept=".mp4,video/mp4" multiple><input class="screen-media-input" data-single-input type="file" accept=".mp4,video/mp4"></section>';
+      modal.innerHTML = '<section class="screen-media-modal" role="dialog" aria-modal="true" aria-labelledby="screenMediaTitle"><button class="screen-media-close" type="button" aria-label="Cerrar">×</button><header><span>Multimedia local</span><h2 id="screenMediaTitle">Preparar videos</h2><p>Los vínculos se guardan en esta computadora. Los archivos nunca se suben.</p></header><div class="screen-media-summary"></div><div class="screen-media-list"></div><div class="screen-media-actions"><button type="button" class="screen-media-secondary" data-close>Presentar con posters</button><button type="button" class="screen-media-primary" data-pick>Seleccionar MP4 / MOV</button></div><input class="screen-media-input" data-multi-input type="file" accept=".mp4,.mov" multiple><input class="screen-media-input" data-single-input type="file" accept=".mp4,.mov"></section>';
       listNode = modal.querySelector('.screen-media-list');
       summaryNode = modal.querySelector('.screen-media-summary');
       multiInput = modal.querySelector('[data-multi-input]');
@@ -255,12 +255,12 @@
     function actionMarkup(record) {
       const slideId = escapeHtml(record.video?.slide_id || '');
       if (record.status === 'permission_required') {
-        return '<button type="button" data-media-action="authorize" data-slide-id="' + slideId + '">Autorizar archivo</button><button type="button" data-media-action="change" data-slide-id="' + slideId + '">Cambiar MP4</button>';
+        return '<button type="button" data-media-action="authorize" data-slide-id="' + slideId + '">Autorizar archivo</button><button type="button" data-media-action="change" data-slide-id="' + slideId + '">Cambiar video</button>';
       }
       if (record.status === 'mismatched' && record.file) {
-        return '<button type="button" data-media-action="accept" data-slide-id="' + slideId + '">Usar este MP4</button><button type="button" data-media-action="change" data-slide-id="' + slideId + '">Elegir otro</button>';
+        return '<button type="button" data-media-action="accept" data-slide-id="' + slideId + '">Usar este video</button><button type="button" data-media-action="change" data-slide-id="' + slideId + '">Elegir otro</button>';
       }
-      const label = isReadyStatus(record.status) ? 'Cambiar MP4' : 'Elegir MP4';
+      const label = isReadyStatus(record.status) ? 'Cambiar video' : 'Elegir MP4 / MOV';
       return '<button type="button" data-media-action="change" data-slide-id="' + slideId + '">' + label + '</button>';
     }
 
@@ -319,8 +319,9 @@
       record.handle = options.handle || record.handle || null;
       record.status = 'validating';
       renderUi();
-      const mp4 = /\.mp4$/i.test(String(file.name || '')) || String(file.type || '').toLowerCase() === 'video/mp4';
-      if (!mp4 || !urlApi?.createObjectURL) {
+      const type = String(file.type || '').toLowerCase();
+      const supportedLocalVideo = /\.(?:mp4|mov)$/i.test(String(file.name || '')) || type === 'video/mp4' || type === 'video/quicktime';
+      if (!supportedLocalVideo || !urlApi?.createObjectURL) {
         record.status = 'incompatible';
         renderUi();
         reportStatus();

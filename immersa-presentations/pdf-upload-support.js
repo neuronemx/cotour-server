@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { generateUniqueSessionId, manifestSessionId } = require('./session-id');
 
@@ -122,7 +123,30 @@ function manifestSummary(manifest) {
     ratio: manifest.ratio || '16:9',
     status,
     conversionStatus,
-    conversionMessage: manifest.conversion?.message || ''
+    conversionMessage: manifest.conversion?.message || '',
+    sourceSizeBytes: Number(manifest.source?.sizeBytes || 0),
+    associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
+    replacement: manifest.replacement || null,
+    thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || ''
+  };
+}
+
+function withAssetRevision(value, revision) {
+  if (!value || typeof value !== 'string' || /^(?:https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  const separator = value.includes('?') ? '&' : '?';
+  return value + separator + 'v=' + encodeURIComponent(revision);
+}
+
+function reviseSlideAssets(manifest, revision) {
+  return {
+    ...manifest,
+    slides: Array.isArray(manifest.slides) ? manifest.slides.map((slide) => ({
+      ...slide,
+      src: withAssetRevision(slide.src, revision),
+      thumb: withAssetRevision(slide.thumb, revision),
+      poster: withAssetRevision(slide.poster, revision),
+      fallback: withAssetRevision(slide.fallback, revision)
+    })) : []
   };
 }
 
@@ -318,12 +342,22 @@ function createUploadHandler(options = {}) {
       const sourceType = sourceExt === '.pdf' ? 'pdf' : sourceExt === '.pptx' ? 'pptx' : null;
       if (!sourceType) return res.status(400).json({ error: 'Solo se aceptan archivos .pptx o .pdf' });
 
+      let reservedDeck = null;
+      let deckDir = null;
       try {
         await ensureDataDirs();
         const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
         const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
         const session_id = generateUniqueSessionId(await collectUsedSessionIds());
-        const deckDir = path.join(DATA_DECKS_DIR, deckId);
+        const sourceSizeBytes = Number(file.size || file.buffer?.length || 0);
+        reservedDeck = { deckId, session_id, sourceSizeBytes };
+        if (options.onDeckCreateStart) {
+          await options.onDeckCreateStart({ req, file, deck: reservedDeck });
+        } else {
+          reservedDeck = null;
+        }
+
+        deckDir = path.join(DATA_DECKS_DIR, deckId);
         const slidesDir = path.join(deckDir, 'slides');
         const sourceFilename = sourceType === 'pdf' ? 'original.pdf' : 'original.pptx';
         const originalPath = path.join(deckDir, sourceFilename);
@@ -337,7 +371,7 @@ function createUploadHandler(options = {}) {
           session_id,
           ratio: sourceType === 'pdf' ? 'mixed' : '16:9',
           status: 'uploaded',
-          source: { type: sourceType, filename: sourceFilename },
+          source: { type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes },
           slides: [{ id: 'placeholder', src: 'slides/placeholder.svg', title: 'Presentacion cargada' }],
           conversion: { status: 'pending', message: sourceType === 'pdf' ? 'Convirtiendo PDF' : 'Convirtiendo PPTX' }
         };
@@ -349,6 +383,7 @@ function createUploadHandler(options = {}) {
           manifest = sourceType === 'pdf'
             ? await convertDeckPdf({ deckDir, pdfPath: originalPath, manifest })
             : await convertDeckPptx({ deckDir, pptxPath: originalPath, manifest });
+          manifest.source = { ...(manifest.source || {}), type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes };
         } catch (conversionError) {
           await fs.promises.rm(path.join(DATA_TMP_DIR, deckId), { recursive: true, force: true });
           manifest.status = 'conversion_failed';
@@ -357,9 +392,9 @@ function createUploadHandler(options = {}) {
 
         manifest = await writeManifest(deckDir, manifest, session_id);
         const summary = manifestSummary(manifest);
-        if (options.onDeckCreated) {
+        if (!options.onDeckCreateStart && options.onDeckCreated) {
           try {
-            await options.onDeckCreated({ req, manifest, deck: summary });
+            await options.onDeckCreated({ req, manifest, deck: { ...summary, sourceSizeBytes } });
           } catch (ownershipError) {
             await fs.promises.rm(deckDir, { recursive: true, force: true }).catch(() => {});
             throw ownershipError;
@@ -367,8 +402,195 @@ function createUploadHandler(options = {}) {
         }
         return res.status(201).json(summary);
       } catch (writeError) {
-        console.error('Unable to store presentation', writeError);
-        return res.status(500).json({ error: 'No se pudo guardar la presentacion' });
+        if (reservedDeck && options.onDeckCreateFailed) {
+          await options.onDeckCreateFailed({ req, deck: reservedDeck, error: writeError }).catch((cleanupError) => {
+            console.error('Unable to release failed deck reservation', cleanupError);
+          });
+        }
+        if (deckDir) await fs.promises.rm(deckDir, { recursive: true, force: true }).catch(() => {});
+        const statusCode = Number(writeError.statusCode) || 500;
+        if (statusCode >= 500) console.error('Unable to store presentation', writeError);
+        const payload = { error: writeError.publicMessage || 'No se pudo guardar la presentacion' };
+        if (statusCode < 500 && writeError.code) payload.code = writeError.code;
+        if (statusCode < 500 && writeError.details) payload.plan = writeError.details;
+        return res.status(statusCode).json(payload);
+      }
+    });
+  };
+}
+
+function replacementError(statusCode, message, code) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.publicMessage = message;
+  if (code) error.code = code;
+  return error;
+}
+
+function replacementDeckDir(deckId) {
+  const normalized = String(deckId || '').trim();
+  if (!normalized || !/^[a-z0-9][a-z0-9-]*$/i.test(normalized)) {
+    throw replacementError(400, 'Identificador de presentación inválido', 'INVALID_DECK_ID');
+  }
+  const deckDir = path.resolve(DATA_DECKS_DIR, normalized);
+  const root = path.resolve(DATA_DECKS_DIR) + path.sep;
+  if (!deckDir.startsWith(root)) throw replacementError(400, 'Identificador de presentación inválido', 'INVALID_DECK_ID');
+  return { deckId: normalized, deckDir };
+}
+
+async function moveReplacementIntoPlace({ deckDir, nextDir, backupDir }) {
+  await fs.promises.rename(deckDir, backupDir);
+  try {
+    await fs.promises.rename(nextDir, deckDir);
+  } catch (error) {
+    await fs.promises.rename(backupDir, deckDir).catch(() => {});
+    throw error;
+  }
+}
+
+async function restoreReplacement({ deckDir, backupDir, failedDir }) {
+  await fs.promises.rename(deckDir, failedDir).catch(() => {});
+  await fs.promises.rename(backupDir, deckDir);
+  await fs.promises.rm(failedDir, { recursive: true, force: true }).catch(() => {});
+}
+
+async function buildReplacementDirectory({ deckDir, stageDir, nextDir, manifest }) {
+  await fs.promises.cp(deckDir, nextDir, { recursive: true, errorOnExist: true });
+  for (const name of ['slides', 'thumbs', 'original.pdf', 'original.pptx', 'manifest.json']) {
+    await fs.promises.rm(path.join(nextDir, name), { recursive: true, force: true });
+  }
+  await fs.promises.cp(path.join(stageDir, 'slides'), path.join(nextDir, 'slides'), { recursive: true });
+  await fs.promises.cp(path.join(stageDir, 'thumbs'), path.join(nextDir, 'thumbs'), { recursive: true });
+  const sourceFilename = manifest.source.filename;
+  await fs.promises.copyFile(path.join(stageDir, sourceFilename), path.join(nextDir, sourceFilename));
+  await writeManifest(nextDir, manifest, manifestSessionId(manifest));
+}
+
+function createDeckReplacementHandler(options = {}) {
+  const multer = require('multer');
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+  return (req, res) => {
+    upload.single('pptx')(req, res, async (uploadError) => {
+      if (uploadError) {
+        const message = uploadError.code === 'LIMIT_FILE_SIZE' ? 'El archivo supera el límite permitido' : 'No se pudo recibir el archivo';
+        return res.status(400).json({ error: message });
+      }
+
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: 'Falta el archivo' });
+      const sourceExt = path.extname(file.originalname).toLowerCase();
+      const sourceType = sourceExt === '.pdf' ? 'pdf' : sourceExt === '.pptx' ? 'pptx' : null;
+      if (!sourceType) return res.status(400).json({ error: 'Solo se aceptan archivos .pptx o .pdf' });
+
+      let paths = null;
+      let swapped = false;
+      let lockDir = null;
+      try {
+        await ensureDataDirs();
+        const { deckId, deckDir } = replacementDeckDir(req.params.deckId);
+        const currentManifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, 'manifest.json'), 'utf8'));
+        const replacementId = crypto.randomUUID();
+        lockDir = path.join(DATA_TMP_DIR, deckId + '-replacement.lock');
+        try {
+          await fs.promises.mkdir(lockDir);
+        } catch (error) {
+          if (error.code === 'EEXIST') throw replacementError(409, 'Ya hay una sustitución en curso para esta presentación.', 'REPLACEMENT_IN_PROGRESS');
+          throw error;
+        }
+
+        const stageDir = path.join(DATA_TMP_DIR, deckId + '-replacement-' + replacementId);
+        const nextDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-next-' + replacementId);
+        const backupDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-backup-' + replacementId);
+        const failedDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-failed-' + replacementId);
+        paths = { deckDir, stageDir, nextDir, backupDir, failedDir };
+        await fs.promises.mkdir(stageDir, { recursive: true });
+
+        const sourceFilename = sourceType === 'pdf' ? 'original.pdf' : 'original.pptx';
+        const originalPath = path.join(stageDir, sourceFilename);
+        const slidesDir = path.join(stageDir, 'slides');
+        const sourceSizeBytes = Number(file.size || file.buffer?.length || 0);
+        await fs.promises.mkdir(slidesDir, { recursive: true });
+        await fs.promises.writeFile(originalPath, file.buffer);
+
+        const sessionId = manifestSessionId(currentManifest);
+        const previousSlideCount = Array.isArray(currentManifest.slides) ? currentManifest.slides.length : 0;
+        let nextManifest = {
+          ...currentManifest,
+          deckId,
+          session_id: sessionId,
+          status: 'uploaded',
+          ratio: sourceType === 'pdf' ? 'mixed' : '16:9',
+          source: { type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes },
+          slides: [{ id: 'placeholder', src: 'slides/placeholder.svg', title: 'Presentación cargada' }],
+          conversion: { status: 'pending', message: sourceType === 'pdf' ? 'Convirtiendo PDF' : 'Convirtiendo PPTX' }
+        };
+        await fs.promises.writeFile(path.join(slidesDir, 'placeholder.svg'), placeholderSvg(currentManifest.title || deckId, sourceType));
+
+        try {
+          const convertPdf = options.convertDeckPdf || convertDeckPdf;
+          const convertPptx = options.convertDeckPptx || convertDeckPptx;
+          nextManifest = sourceType === 'pdf'
+            ? await convertPdf({ deckDir: stageDir, pdfPath: originalPath, manifest: nextManifest })
+            : await convertPptx({ deckDir: stageDir, pptxPath: originalPath, manifest: nextManifest });
+          nextManifest.source = { ...(nextManifest.source || {}), type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes };
+        } catch (conversionError) {
+          throw replacementError(422, conversionError.message || 'La conversión no pudo completarse', 'CONVERSION_FAILED');
+        }
+
+        nextManifest = reviseSlideAssets(nextManifest, replacementId);
+        const nextSlideCount = Array.isArray(nextManifest.slides) ? nextManifest.slides.length : 0;
+        const associationsReviewRequired = previousSlideCount !== nextSlideCount;
+        nextManifest.replacement = {
+          replacedAt: new Date().toISOString(),
+          previousSlideCount,
+          nextSlideCount,
+          associationsReviewRequired,
+          reviewedAt: associationsReviewRequired ? null : new Date().toISOString()
+        };
+
+        if (options.beforeDeckSwap) await options.beforeDeckSwap({ req, deck: { deckId, sourceSizeBytes }, manifest: nextManifest });
+        await buildReplacementDirectory({ deckDir, stageDir, nextDir, manifest: nextManifest });
+        await moveReplacementIntoPlace({ deckDir, nextDir, backupDir });
+        swapped = true;
+
+        let plan = null;
+        if (options.onDeckReplaced) {
+          const result = await options.onDeckReplaced({ req, deck: { deckId, sourceSizeBytes }, manifest: nextManifest });
+          plan = result?.plan || result || null;
+        }
+
+        await fs.promises.rm(backupDir, { recursive: true, force: true });
+        swapped = false;
+        const summary = manifestSummary(nextManifest);
+        return res.json({
+          ...summary,
+          plan,
+          previousSlideCount,
+          nextSlideCount,
+          associationsReviewRequired
+        });
+      } catch (error) {
+        if (swapped && paths) {
+          await restoreReplacement(paths).catch((restoreError) => {
+            console.error('Unable to restore presentation after replacement failure', restoreError);
+          });
+        }
+        const statusCode = Number(error.statusCode) || (error.code === 'ENOENT' ? 404 : 500);
+        if (statusCode >= 500) console.error('Unable to replace presentation', error);
+        const payload = { error: error.publicMessage || (statusCode === 404 ? 'Presentación no encontrada' : 'No se pudo sustituir la presentación') };
+        if (statusCode < 500 && error.code) payload.code = error.code;
+        if (statusCode < 500 && error.details) payload.plan = error.details;
+        return res.status(statusCode).json(payload);
+      } finally {
+        if (paths) {
+          await Promise.all([
+            fs.promises.rm(paths.stageDir, { recursive: true, force: true }),
+            fs.promises.rm(paths.nextDir, { recursive: true, force: true }),
+            swapped ? Promise.resolve() : fs.promises.rm(paths.backupDir, { recursive: true, force: true }),
+            fs.promises.rm(paths.failedDir, { recursive: true, force: true })
+          ]).catch(() => {});
+        }
+        if (lockDir) await fs.promises.rm(lockDir, { recursive: true, force: true }).catch(() => {});
       }
     });
   };
@@ -376,6 +598,7 @@ function createUploadHandler(options = {}) {
 
 module.exports = {
   createUploadHandler,
+  createDeckReplacementHandler,
   convertDeckPdf,
   convertDeckPptx,
   convertPdfToSlides
