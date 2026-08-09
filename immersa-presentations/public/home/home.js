@@ -36,6 +36,7 @@ const detailDate = document.getElementById("detailDate");
 const detailSlides = document.getElementById("detailSlides");
 const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
+const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
 const replacementFile = document.getElementById("replacementFile");
 const replacementReview = document.getElementById("replacementReview");
@@ -49,6 +50,7 @@ const conversionBarFill = document.getElementById("conversionBarFill");
 let conversionProgressTimer = null;
 let conversionProgressValue = 0;
 let pendingFile = null;
+let renameDeckTarget = null;
 let detailSlidesRequestId = 0;
 
 function normalizeSlug(value) {
@@ -164,6 +166,10 @@ function openNameModal(file) {
   if (issue) return setUploadStatus(issue, "error");
   if (!nameModal || !presentationName) return;
   pendingFile = file || fileInput.files[0] || null;
+  renameDeckTarget = null;
+  document.getElementById("nameModalTitle").textContent = "Nombra tu presentación";
+  nameModal.querySelector("p").textContent = "¿Cómo quieres identificar esta presentación en Immersa?";
+  document.getElementById("confirmName").textContent = "Crear presentación";
   presentationName.value = titleFromFile(pendingFile);
   nameModal.hidden = false;
   nameModal.setAttribute("aria-hidden", "false");
@@ -175,12 +181,30 @@ function closeNameModal(clearFile = false) {
   if (!nameModal) return;
   nameModal.hidden = true;
   nameModal.setAttribute("aria-hidden", "true");
+  renameDeckTarget = null;
   if (!deckDetailModal || deckDetailModal.hidden) document.body.classList.remove("modal-open");
   if (clearFile) {
     pendingFile = null;
     uploadForm.reset();
     updateSelectedFileName(false);
   }
+}
+
+function openRenameModal(deck) {
+  if (!nameModal || !presentationName || !deck) return;
+  renameDeckTarget = deck;
+  pendingFile = null;
+  document.getElementById("nameModalTitle").textContent = "Renombra tu presentación";
+  nameModal.querySelector("p").textContent = "El nuevo nombre se mostrará en todo Immersa.";
+  document.getElementById("confirmName").textContent = "Guardar nombre";
+  presentationName.value = niceTitle(deck.title || deck.deckId || "Presentación");
+  nameModal.hidden = false;
+  nameModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => {
+    presentationName.focus();
+    presentationName.select();
+  }, 20);
 }
 
 function deckSession(deck) {
@@ -970,6 +994,13 @@ if (detailReplace && replacementFile) {
   replacementFile.addEventListener("change", () => replaceDeckFile(replacementFile.files[0]));
 }
 
+if (detailRename) {
+  detailRename.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openRenameModal(detailDeck);
+  });
+}
+
 if (replacementReviewed) {
   replacementReviewed.addEventListener("click", async () => {
     if (!detailDeck) return;
@@ -999,6 +1030,30 @@ document.addEventListener("keydown", (event) => {
 if (nameForm) {
   nameForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (renameDeckTarget) {
+      const deck = renameDeckTarget;
+      const title = presentationName.value.trim();
+      if (!title || title.length > 120) return setUploadStatus("Escribe un nombre de hasta 120 caracteres.", "error");
+      try {
+        const response = await fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/title", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "No se pudo renombrar la presentación");
+        const index = decks.findIndex((item) => item.deckId === deck.deckId);
+        if (index >= 0) decks[index] = { ...decks[index], ...data };
+        detailDeck = index >= 0 ? decks[index] : { ...deck, ...data };
+        closeNameModal(false);
+        renderDecks();
+        openDeckModal(detailDeck);
+        setUploadStatus("Presentación renombrada.", "success");
+      } catch (error) {
+        setUploadStatus(error.message, "error");
+      }
+      return;
+    }
     const file = pendingFile || fileInput.files[0];
     if (!file) {
       closeNameModal(true);

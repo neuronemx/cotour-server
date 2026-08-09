@@ -307,6 +307,7 @@ function manifestSummary(manifest, manifestStats = null) {
     sourceSizeBytes: Number(manifest.source?.sizeBytes || 0),
     associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
     replacement: manifest.replacement || null,
+    thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || "",
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -383,6 +384,22 @@ async function markDeckAssociationsReviewed(deckId) {
     associationsReviewRequired: false,
     reviewedAt: new Date().toISOString()
   };
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
+}
+
+async function renameDeck(deckId, requestedTitle) {
+  const title = String(requestedTitle || "").trim();
+  if (!title || title.length > 120) {
+    const error = new Error("Invalid presentation name");
+    error.statusCode = 400;
+    throw error;
+  }
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  manifest.title = title;
+  manifest.updatedAt = new Date().toISOString();
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   return manifestSummary(manifest);
 }
@@ -773,6 +790,15 @@ app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (
     const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
     if (statusCode >= 500) console.error("Unable to mark replacement associations reviewed", error);
     res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : "Unable to update presentation review" });
+  }
+});
+app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
+  try {
+    res.json(await renameDeck(req.params.deckId, req.body?.title));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to rename deck", error);
+    res.status(statusCode).json({ error: statusCode === 400 ? "Escribe un nombre de hasta 120 caracteres" : statusCode === 404 ? "Deck not found" : "Unable to rename presentation" });
   }
 });
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {

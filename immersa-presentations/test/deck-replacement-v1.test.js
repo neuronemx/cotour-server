@@ -162,14 +162,34 @@ test("Failed conversion leaves the previous Deck and configuration untouched", a
   assert.equal(await fs.promises.readFile(path.join(deckDir, "interactions.json"), "utf8"), "preserve-me");
 });
 
-test("Home offers replacement and explains preserved configuration", () => {
+test("Home offers centered rename and replacement actions and explains preserved configuration", () => {
   const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
-  assert.match(html, /id="detailReplace"[^>]*>[\s\S]*Sustituir presentación/);
+  const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
+  assert.match(html, /id="detailRename"[^>]*>[\s\S]*Renombrar/);
+  assert.match(html, /id="detailReplace"[^>]*>[\s\S]*Sustituir/);
   assert.doesNotMatch(html, /id="detailDelete"|Eliminar presentación/);
   assert.match(html, /id="replacementReview"/);
+  assert.match(css, /\.deck-file-actions\s*\{[^}]*justify-content:center/s);
+  assert.match(source, /encodeURIComponent\(deck\.deckId\) \+ "\/title"/);
+  assert.match(source, /renderDecks\(\);[\s\S]*openDeckModal\(detailDeck\)/);
   assert.match(source, /Se conservarán Interacciones, Videos, enlaces y configuración/);
   assert.match(source, /Tu versión anterior permanece intacta/);
   assert.match(source, /encodeURIComponent\(deck\.deckId\) \+ "\/replace"/);
   assert.match(source, /const \[rawPath, \.\.\.queryParts\] = value\.split\("\?"\)/);
+});
+
+test("Deck summaries expose the versioned first slide for immediate Home cover refresh", () => {
+  const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
+  const upload = fs.readFileSync(path.join(appDir, "pdf-upload-support.js"), "utf8");
+  assert.match(server, /thumbnail: manifest\.slides\?\.\[0\]\?\.thumb \|\| manifest\.slides\?\.\[0\]\?\.src/);
+  assert.match(upload, /thumbnail: manifest\.slides\?\.\[0\]\?\.thumb \|\| manifest\.slides\?\.\[0\]\?\.src/);
+});
+
+test("Rename persists a bounded title on the owned Deck manifest", () => {
+  const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
+  assert.match(server, /async function renameDeck\(deckId, requestedTitle\)/);
+  assert.match(server, /title\.length > 120/);
+  assert.match(server, /manifest\.title = title/);
+  assert.match(server, /app\.put\("\/api\/decks\/:deckId\/title", \.\.\.requireDeckAccount/);
 });

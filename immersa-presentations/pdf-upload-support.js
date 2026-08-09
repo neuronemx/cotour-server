@@ -126,7 +126,8 @@ function manifestSummary(manifest) {
     conversionMessage: manifest.conversion?.message || '',
     sourceSizeBytes: Number(manifest.source?.sizeBytes || 0),
     associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
-    replacement: manifest.replacement || null
+    replacement: manifest.replacement || null,
+    thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || ''
   };
 }
 
