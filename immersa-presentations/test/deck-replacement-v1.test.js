@@ -182,8 +182,20 @@ test("Home offers centered rename and replacement actions and explains preserved
 test("Deck summaries expose the versioned first slide for immediate Home cover refresh", () => {
   const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
   const upload = fs.readFileSync(path.join(appDir, "pdf-upload-support.js"), "utf8");
+  const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   assert.match(server, /thumbnail: manifest\.slides\?\.\[0\]\?\.thumb \|\| manifest\.slides\?\.\[0\]\?\.src/);
   assert.match(upload, /thumbnail: manifest\.slides\?\.\[0\]\?\.thumb \|\| manifest\.slides\?\.\[0\]\?\.src/);
+  assert.match(server, /app\.get\("\/api\/decks"[\s\S]*?Cache-Control", "no-store"/);
+  assert.match(source, /fetch\("\/api\/decks", \{ cache: "no-store" \}\)/);
+  assert.match(source, /decks\[deckIndex\] = \{ \.\.\.decks\[deckIndex\], \.\.\.data \};[\s\S]*?renderDecks\(\)/);
+});
+
+test("Rename opens above Deck detail and owns Escape while active", () => {
+  const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
+  const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
+  assert.match(css, /#nameModal\s*\{[^}]*z-index:\s*70/s);
+  assert.match(source, /deckDetailModal\.setAttribute\("aria-hidden", "true"\)/);
+  assert.match(source, /if \(nameModal && !nameModal\.hidden\) return closeNameModal\(false\);[\s\S]*if \(deckDetailModal/);
 });
 
 test("Rename persists a bounded title on the owned Deck manifest", () => {

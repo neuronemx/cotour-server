@@ -182,6 +182,9 @@ function closeNameModal(clearFile = false) {
   nameModal.hidden = true;
   nameModal.setAttribute("aria-hidden", "true");
   renameDeckTarget = null;
+  if (deckDetailModal && !deckDetailModal.hidden) {
+    deckDetailModal.setAttribute("aria-hidden", "false");
+  }
   if (!deckDetailModal || deckDetailModal.hidden) document.body.classList.remove("modal-open");
   if (clearFile) {
     pendingFile = null;
@@ -200,6 +203,9 @@ function openRenameModal(deck) {
   presentationName.value = niceTitle(deck.title || deck.deckId || "Presentación");
   nameModal.hidden = false;
   nameModal.setAttribute("aria-hidden", "false");
+  if (deckDetailModal && !deckDetailModal.hidden) {
+    deckDetailModal.setAttribute("aria-hidden", "true");
+  }
   document.body.classList.add("modal-open");
   window.setTimeout(() => {
     presentationName.focus();
@@ -873,6 +879,9 @@ async function replaceDeckFile(file) {
       renderPlanUsage();
     }
     if (!response.ok) throw new Error(data.error || "No se pudo sustituir la presentación");
+    const deckIndex = decks.findIndex((item) => item.deckId === deck.deckId);
+    if (deckIndex >= 0) decks[deckIndex] = { ...decks[deckIndex], ...data };
+    renderDecks();
     await Promise.all([loadDecks(deck.deckId), loadPlanUsage()]);
     finishConversionOverlay(
       "success",
@@ -895,7 +904,7 @@ function renderAll() {
 
 async function loadDecks(selectedDeckId = activeDeck) {
   try {
-    const res = await fetch("/api/decks");
+    const res = await fetch("/api/decks", { cache: "no-store" });
     if (!res.ok) throw new Error("No se pudo cargar la lista de presentaciones");
     const data = await res.json();
     decks = Array.isArray(data) ? data : [];
@@ -1023,8 +1032,8 @@ if (replacementReviewed) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
-  if (deckDetailModal && !deckDetailModal.hidden) return closeDeckModal();
-  if (nameModal && !nameModal.hidden) closeNameModal(false);
+  if (nameModal && !nameModal.hidden) return closeNameModal(false);
+  if (deckDetailModal && !deckDetailModal.hidden) closeDeckModal();
 });
 
 if (nameForm) {

@@ -425,6 +425,7 @@ button:disabled { cursor: wait; opacity: .65; }
   background: rgba(10, 11, 38, .55);
   backdrop-filter: blur(6px);
 }
+#nameModal { z-index: 70; }
 .modal-backdrop[hidden] { display: none !important; }
 .name-modal {
   width: min(420px, 100%);

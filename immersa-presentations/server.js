@@ -741,6 +741,7 @@ function requireAccountOrControllerDeck(req, res, next) {
 }
 app.get("/api/decks", requireAccount, async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
     res.json(await listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)));
   } catch (error) {
     console.error("Unable to list decks", error);
