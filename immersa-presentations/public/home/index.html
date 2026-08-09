@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="/home/home.css?v=54">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=6">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
-  <link rel="stylesheet" href="/home/video-editor.css?v=108">
+  <link rel="stylesheet" href="/home/video-editor.css?v=109">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
   <link rel="stylesheet" href="/home/profile-editor.css?v=4">
   <style>
@@ -46,7 +46,7 @@
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=12">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=13">
 </head>
 <body>
   <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
@@ -104,10 +104,10 @@
       </header>
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
-        <button id="deckTabInteractions" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelInteractions" data-deck-tab="interactions"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Interacciones</span></button>
-        <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Video</span></button>
-        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41 11 3.83 4 4l-.17 7 9.58 9.6a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.84Z"/><circle cx="8.5" cy="8.5" r="1"/></svg><span>Marcas</span></button>
-        <button id="deckTabHistory" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelHistory" data-deck-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span>Historial</span></button>
+        <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
+        <button id="deckTabInteractions" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelInteractions" data-deck-tab="interactions" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Interacciones</span></button>
+        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41 11 3.83 4 4l-.17 7 9.58 9.6a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.84Z"/><circle cx="8.5" cy="8.5" r="1"/></svg><span>Marcas</span></button>
+        <button id="deckTabHistory" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelHistory" data-deck-tab="history" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span>Historial</span></button>
       </nav>
       <div class="deck-detail-content">
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
@@ -170,9 +170,9 @@
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
   <script src="/home/interactions-editor.js?v=6"></script>
-  <script src="/home/video-editor.js?v=109"></script>
+  <script src="/home/video-editor.js?v=110"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
-  <script src="/home/deck-management-shell.js?v=7"></script>
+  <script src="/home/deck-management-shell.js?v=8"></script>
 </body>
 </html>

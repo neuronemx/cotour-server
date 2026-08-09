@@ -200,9 +200,9 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=113');
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=114');
   const storePosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=112');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=113');
   const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
   assert.ok(adapterPosition >= 0);
   assert.ok(storePosition > adapterPosition);
@@ -221,13 +221,16 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(bridgeSource, /media:advance_request/);
   assert.match(localSource, /showOpenFilePicker/);
   assert.match(localSource, /Autorizar archivo/);
-  assert.match(localSource, /Cambiar MP4/);
+  assert.match(localSource, /Cambiar video/);
+  assert.match(localSource, /video\/quicktime/);
+  assert.match(localSource, /\.\(\?:mp4\|mov\)/);
   assert.match(localSource, /ready_override/);
   assert.match(storeSource, /discoverOpfs/);
   assert.match(storeSource, /deckDirectory\.entries/);
   assert.match(storeSource, /requestPermission/);
   assert.doesNotMatch(pickerAdapter, /Persistencia/);
-  assert.match(pickerAdapter, /v113/);
+  assert.match(pickerAdapter, /v114/);
+  assert.match(pickerAdapter, /\.mp4,\.mov,video\/mp4,video\/quicktime/);
   assert.match(pickerAdapter, /__immersaTransientHandle/);
   assert.match(pickerAdapter, /showOpenFilePicker/);
   assert.match(modalPolish, /Archivo distinto al registrado en la presentación/);

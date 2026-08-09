@@ -9,13 +9,9 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=12/);
-  assert.match(html, /deck-management-shell\.js\?v=7/);
-  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
-  assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
-  assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
-  assert.match(html, /data-deck-tab="brands">[\s\S]*?<span>Marcas<\/span>/);
-  assert.match(html, /data-deck-tab="history">[\s\S]*?<span>Historial<\/span>/);
+  assert.match(html, /deck-management-shell\.css\?v=13/);
+  assert.match(html, /deck-management-shell\.js\?v=8/);
+  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="interactions"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Interacciones<\/span>[\s\S]*?data-deck-tab="brands"[^>]+disabled[\s\S]*?<span>Marcas<\/span>[\s\S]*?data-deck-tab="history"[^>]+disabled[\s\S]*?<span>Historial<\/span>/);
   assert.match(html, /data-deck-editor-host="interactions"/);
   assert.match(html, /data-deck-editor-host="brands"/);
   assert.match(html, /data-deck-editor-host="video"/);
@@ -26,7 +22,7 @@ test("Deck detail exposes the approved management sections", () => {
   assert.doesNotMatch(html, /Enlaces de presentación/);
   assert.doesNotMatch(html, />Business</);
   assert.doesNotMatch(html, /id="detailStatus"/);
-  assert.match(html, /data-deck-tab="interactions">[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Interacciones<\/span>/);
+  assert.match(html, /data-deck-tab="interactions"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Interacciones<\/span>/);
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
@@ -46,6 +42,8 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /immersa:deck-detail-open/);
   assert.match(source, /ArrowLeft/);
   assert.match(source, /ArrowRight/);
+  assert.match(source, /tabs\.filter\(\(item\) => !item\.disabled\)/);
+  assert.match(source, /if \(!targetTab \|\| targetTab\.disabled\) return/);
   assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
   assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
   assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
@@ -74,6 +72,8 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\.deck-detail-header \.deck-detail-close[\s\S]+min-width: 34px[\s\S]+max-width: 34px[\s\S]+-webkit-appearance: none/);
+  assert.match(css, /\.deck-detail-tab:disabled/);
   assert.doesNotMatch(css, /linear-gradient\(/);
 });
 
@@ -112,7 +112,7 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=12/);
+  assert.match(html, /deck-management-shell\.css\?v=13/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {
@@ -129,7 +129,7 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(videos, /renderForm\(config\.videos\.find/);
   assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
   assert.match(videos, /immersa:deck-videos-changed/);
-  assert.match(html, /video-editor\.js\?v=109/);
+  assert.match(html, /video-editor\.js\?v=110/);
 });
 
 test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {
@@ -179,8 +179,14 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(videos, /Link de YouTube/);
   assert.match(videos, /parseYouTubeUrl/);
   assert.match(videos, /source_type/);
+  assert.match(videos, /accept="\.mp4,\.mov,video\/mp4,video\/quicktime"/);
+  assert.match(videos, /Elige un MP4 \/ MOV local o pega un link de Youtube/);
+  assert.match(videos, /Esperar acción de Play/);
+  assert.match(videos, /Permanecer en el slide/);
+  assert.match(videos, /await saveVideos\(next\);[\s\S]+renderList\(\)/);
   assert.match(videosCss, /video-editor-item-thumbnail/);
   assert.match(videosCss, /video-editor-youtube/);
+  assert.match(videosCss, /fieldset\.video-editor-source/);
   assert.match(videosCss, /aspect-ratio:16\/9/);
   assert.match(videosCss, /pointer-events:none/);
 });

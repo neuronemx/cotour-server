@@ -35,13 +35,13 @@
 .video-editor-form>label,.video-editor-form fieldset{display:grid;gap:6px;margin:0;padding:0;border:0}
 .video-editor-form>label>span,.video-editor-form legend{color:#242944;font-size:12px;font-weight:800}
 .video-editor-form select{width:100%;min-height:42px;padding:8px 11px;border:1px solid var(--line);border-radius:11px;background:#fff;color:#0a0d28}
-.video-editor-source-choice{grid-template-columns:1fr 1fr!important;gap:8px!important}
-.video-editor-source-choice legend{grid-column:1/-1}
+.video-editor-form fieldset.video-editor-source{display:grid;gap:10px;padding:11px 13px}
+.video-editor-source-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .video-editor-source-choice .video-editor-radio{align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#fafbfe}
 .video-editor-file{display:block}
 .video-editor-file[hidden],.video-editor-youtube[hidden]{display:none!important}
 .video-editor-native-file{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;clip-path:inset(50%)!important}
-.video-editor-linked-file{display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:11px;padding:11px 12px;border:1px solid rgba(124,58,237,.24);border-radius:13px;background:linear-gradient(135deg,rgba(124,58,237,.055),rgba(40,185,240,.045))}
+.video-editor-linked-file{display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:14px;padding:11px 12px;border:1px solid rgba(124,58,237,.24);border-radius:13px;background:linear-gradient(135deg,rgba(124,58,237,.055),rgba(40,185,240,.045))}
 .video-editor-linked-file.is-empty{border-color:var(--line);background:#fafbfe}
 .video-editor-file-preview{display:grid;place-items:center;width:88px;aspect-ratio:16/9;overflow:hidden;border-radius:9px;background:#ece8ff}
 .video-editor-file-preview img{display:block;width:100%;height:100%;object-fit:cover}
@@ -76,8 +76,7 @@
   .video-editor-linked-file{grid-template-columns:82px minmax(0,1fr)}
   .video-editor-file-preview{width:78px}
   .video-editor-file-action{grid-column:1/-1;width:100%}
-  .video-editor-source-choice{grid-template-columns:1fr!important}
-  .video-editor-source-choice legend{grid-column:1}
+  .video-editor-source-choice{grid-template-columns:1fr}
   .video-editor-youtube{grid-template-columns:minmax(0,1fr) 96px}
   .video-editor-youtube img{width:96px}
   .video-editor-modal{width:calc(100vw - 16px);border-radius:18px}
