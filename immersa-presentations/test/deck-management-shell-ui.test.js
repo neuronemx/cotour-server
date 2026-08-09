@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=13/);
+  assert.match(html, /deck-management-shell\.css\?v=14/);
   assert.match(html, /deck-management-shell\.js\?v=8/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="interactions"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Interacciones<\/span>[\s\S]*?data-deck-tab="brands"[^>]+disabled[\s\S]*?<span>Marcas<\/span>[\s\S]*?data-deck-tab="history"[^>]+disabled[\s\S]*?<span>Historial<\/span>/);
   assert.match(html, /data-deck-editor-host="interactions"/);
@@ -51,6 +51,7 @@ test("Deck management shell reuses existing actions without parallel state", () 
 });
 
 test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", () => {
+  const html = read("public/home/index.html");
   const css = read("public/home/deck-management-shell.css");
 
   assert.match(css, /background: var\(--grad\)/);
@@ -73,6 +74,11 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.deck-detail-header \.deck-detail-close[\s\S]+min-width: 34px[\s\S]+max-width: 34px[\s\S]+-webkit-appearance: none/);
+  assert.match(html, /id="closeDeckDetail"[\s\S]*?<svg[\s\S]*?<path d="M6 6l12 12M18 6 6 18"/);
+  assert.doesNotMatch(html, /id="closeDeckDetail"[^>]*>×<\/button>/);
+  assert.match(css, /\.deck-detail-header \.deck-detail-close svg[\s\S]+width: 14px[\s\S]+height: 14px/);
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]+\.deck-detail-modal \{[\s\S]+width: 100%;[\s\S]+min-width: 0;/);
+  assert.doesNotMatch(css, /width: calc\(100vw - 16px\)/);
   assert.match(css, /\.deck-detail-tab:disabled/);
   assert.doesNotMatch(css, /linear-gradient\(/);
 });
@@ -112,7 +118,7 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=13/);
+  assert.match(html, /deck-management-shell\.css\?v=14/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {

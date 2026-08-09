@@ -251,6 +251,16 @@
   background: rgba(10, 10, 30, .72);
 }
 
+.deck-detail-header .deck-detail-close svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
 .deck-detail-modal.is-compact-header .deck-detail-header {
   grid-template-columns: 124px minmax(0, 1fr);
   column-gap: 18px;
@@ -525,7 +535,8 @@
 
 @media (max-width: 700px) {
   .deck-detail-modal {
-    width: calc(100vw - 16px);
+    width: 100%;
+    min-width: 0;
     max-height: 94vh;
     border-radius: 20px;
   }
