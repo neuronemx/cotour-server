@@ -83,6 +83,19 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.doesNotMatch(css, /linear-gradient\(/);
 });
 
+test("Deck cards use a geometrically centered delete icon on iPhone", () => {
+  const html = read("public/home/index.html");
+  const source = read("public/home/home.js");
+  const css = read("public/home/home.css");
+
+  assert.match(html, /home\.css\?v=55/);
+  assert.match(html, /home\.js\?v=57/);
+  assert.match(source, /deleteButton\.innerHTML = '<svg[^']+M6 6l12 12M18 6 6 18/);
+  assert.doesNotMatch(source, /deleteButton\.textContent = "×"/);
+  assert.match(css, /\.deck-delete \{[\s\S]+min-width: 30px; max-width: 30px;[\s\S]+padding: 0;[\s\S]+-webkit-appearance: none;/);
+  assert.match(css, /\.deck-delete svg \{[\s\S]+width: 14px; height: 14px;[\s\S]+stroke: currentColor;/);
+});
+
 test("Deck detail provides visual slide navigation and direct video editing without changing the show", () => {
   const html = read("public/home/index.html");
   const source = read("public/home/home.js");

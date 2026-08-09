@@ -331,15 +331,26 @@ button:disabled { cursor: wait; opacity: .65; }
 .deck-delete {
   position: absolute; right: 10px; top: 10px; z-index: 2;
   width: 30px; height: 30px;
+  min-width: 30px; max-width: 30px;
+  padding: 0;
   display: grid; place-items: center;
   border-radius: 50%;
   color: #fff;
   background: rgba(10,10,30,.45);
   backdrop-filter: blur(6px);
-  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
   opacity: 0;
   transform: translateY(-3px);
   transition: opacity .16s ease, transform .16s ease, background .16s ease;
+}
+.deck-delete svg {
+  display: block;
+  width: 14px; height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 .deck-row:hover .deck-delete, .deck-row:focus-within .deck-delete { opacity: 1; transform: translateY(0); }
 .deck-delete:hover { background: var(--red); }

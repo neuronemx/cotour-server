@@ -819,7 +819,7 @@ function renderDecks() {
     deleteButton.className = "deck-delete";
     deleteButton.setAttribute("aria-label", "Eliminar presentación");
     deleteButton.title = "Eliminar presentación";
-    deleteButton.textContent = "×";
+    deleteButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
     deleteButton.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteDeck(deck);
