@@ -151,6 +151,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .role-chip-screen::before { background: #7ff0ff; }
 .role-chip-stage::before { background: var(--pink); }
 .role-chip-evaluations::before { background: #ff8ccf; }
+.role-chip-metrics::before { background: #54e6a6; }
 
 /* =========================================================
    SHELL (contenido bajo la banda oscura)
@@ -480,13 +481,13 @@ body.modal-open { overflow: hidden; }
 @media (min-width: 901px) {
   .home-shell {
     margin-top: -118px;
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
+    grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
     column-gap: 48px;
     align-items: start;
   }
 
   .create-panel {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     justify-self: stretch;
     width: auto;
@@ -497,7 +498,7 @@ body.modal-open { overflow: hidden; }
   }
 
   .presentations-panel {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 1;
     margin-top: 0;
     padding-top: 162px;

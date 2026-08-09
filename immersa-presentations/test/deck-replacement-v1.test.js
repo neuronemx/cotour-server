@@ -201,13 +201,14 @@ test("Home puts presentations beside creation and uses the approved concise copy
   const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   assert.doesNotMatch(html, /class="content-tabs"/);
-  assert.match(html, /Encuestas[\s\S]*Sorteos[\s\S]*Trivias[\s\S]*Q&amp;A[\s\S]*Evaluaciones/);
+  assert.match(html, /Encuestas[\s\S]*Sorteos[\s\S]*Trivias[\s\S]*Q&amp;A[\s\S]*Evaluaciones[\s\S]*Métricas/);
   assert.match(html, /Tus experiencias listas para compartir en las manos de tu público\./);
   assert.doesNotMatch(html + source, /presentaciónes/);
   assert.doesNotMatch(html + source, /deckCount/);
   assert.doesNotMatch(source, /Elimina una para subir otra/);
-  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(340px, 390px\)/);
-  assert.match(css, /\.presentations-panel \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*padding-top: 162px;/);
+  assert.match(css, /grid-template-columns: minmax\(340px, 390px\) minmax\(0, 1fr\)/);
+  assert.match(css, /\.create-panel \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;/);
+  assert.match(css, /\.presentations-panel \{[\s\S]*grid-column: 2;[\s\S]*grid-row: 1;[\s\S]*padding-top: 162px;/);
 });
 
 test("Rename opens above Deck detail and owns Escape while active", () => {
