@@ -318,12 +318,22 @@ function createUploadHandler(options = {}) {
       const sourceType = sourceExt === '.pdf' ? 'pdf' : sourceExt === '.pptx' ? 'pptx' : null;
       if (!sourceType) return res.status(400).json({ error: 'Solo se aceptan archivos .pptx o .pdf' });
 
+      let reservedDeck = null;
+      let deckDir = null;
       try {
         await ensureDataDirs();
         const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
         const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
         const session_id = generateUniqueSessionId(await collectUsedSessionIds());
-        const deckDir = path.join(DATA_DECKS_DIR, deckId);
+        const sourceSizeBytes = Number(file.size || file.buffer?.length || 0);
+        reservedDeck = { deckId, session_id, sourceSizeBytes };
+        if (options.onDeckCreateStart) {
+          await options.onDeckCreateStart({ req, file, deck: reservedDeck });
+        } else {
+          reservedDeck = null;
+        }
+
+        deckDir = path.join(DATA_DECKS_DIR, deckId);
         const slidesDir = path.join(deckDir, 'slides');
         const sourceFilename = sourceType === 'pdf' ? 'original.pdf' : 'original.pptx';
         const originalPath = path.join(deckDir, sourceFilename);
@@ -337,7 +347,7 @@ function createUploadHandler(options = {}) {
           session_id,
           ratio: sourceType === 'pdf' ? 'mixed' : '16:9',
           status: 'uploaded',
-          source: { type: sourceType, filename: sourceFilename },
+          source: { type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes },
           slides: [{ id: 'placeholder', src: 'slides/placeholder.svg', title: 'Presentacion cargada' }],
           conversion: { status: 'pending', message: sourceType === 'pdf' ? 'Convirtiendo PDF' : 'Convirtiendo PPTX' }
         };
@@ -357,9 +367,9 @@ function createUploadHandler(options = {}) {
 
         manifest = await writeManifest(deckDir, manifest, session_id);
         const summary = manifestSummary(manifest);
-        if (options.onDeckCreated) {
+        if (!options.onDeckCreateStart && options.onDeckCreated) {
           try {
-            await options.onDeckCreated({ req, manifest, deck: summary });
+            await options.onDeckCreated({ req, manifest, deck: { ...summary, sourceSizeBytes } });
           } catch (ownershipError) {
             await fs.promises.rm(deckDir, { recursive: true, force: true }).catch(() => {});
             throw ownershipError;
@@ -367,8 +377,18 @@ function createUploadHandler(options = {}) {
         }
         return res.status(201).json(summary);
       } catch (writeError) {
-        console.error('Unable to store presentation', writeError);
-        return res.status(500).json({ error: 'No se pudo guardar la presentacion' });
+        if (reservedDeck && options.onDeckCreateFailed) {
+          await options.onDeckCreateFailed({ req, deck: reservedDeck, error: writeError }).catch((cleanupError) => {
+            console.error('Unable to release failed deck reservation', cleanupError);
+          });
+        }
+        if (deckDir) await fs.promises.rm(deckDir, { recursive: true, force: true }).catch(() => {});
+        const statusCode = Number(writeError.statusCode) || 500;
+        if (statusCode >= 500) console.error('Unable to store presentation', writeError);
+        const payload = { error: writeError.publicMessage || 'No se pudo guardar la presentacion' };
+        if (statusCode < 500 && writeError.code) payload.code = writeError.code;
+        if (statusCode < 500 && writeError.details) payload.plan = writeError.details;
+        return res.status(statusCode).json(payload);
       }
     });
   };

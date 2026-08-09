@@ -4,6 +4,7 @@ const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", sta
 let decks = [];
 let activeDeck = null;
 let detailDeck = null;
+let planUsage = null;
 
 const deckList = document.getElementById("deckList");
 const deckCount = document.getElementById("deckCount");
@@ -14,6 +15,14 @@ const uploadStatus = document.getElementById("uploadStatus");
 const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
+const accountPlanBadge = document.getElementById("accountPlanBadge");
+const planUsagePanel = document.getElementById("planUsage");
+const planName = document.getElementById("planName");
+const planDeckUsage = document.getElementById("planDeckUsage");
+const planStorageUsage = document.getElementById("planStorageUsage");
+const planDeckBar = document.getElementById("planDeckBar");
+const planStorageBar = document.getElementById("planStorageBar");
+const planLimitMessage = document.getElementById("planLimitMessage");
 const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
@@ -72,7 +81,74 @@ function titleFromFile(file) {
     .trim();
 }
 
+function percentage(used, limit) {
+  if (!Number.isFinite(Number(limit)) || Number(limit) <= 0) return 0;
+  return Math.max(0, Math.min(100, (Number(used) / Number(limit)) * 100));
+}
+
+function storageLabel(bytes) {
+  const megabytes = Math.max(0, Number(bytes) || 0) / (1024 * 1024);
+  if (megabytes === 0) return "0 MB";
+  if (megabytes < 0.1) return "< 0.1 MB";
+  return (megabytes >= 10 ? Math.round(megabytes) : Math.round(megabytes * 10) / 10) + " MB";
+}
+
+function currentPlanBlockMessage() {
+  if (!planUsage) return "";
+  if (planUsage.remaining?.decks < 1) {
+    return "Alcanzaste las " + planUsage.limits.decks + " presentaciones de tu plan " + planUsage.plan + ". Elimina una para subir otra.";
+  }
+  if (planUsage.remaining?.storageBytes < 1) {
+    return "Alcanzaste los " + storageLabel(planUsage.limits.storageBytes) + " de tu plan " + planUsage.plan + ". Elimina una presentación para liberar espacio.";
+  }
+  return "";
+}
+
+function uploadIssue(file) {
+  const blocked = currentPlanBlockMessage();
+  if (blocked) return blocked;
+  if (file && planUsage && Number(file.size || 0) > Number(planUsage.remaining?.storageBytes || 0)) {
+    return "Este archivo pesa " + storageLabel(file.size) + " y tienes " + storageLabel(planUsage.remaining.storageBytes) + " disponibles en tu plan " + planUsage.plan + ".";
+  }
+  return "";
+}
+
+function renderPlanUsage() {
+  if (!planUsage) return;
+  const plan = String(planUsage.plan || "FREE");
+  if (accountPlanBadge) accountPlanBadge.textContent = plan;
+  if (planName) planName.textContent = plan;
+  if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
+  if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
+  if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
+  if (planDeckBar) planDeckBar.style.width = percentage(planUsage.usage.decks, planUsage.limits.decks) + "%";
+  if (planStorageBar) planStorageBar.style.width = percentage(planUsage.usage.storageBytes, planUsage.limits.storageBytes) + "%";
+
+  const blockedMessage = currentPlanBlockMessage();
+  if (planLimitMessage) {
+    planLimitMessage.textContent = blockedMessage;
+    planLimitMessage.hidden = !blockedMessage;
+  }
+  fileDrop.classList.toggle("is-disabled", Boolean(blockedMessage));
+  fileDrop.setAttribute("aria-disabled", blockedMessage ? "true" : "false");
+  fileDrop.tabIndex = blockedMessage ? -1 : 0;
+  fileInput.disabled = Boolean(blockedMessage);
+}
+
+async function loadPlanUsage() {
+  try {
+    const response = await fetch("/api/account/plan", { cache: "no-store" });
+    if (!response.ok) throw new Error("No se pudo cargar el plan");
+    planUsage = await response.json();
+    renderPlanUsage();
+  } catch (_error) {
+    planUsage = null;
+  }
+}
+
 function openNameModal(file) {
+  const issue = uploadIssue(file);
+  if (issue) return setUploadStatus(issue, "error");
   if (!nameModal || !presentationName) return;
   pendingFile = file || fileInput.files[0] || null;
   presentationName.value = titleFromFile(pendingFile);
@@ -347,6 +423,7 @@ async function deleteDeck(deck) {
     if (detailDeck?.deckId === deck.deckId) closeDeckModal();
     activeDeck = decks[0]?.deckId || null;
     renderAll();
+    await loadPlanUsage();
     setUploadStatus("Presentación eliminada.", "success");
   } catch (error) {
     setUploadStatus("Error: " + error.message, "error");
@@ -721,6 +798,7 @@ function closeDeckModal() {
 
 function renderAll() {
   renderDecks();
+  renderPlanUsage();
 }
 
 async function loadDecks(selectedDeckId = activeDeck) {
@@ -744,6 +822,13 @@ function setUploadStatus(message, type = "") {
 
 function updateSelectedFileName(askName = false) {
   const file = fileInput.files[0];
+  const issue = uploadIssue(file);
+  if (file && issue) {
+    fileInput.value = "";
+    selectedFileName.textContent = "Ningún archivo seleccionado";
+    setUploadStatus(issue, "error");
+    return;
+  }
   selectedFileName.textContent = file ? file.name : "Ningún archivo seleccionado";
   if (askName && file) openNameModal(file);
 }
@@ -767,6 +852,8 @@ fileInput.addEventListener("change", () => updateSelectedFileName(true));
 fileDrop.addEventListener("drop", (event) => {
   const file = event.dataTransfer.files[0];
   if (!file) return;
+  const issue = uploadIssue(file);
+  if (issue) return setUploadStatus(issue, "error");
   const transfer = new DataTransfer();
   transfer.items.add(file);
   fileInput.files = transfer.files;
@@ -829,6 +916,12 @@ if (nameForm) {
       return setUploadStatus("Arrastra o selecciona un archivo para crear la presentación.", "error");
     }
 
+    const issue = uploadIssue(file);
+    if (issue) {
+      closeNameModal(true);
+      return setUploadStatus(issue, "error");
+    }
+
     const lowerName = file.name.toLowerCase();
     const isPdf = lowerName.endsWith(".pdf");
     const isPptx = lowerName.endsWith(".pptx");
@@ -857,12 +950,16 @@ if (nameForm) {
     try {
       const res = await fetch("/api/upload-pptx", { method: "POST", body: formData });
       const data = await res.json();
+      if (data.plan) {
+        planUsage = data.plan;
+        renderPlanUsage();
+      }
       if (!res.ok) throw new Error(data.error || "No se pudo subir el archivo");
 
       uploadForm.reset();
       pendingFile = null;
       updateSelectedFileName(false);
-      await loadDecks(data.deckId || newSessionId);
+      await Promise.all([loadDecks(data.deckId || newSessionId), loadPlanUsage()]);
 
       if (data.conversionStatus === "completed") {
         finishConversionOverlay("success", "Presentación lista", sourceLabel + " convertido correctamente.");
@@ -879,4 +976,4 @@ if (nameForm) {
   });
 }
 
-loadDecks();
+Promise.all([loadDecks(), loadPlanUsage()]);

@@ -408,6 +408,35 @@ async function listDecks(allowedDeckIds = null) {
     .sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
 }
 
+async function sourceSizeForDeck(deckId) {
+  try {
+    const deckDir = await findDeckDir(deckId);
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
+    const sourceFilename = String(manifest.source?.filename || "").trim();
+    if (!sourceFilename || path.basename(sourceFilename) !== sourceFilename) return 0;
+    const stats = await fs.promises.stat(path.join(deckDir, sourceFilename));
+    return stats.isFile() ? Number(stats.size || 0) : 0;
+  } catch (error) {
+    if (error.code === "ENOENT") return 0;
+    console.warn("Unable to measure original Deck file", deckId, error.message);
+    return null;
+  }
+}
+
+async function synchronizeWorkspaceSourceSizes(req) {
+  const deckIds = await betterAuthCompatibilityBridge.listUnmeteredDeckIds(req);
+  await Promise.all(deckIds.map(async (deckId) => {
+    const sourceSizeBytes = await sourceSizeForDeck(deckId);
+    if (sourceSizeBytes === null) return;
+    await betterAuthCompatibilityBridge.setDeckSourceSize(req, deckId, sourceSizeBytes);
+  }));
+}
+
+async function reserveUploadedDeck(req, deck) {
+  await synchronizeWorkspaceSourceSizes(req);
+  return betterAuthCompatibilityBridge.reserveDeck(req, deck);
+}
+
 function execFileAsync(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     execFile(command, args, { windowsHide: true, maxBuffer: 1024 * 1024 * 8, ...options }, (error, stdout, stderr) => {
@@ -667,6 +696,15 @@ app.get("/api/decks", requireAccount, async (req, res) => {
     res.status(500).json({ error: "Unable to list decks" });
   }
 });
+app.get("/api/account/plan", requireAccount, async (req, res) => {
+  try {
+    await synchronizeWorkspaceSourceSizes(req);
+    res.json(await betterAuthCompatibilityBridge.getPlanUsage(req));
+  } catch (error) {
+    console.error("Unable to load account plan", error);
+    res.status(500).json({ error: "Unable to load account plan" });
+  }
+});
 app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
 app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
 app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);
@@ -718,7 +756,8 @@ app.get("/api/conversion-health", async (_req, res) => {
   }
 });
 app.post("/api/upload-pptx", requireAccount, createUploadHandler({
-  onDeckCreated: ({ req, deck }) => betterAuthCompatibilityBridge.registerDeck(req, deck)
+  onDeckCreateStart: ({ req, deck }) => reserveUploadedDeck(req, deck),
+  onDeckCreateFailed: ({ req, deck }) => betterAuthCompatibilityBridge.unregisterDeck(req, deck.deckId)
 }));
 app.get("/presenter", accessLinkHandlers.guardLegacyRoute("speaker", "presenter"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
 app.get("/screen", accessLinkHandlers.guardLegacyRoute("screen", "screen"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "screen", "index.html")));

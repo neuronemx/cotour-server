@@ -159,13 +159,51 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     return runtime.workspaces.listDeckIds(req.accountContext.user.id);
   }
 
+  async function getPlanUsage(req) {
+    const runtime = await initialize();
+    return runtime.workspaces.getPlanUsage({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id
+    });
+  }
+
+  async function listUnmeteredDeckIds(req) {
+    const runtime = await initialize();
+    return runtime.workspaces.listUnmeteredDeckIds({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id
+    });
+  }
+
+  async function setDeckSourceSize(req, deckId, sourceSizeBytes) {
+    const runtime = await initialize();
+    return runtime.workspaces.setDeckSourceSize({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id,
+      deckId,
+      sourceSizeBytes
+    });
+  }
+
+  async function reserveDeck(req, deck) {
+    const runtime = await initialize();
+    return runtime.workspaces.reserveDeck({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id,
+      deckId: deck.deckId,
+      sessionId: deck.session_id,
+      sourceSizeBytes: deck.sourceSizeBytes
+    });
+  }
+
   async function registerDeck(req, deck) {
     const runtime = await initialize();
     return runtime.workspaces.registerDeck({
       userId: req.accountContext.user.id,
       workspaceId: req.accountContext.workspace.id,
       deckId: deck.deckId,
-      sessionId: deck.session_id
+      sessionId: deck.session_id,
+      sourceSizeBytes: deck.sourceSizeBytes
     });
   }
 
@@ -247,6 +285,10 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     requireDeckOwnership,
     requireOwnedSession,
     listDeckIds,
+    getPlanUsage,
+    listUnmeteredDeckIds,
+    setDeckSourceSize,
+    reserveDeck,
     registerDeck,
     unregisterDeck,
     getAccountProfile,
