@@ -596,10 +596,73 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(source, /if \(enteredReveal\) play\(tracks\.reveal\)/);
   assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
   assert.match(source, /dataset\.knowledgeAudioBound/);
+  assert.match(source, /global\.__immersaMediaUnlocked/);
+  assert.match(source, /"immersa:media-unlocked"/);
+  assert.doesNotMatch(source, /Activar sonido de Trivias/);
   assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
   for (const name of ["321.mp3", "tictac.mp3", "Resultado_pregunta.mp3", "Final_concurso.mp3"]) {
     assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);
   }
+});
+
+test("one shared Screen gesture unlocks later Trivia audio without a second prompt", async () => {
+  class FakeAudio {
+    play() { return Promise.resolve(); }
+    pause() {}
+  }
+  const documentListeners = new Map();
+  let unlockButton = null;
+  const document = {
+    querySelector(selector) {
+      if (selector === "[data-knowledge-audio-unlock]") return unlockButton;
+      return null;
+    },
+    addEventListener(name, handler) { documentListeners.set(name, handler); },
+    dispatchEvent(event) { documentListeners.get(event.type)?.(event); },
+    createElement() {
+      unlockButton = {
+        dataset: {},
+        addEventListener() {},
+        remove() { unlockButton = null; }
+      };
+      return unlockButton;
+    },
+    body: { appendChild(node) { unlockButton = node; } }
+  };
+  const socketListeners = new Map();
+  const socket = { on(name, handler) { socketListeners.set(name, handler); } };
+  const screenRoot = {
+    hidden: true,
+    innerHTML: "",
+    classList: { add() {}, remove() {} },
+    querySelectorAll() { return []; }
+  };
+  class FakeEvent { constructor(type) { this.type = type; } }
+  const window = {
+    Audio: FakeAudio,
+    Event: FakeEvent,
+    document,
+    setInterval() { return 1; },
+    setTimeout() { return 1; },
+    clearTimeout() {}
+  };
+  vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  window.ImmersaKnowledgeActivities.createScreen({ socket, root: screenRoot });
+
+  documentListeners.get("click")({
+    target: { closest: () => ({ dataset: { immersaMediaUnlock: "1" } }) }
+  });
+  await Promise.resolve();
+  socketListeners.get("interaction:execution:state")({
+    available: true,
+    executionId: "execution-shared-audio",
+    category: "contest",
+    title: "Trivia",
+    state: "LOBBY"
+  });
+
+  assert.equal(window.__immersaMediaUnlocked, true);
+  assert.equal(unlockButton, null);
 });
 
 test("Público uses the supplied entrance and answer-selection sounds", () => {

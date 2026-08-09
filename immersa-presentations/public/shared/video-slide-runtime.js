@@ -420,7 +420,18 @@
       if (shouldRemove) button?.remove();
     }
 
+    function announceMediaUnlocked() {
+      const firstUnlock = !root.__immersaMediaUnlocked;
+      root.__immersaMediaUnlocked = true;
+      if (firstUnlock && typeof root.Event === 'function') {
+        document.dispatchEvent?.(new root.Event('immersa:media-unlocked'));
+      }
+    }
+
     async function unlockActiveMedia() {
+      // Keep every Screen sound behind one browser gesture. Other runtimes
+      // (Trivias and games) use this signal to prime their audio immediately.
+      announceMediaUnlocked();
       if (isYouTubeSlide(activeItem)) {
         const player = await ensureYouTube(activeItem, activeIndex);
         if (!player) return;

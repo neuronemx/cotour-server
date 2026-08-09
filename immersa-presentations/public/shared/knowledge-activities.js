@@ -937,7 +937,13 @@
     }
 
     function unlock() {
+      if (unlocked) {
+        global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
+        return;
+      }
+      const firstGlobalUnlock = !global.__immersaMediaUnlocked;
       unlocked = true;
+      global.__immersaMediaUnlocked = true;
       global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
       tickContext?.resume?.().catch?.(() => {});
       const primers = Object.values(tracks).map((track) => {
@@ -948,6 +954,9 @@
         });
       });
       Promise.all(primers).then(() => sync(null, currentState));
+      if (firstGlobalUnlock && typeof global.Event === "function") {
+        global.document.dispatchEvent?.(new global.Event("immersa:media-unlocked"));
+      }
     }
 
     function bindSharedUnlock(button) {
@@ -958,6 +967,10 @@
 
     function ensureUnlock() {
       if (unlocked || global.document.querySelector("[data-knowledge-audio-unlock]")) return;
+      if (global.__immersaMediaUnlocked) {
+        unlock();
+        return;
+      }
       const sharedButton = global.document.querySelector(
         "[data-immersa-media-unlock]:not([data-knowledge-audio-unlock]):not([hidden]), "
           + "[data-breakout-audio-unlock]:not([hidden]), "
@@ -972,10 +985,17 @@
       button.className = "knowledge-audio-unlock";
       button.dataset.knowledgeAudioUnlock = "1";
       button.dataset.immersaMediaUnlock = "1";
-      button.textContent = "🔊 Activar sonido de Trivias";
+      button.textContent = "🔊 Activar sonido";
       bindSharedUnlock(button);
       global.document.body.appendChild(button);
     }
+
+    global.document.addEventListener?.("click", (event) => {
+      if (event.target?.closest?.("[data-immersa-media-unlock], [data-breakout-audio-unlock], [data-pong-audio-unlock]")) {
+        unlock();
+      }
+    }, true);
+    global.document.addEventListener?.("immersa:media-unlocked", unlock);
 
     function play(track, currentTime = 0) {
       stop(track);
