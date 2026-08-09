@@ -1,5 +1,5 @@
 (function (root) {
-  const BUILD = 'v114';
+  const BUILD = 'v115';
   const MODE_NATIVE = 'native';
   const MODE_ADAPTER = 'input-adapter';
 
@@ -18,7 +18,7 @@
     return new Promise((resolve) => {
       const input = root.document.createElement('input');
       input.type = 'file';
-      input.accept = '.mp4,.mov,video/mp4,video/quicktime';
+      input.accept = '.mp4,.mov';
       input.multiple = Boolean(options.multiple);
       input.hidden = true;
 

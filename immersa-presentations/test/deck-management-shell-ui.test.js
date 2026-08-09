@@ -129,7 +129,7 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(videos, /renderForm\(config\.videos\.find/);
   assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
   assert.match(videos, /immersa:deck-videos-changed/);
-  assert.match(html, /video-editor\.js\?v=110/);
+  assert.match(html, /video-editor\.js\?v=111/);
 });
 
 test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {
@@ -179,7 +179,9 @@ test("Deck pages use lists, bottom actions, and real local video thumbnails", ()
   assert.match(videos, /Link de YouTube/);
   assert.match(videos, /parseYouTubeUrl/);
   assert.match(videos, /source_type/);
-  assert.match(videos, /accept="\.mp4,\.mov,video\/mp4,video\/quicktime"/);
+  assert.match(videos, /accept="\.mp4,\.mov"/);
+  assert.doesNotMatch(videos, /accept="[^"]*video\//);
+  assert.doesNotMatch(videos, /\scapture(?:[=\s>])/);
   assert.match(videos, /Elige un MP4 \/ MOV local o pega un link de Youtube/);
   assert.match(videos, /Esperar acción de Play/);
   assert.match(videos, /Permanecer en el slide/);
