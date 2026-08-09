@@ -2,10 +2,27 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
-const presentationLifecycleControl = window.ImmersaPresentationLifecycle?.create({
-  socket,
-  host: document.getElementById("presentationLifecycle")
+const presentationLifecycleHost = document.getElementById("presentationLifecycle");
+let presentationLifecycleControl = null;
+function syncPresentationLifecycleFeature(enabled) {
+  if (!enabled) {
+    presentationLifecycleControl?.destroy?.();
+    presentationLifecycleControl = null;
+    if (presentationLifecycleHost) presentationLifecycleHost.hidden = true;
+    return;
+  }
+  if (!presentationLifecycleControl) {
+    presentationLifecycleControl = window.ImmersaPresentationLifecycle?.create({
+      socket,
+      host: presentationLifecycleHost
+    }) || null;
+  }
+}
+syncPresentationLifecycleFeature(roleOpenContext.features?.metrics !== false);
+socket.on("plan:features", (access = {}) => {
+  syncPresentationLifecycleFeature(access.features?.metrics !== false);
 });
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 
@@ -618,7 +635,15 @@ qrToggle.addEventListener("change", () => {
   updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl });
 });
 
-stageActionsButton?.addEventListener("click", () => { if (stageActionsOpen) closeStageActionsRequest(); else openStageActions(); });
+if (stageActionsButton && !interactionsFeatureEnabled) {
+  stageActionsButton.disabled = true;
+  stageActionsButton.classList.add("is-plan-locked");
+  stageActionsButton.setAttribute("aria-disabled", "true");
+  stageActionsButton.title = "Interacciones · Disponible en planes de pago";
+  stageActionsButton.setAttribute("aria-label", stageActionsButton.title);
+} else {
+  stageActionsButton?.addEventListener("click", () => { if (stageActionsOpen) closeStageActionsRequest(); else openStageActions(); });
+}
 stageTransmissionToggle?.addEventListener("click", () => socket.emit(currentState?.transmissionPaused ? "transmission_play" : "transmission_pause"));
 stageDrawToggle?.addEventListener("click", () => {
   drawingMode = !drawingMode;

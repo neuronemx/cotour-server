@@ -26,6 +26,7 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
+const { canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,7 @@ const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
 const gameQueueStore = new GameQueueStore();
+const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 const gameQueueSockets = createGameQueueSocketHandlers({
   io,
   store: gameQueueStore,
@@ -141,7 +143,8 @@ const accessLinkHandlers = createAccessLinkHandlers({
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
-  startScreenExecution: qnaRuntime.startScreenExecution
+  startScreenExecution: qnaRuntime.startScreenExecution,
+  resolveDeckFeatureAccess: (deckId) => betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
@@ -157,7 +160,6 @@ const brandMentionRuntime = new BrandMentionRuntime({
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
-const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 const profileHandlers = createProfileHandlers({
   bridge: betterAuthCompatibilityBridge,
   profilesDir: DATA_PROFILES_DIR
@@ -733,6 +735,44 @@ const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 const requireOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
 const requireDeckAccount = [requireAccount, requireOwnedDeck];
 const requireControllerDeck = accessLinkHandlers.guardDeckRoles(["speaker", "stage"]);
+function requireDeckFeature(feature) {
+  return async (req, res, next) => {
+    try {
+      const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
+      const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      if (!canUseFeature(access, feature)) {
+        return res.status(403).json({ error: "Disponible en planes de pago", code: "PLAN_FEATURE_LOCKED", feature });
+      }
+      req.immersaFeatureAccess = access;
+      return next();
+    } catch (error) {
+      console.error("Unable to validate plan feature", error);
+      return res.status(503).json({ error: "No se pudo validar el plan" });
+    }
+  };
+}
+function requireDeckConfigurationWrite(req, res, next) {
+  return (async () => {
+    try {
+      const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
+      const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      if (canUseFeature(access, "interactions")) return next();
+      const current = await deckInteractionHandlers.readDeckConfig(deckId);
+      if (changesPaidDeckContent(req.body, current)) {
+        return res.status(403).json({
+          error: "Interacciones está disponible en planes de pago",
+          code: "PLAN_FEATURE_LOCKED",
+          feature: "interactions"
+        });
+      }
+      req.immersaFeatureAccess = access;
+      return next();
+    } catch (error) {
+      console.error("Unable to validate Deck configuration access", error);
+      return res.status(503).json({ error: "No se pudo validar el plan" });
+    }
+  })();
+}
 function requireAccountOrControllerDeck(req, res, next) {
   return betterAuthCompatibilityBridge.attachOptionalAccount(req, res, () => {
     if (req.accountContext) return requireOwnedDeck(req, res, next);
@@ -763,15 +803,15 @@ app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPho
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
 app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, deckInteractionHandlers.putInteractions);
-app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, deckInteractionHandlers.uploadQuestionImage);
+app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);
 app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, brandMentionHandlers.reorderBrands);
 app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
-app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, qnaHistoryHandlers.listHistory);
-app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, knowledgeActivityHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature("metrics"), qnaHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature("metrics"), knowledgeActivityHistoryHandlers.listHistory);
 app.post(
   "/api/decks/:deckId/replace",
   ...requireDeckAccount,
@@ -816,13 +856,14 @@ app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
 app.post("/api/access-links", requireAccount, betterAuthCompatibilityBridge.requireOwnedSession, accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
-app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.exportDeck);
+app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature("metrics"), qnaHistoryHandlers.exportDeck);
 app.get(
   "/api/knowledge-activities/:executionId/export/:access_token",
   accessLinkHandlers.guardAccessRoles(["speaker"]),
+  requireDeckFeature("metrics"),
   knowledgeActivityHistoryHandlers.exportExecution
 );
-app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), qnaHistoryHandlers.clearHistory);
+app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature("metrics"), qnaHistoryHandlers.clearHistory);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
@@ -861,6 +902,22 @@ io.on("connection", (socket) => {
   let currentSessionId = null;
   let currentDeckId = null;
   let currentAudienceId = null;
+  let currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
+
+  socket.use(([eventName], next) => {
+    if (!controllerRoles.has(currentRole)) return next();
+    const feature = isPaidControllerEvent(eventName)
+      ? "interactions"
+      : (isPaidMetricsEvent(eventName) ? "metrics" : "");
+    if (!feature || canUseFeature(currentFeatureAccess, feature)) return next();
+    socket.emit("plan:feature_locked", {
+      feature,
+      plan: currentFeatureAccess.plan,
+      message: feature === "metrics"
+        ? "Métricas está disponible en planes de pago"
+        : "Interacciones está disponible en planes de pago"
+    });
+  });
 
   interactionSockets.attach(socket, () => ({
     roomKey: currentRoomKey,
@@ -914,6 +971,13 @@ io.on("connection", (socket) => {
     currentSessionId = joinedSessionId;
     currentDeckId = joinedDeckId;
     const session = getSession(joinedSessionId, joinedDeckId);
+    try {
+      currentFeatureAccess = await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
+    } catch (error) {
+      currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
+      console.error("Unable to resolve live plan features", error);
+    }
+    socket.emit("plan:features", currentFeatureAccess);
     const slideCount = await refreshSessionDeck(session, joinedDeckId);
     if (role === "presenter") console.log("[session]", joinedSessionId, "deck", session.deckId, "room", currentRoomKey, "slideCount", slideCount);
     socket.join(currentRoomKey);
@@ -944,6 +1008,7 @@ io.on("connection", (socket) => {
     emitState(currentRoomKey, session);
     if (
       role === "audience"
+      && canUseFeature(currentFeatureAccess, "metrics")
       && session.audience.size >= AUTO_START_AUDIENCE_THRESHOLD
       && !session.automaticLifecycleStarted
     ) {

@@ -357,9 +357,27 @@ button:disabled { opacity: .26; cursor: not-allowed; transform: none; }
   backdrop-filter: blur(20px) saturate(1.28);
 }
 .actions-button {
+  position: relative;
   background: rgba(143,85,255,.16);
   border-color: rgba(143,85,255,.36);
 }
+.actions-button .plan-feature-lock { display: none; }
+.actions-button.is-plan-locked { opacity: .42; filter: saturate(.3); }
+.actions-button.is-plan-locked .plan-feature-lock {
+  position: absolute;
+  right: -6px;
+  top: -7px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 999px;
+  color: #fff;
+  background: #23283d;
+  box-shadow: 0 4px 12px rgba(0,0,0,.34);
+}
+.actions-button.is-plan-locked .plan-feature-lock svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2; }
 @keyframes liveTextPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,79,117,.28), 0 12px 28px rgba(0,0,0,.18); }
   50% { box-shadow: 0 0 0 8px rgba(255,79,117,0), 0 12px 28px rgba(0,0,0,.18); }

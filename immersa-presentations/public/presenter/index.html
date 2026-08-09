@@ -20,7 +20,6 @@
   <link rel="stylesheet" href="/shared/raffle-controller.css">
   <link rel="stylesheet" href="/shared/qna-controls.css">
   <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
-  <link rel="stylesheet" href="/shared/presentation-lifecycle.css?v=1">
 </head>
 <body>
   <main class="presenter-shell">
@@ -30,7 +29,6 @@
       <div class="brand-lockup" aria-label="Immersa">
         <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
       </div>
-      <div id="presentationLifecycle" class="presentation-lifecycle-host presenter-lifecycle-host" hidden></div>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
@@ -80,6 +78,7 @@
 <path d="M 704.83 81.20 C693.99,78.95 681.32,77.00 677.19,77.00 C674.34,77.00 672.00,76.55 672.00,76.00 C672.00,75.46 666.75,75.16 659.90,75.10 C673.62,75.00 687.00,75.30 687.00,76.00 C687.00,76.55 688.33,77.00 689.95,77.00 C695.27,77.00 715.00,81.04 715.00,82.14 C715.00,82.44 715.37,82.72 715.93,82.87 L 714.26 82.66 C712.32,82.42 708.55,81.83 704.83,81.20 ZM 720.25 208.45 C723.08,195.52 725.00,183.38 725.00,176.90 C725.00,173.41 725.45,171.77 726.50,171.36 C727.75,170.88 727.99,167.34 728.00,147.94 L 728.00 148.65 C728.00,176.63 727.74,183.40 726.62,184.52 C725.86,185.28 724.94,188.06 724.58,190.70 C723.18,200.77 720.63,213.00 719.92,213.00 C719.51,213.00 718.85,214.91 718.46,217.25 C718.14,219.16 716.73,224.09 714.88,230.03 C717.06,222.67 718.84,215.54 720.25,208.45 ZM 727.96 138.87 C727.85,128.87 727.53,123.18 727.05,123.47 C725.86,124.21 725.26,120.29 724.54,107.08 C724.37,103.94 724.09,100.97 723.81,98.83 C724.19,100.63 724.63,103.05 725.00,105.50 C725.66,109.90 726.60,113.65 727.10,113.83 C727.52,113.99 727.86,124.32 727.97,139.01 ZM 700.87 268.27 C704.01,261.07 707.09,253.27 709.88,245.35 C707.81,251.45 705.83,256.96 704.54,260.00 C703.51,262.45 702.24,265.30 700.87,268.27 ZM 721.58 91.90 C721.34,91.21 721.10,90.46 720.87,89.70 C720.79,89.36 720.70,89.04 720.61,88.74 C720.92,89.81 721.26,90.90 721.58,91.90 ZM 717.55 83.07 L 716.98 83.00 C717.18,83.00 717.37,83.02 717.55,83.07 Z" fill="currentColor"/>
 </g>
 </svg>
+            <span class="plan-feature-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span>
           </button>
           <button id="thumbsToggle" class="control-button muted-button thumbs-toggle fx-btn" type="button" aria-expanded="false" aria-controls="thumbs" title="Mostrar miniaturas" aria-label="Mostrar miniaturas">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="4" width="6" height="16" rx="1.5"></rect><path d="M4 8v8M20 8v8"></path></svg>
@@ -119,13 +118,12 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/slide-confirm.js?v=111"></script>
-  <script src="/shared/presentation-lifecycle-control.js?v=1"></script>
   <script src="/shared/interactions-shell.js"></script>
   <script src="/shared/raffle-controller.js"></script>
   <script src="/shared/drawing-overlay.js"></script>
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js"></script>
   <script src="/shared/knowledge-activities.js?v=25"></script>
-  <script src="/presenter/presenter.js?v=2"></script>
+  <script src="/presenter/presenter.js?v=4"></script>
 </body>
 </html>

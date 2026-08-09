@@ -1,5 +1,6 @@
 const { createMysqlPool } = require("../db/mysql");
 const { createResendEmailSender } = require("./resend-email");
+const { featureAccessForPlan } = require("./plan-features");
 
 const UNVERIFIED_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -167,6 +168,13 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     });
   }
 
+  async function getDeckFeatureAccess(deckId) {
+    if (!enabled) return featureAccessForPlan(null, { allowWhenUnknown: true });
+    const runtime = await initialize();
+    const plan = await runtime.workspaces.getDeckPlan(deckId);
+    return featureAccessForPlan(plan);
+  }
+
   async function listUnmeteredDeckIds(req) {
     const runtime = await initialize();
     return runtime.workspaces.listUnmeteredDeckIds({
@@ -296,6 +304,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     requireOwnedSession,
     listDeckIds,
     getPlanUsage,
+    getDeckFeatureAccess,
     listUnmeteredDeckIds,
     setDeckSourceSize,
     reserveDeck,
