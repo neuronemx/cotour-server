@@ -254,6 +254,18 @@ button:disabled { cursor: wait; opacity: .65; }
 .upload-status.error { color: var(--red); }
 .upload-status.loading { color: var(--blue); }
 
+.deck-file-actions { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+.deck-detail-replace,.deck-detail-delete { display:inline-flex; align-items:center; gap:7px; }
+.deck-detail-replace { color:var(--blue); font-size:13px; font-weight:700; border-bottom:1px solid transparent; }
+.deck-detail-replace:hover { border-bottom-color:currentColor; }
+.deck-detail-replace svg,.deck-detail-delete svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.replacement-review { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 16px; border:1px solid rgba(245,158,11,.28); border-radius:14px; background:rgba(245,158,11,.09); color:#58360a; }
+.replacement-review[hidden] { display:none; }
+.replacement-review strong { display:block; margin-bottom:3px; font-family:var(--font-display); font-size:14px; }
+.replacement-review p { margin:0; font-size:12.5px; line-height:1.45; }
+.replacement-review button { flex:none; padding:8px 12px; border-radius:999px; background:#fff; color:#8a5100; font-size:12px; font-weight:800; box-shadow:0 4px 16px rgba(91,57,7,.08); }
+@media(max-width:700px){.replacement-review{align-items:flex-start;flex-direction:column}.deck-file-actions{gap:12px}}
+
 /* =========================================================
    CONTENT TABS — texto simple, sin pastilla
 ========================================================= */

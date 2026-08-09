@@ -36,7 +36,11 @@ const detailDate = document.getElementById("detailDate");
 const detailSlides = document.getElementById("detailSlides");
 const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
+const detailReplace = document.getElementById("detailReplace");
 const detailDelete = document.getElementById("detailDelete");
+const replacementFile = document.getElementById("replacementFile");
+const replacementReview = document.getElementById("replacementReview");
+const replacementReviewed = document.getElementById("replacementReviewed");
 const conversionOverlay = document.getElementById("conversionOverlay");
 const conversionCard = conversionOverlay?.querySelector(".conversion-card");
 const conversionTitle = document.getElementById("conversionTitle");
@@ -109,6 +113,16 @@ function uploadIssue(file) {
   if (blocked) return blocked;
   if (file && planUsage && Number(file.size || 0) > Number(planUsage.remaining?.storageBytes || 0)) {
     return "Este archivo pesa " + storageLabel(file.size) + " y tienes " + storageLabel(planUsage.remaining.storageBytes) + " disponibles en tu plan " + planUsage.plan + ".";
+  }
+  return "";
+}
+
+function replacementIssue(file, deck) {
+  if (!file || !deck || !planUsage) return "";
+  const currentBytes = Math.max(0, Number(deck.sourceSizeBytes) || 0);
+  const availableBytes = Math.max(0, Number(planUsage.remaining?.storageBytes) || 0) + currentBytes;
+  if (Number(file.size || 0) > availableBytes) {
+    return "Este archivo pesa " + storageLabel(file.size) + " y tienes " + storageLabel(availableBytes) + " disponibles al sustituirla en tu plan " + planUsage.plan + ".";
   }
   return "";
 }
@@ -759,6 +773,7 @@ function renderDetailActions(deck) {
 function openDeckModal(deck) {
   if (!deckDetailModal || !deck) return;
   detailDeck = deck;
+  if (replacementReview) replacementReview.hidden = !deck.associationsReviewRequired;
   activeDeck = deck.deckId;
 
   if (detailThumb) {
@@ -794,6 +809,58 @@ function closeDeckModal() {
   document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));
   detailDeck = null;
   if (!nameModal || nameModal.hidden) document.body.classList.remove("modal-open");
+}
+
+async function replaceDeckFile(file) {
+  const deck = detailDeck;
+  if (!deck || !file) return;
+  const lowerName = String(file.name || "").toLowerCase();
+  if (!lowerName.endsWith(".pptx") && !lowerName.endsWith(".pdf")) {
+    return setUploadStatus("Error: solo se aceptan archivos PPTX o PDF.", "error");
+  }
+  const issue = replacementIssue(file, deck);
+  if (issue) return setUploadStatus(issue, "error");
+  const accepted = window.confirm(
+    "Sustituiremos las slides de “" + (deck.title || "esta presentación") + "”.\n\n" +
+    "Se conservarán Interacciones, Videos, enlaces y configuración. Si cambia el número de slides, Immersa te pedirá revisar sus asociaciones."
+  );
+  if (!accepted) {
+    replacementFile.value = "";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("pptx", file);
+  closeDeckModal();
+  startConversionProgress();
+  setConversionOverlay(true, {
+    state: "loading",
+    title: "Sustituyendo tu presentación",
+    message: "La versión actual seguirá intacta hasta terminar la conversión.",
+    percent: 0
+  });
+  setUploadStatus("", "");
+  try {
+    const response = await fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/replace", { method: "POST", body: formData });
+    const data = await response.json();
+    if (data.plan) {
+      planUsage = data.plan;
+      renderPlanUsage();
+    }
+    if (!response.ok) throw new Error(data.error || "No se pudo sustituir la presentación");
+    await Promise.all([loadDecks(deck.deckId), loadPlanUsage()]);
+    finishConversionOverlay(
+      "success",
+      "Presentación actualizada",
+      data.associationsReviewRequired
+        ? "Tus configuraciones se conservaron. Revisa sus asociaciones porque cambió la estructura."
+        : "Tus configuraciones y asociaciones se conservaron."
+    );
+  } catch (error) {
+    finishConversionOverlay("error", "No se pudo sustituir", (error.message || "Inténtalo nuevamente.") + " Tu versión anterior permanece intacta.", 3200);
+  } finally {
+    replacementFile.value = "";
+  }
 }
 
 function renderAll() {
@@ -898,6 +965,34 @@ if (detailDelete) {
   detailDelete.addEventListener("click", (event) => {
     event.stopPropagation();
     if (detailDeck) deleteDeck(detailDeck);
+  });
+}
+
+if (detailReplace && replacementFile) {
+  detailReplace.addEventListener("click", (event) => {
+    event.stopPropagation();
+    replacementFile.click();
+  });
+  replacementFile.addEventListener("change", () => replaceDeckFile(replacementFile.files[0]));
+}
+
+if (replacementReviewed) {
+  replacementReviewed.addEventListener("click", async () => {
+    if (!detailDeck) return;
+    replacementReviewed.disabled = true;
+    try {
+      const response = await fetch("/api/decks/" + encodeURIComponent(detailDeck.deckId) + "/replacement-review", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo guardar la revisión");
+      detailDeck = { ...detailDeck, ...data };
+      const index = decks.findIndex((deck) => deck.deckId === detailDeck.deckId);
+      if (index >= 0) decks[index] = { ...decks[index], ...data };
+      replacementReview.hidden = true;
+    } catch (error) {
+      setUploadStatus(error.message, "error");
+    } finally {
+      replacementReviewed.disabled = false;
+    }
   });
 }
 

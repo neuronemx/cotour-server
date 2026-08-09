@@ -46,19 +46,19 @@ async function withServer(app, operation) {
   }
 }
 
-test("FREE plan is frozen at 2 Decks and 100 MB of original uploads", () => {
-  assert.deepEqual(PLAN_LIMITS.FREE, { decks: 2, storageBytes: 100 * BYTES_PER_MEGABYTE });
+test("FREE plan is frozen at 2 Decks and 50 MB of original uploads", () => {
+  assert.deepEqual(PLAN_LIMITS.FREE, { decks: 2, storageBytes: 50 * BYTES_PER_MEGABYTE });
   assert.deepEqual(summarizePlanUsage("free", { decks: "1", storageBytes: String(25 * BYTES_PER_MEGABYTE) }), {
     plan: "FREE",
     usage: { decks: 1, storageBytes: 25 * BYTES_PER_MEGABYTE },
-    limits: { decks: 2, storageBytes: 100 * BYTES_PER_MEGABYTE },
-    remaining: { decks: 1, storageBytes: 75 * BYTES_PER_MEGABYTE },
+    limits: { decks: 2, storageBytes: 50 * BYTES_PER_MEGABYTE },
+    remaining: { decks: 1, storageBytes: 25 * BYTES_PER_MEGABYTE },
     canCreateDeck: true
   });
 });
 
 test("Deck reservation locks the workspace and records original bytes atomically", async () => {
-  const { pool, calls } = reservationPool({ deckCount: 1, storageBytes: 40 * BYTES_PER_MEGABYTE });
+  const { pool, calls } = reservationPool({ deckCount: 1, storageBytes: 35 * BYTES_PER_MEGABYTE });
   const repository = new WorkspaceRepository(pool);
   const result = await repository.reserveDeck({
     userId: "user-a",
@@ -69,7 +69,7 @@ test("Deck reservation locks the workspace and records original bytes atomically
   });
 
   assert.equal(result.usage.decks, 2);
-  assert.equal(result.usage.storageBytes, 52 * BYTES_PER_MEGABYTE);
+  assert.equal(result.usage.storageBytes, 47 * BYTES_PER_MEGABYTE);
   const workspaceLock = calls.find((call) => /SELECT w\.id, w\.plan/.test(call.sql || ""));
   assert.match(workspaceLock.sql, /FOR UPDATE/);
   const insert = calls.find((call) => /INSERT INTO decks/.test(call.sql || ""));
@@ -81,7 +81,7 @@ test("Deck reservation locks the workspace and records original bytes atomically
 test("Deck and storage limits reject reservations before the INSERT", async () => {
   for (const scenario of [
     { deckCount: 2, storageBytes: 20, sourceSizeBytes: 1, code: "DECK_LIMIT_REACHED" },
-    { deckCount: 1, storageBytes: 99 * BYTES_PER_MEGABYTE, sourceSizeBytes: 2 * BYTES_PER_MEGABYTE, code: "STORAGE_LIMIT_REACHED" }
+    { deckCount: 1, storageBytes: 49 * BYTES_PER_MEGABYTE, sourceSizeBytes: 2 * BYTES_PER_MEGABYTE, code: "STORAGE_LIMIT_REACHED" }
   ]) {
     const { pool, calls } = reservationPool(scenario);
     const repository = new WorkspaceRepository(pool);
@@ -182,7 +182,7 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
 
   assert.match(html, /id="accountPlanBadge"[^>]*>FREE</);
   assert.match(html, /id="planDeckUsage">0 de 2</);
-  assert.match(html, /id="planStorageUsage">0 MB de 100 MB</);
+  assert.match(html, /id="planStorageUsage">0 MB de 50 MB</);
   assert.match(source, /fetch\("\/api\/account\/plan"/);
   assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
   assert.match(source, /fileInput\.disabled = Boolean\(blockedMessage\)/);

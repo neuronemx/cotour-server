@@ -83,7 +83,7 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   const css = read("public/home/deck-management-shell.css");
 
   assert.match(html, /id="detailSlideStrip"[^>]+aria-label="Miniaturas del deck"[^>]+hidden/);
-  assert.match(html, /home\.js\?v=49/);
+  assert.match(html, /home\.js\?v=50/);
   assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deck\.deckId\) \+ "\/manifest\.json"/);
   assert.match(source, /cache: "no-store"/);
   assert.match(source, /slide\?\.thumb/);

@@ -207,6 +207,16 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     });
   }
 
+  async function replaceDeckSource(req, deck) {
+    const runtime = await initialize();
+    return runtime.workspaces.replaceDeckSource({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id,
+      deckId: deck.deckId,
+      sourceSizeBytes: deck.sourceSizeBytes
+    });
+  }
+
   async function unregisterDeck(req, deckId) {
     const runtime = await initialize();
     return runtime.workspaces.unregisterDeck(req.accountContext.user.id, deckId);
@@ -290,6 +300,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     setDeckSourceSize,
     reserveDeck,
     registerDeck,
+    replaceDeckSource,
     unregisterDeck,
     getAccountProfile,
     saveAccountProfile,

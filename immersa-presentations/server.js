@@ -4,7 +4,7 @@ const express = require("express");
 const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
-const { createUploadHandler } = require("./pdf-upload-support");
+const { createUploadHandler, createDeckReplacementHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -304,6 +304,9 @@ function manifestSummary(manifest, manifestStats = null) {
     status,
     conversionStatus,
     conversionMessage: manifest.conversion?.message || "",
+    sourceSizeBytes: Number(manifest.source?.sizeBytes || 0),
+    associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
+    replacement: manifest.replacement || null,
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -351,6 +354,37 @@ async function deleteDataDeck(deckId) {
   await fs.promises.rm(resolved.deckDir, { recursive: true, force: true });
   delete deckSlideCounts[resolved.deckId];
   return resolved.deckId;
+}
+
+function deckHasActiveConnections(deckId) {
+  const normalizedDeckId = normalizeDeckId(deckId);
+  return [...sessions.values()].some((session) => (
+    session.deckId === normalizedDeckId
+    && (session.presenterConnected || session.stageConnected || session.screenConnected || session.audience.size > 0)
+  ));
+}
+
+function assertDeckCanBeReplaced(deckId) {
+  if (!deckHasActiveConnections(deckId)) return;
+  const error = new Error("Cierra Speaker, Stage, Screen y Público antes de sustituir esta presentación.");
+  error.statusCode = 409;
+  error.code = "DECK_IN_USE";
+  error.publicMessage = error.message;
+  throw error;
+}
+
+async function markDeckAssociationsReviewed(deckId) {
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  if (!manifest.replacement) return manifestSummary(manifest);
+  manifest.replacement = {
+    ...manifest.replacement,
+    associationsReviewRequired: false,
+    reviewedAt: new Date().toISOString()
+  };
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
 }
 
 async function ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersist) {
@@ -720,6 +754,27 @@ app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, bra
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, knowledgeActivityHistoryHandlers.listHistory);
+app.post(
+  "/api/decks/:deckId/replace",
+  ...requireDeckAccount,
+  createDeckReplacementHandler({
+    beforeDeckSwap: ({ deck }) => assertDeckCanBeReplaced(deck.deckId),
+    onDeckReplaced: async ({ req, deck }) => {
+      const result = await betterAuthCompatibilityBridge.replaceDeckSource(req, deck);
+      delete deckSlideCounts[deck.deckId];
+      return result;
+    }
+  })
+);
+app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (req, res) => {
+  try {
+    res.json(await markDeckAssociationsReviewed(req.params.deckId));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to mark replacement associations reviewed", error);
+    res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : "Unable to update presentation review" });
+  }
+});
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);

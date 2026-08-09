@@ -3,7 +3,7 @@ const BYTES_PER_MEGABYTE = 1024 * 1024;
 const PLAN_LIMITS = Object.freeze({
   FREE: Object.freeze({
     decks: 2,
-    storageBytes: 100 * BYTES_PER_MEGABYTE
+    storageBytes: 50 * BYTES_PER_MEGABYTE
   })
 });
 
@@ -68,11 +68,26 @@ function assertCanReserveDeck(summary, sourceSizeBytes) {
   return bytes;
 }
 
+function assertCanReplaceDeck(summary, currentSourceSizeBytes, nextSourceSizeBytes) {
+  const currentBytes = nonNegativeInteger(currentSourceSizeBytes);
+  const nextBytes = nonNegativeInteger(nextSourceSizeBytes);
+  const availableBytes = summary.remaining.storageBytes + currentBytes;
+  if (nextBytes > availableBytes) {
+    throw new PlanLimitError(
+      "STORAGE_LIMIT_REACHED",
+      `El archivo supera el almacenamiento disponible de tu plan ${summary.plan}.`,
+      summary
+    );
+  }
+  return nextBytes;
+}
+
 module.exports = {
   BYTES_PER_MEGABYTE,
   PLAN_LIMITS,
   PlanLimitError,
   getPlanLimits,
   summarizePlanUsage,
-  assertCanReserveDeck
+  assertCanReserveDeck,
+  assertCanReplaceDeck
 };

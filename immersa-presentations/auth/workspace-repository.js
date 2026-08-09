@@ -1,5 +1,5 @@
 const crypto = require("node:crypto");
-const { summarizePlanUsage, assertCanReserveDeck } = require("./plan-limits");
+const { summarizePlanUsage, assertCanReserveDeck, assertCanReplaceDeck } = require("./plan-limits");
 
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
@@ -193,6 +193,73 @@ class WorkspaceRepository {
 
   async registerDeck(payload) {
     return this.reserveDeck(payload);
+  }
+
+  async replaceDeckSource({ userId, workspaceId, deckId, sourceSizeBytes }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [workspaces] = await connection.execute(
+        `SELECT w.id, w.plan
+         FROM workspaces w
+         INNER JOIN workspace_members wm ON wm.workspace_id = w.id
+         WHERE w.id = ? AND wm.user_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(userId)]
+      );
+      const workspace = workspaces?.[0];
+      if (!workspace) throw new Error("Immersa workspace not found");
+
+      const [deckRows] = await connection.execute(
+        `SELECT d.source_size_bytes
+         FROM decks d
+         WHERE d.workspace_id = ? AND d.deck_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(deckId)]
+      );
+      const deck = deckRows?.[0];
+      if (!deck) {
+        const error = new Error("Deck not found");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const [usageRows] = await connection.execute(
+        `SELECT COUNT(*) AS deck_count,
+                COALESCE(SUM(source_size_bytes), 0) AS storage_bytes
+         FROM decks
+         WHERE workspace_id = ?`,
+        [String(workspaceId)]
+      );
+      const usage = summarizePlanUsage(workspace.plan, {
+        decks: usageRows?.[0]?.deck_count,
+        storageBytes: usageRows?.[0]?.storage_bytes
+      });
+      const previousSourceSizeBytes = Math.max(0, Math.floor(Number(deck.source_size_bytes) || 0));
+      const nextSourceSizeBytes = assertCanReplaceDeck(usage, previousSourceSizeBytes, sourceSizeBytes);
+
+      await connection.execute(
+        `UPDATE decks
+         SET source_size_bytes = ?
+         WHERE workspace_id = ? AND deck_id = ?`,
+        [nextSourceSizeBytes, String(workspaceId), String(deckId)]
+      );
+      await connection.commit();
+      return {
+        previousSourceSizeBytes,
+        plan: summarizePlanUsage(workspace.plan, {
+          decks: usage.usage.decks,
+          storageBytes: usage.usage.storageBytes - previousSourceSizeBytes + nextSourceSizeBytes
+        })
+      };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async unregisterDeck(userId, deckId) {
