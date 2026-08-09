@@ -188,6 +188,24 @@ test("Deck summaries expose the versioned first slide for immediate Home cover r
   assert.match(server, /app\.get\("\/api\/decks"[\s\S]*?Cache-Control", "no-store"/);
   assert.match(source, /fetch\("\/api\/decks", \{ cache: "no-store" \}\)/);
   assert.match(source, /decks\[deckIndex\] = \{ \.\.\.decks\[deckIndex\], \.\.\.data \};[\s\S]*?renderDecks\(\)/);
+  assert.match(source, /direct\.map\(\(value\) => deckAssetUrl\(deck\.deckId, value\)\)/);
+});
+
+test("Review confirmation refreshes rendered Deck handlers with the acknowledged state", () => {
+  const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
+  assert.match(source, /replacementReview\.hidden = true;\s*renderDecks\(\);/);
+});
+
+test("Home puts presentations beside creation and uses the approved concise copy", () => {
+  const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
+  const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
+  assert.doesNotMatch(html, /class="content-tabs"/);
+  assert.match(html, /Encuestas[\s\S]*Sorteos[\s\S]*Trivias[\s\S]*Q&amp;A[\s\S]*Evaluaciones/);
+  assert.match(html, /Tus experiencias listas para compartir en las manos de tu público\./);
+  assert.doesNotMatch(html + source, /presentaciónes/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(340px, 390px\)/);
+  assert.match(css, /\.presentations-panel \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*padding-top: 142px;/);
 });
 
 test("Rename opens above Deck detail and owns Escape while active", () => {

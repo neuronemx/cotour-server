@@ -473,12 +473,6 @@ async function deleteDeck(deck) {
   }
 }
 
-function absoluteOrRoot(path) {
-  if (!path || typeof path !== "string") return "";
-  if (/^(https?:)?\/\//.test(path) || path.startsWith("data:")) return path;
-  return path.startsWith("/") ? path : "/" + path;
-}
-
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -528,7 +522,10 @@ function firstSlideThumbnailCandidates(deck) {
     `/api/decks/${id}/slide/1/thumbnail`
   ] : [];
 
-  return unique([...direct.map(absoluteOrRoot), ...derived]);
+  return unique([
+    ...direct.map((value) => deckAssetUrl(deck.deckId, value)),
+    ...derived
+  ]);
 }
 
 function deckAssetUrl(deckId, value) {
@@ -1022,6 +1019,7 @@ if (replacementReviewed) {
       const index = decks.findIndex((deck) => deck.deckId === detailDeck.deckId);
       if (index >= 0) decks[index] = { ...decks[index], ...data };
       replacementReview.hidden = true;
+      renderDecks();
     } catch (error) {
       setUploadStatus(error.message, "error");
     } finally {
