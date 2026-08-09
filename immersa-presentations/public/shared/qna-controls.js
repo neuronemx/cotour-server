@@ -71,6 +71,7 @@
 
     const round = modal.querySelector("[data-qna-round]");
     const openToggle = modal.querySelector("[data-qna-open]");
+    const openLabel = modal.querySelector(".qna-open-switch strong");
     const status = modal.querySelector("[data-qna-status]");
     const list = modal.querySelector("[data-qna-list]");
     const closeButton = modal.querySelector(".qna-control-close");
@@ -132,6 +133,7 @@
       state = nextState;
       round.textContent = String(state.roundNumber || 1);
       openToggle.checked = Boolean(state.questionsOpen);
+      openLabel.textContent = state.questionsOpen ? "Cerrar preguntas" : "Abrir preguntas";
       status.textContent = "";
       list.replaceChildren();
       if (!state.questions.length) {

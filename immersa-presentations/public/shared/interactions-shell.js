@@ -92,7 +92,8 @@
     button.append(
       createIcon(documentRef, APPROVED_CATEGORY_ICONS[category.id]),
       createElement(documentRef, "span", "interactions-shell-category-label", category.label),
-      createElement(documentRef, "span", "interactions-shell-live-label", "En vivo")
+      createElement(documentRef, "span", "interactions-shell-live-label", "En vivo"),
+      createElement(documentRef, "span", "interactions-shell-count-label", "0")
     );
     return button;
   }
@@ -103,6 +104,8 @@
     const documentRef = root.ownerDocument;
     let view = "home";
     let liveView = "";
+    const persistentLiveViews = new Set();
+    const categoryCounts = new Map();
     let locked = false;
     let closeVisible = true;
     let titleVisible = true;
@@ -208,10 +211,19 @@
       buttons.forEach((categoryButtons, id) => {
         categoryButtons.forEach((button) => {
           const active = id === view;
-          const live = id === liveView;
+          const live = id === liveView || persistentLiveViews.has(id);
+          const count = categoryCounts.get(id) || 0;
+          const countLabel = button.querySelector?.(".interactions-shell-count-label");
           button.classList.toggle("is-active", active);
           button.classList.toggle("is-live", live);
           button.setAttribute("aria-pressed", String(active));
+          if (countLabel) {
+            countLabel.textContent = String(count);
+            countLabel.hidden = count < 1;
+          }
+          const category = CATEGORIES.find((item) => item.id === id);
+          const status = [category?.label || id, live ? "En vivo" : "", count ? count + " pendiente" + (count === 1 ? "" : "s") : ""].filter(Boolean).join(" · ");
+          button.setAttribute("aria-label", status);
         });
       });
       container.classList.toggle("is-locked", locked);
@@ -253,6 +265,21 @@
       setLiveView(nextView) {
         liveView = VIEWS.has(nextView) && nextView !== "home" ? nextView : "";
         renderState();
+      },
+      setCategoryLive(id, value) {
+        if (!buttons.has(id)) return false;
+        if (value) persistentLiveViews.add(id);
+        else persistentLiveViews.delete(id);
+        renderState();
+        return true;
+      },
+      setCategoryCount(id, value) {
+        if (!buttons.has(id)) return false;
+        const count = Math.max(0, Number.parseInt(value, 10) || 0);
+        if (count) categoryCounts.set(id, count);
+        else categoryCounts.delete(id);
+        renderState();
+        return true;
       },
       refreshRendererVisibility: syncRendererVisibility,
       setLocked(value) {

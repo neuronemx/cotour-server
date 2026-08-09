@@ -111,13 +111,20 @@ const stageThumbsToggle = document.getElementById("stageThumbsToggle");
 const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
 let qnaAvailable = false;
+let qnaQuestionsOpen = false;
+let qnaPendingCount = 0;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
   launcher: false,
-  onAvailabilityChange: ({ available }) => {
+  onAvailabilityChange: ({ available, pending, state }) => {
     qnaAvailable = Boolean(available);
+    qnaQuestionsOpen = Boolean(state?.questionsOpen);
+    qnaPendingCount = Math.max(0, Number(pending) || 0);
     interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
+    interactionShell?.setCategoryLive?.("qna", qnaQuestionsOpen);
+    interactionShell?.setCategoryCount?.("qna", qnaPendingCount);
+    syncStageActionsVisualState();
   }
 });
 const liveTextControl = window.ImmersaLiveTextControl?.create({
@@ -401,6 +408,11 @@ function ensureStageActionsModal() {
 
 function syncStageActionsVisualState() {
   document.body.classList.toggle("stage-actions-open", stageActionsOpen);
+  if (!stageActionsButton) return;
+  stageActionsButton.classList.toggle("is-live", qnaQuestionsOpen);
+  stageActionsButton.setAttribute("aria-pressed", String(stageActionsOpen || qnaQuestionsOpen));
+  stageActionsButton.title = qnaQuestionsOpen ? "Acciones · Preguntas abiertas" + (qnaPendingCount ? " · " + qnaPendingCount + " pendiente" + (qnaPendingCount === 1 ? "" : "s") : "") : "Acciones";
+  stageActionsButton.setAttribute("aria-label", stageActionsButton.title);
 }
 
 function openStageActions() {
@@ -524,6 +536,8 @@ function ensureInteractionsShell() {
   }
   knowledgeActivityController?.mountHost?.({ root: assessmentRenderer, category: "assessment" });
   knowledgeActivityController?.mountHost?.({ root: contestRenderer, category: "contest" });
+  interactionShell.setCategoryLive?.("qna", qnaQuestionsOpen);
+  interactionShell.setCategoryCount?.("qna", qnaPendingCount);
   syncRendererVisibility();
   return interactionShell;
 }

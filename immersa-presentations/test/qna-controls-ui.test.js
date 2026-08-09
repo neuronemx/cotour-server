@@ -31,6 +31,7 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(controls, /button\.hidden = !launcher/);
   assert.match(controls, /onAvailabilityChange/);
   assert.match(controls, /Abrir preguntas/);
+  assert.match(controls, /state\.questionsOpen \? "Cerrar preguntas" : "Abrir preguntas"/);
   assert.match(controls, /Nueva ronda/);
   assert.doesNotMatch(controls, /Descargar CSV/);
   assert.doesNotMatch(controls, /IMMERSA_ROLE_OPEN\?\.access_token/);
@@ -47,6 +48,12 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(css, /\.qna-control-modal/);
   assert.match(css, /backdrop-filter: blur\(4px\)/);
   assert.match(css, /--immersa-glass/);
+  assert.match(presenterScript, /qnaQuestionsOpen = Boolean\(state\?\.questionsOpen\)/);
+  assert.match(presenterScript, /setCategoryLive\?\.\("qna", qnaQuestionsOpen\)/);
+  assert.match(presenterScript, /interactionPanelOpen \|\| qnaQuestionsOpen/);
+  assert.match(stageScript, /qnaQuestionsOpen = Boolean\(state\?\.questionsOpen\)/);
+  assert.match(stageScript, /setCategoryCount\?\.\("qna", qnaPendingCount\)/);
+  assert.match(stageScript, /stageActionsButton\.classList\.toggle\("is-live", qnaQuestionsOpen\)/);
 });
 
 test("Stage omits live drawing independently of the Q&A control UI", async () => {

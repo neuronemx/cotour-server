@@ -134,6 +134,17 @@ test("interactions shell preserves the approved category contract", () => {
   shell.setLiveView("contests");
   assert.equal(shell.getLiveView(), "contests");
   assert.equal(category(root, "contests").classList.contains("is-live"), true);
+  shell.setCategoryLive("qna", true);
+  shell.setCategoryCount("qna", 3);
+  assert.equal(category(root, "qna").classList.contains("is-live"), true);
+  assert.equal(category(root, "qna").querySelector(".interactions-shell-live-label").textContent, "En vivo");
+  assert.equal(category(root, "qna").querySelector(".interactions-shell-count-label").textContent, "3");
+  assert.equal(category(root, "qna").getAttribute("aria-label"), "Preguntas · En vivo · 3 pendientes");
+  assert.equal(category(root, "contests").classList.contains("is-live"), true);
+  shell.setCategoryLive("qna", false);
+  shell.setCategoryCount("qna", 0);
+  assert.equal(category(root, "qna").classList.contains("is-live"), false);
+  assert.equal(category(root, "qna").querySelector(".interactions-shell-count-label").hidden, true);
 });
 
 

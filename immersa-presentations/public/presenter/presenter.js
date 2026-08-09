@@ -38,13 +38,20 @@ const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
 const deckNotice = document.getElementById("deckNotice");
 let qnaAvailable = false;
+let qnaQuestionsOpen = false;
+let qnaPendingCount = 0;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "presenter",
   launcher: false,
-  onAvailabilityChange: ({ available }) => {
+  onAvailabilityChange: ({ available, pending, state }) => {
     qnaAvailable = Boolean(available);
+    qnaQuestionsOpen = Boolean(state?.questionsOpen);
+    qnaPendingCount = Math.max(0, Number(pending) || 0);
     interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
+    interactionShell?.setCategoryLive?.("qna", qnaQuestionsOpen);
+    interactionShell?.setCategoryCount?.("qna", qnaPendingCount);
+    syncInteractionToggleVisualState();
   }
 });
 const liveTextControl = window.ImmersaLiveTextControl?.create({
@@ -232,6 +239,8 @@ function ensureInteractionsShell() {
   }
   knowledgeActivityController?.mountHost?.({ root: assessmentRenderer, category: "assessment" });
   knowledgeActivityController?.mountHost?.({ root: contestRenderer, category: "contest" });
+  interactionShell.setCategoryLive?.("qna", qnaQuestionsOpen);
+  interactionShell.setCategoryCount?.("qna", qnaPendingCount);
   syncInteractionShellState();
   return interactionShell;
 }
@@ -292,15 +301,19 @@ function setInteractionPanelOpen(open) {
   if (!open) resetInactiveRaffleDraft();
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
+  syncInteractionToggleVisualState();
+  if (interactionPanelOpen) renderInteractionPanel();
+}
+function syncInteractionToggleVisualState() {
   if (interactionToggle) {
-    interactionToggle.classList.toggle("is-active", interactionPanelOpen);
-    interactionToggle.classList.toggle("is-special-active", interactionPanelOpen);
+    const highlighted = interactionPanelOpen || qnaQuestionsOpen;
+    interactionToggle.classList.toggle("is-active", highlighted);
+    interactionToggle.classList.toggle("is-special-active", highlighted);
     interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen));
-    interactionToggle.setAttribute("aria-pressed", String(interactionPanelOpen));
-    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : "Interacciones";
+    interactionToggle.setAttribute("aria-pressed", String(highlighted));
+    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : qnaQuestionsOpen ? "Interacciones · Preguntas abiertas" + (qnaPendingCount ? " · " + qnaPendingCount + " pendiente" + (qnaPendingCount === 1 ? "" : "s") : "") : "Interacciones";
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
   }
-  if (interactionPanelOpen) renderInteractionPanel();
 }
 function toggleInteractionPanel() { if (interactionPanelOpen && hasActiveInteractionShellLock()) return; setInteractionPanelOpen(!interactionPanelOpen); }
 function ensureInteractionToggle() {

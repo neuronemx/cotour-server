@@ -1829,6 +1829,28 @@ body.stage-actions-open .interaction-slide-scrim {
   text-transform: uppercase;
 }
 
+.interactions-shell-count-label {
+  position: absolute;
+  top: -5px;
+  left: 2px;
+  min-width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #fff;
+  background: #7f77dd;
+  box-shadow: 0 3px 10px rgba(127, 119, 221, .34);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.interactions-shell-count-label[hidden] {
+  display: none !important;
+}
+
 .interactions-shell-category.is-live .interactions-shell-live-label {
   display: block;
 }

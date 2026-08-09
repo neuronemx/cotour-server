@@ -487,7 +487,7 @@ test("Stage modal no longer renders a fullscreen visual backdrop and syncs body 
   assert.doesNotMatch(stage, /stageActionsModal\.addEventListener\("click"/);
   assert.match(css, /\.stage-actions-modal \{ pointer-events: none; \}/);
   assert.match(css, /\.stage-actions-card \{[\s\S]+pointer-events: auto;[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);/);
-  assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);\n\}/);
+  assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);/);
   assert.match(stage, /function openStageActions\(\) \{[\s\S]+stageActionsOpen = true;\n  syncStageActionsVisualState\(\);/);
   assert.match(stage, /function closeStageActions\(\) \{[\s\S]+stageActionsOpen = false;\n  syncStageActionsVisualState\(\);/);
   assert.match(stage, /function setStageActionsOpen\(open\) \{[\s\S]+if \(!open\) resetInactiveRaffleDraft\(\);[\s\S]+stageActionsOpen = Boolean\(open\);\n  syncStageActionsVisualState\(\);/);
