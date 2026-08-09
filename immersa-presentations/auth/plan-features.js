@@ -35,6 +35,12 @@ function isPaidControllerEvent(eventName) {
     || event === "time:command";
 }
 
+function isPaidMetricsEvent(eventName) {
+  const event = String(eventName || "");
+  return event === "presentation:lifecycle:start"
+    || event === "presentation:lifecycle:finish";
+}
+
 function changesPaidDeckContent(body = {}, current = {}) {
   return PAID_DECK_CONTENT_FIELDS.some((field) =>
     body[field] !== undefined
@@ -49,5 +55,6 @@ module.exports = {
   featureAccessForPlan,
   canUseFeature,
   isPaidControllerEvent,
+  isPaidMetricsEvent,
   changesPaidDeckContent
 };

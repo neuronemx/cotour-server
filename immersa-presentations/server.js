@@ -26,7 +26,7 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
-const { canUseFeature, isPaidControllerEvent, changesPaidDeckContent } = require("./auth/plan-features");
+const { canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
 
 const app = express();
 const server = http.createServer(app);
@@ -905,12 +905,17 @@ io.on("connection", (socket) => {
   let currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
 
   socket.use(([eventName], next) => {
-    if (!controllerRoles.has(currentRole) || !isPaidControllerEvent(eventName)) return next();
-    if (canUseFeature(currentFeatureAccess, "interactions")) return next();
+    if (!controllerRoles.has(currentRole)) return next();
+    const feature = isPaidControllerEvent(eventName)
+      ? "interactions"
+      : (isPaidMetricsEvent(eventName) ? "metrics" : "");
+    if (!feature || canUseFeature(currentFeatureAccess, feature)) return next();
     socket.emit("plan:feature_locked", {
-      feature: "interactions",
+      feature,
       plan: currentFeatureAccess.plan,
-      message: "Interacciones está disponible en planes de pago"
+      message: feature === "metrics"
+        ? "Métricas está disponible en planes de pago"
+        : "Interacciones está disponible en planes de pago"
     });
   });
 
@@ -1003,6 +1008,7 @@ io.on("connection", (socket) => {
     emitState(currentRoomKey, session);
     if (
       role === "audience"
+      && canUseFeature(currentFeatureAccess, "metrics")
       && session.audience.size >= AUTO_START_AUDIENCE_THRESHOLD
       && !session.automaticLifecycleStarted
     ) {

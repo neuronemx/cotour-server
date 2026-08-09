@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
-const { featureAccessForPlan, canUseFeature, isPaidControllerEvent, changesPaidDeckContent } = require("../auth/plan-features");
+const { featureAccessForPlan, canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("../auth/plan-features");
 const { WorkspaceRepository } = require("../auth/workspace-repository");
 
 test("FREE locks Interacciones and Métricas while paid plans enable them", () => {
@@ -43,6 +43,13 @@ test("the central live guard covers paid interaction commands without blocking F
     "overlay_update",
     "media:play"
   ]) assert.equal(isPaidControllerEvent(event), false, event);
+});
+
+test("the central live guard covers presentation Metrics recording", () => {
+  assert.equal(isPaidMetricsEvent("presentation:lifecycle:start"), true);
+  assert.equal(isPaidMetricsEvent("presentation:lifecycle:finish"), true);
+  assert.equal(isPaidMetricsEvent("presentation:lifecycle:request"), false);
+  assert.equal(isPaidMetricsEvent("slide_next"), false);
 });
 
 test("FREE can save Videos and slide visibility without changing paid Deck content", () => {
@@ -95,13 +102,20 @@ test("Speaker and Stage render a visible plan lock and cannot open Interacciones
   assert.match(stage, /stageActionsButton\.disabled = true/);
   assert.match(stage, /Disponible en planes de pago/);
   assert.match(stageStyles, /\.actions-button\.is-plan-locked \.plan-feature-lock/);
+  assert.match(stage, /syncPresentationLifecycleFeature\(roleOpenContext\.features\?\.metrics !== false\)/);
+  assert.match(stage, /socket\.on\("plan:features"[\s\S]*access\.features\?\.metrics !== false/);
+  assert.match(stage, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
+  assert.match(stageHtml, /\/stage\/stage\.js\?v=stage-v14/);
 });
 
 test("server enforces Interacciones and Métricas independently of disabled buttons", () => {
   const server = read("server.js");
   assert.match(server, /socket\.use\(\(\[eventName\], next\) =>/);
   assert.match(server, /isPaidControllerEvent\(eventName\)/);
+  assert.match(server, /isPaidMetricsEvent\(eventName\)/);
   assert.match(server, /socket\.emit\("plan:feature_locked"/);
+  assert.match(server, /feature === "metrics"[\s\S]*Métricas está disponible en planes de pago/);
+  assert.match(server, /role === "audience"[\s\S]*canUseFeature\(currentFeatureAccess, "metrics"\)[\s\S]*AUTO_START_AUDIENCE_THRESHOLD/);
   assert.match(server, /app\.put\("\/api\/decks\/:deckId\/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite/);
   assert.match(server, /changesPaidDeckContent\(req\.body, current\)/);
   assert.match(server, /\/api\/decks\/:deckId\/qna\/history"[\s\S]*requireDeckFeature\("metrics"\)/);

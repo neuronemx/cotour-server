@@ -315,12 +315,13 @@ test("finalization is rejected while an interaction is active", async () => {
   });
 });
 
-test("the lifecycle slider remains on Stage and is hidden from Speaker", () => {
+test("the lifecycle slider is mounted on paid Stage only and remains hidden from Speaker", () => {
   const root = path.join(__dirname, "..");
   const control = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle-control.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle.css"), "utf8");
   const presenter = fs.readFileSync(path.join(root, "public/presenter/index.html"), "utf8");
   const stage = fs.readFileSync(path.join(root, "public/stage/index.html"), "utf8");
+  const stageScript = fs.readFileSync(path.join(root, "public/stage/stage.js"), "utf8");
 
   assert.match(control, /state\.mode === "live" \? "En vivo" : "Iniciar"/);
   assert.match(control, /arming \? "Finalizar" : "En vivo"/);
@@ -328,6 +329,8 @@ test("the lifecycle slider remains on Stage and is hidden from Speaker", () => {
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
   assert.doesNotMatch(presenter, /presentationLifecycle/);
   assert.match(stage, /stage-brand[\s\S]*presentationLifecycle/);
+  assert.match(stageScript, /syncPresentationLifecycleFeature\(roleOpenContext\.features\?\.metrics !== false\)/);
+  assert.match(stageScript, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
   assert.doesNotMatch(presenter, /presentation-lifecycle-control\.js/);
   assert.match(stage, /presentation-lifecycle-control\.js\?v=1/);
 });
