@@ -119,6 +119,12 @@
 
   document.addEventListener("immersa:deck-detail-open", () => activateTab("links"));
   document.addEventListener("immersa:deck-detail-close", restoreEditors);
+  document.addEventListener("immersa:deck-video-slide-request", (event) => {
+    const slideId = String(event.detail?.slideId || "");
+    if (!slideId) return;
+    window.ImmersaVideoEditor?.selectSlide(slideId, event.detail?.deck?.deckId);
+    activateTab("video", true);
+  });
   patchDetailActions();
   activateTab("links");
 })();

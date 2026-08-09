@@ -30,6 +30,9 @@ const deckDetailModal = document.getElementById("deckDetailModal");
 const closeDeckDetail = document.getElementById("closeDeckDetail");
 const detailThumb = document.getElementById("detailThumb");
 const detailSlideStrip = document.getElementById("detailSlideStrip");
+const detailPreviousSlide = document.getElementById("detailPreviousSlide");
+const detailNextSlide = document.getElementById("detailNextSlide");
+const detailVideoAction = document.getElementById("detailVideoAction");
 const detailTitle = document.getElementById("detailTitle");
 const detailDate = document.getElementById("detailDate");
 const detailSlides = document.getElementById("detailSlides");
@@ -51,6 +54,7 @@ let conversionProgressValue = 0;
 let pendingFile = null;
 let renameDeckTarget = null;
 let detailSlidesRequestId = 0;
+let detailSlideNavigation = null;
 
 function normalizeSlug(value) {
   return String(value || "")
@@ -611,16 +615,80 @@ function renderDetailSlide(deck, slide, index) {
   return thumb;
 }
 
+function detailSlideId(slide, index) {
+  return String(slide?.id || "slide-" + String(index + 1).padStart(3, "0"));
+}
+
+function videoMarker() {
+  const marker = document.createElement("span");
+  marker.className = "deck-detail-slide-video-mark";
+  marker.setAttribute("aria-hidden", "true");
+  marker.innerHTML = '<svg viewBox="0 0 24 24"><path d="m7 5 12 7-12 7Z"/></svg>';
+  return marker;
+}
+
+function syncDetailVideoControls() {
+  const navigation = detailSlideNavigation;
+  if (!navigation || navigation.index < 0) return;
+  const slideId = detailSlideId(navigation.slides[navigation.index], navigation.index);
+  const hasVideo = navigation.videoSlideIds.has(slideId);
+  if (detailVideoAction) {
+    detailVideoAction.hidden = false;
+    detailVideoAction.classList.toggle("has-video", hasVideo);
+    const label = detailVideoAction.querySelector("span");
+    if (label) label.textContent = hasVideo ? "Editar video" : "Agregar video";
+    detailVideoAction.setAttribute("aria-label", (hasVideo ? "Editar" : "Agregar") + " video en slide " + (navigation.index + 1));
+  }
+  navigation.buttons.forEach((button, index) => {
+    const marked = navigation.videoSlideIds.has(detailSlideId(navigation.slides[index], index));
+    button.classList.toggle("has-video", marked);
+    button.querySelector(".deck-detail-slide-video-mark")?.remove();
+    if (marked) button.appendChild(videoMarker());
+    button.setAttribute("aria-label", "Ver slide " + (index + 1) + (marked ? " · contiene video" : ""));
+  });
+}
+
+function selectDetailSlide(index, options = {}) {
+  const navigation = detailSlideNavigation;
+  if (!navigation?.slides.length || detailDeck?.deckId !== navigation.deck.deckId) return;
+  const nextIndex = Math.max(0, Math.min(navigation.slides.length - 1, Number(index) || 0));
+  navigation.index = nextIndex;
+  detailThumb.replaceChildren(renderDetailSlide(navigation.deck, navigation.slides[nextIndex], nextIndex));
+  navigation.buttons.forEach((button, itemIndex) => {
+    const selected = itemIndex === nextIndex;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  if (detailPreviousSlide) {
+    detailPreviousSlide.hidden = navigation.slides.length < 2;
+    detailPreviousSlide.disabled = nextIndex === 0;
+  }
+  if (detailNextSlide) {
+    detailNextSlide.hidden = navigation.slides.length < 2;
+    detailNextSlide.disabled = nextIndex === navigation.slides.length - 1;
+  }
+  syncDetailVideoControls();
+  if (options.scroll !== false) navigation.buttons[nextIndex]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+}
+
 async function loadDetailSlideNavigation(deck) {
   if (!detailSlideStrip || !detailThumb) return;
   const requestId = ++detailSlidesRequestId;
   detailSlideStrip.hidden = true;
   detailSlideStrip.replaceChildren();
+  detailSlideNavigation = null;
+  if (detailPreviousSlide) detailPreviousSlide.hidden = true;
+  if (detailNextSlide) detailNextSlide.hidden = true;
+  if (detailVideoAction) detailVideoAction.hidden = true;
 
   try {
-    const response = await fetch("/decks/" + encodeURIComponent(deck.deckId) + "/manifest.json", { cache: "no-store" });
+    const [response, interactionsResponse] = await Promise.all([
+      fetch("/decks/" + encodeURIComponent(deck.deckId) + "/manifest.json", { cache: "no-store" }),
+      fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/interactions", { cache: "no-store" }).catch(() => null)
+    ]);
     if (!response.ok) throw new Error("No se pudieron cargar las miniaturas");
     const manifest = await response.json();
+    const interactions = interactionsResponse?.ok ? await interactionsResponse.json().catch(() => ({})) : {};
     const slides = Array.isArray(manifest?.slides) ? manifest.slides : [];
     if (requestId !== detailSlidesRequestId || detailDeck?.deckId !== deck.deckId || !slides.length) return;
 
@@ -651,21 +719,20 @@ async function loadDetailSlideNavigation(deck) {
       number.textContent = String(index + 1);
       button.appendChild(number);
 
-      button.addEventListener("click", () => {
-        if (detailDeck?.deckId !== deck.deckId) return;
-        detailThumb.replaceChildren(renderDetailSlide(deck, slide, index));
-        buttons.forEach((item, itemIndex) => {
-          const selected = itemIndex === index;
-          item.classList.toggle("is-active", selected);
-          item.setAttribute("aria-pressed", String(selected));
-        });
-      });
+      button.addEventListener("click", () => selectDetailSlide(index, { scroll: false }));
       return button;
     });
 
+    detailSlideNavigation = {
+      deck,
+      slides,
+      buttons,
+      index: 0,
+      videoSlideIds: new Set((Array.isArray(interactions?.videos) ? interactions.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean))
+    };
     detailSlideStrip.append(...buttons);
     detailSlideStrip.hidden = false;
-    buttons[0].click();
+    selectDetailSlide(0, { scroll: false });
   } catch (_error) {
     if (requestId === detailSlidesRequestId) detailSlideStrip.hidden = true;
   }
@@ -829,6 +896,10 @@ function closeDeckModal() {
     detailSlideStrip.hidden = true;
     detailSlideStrip.replaceChildren();
   }
+  detailSlideNavigation = null;
+  if (detailPreviousSlide) detailPreviousSlide.hidden = true;
+  if (detailNextSlide) detailNextSlide.hidden = true;
+  if (detailVideoAction) detailVideoAction.hidden = true;
   deckDetailModal.hidden = true;
   deckDetailModal.setAttribute("aria-hidden", "true");
   document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));
@@ -989,6 +1060,27 @@ if (deckDetailModal) {
   });
 }
 
+detailPreviousSlide?.addEventListener("click", () => selectDetailSlide((detailSlideNavigation?.index || 0) - 1));
+detailNextSlide?.addEventListener("click", () => selectDetailSlide((detailSlideNavigation?.index || 0) + 1));
+detailVideoAction?.addEventListener("click", () => {
+  const navigation = detailSlideNavigation;
+  if (!navigation || navigation.index < 0) return;
+  document.dispatchEvent(new CustomEvent("immersa:deck-video-slide-request", {
+    detail: { deck: navigation.deck, slideId: detailSlideId(navigation.slides[navigation.index], navigation.index) }
+  }));
+});
+detailSlideStrip?.addEventListener("wheel", (event) => {
+  if (detailSlideStrip.scrollWidth <= detailSlideStrip.clientWidth) return;
+  event.preventDefault();
+  detailSlideStrip.scrollLeft += Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+}, { passive: false });
+
+document.addEventListener("immersa:deck-videos-changed", (event) => {
+  if (!detailSlideNavigation || event.detail?.deckId !== detailSlideNavigation.deck.deckId) return;
+  detailSlideNavigation.videoSlideIds = new Set((Array.isArray(event.detail?.videos) ? event.detail.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
+  syncDetailVideoControls();
+});
+
 if (detailReplace && replacementFile) {
   detailReplace.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -1026,6 +1118,13 @@ if (replacementReviewed) {
 }
 
 document.addEventListener("keydown", (event) => {
+  if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && deckDetailModal && !deckDetailModal.hidden && deckDetailModal.dataset.activeDeckTab === "links") {
+    if (event.target.closest?.("input, textarea, select, [contenteditable='true']")) return;
+    if (!detailSlideNavigation?.slides.length) return;
+    event.preventDefault();
+    selectDetailSlide(detailSlideNavigation.index + (event.key === "ArrowRight" ? 1 : -1));
+    return;
+  }
   if (event.key !== "Escape") return;
   if (nameModal && !nameModal.hidden) return closeNameModal(false);
   if (deckDetailModal && !deckDetailModal.hidden) closeDeckModal();

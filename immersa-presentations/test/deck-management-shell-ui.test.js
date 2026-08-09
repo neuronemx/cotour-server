@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=11/);
-  assert.match(html, /deck-management-shell\.js\?v=6/);
+  assert.match(html, /deck-management-shell\.css\?v=12/);
+  assert.match(html, /deck-management-shell\.js\?v=7/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>/);
   assert.match(html, /data-deck-tab="interactions">[\s\S]*?<span>Interacciones<\/span>/);
   assert.match(html, /data-deck-tab="video">[\s\S]*?<span>Video<\/span>/);
@@ -77,18 +77,27 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.doesNotMatch(css, /linear-gradient\(/);
 });
 
-test("Deck detail loads a navigable slide thumbnail strip without changing the show", () => {
+test("Deck detail provides visual slide navigation and direct video editing without changing the show", () => {
   const html = read("public/home/index.html");
   const source = read("public/home/home.js");
   const css = read("public/home/deck-management-shell.css");
 
   assert.match(html, /id="detailSlideStrip"[^>]+aria-label="Miniaturas del deck"[^>]+hidden/);
+  assert.match(html, /id="detailPreviousSlide"[^>]+aria-label="Ver slide anterior"/);
+  assert.match(html, /id="detailNextSlide"[^>]+aria-label="Ver slide siguiente"/);
+  assert.match(html, /id="detailVideoAction"[^>]+hidden/);
   assert.match(html, /home\.js\?v=\d+/);
   assert.match(source, /fetch\("\/decks\/" \+ encodeURIComponent\(deck\.deckId\) \+ "\/manifest\.json"/);
   assert.match(source, /cache: "no-store"/);
   assert.match(source, /slide\?\.thumb/);
-  assert.match(source, /detailThumb\.replaceChildren\(renderDetailSlide\(deck, slide, index\)\)/);
+  assert.match(source, /function selectDetailSlide\(index/);
+  assert.match(source, /detailThumb\.replaceChildren\(renderDetailSlide\(navigation\.deck, navigation\.slides\[nextIndex\], nextIndex\)\)/);
   assert.match(source, /aria-pressed/);
+  assert.match(source, /immersa:deck-video-slide-request/);
+  assert.match(source, /immersa:deck-videos-changed/);
+  assert.match(source, /detailSlideStrip\?\.addEventListener\("wheel"/);
+  assert.match(source, /passive: false/);
+  assert.match(source, /event\.key === "ArrowLeft" \|\| event\.key === "ArrowRight"/);
   assert.match(source, /detailSlidesRequestId/);
   assert.doesNotMatch(source, /slide_go|socket\.emit/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+overflow-x: auto/);
@@ -100,7 +109,27 @@ test("Deck detail loads a navigable slide thumbnail strip without changing the s
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+backdrop-filter: blur\(12px\)/);
   assert.match(css, /\.deck-detail-slide-thumb \{[\s\S]+padding: 1px[\s\S]+background: rgba\(255, 255, 255, \.3\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+padding: 2px[\s\S]+background: var\(--grad\)/);
-  assert.match(html, /deck-management-shell\.css\?v=11/);
+  assert.match(css, /\.deck-detail-slide-arrow/);
+  assert.match(css, /\.deck-detail-video-action/);
+  assert.match(css, /\.deck-detail-slide-video-mark/);
+  assert.match(html, /deck-management-shell\.css\?v=12/);
+});
+
+test("Direct video action reuses the current editor with the selected slide", () => {
+  const shell = read("public/home/deck-management-shell.js");
+  const videos = read("public/home/video-editor.js");
+  const html = read("public/home/index.html");
+
+  assert.match(shell, /immersa:deck-video-slide-request/);
+  assert.match(shell, /ImmersaVideoEditor\?\.selectSlide\(slideId, event\.detail\?\.deck\?\.deckId\)/);
+  assert.match(shell, /activateTab\("video", true\)/);
+  assert.match(videos, /window\.ImmersaVideoEditor/);
+  assert.match(videos, /selectSlide\(slideId, deckId\)/);
+  assert.match(videos, /String\(currentDeck\.deckId\) !== String\(deckId \|\| ""\)/);
+  assert.match(videos, /renderForm\(config\.videos\.find/);
+  assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
+  assert.match(videos, /immersa:deck-videos-changed/);
+  assert.match(html, /video-editor\.js\?v=109/);
 });
 
 test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {

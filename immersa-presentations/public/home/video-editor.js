@@ -5,6 +5,7 @@
   let bodyNode = null;
   let statusNode = null;
   let editingSlideId = null;
+  let requestedSlideId = null;
 
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
@@ -193,6 +194,9 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "No se pudo guardar la configuración de videos.");
     config.videos = Array.isArray(data.videos) ? data.videos : [];
+    document.dispatchEvent(new CustomEvent("immersa:deck-videos-changed", {
+      detail: { deckId: currentDeck.deckId, videos: config.videos }
+    }));
   }
 
   function behaviorLabel(video) {
@@ -280,7 +284,7 @@
     bodyNode.appendChild(add);
   }
 
-  function renderForm(existing = null) {
+  function renderForm(existing = null, selectedSlideId = null) {
     editingSlideId = existing?.slide_id || null;
     bodyNode.innerHTML = "";
     const form = document.createElement("form");
@@ -300,6 +304,7 @@
 
     const slideSelect = form.elements.slide_id;
     if (existing) slideSelect.value = existing.slide_id;
+    else if (selectedSlideId) slideSelect.value = selectedSlideId;
     form.querySelector('input[name="autoplay"][value="' + String(existing?.playback?.autoplay !== false) + '"]').checked = true;
     form.querySelector('input[name="end_behavior"][value="' + (existing?.playback?.end_behavior || "stay") + '"]').checked = true;
     const fileInput = form.elements.file;
@@ -423,7 +428,11 @@
     setStatus("Cargando…");
     loadConfig(deck).then(() => {
       setStatus("");
-      renderList();
+      if (requestedSlideId) {
+        const slideId = requestedSlideId;
+        requestedSlideId = null;
+        renderForm(config.videos.find((video) => String(video.slide_id) === slideId) || null, slideId);
+      } else renderList();
     }).catch((error) => {
       setStatus(error.message, "error");
     });
@@ -436,6 +445,7 @@
     currentDeck = null;
     config = null;
     editingSlideId = null;
+    requestedSlideId = null;
     if (document.getElementById("deckDetailModal")?.hidden) document.body.classList.remove("modal-open");
   }
 
@@ -465,6 +475,16 @@
   }
 
   patchDetailActions();
+  window.ImmersaVideoEditor = {
+    selectSlide(slideId, deckId) {
+      requestedSlideId = String(slideId || "");
+      const inline = modal?.querySelector(".video-editor-modal")?.classList.contains("is-deck-inline");
+      if (!requestedSlideId || !inline || !config || !currentDeck || String(currentDeck.deckId) !== String(deckId || "")) return;
+      const target = requestedSlideId;
+      requestedSlideId = null;
+      renderForm(config.videos.find((video) => String(video.slide_id) === target) || null, target);
+    }
+  };
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal && !modal.hidden) closeModal();
   });
