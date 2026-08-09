@@ -183,6 +183,8 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(html, /id="accountPlanBadge"[^>]*>FREE</);
   assert.match(html, /id="planDeckUsage">0 de 2</);
   assert.match(html, /id="planStorageUsage">0 MB de 50 MB</);
+  assert.ok(html.indexOf('id="fileDrop"') < html.indexOf('id="planUsage"'));
+  assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planUsage"'));
   assert.match(source, /fetch\("\/api\/account\/plan"/);
   assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
   assert.match(source, /fileInput\.disabled = Boolean\(blockedMessage\)/);
