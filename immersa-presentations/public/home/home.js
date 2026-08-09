@@ -1,6 +1,7 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
 const roles = ["speaker", "audience", "screen", "stage"];
 const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
+let profilePublicTitle = String(window.IMMERSA_PROFILE_PUBLIC_TITLE || labels.speaker).trim() || labels.speaker;
 let decks = [];
 let activeDeck = null;
 let detailDeck = null;
@@ -55,6 +56,22 @@ let pendingFile = null;
 let renameDeckTarget = null;
 let detailSlidesRequestId = 0;
 let detailSlideNavigation = null;
+
+function roleLabel(role) {
+  return role === "speaker" ? profilePublicTitle : (labels[role] || role);
+}
+
+function applyProfilePublicTitle(value) {
+  profilePublicTitle = String(value || labels.speaker).trim() || labels.speaker;
+  document.querySelectorAll(".detail-role-action.role-speaker").forEach((button) => {
+    if (!button.disabled) button.textContent = profilePublicTitle;
+    button.title = "Abrir como " + profilePublicTitle + " en nueva pestaña";
+  });
+}
+
+window.addEventListener("immersa:profile-public-title", (event) => {
+  applyProfilePublicTitle(event.detail?.publicTitle);
+});
 
 function normalizeSlug(value) {
   return String(value || "")
@@ -412,7 +429,7 @@ async function copyText(value) {
 }
 
 async function copyRoleLink(role, deck, button) {
-  const label = labels[role] || role;
+  const label = roleLabel(role);
   const original = button.textContent;
   let speakerWindow = null;
 
@@ -430,7 +447,7 @@ async function copyRoleLink(role, deck, button) {
     const url = await createAccessLink(role, deck);
     if (role === "speaker") {
       speakerWindow.location.replace(url);
-      button.textContent = "Speaker abierto";
+      button.textContent = "Acceso abierto";
     } else {
       const copied = await copyText(url);
       button.textContent = copied ? "Link copiado" : "Link listo";
@@ -852,8 +869,9 @@ function renderDetailActions(deck) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "detail-role-action role-" + role;
-    button.textContent = labels[role] || role;
-    button.title = role === "speaker" ? "Abrir Speaker en nueva pestaña" : "Copiar link de " + (labels[role] || role);
+    const label = roleLabel(role);
+    button.textContent = label;
+    button.title = role === "speaker" ? "Abrir como " + label + " en nueva pestaña" : "Copiar link de " + label;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       copyRoleLink(role, deck, event.currentTarget);

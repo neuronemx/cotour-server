@@ -65,6 +65,9 @@
     currentProfile = profile || {};
     Object.entries(fields).forEach(([key, input]) => { input.value = String(currentProfile[key] || ""); });
     if (accountName && currentProfile.displayName) accountName.textContent = currentProfile.displayName;
+    const publicTitle = String(currentProfile.publicTitle || "Speaker").trim() || "Speaker";
+    window.IMMERSA_PROFILE_PUBLIC_TITLE = publicTitle;
+    window.dispatchEvent(new CustomEvent("immersa:profile-public-title", { detail: { publicTitle } }));
     selectedPhoto = null;
     revokePreview();
     showPhoto(currentProfile.photoUrl);

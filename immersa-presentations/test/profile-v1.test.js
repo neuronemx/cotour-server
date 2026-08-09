@@ -122,6 +122,8 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(editor, /Formato no admitido\. Usa PNG, JPG o WebP\./);
   assert.match(editor, /file\.size > 5 \* 1024 \* 1024/);
   assert.match(editor, /avatarButton\.addEventListener\("click", selectPhoto\)/);
+  assert.match(editor, /window\.IMMERSA_PROFILE_PUBLIC_TITLE = publicTitle/);
+  assert.match(editor, /new CustomEvent\("immersa:profile-public-title", \{ detail: \{ publicTitle \} \}\)/);
   assert.match(audience, /id="speakerProfileTab"/);
   assert.match(audience, /id="speakerProfileTab"[\s\S]*?>Speaker<\/span>/);
   assert.match(audience, />Acerca de<\/p>/);
@@ -133,6 +135,21 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(publicCss, /\.speaker-profile-tab \{[^}]*min-height: 104px/);
   assert.match(publicCss, /\.speaker-profile-tab span \{[^}]*white-space: nowrap/);
   assert.match(publicCss, /backdrop-filter: blur\(22px\)/);
+});
+
+test("Deck Speaker access follows the public title selected in Profile without changing its permission", () => {
+  const home = read("public/home/index.html");
+  const source = read("public/home/home.js");
+
+  assert.match(home, /profile-editor\.js\?v=5/);
+  assert.match(home, /home\.js\?v=58/);
+  assert.match(source, /role === "speaker" \? profilePublicTitle/);
+  assert.match(source, /addEventListener\("immersa:profile-public-title"/);
+  assert.match(source, /applyProfilePublicTitle\(event\.detail\?\.publicTitle\)/);
+  assert.match(source, /button\.textContent = label/);
+  assert.match(source, /"Abrir como " \+ label \+ " en nueva pestaña"/);
+  assert.match(source, /body: JSON\.stringify\(\{ session_id: sessionIdValue, role \}\)/);
+  assert.match(source, /role === "speaker" \? "speaker" : role/);
 });
 
 test("Speaker profile is included only in Público, not Screen", () => {
