@@ -12,7 +12,8 @@ const {
   createDemoBinding,
   isDemoDeckId,
   demoDeckSummary,
-  demoManifest
+  demoManifest,
+  assertDemoConfigurationStructure
 } = require("../auth/deck-demo");
 const { featureAccessForPlan } = require("../auth/plan-features");
 
@@ -78,19 +79,38 @@ test("the master Demo contains ten slides and Speaker Pro activities only", () =
   assert.equal(fs.existsSync(path.join(appDir, "public/decks/demo/interactions.json")), false);
 });
 
-test("Home presents Demo as permanent, read-only and restorable", () => {
+test("Home presents Demo as permanent, structurally protected and restorable", () => {
   const html = read("public/home/index.html");
   const home = read("public/home/home.js");
   const interactions = read("public/home/interactions-editor.js");
   const video = read("public/home/video-editor.js");
+  const account = read("public/home/home-account.js");
   assert.match(html, /id="detailDemoReset"[^>]+hidden/);
   assert.match(home, /badge\.textContent = "Modo demostración"/);
   assert.match(home, /if \(!isDemoDeck\(deck\)\) row\.appendChild\(deleteButton\)/);
   assert.match(home, /detailRename\.hidden = demo/);
   assert.match(home, /detailReplace\.hidden = demo/);
   assert.match(home, /fetch\("\/api\/account\/demo\/reset"/);
-  assert.match(interactions, /if \(!currentDeck\?\.readOnly\)/);
-  assert.match(video, /if \(!currentDeck\?\.readOnly\) bodyNode\.appendChild\(add\)/);
+  assert.match(interactions, /currentDeck\?\.demoEditable === true/);
+  assert.match(interactions, /function canChangeStructure\(\)/);
+  assert.match(video, /currentDeck\?\.demoEditable === true/);
+  assert.match(video, /bodyNode\.appendChild\(add\)/);
+  assert.match(account, /fetch\("\/api\/account\/demo\/reset", \{ method: "POST" \}\)/);
+});
+
+test("Demo content edits preserve the master question and answer structure", () => {
+  const master = JSON.parse(read("public/decks/immersa-demo/interactions.json"));
+  const edited = JSON.parse(JSON.stringify(master));
+  edited.interactions[0].prompt = "Una pregunta temporal";
+  edited.interactions[0].options[0].label = "Una respuesta temporal";
+  edited.contests[0].questions[0].correctOptionId = edited.contests[0].questions[0].options[1].id;
+  assert.doesNotThrow(() => assertDemoConfigurationStructure(edited, master));
+
+  edited.contests[0].questions.push(JSON.parse(JSON.stringify(edited.contests[0].questions[0])));
+  assert.throws(
+    () => assertDemoConfigurationStructure(edited, master),
+    (error) => error.code === "DEMO_STRUCTURE_LOCKED"
+  );
 });
 
 test("server lists, protects and resets the Demo independently of normal Deck quota", () => {
@@ -100,6 +120,8 @@ test("server lists, protects and resets the Demo independently of normal Deck qu
   assert.match(server, /app\.post\("\/api\/account\/demo\/reset", requireAccount/);
   assert.match(server, /code: "DEMO_READ_ONLY"/);
   assert.match(server, /resolveDeckManifestBySessionId: resolveDemoDeckManifestBySessionId/);
+  assert.match(server, /scheduleDisconnectedDemoRestore/);
+  assert.match(server, /removeDemoPracticeDir/);
   assert.match(repository, /INSERT INTO workspace_demo_sessions/);
   assert.match(repository, /DELETE FROM presentation_sessions WHERE deck_id = \?/);
   assert.match(repository, /reset_count = reset_count \+ 1/);
@@ -117,4 +139,23 @@ test("Speaker and Stage receive an explicit Demo context and visible badge", () 
   assert.match(stageHtml, /id="demoModeBadge"[^>]*hidden>Demo<\/span>/);
   assert.match(presenter, /roleOpenContext\.demo_mode !== true/);
   assert.match(stage, /roleOpenContext\.demo_mode !== true/);
+});
+
+test("all presentation roles resolve central Demo slide assets without duplicating the workspace path", () => {
+  const presenter = read("public/presenter/presenter.js");
+  const stage = read("public/stage/stage.js");
+  const screen = read("public/screen/screen.js");
+  const audience = read("public/audience/audience.js");
+  [presenter, stage, screen, audience].forEach((source) => {
+    assert.match(source, /value\.startsWith\("\/"\)/);
+  });
+});
+
+test("Demo starts Q&A from Speaker or Stage and keeps Event Hub Games out of its actions", () => {
+  const accessLinks = read("access-links.js");
+  const presenter = read("public/presenter/presenter.js");
+  const stage = read("public/stage/stage.js");
+  assert.match(accessLinks, /deck\?\.demoMode && \['speaker', 'stage'\]\.includes\(accessLink\.role\)/);
+  assert.match(presenter, /games: roleOpenContext\.demo_mode !== true/);
+  assert.match(stage, /games: roleOpenContext\.demo_mode !== true/);
 });

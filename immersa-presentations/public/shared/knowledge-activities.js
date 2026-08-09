@@ -2,7 +2,7 @@
   "use strict";
 
   const LABELS = {
-    contest: "Concurso",
+    contest: "Trivia",
     assessment: "Evaluación"
   };
   const CATEGORY_ICON_PATHS = {
@@ -269,7 +269,7 @@
     function definitionsMarkup(category) {
       const items = definitions[category] || [];
       if (!items.length) {
-        return '<div class="knowledge-empty"><strong>No hay ' + (category === "contest" ? "concursos" : "evaluaciones") + ' configurados</strong><span>Créalo desde Deck → Interacciones.</span></div>';
+        return '<div class="knowledge-empty"><strong>No hay ' + (category === "contest" ? "trivias" : "evaluaciones") + ' configuradas</strong><span>Créala desde Deck → Interacciones.</span></div>';
       }
       return '<div class="knowledge-definition-list">' + items.map((item) => {
         const duration = category === "contest"
@@ -972,7 +972,7 @@
       button.className = "knowledge-audio-unlock";
       button.dataset.knowledgeAudioUnlock = "1";
       button.dataset.immersaMediaUnlock = "1";
-      button.textContent = "🔊 Activar sonido de Concursos";
+      button.textContent = "🔊 Activar sonido de Trivias";
       bindSharedUnlock(button);
       global.document.body.appendChild(button);
     }

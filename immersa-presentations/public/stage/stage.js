@@ -238,7 +238,8 @@ function stageSlideIdentity(item, index) {
 }
 
 function stageAssetSrc(item, kind = "src") {
-  return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src);
+  const value = String(kind === "thumb" && item.thumb ? item.thumb : item.src || "");
+  return value.startsWith("/") ? value : "/decks/" + deckId + "/" + value;
 }
 
 function stageVideoThumbMark(index) {
@@ -333,7 +334,7 @@ function render(state) {
   const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
   currentSlideIndex = index;
   const item = manifest.slides[index];
-  const src = "/decks/" + deckId + "/" + item.src;
+  const src = stageAssetSrc(item);
   slide.src = src;
   applySlideOrientation(item, src);
   drawingOverlay?.refresh();
@@ -489,7 +490,8 @@ function ensureInteractionsShell() {
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
-      contests: knowledgeActivitiesAvailable
+      contests: knowledgeActivitiesAvailable,
+      games: roleOpenContext.demo_mode !== true
     },
     onSelectCategory: (view) => {
       if (view === "qna") {

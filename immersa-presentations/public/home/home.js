@@ -657,7 +657,7 @@ function syncDetailVideoControls() {
   const slideId = detailSlideId(navigation.slides[navigation.index], navigation.index);
   const hasVideo = navigation.videoSlideIds.has(slideId);
   if (detailVideoAction) {
-    detailVideoAction.hidden = isDemoDeck(navigation.deck);
+    detailVideoAction.hidden = false;
     detailVideoAction.classList.toggle("has-video", hasVideo);
     const label = detailVideoAction.querySelector("span");
     if (label) label.textContent = hasVideo ? "Editar video" : "Agregar video";

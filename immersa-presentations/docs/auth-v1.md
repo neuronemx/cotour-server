@@ -16,7 +16,7 @@ Auth v1 is the account boundary for the IMMERSA Home and deck administration. Be
 - Público, Screen, Viewer, and public presentation links do not require an account login.
 - Runtime reads needed by those public roles stay outside account authentication.
 
-The official product Deck Demo is a global system resource presented in every authenticated workspace through an isolated workspace Demo session. It is not counted as a user Deck or storage, grants Speaker Pro capabilities only in Demo mode, and cannot be renamed, replaced, deleted, duplicated, transferred, or edited as a normal Deck. Legacy development decks named `demo`, `demo01`, etc. are not the official product Demo.
+The official product Deck Demo is a global system resource presented in every authenticated workspace through an isolated workspace Demo session. It is not counted as a user Deck or storage, grants Speaker Pro capabilities only in Demo mode, and cannot be renamed, replaced, deleted, duplicated, or transferred. Users may temporarily edit existing poll, trivia, and assessment text or answers, and link videos, but cannot add or remove questions or options. The isolated practice configuration and results return to the central master values after every role disconnects. Legacy development decks named `demo`, `demo01`, etc. are not the official product Demo.
 
 ## Production environment
 

@@ -101,7 +101,8 @@ function render(state) {
   const item = manifest.slides[index];
   if (!item?.src) return;
   currentSlideIndex = index;
-  const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
+  const value = String(item.src || "");
+  const src = value.startsWith("/") ? value : "/decks/" + encodeURIComponent(deckId) + "/" + value.replace(/^\/+/, "");
   slide.src = src;
   applySlideOrientation(item, src);
   drawingOverlay?.refresh();

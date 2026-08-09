@@ -92,7 +92,7 @@ knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
 });
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
-function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
+function slideUrl(index) { const item = manifest.slides[index]; const value = String(item.src || ""); return value.startsWith("/") ? value : "/decks/" + deckId + "/" + value; }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }

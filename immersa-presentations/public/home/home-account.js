@@ -17,6 +17,7 @@
   logout?.addEventListener("click", async () => {
     logout.disabled = true;
     try {
+      await fetch("/api/account/demo/reset", { method: "POST" }).catch(() => null);
       await fetch("/api/auth/sign-out", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     } finally {
       window.location.assign("/auth");

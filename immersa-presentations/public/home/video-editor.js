@@ -7,6 +7,10 @@
   let editingSlideId = null;
   let requestedSlideId = null;
 
+  function canEditVideos() {
+    return !currentDeck?.readOnly || currentDeck?.demoEditable === true;
+  }
+
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
   }
@@ -236,7 +240,7 @@
     if (currentDeck?.readOnly) {
       const notice = document.createElement("p");
       notice.className = "video-editor-demo-notice";
-      notice.textContent = "El Deck Demo conserva su configuración oficial. Los videos de tus propios Decks sí pueden agregarse y editarse.";
+      notice.textContent = "Práctica temporal: puedes agregar o editar videos y el Demo volverá a su configuración oficial al desconectarte.";
       bodyNode.appendChild(notice);
     }
 
@@ -293,13 +297,13 @@
             setStatus(error.message, "error");
           }
         });
-        if (!currentDeck?.readOnly) actions.append(edit, remove);
+        if (canEditVideos()) actions.append(edit, remove);
         stack.appendChild(item);
       });
       bodyNode.appendChild(stack);
     }
 
-    if (!currentDeck?.readOnly) bodyNode.appendChild(add);
+    if (canEditVideos()) bodyNode.appendChild(add);
   }
 
   function renderForm(existing = null, selectedSlideId = null) {

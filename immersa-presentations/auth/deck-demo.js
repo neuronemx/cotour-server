@@ -31,9 +31,45 @@ function demoDeckSummary(master, binding) {
     demoMode: true,
     systemResource: true,
     readOnly: true,
+    demoEditable: true,
     plan: DEMO_CAPABILITY_PLAN,
     sourceSizeBytes: 0
   };
+}
+
+function shapeIds(values) {
+  return (Array.isArray(values) ? values : []).map((item) => String(item?.id || ""));
+}
+
+function sameIds(candidate, master) {
+  const left = shapeIds(candidate);
+  const right = shapeIds(master);
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function preservesKnowledgeStructure(candidate, master) {
+  if (!sameIds(candidate, master)) return false;
+  return candidate.every((activity, activityIndex) => {
+    const masterActivity = master[activityIndex];
+    if (!sameIds(activity?.questions, masterActivity?.questions)) return false;
+    return activity.questions.every((question, questionIndex) =>
+      sameIds(question?.options, masterActivity.questions[questionIndex]?.options)
+    );
+  });
+}
+
+function assertDemoConfigurationStructure(candidate, master) {
+  const candidatePolls = Array.isArray(candidate?.interactions) ? candidate.interactions : [];
+  const masterPolls = Array.isArray(master?.interactions) ? master.interactions : [];
+  const pollsMatch = sameIds(candidatePolls, masterPolls)
+    && candidatePolls.every((poll, index) => sameIds(poll?.options, masterPolls[index]?.options));
+  const contestsMatch = preservesKnowledgeStructure(candidate?.contests || [], master?.contests || []);
+  const assessmentsMatch = preservesKnowledgeStructure(candidate?.assessments || [], master?.assessments || []);
+  if (pollsMatch && contestsMatch && assessmentsMatch) return;
+  const error = new Error("En el Demo puedes editar el contenido, pero no agregar ni eliminar preguntas u opciones.");
+  error.statusCode = 400;
+  error.code = "DEMO_STRUCTURE_LOCKED";
+  throw error;
 }
 
 function demoManifest(master, binding) {
@@ -55,5 +91,6 @@ module.exports = {
   createDemoBinding,
   isDemoDeckId,
   demoDeckSummary,
-  demoManifest
+  demoManifest,
+  assertDemoConfigurationStructure
 };

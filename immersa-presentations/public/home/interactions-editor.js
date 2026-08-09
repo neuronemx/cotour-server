@@ -15,6 +15,14 @@
   let listNode = null;
   let statusNode = null;
 
+  function canEditContent() {
+    return !currentDeck?.readOnly || currentDeck?.demoEditable === true;
+  }
+
+  function canChangeStructure() {
+    return !currentDeck?.readOnly;
+  }
+
   function niceTitle(value) {
     return String(value || "Presentación").replace(/[-_]+/g, " ").trim() || "Presentación";
   }
@@ -205,7 +213,7 @@
     hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">'
       + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true })
       + moduleCardMarkup("assessments", "Evaluaciones", assessments.length + " creada" + (assessments.length === 1 ? "" : "s"), { enabled: true })
-      + moduleCardMarkup("contests", "Concursos", contests.length + " creado" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: true })
+      + moduleCardMarkup("contests", "Trivias", contests.length + " creada" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: true })
       + '</div>';
     hub.querySelectorAll('[data-module]:not(:disabled)').forEach((button) => button.addEventListener("click", () => {
       const kind = button.dataset.module;
@@ -267,6 +275,7 @@
         const input = row.querySelector("input");
         input.value = option.label || "";
         input.addEventListener("input", () => option.label = input.value);
+        row.querySelector("button").hidden = !canChangeStructure();
         row.querySelector("button").disabled = draft.options.length <= MIN_OPTIONS;
         row.querySelector("button").addEventListener("click", () => {
           if (draft.options.length <= MIN_OPTIONS) return;
@@ -275,7 +284,7 @@
         });
         optionsFields.appendChild(row);
       });
-      if (draft.options.length < MAX_OPTIONS) {
+      if (canChangeStructure() && draft.options.length < MAX_OPTIONS) {
         optionsFields.appendChild(makeButton("+ Agregar opción", "interactions-add-option", () => {
           draft.options.push({ id: optionId(draft.options.length), label: "" });
           renderOptionFields();
@@ -337,21 +346,19 @@
         const activation = interaction.slide_id ? "fija" : "libre";
         item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Sin título") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
         const actions = item.querySelector(".interaction-list-actions");
-        if (!currentDeck?.readOnly) {
-          actions.append(
-            makeButton("Editar", "interactions-text-action", () => {
+        if (canEditContent()) {
+          actions.append(makeButton("Editar", "interactions-text-action", () => {
               pendingDeleteIndex = null;
               activeDraft = normalizeForForm(interaction);
               editingIndex = index;
               renderList();
-            }),
-            makeButton("Eliminar", "interactions-text-action danger", () => {
+            }));
+          if (canChangeStructure()) actions.append(makeButton("Eliminar", "interactions-text-action danger", () => {
               pendingDeleteIndex = index;
               activeDraft = null;
               editingIndex = null;
               renderList();
-            })
-          );
+            }));
         }
         list.appendChild(item);
         if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
@@ -359,7 +366,7 @@
       section.appendChild(list);
     }
 
-    if (!currentDeck?.readOnly) {
+    if (canChangeStructure()) {
       section.appendChild(makeButton("Crear encuesta", "interactions-create-action", () => {
         pendingDeleteIndex = null;
         activeDraft = defaultDraft();
@@ -471,6 +478,7 @@
       input.value = option.label || "";
       input.addEventListener("input", () => option.label = input.value);
       const remove = row.querySelector("button");
+      remove.hidden = !canChangeStructure();
       remove.disabled = question.options.length <= MIN_OPTIONS;
       remove.addEventListener("click", () => {
         if (question.options.length <= MIN_OPTIONS) return;
@@ -480,7 +488,7 @@
       });
       optionsNode.appendChild(row);
     });
-    if (question.options.length < MAX_OPTIONS) {
+    if (canChangeStructure() && question.options.length < MAX_OPTIONS) {
       optionsNode.appendChild(makeButton("+ Agregar opción", "interactions-add-option", () => {
         const option = { id: knowledgeId("option"), label: "" };
         question.options.push(option);
@@ -488,7 +496,7 @@
         rerender();
       }));
     }
-    if (activeDraft.questions.length > 1) {
+    if (canChangeStructure() && activeDraft.questions.length > 1) {
       node.querySelector(".knowledge-question-actions").appendChild(makeButton("Eliminar pregunta", "interactions-text-action danger", () => {
         activeDraft.questions.splice(questionIndex, 1);
         rerender();
@@ -498,18 +506,18 @@
   }
 
   function renderKnowledgeForm(category, draft, index) {
-    const noun = category === "contest" ? "concurso" : "evaluación";
+    const noun = category === "contest" ? "trivia" : "evaluación";
     const form = document.createElement("form");
     form.className = "interaction-edit-form knowledge-definition-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Concurso" : "Evaluación") + '</h3></div>'
+    form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Trivia" : "Evaluación") + '</h3></div>'
       + '<label><span>Título</span><input name="title" maxlength="240" required placeholder="Ej. Conocimiento del producto"></label>'
       + '<label><span>Identificación</span><select name="identificationMode"><option value="anonymous">Anónima</option><option value="optional_name">Nombre opcional</option><option value="required_name">Nombre obligatorio</option></select></label>'
       + (category === "contest"
         ? '<label><span>Tiempo por pregunta (segundos)</span><input name="duration" type="number" min="5" max="300" required></label>'
         : '<label><span>Tiempo total (minutos)</span><input name="duration" type="number" min="1" max="180" required></label>')
       + (category === "contest" ? '<p class="knowledge-duration-estimate" data-knowledge-estimate></p>' : "")
-      + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question>+ Agregar pregunta</button>'
+      + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question' + (canChangeStructure() ? '' : ' hidden') + '>+ Agregar pregunta</button>'
       + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar ' + noun + "</button></div>";
     form.elements.title.value = draft.title || "";
     form.elements.identificationMode.value = draft.identificationMode || "anonymous";
@@ -567,7 +575,7 @@
         await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
         activeDraft = null;
         editingIndex = null;
-        setStatus((category === "contest" ? "Concurso" : "Evaluación") + " guardado.", "success");
+        setStatus((category === "contest" ? "Trivia" : "Evaluación") + " guardada.", "success");
         renderList();
       } catch (error) {
         setStatus(error.message, "error");
@@ -597,15 +605,14 @@
         card.className = "interaction-list-item";
         card.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(item.title) + '</strong><span>' + item.questions.length + ' preguntas</span><small>' + (category === "contest" ? item.questionDurationSeconds + " s por pregunta" : Math.round(item.durationSeconds / 60) + " min") + '</small></div><div class="interaction-list-actions"></div>';
         const actions = card.querySelector(".interaction-list-actions");
-        if (!currentDeck?.readOnly) {
-          actions.append(
-            makeButton("Editar", "interactions-text-action", () => {
+        if (canEditContent()) {
+          actions.append(makeButton("Editar", "interactions-text-action", () => {
               activeDraft = JSON.parse(JSON.stringify(item));
               editingIndex = index;
               renderList();
-            }),
-            makeButton("Eliminar", "interactions-text-action danger", async () => {
-              if (!window.confirm("¿Eliminar " + (category === "contest" ? "este concurso" : "esta evaluación") + "?")) return;
+            }));
+          if (canChangeStructure()) actions.append(makeButton("Eliminar", "interactions-text-action danger", async () => {
+              if (!window.confirm("¿Eliminar " + (category === "contest" ? "esta trivia" : "esta evaluación") + "?")) return;
               const next = items.filter((_value, itemIndex) => itemIndex !== index);
               try {
                 await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
@@ -614,15 +621,14 @@
               } catch (error) {
                 setStatus(error.message, "error");
               }
-            })
-          );
+            }));
         }
         list.appendChild(card);
       });
       section.appendChild(list);
     }
-    if (!currentDeck?.readOnly) {
-      section.appendChild(makeButton(category === "contest" ? "Crear concurso" : "Crear evaluación", "interactions-create-action", () => {
+    if (canChangeStructure()) {
+      section.appendChild(makeButton(category === "contest" ? "Crear trivia" : "Crear evaluación", "interactions-create-action", () => {
         activeDraft = defaultKnowledgeDraft(category);
         editingIndex = null;
         renderList();
@@ -636,7 +642,7 @@
     if (currentDeck?.readOnly) {
       const notice = document.createElement("p");
       notice.className = "interactions-demo-notice";
-      notice.textContent = "Contenido oficial de práctica. Ejecútalo desde Speaker o Stage; puedes restablecer el Demo cuando quieras.";
+      notice.textContent = "Práctica temporal: edita textos y respuestas existentes. La cantidad de preguntas y opciones permanece fija y todo vuelve al contenido oficial al desconectarte.";
       listNode.appendChild(notice);
     }
     const hub = renderHub();

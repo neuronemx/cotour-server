@@ -75,7 +75,7 @@
     list.replaceChildren();
     if (!executions.length) {
       list.classList.add("is-empty");
-      summary.textContent = "Todavía no hay Concursos o Evaluaciones ejecutados.";
+      summary.textContent = "Todavía no hay Trivias o Evaluaciones ejecutadas.";
       return;
     }
     list.classList.remove("is-empty");
@@ -89,7 +89,7 @@
       title.textContent = execution.title;
       const meta = document.createElement("span");
       meta.textContent = [
-        execution.category === "contest" ? "Concurso" : "Evaluación",
+        execution.category === "contest" ? "Trivia" : "Evaluación",
         formatDate(execution.startedAt || execution.openedAt),
         (execution.participantCount || 0) + " participantes"
       ].join(" · ");

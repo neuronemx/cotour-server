@@ -190,6 +190,13 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     });
   }
 
+  async function clearDemoPractice({ deckId, sessionId }) {
+    if (!enabled) return false;
+    const runtime = await initialize();
+    if (!runtime.workspaces?.clearDemoPractice) return false;
+    return runtime.workspaces.clearDemoPractice({ deckId, sessionId });
+  }
+
   async function getDeckFeatureAccess(deckId) {
     if (!enabled) return featureAccessForPlan(null, { allowWhenUnknown: true });
     const runtime = await initialize();
@@ -329,6 +336,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     getDemoDeck,
     findDemoBySessionId,
     resetDemoDeck,
+    clearDemoPractice,
     getDeckFeatureAccess,
     listUnmeteredDeckIds,
     setDeckSourceSize,

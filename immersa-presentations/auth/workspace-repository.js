@@ -185,6 +185,30 @@ class WorkspaceRepository {
     }
   }
 
+  async clearDemoPractice({ deckId, sessionId }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute(
+        `SELECT deck_id, session_id
+         FROM workspace_demo_sessions
+         WHERE deck_id = ? AND session_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(deckId), String(sessionId)]
+      );
+      if (!rows?.[0]) return false;
+      await connection.execute("DELETE FROM presentation_sessions WHERE deck_id = ?", [String(deckId)]);
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   async ownsDeck(userId, deckId) {
     const [rows] = await this.pool.execute(
       `SELECT 1 AS owned

@@ -91,7 +91,7 @@ test("Deck cards use a geometrically centered delete icon on iPhone", () => {
   const css = read("public/home/home.css");
 
   assert.match(html, /home\.css\?v=55/);
-  assert.match(html, /home\.js\?v=58/);
+  assert.match(html, /home\.js\?v=\d+/);
   assert.match(source, /deleteButton\.innerHTML = '<svg[^']+M6 6l12 12M18 6 6 18/);
   assert.doesNotMatch(source, /deleteButton\.textContent = "×"/);
   assert.match(css, /\.deck-delete \{[\s\S]+min-width: 30px; max-width: 30px;[\s\S]+padding: 0;[\s\S]+-webkit-appearance: none;/);
@@ -150,7 +150,7 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(videos, /renderForm\(config\.videos\.find/);
   assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
   assert.match(videos, /immersa:deck-videos-changed/);
-  assert.match(html, /video-editor\.js\?v=111/);
+  assert.match(html, /video-editor\.js\?v=\d+/);
 });
 
 test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {

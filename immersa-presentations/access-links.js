@@ -341,7 +341,8 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
   }
 
   async function bindScreenExecution(accessLink, deck, accessLinks) {
-    if (accessLink.role !== 'screen' || typeof startScreenExecution !== 'function') return accessLink;
+    const startsDemoPractice = Boolean(deck?.demoMode && ['speaker', 'stage'].includes(accessLink.role));
+    if ((accessLink.role !== 'screen' && !startsDemoPractice) || typeof startScreenExecution !== 'function') return accessLink;
     const execution = await startScreenExecution({
       deckId: deck.deckId,
       sourceSessionId: accessLink.session_id,

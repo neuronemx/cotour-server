@@ -168,7 +168,7 @@ function normalizeInteractionList(data) { const list = Array.isArray(data) ? dat
 function clearSelectedInteraction() { selectedInteractionId = ""; }
 async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); if (!interactions.length) interactions = [fallbackDemoInteraction]; } catch (_error) { interactions = [fallbackDemoInteraction]; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); }
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
-function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
+function assetSrc(item, kind = "src") { const value = String(kind === "thumb" && item.thumb ? item.thumb : item.src || ""); return value.startsWith("/") ? value : "/decks/" + deckId + "/" + value; }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
 function slideIdentity(item, index) { return String(item?.id || "slide-" + String(index + 1).padStart(3, "0")); }
 function videoThumbMark(index) { const gradientId = "immersa-video-gradient-" + (index + 1); return '<span class="thumb-video-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><defs><linearGradient id="' + gradientId + '" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#68d8cc"/><stop offset=".52" stop-color="#4368f6"/><stop offset="1" stop-color="#9b4cff"/></linearGradient></defs><path d="M6.5 4.75 19 12 6.5 19.25Z" fill="none" stroke="url(#' + gradientId + ')" stroke-width="3.1" stroke-linejoin="round"/></svg></span>'; }
@@ -198,7 +198,8 @@ function ensureInteractionsShell() {
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
-      contests: knowledgeActivitiesAvailable
+      contests: knowledgeActivitiesAvailable,
+      games: roleOpenContext.demo_mode !== true
     },
     onSelectCategory: (view) => {
       if (view === "qna") {

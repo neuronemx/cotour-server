@@ -98,7 +98,7 @@ test("interactions shell preserves the approved category contract", () => {
   const shell = Shell.create({ root });
   const categories = root.querySelectorAll("[data-interactions-category]");
   assert.deepEqual(categories.slice(0, 6).map((button) => button.dataset.interactionsCategory), ["polls", "qna", "assessments", "raffles", "contests", "games"]);
-  assert.deepEqual(categories.slice(0, 6).map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Preguntas", "Evaluaciones", "Sorteos", "Concursos", "Juegos"]);
+  assert.deepEqual(categories.slice(0, 6).map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Preguntas", "Evaluaciones", "Sorteos", "Trivias", "Juegos"]);
   assert.equal(root.querySelectorAll("[data-interactions-group]").length, 2);
   assert.equal(categories.length, 12);
   assert.equal(root.querySelectorAll("h2").length, 1);
