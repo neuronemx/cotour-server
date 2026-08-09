@@ -26,6 +26,39 @@
   position: relative;
 }
 
+.plan-feature-lock {
+  display: none;
+}
+
+.interaction-button.is-plan-locked {
+  opacity: .42;
+  cursor: not-allowed;
+  filter: saturate(.3);
+}
+
+.interaction-button.is-plan-locked .plan-feature-lock {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 999px;
+  color: #fff;
+  background: #23283d;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+
+.interaction-button.is-plan-locked .plan-feature-lock svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
 .interaction-button svg {
   width: 23px;
   height: 23px;

@@ -95,6 +95,18 @@ class WorkspaceRepository {
     return rows?.[0] ? String(rows[0].deck_id) : null;
   }
 
+  async getDeckPlan(deckId) {
+    const [rows] = await this.pool.execute(
+      `SELECT w.plan
+       FROM decks d
+       INNER JOIN workspaces w ON w.id = d.workspace_id
+       WHERE d.deck_id = ?
+       LIMIT 1`,
+      [String(deckId)]
+    );
+    return rows?.[0]?.plan ? String(rows[0].plan).trim().toUpperCase() : null;
+  }
+
   async getPlanUsage({ userId, workspaceId }) {
     const [rows] = await this.pool.execute(
       `SELECT w.plan,

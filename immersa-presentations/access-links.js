@@ -196,7 +196,7 @@ function absoluteUrl(req, pathname) {
   return protocol + '://' + req.get('host') + pathname;
 }
 
-function relatedRoleContext(req, accessLink, deck, relatedLinks = {}) {
+function relatedRoleContext(req, accessLink, deck, relatedLinks = {}, featureAccess = {}) {
   const publicPath = relatedLinks.audience?.public_id ? '/' + relatedLinks.audience.public_id : '';
   const screenPath = relatedLinks.screen?.access_token ? '/screen/' + relatedLinks.screen.access_token : '';
   const stagePath = relatedLinks.stage?.access_token ? '/stage/' + relatedLinks.stage.access_token : '';
@@ -207,6 +207,8 @@ function relatedRoleContext(req, accessLink, deck, relatedLinks = {}) {
     deck: deck.deckId,
     deckId: deck.deckId,
     role: accessLink.role,
+    plan: featureAccess.plan || "FREE",
+    features: featureAccess.features || { interactions: false, metrics: false },
     presentation_session_id: accessLink.presentation_session_id || relatedLinks.screen?.presentation_session_id || '',
     public_id: relatedLinks.audience?.public_id || '',
     public_url: publicPath ? absoluteUrl(req, publicPath) : '',
@@ -314,7 +316,7 @@ function injectPublicAudienceContext(html, accessLink, deck, presentationSession
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
@@ -460,7 +462,10 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
           stage: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
         };
         const html = await fs.promises.readFile(roleIndexPath(publicDir, route), 'utf8');
-        const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks);
+        const featureAccess = typeof resolveDeckFeatureAccess === 'function'
+          ? await resolveDeckFeatureAccess(deck.deckId)
+          : { plan: 'DEMO', features: { interactions: true, metrics: true } };
+        const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks, featureAccess);
 
         res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: activeAccessLink, deck, route }), req));
         return res.type('html').send(injectRoleContext(html, context));

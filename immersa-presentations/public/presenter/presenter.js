@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
 const overlaySocket = io();
 const presentationLifecycleControl = window.ImmersaPresentationLifecycle?.create({
@@ -305,6 +306,14 @@ function setInteractionPanelOpen(open) {
 function toggleInteractionPanel() { if (interactionPanelOpen && hasActiveInteractionShellLock()) return; setInteractionPanelOpen(!interactionPanelOpen); }
 function ensureInteractionToggle() {
   if (!interactionToggle) return null;
+  if (!interactionsFeatureEnabled) {
+    interactionToggle.disabled = true;
+    interactionToggle.classList.add("is-plan-locked");
+    interactionToggle.setAttribute("aria-disabled", "true");
+    interactionToggle.title = "Interacciones · Disponible en planes de pago";
+    interactionToggle.setAttribute("aria-label", interactionToggle.title);
+    return interactionToggle;
+  }
   interactionToggle.addEventListener("click", toggleInteractionPanel);
   interactionToggle.setAttribute("aria-expanded", "false");
   interactionToggle.setAttribute("aria-pressed", "false");

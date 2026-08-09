@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
 const presentationLifecycleControl = window.ImmersaPresentationLifecycle?.create({
   socket,
@@ -618,7 +619,15 @@ qrToggle.addEventListener("change", () => {
   updateOverlay({ qrVisible: qrToggle.checked, showAudienceQr: qrToggle.checked, audienceUrl });
 });
 
-stageActionsButton?.addEventListener("click", () => { if (stageActionsOpen) closeStageActionsRequest(); else openStageActions(); });
+if (stageActionsButton && !interactionsFeatureEnabled) {
+  stageActionsButton.disabled = true;
+  stageActionsButton.classList.add("is-plan-locked");
+  stageActionsButton.setAttribute("aria-disabled", "true");
+  stageActionsButton.title = "Interacciones · Disponible en planes de pago";
+  stageActionsButton.setAttribute("aria-label", stageActionsButton.title);
+} else {
+  stageActionsButton?.addEventListener("click", () => { if (stageActionsOpen) closeStageActionsRequest(); else openStageActions(); });
+}
 stageTransmissionToggle?.addEventListener("click", () => socket.emit(currentState?.transmissionPaused ? "transmission_play" : "transmission_pause"));
 stageDrawToggle?.addEventListener("click", () => {
   drawingMode = !drawingMode;
