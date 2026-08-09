@@ -151,7 +151,10 @@
       let profile = await saveTextProfile();
       profile = await savePhoto(profile);
       applyProfile(profile);
-      setStatus("¡Tu perfil está listo! Esta información estará siempre disponible para toda tu audiencia.", "success");
+      saveButton.disabled = false;
+      cancelButton.disabled = false;
+      closeButton.disabled = false;
+      closeProfile();
     } catch (error) {
       if (/^(?:PHOTO_|INVALID_PHOTO)/.test(error.code || "")) setPhotoStatus(error.message);
       setStatus(error.message, "error");

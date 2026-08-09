@@ -124,6 +124,7 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(editor, /avatarButton\.addEventListener\("click", selectPhoto\)/);
   assert.match(editor, /window\.IMMERSA_PROFILE_PUBLIC_TITLE = publicTitle/);
   assert.match(editor, /new CustomEvent\("immersa:profile-public-title", \{ detail: \{ publicTitle \} \}\)/);
+  assert.match(editor, /applyProfile\(profile\);[\s\S]*?saveButton\.disabled = false;[\s\S]*?closeProfile\(\);/);
   assert.match(audience, /id="speakerProfileTab"/);
   assert.match(audience, /id="speakerProfileTab"[\s\S]*?>Speaker<\/span>/);
   assert.match(audience, />Acerca de<\/p>/);
@@ -141,7 +142,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");
 
-  assert.match(home, /profile-editor\.js\?v=5/);
+  assert.match(home, /profile-editor\.js\?v=6/);
   assert.match(home, /home\.js\?v=58/);
   assert.match(source, /role === "speaker" \? profilePublicTitle/);
   assert.match(source, /addEventListener\("immersa:profile-public-title"/);
