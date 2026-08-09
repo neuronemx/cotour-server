@@ -494,14 +494,14 @@ body.modal-open { overflow: hidden; }
     max-width: none;
     margin: 0;
     padding: 22px;
-    transform: translateY(-112px);
+    transform: translate(clamp(-128px, calc((900px - 100vw) / 8), 0px), -112px);
   }
 
   .presentations-panel {
     grid-column: 1;
     grid-row: 1;
     margin-top: 0;
-    padding-top: 162px;
+    padding-top: 202px;
   }
 }
 
