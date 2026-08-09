@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { summarizePlanUsage, assertCanReserveDeck, assertCanReplaceDeck } = require("./plan-limits");
+const { DEMO_PLAN, createDemoBinding } = require("./deck-demo");
 
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
@@ -71,6 +72,119 @@ class WorkspaceRepository {
     return (rows || []).map((row) => String(row.deck_id));
   }
 
+  async ensureDemoDeck({ userId, workspaceId }) {
+    const find = async (executor) => {
+      const [rows] = await executor.execute(
+        `SELECT ds.workspace_id, ds.deck_id, ds.session_id, ds.reset_count
+         FROM workspace_demo_sessions ds
+         INNER JOIN workspace_members wm ON wm.workspace_id = ds.workspace_id
+         WHERE ds.workspace_id = ? AND wm.user_id = ?
+         LIMIT 1`,
+        [String(workspaceId), String(userId)]
+      );
+      const row = rows?.[0];
+      return row ? {
+        workspaceId: String(row.workspace_id),
+        deckId: String(row.deck_id),
+        sessionId: String(row.session_id),
+        resetCount: Number(row.reset_count || 0)
+      } : null;
+    };
+
+    const existing = await find(this.pool);
+    if (existing) return existing;
+
+    const binding = createDemoBinding(workspaceId);
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [memberships] = await connection.execute(
+        `SELECT 1 AS member
+         FROM workspace_members
+         WHERE workspace_id = ? AND user_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(userId)]
+      );
+      if (!memberships?.[0]) throw new Error("Immersa workspace not found");
+      await connection.execute(
+        `INSERT INTO workspace_demo_sessions (workspace_id, deck_id, session_id)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE workspace_id = workspace_id`,
+        [binding.workspaceId, binding.deckId, binding.sessionId]
+      );
+      const resolved = await find(connection);
+      if (!resolved) throw new Error("Unable to provision the IMMERSA Demo");
+      await connection.commit();
+      return resolved;
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async findDemoBySessionId(sessionId) {
+    const [rows] = await this.pool.execute(
+      `SELECT workspace_id, deck_id, session_id, reset_count
+       FROM workspace_demo_sessions
+       WHERE session_id = ?
+       LIMIT 1`,
+      [String(sessionId)]
+    );
+    const row = rows?.[0];
+    return row ? {
+      workspaceId: String(row.workspace_id),
+      deckId: String(row.deck_id),
+      sessionId: String(row.session_id),
+      resetCount: Number(row.reset_count || 0)
+    } : null;
+  }
+
+  async resetDemoDeck({ userId, workspaceId }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute(
+        `SELECT ds.deck_id, ds.session_id, ds.reset_count
+         FROM workspace_demo_sessions ds
+         INNER JOIN workspace_members wm ON wm.workspace_id = ds.workspace_id
+         WHERE ds.workspace_id = ? AND wm.user_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [String(workspaceId), String(userId)]
+      );
+      const current = rows?.[0];
+      if (!current) throw new Error("IMMERSA Demo not found");
+      const next = createDemoBinding(workspaceId);
+      await connection.execute("DELETE FROM presentation_sessions WHERE deck_id = ?", [String(current.deck_id)]);
+      await connection.execute(
+        `UPDATE workspace_demo_sessions
+         SET deck_id = ?, session_id = ?, reset_count = reset_count + 1
+         WHERE workspace_id = ?`,
+        [next.deckId, next.sessionId, String(workspaceId)]
+      );
+      await connection.commit();
+      return {
+        previous: {
+          deckId: String(current.deck_id),
+          sessionId: String(current.session_id),
+          resetCount: Number(current.reset_count || 0)
+        },
+        current: {
+          ...next,
+          resetCount: Number(current.reset_count || 0) + 1
+        }
+      };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   async ownsDeck(userId, deckId) {
     const [rows] = await this.pool.execute(
       `SELECT 1 AS owned
@@ -80,7 +194,16 @@ class WorkspaceRepository {
        LIMIT 1`,
       [String(userId), String(deckId)]
     );
-    return Boolean(rows?.[0]);
+    if (rows?.[0]) return true;
+    const [demoRows] = await this.pool.execute(
+      `SELECT 1 AS owned
+       FROM workspace_demo_sessions ds
+       INNER JOIN workspace_members wm ON wm.workspace_id = ds.workspace_id
+       WHERE wm.user_id = ? AND ds.deck_id = ?
+       LIMIT 1`,
+      [String(userId), String(deckId)]
+    );
+    return Boolean(demoRows?.[0]);
   }
 
   async ownsSession(userId, sessionId) {
@@ -92,7 +215,16 @@ class WorkspaceRepository {
        LIMIT 1`,
       [String(userId), String(sessionId)]
     );
-    return rows?.[0] ? String(rows[0].deck_id) : null;
+    if (rows?.[0]) return String(rows[0].deck_id);
+    const [demoRows] = await this.pool.execute(
+      `SELECT ds.deck_id
+       FROM workspace_demo_sessions ds
+       INNER JOIN workspace_members wm ON wm.workspace_id = ds.workspace_id
+       WHERE wm.user_id = ? AND ds.session_id = ?
+       LIMIT 1`,
+      [String(userId), String(sessionId)]
+    );
+    return demoRows?.[0] ? String(demoRows[0].deck_id) : null;
   }
 
   async getDeckPlan(deckId) {
@@ -104,7 +236,15 @@ class WorkspaceRepository {
        LIMIT 1`,
       [String(deckId)]
     );
-    return rows?.[0]?.plan ? String(rows[0].plan).trim().toUpperCase() : null;
+    if (rows?.[0]?.plan) return String(rows[0].plan).trim().toUpperCase();
+    const [demoRows] = await this.pool.execute(
+      `SELECT 1 AS demo
+       FROM workspace_demo_sessions
+       WHERE deck_id = ?
+       LIMIT 1`,
+      [String(deckId)]
+    );
+    return demoRows?.[0] ? DEMO_PLAN : null;
   }
 
   async getPlanUsage({ userId, workspaceId }) {

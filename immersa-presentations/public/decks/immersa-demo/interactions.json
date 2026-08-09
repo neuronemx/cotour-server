@@ -1,0 +1,90 @@
+{
+  "deck_id": "immersa-demo",
+  "interactions": [
+    {
+      "id": "demo-poll-energy",
+      "slide_id": "slide-005",
+      "type": "poll",
+      "title": "Pulso de la sala",
+      "prompt": "¿Qué hace memorable una presentación?",
+      "options": [
+        { "id": "story", "label": "Una gran historia" },
+        { "id": "participation", "label": "Participar en vivo" },
+        { "id": "visuals", "label": "Visuales sorprendentes" },
+        { "id": "speaker", "label": "La energía del speaker" }
+      ],
+      "settings": {
+        "allow_multiple": false,
+        "anonymous": true,
+        "timer_seconds": null,
+        "correct_option_ids": [],
+        "points": 0
+      }
+    }
+  ],
+  "contests": [
+    {
+      "id": "demo-contest-immersa",
+      "category": "contest",
+      "title": "Reto IMMERSA",
+      "identificationMode": "optional_name",
+      "questionDurationSeconds": 15,
+      "questions": [
+        {
+          "id": "demo-contest-q1",
+          "prompt": "¿Qué herramienta permite escuchar a toda la sala en segundos?",
+          "options": [
+            { "id": "poll", "label": "Encuesta" },
+            { "id": "video", "label": "Video" },
+            { "id": "drawing", "label": "Trazo vivo" }
+          ],
+          "correctOptionId": "poll"
+        },
+        {
+          "id": "demo-contest-q2",
+          "prompt": "¿Quién puede controlar una presentación IMMERSA?",
+          "options": [
+            { "id": "speaker-stage", "label": "Speaker y Stage" },
+            { "id": "audience", "label": "Sólo el público" },
+            { "id": "screen", "label": "Sólo Screen" }
+          ],
+          "correctOptionId": "speaker-stage"
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "id": "demo-assessment-immersa",
+      "category": "assessment",
+      "title": "Evaluación de práctica",
+      "identificationMode": "required_name",
+      "durationSeconds": 180,
+      "questions": [
+        {
+          "id": "demo-assessment-q1",
+          "prompt": "¿Cuál es el propósito de Público en IMMERSA?",
+          "options": [
+            { "id": "participate", "label": "Participar desde su dispositivo" },
+            { "id": "control", "label": "Controlar las slides" },
+            { "id": "project", "label": "Proyectar la presentación" }
+          ],
+          "correctOptionId": "participate"
+        },
+        {
+          "id": "demo-assessment-q2",
+          "prompt": "¿Qué puedes descargar después de una actividad?",
+          "options": [
+            { "id": "results", "label": "Resultados e historial" },
+            { "id": "passwords", "label": "Contraseñas del público" },
+            { "id": "nothing", "label": "Nada" }
+          ],
+          "correctOptionId": "results"
+        }
+      ]
+    }
+  ],
+  "hidden_slide_ids": [],
+  "hidden_slide_indexes": [],
+  "videos": []
+}

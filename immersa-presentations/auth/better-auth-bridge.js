@@ -168,6 +168,28 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     });
   }
 
+  async function getDemoDeck(req) {
+    const runtime = await initialize();
+    return runtime.workspaces.ensureDemoDeck({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id
+    });
+  }
+
+  async function findDemoBySessionId(sessionId) {
+    if (!enabled) return null;
+    const runtime = await initialize();
+    return runtime.workspaces.findDemoBySessionId(sessionId);
+  }
+
+  async function resetDemoDeck(req) {
+    const runtime = await initialize();
+    return runtime.workspaces.resetDemoDeck({
+      userId: req.accountContext.user.id,
+      workspaceId: req.accountContext.workspace.id
+    });
+  }
+
   async function getDeckFeatureAccess(deckId) {
     if (!enabled) return featureAccessForPlan(null, { allowWhenUnknown: true });
     const runtime = await initialize();
@@ -304,6 +326,9 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     requireOwnedSession,
     listDeckIds,
     getPlanUsage,
+    getDemoDeck,
+    findDemoBySessionId,
+    resetDemoDeck,
     getDeckFeatureAccess,
     listUnmeteredDeckIds,
     setDeckSourceSize,

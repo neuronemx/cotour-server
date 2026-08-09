@@ -337,32 +337,36 @@
         const activation = interaction.slide_id ? "fija" : "libre";
         item.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(interaction.title || "Sin título") + '</strong><span>' + escapeHtml(interaction.prompt || "Sin pregunta") + '</span><small>' + count + ' opcion' + (count === 1 ? '' : 'es') + ' · ' + activation + '</small></div><div class="interaction-list-actions"></div>';
         const actions = item.querySelector(".interaction-list-actions");
-        actions.append(
-          makeButton("Editar", "interactions-text-action", () => {
-            pendingDeleteIndex = null;
-            activeDraft = normalizeForForm(interaction);
-            editingIndex = index;
-            renderList();
-          }),
-          makeButton("Eliminar", "interactions-text-action danger", () => {
-            pendingDeleteIndex = index;
-            activeDraft = null;
-            editingIndex = null;
-            renderList();
-          })
-        );
+        if (!currentDeck?.readOnly) {
+          actions.append(
+            makeButton("Editar", "interactions-text-action", () => {
+              pendingDeleteIndex = null;
+              activeDraft = normalizeForForm(interaction);
+              editingIndex = index;
+              renderList();
+            }),
+            makeButton("Eliminar", "interactions-text-action danger", () => {
+              pendingDeleteIndex = index;
+              activeDraft = null;
+              editingIndex = null;
+              renderList();
+            })
+          );
+        }
         list.appendChild(item);
         if (pendingDeleteIndex === index) list.appendChild(renderDeleteConfirm(interaction, index));
       });
       section.appendChild(list);
     }
 
-    section.appendChild(makeButton("Crear encuesta", "interactions-create-action", () => {
-      pendingDeleteIndex = null;
-      activeDraft = defaultDraft();
-      editingIndex = null;
-      renderList();
-    }));
+    if (!currentDeck?.readOnly) {
+      section.appendChild(makeButton("Crear encuesta", "interactions-create-action", () => {
+        pendingDeleteIndex = null;
+        activeDraft = defaultDraft();
+        editingIndex = null;
+        renderList();
+      }));
+    }
     return section;
   }
 
@@ -593,38 +597,48 @@
         card.className = "interaction-list-item";
         card.innerHTML = '<div class="interaction-list-copy"><strong>' + escapeHtml(item.title) + '</strong><span>' + item.questions.length + ' preguntas</span><small>' + (category === "contest" ? item.questionDurationSeconds + " s por pregunta" : Math.round(item.durationSeconds / 60) + " min") + '</small></div><div class="interaction-list-actions"></div>';
         const actions = card.querySelector(".interaction-list-actions");
-        actions.append(
-          makeButton("Editar", "interactions-text-action", () => {
-            activeDraft = JSON.parse(JSON.stringify(item));
-            editingIndex = index;
-            renderList();
-          }),
-          makeButton("Eliminar", "interactions-text-action danger", async () => {
-            if (!window.confirm("¿Eliminar " + (category === "contest" ? "este concurso" : "esta evaluación") + "?")) return;
-            const next = items.filter((_value, itemIndex) => itemIndex !== index);
-            try {
-              await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
-              setStatus("Actividad eliminada.", "success");
+        if (!currentDeck?.readOnly) {
+          actions.append(
+            makeButton("Editar", "interactions-text-action", () => {
+              activeDraft = JSON.parse(JSON.stringify(item));
+              editingIndex = index;
               renderList();
-            } catch (error) {
-              setStatus(error.message, "error");
-            }
-          })
-        );
+            }),
+            makeButton("Eliminar", "interactions-text-action danger", async () => {
+              if (!window.confirm("¿Eliminar " + (category === "contest" ? "este concurso" : "esta evaluación") + "?")) return;
+              const next = items.filter((_value, itemIndex) => itemIndex !== index);
+              try {
+                await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
+                setStatus("Actividad eliminada.", "success");
+                renderList();
+              } catch (error) {
+                setStatus(error.message, "error");
+              }
+            })
+          );
+        }
         list.appendChild(card);
       });
       section.appendChild(list);
     }
-    section.appendChild(makeButton(category === "contest" ? "Crear concurso" : "Crear evaluación", "interactions-create-action", () => {
-      activeDraft = defaultKnowledgeDraft(category);
-      editingIndex = null;
-      renderList();
-    }));
+    if (!currentDeck?.readOnly) {
+      section.appendChild(makeButton(category === "contest" ? "Crear concurso" : "Crear evaluación", "interactions-create-action", () => {
+        activeDraft = defaultKnowledgeDraft(category);
+        editingIndex = null;
+        renderList();
+      }));
+    }
     return section;
   }
 
   function renderList() {
     listNode.innerHTML = "";
+    if (currentDeck?.readOnly) {
+      const notice = document.createElement("p");
+      notice.className = "interactions-demo-notice";
+      notice.textContent = "Contenido oficial de práctica. Ejecútalo desde Speaker o Stage; puedes restablecer el Demo cuando quieras.";
+      listNode.appendChild(notice);
+    }
     const hub = renderHub();
     listNode.appendChild(hub);
     if (activeModule === "polls") {

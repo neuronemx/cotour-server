@@ -3,6 +3,8 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
+const demoModeBadge = document.getElementById("demoModeBadge");
+if (demoModeBadge) demoModeBadge.hidden = roleOpenContext.demo_mode !== true;
 const socket = io();
 const overlaySocket = io();
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;

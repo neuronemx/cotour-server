@@ -1,0 +1,27 @@
+{
+  "deckId": "immersa-demo",
+  "title": "Conoce IMMERSA",
+  "session_id": "system-demo-master",
+  "ratio": "16:9",
+  "status": "converted",
+  "conversion": {
+    "status": "completed",
+    "completedAt": "2026-08-09T18:00:00.000Z"
+  },
+  "source": {
+    "type": "system",
+    "filename": null
+  },
+  "slides": [
+    { "id": "slide-001", "title": "Bienvenido", "src": "/decks/immersa-demo/slides/slide-001.svg", "thumbnail": "/decks/immersa-demo/slides/slide-001.svg" },
+    { "id": "slide-002", "title": "Presenta a tu manera", "src": "/decks/immersa-demo/slides/slide-002.svg", "thumbnail": "/decks/immersa-demo/slides/slide-002.svg" },
+    { "id": "slide-003", "title": "Haz visible la energía", "src": "/decks/immersa-demo/slides/slide-003.svg", "thumbnail": "/decks/immersa-demo/slides/slide-003.svg" },
+    { "id": "slide-004", "title": "Abre la conversación", "src": "/decks/immersa-demo/slides/slide-004.svg", "thumbnail": "/decks/immersa-demo/slides/slide-004.svg" },
+    { "id": "slide-005", "title": "Escucha a todos", "src": "/decks/immersa-demo/slides/slide-005.svg", "thumbnail": "/decks/immersa-demo/slides/slide-005.svg" },
+    { "id": "slide-006", "title": "Activa un sorteo", "src": "/decks/immersa-demo/slides/slide-006.svg", "thumbnail": "/decks/immersa-demo/slides/slide-006.svg" },
+    { "id": "slide-007", "title": "Convierte atención en juego", "src": "/decks/immersa-demo/slides/slide-007.svg", "thumbnail": "/decks/immersa-demo/slides/slide-007.svg" },
+    { "id": "slide-008", "title": "Comprueba aprendizaje", "src": "/decks/immersa-demo/slides/slide-008.svg", "thumbnail": "/decks/immersa-demo/slides/slide-008.svg" },
+    { "id": "slide-009", "title": "Aprende de cada sesión", "src": "/decks/immersa-demo/slides/slide-009.svg", "thumbnail": "/decks/immersa-demo/slides/slide-009.svg" },
+    { "id": "slide-010", "title": "Ahora hazlo tuyo", "src": "/decks/immersa-demo/slides/slide-010.svg", "thumbnail": "/decks/immersa-demo/slides/slide-010.svg" }
+  ]
+}

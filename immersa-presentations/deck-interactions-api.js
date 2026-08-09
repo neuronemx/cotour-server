@@ -10,7 +10,7 @@ const VIDEO_PREVIEW_WIDTH = 320;
 const VIDEO_PREVIEW_HEIGHT = 180;
 const MAX_QUESTION_IMAGE_BYTES = 5 * 1024 * 1024;
 
-function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
+function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir, resolveDeckDir = null }) {
   function normalizeDeckId(value) {
     const deckId = String(value || "").trim();
     if (!/^[a-z0-9][a-z0-9-]*$/i.test(deckId)) {
@@ -23,6 +23,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
 
   async function findDeckDir(id) {
     const deckId = normalizeDeckId(id);
+    if (typeof resolveDeckDir === "function") {
+      const resolved = await resolveDeckDir(deckId);
+      if (resolved) return { deckId, deckDir: resolved };
+    }
     const candidates = [path.join(dataDecksDir, deckId), path.join(staticDecksDir, deckId)];
     for (const deckDir of candidates) {
       try {

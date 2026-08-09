@@ -7,3 +7,4 @@ backups/
 npm-debug.log
 public/decks/*/
 !public/decks/demo/
+!public/decks/immersa-demo/

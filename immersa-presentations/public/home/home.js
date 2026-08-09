@@ -41,6 +41,9 @@ const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
 const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
+const detailDemoReset = document.getElementById("detailDemoReset");
+const deckTabParticipation = document.getElementById("deckTabParticipation");
+const deckTabMetrics = document.getElementById("deckTabMetrics");
 const replacementFile = document.getElementById("replacementFile");
 const replacementReview = document.getElementById("replacementReview");
 const replacementReviewed = document.getElementById("replacementReviewed");
@@ -252,6 +255,10 @@ function isFailedDeck(deck) {
 
 function isConvertedDeck(deck) {
   return deck && (deck.status === "converted" || deck.conversionStatus === "completed" || deck.status === "ready" || deck.conversionStatus === "ready");
+}
+
+function isDemoDeck(deck) {
+  return Boolean(deck?.isDemo || deck?.demoMode || deck?.systemResource);
 }
 
 function deckStatusLabel(deck) {
@@ -650,7 +657,7 @@ function syncDetailVideoControls() {
   const slideId = detailSlideId(navigation.slides[navigation.index], navigation.index);
   const hasVideo = navigation.videoSlideIds.has(slideId);
   if (detailVideoAction) {
-    detailVideoAction.hidden = false;
+    detailVideoAction.hidden = isDemoDeck(navigation.deck);
     detailVideoAction.classList.toggle("has-video", hasVideo);
     const label = detailVideoAction.querySelector("span");
     if (label) label.textContent = hasVideo ? "Editar video" : "Agregar video";
@@ -786,7 +793,7 @@ function renderDecks() {
 
   decks.forEach((deck) => {
     const row = document.createElement("article");
-    row.className = "deck-option deck-row" + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "");
+    row.className = "deck-option deck-row" + (isPendingDeck(deck) ? " pending" : "") + (isFailedDeck(deck) ? " failed" : "") + (isConvertedDeck(deck) ? " converted" : "") + (isDemoDeck(deck) ? " is-demo" : "");
     row.tabIndex = 0;
     row.setAttribute("role", "button");
     row.setAttribute("aria-label", "Ver detalles de " + niceTitle(deck.title || deck.deckId || "Presentación"));
@@ -804,7 +811,12 @@ function renderDecks() {
 
     titleLine.append(title);
 
-    if (!isConvertedDeck(deck) || deck?.isLive || deck?.status === "live") {
+    if (isDemoDeck(deck)) {
+      const badge = document.createElement("em");
+      badge.className = "deck-badge demo";
+      badge.textContent = "Modo demostración";
+      titleLine.appendChild(badge);
+    } else if (!isConvertedDeck(deck) || deck?.isLive || deck?.status === "live") {
       const badge = document.createElement("em");
       badge.className = "deck-badge" + deckBadgeClass(deck);
       badge.textContent = deckStatusLabel(deck);
@@ -815,7 +827,7 @@ function renderDecks() {
     metaLine.className = "deck-meta-line";
 
     const convertedAt = document.createElement("span");
-    convertedAt.textContent = deckConversionMeta(deck);
+    convertedAt.textContent = isDemoDeck(deck) ? "Demo oficial · Speaker Pro" : deckConversionMeta(deck);
 
     const slides = document.createElement("span");
     slides.textContent = deckSlideLabel(deck);
@@ -842,7 +854,8 @@ function renderDecks() {
       deleteDeck(deck);
     });
 
-    row.append(thumb, info, deleteButton);
+    row.append(thumb, info);
+    if (!isDemoDeck(deck)) row.appendChild(deleteButton);
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
       openDeckModal(deck);
@@ -883,7 +896,7 @@ function renderDetailActions(deck) {
 function openDeckModal(deck) {
   if (!deckDetailModal || !deck) return;
   detailDeck = deck;
-  if (replacementReview) replacementReview.hidden = !deck.associationsReviewRequired;
+  if (replacementReview) replacementReview.hidden = isDemoDeck(deck) || !deck.associationsReviewRequired;
   activeDeck = deck.deckId;
 
   if (detailThumb) {
@@ -891,11 +904,25 @@ function openDeckModal(deck) {
     detailThumb.appendChild(renderThumb(deck, "deck-detail-thumb"));
   }
   if (detailTitle) detailTitle.textContent = niceTitle(deck.title || deck.deckId || "Presentación");
-  if (detailDate) detailDate.textContent = deckConversionMeta(deck);
+  if (detailDate) detailDate.textContent = isDemoDeck(deck) ? "Demo oficial · actualizado por IMMERSA" : deckConversionMeta(deck);
   if (detailSlides) detailSlides.textContent = deckSlideLabel(deck);
   if (detailStatus) {
-    detailStatus.textContent = deckStatusLabel(deck);
-    detailStatus.className = "deck-detail-status" + deckBadgeClass(deck);
+    detailStatus.textContent = isDemoDeck(deck) ? "Modo demostración" : deckStatusLabel(deck);
+    detailStatus.className = "deck-detail-status" + (isDemoDeck(deck) ? " demo" : deckBadgeClass(deck));
+  }
+  const demo = isDemoDeck(deck);
+  if (detailRename) detailRename.hidden = demo;
+  if (detailReplace) detailReplace.hidden = demo;
+  if (detailDemoReset) detailDemoReset.hidden = !demo;
+  if (deckTabParticipation) {
+    deckTabParticipation.disabled = !demo;
+    deckTabParticipation.setAttribute("aria-disabled", String(!demo));
+    deckTabParticipation.title = demo ? "Funciones Speaker Pro disponibles en el Demo" : "Disponible en otros planes";
+  }
+  if (deckTabMetrics) {
+    deckTabMetrics.disabled = !demo;
+    deckTabMetrics.setAttribute("aria-disabled", String(!demo));
+    deckTabMetrics.title = demo ? "Métricas Speaker Pro disponibles en el Demo" : "Disponible en otros planes";
   }
   renderDetailActions(deck);
   loadDetailSlideNavigation(deck);
@@ -1111,6 +1138,28 @@ if (detailRename) {
   detailRename.addEventListener("click", (event) => {
     event.stopPropagation();
     openRenameModal(detailDeck);
+  });
+}
+
+if (detailDemoReset) {
+  detailDemoReset.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    if (!isDemoDeck(detailDeck)) return;
+    const confirmed = window.confirm("¿Restablecer el Deck Demo?\n\nSe borrarán los resultados y links de práctica. El contenido oficial volverá a su estado inicial.");
+    if (!confirmed) return;
+    detailDemoReset.disabled = true;
+    try {
+      const response = await fetch("/api/account/demo/reset", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo restablecer el Demo");
+      closeDeckModal();
+      await loadDecks(data.deck?.deckId || null);
+      setUploadStatus("Deck Demo restablecido.", "success");
+    } catch (error) {
+      setUploadStatus(error.message, "error");
+    } finally {
+      detailDemoReset.disabled = false;
+    }
   });
 }
 

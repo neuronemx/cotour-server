@@ -3,6 +3,8 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
+const demoModeBadge = document.getElementById("demoModeBadge");
+if (demoModeBadge) demoModeBadge.hidden = roleOpenContext.demo_mode !== true;
 const socket = io();
 const presentationLifecycleHost = document.getElementById("presentationLifecycle");
 let presentationLifecycleControl = null;

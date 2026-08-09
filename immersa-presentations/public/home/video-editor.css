@@ -10,6 +10,7 @@
 .video-editor-status:empty{display:none}
 .video-editor-status.success{color:var(--green)}
 .video-editor-status.error{color:var(--red)}
+.video-editor-demo-notice{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(109,59,239,.18);border-radius:14px;background:rgba(109,59,239,.07);color:var(--violet);font-size:12.5px;font-weight:700;line-height:1.45}
 .video-editor-body{display:grid;gap:12px;margin-top:12px}
 .video-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:2px 0;background:transparent}
 .video-editor-toolbar p{margin:0;color:var(--muted-2);font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}

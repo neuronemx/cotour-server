@@ -206,6 +206,18 @@ body {
   text-transform: uppercase;
   color: rgba(255,255,255,.86);
 }
+.stage-brand .demo-mode-badge {
+  padding: 6px 9px;
+  border: 1px solid rgba(126,240,255,.3);
+  border-radius: 999px;
+  background: rgba(126,240,255,.1);
+  color: #9ee9f0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.stage-brand .demo-mode-badge[hidden] { display:none; }
 
 .presentation-name {
   min-width: 110px;

@@ -233,6 +233,13 @@
     add.addEventListener("click", () => renderForm());
     bodyNode.appendChild(top);
 
+    if (currentDeck?.readOnly) {
+      const notice = document.createElement("p");
+      notice.className = "video-editor-demo-notice";
+      notice.textContent = "El Deck Demo conserva su configuración oficial. Los videos de tus propios Decks sí pueden agregarse y editarse.";
+      bodyNode.appendChild(notice);
+    }
+
     if (!config.videos.length) {
       const empty = document.createElement("div");
       empty.className = "video-editor-empty";
@@ -286,13 +293,13 @@
             setStatus(error.message, "error");
           }
         });
-        actions.append(edit, remove);
+        if (!currentDeck?.readOnly) actions.append(edit, remove);
         stack.appendChild(item);
       });
       bodyNode.appendChild(stack);
     }
 
-    bodyNode.appendChild(add);
+    if (!currentDeck?.readOnly) bodyNode.appendChild(add);
   }
 
   function renderForm(existing = null, selectedSlideId = null) {

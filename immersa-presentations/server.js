@@ -27,6 +27,13 @@ const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
 const { canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
+const {
+  DEMO_MASTER_DECK_ID,
+  DEMO_PLAN,
+  isDemoDeckId,
+  demoDeckSummary,
+  demoManifest
+} = require("./auth/deck-demo");
 
 const app = express();
 const server = http.createServer(app);
@@ -42,7 +49,7 @@ const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const sessions = new Map();
-const deckSlideCounts = { demo: 3 };
+const deckSlideCounts = {};
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
@@ -72,7 +79,10 @@ const raffleSockets = createRaffleSocketHandlers({
 });
 const deckInteractionHandlers = createDeckInteractionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
-  staticDecksDir: STATIC_DECKS_DIR
+  staticDecksDir: STATIC_DECKS_DIR,
+  resolveDeckDir: async (deckId) => isDemoDeckId(deckId)
+    ? path.join(STATIC_DECKS_DIR, DEMO_MASTER_DECK_ID)
+    : null
 });
 const qnaRuntime = createQnaRuntime({
   io,
@@ -144,7 +154,8 @@ const accessLinkHandlers = createAccessLinkHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: (deckId) => betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
+  resolveDeckFeatureAccess: (deckId) => betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId),
+  resolveDeckManifestBySessionId: resolveDemoDeckManifestBySessionId
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
@@ -201,6 +212,7 @@ async function ensureDataDirs() {
 }
 
 async function findDeckDir(deckId) {
+  if (isDemoDeckId(deckId)) return path.join(STATIC_DECKS_DIR, DEMO_MASTER_DECK_ID);
   const candidates = [path.join(DATA_DECKS_DIR, deckId), path.join(STATIC_DECKS_DIR, deckId)];
   for (const candidate of candidates) {
     try {
@@ -211,6 +223,39 @@ async function findDeckDir(deckId) {
     }
   }
   throw new Error("Deck manifest not found: " + deckId);
+}
+
+async function readDemoMasterManifest() {
+  return JSON.parse(await fs.promises.readFile(
+    path.join(STATIC_DECKS_DIR, DEMO_MASTER_DECK_ID, "manifest.json"),
+    "utf8"
+  ));
+}
+
+async function resolveDemoDeckManifestBySessionId(sessionId) {
+  const binding = await betterAuthCompatibilityBridge.findDemoBySessionId(sessionId);
+  if (!binding) return null;
+  const master = await readDemoMasterManifest();
+  const manifest = demoManifest(master, binding);
+  return {
+    manifest,
+    deck: {
+      deckId: binding.deckId,
+      title: manifest.title,
+      session_id: binding.sessionId,
+      ratio: manifest.ratio || "16:9",
+      status: manifest.status || "ready",
+      conversionStatus: manifest.conversion?.status || "ready",
+      isDemo: true,
+      demoMode: true,
+      plan: DEMO_PLAN
+    }
+  };
+}
+
+async function demoSummaryForBinding(binding) {
+  const master = await readDemoMasterManifest();
+  return demoDeckSummary(manifestSummary(master), binding);
 }
 
 function parseInteractionsContent(content) {
@@ -724,6 +769,19 @@ ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data 
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
+app.get("/decks/:deckId/manifest.json", async (req, res, next) => {
+  if (!isDemoDeckId(req.params.deckId)) return next();
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(demoManifest(await readDemoMasterManifest(), {
+      deckId: req.params.deckId,
+      sessionId: ""
+    }));
+  } catch (error) {
+    console.error("Unable to load the IMMERSA Demo manifest", error);
+    return res.status(500).json({ error: "Unable to load the IMMERSA Demo" });
+  }
+});
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
@@ -751,11 +809,25 @@ function requireDeckFeature(feature) {
     }
   };
 }
+function requireMutableDeck(req, res, next) {
+  const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
+  if (!isDemoDeckId(deckId)) return next();
+  return res.status(403).json({
+    error: "El Deck Demo es un recurso oficial y no puede modificarse.",
+    code: "DEMO_READ_ONLY"
+  });
+}
 function requireDeckConfigurationWrite(req, res, next) {
   return (async () => {
     try {
       const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
       const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      if (access.plan === DEMO_PLAN || isDemoDeckId(deckId)) {
+        return res.status(403).json({
+          error: "El Deck Demo es un recurso oficial y no puede modificarse.",
+          code: "DEMO_READ_ONLY"
+        });
+      }
       if (canUseFeature(access, "interactions")) return next();
       const current = await deckInteractionHandlers.readDeckConfig(deckId);
       if (changesPaidDeckContent(req.body, current)) {
@@ -782,10 +854,30 @@ function requireAccountOrControllerDeck(req, res, next) {
 app.get("/api/decks", requireAccount, async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");
-    res.json(await listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)));
+    const [decks, binding] = await Promise.all([
+      listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)),
+      betterAuthCompatibilityBridge.getDemoDeck(req)
+    ]);
+    res.json([await demoSummaryForBinding(binding), ...decks]);
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
+  }
+});
+app.post("/api/account/demo/reset", requireAccount, async (req, res) => {
+  try {
+    const result = await betterAuthCompatibilityBridge.resetDemoDeck(req);
+    await accessLinkHandlers.deactivateSessionLinks(result.previous.sessionId);
+    const roomKey = getRoomKey(result.previous.sessionId, result.previous.deckId);
+    sessions.delete(roomKey);
+    const resetContext = { roomKey, sessionId: result.previous.sessionId, deckId: result.previous.deckId };
+    interactionSockets.resetSession(resetContext);
+    raffleSockets.resetSession(resetContext);
+    gameQueueSockets.resetSession(resetContext);
+    res.json({ deck: await demoSummaryForBinding(result.current) });
+  } catch (error) {
+    console.error("Unable to reset the IMMERSA Demo", error);
+    res.status(500).json({ error: "No se pudo restablecer el Deck Demo" });
   }
 });
 app.get("/api/account/plan", requireAccount, async (req, res) => {
@@ -804,17 +896,18 @@ app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deleteP
 app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
-app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireMutableDeck, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
-app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);
-app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, brandMentionHandlers.reorderBrands);
-app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.updateBrand);
-app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
+app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireMutableDeck, brandMentionHandlers.createBrand);
+app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, requireMutableDeck, brandMentionHandlers.reorderBrands);
+app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireMutableDeck, brandMentionHandlers.updateBrand);
+app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireMutableDeck, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature("metrics"), qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature("metrics"), knowledgeActivityHistoryHandlers.listHistory);
 app.post(
   "/api/decks/:deckId/replace",
   ...requireDeckAccount,
+  requireMutableDeck,
   createDeckReplacementHandler({
     beforeDeckSwap: ({ deck }) => assertDeckCanBeReplaced(deck.deckId),
     onDeckReplaced: async ({ req, deck }) => {
@@ -824,7 +917,7 @@ app.post(
     }
   })
 );
-app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (req, res) => {
+app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireMutableDeck, async (req, res) => {
   try {
     res.json(await markDeckAssociationsReviewed(req.params.deckId));
   } catch (error) {
@@ -833,7 +926,7 @@ app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (
     res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : "Unable to update presentation review" });
   }
 });
-app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
+app.put("/api/decks/:deckId/title", ...requireDeckAccount, requireMutableDeck, async (req, res) => {
   try {
     res.json(await renameDeck(req.params.deckId, req.body?.title));
   } catch (error) {
@@ -842,7 +935,7 @@ app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
     res.status(statusCode).json({ error: statusCode === 400 ? "Escribe un nombre de hasta 120 caracteres" : statusCode === 404 ? "Deck not found" : "Unable to rename presentation" });
   }
 });
-app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
+app.delete("/api/decks/:deckId", ...requireDeckAccount, requireMutableDeck, async (req, res) => {
   try {
     const deckId = await deleteDataDeck(req.params.deckId);
     await betterAuthCompatibilityBridge.unregisterDeck(req, deckId);
