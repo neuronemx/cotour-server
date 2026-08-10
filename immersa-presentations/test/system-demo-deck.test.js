@@ -90,6 +90,7 @@ test("publishing is blocked until every slide has a commercial level", async (t)
 
 test("Home and every live surface render Demo plan metadata outside slide artwork", () => {
   const home = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
+  const homeShell = fs.readFileSync(path.join(appDir, "public", "home", "deck-management-shell.js"), "utf8");
   const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
   const badge = fs.readFileSync(path.join(appDir, "public", "shared", "demo-plan-badge.js"), "utf8");
   const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
@@ -97,6 +98,8 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(home, /\/api\/admin\/demo\/slides\//);
   assert.match(home, /\/api\/admin\/demo\/publish/);
   assert.match(badge, /manifest\?\.systemDemo\?\.role === "published"/);
+  assert.match(homeShell, /deck\?\.demoRole === "master" && !deck\?\.missing/);
+  assert.match(homeShell, /participationTab\.disabled = !enabled/);
   assert.match(server, /featureAccessForPlan\("SPEAKER_PRO"\)/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
