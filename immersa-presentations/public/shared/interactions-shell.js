@@ -84,14 +84,19 @@
     return icon;
   }
 
-  function createCategoryButton(documentRef, category, variant) {
+  function createCategoryButton(documentRef, category, variant, planLabel = "") {
     const button = createElement(documentRef, "button", "interactions-shell-category interactions-shell-category-" + variant);
+    const planClass = String(planLabel).toLowerCase().replace(/\s+/g, "-");
+    const planNode = planLabel
+      ? createElement(documentRef, "span", "interactions-shell-plan-label is-" + planClass, "Desde " + planLabel)
+      : null;
     button.type = "button";
     button.dataset.interactionsCategory = category.id;
     button.dataset.interactionsVariant = variant;
     button.append(
       createIcon(documentRef, APPROVED_CATEGORY_ICONS[category.id]),
       createElement(documentRef, "span", "interactions-shell-category-label", category.label),
+      ...(planNode ? [planNode] : []),
       createElement(documentRef, "span", "interactions-shell-live-label", "En vivo"),
       createElement(documentRef, "span", "interactions-shell-count-label", "0")
     );
@@ -130,7 +135,7 @@
       groupNode.appendChild(createElement(documentRef, "p", "interactions-shell-group-label", group.label));
       const row = createElement(documentRef, "div", "interactions-shell-group-row");
       group.categories.forEach((category) => {
-        const button = createCategoryButton(documentRef, category, "expanded");
+        const button = createCategoryButton(documentRef, category, "expanded", options.planLabels?.[category.id]);
         row.appendChild(button);
         buttons.get(category.id).push(button);
       });
@@ -142,7 +147,7 @@
     const compact = createElement(documentRef, "div", "interactions-shell-compact");
     compact.setAttribute("aria-label", "Categorías de interacciones");
     CATEGORIES.forEach((category) => {
-      const button = createCategoryButton(documentRef, category, "compact");
+      const button = createCategoryButton(documentRef, category, "compact", options.planLabels?.[category.id]);
       compact.appendChild(button);
       buttons.get(category.id).push(button);
     });

@@ -51,7 +51,18 @@ const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const sessions = new Map();
 const demoResetTimers = new Map();
+const demoInactivityTimers = new Map();
 const liveSocketsByRoom = new Map();
+const DEMO_DISCONNECT_RESTORE_DELAY_MS = 2 * 60 * 1000;
+const DEMO_INACTIVITY_RESTORE_DELAY_MS = 30 * 60 * 1000;
+const DEMO_PASSIVE_SOCKET_EVENTS = new Set([
+  "games:queue:request_state",
+  "pong:request_state",
+  "breakout:request_state",
+  "presentation:lifecycle:request",
+  "time:sync:request",
+  "media:playback_update"
+]);
 const deckSlideCounts = {};
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const controllerRoles = new Set(["presenter", "stage"]);
@@ -438,19 +449,36 @@ function deckHasActiveConnections(deckId) {
   ));
 }
 
-async function restoreDisconnectedDemo({ roomKey, sessionId, deckId }) {
+async function restoreDemoPractice({ roomKey, sessionId, deckId }, { requireDisconnected = true } = {}) {
   const hasLiveSocket = [...liveSocketsByRoom.entries()].some(([key, socketIds]) => (
     key.endsWith("::" + deckId) && socketIds.size > 0
   ));
-  if (!isDemoDeckId(deckId) || hasLiveSocket) return false;
+  if (!isDemoDeckId(deckId) || (requireDisconnected && hasLiveSocket)) return false;
+  cancelDisconnectedDemoRestore(deckId);
+  cancelInactiveDemoRestore(deckId);
   await betterAuthCompatibilityBridge.clearDemoPractice({ deckId, sessionId });
   await removeDemoPracticeDir(deckId);
-  sessions.delete(roomKey);
+  const previousSession = sessions.get(roomKey);
+  if (hasLiveSocket && previousSession) {
+    const restoredSession = createSession(sessionId, deckId, previousSession.slideCount);
+    restoredSession.presenterConnected = previousSession.presenterConnected;
+    restoredSession.stageConnected = previousSession.stageConnected;
+    restoredSession.screenConnected = previousSession.screenConnected;
+    restoredSession.audience = previousSession.audience;
+    sessions.set(roomKey, restoredSession);
+  } else {
+    sessions.delete(roomKey);
+  }
   interactionSockets.resetSession({ roomKey, sessionId, deckId });
   raffleSockets.resetSession({ roomKey, sessionId, deckId });
   gameQueueSockets.resetSession({ roomKey, sessionId, deckId });
   await knowledgeActivityRuntime.resetSession({ roomKey, sessionId, deckId });
   await qnaRuntime.resetSessionState?.({ deckId, sourceSessionId: sessionId });
+  if (hasLiveSocket) {
+    const restoredSession = sessions.get(roomKey);
+    if (restoredSession) emitState(roomKey, restoredSession);
+    io.to(roomKey).emit("demo:practice_restored", { reason: "inactive" });
+  }
   return true;
 }
 
@@ -460,10 +488,10 @@ function scheduleDisconnectedDemoRestore(context) {
   if (previous) clearTimeout(previous);
   const timer = setTimeout(() => {
     demoResetTimers.delete(context.deckId);
-    void restoreDisconnectedDemo(context).catch((error) => {
+    void restoreDemoPractice(context).catch((error) => {
       console.error("Unable to restore disconnected Demo", error);
     });
-  }, 3000);
+  }, DEMO_DISCONNECT_RESTORE_DELAY_MS);
   demoResetTimers.set(context.deckId, timer);
 }
 
@@ -472,6 +500,25 @@ function cancelDisconnectedDemoRestore(deckId) {
   if (!timer) return;
   clearTimeout(timer);
   demoResetTimers.delete(deckId);
+}
+
+function cancelInactiveDemoRestore(deckId) {
+  const timer = demoInactivityTimers.get(deckId);
+  if (!timer) return;
+  clearTimeout(timer);
+  demoInactivityTimers.delete(deckId);
+}
+
+function scheduleInactiveDemoRestore(context) {
+  if (!isDemoDeckId(context.deckId)) return;
+  cancelInactiveDemoRestore(context.deckId);
+  const timer = setTimeout(() => {
+    demoInactivityTimers.delete(context.deckId);
+    void restoreDemoPractice(context, { requireDisconnected: false }).catch((error) => {
+      console.error("Unable to restore inactive Demo", error);
+    });
+  }, DEMO_INACTIVITY_RESTORE_DELAY_MS);
+  demoInactivityTimers.set(context.deckId, timer);
 }
 
 function assertDeckCanBeReplaced(deckId) {
@@ -924,6 +971,29 @@ function requireDeckConfigurationWrite(req, res, next) {
     }
   })();
 }
+
+async function trackDemoConfigurationActivity(req, _res, next) {
+  const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
+  if (!isDemoDeckId(deckId)) return next();
+  try {
+    const binding = req.accountContext
+      ? await betterAuthCompatibilityBridge.getDemoDeck(req)
+      : null;
+    const sessionId = binding?.deckId === deckId
+      ? binding.sessionId
+      : req.immersaAccess?.accessLink?.session_id;
+    if (sessionId) {
+      scheduleInactiveDemoRestore({
+        roomKey: getRoomKey(sessionId, deckId),
+        sessionId,
+        deckId
+      });
+    }
+  } catch (error) {
+    console.error("Unable to track Demo configuration activity", error);
+  }
+  return next();
+}
 function requireAccountOrControllerDeck(req, res, next) {
   return betterAuthCompatibilityBridge.attachOptionalAccount(req, res, () => {
     if (req.accountContext) return requireOwnedDeck(req, res, next);
@@ -947,6 +1017,7 @@ app.post("/api/account/demo/reset", requireAccount, async (req, res) => {
   try {
     const result = await betterAuthCompatibilityBridge.resetDemoDeck(req);
     cancelDisconnectedDemoRestore(result.previous.deckId);
+    cancelInactiveDemoRestore(result.previous.deckId);
     await removeDemoPracticeDir(result.previous.deckId);
     await accessLinkHandlers.deactivateSessionLinks(result.previous.sessionId);
     const roomKey = getRoomKey(result.previous.sessionId, result.previous.deckId);
@@ -976,7 +1047,7 @@ app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPho
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
 app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
+app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, trackDemoConfigurationActivity, deckInteractionHandlers.putInteractions);
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireMutableDeck, brandMentionHandlers.createBrand);
@@ -1145,6 +1216,7 @@ io.on("connection", (socket) => {
     currentSessionId = joinedSessionId;
     currentDeckId = joinedDeckId;
     cancelDisconnectedDemoRestore(joinedDeckId);
+    scheduleInactiveDemoRestore({ roomKey: currentRoomKey, sessionId: joinedSessionId, deckId: joinedDeckId });
     const session = getSession(joinedSessionId, joinedDeckId);
     try {
       currentFeatureAccess = await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
@@ -1330,6 +1402,20 @@ io.on("connection", (socket) => {
     }
     emitState(currentRoomKey, session);
     scheduleDisconnectedDemoRestore({
+      roomKey: currentRoomKey,
+      sessionId: currentSessionId,
+      deckId: currentDeckId
+    });
+  });
+
+  socket.onAny((eventName) => {
+    if (
+      !currentRoomKey
+      || !isDemoDeckId(currentDeckId)
+      || eventName === "join_presentation"
+      || DEMO_PASSIVE_SOCKET_EVENTS.has(eventName)
+    ) return;
+    scheduleInactiveDemoRestore({
       roomKey: currentRoomKey,
       sessionId: currentSessionId,
       deckId: currentDeckId

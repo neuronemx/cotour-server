@@ -6,6 +6,7 @@ const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== fa
 const demoModeBadge = document.getElementById("demoModeBadge");
 if (demoModeBadge) demoModeBadge.hidden = roleOpenContext.demo_mode !== true;
 const socket = io();
+socket.on("demo:practice_restored", () => window.location.reload());
 const presentationLifecycleHost = document.getElementById("presentationLifecycle");
 let presentationLifecycleControl = null;
 function syncPresentationLifecycleFeature(enabled) {
@@ -499,6 +500,13 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell || !interactionShellMount) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    planLabels: roleOpenContext.demo_mode === true ? {
+      polls: "SPEAKER",
+      qna: "SPEAKER",
+      assessments: "SPEAKER PRO",
+      raffles: "SPEAKER PRO",
+      contests: "SPEAKER PRO"
+    } : null,
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,

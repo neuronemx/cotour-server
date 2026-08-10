@@ -6,6 +6,7 @@ const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== fa
 const demoModeBadge = document.getElementById("demoModeBadge");
 if (demoModeBadge) demoModeBadge.hidden = roleOpenContext.demo_mode !== true;
 const socket = io();
+socket.on("demo:practice_restored", () => window.location.reload());
 const overlaySocket = io();
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 let manifest = null;
@@ -202,6 +203,13 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    planLabels: roleOpenContext.demo_mode === true ? {
+      polls: "SPEAKER",
+      qna: "SPEAKER",
+      assessments: "SPEAKER PRO",
+      raffles: "SPEAKER PRO",
+      contests: "SPEAKER PRO"
+    } : null,
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,

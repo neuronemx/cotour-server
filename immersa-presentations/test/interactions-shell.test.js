@@ -147,6 +147,29 @@ test("interactions shell preserves the approved category contract", () => {
   assert.equal(category(root, "qna").querySelector(".interactions-shell-count-label").hidden, true);
 });
 
+test("interactions shell shows plan guidance only when the Demo supplies it", () => {
+  const regular = setup();
+  Shell.create({ root: regular.root });
+  assert.equal(regular.root.querySelectorAll(".interactions-shell-plan-label").length, 0);
+
+  const demo = setup();
+  Shell.create({
+    root: demo.root,
+    planLabels: {
+      polls: "SPEAKER",
+      qna: "SPEAKER",
+      assessments: "SPEAKER PRO",
+      raffles: "SPEAKER PRO",
+      contests: "SPEAKER PRO"
+    }
+  });
+  assert.equal(category(demo.root, "polls").querySelector(".interactions-shell-plan-label").textContent, "Desde SPEAKER");
+  assert.equal(category(demo.root, "polls").querySelector(".interactions-shell-plan-label").classList.contains("is-speaker"), true);
+  assert.equal(category(demo.root, "contests").querySelector(".interactions-shell-plan-label").textContent, "Desde SPEAKER PRO");
+  assert.equal(category(demo.root, "contests").querySelector(".interactions-shell-plan-label").classList.contains("is-speaker-pro"), true);
+  assert.equal(category(demo.root, "games").querySelector(".interactions-shell-plan-label"), null);
+});
+
 
 test("interactions shell renderer visibility respects hidden state across views", () => {
   const { root, document } = setup();

@@ -79,6 +79,15 @@ test("the master Demo contains ten slides and Speaker Pro activities only", () =
   assert.equal(fs.existsSync(path.join(appDir, "public/decks/demo/interactions.json")), false);
 });
 
+test("Demo slides explain the FREE, SPEAKER and SPEAKER PRO ladder", () => {
+  const slide = (number) => read("public/decks/immersa-demo/slides/slide-" + String(number).padStart(3, "0") + ".svg");
+  assert.match(slide(1), /FREE  →  SPEAKER  →  SPEAKER PRO/);
+  [2, 3].forEach((number) => assert.match(slide(number), /INCLUIDO DESDE FREE/));
+  [4, 5, 9].forEach((number) => assert.match(slide(number), /INCLUIDO DESDE SPEAKER/));
+  [6, 7, 8].forEach((number) => assert.match(slide(number), /INCLUIDO DESDE SPEAKER PRO/));
+  assert.match(slide(10), /FREE  →  SPEAKER  →  SPEAKER PRO/);
+});
+
 test("Home presents Demo as permanent, structurally protected and restorable", () => {
   const html = read("public/home/index.html");
   const home = read("public/home/home.js");
@@ -121,6 +130,13 @@ test("server lists, protects and resets the Demo independently of normal Deck qu
   assert.match(server, /code: "DEMO_READ_ONLY"/);
   assert.match(server, /resolveDeckManifestBySessionId: resolveDemoDeckManifestBySessionId/);
   assert.match(server, /scheduleDisconnectedDemoRestore/);
+  assert.match(server, /DEMO_DISCONNECT_RESTORE_DELAY_MS = 2 \* 60 \* 1000/);
+  assert.match(server, /DEMO_INACTIVITY_RESTORE_DELAY_MS = 30 \* 60 \* 1000/);
+  assert.match(server, /scheduleInactiveDemoRestore/);
+  assert.match(server, /socket\.onAny/);
+  assert.match(server, /DEMO_PASSIVE_SOCKET_EVENTS\.has\(eventName\)/);
+  assert.match(server, /"media:playback_update"/);
+  assert.match(server, /trackDemoConfigurationActivity/);
   assert.match(server, /removeDemoPracticeDir/);
   assert.match(repository, /INSERT INTO workspace_demo_sessions/);
   assert.match(repository, /DELETE FROM presentation_sessions WHERE deck_id = \?/);
@@ -139,6 +155,19 @@ test("Speaker and Stage receive an explicit Demo context and visible badge", () 
   assert.match(stageHtml, /id="demoModeBadge"[^>]*hidden>Demo<\/span>/);
   assert.match(presenter, /roleOpenContext\.demo_mode !== true/);
   assert.match(stage, /roleOpenContext\.demo_mode !== true/);
+  assert.match(presenter, /planLabels: roleOpenContext\.demo_mode === true/);
+  assert.match(stage, /planLabels: roleOpenContext\.demo_mode === true/);
+});
+
+test("inactive live Demo views reload after their isolated practice is restored", () => {
+  [
+    "public/presenter/presenter.js",
+    "public/stage/stage.js",
+    "public/screen/screen.js",
+    "public/audience/audience.js"
+  ].forEach((file) => {
+    assert.match(read(file), /socket\.on\("demo:practice_restored", \(\) => window\.location\.reload\(\)\)/);
+  });
 });
 
 test("all presentation roles resolve central Demo slide assets without duplicating the workspace path", () => {

@@ -216,6 +216,32 @@ body.stage-actions-open .interaction-slide-scrim {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.interactions-shell-plan-label {
+  justify-self: start;
+  padding: 3px 7px;
+  border: 1px solid rgba(111,247,232,.32);
+  border-radius: 999px;
+  color: rgba(143,238,250,.96);
+  background: rgba(111,247,232,.08);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.interactions-shell-plan-label.is-speaker {
+  border-color: rgba(169,140,255,.38);
+  color: rgba(201,186,255,.98);
+  background: rgba(140,101,255,.12);
+}
+.interactions-shell-plan-label.is-speaker-pro {
+  border-color: rgba(255,115,179,.4);
+  color: rgba(255,154,200,.98);
+  background: rgba(255,77,157,.11);
+}
+.interactions-shell-category-compact .interactions-shell-plan-label {
+  display: none;
+}
 .interaction-choice-title {
   font-size: 12px;
   font-weight: 900;
