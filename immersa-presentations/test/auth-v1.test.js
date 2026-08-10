@@ -124,7 +124,7 @@ test("server protects Home and deck administration while Público and Screen sta
   assert.match(serverSource, /app\.put\("\/api\/decks\/:deckId\/interactions", requireAccountOrControllerDeck/);
   assert.match(serverSource, /app\.get\("\/api\/decks\/:deckId\/brand-mentions", \.\.\.requireDeckAccount/);
   assert.match(serverSource, /app\.post\("\/api\/upload-pptx", requireAccount/);
-  assert.match(serverSource, /app\.post\("\/api\/access-links", requireAccount, betterAuthCompatibilityBridge\.requireOwnedSession/);
+  assert.match(serverSource, /app\.post\("\/api\/access-links", requireAccount, requireOwnedOrPublishedSession/);
   assert.match(serverSource, /app\.get\("\/audience\/:access_token", accessLinkHandlers\.openRole/);
   assert.match(serverSource, /app\.get\("\/screen\/:access_token", accessLinkHandlers\.openRole/);
   assert.match(serverSource, /app\.get\("\/:public_id", accessLinkHandlers\.openPublicAudience\)/);

@@ -24,6 +24,7 @@ Required to publish Auth v1 on `https://app.immersalive.com`:
 
 ```text
 IMMERSA_AUTH_ENABLED=true
+IMMERSA_ADMIN_EMAILS=<comma-separated admin emails>
 BETTER_AUTH_URL=https://app.immersalive.com
 BETTER_AUTH_SECRET=<random secret, at least 32 characters>
 GOOGLE_CLIENT_ID=<Google OAuth client id>

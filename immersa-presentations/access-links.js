@@ -100,6 +100,33 @@ async function findDeckBySessionId(sessionId, deckDirs) {
   return result?.deck || null;
 }
 
+async function findDeckManifestByDeckId(deckId, deckDirs) {
+  const normalizedDeckId = String(deckId || '').trim();
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(normalizedDeckId)) return null;
+  for (const rootDir of deckDirs) {
+    const manifestPath = path.join(rootDir, normalizedDeckId, 'manifest.json');
+    try {
+      const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
+      return { manifest, deck: publicDeckFromManifest(manifest, normalizedDeckId) };
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.warn('Skipping deck manifest', manifestPath, error.message);
+    }
+  }
+  return null;
+}
+
+async function findDeckManifestForAccessLink(accessLink, deckDirs) {
+  if (accessLink?.deck_id) {
+    const byId = await findDeckManifestByDeckId(accessLink.deck_id, deckDirs);
+    if (byId) return byId;
+  }
+  return findDeckManifestBySessionId(accessLink?.session_id, deckDirs);
+}
+
+async function findDeckForAccessLink(accessLink, deckDirs) {
+  return (await findDeckManifestForAccessLink(accessLink, deckDirs))?.deck || null;
+}
+
 function publicAccessLink(accessLink, deck = null) {
   return {
     access_token: accessLink.access_token,
@@ -376,12 +403,19 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     if (!isValidRole(role)) return res.status(400).json({ error: 'Invalid role' });
 
     try {
-      const deck = await findDeckBySessionId(sessionId, deckDirs);
+      const deckResult = req.ownedDeckId
+        ? await findDeckManifestByDeckId(req.ownedDeckId, deckDirs)
+        : await findDeckManifestBySessionId(sessionId, deckDirs);
+      const deck = deckResult?.deck;
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
       const accessLinks = await loadAccessLinks(storePath);
       if (role === 'audience') {
         const audienceResult = ensureAudienceAccessLink(accessLinks, sessionId);
+        if (audienceResult.accessLink.deck_id !== deck.deckId) {
+          audienceResult.accessLink.deck_id = deck.deckId;
+          audienceResult.changed = true;
+        }
         if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
         return res.status(audienceResult.changed ? 201 : 200).json(publicAccessLink(audienceResult.accessLink, deck));
       }
@@ -393,6 +427,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const accessLink = {
         access_token: accessToken,
         session_id: sessionId,
+        deck_id: deck.deckId,
         role,
         created_at: new Date().toISOString(),
         active: true
@@ -414,7 +449,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const result = await findActiveAccessLink(accessToken);
       if (result.error) return res.status(result.status).json({ error: result.error });
 
-      const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+      const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
       return res.json(publicAccessLink(result.accessLink, deck));
     } catch (error) {
       console.error('Unable to resolve access link', error);
@@ -429,7 +464,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const result = await findActiveAccessLink(accessToken);
       if (result.error) return res.status(result.status).json({ error: result.error });
 
-      const deckResult = await findDeckManifestBySessionId(result.accessLink.session_id, deckDirs);
+      const deckResult = await findDeckManifestForAccessLink(result.accessLink, deckDirs);
       if (!deckResult) return res.status(404).json({ error: 'Presentation not found' });
 
       return res.json(presentationOpenResponse(result.accessLink, deckResult.manifest, deckResult.deck));
@@ -449,12 +484,16 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         if (result.error) return res.status(result.status).json({ error: result.error });
         if (result.accessLink.role !== requiredRole) return res.status(403).json({ error: 'Role not allowed for this experience' });
 
-        const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+        const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
 
         const accessLinks = await loadAccessLinks(storePath);
         const activeAccessLink = await bindScreenExecution(result.accessLink, deck, accessLinks);
         const audienceResult = ensureAudienceAccessLink(accessLinks, result.accessLink.session_id);
+        if (audienceResult.accessLink.deck_id !== deck.deckId) {
+          audienceResult.accessLink.deck_id = deck.deckId;
+          audienceResult.changed = true;
+        }
         if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
         const relatedLinks = {
           audience: audienceResult.accessLink,
@@ -484,7 +523,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const result = await findActivePublicAudienceLink(publicId);
       if (result.error) return res.status(result.status).json({ error: result.error });
 
-      const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+      const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
       if (!audienceIndexPath) return res.status(500).json({ error: 'Audience experience is not configured' });
 
@@ -519,7 +558,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
           return res.status(403).json({ error: 'Access token required' });
         }
 
-        const deck = await findDeckBySessionId(sessionId, deckDirs);
+        const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
         if (!deck || deck.deckId !== deckId) return res.status(404).json({ error: 'Presentation not found' });
         return next();
       } catch (error) {
@@ -540,7 +579,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         if (result.error) return res.status(result.status).json({ error: result.error });
         if (!roles.has(result.accessLink.role)) return res.status(403).json({ error: 'Role not allowed for this resource' });
 
-        const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+        const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
         req.immersaAccess = { accessLink: result.accessLink, deck };
         return next();
@@ -560,7 +599,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         try {
           const result = await findActiveAccessLink(headerToken);
           if (!result.error && roles.includes(result.accessLink.role)) {
-            const deck = await findDeckBySessionId(result.accessLink.session_id, deckDirs);
+            const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
             if (deck?.deckId === deckId) {
               req.immersaAccess = { accessLink: result.accessLink, deck };
               return next();

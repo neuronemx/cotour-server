@@ -1,0 +1,31 @@
+.immersa-demo-plan-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 18;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, .34);
+  border-radius: 999px;
+  background: rgba(7, 9, 24, .78);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.immersa-demo-plan-badge[data-plan="FREE"] { border-color: rgba(74, 222, 188, .58); }
+.immersa-demo-plan-badge[data-plan="SPEAKER"] { border-color: rgba(82, 143, 255, .66); }
+.immersa-demo-plan-badge[data-plan="SPEAKER_PRO"] { border-color: rgba(215, 84, 255, .7); }
+
+@media (max-width: 700px) {
+  .immersa-demo-plan-badge { top: 9px; right: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
+}

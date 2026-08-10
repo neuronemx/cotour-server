@@ -26,7 +26,19 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
-const { canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
+const { featureAccessForPlan, canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
+const {
+  DEMO_MASTER_DECK_ID,
+  DEMO_PUBLISHED_DECK_ID,
+  isImmersaAdmin,
+  demoSessionIdForAccount,
+  isSystemDemoDeckId,
+  systemDemoRole,
+  readSystemDemoManifest,
+  decorateMasterManifest,
+  updateMasterSlidePlan,
+  publishMasterDeck
+} = require("./system-demo-deck");
 
 const app = express();
 const server = http.createServer(app);
@@ -144,7 +156,9 @@ const accessLinkHandlers = createAccessLinkHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: (deckId) => betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
+  resolveDeckFeatureAccess: (deckId) => isSystemDemoDeckId(deckId)
+    ? featureAccessForPlan("SPEAKER_PRO")
+    : betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
@@ -310,6 +324,10 @@ function manifestSummary(manifest, manifestStats = null) {
     associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
     replacement: manifest.replacement || null,
     thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || "",
+    systemDemo: Boolean(manifest.systemDemo),
+    demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
+    immutable: manifest.systemDemo?.role === "published",
+    publishedAt: manifest.systemDemo?.publishedAt || "",
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -732,14 +750,40 @@ app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res
 app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
-const requireOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
+const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
+function requireOwnedDeck(req, res, next) {
+  if (req.params?.deckId === DEMO_MASTER_DECK_ID && isImmersaAdmin(req.accountContext)) return next();
+  return requireDatabaseOwnedDeck(req, res, next);
+}
 const requireDeckAccount = [requireAccount, requireOwnedDeck];
 const requireControllerDeck = accessLinkHandlers.guardDeckRoles(["speaker", "stage"]);
+function requireImmersaAdmin(req, res, next) {
+  if (!isImmersaAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
+  return next();
+}
+async function requireOwnedOrPublishedSession(req, res, next) {
+  const requestedSessionId = String(req.body?.session_id || "").trim();
+  const published = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_PUBLISHED_DECK_ID).catch(() => null);
+  if (published && requestedSessionId && demoSessionIdForAccount(req.accountContext) === requestedSessionId) {
+    req.ownedDeckId = DEMO_PUBLISHED_DECK_ID;
+    return next();
+  }
+  if (isImmersaAdmin(req.accountContext)) {
+    const master = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_MASTER_DECK_ID).catch(() => null);
+    if (requestedSessionId && manifestSessionId(master) === requestedSessionId) {
+      req.ownedDeckId = DEMO_MASTER_DECK_ID;
+      return next();
+    }
+  }
+  return betterAuthCompatibilityBridge.requireOwnedSession(req, res, next);
+}
 function requireDeckFeature(feature) {
   return async (req, res, next) => {
     try {
       const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
-      const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      const access = isSystemDemoDeckId(deckId)
+        ? featureAccessForPlan("SPEAKER_PRO")
+        : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
       if (!canUseFeature(access, feature)) {
         return res.status(403).json({ error: "Disponible en planes de pago", code: "PLAN_FEATURE_LOCKED", feature });
       }
@@ -755,7 +799,12 @@ function requireDeckConfigurationWrite(req, res, next) {
   return (async () => {
     try {
       const deckId = req.immersaAccess?.deck?.deckId || req.params?.deckId;
-      const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+      if (deckId === DEMO_PUBLISHED_DECK_ID) {
+        return res.status(403).json({ error: "El Deck Demo publicado es de solo lectura", code: "SYSTEM_DEMO_IMMUTABLE" });
+      }
+      const access = isSystemDemoDeckId(deckId)
+        ? featureAccessForPlan("SPEAKER_PRO")
+        : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
       if (canUseFeature(access, "interactions")) return next();
       const current = await deckInteractionHandlers.readDeckConfig(deckId);
       if (changesPaidDeckContent(req.body, current)) {
@@ -782,7 +831,30 @@ function requireAccountOrControllerDeck(req, res, next) {
 app.get("/api/decks", requireAccount, async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");
-    res.json(await listDecks(await betterAuthCompatibilityBridge.listDeckIds(req)));
+    const ownedDeckIds = await betterAuthCompatibilityBridge.listDeckIds(req);
+    const visibleDeckIds = [...ownedDeckIds];
+    const published = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_PUBLISHED_DECK_ID);
+    if (published) visibleDeckIds.push(DEMO_PUBLISHED_DECK_ID);
+    if (isImmersaAdmin(req.accountContext)) visibleDeckIds.push(DEMO_MASTER_DECK_ID);
+    const visibleDecks = await listDecks(visibleDeckIds);
+    const publishedDeck = visibleDecks.find((deck) => deck.deckId === DEMO_PUBLISHED_DECK_ID);
+    if (publishedDeck) publishedDeck.session_id = demoSessionIdForAccount(req.accountContext);
+    if (isImmersaAdmin(req.accountContext) && !visibleDecks.some((deck) => deck.deckId === DEMO_MASTER_DECK_ID)) {
+      visibleDecks.unshift({
+        deckId: DEMO_MASTER_DECK_ID,
+        title: "Deck Demo Maestro",
+        status: "not_created",
+        conversionStatus: "missing",
+        slides: 0,
+        slideCount: 0,
+        sourceSizeBytes: 0,
+        systemDemo: true,
+        demoRole: "master",
+        missing: true,
+        immutable: false
+      });
+    }
+    res.json(visibleDecks);
   } catch (error) {
     console.error("Unable to list decks", error);
     res.status(500).json({ error: "Unable to list decks" });
@@ -818,6 +890,11 @@ app.post(
   createDeckReplacementHandler({
     beforeDeckSwap: ({ deck }) => assertDeckCanBeReplaced(deck.deckId),
     onDeckReplaced: async ({ req, deck }) => {
+      if (deck.deckId === DEMO_MASTER_DECK_ID) {
+        await decorateMasterManifest(DATA_DECKS_DIR);
+        delete deckSlideCounts[deck.deckId];
+        return null;
+      }
       const result = await betterAuthCompatibilityBridge.replaceDeckSource(req, deck);
       delete deckSlideCounts[deck.deckId];
       return result;
@@ -835,6 +912,7 @@ app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (
 });
 app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
   try {
+    if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "El nombre del Deck Demo es administrado por IMMERSA" });
     res.json(await renameDeck(req.params.deckId, req.body?.title));
   } catch (error) {
     const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
@@ -844,6 +922,7 @@ app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
 });
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
   try {
+    if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "El Deck Demo no puede eliminarse" });
     const deckId = await deleteDataDeck(req.params.deckId);
     await betterAuthCompatibilityBridge.unregisterDeck(req, deckId);
     res.json({ ok: true, deckId });
@@ -853,7 +932,38 @@ app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
     res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : statusCode === 400 ? "Invalid deck id" : "Unable to delete deck" });
   }
 });
-app.post("/api/access-links", requireAccount, betterAuthCompatibilityBridge.requireOwnedSession, accessLinkHandlers.createAccessLink);
+app.post("/api/admin/demo/master", requireAccount, requireImmersaAdmin, createUploadHandler({
+  fixedDeckId: DEMO_MASTER_DECK_ID,
+  decorateManifest: ({ manifest }) => ({
+    ...manifest,
+    deckId: DEMO_MASTER_DECK_ID,
+    title: "Deck Demo Maestro",
+    systemDemo: { role: "master", editableBy: "immersa-admin" },
+    slides: (Array.isArray(manifest.slides) ? manifest.slides : []).map((slide) => ({ ...slide, planLevel: null }))
+  })
+}));
+app.put("/api/admin/demo/slides/:slideId/plan", requireAccount, requireImmersaAdmin, async (req, res) => {
+  try {
+    const manifest = await updateMasterSlidePlan(DATA_DECKS_DIR, req.params.slideId, req.body?.planLevel);
+    res.json({ ok: true, slideId: req.params.slideId, planLevel: manifest.slides.find((slide) => String(slide.id) === String(req.params.slideId))?.planLevel });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message || "No se pudo asignar el nivel" });
+  }
+});
+app.post("/api/admin/demo/publish", requireAccount, requireImmersaAdmin, async (_req, res) => {
+  try {
+    assertDeckCanBeReplaced(DEMO_PUBLISHED_DECK_ID);
+    const manifest = await publishMasterDeck(DATA_DECKS_DIR);
+    delete deckSlideCounts[DEMO_PUBLISHED_DECK_ID];
+    res.json(manifestSummary(manifest));
+  } catch (error) {
+    const payload = { error: error.message || "No se pudo publicar el Deck Demo" };
+    if (error.code) payload.code = error.code;
+    if (error.unassignedSlides) payload.unassignedSlides = error.unassignedSlides;
+    res.status(error.statusCode || 500).json(payload);
+  }
+});
+app.post("/api/access-links", requireAccount, requireOwnedOrPublishedSession, accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature("metrics"), qnaHistoryHandlers.exportDeck);
@@ -972,7 +1082,9 @@ io.on("connection", (socket) => {
     currentDeckId = joinedDeckId;
     const session = getSession(joinedSessionId, joinedDeckId);
     try {
-      currentFeatureAccess = await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
+      currentFeatureAccess = isSystemDemoDeckId(joinedDeckId)
+        ? featureAccessForPlan("SPEAKER_PRO")
+        : await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
     } catch (error) {
       currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
       console.error("Unable to resolve live plan features", error);

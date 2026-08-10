@@ -125,6 +125,28 @@ test('without a runtime callback Screen remains available and no DB binding is a
   assert.equal(Object.hasOwn(stored[0], 'presentation_session_id'), false);
 });
 
+test('a system Deck can use a private account session without cloning its manifest', async (t) => {
+  const paths = await fixture(t);
+  const handlers = createAccessLinkHandlers(paths);
+  const createReq = request({});
+  createReq.body = { session_id: 'demo_private_user_a', role: 'speaker' };
+  createReq.ownedDeckId = 'deck-a';
+  const createRes = response();
+  await handlers.createAccessLink(createReq, createRes);
+  assert.equal(createRes.statusCode, 201);
+  assert.equal(createRes.body.session_id, 'demo_private_user_a');
+  assert.equal(createRes.body.deck.deckId, 'deck-a');
+
+  const stored = JSON.parse(await fs.promises.readFile(path.join(paths.dataDir, 'access-links.json'), 'utf8'));
+  const aliasLink = stored.find((link) => link.session_id === 'demo_private_user_a');
+  assert.equal(aliasLink.deck_id, 'deck-a');
+
+  const resolveRes = response();
+  await handlers.resolveAccessLink(request({ access_token: aliasLink.access_token }), resolveRes);
+  assert.equal(resolveRes.statusCode, 200);
+  assert.equal(resolveRes.body.deck.deckId, 'deck-a');
+});
+
 test('live Q&A controls accept only active Speaker and Stage access links', async (t) => {
   const paths = await fixture(t);
   const storePath = path.join(paths.dataDir, 'access-links.json');
