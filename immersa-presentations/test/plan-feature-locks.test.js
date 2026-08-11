@@ -105,7 +105,7 @@ test("Speaker and Stage render a visible plan lock and cannot open Interacciones
   assert.match(stage, /syncPresentationLifecycleFeature\(roleOpenContext\.features\?\.metrics !== false\)/);
   assert.match(stage, /socket\.on\("plan:features"[\s\S]*access\.features\?\.metrics !== false/);
   assert.match(stage, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
-  assert.match(stageHtml, /\/stage\/stage\.js\?v=stage-v14/);
+  assert.match(stageHtml, /\/stage\/stage\.js\?v=stage-v15/);
 });
 
 test("server enforces Interacciones and Métricas independently of disabled buttons", () => {

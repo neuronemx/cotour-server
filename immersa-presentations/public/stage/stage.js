@@ -334,6 +334,7 @@ function render(state) {
   const src = "/decks/" + deckId + "/" + item.src;
   slide.src = src;
   applySlideOrientation(item, src);
+  window.ImmersaDemoPlanBadge?.update(screenFrame, item, manifest);
   drawingOverlay?.refresh();
 
   audience.textContent = state.audienceCount || 0;

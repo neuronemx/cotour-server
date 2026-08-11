@@ -347,7 +347,11 @@ function createUploadHandler(options = {}) {
       try {
         await ensureDataDirs();
         const sourceTitle = req.body.title || path.basename(file.originalname, path.extname(file.originalname));
-        const deckId = await uniqueDeckId(req.body.deckId || sourceTitle);
+        const requestedDeckId = options.fixedDeckId || req.body.deckId || sourceTitle;
+        const deckId = options.fixedDeckId ? normalizeId(requestedDeckId) : await uniqueDeckId(requestedDeckId);
+        if (options.fixedDeckId && deckExists(deckId)) {
+          throw replacementError(409, 'La presentación ya existe', 'DECK_ALREADY_EXISTS');
+        }
         const session_id = generateUniqueSessionId(await collectUsedSessionIds());
         const sourceSizeBytes = Number(file.size || file.buffer?.length || 0);
         reservedDeck = { deckId, session_id, sourceSizeBytes };
@@ -388,6 +392,10 @@ function createUploadHandler(options = {}) {
           await fs.promises.rm(path.join(DATA_TMP_DIR, deckId), { recursive: true, force: true });
           manifest.status = 'conversion_failed';
           manifest.conversion = { status: 'failed', message: conversionError.message || 'La conversion no pudo completarse' };
+        }
+
+        if (options.decorateManifest) {
+          manifest = await options.decorateManifest({ req, file, manifest, deck: { deckId, session_id, sourceSizeBytes } }) || manifest;
         }
 
         manifest = await writeManifest(deckDir, manifest, session_id);

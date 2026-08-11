@@ -5,6 +5,7 @@
   const shell = modal?.querySelector(".deck-detail-modal");
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
+  const participationTab = tabs.find((tab) => tab.dataset.deckTab === "participation");
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const moduleDetails = {
@@ -46,6 +47,16 @@
       panel.classList.toggle("is-active", selected);
     });
     if (moduleDetails[name]) mountEditor(name);
+  }
+
+  function syncDemoMasterTabs(deck) {
+    if (!participationTab) return;
+    const enabled = deck?.demoRole === "master" && !deck?.missing;
+    participationTab.disabled = !enabled;
+    participationTab.setAttribute("aria-disabled", String(!enabled));
+    participationTab.title = enabled
+      ? "Crear o editar interacciones del Deck Demo Maestro"
+      : "Disponible en otros planes";
   }
 
   function restoreEditor(definition) {
@@ -123,7 +134,10 @@
     });
   });
 
-  document.addEventListener("immersa:deck-detail-open", () => activateTab("links"));
+  document.addEventListener("immersa:deck-detail-open", (event) => {
+    syncDemoMasterTabs(event.detail?.deck);
+    activateTab("links");
+  });
   document.addEventListener("immersa:deck-detail-close", restoreEditors);
   document.addEventListener("immersa:deck-video-slide-request", (event) => {
     const slideId = String(event.detail?.slideId || "");

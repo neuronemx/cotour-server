@@ -41,6 +41,9 @@ const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
 const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
+const detailDemoAdmin = document.getElementById("detailDemoAdmin");
+const detailDemoPlan = document.getElementById("detailDemoPlan");
+const detailDemoPublish = document.getElementById("detailDemoPublish");
 const replacementFile = document.getElementById("replacementFile");
 const replacementReview = document.getElementById("replacementReview");
 const replacementReviewed = document.getElementById("replacementReviewed");
@@ -140,6 +143,7 @@ function uploadIssue(file) {
 
 function replacementIssue(file, deck) {
   if (!file || !deck || !planUsage) return "";
+  if (deck.systemDemo) return "";
   const currentBytes = Math.max(0, Number(deck.sourceSizeBytes) || 0);
   const availableBytes = Math.max(0, Number(planUsage.remaining?.storageBytes) || 0) + currentBytes;
   if (Number(file.size || 0) > availableBytes) {
@@ -255,6 +259,7 @@ function isConvertedDeck(deck) {
 }
 
 function deckStatusLabel(deck) {
+  if (deck?.missing && deck?.demoRole === "master") return "Por crear";
   if (deck?.isLive || deck?.status === "live") return "En vivo";
   if (isConvertedDeck(deck)) return "Lista";
   if (isFailedDeck(deck)) return "Falló";
@@ -267,6 +272,12 @@ function deckBadgeClass(deck) {
   if (label.includes("vivo")) return " live";
   if (label.includes("borrador") || label.includes("pendiente") || label.includes("convirtiendo")) return " draft";
   if (label.includes("fall")) return " failed";
+  return "";
+}
+
+function demoRoleLabel(deck) {
+  if (deck?.demoRole === "master") return "MAESTRO";
+  if (deck?.demoRole === "published") return "DEMO";
   return "";
 }
 
@@ -665,6 +676,28 @@ function syncDetailVideoControls() {
   });
 }
 
+function planLevelLabel(value) {
+  const level = String(value || "");
+  return level === "SPEAKER_PRO" ? "SPEAKER PRO" : level;
+}
+
+function slidePlanMarker(slide) {
+  const marker = document.createElement("span");
+  const label = planLevelLabel(slide?.planLevel);
+  marker.className = "deck-detail-slide-plan" + (label ? "" : " is-unassigned");
+  marker.textContent = label || "SIN ASIGNAR";
+  return marker;
+}
+
+function syncDemoAdminControls() {
+  const navigation = detailSlideNavigation;
+  const isMaster = detailDeck?.demoRole === "master" && !detailDeck?.missing;
+  if (detailDemoAdmin) detailDemoAdmin.hidden = !isMaster;
+  if (!isMaster || !navigation || navigation.index < 0) return;
+  const slide = navigation.slides[navigation.index];
+  if (detailDemoPlan) detailDemoPlan.value = String(slide?.planLevel || "");
+}
+
 function selectDetailSlide(index, options = {}) {
   const navigation = detailSlideNavigation;
   if (!navigation?.slides.length || detailDeck?.deckId !== navigation.deck.deckId) return;
@@ -685,6 +718,7 @@ function selectDetailSlide(index, options = {}) {
     detailNextSlide.disabled = nextIndex === navigation.slides.length - 1;
   }
   syncDetailVideoControls();
+  syncDemoAdminControls();
   if (options.scroll !== false) navigation.buttons[nextIndex]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
 }
 
@@ -735,6 +769,8 @@ async function loadDetailSlideNavigation(deck) {
       number.className = "deck-detail-slide-number";
       number.textContent = String(index + 1);
       button.appendChild(number);
+
+      if (deck.demoRole === "master") button.appendChild(slidePlanMarker(slide));
 
       button.addEventListener("click", () => selectDetailSlide(index, { scroll: false }));
       return button;
@@ -804,6 +840,13 @@ function renderDecks() {
 
     titleLine.append(title);
 
+    if (deck.systemDemo) {
+      const demoBadge = document.createElement("em");
+      demoBadge.className = "deck-badge converted";
+      demoBadge.textContent = demoRoleLabel(deck);
+      titleLine.appendChild(demoBadge);
+    }
+
     if (!isConvertedDeck(deck) || deck?.isLive || deck?.status === "live") {
       const badge = document.createElement("em");
       badge.className = "deck-badge" + deckBadgeClass(deck);
@@ -831,18 +874,20 @@ function renderDecks() {
       info.appendChild(error);
     }
 
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "deck-delete";
-    deleteButton.setAttribute("aria-label", "Eliminar presentación");
-    deleteButton.title = "Eliminar presentación";
-    deleteButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-    deleteButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      deleteDeck(deck);
-    });
-
-    row.append(thumb, info, deleteButton);
+    row.append(thumb, info);
+    if (!deck.systemDemo) {
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "deck-delete";
+      deleteButton.setAttribute("aria-label", "Eliminar presentación");
+      deleteButton.title = "Eliminar presentación";
+      deleteButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+      deleteButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteDeck(deck);
+      });
+      row.appendChild(deleteButton);
+    }
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
       openDeckModal(deck);
@@ -864,6 +909,7 @@ function renderDecks() {
 function renderDetailActions(deck) {
   if (!detailActions) return;
   detailActions.innerHTML = "";
+  if (deck?.missing) return;
 
   roles.forEach((role) => {
     const button = document.createElement("button");
@@ -898,6 +944,15 @@ function openDeckModal(deck) {
     detailStatus.className = "deck-detail-status" + deckBadgeClass(deck);
   }
   renderDetailActions(deck);
+  const isMaster = deck.demoRole === "master";
+  const isPublishedDemo = deck.demoRole === "published";
+  if (detailRename) detailRename.hidden = Boolean(deck.systemDemo);
+  if (detailReplace) {
+    detailReplace.hidden = isPublishedDemo;
+    const label = detailReplace.querySelector("span");
+    if (label) label.textContent = deck.missing ? "Subir presentación" : "Sustituir";
+  }
+  if (detailDemoAdmin) detailDemoAdmin.hidden = !isMaster || Boolean(deck.missing);
   loadDetailSlideNavigation(deck);
 
   deckDetailModal.hidden = false;
@@ -934,9 +989,10 @@ async function replaceDeckFile(file) {
   }
   const issue = replacementIssue(file, deck);
   if (issue) return setUploadStatus(issue, "error");
-  const accepted = window.confirm(
-    "Sustituiremos las slides de “" + (deck.title || "esta presentación") + "”.\n\n" +
-    "Se conservarán Interacciones, Videos, enlaces y configuración. Si cambia el número de slides, Immersa te pedirá revisar sus asociaciones."
+  const accepted = window.confirm(deck.missing
+    ? "Crearemos el Deck Demo Maestro con este archivo. Después asignarás el nivel de cada slide antes de publicarlo."
+    : "Sustituiremos las slides de “" + (deck.title || "esta presentación") + "”.\n\n" +
+      "Se conservarán Interacciones, Videos, enlaces y configuración. Las etiquetas de nivel deberán revisarse antes de volver a publicar."
   );
   if (!accepted) {
     replacementFile.value = "";
@@ -955,7 +1011,10 @@ async function replaceDeckFile(file) {
   });
   setUploadStatus("", "");
   try {
-    const response = await fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/replace", { method: "POST", body: formData });
+    const endpoint = deck.demoRole === "master" && deck.missing
+      ? "/api/admin/demo/master"
+      : "/api/decks/" + encodeURIComponent(deck.deckId) + "/replace";
+    const response = await fetch(endpoint, { method: "POST", body: formData });
     const data = await response.json();
     if (data.plan) {
       planUsage = data.plan;
@@ -969,7 +1028,9 @@ async function replaceDeckFile(file) {
     finishConversionOverlay(
       "success",
       "Presentación actualizada",
-      data.associationsReviewRequired
+      deck.demoRole === "master"
+        ? "Ahora asigna FREE, SPEAKER o SPEAKER PRO a cada slide antes de publicar."
+        : data.associationsReviewRequired
         ? "Tus configuraciones se conservaron. Revisa sus asociaciones porque cambió la estructura."
         : "Tus configuraciones y asociaciones se conservaron."
     );
@@ -1092,6 +1153,48 @@ detailSlideStrip?.addEventListener("wheel", (event) => {
   event.preventDefault();
   detailSlideStrip.scrollLeft += Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 }, { passive: false });
+
+detailDemoPlan?.addEventListener("change", async () => {
+  const navigation = detailSlideNavigation;
+  const slide = navigation?.slides?.[navigation.index];
+  if (!slide || !detailDemoPlan.value || detailDeck?.demoRole !== "master") return;
+  detailDemoPlan.disabled = true;
+  try {
+    const response = await fetch("/api/admin/demo/slides/" + encodeURIComponent(slide.id) + "/plan", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planLevel: detailDemoPlan.value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo guardar el nivel");
+    slide.planLevel = data.planLevel;
+    const button = navigation.buttons[navigation.index];
+    button?.querySelector(".deck-detail-slide-plan")?.remove();
+    button?.appendChild(slidePlanMarker(slide));
+    setUploadStatus("Nivel de slide actualizado.", "success");
+  } catch (error) {
+    setUploadStatus(error.message, "error");
+    detailDemoPlan.value = String(slide.planLevel || "");
+  } finally {
+    detailDemoPlan.disabled = false;
+  }
+});
+
+detailDemoPublish?.addEventListener("click", async () => {
+  if (detailDeck?.demoRole !== "master") return;
+  detailDemoPublish.disabled = true;
+  try {
+    const response = await fetch("/api/admin/demo/publish", { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo publicar el Demo");
+    await loadDecks(detailDeck.deckId);
+    setUploadStatus("Deck Demo publicado para todas las cuentas.", "success");
+  } catch (error) {
+    setUploadStatus(error.message, "error");
+  } finally {
+    detailDemoPublish.disabled = false;
+  }
+});
 
 document.addEventListener("immersa:deck-videos-changed", (event) => {
   if (!detailSlideNavigation || event.detail?.deckId !== detailSlideNavigation.deck.deckId) return;

@@ -12,7 +12,8 @@
     const params=new URLSearchParams(root.location.search);
     const ctx=root.IMMERSA_ROLE_OPEN||{};
     const deckId=params.get('deck')||ctx.deck||ctx.deckId||'demo';
-    let manifest=null,interactions=[],videos=[],hiddenIds=new Set(),state=null,saving=false;
+    const publishedDemo=ctx.demo_role==='published'||deckId==='immersa-demo';
+    let manifest=null,interactions=[],contests=[],assessments=[],videos=[],hiddenIds=new Set(),state=null,saving=false;
     const ids=role==='presenter'?{prev:'prev',next:'next'}:{prev:'prevSlide',next:'nextSlide'};
     const currentEl=document.getElementById('current');
     const totalEl=document.getElementById('total');
@@ -26,7 +27,7 @@
       if(document.querySelector('link[data-slide-visibility]'))return;
       const link=document.createElement('link');
       link.rel='stylesheet';
-      link.href='/shared/slide-visibility.css?v=100';
+      link.href='/shared/slide-visibility.css?v=101';
       link.dataset.slideVisibility='1';
       document.head.appendChild(link);
     }
@@ -99,8 +100,19 @@
       const response=await fetch('/api/decks/'+encodeURIComponent(deckId)+'/interactions',{cache:'no-store'});
       const data=response.ok?await response.json():{};
       interactions=Array.isArray(data.interactions)?data.interactions:[];
+      contests=Array.isArray(data.contests)?data.contests:[];
+      assessments=Array.isArray(data.assessments)?data.assessments:[];
       videos=Array.isArray(data.videos)?data.videos:[];
-      const idsFromApi=Array.isArray(data.hidden_slide_ids)?data.hidden_slide_ids:[];
+      let idsFromApi=Array.isArray(data.hidden_slide_ids)?data.hidden_slide_ids:[];
+      if(publishedDemo){
+        const visibilityResponse=await fetch('/api/demo-session/decks/'+encodeURIComponent(deckId)+'/slide-visibility',{
+          cache:'no-store',
+          headers:window.IMMERSA_ROLE_OPEN?.access_token?{'X-Immersa-Access-Token':window.IMMERSA_ROLE_OPEN.access_token}:{}
+        });
+        if(!visibilityResponse.ok)throw new Error('Unable to load Demo slide visibility');
+        const visibility=await visibilityResponse.json();
+        idsFromApi=Array.isArray(visibility.hidden_slide_ids)?visibility.hidden_slide_ids:idsFromApi;
+      }
       hiddenIds=new Set(idsFromApi.length?idsFromApi:(data.hidden_slide_indexes||[]).map(Number).map(slideId));
       syncThumbs();
     }
@@ -108,13 +120,18 @@
       if(saving)return;
       saving=true;
       try{
-        const response=await fetch('/api/decks/'+encodeURIComponent(deckId)+'/interactions',{
+        const endpoint=publishedDemo
+          ?'/api/demo-session/decks/'+encodeURIComponent(deckId)+'/slide-visibility'
+          :'/api/decks/'+encodeURIComponent(deckId)+'/interactions';
+        const response=await fetch(endpoint,{
           method:'PUT',
           headers:{
             'Content-Type':'application/json',
             ...(window.IMMERSA_ROLE_OPEN?.access_token?{'X-Immersa-Access-Token':window.IMMERSA_ROLE_OPEN.access_token}:{})
           },
-          body:JSON.stringify({interactions,videos,hidden_slide_ids:[...hiddenIds]})
+          body:JSON.stringify(publishedDemo
+            ?{hidden_slide_ids:[...hiddenIds]}
+            :{interactions,contests,assessments,videos,hidden_slide_ids:[...hiddenIds]})
         });
         if(!response.ok)throw new Error('Unable to save slide visibility');
         const data=await response.json();

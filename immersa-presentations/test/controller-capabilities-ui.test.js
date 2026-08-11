@@ -22,6 +22,9 @@ test("Speaker and Stage share live text behavior", () => {
   assert.match(stageScript, /ImmersaLiveTextControl\?\.create/);
   assert.match(sharedControl, /socket\.emit\("clear_message"\)/);
   assert.match(sharedControl, /socket\.emit\("overlay_update"/);
+  const presenterModal = presenterHtml.match(/<div id="presenterTextModal"[\s\S]*?<\/section>/)?.[0] || "";
+  assert.doesNotMatch(presenterModal, /Link Público|presenterDisplayLinkButton/);
+  assert.doesNotMatch(presenterScript, /presenterDisplayLinkButton|getPublicUrl/);
 });
 
 test("Stage live text modal is dedicated to text only", () => {

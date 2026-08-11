@@ -10,7 +10,7 @@ test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
   assert.match(html, /deck-management-shell\.css\?v=14/);
-  assert.match(html, /deck-management-shell\.js\?v=9/);
+  assert.match(html, /deck-management-shell\.js\?v=10/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
@@ -46,6 +46,10 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /ArrowRight/);
   assert.match(source, /tabs\.filter\(\(item\) => !item\.disabled\)/);
   assert.match(source, /if \(!targetTab \|\| targetTab\.disabled\) return/);
+  assert.match(source, /deck\?\.demoRole === "master" && !deck\?\.missing/);
+  assert.match(source, /participationTab\.disabled = !enabled/);
+  assert.match(source, /participationTab\.setAttribute\("aria-disabled", String\(!enabled\)\)/);
+  assert.match(source, /syncDemoMasterTabs\(event\.detail\?\.deck\)/);
   assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
   assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
   assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
@@ -91,7 +95,7 @@ test("Deck cards use a geometrically centered delete icon on iPhone", () => {
   const css = read("public/home/home.css");
 
   assert.match(html, /home\.css\?v=55/);
-  assert.match(html, /home\.js\?v=58/);
+  assert.match(html, /home\.js\?v=59/);
   assert.match(source, /deleteButton\.innerHTML = '<svg[^']+M6 6l12 12M18 6 6 18/);
   assert.doesNotMatch(source, /deleteButton\.textContent = "×"/);
   assert.match(css, /\.deck-delete \{[\s\S]+min-width: 30px; max-width: 30px;[\s\S]+padding: 0;[\s\S]+-webkit-appearance: none;/);

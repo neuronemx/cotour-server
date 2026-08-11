@@ -104,6 +104,7 @@ function render(state) {
   const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
   slide.src = src;
   applySlideOrientation(item, src);
+  window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();
 }
 function popReaction(emoji) { if (!overlays.showReactions) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(18 + Math.random() * 64) + "vw"; node.style.setProperty("--x", Math.round(Math.random() * 220 - 110) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 3100); }
