@@ -32,6 +32,7 @@ const {
   DEMO_PUBLISHED_DECK_ID,
   isImmersaAdmin,
   demoSessionIdForAccount,
+  createDemoSessionVisibilityStore,
   isSystemDemoDeckId,
   systemDemoRole,
   readSystemDemoManifest,
@@ -54,6 +55,7 @@ const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const sessions = new Map();
+const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const controllerRoles = new Set(["presenter", "stage"]);
@@ -823,10 +825,40 @@ function requireDeckConfigurationWrite(req, res, next) {
   })();
 }
 function requireAccountOrControllerDeck(req, res, next) {
+  if (String(req.headers["x-immersa-access-token"] || "").trim()) {
+    return requireControllerDeck(req, res, next);
+  }
   return betterAuthCompatibilityBridge.attachOptionalAccount(req, res, () => {
     if (req.accountContext) return requireOwnedDeck(req, res, next);
     return requireControllerDeck(req, res, next);
   });
+}
+function publishedDemoSlideIds(manifest) {
+  return (Array.isArray(manifest?.slides) ? manifest.slides : []).map((slide, index) =>
+    String(slide?.id || "slide-" + String(index + 1).padStart(3, "0"))
+  );
+}
+async function handleDemoSessionSlideVisibility(req, res) {
+  try {
+    if (req.params.deckId !== DEMO_PUBLISHED_DECK_ID || req.immersaAccess?.deck?.deckId !== DEMO_PUBLISHED_DECK_ID) {
+      return res.status(404).json({ error: "Deck Demo no encontrado" });
+    }
+    const manifest = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_PUBLISHED_DECK_ID);
+    if (!manifest) return res.status(404).json({ error: "Deck Demo no encontrado" });
+    const sessionId = req.immersaAccess?.accessLink?.session_id;
+    const slideIds = publishedDemoSlideIds(manifest);
+    const publishedConfig = req.method === "GET"
+      ? await deckInteractionHandlers.readDeckConfig(DEMO_PUBLISHED_DECK_ID)
+      : null;
+    const hiddenSlideIds = req.method === "PUT"
+      ? demoSessionVisibilityStore.set(sessionId, req.body?.hidden_slide_ids, slideIds)
+      : demoSessionVisibilityStore.get(sessionId, slideIds, publishedConfig?.hidden_slide_ids);
+    return res.json({ deck_id: DEMO_PUBLISHED_DECK_ID, hidden_slide_ids: hiddenSlideIds });
+  } catch (error) {
+    const status = Number(error.statusCode) || 500;
+    if (status >= 500) console.error("Unable to update Demo session slide visibility", error);
+    return res.status(status).json({ error: error.message || "No se pudo actualizar la visibilidad del Demo" });
+  }
 }
 app.get("/api/decks", requireAccount, async (req, res) => {
   try {
@@ -874,6 +906,8 @@ app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
 app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
 app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
+app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
+app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);

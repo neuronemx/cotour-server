@@ -6,6 +6,7 @@ const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const DEMO_MASTER_DECK_ID = "immersa-demo-master";
 const DEMO_PUBLISHED_DECK_ID = "immersa-demo";
 const DEMO_PLAN_LEVELS = Object.freeze(["FREE", "SPEAKER", "SPEAKER_PRO"]);
+const DEMO_SESSION_VISIBILITY_TTL_MS = 30 * 60 * 1000;
 
 function adminEmails(env = process.env) {
   return new Set(
@@ -34,6 +35,56 @@ function demoSessionIdForAccount(accountContext, env = process.env) {
 function isSystemDemoDeckId(deckId) {
   const normalized = String(deckId || "");
   return normalized === DEMO_MASTER_DECK_ID || normalized === DEMO_PUBLISHED_DECK_ID;
+}
+
+function createDemoSessionVisibilityStore(options = {}) {
+  const now = typeof options.now === "function" ? options.now : Date.now;
+  const ttlMs = Math.max(1, Number(options.ttlMs) || DEMO_SESSION_VISIBILITY_TTL_MS);
+  const sessions = new Map();
+
+  function normalize(sessionId, hiddenSlideIds, validSlideIds) {
+    const key = String(sessionId || "").trim();
+    if (!key) {
+      const error = new Error("Sesión Demo requerida");
+      error.statusCode = 400;
+      throw error;
+    }
+    const valid = new Set((Array.isArray(validSlideIds) ? validSlideIds : []).map(String));
+    const hidden = [...new Set((Array.isArray(hiddenSlideIds) ? hiddenSlideIds : []).map(String))]
+      .filter((slideId) => valid.has(slideId));
+    if (valid.size && hidden.length >= valid.size) {
+      const error = new Error("El Demo debe conservar al menos una slide visible");
+      error.statusCode = 400;
+      throw error;
+    }
+    return { key, hidden };
+  }
+
+  function removeExpired() {
+    const cutoff = now() - ttlMs;
+    for (const [key, value] of sessions) {
+      if (value.updatedAt <= cutoff) sessions.delete(key);
+    }
+  }
+
+  return {
+    get(sessionId, validSlideIds, fallbackHiddenSlideIds = []) {
+      removeExpired();
+      const { key } = normalize(sessionId, [], validSlideIds);
+      const current = sessions.get(key);
+      if (!current) return normalize(key, fallbackHiddenSlideIds, validSlideIds).hidden;
+      return normalize(key, current.hiddenSlideIds, validSlideIds).hidden;
+    },
+    set(sessionId, hiddenSlideIds, validSlideIds) {
+      removeExpired();
+      const { key, hidden } = normalize(sessionId, hiddenSlideIds, validSlideIds);
+      sessions.set(key, { hiddenSlideIds: hidden, updatedAt: now() });
+      return [...hidden];
+    },
+    clear(sessionId) {
+      sessions.delete(String(sessionId || "").trim());
+    }
+  };
 }
 
 function systemDemoRole(deckId) {
@@ -210,9 +261,11 @@ module.exports = {
   DEMO_MASTER_DECK_ID,
   DEMO_PUBLISHED_DECK_ID,
   DEMO_PLAN_LEVELS,
+  DEMO_SESSION_VISIBILITY_TTL_MS,
   adminEmails,
   isImmersaAdmin,
   demoSessionIdForAccount,
+  createDemoSessionVisibilityStore,
   isSystemDemoDeckId,
   systemDemoRole,
   normalizePlanLevel,

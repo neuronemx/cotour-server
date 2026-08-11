@@ -6,8 +6,10 @@ const test = require("node:test");
 const {
   DEMO_MASTER_DECK_ID,
   DEMO_PUBLISHED_DECK_ID,
+  DEMO_SESSION_VISIBILITY_TTL_MS,
   isImmersaAdmin,
   demoSessionIdForAccount,
+  createDemoSessionVisibilityStore,
   updateMasterSlidePlan,
   publishMasterDeck,
   readSystemDemoManifest
@@ -56,6 +58,25 @@ test("each account receives a stable private Demo session", () => {
   assert.match(first, /^demo_[a-f0-9]{20}$/);
 });
 
+test("published Demo slide visibility is isolated per temporary session", () => {
+  let currentTime = 1_000;
+  const store = createDemoSessionVisibilityStore({ now: () => currentTime, ttlMs: 100 });
+  const slideIds = ["slide-001", "slide-002", "slide-003"];
+
+  assert.deepEqual(store.get("session-a", slideIds, ["slide-001"]), ["slide-001"]);
+  assert.deepEqual(store.set("session-a", ["slide-002", "missing"], slideIds), ["slide-002"]);
+  assert.deepEqual(store.get("session-a", slideIds), ["slide-002"]);
+  assert.deepEqual(store.get("session-b", slideIds), []);
+  assert.throws(
+    () => store.set("session-a", slideIds, slideIds),
+    (error) => error.statusCode === 400
+  );
+
+  currentTime += 101;
+  assert.deepEqual(store.get("session-a", slideIds, ["slide-003"]), ["slide-003"]);
+  assert.equal(DEMO_SESSION_VISIBILITY_TTL_MS, 30 * 60 * 1000);
+});
+
 test("the Master stores plan level by stable slide id", async (t) => {
   const { decksDir } = await makeMaster(t, [null, "SPEAKER"]);
   await updateMasterSlidePlan(decksDir, "slide-001", "speaker pro");
@@ -101,6 +122,8 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(homeShell, /deck\?\.demoRole === "master" && !deck\?\.missing/);
   assert.match(homeShell, /participationTab\.disabled = !enabled/);
   assert.match(server, /featureAccessForPlan\("SPEAKER_PRO"\)/);
+  assert.match(server, /\/api\/demo-session\/decks\/:deckId\/slide-visibility/);
+  assert.match(server, /demoSessionVisibilityStore\.set/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
   }

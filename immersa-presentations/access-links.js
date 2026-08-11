@@ -133,6 +133,7 @@ function publicAccessLink(accessLink, deck = null) {
     public_id: accessLink.public_id,
     session_id: accessLink.session_id,
     role: accessLink.role,
+    demo_role: deck?.systemDemo?.role || "",
     created_at: accessLink.created_at,
     active: accessLink.active,
     deck
@@ -234,6 +235,7 @@ function relatedRoleContext(req, accessLink, deck, relatedLinks = {}, featureAcc
     deck: deck.deckId,
     deckId: deck.deckId,
     role: accessLink.role,
+    demo_role: deck?.systemDemo?.role || "",
     plan: featureAccess.plan || "FREE",
     features: featureAccess.features || { interactions: false, metrics: false },
     presentation_session_id: accessLink.presentation_session_id || relatedLinks.screen?.presentation_session_id || '',
