@@ -5,6 +5,7 @@ const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 
 const DEMO_MASTER_DECK_ID = "immersa-demo-master";
 const DEMO_PUBLISHED_DECK_ID = "immersa-demo";
+const DEFAULT_DEMO_SEED_DIR = path.join(__dirname, "bootstrap", DEMO_MASTER_DECK_ID);
 const DEMO_PLAN_LEVELS = Object.freeze(["FREE", "SPEAKER", "SPEAKER_PRO"]);
 const DEMO_SESSION_VISIBILITY_TTL_MS = 30 * 60 * 1000;
 
@@ -119,6 +120,44 @@ async function readSystemDemoManifest(dataDecksDir, deckId) {
     if (error.code === "ENOENT") return null;
     throw error;
   }
+}
+
+async function seedSystemDemoDeck(dataDecksDir, seedDir = DEFAULT_DEMO_SEED_DIR) {
+  await fs.promises.mkdir(dataDecksDir, { recursive: true });
+  let master = await readSystemDemoManifest(dataDecksDir, DEMO_MASTER_DECK_ID);
+  let seededMaster = false;
+
+  if (!master) {
+    const seedManifest = JSON.parse(await fs.promises.readFile(path.join(seedDir, "manifest.json"), "utf8"));
+    if (!Array.isArray(seedManifest.slides) || !seedManifest.slides.length || seedManifest.conversion?.status !== "completed") {
+      throw new Error("Invalid system Demo seed");
+    }
+
+    const targetDir = deckDirectory(dataDecksDir, DEMO_MASTER_DECK_ID);
+    const nextDir = path.join(dataDecksDir, ".immersa-demo-seed-" + crypto.randomUUID());
+    try {
+      await fs.promises.cp(seedDir, nextDir, { recursive: true, errorOnExist: true });
+      try {
+        await fs.promises.rename(nextDir, targetDir);
+        seededMaster = true;
+      } catch (error) {
+        if (!["EEXIST", "ENOTEMPTY"].includes(error.code)) throw error;
+      }
+    } finally {
+      await fs.promises.rm(nextDir, { recursive: true, force: true }).catch(() => {});
+    }
+    master = await decorateMasterManifest(dataDecksDir);
+  }
+
+  const published = await readSystemDemoManifest(dataDecksDir, DEMO_PUBLISHED_DECK_ID);
+  if (published) return { seededMaster, published: false, manifest: published };
+  if (!seededMaster) return { seededMaster: false, published: false, manifest: null };
+
+  return {
+    seededMaster,
+    published: true,
+    manifest: await publishMasterDeck(dataDecksDir)
+  };
 }
 
 async function decorateMasterManifest(dataDecksDir) {
@@ -270,6 +309,7 @@ module.exports = {
   systemDemoRole,
   normalizePlanLevel,
   readSystemDemoManifest,
+  seedSystemDemoDeck,
   decorateMasterManifest,
   updateMasterSlidePlan,
   publishMasterDeck

@@ -12,6 +12,7 @@ const {
   createDemoSessionVisibilityStore,
   updateMasterSlidePlan,
   publishMasterDeck,
+  seedSystemDemoDeck,
   readSystemDemoManifest
 } = require("../system-demo-deck");
 
@@ -107,6 +108,76 @@ test("publishing is blocked until every slide has a commercial level", async (t)
     (error) => error.statusCode === 409 && error.code === "DEMO_SLIDE_LEVELS_REQUIRED" && error.unassignedSlides.includes("slide-002")
   );
   assert.equal(await readSystemDemoManifest(decksDir, DEMO_PUBLISHED_DECK_ID), null);
+});
+
+test("the official Demo seed bootstraps Master and published decks when storage is empty", async (t) => {
+  const seedRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "immersa-demo-seed-source-"));
+  const dataRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "immersa-demo-seed-data-"));
+  t.after(() => fs.promises.rm(seedRoot, { recursive: true, force: true }));
+  t.after(() => fs.promises.rm(dataRoot, { recursive: true, force: true }));
+  const { masterDir } = await makeMaster(t);
+  await fs.promises.cp(masterDir, seedRoot, { recursive: true });
+
+  const result = await seedSystemDemoDeck(dataRoot, seedRoot);
+  const master = await readSystemDemoManifest(dataRoot, DEMO_MASTER_DECK_ID);
+  const published = await readSystemDemoManifest(dataRoot, DEMO_PUBLISHED_DECK_ID);
+
+  assert.equal(result.seededMaster, true);
+  assert.equal(result.published, true);
+  assert.equal(master.systemDemo.role, "master");
+  assert.equal(published.systemDemo.role, "published");
+  assert.equal(await fs.promises.readFile(path.join(dataRoot, DEMO_PUBLISHED_DECK_ID, "slides", "slide-001.jpg"), "utf8"), "slide-0");
+});
+
+test("the official Demo seed never overwrites existing Master or published data", async (t) => {
+  const seedRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "immersa-demo-seed-source-"));
+  t.after(() => fs.promises.rm(seedRoot, { recursive: true, force: true }));
+  const { decksDir, masterDir } = await makeMaster(t);
+  await fs.promises.cp(masterDir, seedRoot, { recursive: true });
+  await publishMasterDeck(decksDir);
+  await fs.promises.writeFile(path.join(masterDir, "marker.txt"), "admin-edit");
+  const publishedDir = path.join(decksDir, DEMO_PUBLISHED_DECK_ID);
+  await fs.promises.writeFile(path.join(publishedDir, "marker.txt"), "published-edit");
+
+  const result = await seedSystemDemoDeck(decksDir, seedRoot);
+
+  assert.equal(result.seededMaster, false);
+  assert.equal(result.published, false);
+  assert.equal(await fs.promises.readFile(path.join(masterDir, "marker.txt"), "utf8"), "admin-edit");
+  assert.equal(await fs.promises.readFile(path.join(publishedDir, "marker.txt"), "utf8"), "published-edit");
+});
+
+test("an existing unpublished Master is left for the administrator to finish", async (t) => {
+  const seedRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "immersa-demo-seed-source-"));
+  t.after(() => fs.promises.rm(seedRoot, { recursive: true, force: true }));
+  const { decksDir, masterDir } = await makeMaster(t, ["FREE", null]);
+  await fs.promises.cp(masterDir, seedRoot, { recursive: true });
+
+  const result = await seedSystemDemoDeck(decksDir, seedRoot);
+
+  assert.equal(result.seededMaster, false);
+  assert.equal(result.published, false);
+  assert.equal(await readSystemDemoManifest(decksDir, DEMO_PUBLISHED_DECK_ID), null);
+  assert.equal((await readSystemDemoManifest(decksDir, DEMO_MASTER_DECK_ID)).slides[1].planLevel, null);
+});
+
+test("the packaged Demo seed contains every referenced asset", async () => {
+  const seedDir = path.join(appDir, "bootstrap", DEMO_MASTER_DECK_ID);
+  const manifest = JSON.parse(await fs.promises.readFile(path.join(seedDir, "manifest.json"), "utf8"));
+  const interactions = JSON.parse(await fs.promises.readFile(path.join(seedDir, "interactions.json"), "utf8"));
+  assert.equal(manifest.slides.length, 15);
+  for (const slide of manifest.slides) {
+    for (const asset of [slide.src, slide.thumb]) {
+      await fs.promises.access(path.join(seedDir, String(asset).split("?")[0]), fs.constants.R_OK);
+    }
+  }
+  for (const contest of interactions.contests || []) {
+    for (const question of contest.questions || []) {
+      if (!question.image?.url) continue;
+      const relative = question.image.url.replace(/^\/decks\/immersa-demo-master\//, "");
+      await fs.promises.access(path.join(seedDir, relative), fs.constants.R_OK);
+    }
+  }
 });
 
 test("Home and every live surface render Demo plan metadata outside slide artwork", () => {

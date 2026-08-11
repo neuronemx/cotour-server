@@ -1,0 +1,141 @@
+{
+  "deckId": "immersa-demo-master",
+  "title": "Deck Demo Maestro",
+  "ratio": "mixed",
+  "status": "converted",
+  "slides": [
+    {
+      "id": "slide-001",
+      "src": "slides/slide-001.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-001.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 1",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-002",
+      "src": "slides/slide-002.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-002.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 2",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-003",
+      "src": "slides/slide-003.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-003.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 3",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-004",
+      "src": "slides/slide-004.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-004.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 4",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-005",
+      "src": "slides/slide-005.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-005.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 5",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-006",
+      "src": "slides/slide-006.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-006.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 6",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-007",
+      "src": "slides/slide-007.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-007.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 7",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-008",
+      "src": "slides/slide-008.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-008.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 8",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER"
+    },
+    {
+      "id": "slide-009",
+      "src": "slides/slide-009.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-009.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 9",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER"
+    },
+    {
+      "id": "slide-010",
+      "src": "slides/slide-010.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-010.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 10",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER_PRO"
+    },
+    {
+      "id": "slide-011",
+      "src": "slides/slide-011.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-011.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 11",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER_PRO"
+    },
+    {
+      "id": "slide-012",
+      "src": "slides/slide-012.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-012.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 12",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER_PRO"
+    },
+    {
+      "id": "slide-013",
+      "src": "slides/slide-013.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-013.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 13",
+      "orientation": "landscape",
+      "planLevel": "SPEAKER"
+    },
+    {
+      "id": "slide-014",
+      "src": "slides/slide-014.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-014.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 14",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    },
+    {
+      "id": "slide-015",
+      "src": "slides/slide-015.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "thumb": "thumbs/slide-015.jpg?v=10cb4130-f19d-4d96-9780-285e62cfbe0d",
+      "title": "Pagina 15",
+      "orientation": "landscape",
+      "planLevel": "FREE"
+    }
+  ],
+  "conversion": {
+    "status": "completed",
+    "message": "Conversion completada",
+    "format": "jpg",
+    "sourceType": "pdf",
+    "slideResolution": "1920px ancho",
+    "thumbResolution": "320px ancho"
+  },
+  "systemDemo": {
+    "role": "master",
+    "editableBy": "immersa-admin"
+  },
+  "updatedAt": "2026-08-11T08:47:43.291Z"
+}
