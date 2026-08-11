@@ -6,6 +6,7 @@ const test = require("node:test");
 const express = require("express");
 const { createBetterAuthCompatibilityBridge } = require("../auth/better-auth-bridge");
 const { createResendEmailSender, RESEND_EMAILS_URL } = require("../auth/resend-email");
+const { AccountActivationNotifier, adminNotificationEmails } = require("../auth/account-activation-notifier");
 const { WorkspaceRepository, UNVERIFIED_RETENTION_MS } = require("../auth/workspace-repository");
 
 const appDir = path.join(__dirname, "..");
@@ -28,10 +29,12 @@ async function withServer(app, operation) {
 test("Auth v1 config requires verified email, persists sessions, wires Google, and creates a personal workspace", async () => {
   const { createBetterAuthOptions } = await import("../auth/better-auth-runtime.mjs");
   const created = [];
+  const notifications = [];
   const workspaces = { async ensurePersonalWorkspace(user) { created.push(user.id); } };
   const options = createBetterAuthOptions({
     database: {},
     workspaces,
+    accountNotifier: { async notify(session) { notifications.push(session.userId); } },
     emailSender: async () => {},
     env: {
       BETTER_AUTH_URL: "https://app.immersalive.com",
@@ -48,7 +51,9 @@ test("Auth v1 config requires verified email, persists sessions, wires Google, a
   assert.equal(options.emailVerification.autoSignInAfterVerification, true);
   assert.equal(options.socialProviders.google.clientId, "google-client-id");
   await options.databaseHooks.user.create.after({ id: "user-new" });
+  options.databaseHooks.session.create.after({ userId: "user-new" });
   assert.deepEqual(created, ["user-new"]);
+  assert.deepEqual(notifications, ["user-new"]);
 });
 
 test("Auth v1 schema starts personal workspaces on FREE and associates every user deck to a workspace", () => {
@@ -85,6 +90,101 @@ test("Resend transport keeps credentials server-side and sends the two Auth acti
   assert.match(verificationEmail.html, />Hola A,<\/p>/);
   assert.match(JSON.parse(calls[1].options.body).subject, /Restablece tu contraseña/);
   assert.doesNotMatch(authHtml + authJs, /re_test_secret|RESEND_API_KEY/);
+});
+
+test("Resend sends the active-account alert to every Immersa administrator", async () => {
+  const calls = [];
+  const sender = createResendEmailSender({
+    env: { RESEND_API_KEY: "re_test_secret", IMMERSA_EMAIL_FROM: "IMMERSA <access@auth.immersalive.com>" },
+    fetchImpl: async (_url, options) => {
+      calls.push(JSON.parse(options.body));
+      return { ok: true, async json() { return { id: "email-admin" }; } };
+    }
+  });
+  await sender({
+    kind: "account-activation",
+    to: ["rocha.arturo@gmail.com", "ops@immersalive.com"],
+    user: { name: "Ana Pérez", email: "ana@example.com", plan: "FREE" },
+    activatedAt: new Date("2026-08-11T20:00:00.000Z")
+  });
+  assert.deepEqual(calls[0].to, ["rocha.arturo@gmail.com", "ops@immersalive.com"]);
+  assert.match(calls[0].subject, /Nueva cuenta activa/);
+  assert.match(calls[0].html, /Ana Pérez/);
+  assert.match(calls[0].html, /ana@example\.com/);
+  assert.match(calls[0].html, /FREE/);
+});
+
+test("active-account notification is verified, recent, deduplicated, and non-blocking", async () => {
+  const sent = [];
+  const calls = [];
+  const createdAt = new Date("2026-08-11T18:00:00.000Z");
+  const pool = {
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/SELECT u\.id/.test(sql)) return [[{
+        id: "user-new",
+        name: "Ana Pérez",
+        email: "ana@example.com",
+        emailVerified: 1,
+        createdAt,
+        plan: "FREE"
+      }]];
+      if (/INSERT IGNORE/.test(sql)) return [{ affectedRows: sent.length ? 0 : 1 }];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  assert.deepEqual(adminNotificationEmails({ IMMERSA_ADMIN_EMAILS: "ROCHA.ARTURO@gmail.com, ops@immersalive.com" }), [
+    "rocha.arturo@gmail.com",
+    "ops@immersalive.com"
+  ]);
+  const notifier = new AccountActivationNotifier(pool, {
+    recipients: ["rocha.arturo@gmail.com"],
+    emailSender: async (message) => sent.push(message)
+  });
+  const session = { userId: "user-new", createdAt: new Date("2026-08-11T18:05:00.000Z") };
+  assert.equal(await notifier.notify(session), true);
+  assert.equal(await notifier.notify(session), false);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].kind, "account-activation");
+  assert.deepEqual(sent[0].to, ["rocha.arturo@gmail.com"]);
+  assert.equal(calls.some((call) => /notified_at = CURRENT_TIMESTAMP/.test(call.sql)), true);
+
+  const unverified = new AccountActivationNotifier({
+    async execute() {
+      return [[{ id: "user-pending", email: "pending@example.com", emailVerified: 0, createdAt }]];
+    }
+  }, {
+    recipients: ["rocha.arturo@gmail.com"],
+    emailSender: async () => { throw new Error("must not send"); }
+  });
+  assert.equal(await unverified.notify({ userId: "user-pending", createdAt }), false);
+});
+
+test("account notification failures are released for retry without rejecting sign-in", async () => {
+  const calls = [];
+  const errors = [];
+  const pool = {
+    async execute(sql) {
+      calls.push(sql);
+      if (/SELECT u\.id/.test(sql)) return [[{
+        id: "user-new",
+        name: "Ana",
+        email: "ana@example.com",
+        emailVerified: 1,
+        createdAt: new Date("2026-08-11T18:00:00.000Z"),
+        plan: "FREE"
+      }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const notifier = new AccountActivationNotifier(pool, {
+    recipients: ["rocha.arturo@gmail.com"],
+    emailSender: async () => { throw new Error("Resend unavailable"); },
+    logger: { error: (...args) => errors.push(args) }
+  });
+  assert.equal(await notifier.notify({ userId: "user-new", createdAt: new Date("2026-08-11T18:05:00.000Z") }), false);
+  assert.equal(calls.some((sql) => /DELETE FROM account_activation_notifications/.test(sql)), true);
+  assert.equal(errors.length, 1);
 });
 
 test("account and ownership guards reject anonymous users and another user's deck", async () => {
