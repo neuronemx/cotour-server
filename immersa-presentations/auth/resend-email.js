@@ -31,6 +31,21 @@ function emailCopy(kind, name, url) {
   };
 }
 
+function accountActivationEmailCopy(user = {}, activatedAt = new Date()) {
+  const name = escapeHtml(String(user.name || "").trim() || "Sin nombre");
+  const email = escapeHtml(String(user.email || "").trim() || "Sin correo");
+  const plan = escapeHtml(String(user.plan || "FREE").trim().toUpperCase());
+  const date = new Intl.DateTimeFormat("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "America/Mexico_City"
+  }).format(new Date(activatedAt));
+  return {
+    subject: "Nueva cuenta activa en IMMERSA",
+    html: `<!doctype html><html><body style="margin:0;padding:0;background-color:#f3f4fb;font-family:Arial,sans-serif;color:#0a0d28"><table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f3f4fb"><tr><td align="center" style="padding:42px 18px"><table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border-radius:22px;overflow:hidden"><tr><td height="7" bgcolor="#7057ff" style="height:7px;background-color:#7057ff;background-image:linear-gradient(90deg,#06cfe0,#7057ff 52%,#b20de9)"></td></tr><tr><td style="padding:32px 42px 14px"><h1 style="margin:0;font-size:26px;line-height:1.25">Nueva cuenta activa</h1></td></tr><tr><td style="padding:18px 42px 42px"><p style="margin:0 0 22px;color:#555b72;font-size:15px;line-height:1.6">Una persona completó su acceso a IMMERSA.</p><table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="font-size:15px;line-height:1.7"><tr><td style="padding:6px 0;color:#8b90a3">Nombre</td><td style="padding:6px 0;text-align:right;font-weight:bold">${name}</td></tr><tr><td style="padding:6px 0;color:#8b90a3">Correo</td><td style="padding:6px 0;text-align:right;font-weight:bold">${email}</td></tr><tr><td style="padding:6px 0;color:#8b90a3">Plan inicial</td><td style="padding:6px 0;text-align:right;font-weight:bold">${plan}</td></tr><tr><td style="padding:6px 0;color:#8b90a3">Activación</td><td style="padding:6px 0;text-align:right;font-weight:bold">${escapeHtml(date)}</td></tr></table></td></tr><tr><td bgcolor="#f7f7fb" style="padding:19px 42px;color:#8b90a3;font-size:11px;line-height:1.5;letter-spacing:.02em">IMMERSA · Presenta e interactúa.</td></tr></table></td></tr></table></body></html>`
+  };
+}
+
 function createResendEmailSender(options = {}) {
   const env = options.env || process.env;
   const apiKey = setting(env, "RESEND_API_KEY");
@@ -39,17 +54,18 @@ function createResendEmailSender(options = {}) {
   if (!apiKey || !from) return null;
   if (typeof fetchImpl !== "function") throw new Error("fetch is required for Resend email delivery");
 
-  return async ({ kind, to, name, url }) => {
-    const recipient = String(to || "").trim();
-    if (!recipient || !url) throw new Error("Email recipient and action URL are required");
-    const copy = emailCopy(kind, name, url);
+  return async ({ kind, to, name, url, user, activatedAt }) => {
+    const recipients = (Array.isArray(to) ? to : [to]).map((value) => String(value || "").trim()).filter(Boolean);
+    const accountActivation = kind === "account-activation";
+    if (!recipients.length || (!accountActivation && !url)) throw new Error("Email recipient and action URL are required");
+    const copy = accountActivation ? accountActivationEmailCopy(user, activatedAt) : emailCopy(kind, name, url);
     const response = await fetchImpl(RESEND_EMAILS_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ from, to: [recipient], subject: copy.subject, html: copy.html })
+      body: JSON.stringify({ from, to: recipients, subject: copy.subject, html: copy.html })
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
@@ -59,4 +75,4 @@ function createResendEmailSender(options = {}) {
   };
 }
 
-module.exports = { createResendEmailSender, emailCopy, RESEND_EMAILS_URL };
+module.exports = { createResendEmailSender, emailCopy, accountActivationEmailCopy, RESEND_EMAILS_URL };

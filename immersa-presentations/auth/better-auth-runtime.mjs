@@ -2,9 +2,11 @@ import { betterAuth } from "better-auth";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import workspaceModule from "./workspace-repository.js";
 import profileModule from "./profile-repository.js";
+import accountActivationModule from "./account-activation-notifier.js";
 
 const { WorkspaceRepository } = workspaceModule;
 const { ProfileRepository } = profileModule;
+const { AccountActivationNotifier } = accountActivationModule;
 
 function requireSetting(env, name) {
   const value = String(env?.[name] || "").trim();
@@ -37,6 +39,7 @@ export function createBetterAuthOptions(options = {}) {
   }
 
   const workspaces = options.workspaces || new WorkspaceRepository(database);
+  const accountNotifier = options.accountNotifier || null;
   const authOptions = {
     appName: "IMMERSA",
     baseURL: readBaseUrl(env),
@@ -84,7 +87,18 @@ export function createBetterAuthOptions(options = {}) {
             await workspaces.ensurePersonalWorkspace(user);
           }
         }
-      }
+      },
+      ...(accountNotifier ? {
+        session: {
+          create: {
+            after: (session) => {
+              Promise.resolve(accountNotifier.notify(session)).catch((error) => {
+                console.error("Unable to schedule Immersa account activation notification", error);
+              });
+            }
+          }
+        }
+      } : {})
     }
   };
 
@@ -94,12 +108,18 @@ export function createBetterAuthOptions(options = {}) {
 export function createBetterAuthRuntime(options = {}) {
   const workspaces = options.workspaces || new WorkspaceRepository(options.database);
   const profiles = options.profiles || new ProfileRepository(options.database);
-  const auth = betterAuth(createBetterAuthOptions({ ...options, workspaces }));
+  const accountNotifier = options.accountNotifier || new AccountActivationNotifier(options.database, {
+    emailSender: options.emailSender,
+    env: options.env || process.env,
+    logger: options.logger || console
+  });
+  const auth = betterAuth(createBetterAuthOptions({ ...options, workspaces, accountNotifier }));
 
   return {
     auth,
     workspaces,
     profiles,
+    accountNotifier,
     capabilities: {
       email: Boolean(options.emailSender),
       google: Boolean(String((options.env || process.env).GOOGLE_CLIENT_ID || "").trim())
