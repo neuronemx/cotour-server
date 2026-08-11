@@ -26,7 +26,7 @@
       if(document.querySelector('link[data-slide-visibility]'))return;
       const link=document.createElement('link');
       link.rel='stylesheet';
-      link.href='/shared/slide-visibility.css?v=100';
+      link.href='/shared/slide-visibility.css?v=101';
       link.dataset.slideVisibility='1';
       document.head.appendChild(link);
     }

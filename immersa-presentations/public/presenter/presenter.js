@@ -52,8 +52,6 @@ const liveTextControl = window.ImmersaLiveTextControl?.create({
   form: document.getElementById("presenterMessageForm"),
   input: document.getElementById("presenterMessageInput"),
   cancelButton: document.getElementById("presenterCancelMessage"),
-  linkButton: document.getElementById("presenterDisplayLinkButton"),
-  getPublicUrl: () => roleUrl("audience"),
   labelMode: "icon",
   inactiveLabel: "Texto en vivo",
   activeLabel: "Apagar texto"
