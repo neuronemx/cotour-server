@@ -114,11 +114,18 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   const homeShell = fs.readFileSync(path.join(appDir, "public", "home", "deck-management-shell.js"), "utf8");
   const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
   const badge = fs.readFileSync(path.join(appDir, "public", "shared", "demo-plan-badge.js"), "utf8");
+  const badgeCss = fs.readFileSync(path.join(appDir, "public", "shared", "demo-plan-badge.css"), "utf8");
   const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
   assert.match(html, /id="detailDemoPlan"[\s\S]*FREE[\s\S]*SPEAKER PRO/);
   assert.match(home, /\/api\/admin\/demo\/slides\//);
   assert.match(home, /\/api\/admin\/demo\/publish/);
   assert.match(badge, /manifest\?\.systemDemo\?\.role === "published"/);
+  assert.match(badgeCss, /\.stream-area > \.immersa-demo-plan-badge \{ top: 56px; \}/);
+  assert.match(badgeCss, /\.slide-viewport > \.immersa-demo-plan-badge/);
+  assert.match(badgeCss, /safe-area-inset-top/);
+  for (const target of ["presenter/index.html", "stage/index.html", "screen/index.html", "audience/index.html"]) {
+    assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /demo-plan-badge\.css\?v=2/);
+  }
   assert.match(homeShell, /deck\?\.demoRole === "master" && !deck\?\.missing/);
   assert.match(homeShell, /participationTab\.disabled = !enabled/);
   assert.match(server, /featureAccessForPlan\("SPEAKER_PRO"\)/);
