@@ -36,6 +36,7 @@ const {
   isSystemDemoDeckId,
   systemDemoRole,
   readSystemDemoManifest,
+  seedSystemDemoDeck,
   decorateMasterManifest,
   updateMasterSlidePlan,
   publishMasterDeck
@@ -214,6 +215,7 @@ function canStepPresentation(role, session) {
 async function ensureDataDirs() {
   await fs.promises.mkdir(DATA_DECKS_DIR, { recursive: true });
   await fs.promises.mkdir(DATA_TMP_DIR, { recursive: true });
+  await seedSystemDemoDeck(DATA_DECKS_DIR);
 }
 
 async function findDeckDir(deckId) {

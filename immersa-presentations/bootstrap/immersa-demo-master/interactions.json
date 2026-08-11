@@ -1,0 +1,97 @@
+{
+  "deck_id": "immersa-demo-master",
+  "interactions": [
+    {
+      "id": "int_mso2vqp8",
+      "slide_id": null,
+      "type": "poll",
+      "title": "Sabor de agua favorita",
+      "prompt": "¿Cuál es tu agua favorita?",
+      "options": [
+        {
+          "id": "opt_a",
+          "label": "Horchata"
+        },
+        {
+          "id": "opt_b",
+          "label": "Jamaica"
+        },
+        {
+          "id": "opt_c",
+          "label": "Limón"
+        }
+      ],
+      "settings": {
+        "allow_multiple": false,
+        "anonymous": true,
+        "timer_seconds": 0,
+        "correct_option_ids": [],
+        "points": 0
+      }
+    }
+  ],
+  "contests": [
+    {
+      "id": "contest_mso2x3jd_mz4z5",
+      "category": "contest",
+      "title": "Conocimientos generales",
+      "identificationMode": "anonymous",
+      "questionDurationSeconds": 10,
+      "durationSeconds": null,
+      "questions": [
+        {
+          "id": "question_mso2x3jd_7iteo",
+          "prompt": "¿De qué país es esta bandera?",
+          "image": {
+            "url": "/decks/immersa-demo-master/knowledge-assets/question-865e629156ced9ea995f447e.png",
+            "mimeType": "image/png",
+            "width": 1239,
+            "height": 743,
+            "sizeBytes": 121668
+          },
+          "options": [
+            {
+              "id": "option-1",
+              "label": "Grecia"
+            },
+            {
+              "id": "option-2",
+              "label": "Uruguay"
+            },
+            {
+              "id": "option_mso31mgu_114st",
+              "label": "El Salvador"
+            }
+          ],
+          "correctOptionId": "option-2"
+        },
+        {
+          "id": "question_mso31uma_hczdi",
+          "prompt": "Altura geográfica de la CDMX",
+          "image": null,
+          "options": [
+            {
+              "id": "option-1",
+              "label": "2560"
+            },
+            {
+              "id": "option-2",
+              "label": "3225"
+            },
+            {
+              "id": "option_mso361d1_f6ywm",
+              "label": "2240"
+            }
+          ],
+          "correctOptionId": "option_mso361d1_f6ywm"
+        }
+      ],
+      "createdAt": "2026-08-11T03:14:13.509Z",
+      "updatedAt": "2026-08-11T03:14:13.509Z"
+    }
+  ],
+  "assessments": [],
+  "hidden_slide_ids": [],
+  "hidden_slide_indexes": [],
+  "videos": []
+}
