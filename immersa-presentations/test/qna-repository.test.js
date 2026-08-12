@@ -67,6 +67,7 @@ test("new Screen execution archives the previous active round and presentation s
 test("submits one normalized question only while the active round is open", async () => {
   const pool = fakePool([
     [[{ id: "round-1", round_number: 1, questions_open: 1 }], []],
+    [[], []],
     [{ affectedRows: 1 }, []]
   ]);
   const repository = new QnaRepository(pool, { createId: () => "question-1" });
@@ -82,19 +83,30 @@ test("submits one normalized question only while the active round is open", asyn
   assert.deepEqual(insert.values, ["question-1", "round-1", "audience-1", "¿Cómo funciona?", "Ana", 1]);
 });
 
-test("maps the database uniqueness rule to one question per audience and round", async () => {
-  const duplicate = Object.assign(new Error("duplicate"), { code: "ER_DUP_ENTRY", errno: 1062 });
+test("enforces a ten-second cooldown and then accepts another question in the same round", async () => {
+  const now = Date.parse("2026-08-12T03:00:10.000Z");
   const pool = fakePool([
     [[{ id: "round-1", round_number: 1, questions_open: 1 }], []],
-    duplicate
+    [[{ created_at: new Date(now - 5_000) }], []]
   ]);
-  const repository = new QnaRepository(pool, { createId: () => "question-1" });
+  const repository = new QnaRepository(pool, { createId: () => "question-2", now: () => now });
   await assert.rejects(
     repository.submitQuestion({ presentationSessionId: "session-1", audienceId: "audience-1", questionText: "Otra" }),
-    (error) => error instanceof QnaError && error.code === "QNA_ALREADY_SUBMITTED"
+    (error) => error instanceof QnaError && error.code === "QNA_COOLDOWN" && error.retryAfterMs === 5_000
   );
   assert.ok(pool.calls.some((call) => call.type === "rollback"));
   assert.ok(!pool.calls.some((call) => call.type === "commit"));
+
+  const readyPool = fakePool([
+    [[{ id: "round-1", round_number: 1, questions_open: 1 }], []],
+    [[{ created_at: new Date(now - 10_001) }], []],
+    [{ affectedRows: 1 }, []]
+  ]);
+  const ready = new QnaRepository(readyPool, { createId: () => "question-2", now: () => now });
+  assert.deepEqual(
+    await ready.submitQuestion({ presentationSessionId: "session-1", audienceId: "audience-1", questionText: "Otra" }),
+    { questionId: "question-2", qnaRoundId: "round-1" }
+  );
 });
 
 test("selection atomically replaces the previously selected question", async () => {
@@ -186,14 +198,16 @@ test("reads the exact active round including the persisted selection and answer 
   });
 });
 
-test("audience state exposes opening and one-submission status without leaking questions", async () => {
+test("audience state exposes only the current cooldown without leaking questions", async () => {
+  const now = Date.parse("2026-08-12T03:00:10.000Z");
   const pool = fakePool([[[{
     qna_round_id: "round-2",
     round_number: 2,
     questions_open: 1,
-    question_id: "question-2"
+    question_id: "question-2",
+    submitted_at: new Date(now - 4_000)
   }], []]]);
-  const state = await new QnaRepository(pool).getAudienceState({
+  const state = await new QnaRepository(pool, { now: () => now }).getAudienceState({
     presentationSessionId: "session-1",
     audienceId: "audience-1"
   });
@@ -202,7 +216,8 @@ test("audience state exposes opening and one-submission status without leaking q
     roundNumber: 2,
     questionsOpen: true,
     hasSubmitted: true,
-    questionId: "question-2"
+    questionId: "question-2",
+    cooldownRemainingMs: 6_000
   });
   assert.equal(Object.hasOwn(state, "questions"), false);
 });

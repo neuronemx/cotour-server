@@ -23,6 +23,8 @@ let interactionCard = null;
 let qnaState = { questionsOpen: false, hasSubmitted: false, roundNumber: null };
 let qnaSubmitting = false;
 let qnaConfirmationTimer = null;
+let qnaCooldownTimer = null;
+let qnaCooldownUntil = 0;
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -135,11 +137,26 @@ function setConnectionNotice(visible) {
 }
 function closeQnaComposer() { qnaComposer?.classList.add("hidden"); qnaComposer?.setAttribute("aria-hidden", "true"); qnaFormStatus.textContent = ""; }
 function openQnaComposer() { if (!qnaState.questionsOpen || qnaState.hasSubmitted) return; qnaComposer?.classList.remove("hidden"); qnaComposer?.setAttribute("aria-hidden", "false"); qnaFormStatus.textContent = ""; window.setTimeout(() => qnaQuestion?.focus(), 20); }
+function scheduleQnaCooldown(remainingMs) {
+  window.clearTimeout(qnaCooldownTimer);
+  const delay = Math.max(0, Number(remainingMs) || 0);
+  qnaCooldownUntil = delay ? Date.now() + delay : 0;
+  if (!delay) return;
+  qnaCooldownTimer = window.setTimeout(() => {
+    qnaCooldownTimer = null;
+    qnaCooldownUntil = 0;
+    renderQnaState({ ...qnaState, hasSubmitted: false, cooldownRemainingMs: 0 });
+  }, delay + 25);
+}
 function renderQnaState(state = {}) {
+  const cooldownRemainingMs = Math.max(0, Number(state.cooldownRemainingMs) || 0);
+  if (cooldownRemainingMs > 0) scheduleQnaCooldown(cooldownRemainingMs);
+  else if (state.hasSubmitted && qnaCooldownUntil <= Date.now()) scheduleQnaCooldown(10_000);
   qnaState = {
     questionsOpen: Boolean(state.questionsOpen),
-    hasSubmitted: Boolean(state.hasSubmitted),
-    roundNumber: Number.isFinite(Number(state.roundNumber)) ? Number(state.roundNumber) : null
+    hasSubmitted: Boolean(state.hasSubmitted) && qnaCooldownUntil > Date.now(),
+    roundNumber: Number.isFinite(Number(state.roundNumber)) ? Number(state.roundNumber) : null,
+    cooldownRemainingMs: Math.max(0, qnaCooldownUntil - Date.now())
   };
   const visible = qnaState.questionsOpen && !qnaState.hasSubmitted;
   qnaOpen?.classList.toggle("hidden", !visible);
@@ -160,7 +177,7 @@ function showQnaConfirmation(message) {
 }
 function qnaRejectedMessage(reason) {
   if (reason === "QNA_CLOSED") return "Las preguntas están cerradas.";
-  if (reason === "QNA_ALREADY_SUBMITTED") return "Tu pregunta ha sido enviada";
+  if (reason === "QNA_COOLDOWN") return "Espera 10 segundos para enviar otra pregunta.";
   if (reason === "QNA_INVALID_INPUT") return "Escribe una pregunta antes de enviarla.";
   return "Preguntas no disponibles por el momento.";
 }
@@ -235,10 +252,10 @@ socket.on("qna:rejected", ({ event, reason }) => {
   qnaSubmit.disabled = false;
   const message = qnaRejectedMessage(reason);
   qnaFormStatus.textContent = message;
-  if (reason === "QNA_ALREADY_SUBMITTED") {
+  if (reason === "QNA_COOLDOWN") {
     qnaState.hasSubmitted = true;
+    scheduleQnaCooldown(qnaCooldownUntil > Date.now() ? qnaCooldownUntil - Date.now() : 10_000);
     renderQnaState(qnaState);
-    showQnaConfirmation("Tu pregunta ha sido enviada");
   }
   if (reason === "QNA_CLOSED") renderQnaState({ ...qnaState, questionsOpen: false });
 });

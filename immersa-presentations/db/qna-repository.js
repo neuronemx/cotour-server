@@ -1,5 +1,7 @@
 const { randomUUID } = require("node:crypto");
 
+const QNA_SUBMISSION_COOLDOWN_MS = 10_000;
+
 class QnaError extends Error {
   constructor(code, message) {
     super(message);
@@ -46,6 +48,7 @@ class QnaRepository {
     if (!pool?.getConnection) throw new Error("A MySQL pool is required");
     this.pool = pool;
     this.createId = options.createId || randomUUID;
+    this.now = typeof options.now === "function" ? options.now : Date.now;
   }
 
   async startPresentationSession({ deckId, sourceSessionId, replaceActive = false }) {
@@ -151,19 +154,27 @@ class QnaRepository {
     return inTransaction(this.pool, async (connection) => {
       const round = await this.activeRound(connection, sessionId, true);
       if (!round.questions_open) throw new QnaError("QNA_CLOSED", "Questions are closed");
-      try {
-        await connection.execute(
-          `INSERT INTO qna_questions
-             (id, qna_round_id, audience_id, question_text, name, allow_name_on_screen)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [questionId, round.id, normalizedAudienceId, normalizedQuestion, normalizedName, allowNameOnScreen ? 1 : 0]
-        );
-      } catch (error) {
-        if (error?.code === "ER_DUP_ENTRY" || error?.errno === 1062) {
-          throw new QnaError("QNA_ALREADY_SUBMITTED", "Audience member already submitted a question in this round");
-        }
+      const [recentRows] = await connection.execute(
+        `SELECT created_at
+         FROM qna_questions
+         WHERE qna_round_id = ? AND audience_id = ?
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1`,
+        [round.id, normalizedAudienceId]
+      );
+      const lastSubmittedAt = recentRows[0]?.created_at ? new Date(recentRows[0].created_at).getTime() : 0;
+      const retryAfterMs = Math.max(0, QNA_SUBMISSION_COOLDOWN_MS - (this.now() - lastSubmittedAt));
+      if (lastSubmittedAt && retryAfterMs > 0) {
+        const error = new QnaError("QNA_COOLDOWN", "Wait before submitting another question");
+        error.retryAfterMs = retryAfterMs;
         throw error;
       }
+      await connection.execute(
+        `INSERT INTO qna_questions
+           (id, qna_round_id, audience_id, question_text, name, allow_name_on_screen)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [questionId, round.id, normalizedAudienceId, normalizedQuestion, normalizedName, allowNameOnScreen ? 1 : 0]
+      );
       return { questionId, qnaRoundId: round.id };
     });
   }
@@ -311,22 +322,29 @@ class QnaRepository {
          r.id AS qna_round_id,
          r.round_number,
          r.questions_open,
-         q.id AS question_id
+         q.id AS question_id,
+         q.created_at AS submitted_at
        FROM qna_rounds r
        LEFT JOIN qna_questions q
          ON q.qna_round_id = r.id AND q.audience_id = ?
        WHERE r.presentation_session_id = ? AND r.archived_at IS NULL
+       ORDER BY q.created_at DESC, q.id DESC
        LIMIT 1`,
       [normalizedAudienceId, sessionId]
     );
     const row = rows[0];
     if (!row) throw new QnaError("QNA_ROUND_NOT_FOUND", "Active Q&A round not found");
+    const submittedAtMs = row.submitted_at ? new Date(row.submitted_at).getTime() : 0;
+    const cooldownRemainingMs = submittedAtMs
+      ? Math.max(0, QNA_SUBMISSION_COOLDOWN_MS - (this.now() - submittedAtMs))
+      : 0;
     return {
       roundId: row.qna_round_id,
       roundNumber: Number(row.round_number),
       questionsOpen: Boolean(row.questions_open),
-      hasSubmitted: Boolean(row.question_id),
-      questionId: row.question_id || null
+      hasSubmitted: cooldownRemainingMs > 0,
+      questionId: row.question_id || null,
+      cooldownRemainingMs
     };
   }
 
@@ -478,4 +496,4 @@ class QnaRepository {
   }
 }
 
-module.exports = { QnaError, QnaRepository, inTransaction };
+module.exports = { QNA_SUBMISSION_COOLDOWN_MS, QnaError, QnaRepository, inTransaction };

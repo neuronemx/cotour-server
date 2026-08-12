@@ -596,6 +596,9 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(source, /if \(enteredReveal\) play\(tracks\.reveal\)/);
   assert.match(source, /\[data-immersa-media-unlock\]:not\(\[data-knowledge-audio-unlock\]\)/);
   assert.match(source, /dataset\.knowledgeAudioBound/);
+  assert.match(source, /Boolean\(global\.__immersaMediaUnlocked\)/);
+  assert.match(source, /button\.textContent = "🔊 Activar sonido"/);
+  assert.doesNotMatch(source, /Activar sonido de Concursos/);
   assert.match(editor, /questionDurationSeconds: category === "contest" \? 15/);
   for (const name of ["321.mp3", "tictac.mp3", "Resultado_pregunta.mp3", "Final_concurso.mp3"]) {
     assert.equal(fs.statSync(path.join(root, "public/assets/audio/contests", name)).size > 0, true);

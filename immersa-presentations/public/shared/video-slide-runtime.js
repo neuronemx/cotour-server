@@ -420,6 +420,12 @@
       if (shouldRemove) button?.remove();
     }
 
+    function markMediaUnlocked() {
+      const first = !root.__immersaMediaUnlocked;
+      root.__immersaMediaUnlocked = true;
+      if (first) document.dispatchEvent(new Event('immersa:media-unlocked'));
+    }
+
     async function unlockActiveMedia() {
       if (isYouTubeSlide(activeItem)) {
         const player = await ensureYouTube(activeItem, activeIndex);
@@ -431,6 +437,7 @@
           reportScreenPlayback(false, activeItem, activeIndex, media.revision);
         }
         player.playVideo();
+        markMediaUnlocked();
         removeUnlock(true);
         return;
       }
@@ -438,6 +445,7 @@
       try {
         video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
         await video.play();
+        markMediaUnlocked();
         removeUnlock(true);
       } catch (_error) {
         if (unlockButton) unlockButton.textContent = 'Toca de nuevo para reproducir';
@@ -452,6 +460,10 @@
 
     function ensureUnlock() {
       if (role !== 'screen') return null;
+      if (root.__immersaMediaUnlocked) {
+        removeUnlock(true);
+        return null;
+      }
       const sharedButton = document.querySelector('[data-immersa-media-unlock]:not([hidden])');
       if (sharedButton) {
         if (unlockButton && unlockButton !== sharedButton && ownsUnlockButton) unlockButton.remove();
@@ -474,6 +486,11 @@
       bindUnlock(unlockButton);
       document.body.appendChild(unlockButton);
       return unlockButton;
+    }
+
+    function requestUnlockAgain() {
+      root.__immersaMediaUnlocked = false;
+      return ensureUnlock();
     }
 
     function showYouTubeError() {
@@ -507,13 +524,13 @@
         }
         if ((playing || buffering) && stillMuted) {
           reportScreenPlayback(true, item, index, latest.revision);
-          ensureUnlock();
+          requestUnlockAgain();
           return;
         }
         player.mute();
         player.playVideo();
         reportScreenPlayback(true, item, index, latest.revision);
-        ensureUnlock();
+        requestUnlockAgain();
       }, 700);
     }
 
@@ -591,7 +608,7 @@
 
       if (media.playing) {
         const promise = player.play();
-        if (promise?.catch) promise.then(removeUnlock).catch(ensureUnlock);
+        if (promise?.catch) promise.then(removeUnlock).catch(requestUnlockAgain);
       } else {
         player.pause();
         removeUnlock();

@@ -13,7 +13,7 @@ test("Preguntas remains an independent measurement category with an outline icon
     ["polls", "Encuestas"],
     ["qna", "Preguntas"],
     ["raffles", "Sorteos"],
-    ["contests", "Concursos"],
+    ["contests", "Trivias"],
     ["games", "Juegos"]
   ]);
   assert.match(source, /id: "assessments", label: "Evaluaciones"/);

@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const isPublishedDemo = roleOpenContext.demo_role === "published" || deckId === "immersa-demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
 const overlaySocket = io();
@@ -36,13 +37,17 @@ const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
 const deckNotice = document.getElementById("deckNotice");
 let qnaAvailable = false;
+let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "presenter",
   launcher: false,
-  onAvailabilityChange: ({ available }) => {
+  onAvailabilityChange: ({ available, state }) => {
     qnaAvailable = Boolean(available);
+    qnaQuestionsOpen = Boolean(state?.questionsOpen);
     interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
+    syncInteractionShellState();
+    syncInteractionToggleVisualState();
   }
 });
 const liveTextControl = window.ImmersaLiveTextControl?.create({
@@ -191,6 +196,7 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    categoryEnabled: { games: !isPublishedDemo },
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
@@ -263,7 +269,7 @@ function syncInteractionShellState() {
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || shell.getView();
   shell.setLocked(locked);
   shell.setCloseVisible(!locked);
-  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge);
+  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (qnaQuestionsOpen ? "qna" : ""));
   if (activePoll || activeRaffle || shell.getView() === "home") shell.setView(activeInteractionView());
   shell.setTitleVisible?.(true);
   syncRendererVisibility();
@@ -287,15 +293,19 @@ function setInteractionPanelOpen(open) {
   if (!open) resetInactiveRaffleDraft();
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
+  syncInteractionToggleVisualState();
+  if (interactionPanelOpen) renderInteractionPanel();
+}
+function syncInteractionToggleVisualState() {
   if (interactionToggle) {
-    interactionToggle.classList.toggle("is-active", interactionPanelOpen);
-    interactionToggle.classList.toggle("is-special-active", interactionPanelOpen);
+    const visuallyActive = interactionPanelOpen || qnaQuestionsOpen;
+    interactionToggle.classList.toggle("is-active", visuallyActive);
+    interactionToggle.classList.toggle("is-special-active", visuallyActive);
     interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen));
-    interactionToggle.setAttribute("aria-pressed", String(interactionPanelOpen));
-    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : "Interacciones";
+    interactionToggle.setAttribute("aria-pressed", String(visuallyActive));
+    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : qnaQuestionsOpen ? "Interacciones · Preguntas abiertas" : "Interacciones";
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
   }
-  if (interactionPanelOpen) renderInteractionPanel();
 }
 function toggleInteractionPanel() { if (interactionPanelOpen && hasActiveInteractionShellLock()) return; setInteractionPanelOpen(!interactionPanelOpen); }
 function ensureInteractionToggle() {

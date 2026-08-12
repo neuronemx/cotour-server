@@ -370,9 +370,10 @@ test("raffle controller auto-install skips explicit Speaker and Stage hosts", ()
 
 test("Stage loads interactions shell before raffle controller", () => {
   const sources = scriptSources(readProjectFile("public/stage/index.html"));
-  assert.ok(sources.indexOf("/shared/interactions-shell.js") > -1);
+  const shellSource = sources.find((source) => source.startsWith("/shared/interactions-shell.js"));
+  assert.ok(shellSource);
   assert.ok(sources.indexOf("/shared/raffle-controller.js") > -1);
-  assert.equal(sources.indexOf("/shared/interactions-shell.js") < sources.indexOf("/shared/raffle-controller.js"), true);
+  assert.equal(sources.indexOf(shellSource) < sources.indexOf("/shared/raffle-controller.js"), true);
 });
 
 test("Stage uses native interactions shell with persistent sibling hosts", () => {
@@ -486,7 +487,8 @@ test("Stage modal no longer renders a fullscreen visual backdrop and syncs body 
   assert.doesNotMatch(stage, /stageActionsModal\.addEventListener\("click"/);
   assert.match(css, /\.stage-actions-modal \{ pointer-events: none; \}/);
   assert.match(css, /\.stage-actions-card \{[\s\S]+pointer-events: auto;[\s\S]+width: min\(352px, calc\(100vw - 28px\)\);/);
-  assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);\n\}/);
+  assert.match(stage, /function syncStageActionsVisualState\(\) \{\n  document\.body\.classList\.toggle\("stage-actions-open", stageActionsOpen\);/);
+  assert.match(stage, /const visuallyActive = stageActionsOpen \|\| qnaQuestionsOpen/);
   assert.match(stage, /function openStageActions\(\) \{[\s\S]+stageActionsOpen = true;\n  syncStageActionsVisualState\(\);/);
   assert.match(stage, /function closeStageActions\(\) \{[\s\S]+stageActionsOpen = false;\n  syncStageActionsVisualState\(\);/);
   assert.match(stage, /function setStageActionsOpen\(open\) \{[\s\S]+if \(!open\) resetInactiveRaffleDraft\(\);[\s\S]+stageActionsOpen = Boolean\(open\);\n  syncStageActionsVisualState\(\);/);

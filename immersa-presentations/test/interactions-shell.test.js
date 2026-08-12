@@ -98,7 +98,7 @@ test("interactions shell preserves the approved category contract", () => {
   const shell = Shell.create({ root });
   const categories = root.querySelectorAll("[data-interactions-category]");
   assert.deepEqual(categories.slice(0, 6).map((button) => button.dataset.interactionsCategory), ["polls", "qna", "assessments", "raffles", "contests", "games"]);
-  assert.deepEqual(categories.slice(0, 6).map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Preguntas", "Evaluaciones", "Sorteos", "Concursos", "Juegos"]);
+  assert.deepEqual(categories.slice(0, 6).map((button) => button.querySelector(".interactions-shell-category-label")?.textContent), ["Encuestas", "Preguntas", "Evaluaciones", "Sorteos", "Trivias", "Juegos"]);
   assert.equal(root.querySelectorAll("[data-interactions-group]").length, 2);
   assert.equal(categories.length, 12);
   assert.equal(root.querySelectorAll("h2").length, 1);
@@ -134,6 +134,25 @@ test("interactions shell preserves the approved category contract", () => {
   shell.setLiveView("contests");
   assert.equal(shell.getLiveView(), "contests");
   assert.equal(category(root, "contests").classList.contains("is-live"), true);
+});
+
+test("disabled Games remains visible in the Demo shell", () => {
+  const { root } = setup();
+  const selected = [];
+  const shell = Shell.create({
+    root,
+    categoryEnabled: { games: false },
+    onSelectCategory: (view) => selected.push(view)
+  });
+  const gameButtons = root.querySelectorAll("[data-interactions-category]")
+    .filter((button) => button.dataset.interactionsCategory === "games");
+  assert.equal(gameButtons.length, 2);
+  assert.equal(gameButtons.every((button) => button.hidden === false), true);
+  assert.equal(gameButtons.every((button) => button.disabled === true), true);
+  assert.equal(gameButtons.every((button) => button.getAttribute("aria-disabled") === "true"), true);
+  gameButtons[0].click();
+  assert.equal(shell.getView(), "home");
+  assert.deepEqual(selected, []);
 });
 
 

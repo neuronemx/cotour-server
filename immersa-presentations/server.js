@@ -988,7 +988,6 @@ app.put("/api/admin/demo/slides/:slideId/plan", requireAccount, requireImmersaAd
 });
 app.post("/api/admin/demo/publish", requireAccount, requireImmersaAdmin, async (_req, res) => {
   try {
-    assertDeckCanBeReplaced(DEMO_PUBLISHED_DECK_ID);
     const manifest = await publishMasterDeck(DATA_DECKS_DIR);
     delete deckSlideCounts[DEMO_PUBLISHED_DECK_ID];
     res.json(manifestSummary(manifest));

@@ -78,7 +78,7 @@ class InteractionStore {
       closedAt: null
     };
     session.responses = new Map();
-    session.resultsVisible = false;
+    session.resultsVisible = true;
     return session.active;
   }
 
