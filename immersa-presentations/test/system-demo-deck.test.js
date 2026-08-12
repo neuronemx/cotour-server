@@ -187,6 +187,7 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   const badge = fs.readFileSync(path.join(appDir, "public", "shared", "demo-plan-badge.js"), "utf8");
   const badgeCss = fs.readFileSync(path.join(appDir, "public", "shared", "demo-plan-badge.css"), "utf8");
   const server = fs.readFileSync(path.join(appDir, "server.js"), "utf8");
+  const presenter = fs.readFileSync(path.join(appDir, "public", "presenter", "presenter.js"), "utf8");
   assert.match(html, /id="detailDemoPlan"[\s\S]*FREE[\s\S]*SPEAKER PRO/);
   assert.match(home, /\/api\/admin\/demo\/slides\//);
   assert.match(home, /\/api\/admin\/demo\/publish/);
@@ -202,7 +203,10 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(server, /featureAccessForPlan\("SPEAKER_PRO"\)/);
   assert.match(server, /\/api\/demo-session\/decks\/:deckId\/slide-visibility/);
   assert.match(server, /demoSessionVisibilityStore\.set/);
+  assert.match(presenter, /isPublishedDemo = roleOpenContext\.demo_role === "published" \|\| deckId === "immersa-demo"/);
+  assert.match(presenter, /categoryEnabled: \{ games: !isPublishedDemo \}/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
   }
+  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=2/);
 });

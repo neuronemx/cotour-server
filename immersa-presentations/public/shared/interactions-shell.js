@@ -49,7 +49,7 @@
       label: "Juego y premio",
       categories: [
         { id: "raffles", label: "Sorteos", enabled: true },
-        { id: "contests", label: "Concursos", enabled: true },
+        { id: "contests", label: "Trivias", enabled: true },
         { id: "games", label: "Juegos", enabled: true }
       ]
     }

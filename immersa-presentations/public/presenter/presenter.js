@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const isPublishedDemo = roleOpenContext.demo_role === "published" || deckId === "immersa-demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const socket = io();
 const overlaySocket = io();
@@ -191,6 +192,7 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    categoryEnabled: { games: !isPublishedDemo },
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,

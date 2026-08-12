@@ -370,9 +370,10 @@ test("raffle controller auto-install skips explicit Speaker and Stage hosts", ()
 
 test("Stage loads interactions shell before raffle controller", () => {
   const sources = scriptSources(readProjectFile("public/stage/index.html"));
-  assert.ok(sources.indexOf("/shared/interactions-shell.js") > -1);
+  const shellSource = sources.find((source) => source.startsWith("/shared/interactions-shell.js"));
+  assert.ok(shellSource);
   assert.ok(sources.indexOf("/shared/raffle-controller.js") > -1);
-  assert.equal(sources.indexOf("/shared/interactions-shell.js") < sources.indexOf("/shared/raffle-controller.js"), true);
+  assert.equal(sources.indexOf(shellSource) < sources.indexOf("/shared/raffle-controller.js"), true);
 });
 
 test("Stage uses native interactions shell with persistent sibling hosts", () => {
