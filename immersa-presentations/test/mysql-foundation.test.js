@@ -55,12 +55,15 @@ test("Q&A schema preserves the frozen storage contract", async () => {
     "007_user_profiles.sql",
     "008_user_profile_public_title.sql",
     "009_free_plan_usage.sql",
-    "010_account_activation_notifications.sql"
+    "010_account_activation_notifications.sql",
+    "011_qna_submission_cooldown.sql"
   ]);
   const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
   assert.match(schema, /ENGINE=InnoDB/g);
   assert.match(schema, /utf8mb4/g);
   assert.match(schema, /UNIQUE KEY uq_qna_question_per_audience \(qna_round_id, audience_id\)/);
+  assert.match(schema, /DROP INDEX uq_qna_question_per_audience/);
+  assert.match(schema, /idx_qna_questions_audience_cooldown \(qna_round_id, audience_id, created_at\)/);
   assert.match(schema, /ENUM\('new', 'selected'\)/);
   assert.match(schema, /projected_at DATETIME\(3\) NULL/);
   assert.match(schema, /UNIQUE KEY uq_qna_selected_per_round \(selected_round_id\)/);
@@ -96,7 +99,8 @@ test("migration runner serializes and records pending SQL files", async () => {
     "007_user_profiles.sql",
     "008_user_profile_public_title.sql",
     "009_free_plan_usage.sql",
-    "010_account_activation_notifications.sql"
+    "010_account_activation_notifications.sql",
+    "011_qna_submission_cooldown.sql"
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);

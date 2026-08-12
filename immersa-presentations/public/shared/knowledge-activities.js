@@ -856,7 +856,7 @@
     tracks.reveal.preload = "auto";
     tracks.final.preload = "auto";
     tracks.tick.loop = true;
-    let unlocked = false;
+    let unlocked = Boolean(global.__immersaMediaUnlocked);
     let currentState = null;
     let tickWanted = false;
     let tickContext = null;
@@ -937,7 +937,9 @@
     }
 
     function unlock() {
+      const first = !global.__immersaMediaUnlocked;
       unlocked = true;
+      global.__immersaMediaUnlocked = true;
       global.document.querySelector("[data-knowledge-audio-unlock]")?.remove();
       tickContext?.resume?.().catch?.(() => {});
       const primers = Object.values(tracks).map((track) => {
@@ -948,6 +950,7 @@
         });
       });
       Promise.all(primers).then(() => sync(null, currentState));
+      if (first) global.document.dispatchEvent(new Event("immersa:media-unlocked"));
     }
 
     function bindSharedUnlock(button) {
@@ -957,6 +960,7 @@
     }
 
     function ensureUnlock() {
+      if (global.__immersaMediaUnlocked && !unlocked) unlock();
       if (unlocked || global.document.querySelector("[data-knowledge-audio-unlock]")) return;
       const sharedButton = global.document.querySelector(
         "[data-immersa-media-unlock]:not([data-knowledge-audio-unlock]):not([hidden]), "
@@ -972,10 +976,12 @@
       button.className = "knowledge-audio-unlock";
       button.dataset.knowledgeAudioUnlock = "1";
       button.dataset.immersaMediaUnlock = "1";
-      button.textContent = "🔊 Activar sonido de Concursos";
+      button.textContent = "🔊 Activar sonido";
       bindSharedUnlock(button);
       global.document.body.appendChild(button);
     }
+
+    global.document.addEventListener?.("immersa:media-unlocked", () => { if (!unlocked) unlock(); });
 
     function play(track, currentTime = 0) {
       stop(track);
@@ -983,6 +989,7 @@
       const playback = track.play();
       playback?.catch?.(() => {
         unlocked = false;
+        global.__immersaMediaUnlocked = false;
         ensureUnlock();
       });
     }

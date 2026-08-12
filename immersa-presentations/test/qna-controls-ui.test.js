@@ -23,9 +23,14 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(presenterScript, /launcher: false/);
   assert.match(presenterScript, /view === "qna"/);
   assert.match(presenterScript, /qnaControls\?\.open\(\)/);
+  assert.match(presenterScript, /qnaQuestionsOpen = Boolean\(state\?\.questionsOpen\)/);
+  assert.match(presenterScript, /interactionPanelOpen \|\| qnaQuestionsOpen/);
+  assert.match(presenterScript, /Interacciones · Preguntas abiertas/);
   assert.match(stageScript, /role: "stage"/);
   assert.match(stageScript, /launcher: false/);
   assert.match(stageScript, /view === "qna"/);
+  assert.match(stageScript, /stageActionsOpen \|\| qnaQuestionsOpen/);
+  assert.match(stageScript, /Interacciones · Preguntas abiertas/);
   assert.match(controls, /button\.hidden = true/);
   assert.match(controls, /socket\.on\("qna:state", render\)/);
   assert.match(controls, /button\.hidden = !launcher/);

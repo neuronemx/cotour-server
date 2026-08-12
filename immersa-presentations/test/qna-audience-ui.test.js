@@ -22,7 +22,11 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
   assert.match(script, /socket\.emit\("qna:submit"/);
   assert.match(script, /questionsOpen: Boolean\(state\.questionsOpen\)/);
   assert.match(script, /qnaState\.questionsOpen && !qnaState\.hasSubmitted/);
+  assert.match(script, /scheduleQnaCooldown\(10_000\)/);
+  assert.match(script, /cooldownRemainingMs/);
+  assert.match(script, /Espera 10 segundos para enviar otra pregunta/);
   assert.match(script, /Tu pregunta ha sido enviada/);
+  assert.doesNotMatch(script, /QNA_ALREADY_SUBMITTED/);
   assert.doesNotMatch(script, /qna:select|qna:project|qna:delete|qna:new_round/);
   assert.match(css, /\.qna-composer/);
   assert.match(css, /\.qna-open \{[\s\S]+left: 50%;[\s\S]+translateX\(-50%\)/);

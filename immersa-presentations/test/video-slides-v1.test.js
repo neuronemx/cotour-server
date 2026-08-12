@@ -69,11 +69,11 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=111/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=111/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=111/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=112/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=112/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=112/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=113/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=114/);
   assert.match(runtime, /video-slide-runtime\.css\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
@@ -84,6 +84,8 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(runtime, /Activar sonido/);
   assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /data-immersa-media-unlock/);
+  assert.match(runtime, /root\.__immersaMediaUnlocked = true/);
+  assert.match(runtime, /immersa:media-unlocked/);
   assert.match(runtime, /media:playback_update/);
   assert.match(runtime, /media:playback/);
   assert.match(runtime, /playYouTubeWithAutoplayFallback/);

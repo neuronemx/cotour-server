@@ -203,6 +203,8 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(server, /featureAccessForPlan\("SPEAKER_PRO"\)/);
   assert.match(server, /\/api\/demo-session\/decks\/:deckId\/slide-visibility/);
   assert.match(server, /demoSessionVisibilityStore\.set/);
+  const publishRoute = server.slice(server.indexOf('app.post("\/api\/admin\/demo\/publish"'), server.indexOf('app.post("\/api\/access-links"'));
+  assert.doesNotMatch(publishRoute, /assertDeckCanBeReplaced/);
   assert.match(presenter, /isPublishedDemo = roleOpenContext\.demo_role === "published" \|\| deckId === "immersa-demo"/);
   assert.match(presenter, /categoryEnabled: \{ games: !isPublishedDemo \}/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {

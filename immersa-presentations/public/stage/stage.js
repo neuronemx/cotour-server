@@ -109,13 +109,17 @@ const stageThumbsToggle = document.getElementById("stageThumbsToggle");
 const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
 let qnaAvailable = false;
+let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
   launcher: false,
-  onAvailabilityChange: ({ available }) => {
+  onAvailabilityChange: ({ available, state }) => {
     qnaAvailable = Boolean(available);
+    qnaQuestionsOpen = Boolean(state?.questionsOpen);
     interactionShell?.setCategoryVisible?.("qna", qnaAvailable);
+    syncInteractionShellState();
+    syncStageActionsVisualState();
   }
 });
 const liveTextControl = window.ImmersaLiveTextControl?.create({
@@ -399,6 +403,14 @@ function ensureStageActionsModal() {
 
 function syncStageActionsVisualState() {
   document.body.classList.toggle("stage-actions-open", stageActionsOpen);
+  const visuallyActive = stageActionsOpen || qnaQuestionsOpen;
+  stageActionsButton?.classList.toggle("is-active", visuallyActive);
+  stageActionsButton?.classList.toggle("is-special-active", visuallyActive);
+  stageActionsButton?.setAttribute("aria-pressed", String(visuallyActive));
+  if (stageActionsButton) {
+    stageActionsButton.title = stageActionsOpen ? "Cerrar interacciones" : qnaQuestionsOpen ? "Interacciones · Preguntas abiertas" : "Interacciones";
+    stageActionsButton.setAttribute("aria-label", stageActionsButton.title);
+  }
 }
 
 function openStageActions() {
@@ -468,7 +480,7 @@ function syncInteractionShellState() {
   stageActionsModal?.classList.toggle("is-locked", locked);
   shell.setLocked(locked);
   shell.setCloseVisible(!locked);
-  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge);
+  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (qnaQuestionsOpen ? "qna" : ""));
   if (activePoll || activeRaffle || shell.getView() === "home") shell.setView(activeInteractionView());
   shell.setTitleVisible?.(true);
   syncRendererVisibility();
