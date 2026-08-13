@@ -74,6 +74,7 @@
     const status = modal.querySelector("[data-qna-status]");
     const list = modal.querySelector("[data-qna-list]");
     const closeButton = modal.querySelector(".qna-control-close");
+    const newRoundButton = modal.querySelector("[data-qna-new-round]");
 
     function emit(event, payload = {}) {
       status.textContent = "Actualizando…";
@@ -132,6 +133,8 @@
       state = nextState;
       round.textContent = String(state.roundNumber || 1);
       openToggle.checked = Boolean(state.questionsOpen);
+      openToggle.disabled = false;
+      newRoundButton.disabled = false;
       status.textContent = "";
       list.replaceChildren();
       if (!state.questions.length) {
@@ -148,12 +151,23 @@
     }
 
     function show() {
-      if (!state || open) return;
+      if (open) return;
       open = true;
       lastFocused = document.activeElement;
       modal.hidden = false;
       modal.setAttribute("aria-hidden", "false");
       button.setAttribute("aria-expanded", "true");
+      if (!state) {
+        round.textContent = "—";
+        openToggle.checked = false;
+        openToggle.disabled = true;
+        newRoundButton.disabled = true;
+        status.textContent = "Preparando preguntas…";
+        list.replaceChildren();
+        const pending = element("div", "qna-question-empty");
+        pending.append(element("strong", "", "Preparando Q&A"), element("span", "", "Espera un momento."));
+        list.appendChild(pending);
+      }
       updateButton();
       socket.emit("qna:panel_open");
       closeButton.focus();
@@ -183,7 +197,7 @@
       }
     });
     openToggle.addEventListener("change", () => emit("qna:set_open", { open: openToggle.checked }));
-    modal.querySelector("[data-qna-new-round]").addEventListener("click", () => {
+    newRoundButton.addEventListener("click", () => {
       if (global.confirm("¿Comenzar una nueva ronda? La ronda actual quedará archivada.")) emit("qna:new_round");
     });
     document.addEventListener("keydown", (event) => {

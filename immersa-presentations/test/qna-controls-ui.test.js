@@ -35,6 +35,9 @@ test("Speaker and Stage expose Q&A immediately when the plan allows it", async (
   assert.match(stageScript, /Interacciones · Preguntas abiertas/);
   assert.match(controls, /button\.hidden = true/);
   assert.match(controls, /socket\.on\("qna:state", render\)/);
+  assert.match(controls, /status\.textContent = "Preparando preguntas…"/);
+  assert.match(controls, /socket\.emit\("qna:panel_open"\)/);
+  assert.doesNotMatch(controls, /if \(!state \|\| open\) return/);
   assert.match(controls, /button\.hidden = !launcher/);
   assert.match(controls, /onAvailabilityChange/);
   assert.match(controls, /Abrir preguntas/);

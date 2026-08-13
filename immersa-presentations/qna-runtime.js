@@ -40,7 +40,13 @@ function createQnaRuntime(options = {}) {
       deckId: context.deckId,
       sourceSessionId: context.sessionId
     });
-    return active?.presentationSessionId || null;
+    if (active?.presentationSessionId) return active.presentationSessionId;
+    if (!["presenter", "stage"].includes(context.role)) return null;
+    const prepared = await executionCoordinator.ensureExecution({
+      deckId: context.deckId,
+      sourceSessionId: context.sessionId
+    });
+    return prepared?.presentationSessionId || null;
   }
 
   const sockets = createQnaSocketHandlers({
