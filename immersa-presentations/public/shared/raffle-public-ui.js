@@ -73,7 +73,8 @@
   function renderAudienceCollecting(active) {
     const hasEntry = Boolean(active.ownEntry);
     if (active.mode === "free") {
-      return '<h2>Ya estás participando</h2><p>Tu boleto está dentro de la tómbola</p>';
+      if (hasEntry) return '<h2>Estás participando</h2><p>Tu boleto está dentro de la tómbola.</p>';
+      return '<h2>Sorteo abierto</h2><p>Confirma que estás presente para recibir tu boleto.</p><button type="button" class="raffle-public-enter" data-raffle-enter>Participar</button>';
     }
     if (hasEntry) return '<h2>Boleto activo</h2><p>Tu participación quedó registrada.</p>';
     const options = safeOptions(active);
@@ -116,7 +117,7 @@
   }
 
   function renderScreenCollecting(active) {
-    if (active.mode === "free") return '<h2>Sorteo abierto</h2><p>Mantén abierta tu pantalla</p>';
+    if (active.mode === "free") return '<h2>Sorteo abierto</h2><p>Pulsa Participar en tu teléfono</p>';
     if (active.mode === "visual_key") {
       const option = screenDisplayOption(active);
       const label = visualOptionLabel(option);
@@ -238,11 +239,20 @@
       if (active.mode === "poll") socket.emit("raffle:submit_poll_response", { optionId });
     }
 
+    function submitFreeEntry(button) {
+      if (!active || pendingEntry || active.state !== "collecting" || active.mode !== "free" || active.ownEntry) return;
+      pendingEntry = true;
+      if (button) { button.disabled = true; button.textContent = "Registrando..."; }
+      socket.emit("raffle:enter");
+    }
+
     function bindOverlay(overlay) {
       if (role !== "audience") return;
       overlay.querySelectorAll("[data-raffle-option]").forEach((button) => {
         button.addEventListener("click", () => submitOption(button.dataset.raffleOption));
       });
+      const enterButton = overlay.querySelector("[data-raffle-enter]");
+      enterButton?.addEventListener("click", () => submitFreeEntry(enterButton));
     }
 
     socket.on("raffle:state", applyState);
@@ -257,6 +267,7 @@
     socket.on("raffle:poll_response_accepted", (payload = {}) => applyState({ ...active, ownEntry: payload.entry || active?.ownEntry || {} }));
     socket.on("raffle:rejected", () => {
       pendingEntry = false;
+      rendered = "";
       render();
     });
     socket.on("raffle:closed", clearOverlay);

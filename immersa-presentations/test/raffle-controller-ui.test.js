@@ -25,7 +25,7 @@ const {
 
 function readProjectFile(filePath) { return fs.readFileSync(path.join(__dirname, "..", filePath), "utf8"); }
 function scriptSources(html) { return [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((match) => match[1]); }
-function assertSlideConfirmLoadsBeforeRaffleController(filePath) { const sources = scriptSources(readProjectFile(filePath)); const slideConfirmIndex = sources.findIndex((source) => source.startsWith("/shared/slide-confirm.js")); const raffleControllerIndex = sources.indexOf("/shared/raffle-controller.js"); assert.notEqual(slideConfirmIndex, -1); assert.notEqual(raffleControllerIndex, -1); assert.equal(slideConfirmIndex < raffleControllerIndex, true); }
+function assertSlideConfirmLoadsBeforeRaffleController(filePath) { const sources = scriptSources(readProjectFile(filePath)); const slideConfirmIndex = sources.findIndex((source) => source.startsWith("/shared/slide-confirm.js")); const raffleControllerIndex = sources.findIndex((source) => source.startsWith("/shared/raffle-controller.js")); assert.notEqual(slideConfirmIndex, -1); assert.notEqual(raffleControllerIndex, -1); assert.equal(slideConfirmIndex < raffleControllerIndex, true); }
 function loadBrowserRaffleControlsWithoutHelper() { const sandbox = { console, setTimeout, clearTimeout, setInterval, clearInterval }; sandbox.globalThis = sandbox; vm.runInNewContext(readProjectFile("public/shared/raffle-controller.js"), sandbox); return sandbox.ImmersaRaffleControls; }
 
 test("Speaker loads slide-confirm before raffle-controller", () => { assertSlideConfirmLoadsBeforeRaffleController("public/presenter/index.html"); });
@@ -77,14 +77,12 @@ test("raffle controller resets incomplete local visual key drafts without socket
   assert.equal(controller.getState().active.id, "r-active");
 });
 
-test("raffle selection renders the three approved neutral modes", () => {
+test("raffle selection exposes only the simple free mode", () => {
   const html = renderRaffleController(createInitialRaffleControllerState());
-  assert.match(html, /data-raffle-config-mode="visual_key"/);
-  assert.match(html, /data-raffle-create="poll"/);
   assert.match(html, /data-raffle-create="free"/);
-  assert.match(html, />Clave visual</);
-  assert.match(html, />Encuesta</);
   assert.match(html, />Libre</);
+  assert.doesNotMatch(html, /data-raffle-config-mode="visual_key"|data-raffle-create="poll"/);
+  assert.doesNotMatch(html, />Clave visual|>Encuesta/);
   assert.doesNotMatch(html, /data-raffle-key-option=/);
   assert.doesNotMatch(html, /Abrir participación/);
   assert.doesNotMatch(html, /Usa una dinámica visual preparada/);
@@ -96,7 +94,7 @@ test("browser controller renders fallback UI when slide helper is absent", () =>
   assert.match(html, /Desliza para iniciar sorteo/);
   assert.match(html, /interaction-close-slider/);
   assert.match(html, /data-raffle-slide-confirm/);
-  assert.match(controls.renderRaffleController(controls.createInitialRaffleControllerState()), /data-raffle-config-mode="visual_key"/);
+  assert.match(controls.renderRaffleController(controls.createInitialRaffleControllerState()), /data-raffle-create="free"/);
 });
 
 test("raffle shell preserves poll nodes instead of cloning or replacing them", () => { const source = readProjectFile("public/shared/raffle-controller.js"); assert.match(source, /while \(host\.firstChild\) existing\.appendChild\(host\.firstChild\);/); assert.doesNotMatch(source, /cloneNode/); assert.doesNotMatch(source, /existing\.innerHTML\s*=/); assert.doesNotMatch(source, /\.raffle-existing-content[\s\S]{0,120}innerHTML\s*=/); });
@@ -205,11 +203,11 @@ test("socket capture auto-install skips Speaker and Stage explicit routes", () =
 });
 
 
-test("raffle mode order is Libre, Encuesta, Clave visual", () => {
+test("raffle selection exposes only Libre while advanced modes remain hidden", () => {
   assert.deepEqual(RAFFLE_MODES.map((mode) => mode.id), ["free", "poll", "visual_key"]);
   const html = renderRaffleController(createInitialRaffleControllerState());
-  assert.equal(html.indexOf("<strong>Libre</strong>") < html.indexOf("<strong>Encuesta</strong>"), true);
-  assert.equal(html.indexOf("<strong>Encuesta</strong>") < html.indexOf("<strong>Clave visual</strong>"), true);
+  assert.match(html, /<strong>Libre<\/strong>/);
+  assert.doesNotMatch(html, /<strong>Encuesta<\/strong>|<strong>Clave visual<\/strong>/);
 });
 
 test("eligible metric is hidden when zero and visible when positive", () => {
@@ -371,9 +369,10 @@ test("raffle controller auto-install skips explicit Speaker and Stage hosts", ()
 test("Stage loads interactions shell before raffle controller", () => {
   const sources = scriptSources(readProjectFile("public/stage/index.html"));
   const shellSource = sources.find((source) => source.startsWith("/shared/interactions-shell.js"));
+  const raffleSource = sources.find((source) => source.startsWith("/shared/raffle-controller.js"));
   assert.ok(shellSource);
-  assert.ok(sources.indexOf("/shared/raffle-controller.js") > -1);
-  assert.equal(sources.indexOf(shellSource) < sources.indexOf("/shared/raffle-controller.js"), true);
+  assert.ok(raffleSource);
+  assert.equal(sources.indexOf(shellSource) < sources.indexOf(raffleSource), true);
 });
 
 test("Stage uses native interactions shell with persistent sibling hosts", () => {

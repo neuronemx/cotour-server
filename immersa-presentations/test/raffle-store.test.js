@@ -47,6 +47,10 @@ function connected(...ids) {
   return ids.map((audienceId) => ({ audienceId }));
 }
 
+function enterFreeParticipants(store, ...ids) {
+  for (const audienceId of ids) assert.equal(store.enter({ sessionId: "s1", audienceId }).ok, true);
+}
+
 function createCoordinator(random = () => 0) {
   const interactionStore = new InteractionStore();
   const raffleStore = new RaffleStore(random);
@@ -154,25 +158,32 @@ test("poll raffle accepts one response per audience", () => {
   assert.equal(store.submitPollResponse({ sessionId: "s1", audienceId: "a1", optionId: "no" }).reason, "duplicate_entry");
 });
 
-test("free mode snapshots connected audience on close", () => {
+test("free mode requires explicit entry and does not add connected bystanders on close", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: freeConfig() });
-  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).reason, "free_mode_does_not_use_entries");
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana", label: "Mesa 1" }).ok, true);
+  const duplicate = store.enter({ sessionId: "s1", audienceId: "a1" });
+  assert.equal(duplicate.ok, true);
+  assert.equal(duplicate.duplicate, true);
   assert.equal(store.closeEntries("s1", connected("a1", "a2")).ok, true);
   const state = store.getControllerState("s1");
-  assert.equal(state.active.entryCount, 2);
-  assert.equal(state.active.eligibleCount, 2);
+  assert.equal(state.active.entryCount, 1);
+  assert.equal(state.active.eligibleCount, 1);
+  assert.equal(state.active.entries[0].label, "Mesa 1");
+  assert.equal(store.getAudienceState("s1", "a2").active.ownEntry, null);
 });
 
 test("previous winners are excluded from eligibility in the same session", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"]);
   store.revealWinner("s1");
   store.close("s1");
 
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   const state = store.getControllerState("s1");
   assert.equal(state.active.entryCount, 2);
@@ -183,12 +194,14 @@ test("previous winners are excluded from eligibility in the same session", () =>
 test("reset_winners in entries_closed preserves entries and recalculates eligibility", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"]);
   store.revealWinner("s1");
   store.close("s1");
 
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   const before = store.getControllerState("s1").active;
   assert.equal(before.state, "entries_closed");
@@ -207,6 +220,7 @@ test("reset_winners in entries_closed preserves entries and recalculates eligibi
 test("reset_winners is rejected during drawing and winner", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"]);
   assert.equal(store.resetWinners("s1").reason, "invalid_state");
@@ -214,9 +228,10 @@ test("reset_winners is rejected during drawing and winner", () => {
   assert.equal(store.resetWinners("s1").reason, "invalid_state");
 });
 
-test("disconnected snapshot entries are filtered before draw", () => {
+test("entered participants are filtered by connection before draw", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   assert.equal(store.drawWinner("s1", []).reason, "no_connected_eligible_entries");
   const result = store.drawWinner("s1", ["a2"]);
@@ -251,6 +266,7 @@ test("draw enters drawing and defines revealAt five seconds ahead", () => {
   const store = new RaffleStore(() => 0);
   const nowMs = 1_000_000;
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
 
   const result = store.drawWinner("s1", ["a1", "a2"], { nowMs });
@@ -272,6 +288,7 @@ test("server countdownRemainingMs is relative to the server clock and reaches ze
   const store = new RaffleStore(() => 0);
   const originalNow = Date.now;
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"], { nowMs: 10_000 });
   const raffle = store.getActive("s1");
@@ -288,6 +305,7 @@ test("winner is hidden before reveal and appears automatically after deadline", 
   const store = new RaffleStore(() => 0);
   const nowMs = 2_000_000;
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
@@ -306,6 +324,7 @@ test("refresh during drawing preserves revealAt", () => {
   const store = new RaffleStore(() => 0);
   const nowMs = 3_000_000;
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
@@ -318,6 +337,7 @@ test("close before reveal deadline cancels automatic reveal", () => {
   const store = new RaffleStore(() => 0);
   const nowMs = 4_000_000;
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
@@ -329,6 +349,7 @@ test("close before reveal deadline cancels automatic reveal", () => {
 test("manual reveal handler remains compatible while drawing", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  enterFreeParticipants(store, "a1", "a2");
   store.closeEntries("s1", connected("a1", "a2"));
   store.drawWinner("s1", ["a1", "a2"]);
 
