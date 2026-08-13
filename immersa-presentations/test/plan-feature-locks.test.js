@@ -156,3 +156,11 @@ test("Participation locks Speaker Pro editors before their forms can open", () =
   assert.match(editor, /interaction-form-status/);
   assert.doesNotMatch(editor, /moduleCardMarkup\("contests", "Concursos"/);
 });
+
+test("Home explains how to resolve limits exceeded after a downgrade", () => {
+  const home = read("public/home/home.js");
+  assert.match(home, /excessDecks = Math\.max\(0, usedDecks - deckLimit\)/);
+  assert.match(home, /Actualmente tienes/);
+  assert.match(home, /elimina " \+ excessDecks \+ " Deck/);
+  assert.match(home, /para ajustar tu cuenta/);
+});

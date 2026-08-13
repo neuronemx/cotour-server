@@ -148,6 +148,20 @@ function syncPlanTabs() {
 
 function currentPlanBlockMessage() {
   if (!planUsage) return "";
+  const usedDecks = Math.max(0, Number(planUsage.usage?.decks) || 0);
+  const deckLimit = Math.max(0, Number(planUsage.limits?.decks) || 0);
+  const usedStorage = Math.max(0, Number(planUsage.usage?.storageBytes) || 0);
+  const storageLimit = Math.max(0, Number(planUsage.limits?.storageBytes) || 0);
+  const excessDecks = Math.max(0, usedDecks - deckLimit);
+  const excessStorage = Math.max(0, usedStorage - storageLimit);
+  if (excessDecks > 0 || excessStorage > 0) {
+    const current = "Tu plan " + planUsage.plan + " permite " + deckLimit + " Decks y " + storageLabel(storageLimit)
+      + ". Actualmente tienes " + usedDecks + " Decks y usas " + storageLabel(usedStorage) + ". ";
+    const actions = [];
+    if (excessDecks > 0) actions.push("elimina " + excessDecks + " Deck" + (excessDecks === 1 ? "" : "s"));
+    if (excessStorage > 0) actions.push("libera al menos " + storageLabel(excessStorage));
+    return current + actions.join(" y ").replace(/^./, (letter) => letter.toUpperCase()) + " para ajustar tu cuenta.";
+  }
   if (planUsage.remaining?.decks < 1) {
     return "Alcanzaste las " + planUsage.limits.decks + " presentaciones de tu plan " + planUsage.plan + ".";
   }
