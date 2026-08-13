@@ -53,7 +53,7 @@ test("Audience free entries_closed distinguishes real ownEntry from closed tombo
   store.closeEntries("s1", [{ audienceId: "a1" }]);
 
   assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /Boleto activo/);
-  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a2")), /La tómbola ya está cerrada :\(/);
+  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a2")), /<h2>La tómbola está cerrada<\/h2>/);
 });
 
 test("Audience visual key collecting uses neutral copy and editable selected option", () => {
@@ -117,7 +117,7 @@ test("Audience poll locks after authoritative ownEntry", () => {
 });
 
 test("Audience drawing uses revealAt and refresh does not restart countdown", () => {
-  const active = { mode: "free", state: "drawing", revealAt: new Date(10_000).toISOString() };
+  const active = { mode: "free", state: "drawing", revealAt: new Date(10_000).toISOString(), ownEntry: { enteredAt: new Date(1_000).toISOString() } };
   const first = adjustRaffleHtml(renderAudienceRaffle({ active }, false, 6_100));
   const refreshed = adjustRaffleHtml(renderAudienceRaffle({ active }, false, 8_900));
 
@@ -130,7 +130,7 @@ test("Audience drawing uses revealAt and refresh does not restart countdown", ()
 
 
 test("public countdown uses server relative remaining time despite client clock skew", () => {
-  const active = { mode: "free", state: "drawing", revealAt: new Date(100_000).toISOString(), countdownRemainingMs: 5_000 };
+  const active = { mode: "free", state: "drawing", revealAt: new Date(100_000).toISOString(), countdownRemainingMs: 5_000, ownEntry: { enteredAt: new Date(1_000).toISOString() } };
   const clientAhead = withLocalCountdown(active, 102_000);
   const clientBehind = withLocalCountdown(active, 98_000);
 
@@ -180,13 +180,31 @@ test("Speaker, Audience, and Screen states share the canonical five second revea
 });
 
 test("Audience winner is private and non-winner stays positive without identity", () => {
-  const winnerHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: true } });
-  const otherHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: false } });
+  const ownEntry = { enteredAt: new Date(1_000).toISOString() };
+  const winnerHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: true, ownEntry } });
+  const otherHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: false, ownEntry } });
 
   assert.match(winnerHtml, /¡GANASTE!/);
   assert.match(winnerHtml, /Levanta tu teléfono/);
   assert.match(otherHtml, /Gracias por participar :\)/);
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);
+});
+
+test("Audience free bystander stays on closed tombola through drawing and winner", () => {
+  const store = new RaffleStore(() => 0);
+  store.create({ sessionId: "s1", config: freeConfig() });
+  store.enter({ sessionId: "s1", audienceId: "participant" });
+  store.closeEntries("s1", [{ audienceId: "participant" }, { audienceId: "bystander" }]);
+
+  store.drawWinner("s1", ["participant", "bystander"], { nowMs: 1_000 });
+  const drawingHtml = renderAudienceRaffle(store.getAudienceState("s1", "bystander"), false, 2_000);
+  assert.match(drawingHtml, /<h2>La tómbola está cerrada<\/h2>/);
+  assert.doesNotMatch(drawingHtml, /Sorteando|Revelación en|Gracias por participar/);
+
+  store.revealWinner("s1", { nowMs: 6_000 });
+  const winnerHtml = renderAudienceRaffle(store.getAudienceState("s1", "bystander"));
+  assert.match(winnerHtml, /<h2>La tómbola está cerrada<\/h2>/);
+  assert.doesNotMatch(winnerHtml, /¡GANASTE!|Gracias por participar/);
 });
 
 test("Closed raffle clears public overlays", () => {

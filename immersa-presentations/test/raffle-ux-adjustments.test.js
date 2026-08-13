@@ -23,7 +23,7 @@ test("countdown suffix is removed from Sorteos views without changing remaining 
     ...createInitialRaffleControllerState(),
     active: { id: "r1", mode: "free", state: "drawing", revealAt }
   }));
-  const audienceHtml = adjustRaffleHtml(renderAudienceRaffle({ active: { id: "r2", mode: "free", state: "drawing", revealAt } }));
+  const audienceHtml = adjustRaffleHtml(renderAudienceRaffle({ active: { id: "r2", mode: "free", state: "drawing", revealAt, ownEntry: { enteredAt: new Date(1_000).toISOString() } } }));
   const screenHtml = adjustRaffleHtml(renderScreenRaffle({ active: { id: "r3", mode: "free", state: "drawing", revealAt } }));
 
   assert.doesNotMatch(controllerHtml, /<strong>\d+s<\/strong>/);

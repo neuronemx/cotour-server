@@ -88,6 +88,7 @@
 
   function renderAudienceEntriesClosed(active) {
     if (active.ownEntry) return '<h2>Boleto activo</h2><p>La tómbola está cerrada. Mantente atento.</p>';
+    if (active.mode === "free") return '<h2>La tómbola está cerrada</h2>';
     if (active.mode === "visual_key" && active.ownSelection) return '<h2>Gracias por participar :)</h2>';
     return '<h2>La tómbola ya está cerrada :(</h2><p>Mantente atento a próximos sorteos</p>';
   }
@@ -107,7 +108,9 @@
     const active = normalizeRaffleState(stateOrActive);
     if (!active) return "";
     const withWinner = privateWinner ? { ...active, isWinner: true } : active;
-    const body = withWinner.state === "collecting" ? renderAudienceCollecting(withWinner)
+    const freeBystander = withWinner.mode === "free" && ["entries_closed", "drawing", "winner"].includes(withWinner.state) && !withWinner.ownEntry;
+    const body = freeBystander ? renderAudienceEntriesClosed(withWinner)
+      : withWinner.state === "collecting" ? renderAudienceCollecting(withWinner)
       : withWinner.state === "entries_closed" ? renderAudienceEntriesClosed(withWinner)
       : withWinner.state === "drawing" ? renderAudienceDrawing(withWinner, nowMs)
       : withWinner.state === "winner" ? renderAudienceWinner(withWinner)
