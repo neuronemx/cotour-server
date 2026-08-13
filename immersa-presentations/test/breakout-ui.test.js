@@ -85,5 +85,6 @@ test("browser module requests current state and preserves approved shell source"
   const shell = fs.readFileSync(path.join(__dirname, "../public/shared/interactions-shell.js"), "utf8");
   assert.match(ui, /breakout:request_state/);
   assert.match(ui, /data-interactions-category="games"/);
+  assert.doesNotMatch(ui, /games\.disabled=false|games\.removeAttribute\('aria-disabled'\)/);
   assert.match(shell, /games", label: "Juegos", enabled: true/);
 });

@@ -59,7 +59,7 @@ test("Breakout intro includes preload, autoplay recovery, cache busting, and fal
   assert.match(css, /\.breakout-intro\{z-index:10/);
   assert.match(ui, /\},true\)\}if\(role===\x27presenter\x27/);
   assert.match(runtime, /breakout-ui\.css\?v=105/);
-  assert.match(runtime, /breakout-ui\.js\?v=115/);
+  assert.match(runtime, /breakout-ui\.js\?v=116/);
   assert.match(ui, /function patchScreenState\(\).*?breakout-paddle/);
   assert.match(
     ui,

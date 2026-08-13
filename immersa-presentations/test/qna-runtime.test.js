@@ -125,6 +125,43 @@ test("enabled runtime reports state failures without breaking the presentation j
   assert.equal(logger.errors.length, 1);
 });
 
+test("inactivity shutdown archives the old Q&A execution and starts closed", async () => {
+  const calls = [];
+  const repository = {
+    async getActivePresentationSession() {
+      return { presentationSessionId: "old-session", startedAt: "2026-08-12T10:00:00.000Z" };
+    },
+    async startPresentationSession(payload) {
+      calls.push(payload);
+      return { presentationSessionId: "fresh-session", qnaRoundId: "fresh-round", questionsOpen: false };
+    },
+    async getActiveState(presentationSessionId) {
+      assert.equal(presentationSessionId, "fresh-session");
+      return { roundId: "fresh-round", roundNumber: 1, questionsOpen: false, selectedQuestionId: null, questions: [] };
+    }
+  };
+  const runtime = createQnaRuntime({
+    env: { IMMERSA_QNA_ENABLED: "true" },
+    pool: { async end() {} },
+    repository,
+    executionCoordinator: { async openScreen() {} },
+    io: fakeIo(),
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getRoomKey: (sessionId, deckId) => `${sessionId}::${deckId}`,
+    getConnectedAudience: () => []
+  });
+
+  const result = await runtime.shutdownSessionIfStale({
+    deckId: "deck-a",
+    sourceSessionId: "source-a",
+    inactivityMs: 60 * 60 * 1000,
+    now: Date.parse("2026-08-12T12:00:00.000Z")
+  });
+
+  assert.equal(result.expired, true);
+  assert.deepEqual(calls, [{ deckId: "deck-a", sourceSessionId: "source-a", replaceActive: true }]);
+});
+
 test("enabled runtime lists history and exports every deck execution", async () => {
   const calls = [];
   const repository = {
