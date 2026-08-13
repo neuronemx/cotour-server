@@ -112,6 +112,26 @@
 .interactions-status.success { color: var(--green); }
 .interactions-status.error { color: var(--red); }
 
+.interaction-submit-feedback {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.interaction-form-status {
+  max-width: 280px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.interaction-form-status:empty { display: none; }
+.interaction-form-status.success { color: var(--green); }
+.interaction-form-status.error { color: var(--red); }
+
 .interactions-list,
 .interactions-hub,
 .interactions-polls-section,

@@ -17,10 +17,10 @@ function fakeSocket() {
   };
 }
 
-test("Q&A is disabled by default and never constructs a MySQL pool", async () => {
+test("Q&A can be explicitly disabled without constructing a MySQL pool", async () => {
   let poolCreated = false;
   const runtime = createQnaRuntime({
-    env: {},
+    env: { IMMERSA_QNA_ENABLED: "false" },
     createPool() { poolCreated = true; throw new Error("must not run"); }
   });
   const socket = fakeSocket();
@@ -33,11 +33,12 @@ test("Q&A is disabled by default and never constructs a MySQL pool", async () =>
   assert.deepEqual(socket.emissions, []);
 });
 
-test("Q&A feature flag accepts explicit true values only", () => {
-  for (const value of ["1", "true", "TRUE", "yes", "on"]) {
+test("Q&A is enabled by default and accepts an explicit opt-out", () => {
+  for (const value of ["", "1", "true", "TRUE", "yes", "on", undefined]) {
     assert.equal(qnaEnabled({ IMMERSA_QNA_ENABLED: value }), true);
   }
-  for (const value of ["", "0", "false", "disabled", undefined]) {
+  assert.equal(qnaEnabled({}), true);
+  for (const value of ["0", "false", "no", "off", "disabled"]) {
     assert.equal(qnaEnabled({ IMMERSA_QNA_ENABLED: value }), false);
   }
 });

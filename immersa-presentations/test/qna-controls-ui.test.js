@@ -5,7 +5,7 @@ const test = require("node:test");
 
 const root = path.join(__dirname, "..");
 
-test("Speaker and Stage expose Q&A through Interacciones only after Q&A state arrives", async () => {
+test("Speaker and Stage expose Q&A immediately when the plan allows it", async () => {
   const [presenterHtml, presenterScript, stageHtml, stageScript, controls, css] = await Promise.all([
     fs.promises.readFile(path.join(root, "public", "presenter", "index.html"), "utf8"),
     fs.promises.readFile(path.join(root, "public", "presenter", "presenter.js"), "utf8"),
@@ -20,6 +20,7 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(stageHtml, /shared\/qna-controls\.css/);
   assert.match(stageHtml, /shared\/qna-controls\.js/);
   assert.match(presenterScript, /role: "presenter"/);
+  assert.match(presenterScript, /qnaAvailable = planAllows\("qna\.run"\)/);
   assert.match(presenterScript, /launcher: false/);
   assert.match(presenterScript, /view === "qna"/);
   assert.match(presenterScript, /qnaControls\?\.open\(\)/);
@@ -27,6 +28,7 @@ test("Speaker and Stage expose Q&A through Interacciones only after Q&A state ar
   assert.match(presenterScript, /interactionPanelOpen \|\| qnaQuestionsOpen/);
   assert.match(presenterScript, /Interacciones · Preguntas abiertas/);
   assert.match(stageScript, /role: "stage"/);
+  assert.match(stageScript, /qnaAvailable = planAllows\("qna\.run"\)/);
   assert.match(stageScript, /launcher: false/);
   assert.match(stageScript, /view === "qna"/);
   assert.match(stageScript, /stageActionsOpen \|\| qnaQuestionsOpen/);

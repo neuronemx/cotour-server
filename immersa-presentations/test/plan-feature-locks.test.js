@@ -146,3 +146,13 @@ test("Home keeps the plan sections visible and filters Backstage on FREE", () =>
   assert.match(source, /access\.backstage/);
   assert.match(source, /Backstage/);
 });
+
+test("Participation locks Speaker Pro editors before their forms can open", () => {
+  const editor = read("public/home/interactions-editor.js");
+  assert.match(editor, /canConfigure\("assessments\.run"\)/);
+  assert.match(editor, /canConfigure\("trivia\.run"\)/);
+  assert.match(editor, /moduleCardMarkup\("assessments", "Evaluaciones"[\s\S]+enabled: assessmentsEnabled/);
+  assert.match(editor, /moduleCardMarkup\("contests", "Trivias"[\s\S]+enabled: contestsEnabled/);
+  assert.match(editor, /interaction-form-status/);
+  assert.doesNotMatch(editor, /moduleCardMarkup\("contests", "Concursos"/);
+});

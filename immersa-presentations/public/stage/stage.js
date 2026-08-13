@@ -110,7 +110,7 @@ const stageThumbsPanel = document.getElementById("stageThumbsPanel");
 const stageThumbsToggle = document.getElementById("stageThumbsToggle");
 const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
-let qnaAvailable = false;
+let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,

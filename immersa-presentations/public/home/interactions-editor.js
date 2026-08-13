@@ -14,6 +14,7 @@
   let modal = null;
   let listNode = null;
   let statusNode = null;
+  let planAccess = null;
 
   function niceTitle(value) {
     return String(value || "Presentación").replace(/[-_]+/g, " ").trim() || "Presentación";
@@ -118,6 +119,25 @@
     statusNode.className = "interactions-status" + (type ? " " + type : "");
   }
 
+  function setFormStatus(form, message, type = "") {
+    const node = form?.querySelector(".interaction-form-status");
+    if (!node) return;
+    node.textContent = message || "";
+    node.className = "interaction-form-status" + (type ? " " + type : "");
+  }
+
+  function canConfigure(capability) {
+    if (currentDeck?.demoRole === "master") return true;
+    return planAccess?.capabilities?.[capability] === true || planAccess?.features?.[capability] === true;
+  }
+
+  async function loadPlanAccess() {
+    const res = await fetch("/api/account/plan", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "No se pudo validar el plan.");
+    planAccess = data;
+  }
+
   async function loadInteractions(deck) {
     const res = await fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/interactions", { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
@@ -158,7 +178,7 @@
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
     setStatus("Cargando…");
-    loadInteractions(deck)
+    Promise.all([loadInteractions(deck), loadPlanAccess()])
       .then(() => {
         setStatus("");
         renderList();
@@ -202,10 +222,12 @@
       : "Ninguna creada · Selecciona para comenzar";
     const hub = document.createElement("section");
     hub.className = "interactions-hub";
+    const assessmentsEnabled = canConfigure("assessments.run");
+    const contestsEnabled = canConfigure("trivia.run");
     hub.innerHTML = '<p class="interactions-section-label">Disponibles para este deck</p><div class="interaction-module-list">'
       + moduleCardMarkup("polls", "Encuestas", pollDetail, { enabled: true })
-      + moduleCardMarkup("assessments", "Evaluaciones", assessments.length + " creada" + (assessments.length === 1 ? "" : "s"), { enabled: true })
-      + moduleCardMarkup("contests", "Concursos", contests.length + " creado" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: true })
+      + moduleCardMarkup("assessments", "Evaluaciones", assessments.length + " creada" + (assessments.length === 1 ? "" : "s"), { enabled: assessmentsEnabled, plan: assessmentsEnabled ? "" : "SPEAKER PRO" })
+      + moduleCardMarkup("contests", "Trivias", contests.length + " creada" + (contests.length === 1 ? "" : "s") + " · clasificación en vivo", { enabled: contestsEnabled, plan: contestsEnabled ? "" : "SPEAKER PRO" })
       + '</div>';
     hub.querySelectorAll('[data-module]:not(:disabled)').forEach((button) => button.addEventListener("click", () => {
       const kind = button.dataset.module;
@@ -251,7 +273,7 @@
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar encuesta</button></div>';
+    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar encuesta</button></div></div>';
     const title = form.elements.title;
     const prompt = form.elements.prompt;
     const optionsFields = form.querySelector(".interaction-options-fields");
@@ -293,20 +315,20 @@
       event.preventDefault();
       const next = normalizeForForm({ ...draft, title: title.value.trim(), prompt: prompt.value.trim() });
       next.options = draft.options.map((option, optionIndex) => ({ id: option.id || optionId(optionIndex), label: String(option.label || "").trim() })).filter((option) => option.label);
-      if (!next.prompt) return setStatus("La pregunta visible para público es obligatoria.", "error");
-      if (next.options.length < MIN_OPTIONS) return setStatus("Agrega al menos dos opciones.", "error");
+      if (!next.prompt) return setFormStatus(form, "La pregunta visible para público es obligatoria.", "error");
+      if (next.options.length < MIN_OPTIONS) return setFormStatus(form, "Agrega al menos dos opciones.", "error");
       const saved = [...interactions];
       if (editingIndex === null) saved.push(next);
       else saved[editingIndex] = next;
       try {
-        setStatus("Guardando…");
+        setFormStatus(form, "Guardando…");
         await saveInteractions(saved);
         activeDraft = null;
         editingIndex = null;
         setStatus("Encuesta guardada.", "success");
         renderList();
       } catch (error) {
-        setStatus(error.message, "error");
+        setFormStatus(form, error.message, "error");
       }
     });
     window.setTimeout(() => title.focus(), 20);
@@ -494,11 +516,11 @@
   }
 
   function renderKnowledgeForm(category, draft, index) {
-    const noun = category === "contest" ? "concurso" : "evaluación";
+    const noun = category === "contest" ? "trivia" : "evaluación";
     const form = document.createElement("form");
     form.className = "interaction-edit-form knowledge-definition-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Concurso" : "Evaluación") + '</h3></div>'
+    form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Trivia" : "Evaluación") + '</h3></div>'
       + '<label><span>Título</span><input name="title" maxlength="240" required placeholder="Ej. Conocimiento del producto"></label>'
       + '<label><span>Identificación</span><select name="identificationMode"><option value="anonymous">Anónima</option><option value="optional_name">Nombre opcional</option><option value="required_name">Nombre obligatorio</option></select></label>'
       + (category === "contest"
@@ -506,7 +528,7 @@
         : '<label><span>Tiempo total (minutos)</span><input name="duration" type="number" min="1" max="180" required></label>')
       + (category === "contest" ? '<p class="knowledge-duration-estimate" data-knowledge-estimate></p>' : "")
       + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question>+ Agregar pregunta</button>'
-      + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><button class="primary-action" type="submit">Guardar ' + noun + "</button></div>";
+      + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar ' + noun + "</button></div></div>";
     form.elements.title.value = draft.title || "";
     form.elements.identificationMode.value = draft.identificationMode || "anonymous";
     form.elements.duration.value = category === "contest"
@@ -551,22 +573,22 @@
         prompt: String(question.prompt || "").trim(),
         options: question.options.map((option) => ({ ...option, label: String(option.label || "").trim() })).filter((option) => option.label)
       }));
-      if (!draft.title) return setStatus("El título es obligatorio.", "error");
+      if (!draft.title) return setFormStatus(form, "El título es obligatorio.", "error");
       if (draft.questions.some((question) => !question.prompt || question.options.length < MIN_OPTIONS || !question.options.some((option) => option.id === question.correctOptionId))) {
-        return setStatus("Cada pregunta necesita texto, al menos dos opciones y una respuesta correcta.", "error");
+        return setFormStatus(form, "Cada pregunta necesita texto, al menos dos opciones y una respuesta correcta.", "error");
       }
       const next = knowledgeList(category).slice();
       if (index === null) next.push(draft);
       else next[index] = draft;
       try {
-        setStatus("Guardando…");
+        setFormStatus(form, "Guardando…");
         await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
         activeDraft = null;
         editingIndex = null;
-        setStatus((category === "contest" ? "Concurso" : "Evaluación") + " guardado.", "success");
+        setStatus((category === "contest" ? "Trivia" : "Evaluación") + " guardada.", "success");
         renderList();
       } catch (error) {
-        setStatus(error.message, "error");
+        setFormStatus(form, error.message, "error");
       }
     });
     return form;
@@ -600,7 +622,7 @@
             renderList();
           }),
           makeButton("Eliminar", "interactions-text-action danger", async () => {
-            if (!window.confirm("¿Eliminar " + (category === "contest" ? "este concurso" : "esta evaluación") + "?")) return;
+            if (!window.confirm("¿Eliminar " + (category === "contest" ? "esta trivia" : "esta evaluación") + "?")) return;
             const next = items.filter((_value, itemIndex) => itemIndex !== index);
             try {
               await saveInteractions(interactions, category === "contest" ? next : contests, category === "assessment" ? next : assessments);
@@ -615,7 +637,7 @@
       });
       section.appendChild(list);
     }
-    section.appendChild(makeButton(category === "contest" ? "Crear concurso" : "Crear evaluación", "interactions-create-action", () => {
+    section.appendChild(makeButton(category === "contest" ? "Crear trivia" : "Crear evaluación", "interactions-create-action", () => {
       activeDraft = defaultKnowledgeDraft(category);
       editingIndex = null;
       renderList();

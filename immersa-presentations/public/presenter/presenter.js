@@ -38,7 +38,7 @@ const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
 const deckNotice = document.getElementById("deckNotice");
-let qnaAvailable = false;
+let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,

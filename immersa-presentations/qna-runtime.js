@@ -5,7 +5,8 @@ const { createQnaSocketHandlers } = require("./qna-sockets");
 const { buildQnaCsv } = require("./qna-csv");
 
 function qnaEnabled(env = process.env) {
-  return /^(1|true|yes|on)$/i.test(String(env.IMMERSA_QNA_ENABLED || "").trim());
+  const value = String(env.IMMERSA_QNA_ENABLED ?? "").trim();
+  return !/^(0|false|no|off|disabled)$/i.test(value);
 }
 
 function disabledRuntime() {
