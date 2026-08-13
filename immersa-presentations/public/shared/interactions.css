@@ -1845,6 +1845,28 @@ body.stage-actions-open .interaction-slide-scrim {
   cursor: default !important;
 }
 
+/* Keep both home rows aligned to the same three equal columns. */
+.interaction-panel .interactions-shell-group,
+.stage-actions-card .interactions-shell-group,
+.interaction-panel .interactions-shell-group-row,
+.stage-actions-card .interactions-shell-group-row {
+  width: 100%;
+}
+
+.interaction-panel .interactions-shell-group-row,
+.stage-actions-card .interactions-shell-group-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch;
+}
+
+.interaction-panel button.interactions-shell-category-expanded,
+.stage-actions-card button.interactions-shell-category-expanded {
+  width: 100% !important;
+  min-width: 0;
+  justify-self: stretch;
+}
+
 .interactions-shell-back {
   width: max-content;
   min-height: 24px !important;

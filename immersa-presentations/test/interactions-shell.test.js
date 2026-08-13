@@ -155,6 +155,12 @@ test("disabled Games remains visible in the Demo shell", () => {
   assert.deepEqual(selected, []);
 });
 
+test("home groups keep the same three-column alignment and distribution", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
+  assert.match(css, /\.interaction-panel \.interactions-shell-group-row,[\s\S]*display: grid !important;[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) !important;/);
+  assert.match(css, /button\.interactions-shell-category-expanded,[\s\S]*width: 100% !important;[\s\S]*justify-self: stretch;/);
+});
+
 
 test("interactions shell renderer visibility respects hidden state across views", () => {
   const { root, document } = setup();
