@@ -41,4 +41,5 @@ test("shared presentation runtime loads queue UI for every presentation role", (
   assert.match(runtime, /\/shared\/games-ui\.css/);
   assert.match(runtime, /\/shared\/games-ui\.js/);
   assert.match(gamesUi, /typeof socket !== "undefined" \? socket : root\.socket/);
+  assert.doesNotMatch(gamesUi, /games\.disabled = false|games\.removeAttribute\("aria-disabled"\)/);
 });

@@ -13,6 +13,11 @@ const { ActiveInteractionCoordinator } = require("./active-interaction-coordinat
 const { GameQueueStore } = require("./game-queue-store");
 const { createGameQueueSocketHandlers } = require("./game-queue-sockets");
 const { registerAudience, unregisterAudience } = require("./audience-registry");
+const {
+  resolveSessionInactivityMs,
+  isMeaningfulSessionEvent,
+  isSessionInactive
+} = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
@@ -47,6 +52,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const AUTO_START_AUDIENCE_THRESHOLD = 10;
+const SESSION_INACTIVITY_MS = resolveSessionInactivityMs();
+const SESSION_INACTIVITY_SWEEP_MS = Math.min(60_000, Math.max(5_000, Math.round(SESSION_INACTIVITY_MS / 12)));
 const PUBLIC_DIR = path.join(__dirname, "public");
 const STATIC_DECKS_DIR = path.join(PUBLIC_DIR, "decks");
 const DATA_DIR = process.env.IMMERSA_DATA_DIR
@@ -56,6 +63,7 @@ const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const sessions = new Map();
+const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
 const deckSlideCounts = { demo: 3 };
 const allowedReactions = new Set(["❤️", "👏", "🔥"]);
@@ -620,6 +628,8 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     screenConnected: false,
     stageConnected: false,
     automaticLifecycleStarted: false,
+    lastActivityAt: Date.now(),
+    inactivityShutdownAt: null,
     audience: new Map(),
     overlays: {
       reactionsOnScreen: true,
@@ -693,6 +703,74 @@ function emitState(roomKey, session) {
   io.to(roomKey).emit("presentation_state", publicState(session));
   io.to(roomKey).emit("audience_count", session.audience.size);
 }
+
+function touchSession(roomKey, now = Date.now()) {
+  const session = getSessionByRoomKey(roomKey);
+  if (!session) return;
+  session.lastActivityAt = now;
+  session.inactivityShutdownAt = null;
+}
+
+async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
+  if (!session || session.inactivityShutdownAt || sessionShutdowns.has(roomKey)) return false;
+  const context = {
+    roomKey,
+    sessionId: session.sessionId,
+    deckId: session.deckId,
+    role: "system"
+  };
+  const shutdown = (async () => {
+    const asyncResets = await Promise.allSettled([
+      knowledgeActivityRuntime.resetSession(context),
+      qnaRuntime.shutdownSession?.({ deckId: session.deckId, sourceSessionId: session.sessionId })
+    ]);
+    asyncResets.forEach((result) => {
+      if (result.status === "rejected") console.error("Unable to fully reset inactive session", result.reason);
+    });
+    interactionSockets.resetSession(context);
+    raffleSockets.resetSession(context);
+    gameQueueSockets.resetSession(context);
+    brandMentionRuntime.stop(roomKey);
+
+    const qnaReplacement = asyncResets[1]?.status === "fulfilled" ? asyncResets[1].value : null;
+    session.slideIndex = 0;
+    session.presenterSlideIndex = 0;
+    session.liveSlideIndex = 0;
+    session.transmissionPaused = false;
+    session.transmissionPausedBy = null;
+    session.automaticLifecycleStarted = false;
+    session.overlays = createSession(session.sessionId, session.deckId, session.slideCount).overlays;
+    session.lastActivityAt = now;
+    session.inactivityShutdownAt = now;
+    io.to(roomKey).emit("presentation:inactive_shutdown", {
+      reason: "INACTIVITY",
+      inactivityMinutes: Math.round(SESSION_INACTIVITY_MS / 60_000)
+    });
+    if (qnaReplacement?.presentationSessionId) {
+      presentationLifecycleRuntime.emitState(context, {
+        available: true,
+        mode: "test",
+        presentationSessionId: qnaReplacement.presentationSessionId,
+        startedAt: null
+      });
+    }
+    emitState(roomKey, session);
+    console.log("[session] inactive shutdown", roomKey);
+    return true;
+  })().finally(() => sessionShutdowns.delete(roomKey));
+  sessionShutdowns.set(roomKey, shutdown);
+  return shutdown;
+}
+
+const sessionInactivitySweep = setInterval(() => {
+  const now = Date.now();
+  for (const [roomKey, session] of sessions) {
+    if (!session.inactivityShutdownAt && isSessionInactive(session, now, SESSION_INACTIVITY_MS)) {
+      void shutdownInactiveSession(roomKey, session, now);
+    }
+  }
+}, SESSION_INACTIVITY_SWEEP_MS);
+sessionInactivitySweep.unref?.();
 
 async function setPresenterSlide(roomKey, session, nextIndex) {
   const requestedIndex = Number.isFinite(nextIndex) ? nextIndex : 0;
@@ -1064,6 +1142,11 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.use(([eventName], next) => {
+    if (currentRoomKey && isMeaningfulSessionEvent(eventName)) touchSession(currentRoomKey);
+    next();
+  });
+
   interactionSockets.attach(socket, () => ({
     roomKey: currentRoomKey,
     role: currentRole,
@@ -1115,7 +1198,23 @@ io.on("connection", (socket) => {
     currentRole = role;
     currentSessionId = joinedSessionId;
     currentDeckId = joinedDeckId;
-    const session = getSession(joinedSessionId, joinedDeckId);
+    let session = getSessionByRoomKey(currentRoomKey);
+    try {
+      if (session && isSessionInactive(session, Date.now(), SESSION_INACTIVITY_MS)) {
+        await shutdownInactiveSession(currentRoomKey, session);
+      } else if (!session && qnaRuntime.shutdownSessionIfStale) {
+        const staleResult = await qnaRuntime.shutdownSessionIfStale({
+          deckId: joinedDeckId,
+          sourceSessionId: joinedSessionId,
+          inactivityMs: SESSION_INACTIVITY_MS
+        });
+        if (staleResult?.expired) console.log("[session] stale persisted Q&A reset", currentRoomKey);
+      }
+    } catch (error) {
+      console.error("Unable to verify session inactivity during join", error);
+    }
+    session = getSession(joinedSessionId, joinedDeckId);
+    touchSession(currentRoomKey);
     try {
       currentFeatureAccess = isSystemDemoDeckId(joinedDeckId)
         ? featureAccessForPlan("SPEAKER_PRO")
@@ -1303,6 +1402,7 @@ server.listen(PORT, () => {
   console.log("Immersa Presentations running at http://localhost:" + PORT);
   console.log("Q&A runtime enabled:", qnaRuntime.enabled);
   console.log("Contest and assessment runtime enabled:", knowledgeActivityRuntime.enabled);
+  console.log("Session inactivity shutdown:", Math.round(SESSION_INACTIVITY_MS / 60_000), "minutes");
   logConversionHealth();
 });
 

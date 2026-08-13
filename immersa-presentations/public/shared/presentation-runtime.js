@@ -51,13 +51,13 @@
     }
     if (!root.document.querySelector("script[data-immersa-games-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/games-ui.js?v=2";
+      script.src = "/shared/games-ui.js?v=3";
       script.dataset.immersaGamesUi = "1";
       root.document.head.appendChild(script);
     }
     if (!root.document.querySelector("script[data-immersa-breakout-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/breakout-ui.js?v=115";
+      script.src = "/shared/breakout-ui.js?v=116";
       script.dataset.immersaBreakoutUi = "1";
       root.document.head.appendChild(script);
     }

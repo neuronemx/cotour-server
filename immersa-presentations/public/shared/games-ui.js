@@ -56,12 +56,6 @@
       const shell = doc.querySelector(".interactions-native-shell");
       const content = shell?.querySelector?.("[data-interactions-content-root]");
       if (!shell || !content) return null;
-      const games = shell.querySelector('[data-interactions-category="games"]');
-      if (games) {
-        games.disabled = false;
-        games.removeAttribute("aria-disabled");
-        games.tabIndex = 0;
-      }
       renderer = doc.createElement("div");
       renderer.className = "interaction-games-queue-renderer";
       renderer.dataset.interactionsView = "games";

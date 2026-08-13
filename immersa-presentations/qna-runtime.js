@@ -16,6 +16,8 @@ function disabledRuntime() {
     exportDeckCsv: null,
     clearHistory: null,
     resetSessionState: null,
+    shutdownSession: null,
+    shutdownSessionIfStale: null,
     repository: null,
     attach() {},
     async sendCurrentState() {},
@@ -49,6 +51,20 @@ function createQnaRuntime(options = {}) {
     resolvePresentationSessionId
   });
 
+  async function replaceSession({ deckId, sourceSessionId }) {
+    const replacement = await repository.startPresentationSession({
+      deckId,
+      sourceSessionId,
+      replaceActive: true
+    });
+    await sockets.resetAfterHistoryDelete({
+      deckId,
+      sourceSessionId,
+      presentationSessionId: replacement.presentationSessionId
+    });
+    return replacement;
+  }
+
   return {
     enabled: true,
     startScreenExecution: (payload) => executionCoordinator.openScreen(payload),
@@ -74,6 +90,16 @@ function createQnaRuntime(options = {}) {
         sourceSessionId,
         presentationSessionId
       });
+    },
+    async shutdownSession({ deckId, sourceSessionId }) {
+      return replaceSession({ deckId, sourceSessionId });
+    },
+    async shutdownSessionIfStale({ deckId, sourceSessionId, inactivityMs, now = Date.now() }) {
+      const active = await repository.getActivePresentationSession({ deckId, sourceSessionId });
+      const startedAt = active?.startedAt ? new Date(active.startedAt).getTime() : 0;
+      if (!startedAt || now - startedAt < inactivityMs) return { expired: false, presentationSessionId: active?.presentationSessionId || null };
+      const replacement = await replaceSession({ deckId, sourceSessionId });
+      return { ...replacement, expired: true };
     },
     attach(socket, getContext) {
       sockets.attach(socket, getContext);
