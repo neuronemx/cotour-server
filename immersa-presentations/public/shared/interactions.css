@@ -1839,6 +1839,12 @@ body.stage-actions-open .interaction-slide-scrim {
   box-shadow: none;
 }
 
+.interaction-panel button.interactions-shell-category:disabled,
+.stage-actions-card button.interactions-shell-category:disabled,
+.interactions-shell-category[aria-disabled="true"] {
+  cursor: default !important;
+}
+
 .interactions-shell-back {
   width: max-content;
   min-height: 24px !important;
