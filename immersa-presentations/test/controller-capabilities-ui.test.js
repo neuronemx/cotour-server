@@ -57,7 +57,7 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
   assert.doesNotMatch(script, /audienceQrClose/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*visible;/);
-  assert.match(html, /audience\.css\?v=12/);
+  assert.match(html, /audience\.css\?v=13/);
 });
 
 test("Audience glass controls paint their fills continuously", () => {

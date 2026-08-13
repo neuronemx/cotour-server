@@ -204,9 +204,9 @@
     const disabled = Boolean(state.activeInteraction || state.pendingEvent);
     const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
     if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><h2>Clave visual</h2><p>Elige la opción que se mostrará en Screen.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
-    const modeButtons = RAFFLE_MODES.map((mode) => {
+    const modeButtons = RAFFLE_MODES.filter((mode) => mode.id === "free").map((mode) => {
       const attrs = mode.id === "visual_key" ? 'data-raffle-config-mode="visual_key"' : 'data-raffle-create="' + mode.id + '"';
-      const descriptions = { free: 'Participan las personas conectadas.', poll: 'Sortea entre respuestas de una encuesta.', visual_key: 'Define una clave visual de cuatro opciones.' }; const selectedClass = state.configMode === mode.id ? ' is-selected' : ''; return '<button type="button" class="raffle-mode-card' + selectedClass + '" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong><span class="raffle-mode-description">' + descriptions[mode.id] + '</span></button>';
+      const descriptions = { free: 'Participan solo quienes pulsen Participar.' }; const selectedClass = state.configMode === mode.id ? ' is-selected' : ''; return '<button type="button" class="raffle-mode-card' + selectedClass + '" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong><span class="raffle-mode-description">' + descriptions[mode.id] + '</span></button>';
     }).join("");
     return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteos disponibles</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
   }

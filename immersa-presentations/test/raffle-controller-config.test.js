@@ -13,15 +13,14 @@ function tagFor(html, optionId) {
   return html.match(new RegExp('<button[^>]+data-raffle-key-option="' + optionId + '"[^>]*>'))?.[0] || "";
 }
 
-test("raffle controller starts in neutral mode selection", () => {
+test("raffle controller starts with only the simple free mode visible", () => {
   const state = createInitialRaffleControllerState();
   const html = renderRaffleController(state);
 
   assert.equal(state.visualKeyDraftEntryKey, "");
   assert.equal(state.configMode, "");
-  assert.match(html, /data-raffle-config-mode="visual_key"/);
-  assert.match(html, /data-raffle-create="poll"/);
   assert.match(html, /data-raffle-create="free"/);
+  assert.doesNotMatch(html, /data-raffle-config-mode="visual_key"|data-raffle-create="poll"/);
   assert.doesNotMatch(html, /data-raffle-key-option=/);
   assert.doesNotMatch(html, /Abrir participación/);
 });

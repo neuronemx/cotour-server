@@ -31,21 +31,25 @@ function readProjectFile(filePath) {
   return fs.readFileSync(path.join(__dirname, "..", filePath), "utf8");
 }
 
-test("Audience free collecting shows visual participation without creating fake ownEntry", () => {
+test("Audience free collecting requires an explicit participation ticket", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: freeConfig() });
   const state = store.getAudienceState("s1", "a1");
   const html = renderAudienceRaffle(state);
 
   assert.equal(state.active.ownEntry, null);
-  assert.match(html, /Ya estás participando/);
-  assert.match(html, /Tu boleto está dentro de la tómbola/);
-  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).reason, "free_mode_does_not_use_entries");
+  assert.match(html, /data-raffle-enter>Participar/);
+  assert.doesNotMatch(html, /Estás participando|Tu boleto está dentro de la tómbola/);
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).ok, true);
+  const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
+  assert.match(enteredHtml, /Estás participando/);
+  assert.match(enteredHtml, /Tu boleto está dentro de la tómbola/);
 });
 
 test("Audience free entries_closed distinguishes real ownEntry from closed tombola", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: freeConfig() });
+  store.enter({ sessionId: "s1", audienceId: "a1" });
   store.closeEntries("s1", [{ audienceId: "a1" }]);
 
   assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /Boleto activo/);
@@ -142,6 +146,8 @@ test("Speaker, Audience, and Screen states share the canonical five second revea
   const store = new RaffleStore(() => 0);
   const nowMs = 20_000;
   store.create({ sessionId: "s1", config: freeConfig() });
+  store.enter({ sessionId: "s1", audienceId: "a1", label: "Mesa 1" });
+  store.enter({ sessionId: "s1", audienceId: "a2", label: "Mesa 2" });
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
@@ -234,6 +240,8 @@ test("Screen visual key option follows selected Speaker config and stays frozen"
 test("Screen drawing and winner keep identity private", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
+  store.enter({ sessionId: "s1", audienceId: "a1", label: "Mesa 1" });
+  store.enter({ sessionId: "s1", audienceId: "a2", label: "Mesa 2" });
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs: 1000 });
 
@@ -253,11 +261,12 @@ test("Screen drawing and winner keep identity private", () => {
   assert.doesNotMatch(winnerHtml, /Mesa|audienceId|ticket|Ganador seleccionado/);
 });
 
-test("Public raffle runtime uses existing entry events and closes Audience explicitly", () => {
+test("Public raffle runtime sends explicit free entry and closes Audience explicitly", () => {
   const publicUi = readProjectFile("public/shared/raffle-public-ui.js");
   const storeSource = readProjectFile("raffle-store.js");
 
   assert.match(publicUi, /socket\.emit\("raffle:enter", \{ optionId \}\)/);
+  assert.match(publicUi, /socket\.emit\("raffle:enter"\)/);
   assert.match(publicUi, /socket\.emit\("raffle:submit_poll_response", \{ optionId \}\)/);
   assert.match(publicUi, /socket\.on\("raffle:closed", clearOverlay\)/);
   assert.match(storeSource, /getRoleRoomKey\(context\.roomKey, "audience"\)\)\.emit\("raffle:closed"/);
