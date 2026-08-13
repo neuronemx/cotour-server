@@ -57,6 +57,12 @@ test("FREE plan is frozen at 2 Decks and 50 MB of original uploads", () => {
   });
 });
 
+test("SPEAKER and SPEAKER PRO use the approved Deck and storage limits", () => {
+  assert.deepEqual(PLAN_LIMITS.SPEAKER, { decks: 5, storageBytes: 200 * BYTES_PER_MEGABYTE });
+  assert.deepEqual(PLAN_LIMITS.SPEAKER_PRO, { decks: 15, storageBytes: 500 * BYTES_PER_MEGABYTE });
+  assert.equal(summarizePlanUsage("speaker-pro", { decks: 14, storageBytes: 499 * BYTES_PER_MEGABYTE }).canCreateDeck, true);
+});
+
 test("Deck reservation locks the workspace and records original bytes atomically", async () => {
   const { pool, calls } = reservationPool({ deckCount: 1, storageBytes: 35 * BYTES_PER_MEGABYTE });
   const repository = new WorkspaceRepository(pool);

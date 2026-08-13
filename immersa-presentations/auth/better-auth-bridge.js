@@ -162,10 +162,33 @@ function createBetterAuthCompatibilityBridge(options = {}) {
 
   async function getPlanUsage(req) {
     const runtime = await initialize();
-    return runtime.workspaces.getPlanUsage({
+    const usage = await runtime.workspaces.getPlanUsage({
       userId: req.accountContext.user.id,
       workspaceId: req.accountContext.workspace.id
     });
+    return { ...usage, ...featureAccessForPlan(usage.plan) };
+  }
+
+  async function listAdminAccounts() {
+    const runtime = await initialize();
+    const accounts = await runtime.workspaces.listAdminAccounts();
+    return accounts.map((account) => ({ ...account, ...featureAccessForPlan(account.plan) }));
+  }
+
+  async function changeWorkspacePlan(req, payload) {
+    const runtime = await initialize();
+    const usage = await runtime.workspaces.changePlan({
+      workspaceId: payload.workspaceId,
+      plan: payload.plan,
+      note: payload.note,
+      changedByUserId: req.accountContext.user.id
+    });
+    return { ...usage, ...featureAccessForPlan(usage.plan) };
+  }
+
+  async function listWorkspaceDeckIds(workspaceId) {
+    const runtime = await initialize();
+    return runtime.workspaces.listWorkspaceDeckIds(workspaceId);
   }
 
   async function getDeckFeatureAccess(deckId) {
@@ -304,6 +327,9 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     requireOwnedSession,
     listDeckIds,
     getPlanUsage,
+    listAdminAccounts,
+    changeWorkspacePlan,
+    listWorkspaceDeckIds,
     getDeckFeatureAccess,
     listUnmeteredDeckIds,
     setDeckSourceSize,

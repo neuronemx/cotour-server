@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
-const { summarizePlanUsage, assertCanReserveDeck, assertCanReplaceDeck } = require("./plan-limits");
+const { PlanLimitError, getPlanLimits, summarizePlanUsage, assertCanReserveDeck, assertCanReplaceDeck } = require("./plan-limits");
+const { normalizePlan } = require("./plan-features");
 
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
@@ -105,6 +106,117 @@ class WorkspaceRepository {
       [String(deckId)]
     );
     return rows?.[0]?.plan ? String(rows[0].plan).trim().toUpperCase() : null;
+  }
+
+  async listAdminAccounts() {
+    const [rows] = await this.pool.execute(
+      `SELECT
+         u.id AS user_id,
+         u.name,
+         u.email,
+         u.emailVerified AS email_verified,
+         u.createdAt AS registered_at,
+         w.id AS workspace_id,
+         w.plan,
+         COUNT(d.deck_id) AS deck_count,
+         COALESCE(SUM(d.source_size_bytes), 0) AS storage_bytes
+       FROM \`user\` u
+       INNER JOIN workspaces w ON w.personal_owner_user_id = u.id
+       LEFT JOIN decks d ON d.workspace_id = w.id
+       GROUP BY u.id, u.name, u.email, u.emailVerified, u.createdAt, w.id, w.plan
+       ORDER BY u.createdAt DESC, u.id DESC`
+    );
+    return (rows || []).map((row) => ({
+      userId: String(row.user_id),
+      workspaceId: String(row.workspace_id),
+      name: String(row.name || ""),
+      email: String(row.email || ""),
+      emailVerified: Boolean(row.email_verified),
+      registeredAt: row.registered_at,
+      ...summarizePlanUsage(row.plan, {
+        decks: row.deck_count,
+        storageBytes: row.storage_bytes
+      })
+    }));
+  }
+
+  async changePlan({ workspaceId, plan, changedByUserId, note = "" }) {
+    const targetPlan = normalizePlan(plan);
+    let targetLimits;
+    try {
+      targetLimits = getPlanLimits(targetPlan);
+    } catch (_error) {
+      const error = new Error("Selecciona un plan IMMERSA válido");
+      error.statusCode = 400;
+      error.code = "INVALID_PLAN";
+      error.publicMessage = error.message;
+      throw error;
+    }
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [workspaces] = await connection.execute(
+        "SELECT id, plan FROM workspaces WHERE id = ? LIMIT 1 FOR UPDATE",
+        [String(workspaceId)]
+      );
+      const workspace = workspaces?.[0];
+      if (!workspace) {
+        const error = new Error("Cuenta IMMERSA no encontrada");
+        error.statusCode = 404;
+        throw error;
+      }
+      const previousPlan = normalizePlan(workspace.plan);
+      const [usageRows] = await connection.execute(
+        `SELECT COUNT(*) AS deck_count,
+                COALESCE(SUM(source_size_bytes), 0) AS storage_bytes
+         FROM decks
+         WHERE workspace_id = ?`,
+        [String(workspaceId)]
+      );
+      const usage = {
+        decks: Number(usageRows?.[0]?.deck_count || 0),
+        storageBytes: Number(usageRows?.[0]?.storage_bytes || 0)
+      };
+      if (usage.decks > targetLimits.decks || usage.storageBytes > targetLimits.storageBytes) {
+        const error = new PlanLimitError(
+          "PLAN_DOWNGRADE_REQUIRES_CHANGES",
+          `La cuenta excede los límites de ${targetPlan}.`,
+          {
+            target: targetLimits,
+            usage,
+            excess: {
+              decks: Math.max(0, usage.decks - targetLimits.decks),
+              storageBytes: Math.max(0, usage.storageBytes - targetLimits.storageBytes)
+            }
+          }
+        );
+        throw error;
+      }
+      if (previousPlan !== targetPlan) {
+        await connection.execute("UPDATE workspaces SET plan = ? WHERE id = ?", [targetPlan, String(workspaceId)]);
+        await connection.execute(
+          `INSERT INTO workspace_plan_changes
+             (workspace_id, previous_plan, next_plan, source, changed_by_user_id, note)
+           VALUES (?, ?, ?, 'manual', ?, ?)`,
+          [String(workspaceId), previousPlan, targetPlan, String(changedByUserId), String(note || "").trim().slice(0, 500) || null]
+        );
+      }
+      await connection.commit();
+      return summarizePlanUsage(targetPlan, usage);
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async listWorkspaceDeckIds(workspaceId) {
+    const [rows] = await this.pool.execute(
+      "SELECT deck_id FROM decks WHERE workspace_id = ?",
+      [String(workspaceId)]
+    );
+    return (rows || []).map((row) => String(row.deck_id));
   }
 
   async getPlanUsage({ userId, workspaceId }) {

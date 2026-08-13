@@ -1,6 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
 const roles = ["speaker", "audience", "screen", "stage"];
-const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
+const labels = { speaker: "Speaker", audience: "Público", screen: "Pantalla", stage: "Backstage" };
 let profilePublicTitle = String(window.IMMERSA_PROFILE_PUBLIC_TITLE || labels.speaker).trim() || labels.speaker;
 let decks = [];
 let activeDeck = null;
@@ -16,6 +16,7 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const accountPlanBadge = document.getElementById("accountPlanBadge");
+const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
 const planName = document.getElementById("planName");
 const planDeckUsage = document.getElementById("planDeckUsage");
@@ -23,6 +24,8 @@ const planStorageUsage = document.getElementById("planStorageUsage");
 const planDeckBar = document.getElementById("planDeckBar");
 const planStorageBar = document.getElementById("planStorageBar");
 const planLimitMessage = document.getElementById("planLimitMessage");
+const deckTabParticipation = document.getElementById("deckTabParticipation");
+const deckTabMetrics = document.getElementById("deckTabMetrics");
 const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
@@ -121,6 +124,27 @@ function storageLabel(bytes) {
   return (megabytes >= 10 ? Math.round(megabytes) : Math.round(megabytes * 10) / 10) + " MB";
 }
 
+function planLabel(plan) {
+  return String(plan || "FREE").replace(/_/g, " ");
+}
+
+function capabilityEnabled(capability) {
+  return planUsage?.capabilities?.[capability] === true || planUsage?.features?.[capability] === true;
+}
+
+function syncPlanTabs() {
+  const participationEnabled = capabilityEnabled("polls.configure");
+  const metricsEnabled = capabilityEnabled("metrics.basic");
+  if (deckTabParticipation) {
+    deckTabParticipation.disabled = !participationEnabled;
+    deckTabParticipation.setAttribute("aria-disabled", String(!participationEnabled));
+  }
+  if (deckTabMetrics) {
+    deckTabMetrics.disabled = !metricsEnabled;
+    deckTabMetrics.setAttribute("aria-disabled", String(!metricsEnabled));
+  }
+}
+
 function currentPlanBlockMessage() {
   if (!planUsage) return "";
   if (planUsage.remaining?.decks < 1) {
@@ -155,8 +179,8 @@ function replacementIssue(file, deck) {
 function renderPlanUsage() {
   if (!planUsage) return;
   const plan = String(planUsage.plan || "FREE");
-  if (accountPlanBadge) accountPlanBadge.textContent = plan;
-  if (planName) planName.textContent = plan;
+  if (accountPlanBadge) accountPlanBadge.textContent = planLabel(plan);
+  if (planName) planName.textContent = planLabel(plan);
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
@@ -172,6 +196,9 @@ function renderPlanUsage() {
   fileDrop.setAttribute("aria-disabled", blockedMessage ? "true" : "false");
   fileDrop.tabIndex = blockedMessage ? -1 : 0;
   fileInput.disabled = Boolean(blockedMessage);
+  syncPlanTabs();
+  if (adminAccountsLink) adminAccountsLink.hidden = planUsage.admin !== true;
+  if (detailDeck) renderDetailActions(detailDeck);
 }
 
 async function loadPlanUsage() {
@@ -911,7 +938,9 @@ function renderDetailActions(deck) {
   detailActions.innerHTML = "";
   if (deck?.missing) return;
 
-  roles.forEach((role) => {
+  roles
+    .filter((role) => role !== "stage" || capabilityEnabled("access.backstage") || deck?.systemDemo)
+    .forEach((role) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "detail-role-action role-" + role;
@@ -923,7 +952,7 @@ function renderDetailActions(deck) {
       copyRoleLink(role, deck, event.currentTarget);
     });
     detailActions.appendChild(button);
-  });
+    });
 }
 
 function openDeckModal(deck) {

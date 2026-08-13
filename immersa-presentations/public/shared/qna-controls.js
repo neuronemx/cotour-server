@@ -114,7 +114,7 @@
       const name = element("p", "qna-question-name");
       if (question.name) {
         name.textContent = question.name;
-        if (!question.allowNameOnScreen) name.appendChild(element("small", "", " · oculto en Screen"));
+        if (!question.allowNameOnScreen) name.appendChild(element("small", "", " · oculto en Pantalla"));
       } else {
         name.textContent = "Anónima";
       }

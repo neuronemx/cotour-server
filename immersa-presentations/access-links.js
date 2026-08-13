@@ -488,6 +488,16 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
 
         const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
         if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+        const featureAccess = typeof resolveDeckFeatureAccess === 'function'
+          ? await resolveDeckFeatureAccess(deck.deckId)
+          : { plan: 'DEMO', capabilities: { 'access.backstage': true }, features: { interactions: true, metrics: true } };
+        if (requiredRole === 'stage' && featureAccess.capabilities?.['access.backstage'] !== true) {
+          return res.status(403).json({
+            error: 'BACKSTAGE está disponible desde SPEAKER',
+            code: 'PLAN_FEATURE_LOCKED',
+            feature: 'access.backstage'
+          });
+        }
 
         const accessLinks = await loadAccessLinks(storePath);
         const activeAccessLink = await bindScreenExecution(result.accessLink, deck, accessLinks);
@@ -500,12 +510,11 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         const relatedLinks = {
           audience: audienceResult.accessLink,
           screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen'),
-          stage: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
+          stage: featureAccess.capabilities?.['access.backstage'] === true
+            ? findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
+            : null
         };
         const html = await fs.promises.readFile(roleIndexPath(publicDir, route), 'utf8');
-        const featureAccess = typeof resolveDeckFeatureAccess === 'function'
-          ? await resolveDeckFeatureAccess(deck.deckId)
-          : { plan: 'DEMO', features: { interactions: true, metrics: true } };
         const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks, featureAccess);
 
         res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: activeAccessLink, deck, route }), req));

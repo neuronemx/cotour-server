@@ -206,9 +206,9 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   const publishRoute = server.slice(server.indexOf('app.post("\/api\/admin\/demo\/publish"'), server.indexOf('app.post("\/api\/access-links"'));
   assert.doesNotMatch(publishRoute, /assertDeckCanBeReplaced/);
   assert.match(presenter, /isPublishedDemo = roleOpenContext\.demo_role === "published" \|\| deckId === "immersa-demo"/);
-  assert.match(presenter, /categoryEnabled: \{ games: !isPublishedDemo \}/);
+  assert.match(presenter, /games: !isPublishedDemo && planAllows\("games\.run"\)/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
   }
-  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=2/);
+  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=3/);
 });

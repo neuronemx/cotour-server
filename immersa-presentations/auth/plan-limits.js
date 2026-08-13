@@ -4,6 +4,14 @@ const PLAN_LIMITS = Object.freeze({
   FREE: Object.freeze({
     decks: 2,
     storageBytes: 50 * BYTES_PER_MEGABYTE
+  }),
+  SPEAKER: Object.freeze({
+    decks: 5,
+    storageBytes: 200 * BYTES_PER_MEGABYTE
+  }),
+  SPEAKER_PRO: Object.freeze({
+    decks: 15,
+    storageBytes: 500 * BYTES_PER_MEGABYTE
   })
 });
 
@@ -19,7 +27,7 @@ class PlanLimitError extends Error {
 }
 
 function normalizePlan(plan) {
-  return String(plan || "").trim().toUpperCase();
+  return String(plan || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
 }
 
 function getPlanLimits(plan) {

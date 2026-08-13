@@ -315,7 +315,7 @@ test("finalization is rejected while an interaction is active", async () => {
   });
 });
 
-test("the lifecycle slider is mounted on paid Stage only and remains hidden from Speaker", () => {
+test("the lifecycle slider is mounted on Backstage with basic Metrics and remains hidden from Speaker", () => {
   const root = path.join(__dirname, "..");
   const control = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle-control.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle.css"), "utf8");
@@ -329,7 +329,7 @@ test("the lifecycle slider is mounted on paid Stage only and remains hidden from
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
   assert.doesNotMatch(presenter, /presentationLifecycle/);
   assert.match(stage, /stage-brand[\s\S]*presentationLifecycle/);
-  assert.match(stageScript, /syncPresentationLifecycleFeature\(roleOpenContext\.features\?\.metrics !== false\)/);
+  assert.match(stageScript, /syncPresentationLifecycleFeature\(planAllows\("metrics\.basic"\)\)/);
   assert.match(stageScript, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
   assert.doesNotMatch(presenter, /presentation-lifecycle-control\.js/);
   assert.match(stage, /presentation-lifecycle-control\.js\?v=1/);

@@ -24,7 +24,7 @@
     }
     if (!root.document.querySelector("script[data-immersa-time-ui]")) {
       const script = root.document.createElement("script");
-      script.src = "/shared/time-sync-ui.js";
+      script.src = "/shared/time-sync-ui.js?v=2";
       script.dataset.immersaTimeUi = "1";
       root.document.head.appendChild(script);
     }

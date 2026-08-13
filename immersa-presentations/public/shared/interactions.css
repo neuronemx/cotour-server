@@ -1828,6 +1828,7 @@ body.stage-actions-open .interaction-slide-scrim {
   line-height: 1;
   text-transform: uppercase;
 }
+.interactions-shell-plan-label{font-size:8px;line-height:1;letter-spacing:.08em;color:rgba(255,255,255,.56);white-space:nowrap}.interactions-shell-plan-label:empty{display:none}.interactions-shell-category:not([aria-disabled="true"]) .interactions-shell-plan-label{opacity:.55}
 
 .interactions-shell-category.is-live .interactions-shell-live-label {
   display: block;

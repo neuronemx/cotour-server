@@ -55,6 +55,13 @@
     }
   ];
   const CATEGORIES = GROUPS.flatMap((group) => group.categories);
+  const CATEGORY_PLAN_LABELS = Object.freeze({
+    polls: "SPEAKER",
+    qna: "SPEAKER",
+    assessments: "SPEAKER PRO",
+    raffles: "SPEAKER PRO",
+    contests: "SPEAKER PRO"
+  });
 
   function createElement(documentRef, tag, className, text) {
     const element = documentRef.createElement(tag);
@@ -92,6 +99,7 @@
     button.append(
       createIcon(documentRef, APPROVED_CATEGORY_ICONS[category.id]),
       createElement(documentRef, "span", "interactions-shell-category-label", category.label),
+      createElement(documentRef, "span", "interactions-shell-plan-label", CATEGORY_PLAN_LABELS[category.id] || ""),
       createElement(documentRef, "span", "interactions-shell-live-label", "En vivo")
     );
     return button;

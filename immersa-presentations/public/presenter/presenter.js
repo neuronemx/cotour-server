@@ -4,6 +4,8 @@ const sessionId = params.get("session") || roleOpenContext.session || roleOpenCo
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const isPublishedDemo = roleOpenContext.demo_role === "published" || deckId === "immersa-demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
+const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
+const planAllows = (capability) => planCapabilities[capability] === true;
 const socket = io();
 const overlaySocket = io();
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
@@ -196,7 +198,14 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
-    categoryEnabled: { games: !isPublishedDemo },
+    categoryEnabled: {
+      polls: planAllows("polls.run"),
+      qna: planAllows("qna.run"),
+      assessments: planAllows("assessments.run"),
+      raffles: planAllows("raffles.run"),
+      contests: planAllows("trivia.run"),
+      games: !isPublishedDemo && planAllows("games.run")
+    },
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,

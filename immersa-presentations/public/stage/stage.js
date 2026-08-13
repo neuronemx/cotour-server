@@ -3,6 +3,8 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
+const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
+const planAllows = (capability) => planCapabilities[capability] === true;
 const socket = io();
 const presentationLifecycleHost = document.getElementById("presentationLifecycle");
 let presentationLifecycleControl = null;
@@ -20,9 +22,9 @@ function syncPresentationLifecycleFeature(enabled) {
     }) || null;
   }
 }
-syncPresentationLifecycleFeature(roleOpenContext.features?.metrics !== false);
+syncPresentationLifecycleFeature(planAllows("metrics.basic"));
 socket.on("plan:features", (access = {}) => {
-  syncPresentationLifecycleFeature(access.features?.metrics !== false);
+  syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
 });
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 
@@ -497,6 +499,14 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell || !interactionShellMount) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    categoryEnabled: {
+      polls: planAllows("polls.run"),
+      qna: planAllows("qna.run"),
+      assessments: planAllows("assessments.run"),
+      raffles: planAllows("raffles.run"),
+      contests: planAllows("trivia.run"),
+      games: planAllows("games.run")
+    },
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,

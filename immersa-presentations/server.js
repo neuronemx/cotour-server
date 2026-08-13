@@ -31,7 +31,13 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
-const { featureAccessForPlan, canUseFeature, isPaidControllerEvent, isPaidMetricsEvent, changesPaidDeckContent } = require("./auth/plan-features");
+const {
+  CAPABILITIES,
+  featureAccessForPlan,
+  canUseFeature,
+  requiredCapabilityForControllerEvent,
+  changedDeckCapabilities
+} = require("./auth/plan-features");
 const {
   DEMO_MASTER_DECK_ID,
   DEMO_PUBLISHED_DECK_ID,
@@ -399,7 +405,7 @@ function deckHasActiveConnections(deckId) {
 
 function assertDeckCanBeReplaced(deckId) {
   if (!deckHasActiveConnections(deckId)) return;
-  const error = new Error("Cierra Speaker, Stage, Screen y Público antes de sustituir esta presentación.");
+  const error = new Error("Cierra Speaker, Backstage, Pantalla y Público antes de sustituir esta presentación.");
   error.statusCode = 409;
   error.code = "DECK_IN_USE";
   error.publicMessage = error.message;
@@ -843,6 +849,9 @@ function requireImmersaAdmin(req, res, next) {
   if (!isImmersaAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
   return next();
 }
+app.get("/admin/accounts", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "admin", "accounts.html"));
+});
 async function requireOwnedOrPublishedSession(req, res, next) {
   const requestedSessionId = String(req.body?.session_id || "").trim();
   const published = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_PUBLISHED_DECK_ID).catch(() => null);
@@ -877,6 +886,25 @@ function requireDeckFeature(feature) {
     }
   };
 }
+async function requireRequestedRoleFeature(req, res, next) {
+  const role = String(req.body?.role || "").trim();
+  if (role !== "stage") return next();
+  try {
+    const deckId = req.ownedDeckId;
+    const access = isSystemDemoDeckId(deckId)
+      ? featureAccessForPlan("SPEAKER_PRO")
+      : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    if (canUseFeature(access, CAPABILITIES.ACCESS_BACKSTAGE)) return next();
+    return res.status(403).json({
+      error: "BACKSTAGE está disponible desde SPEAKER",
+      code: "PLAN_FEATURE_LOCKED",
+      feature: CAPABILITIES.ACCESS_BACKSTAGE
+    });
+  } catch (error) {
+    console.error("Unable to validate role access", error);
+    return res.status(503).json({ error: "No se pudo validar el plan" });
+  }
+}
 function requireDeckConfigurationWrite(req, res, next) {
   return (async () => {
     try {
@@ -887,13 +915,14 @@ function requireDeckConfigurationWrite(req, res, next) {
       const access = isSystemDemoDeckId(deckId)
         ? featureAccessForPlan("SPEAKER_PRO")
         : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
-      if (canUseFeature(access, "interactions")) return next();
       const current = await deckInteractionHandlers.readDeckConfig(deckId);
-      if (changesPaidDeckContent(req.body, current)) {
+      const unavailable = changedDeckCapabilities(req.body, current)
+        .find((capability) => !canUseFeature(access, capability));
+      if (unavailable) {
         return res.status(403).json({
-          error: "Interacciones está disponible en planes de pago",
+          error: "Esta función no está disponible en tu plan",
           code: "PLAN_FEATURE_LOCKED",
-          feature: "interactions"
+          feature: unavailable
         });
       }
       req.immersaFeatureAccess = access;
@@ -975,10 +1004,47 @@ app.get("/api/decks", requireAccount, async (req, res) => {
 app.get("/api/account/plan", requireAccount, async (req, res) => {
   try {
     await synchronizeWorkspaceSourceSizes(req);
-    res.json(await betterAuthCompatibilityBridge.getPlanUsage(req));
+    res.json({
+      ...await betterAuthCompatibilityBridge.getPlanUsage(req),
+      admin: isImmersaAdmin(req.accountContext)
+    });
   } catch (error) {
     console.error("Unable to load account plan", error);
     res.status(500).json({ error: "Unable to load account plan" });
+  }
+});
+app.get("/api/admin/accounts", requireAccount, requireImmersaAdmin, async (_req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json({ accounts: await betterAuthCompatibilityBridge.listAdminAccounts() });
+  } catch (error) {
+    console.error("Unable to list Immersa accounts", error);
+    res.status(500).json({ error: "No se pudieron cargar las cuentas" });
+  }
+});
+app.put("/api/admin/accounts/:workspaceId/plan", requireAccount, requireImmersaAdmin, async (req, res) => {
+  try {
+    const workspaceId = String(req.params.workspaceId || "").trim();
+    const deckIds = new Set(await betterAuthCompatibilityBridge.listWorkspaceDeckIds(workspaceId));
+    const active = Array.from(sessions.values()).some((session) => (
+      deckIds.has(String(session.deckId))
+      && !session.inactivityShutdownAt
+      && (session.presenterConnected || session.stageConnected || session.screenConnected || session.audience.size > 0)
+    ));
+    if (active) return res.status(409).json({ error: "No puedes cambiar el plan durante una presentación activa", code: "ACTIVE_PRESENTATION" });
+    res.json(await betterAuthCompatibilityBridge.changeWorkspacePlan(req, {
+      workspaceId,
+      plan: req.body?.plan,
+      note: req.body?.note
+    }));
+  } catch (error) {
+    const status = Number(error.statusCode) || 500;
+    if (status >= 500) console.error("Unable to change Immersa plan", error);
+    res.status(status).json({
+      error: error.publicMessage || error.message || "No se pudo cambiar el plan",
+      code: error.code || "PLAN_CHANGE_FAILED",
+      details: error.details || null
+    });
   }
 });
 app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
@@ -990,14 +1056,14 @@ app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDec
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
-app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature("interactions"), deckInteractionHandlers.uploadQuestionImage);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);
 app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, brandMentionHandlers.reorderBrands);
 app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
-app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature("metrics"), qnaHistoryHandlers.listHistory);
-app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature("metrics"), knowledgeActivityHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), knowledgeActivityHistoryHandlers.listHistory);
 app.post(
   "/api/decks/:deckId/replace",
   ...requireDeckAccount,
@@ -1076,17 +1142,17 @@ app.post("/api/admin/demo/publish", requireAccount, requireImmersaAdmin, async (
     res.status(error.statusCode || 500).json(payload);
   }
 });
-app.post("/api/access-links", requireAccount, requireOwnedOrPublishedSession, accessLinkHandlers.createAccessLink);
+app.post("/api/access-links", requireAccount, requireOwnedOrPublishedSession, requireRequestedRoleFeature, accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
-app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature("metrics"), qnaHistoryHandlers.exportDeck);
+app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature(CAPABILITIES.METRICS_EXPORT), qnaHistoryHandlers.exportDeck);
 app.get(
   "/api/knowledge-activities/:executionId/export/:access_token",
   accessLinkHandlers.guardAccessRoles(["speaker"]),
-  requireDeckFeature("metrics"),
+  requireDeckFeature(CAPABILITIES.METRICS_EXPORT),
   knowledgeActivityHistoryHandlers.exportExecution
 );
-app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature("metrics"), qnaHistoryHandlers.clearHistory);
+app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.clearHistory);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
@@ -1125,20 +1191,15 @@ io.on("connection", (socket) => {
   let currentSessionId = null;
   let currentDeckId = null;
   let currentAudienceId = null;
-  let currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
+  let currentFeatureAccess = featureAccessForPlan("FREE");
 
   socket.use(([eventName], next) => {
-    if (!controllerRoles.has(currentRole)) return next();
-    const feature = isPaidControllerEvent(eventName)
-      ? "interactions"
-      : (isPaidMetricsEvent(eventName) ? "metrics" : "");
+    const feature = requiredCapabilityForControllerEvent(eventName);
     if (!feature || canUseFeature(currentFeatureAccess, feature)) return next();
     socket.emit("plan:feature_locked", {
       feature,
       plan: currentFeatureAccess.plan,
-      message: feature === "metrics"
-        ? "Métricas está disponible en planes de pago"
-        : "Interacciones está disponible en planes de pago"
+      message: "Esta función no está disponible en tu plan"
     });
   });
 
@@ -1220,10 +1281,18 @@ io.on("connection", (socket) => {
         ? featureAccessForPlan("SPEAKER_PRO")
         : await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
     } catch (error) {
-      currentFeatureAccess = { plan: "FREE", features: { interactions: false, metrics: false } };
+      currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);
     }
     socket.emit("plan:features", currentFeatureAccess);
+    if (role === "stage" && !canUseFeature(currentFeatureAccess, CAPABILITIES.ACCESS_BACKSTAGE)) {
+      socket.emit("plan:feature_locked", {
+        feature: CAPABILITIES.ACCESS_BACKSTAGE,
+        plan: currentFeatureAccess.plan,
+        message: "BACKSTAGE está disponible desde SPEAKER"
+      });
+      return socket.disconnect(true);
+    }
     const slideCount = await refreshSessionDeck(session, joinedDeckId);
     if (role === "presenter") console.log("[session]", joinedSessionId, "deck", session.deckId, "room", currentRoomKey, "slideCount", slideCount);
     socket.join(currentRoomKey);
@@ -1254,7 +1323,7 @@ io.on("connection", (socket) => {
     emitState(currentRoomKey, session);
     if (
       role === "audience"
-      && canUseFeature(currentFeatureAccess, "metrics")
+      && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)
       && session.audience.size >= AUTO_START_AUDIENCE_THRESHOLD
       && !session.automaticLifecycleStarted
     ) {
