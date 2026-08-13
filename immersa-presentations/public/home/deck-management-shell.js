@@ -51,12 +51,16 @@
 
   function syncDemoMasterTabs(deck) {
     if (!participationTab) return;
-    const enabled = deck?.demoRole === "master" && !deck?.missing;
+    const demoMasterEnabled = deck?.demoRole === "master" && !deck?.missing;
+    const planEnabled = participationTab.dataset.planEnabled === "true";
+    const enabled = planEnabled || demoMasterEnabled;
     participationTab.disabled = !enabled;
     participationTab.setAttribute("aria-disabled", String(!enabled));
-    participationTab.title = enabled
+    participationTab.title = demoMasterEnabled
       ? "Crear o editar interacciones del Deck Demo Maestro"
-      : "Disponible en otros planes";
+      : planEnabled
+        ? "Crear o editar interacciones"
+        : "Disponible en otros planes";
   }
 
   function restoreEditor(definition) {

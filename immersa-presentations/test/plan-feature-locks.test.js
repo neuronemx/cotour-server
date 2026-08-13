@@ -137,8 +137,12 @@ test("server enforces capabilities independently of the client", () => {
 test("Home keeps the plan sections visible and filters Backstage on FREE", () => {
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");
+  const shell = read("public/home/deck-management-shell.js");
   assert.match(home, /id="deckTabParticipation"/);
   assert.match(home, /id="deckTabMetrics"/);
+  assert.match(source, /deckTabParticipation\.dataset\.planEnabled = String\(participationEnabled\)/);
+  assert.match(shell, /planEnabled = participationTab\.dataset\.planEnabled === "true"/);
+  assert.match(shell, /enabled = planEnabled \|\| demoMasterEnabled/);
   assert.match(source, /access\.backstage/);
   assert.match(source, /Backstage/);
 });

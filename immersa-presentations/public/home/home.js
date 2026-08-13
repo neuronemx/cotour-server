@@ -136,6 +136,7 @@ function syncPlanTabs() {
   const participationEnabled = capabilityEnabled("polls.configure");
   const metricsEnabled = capabilityEnabled("metrics.basic");
   if (deckTabParticipation) {
+    deckTabParticipation.dataset.planEnabled = String(participationEnabled);
     deckTabParticipation.disabled = !participationEnabled;
     deckTabParticipation.setAttribute("aria-disabled", String(!participationEnabled));
   }
