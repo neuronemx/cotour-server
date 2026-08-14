@@ -183,7 +183,7 @@ test("Speaker and Stage receive one synchronized live state", async () => {
   );
 });
 
-test("ten-person automatic start preserves an interaction and synchronizes En vivo", async () => {
+test("five-person automatic start preserves an interaction and synchronizes En vivo", async () => {
   const io = ioStub();
   const order = [];
   let startOptions = null;
@@ -209,7 +209,7 @@ test("ten-person automatic start preserves an interaction and synchronizes En vi
     role: "audience",
     sessionId: "source-a",
     deckId: "deck-a",
-    audienceId: "audience-10"
+    audienceId: "audience-5"
   });
 
   assert.equal(state.mode, "live");
@@ -347,10 +347,10 @@ test("only explicitly started sessions appear in Q&A and knowledge history", () 
   assert.match(migration, /SET recording_started_at = started_at/);
 });
 
-test("server starts immediately at ten unique connected Público participants", () => {
+test("server starts immediately at five unique connected Público participants", () => {
   const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
 
-  assert.match(server, /const AUTO_START_AUDIENCE_THRESHOLD = 10/);
+  assert.match(server, /const AUTO_START_AUDIENCE_THRESHOLD = 5/);
   assert.match(
     server,
     /role === "audience"[\s\S]*session\.audience\.size >= AUTO_START_AUDIENCE_THRESHOLD[\s\S]*!session\.automaticLifecycleStarted[\s\S]*session\.automaticLifecycleStarted = true;[\s\S]*presentationLifecycleRuntime\.startAutomatically\(joinedContext\)/

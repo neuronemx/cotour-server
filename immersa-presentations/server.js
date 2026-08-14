@@ -27,6 +27,7 @@ const {
   PresentationLifecycleRepository,
   createPresentationLifecycleRuntime
 } = require("./presentation-lifecycle");
+const { PresentationMetricsRepository, createPresentationMetricsHandlers } = require("./presentation-metrics");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
@@ -57,7 +58,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
-const AUTO_START_AUDIENCE_THRESHOLD = 10;
+const AUTO_START_AUDIENCE_THRESHOLD = 5;
 const SESSION_INACTIVITY_MS = resolveSessionInactivityMs();
 const SESSION_INACTIVITY_SWEEP_MS = Math.min(60_000, Math.max(5_000, Math.round(SESSION_INACTIVITY_MS / 12)));
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -79,6 +80,7 @@ const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
+let presentationMetricsRepository = null;
 const gameQueueSockets = createGameQueueSocketHandlers({
   io,
   store: gameQueueStore,
@@ -90,7 +92,8 @@ const interactionSockets = createInteractionSocketHandlers({
   loadInteractionsForDeck,
   getRoleRoomKey,
   coordinator: activeInteractionCoordinator,
-  onGameFinished: gameQueueSockets.handleGameFinished
+  onGameFinished: gameQueueSockets.handleGameFinished,
+  onPollChanged: (context, snapshot, closedAt) => presentationMetricsRepository?.recordPollForContext(context, snapshot, closedAt)
 });
 const raffleSockets = createRaffleSocketHandlers({
   io,
@@ -118,6 +121,10 @@ const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
   getConnectedAudience
 });
 const lifecyclePool = qnaRuntime.pool || knowledgeActivityRuntime.pool || null;
+presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
+const presentationMetricsHandlers = presentationMetricsRepository
+  ? createPresentationMetricsHandlers(presentationMetricsRepository)
+  : null;
 const presentationLifecycleRuntime = lifecyclePool
   ? createPresentationLifecycleRuntime({
       io,
@@ -138,6 +145,19 @@ const presentationLifecycleRuntime = lifecyclePool
           sourceSessionId: context.sessionId,
           presentationSessionId: state.presentationSessionId
         });
+        const liveSession = getSessionByRoomKey(context.roomKey);
+        await presentationMetricsRepository?.recordAudienceSnapshot({
+          presentationSessionId: state.presentationSessionId,
+          audience: getConnectedAudience(context.roomKey),
+          connectedCount: liveSession?.audience?.size || 0
+        });
+        const pollSnapshot = interactionStore.getMetricsSnapshot(context.sessionId);
+        if (pollSnapshot) {
+          await presentationMetricsRepository?.recordPollSnapshot({
+            presentationSessionId: state.presentationSessionId,
+            snapshot: pollSnapshot
+          });
+        }
       },
       beforeFinish: async (context) => (
         activeInteractionCoordinator.hasAnyActive(context.sessionId)
@@ -1091,6 +1111,9 @@ app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, req
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), knowledgeActivityHistoryHandlers.listHistory);
+if (presentationMetricsHandlers) {
+  app.get("/api/decks/:deckId/metrics/basic", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), presentationMetricsHandlers.listDeckSessions);
+}
 app.post(
   "/api/decks/:deckId/replace",
   ...requireDeckAccount,
@@ -1367,6 +1390,12 @@ io.on("connection", (socket) => {
         .then((state) => {
           if (state?.mode !== "live") session.automaticLifecycleStarted = false;
         });
+    } else if (role === "audience" && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)) {
+      void presentationMetricsRepository?.recordAudienceConnection(
+        joinedContext,
+        { audienceId: currentAudienceId },
+        session.audience.size
+      ).catch((error) => console.error("Unable to persist presentation attendance", error));
     }
 
     const snapshotJobs = [

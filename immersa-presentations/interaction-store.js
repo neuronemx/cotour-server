@@ -158,6 +158,22 @@ class InteractionStore {
     };
   }
 
+  getMetricsSnapshot(sessionId) {
+    const session = this.getSession(sessionId);
+    if (!session.active) return null;
+    return {
+      active: {
+        id: session.active.id,
+        type: session.active.type,
+        title: session.active.title,
+        prompt: session.active.prompt,
+        options: session.active.options.map((option) => ({ ...option })),
+        launchedAt: session.active.launchedAt
+      },
+      responses: Array.from(session.responses.values()).map((response) => ({ ...response }))
+    };
+  }
+
   getState(sessionId, audienceId = "") {
     const session = this.getSession(sessionId);
     const active = session.active;
@@ -188,7 +204,8 @@ function createInteractionSocketHandlers({
   timeSyncStore = new TimeSyncStore(),
   breakoutStore = new BreakoutStore(),
   pongStore = new PongStore(),
-  onGameFinished = null
+  onGameFinished = null,
+  onPollChanged = null
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator, onFinished: onGameFinished });
@@ -206,6 +223,17 @@ function createInteractionSocketHandlers({
 
   function canControlInteractions(context) {
     return context?.role === "presenter" || context?.role === "stage";
+  }
+
+  async function persistPoll(context, closedAt = null) {
+    if (typeof onPollChanged !== "function") return;
+    const snapshot = store.getMetricsSnapshot(context.sessionId);
+    if (!snapshot) return;
+    try {
+      await onPollChanged(context, snapshot, closedAt);
+    } catch (error) {
+      console.error("Unable to persist poll metrics", error);
+    }
   }
 
   function emitResults(roomKey, sessionId) {
@@ -284,9 +312,10 @@ function createInteractionSocketHandlers({
       io.to(context.roomKey).emit("interaction:active", store.getState(context.sessionId).active);
       emitStateToRoom(context.roomKey, context.sessionId);
       emitResults(context.roomKey, context.sessionId);
+      await persistPoll(context);
     });
 
-    socket.on("interaction:submit_response", ({ interactionId, audienceId, optionId } = {}) => {
+    socket.on("interaction:submit_response", async ({ interactionId, audienceId, optionId } = {}) => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || context.role !== "audience") return;
       const result = store.submitResponse({
@@ -302,11 +331,13 @@ function createInteractionSocketHandlers({
       socket.emit("interaction:response_accepted", { interactionId, optionId, submittedAt: result.response.submittedAt });
       socket.emit("interaction:state", store.getState(context.sessionId, audienceId));
       emitResults(context.roomKey, context.sessionId);
+      await persistPoll(context);
     });
 
-    socket.on("interaction:close", () => {
+    socket.on("interaction:close", async () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
+      await persistPoll(context, new Date().toISOString());
       const closed = store.close(context.sessionId);
       coordinator?.notifyActivityChange?.(context.sessionId);
       io.to(context.roomKey).emit("interaction:closed", { interactionId: closed?.id || "" });
