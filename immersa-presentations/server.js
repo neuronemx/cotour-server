@@ -93,7 +93,11 @@ const interactionSockets = createInteractionSocketHandlers({
   getRoleRoomKey,
   coordinator: activeInteractionCoordinator,
   onGameFinished: gameQueueSockets.handleGameFinished,
-  onPollChanged: (context, snapshot, closedAt) => presentationMetricsRepository?.recordPollForContext(context, snapshot, closedAt)
+  onPollChanged: (context, snapshot, closedAt, presentationSessionId = null) => (
+    presentationSessionId
+      ? presentationMetricsRepository?.recordPollSnapshot({ presentationSessionId, snapshot, closedAt })
+      : presentationMetricsRepository?.recordPollForContext(context, snapshot, closedAt)
+  )
 });
 const raffleSockets = createRaffleSocketHandlers({
   io,
@@ -151,23 +155,22 @@ const presentationLifecycleRuntime = lifecyclePool
           audience: getConnectedAudience(context.roomKey),
           connectedCount: liveSession?.audience?.size || 0
         });
-        const pollSnapshot = interactionStore.getMetricsSnapshot(context.sessionId);
-        if (pollSnapshot) {
-          await presentationMetricsRepository?.recordPollSnapshot({
-            presentationSessionId: state.presentationSessionId,
-            snapshot: pollSnapshot
-          });
-        }
+        await interactionSockets.persistMetricsForPresentation?.(context, state.presentationSessionId);
       },
-      beforeFinish: async (context) => (
-        activeInteractionCoordinator.hasAnyActive(context.sessionId)
-          ? {
-              ok: false,
-              reason: "ACTIVE_INTERACTION",
-              message: "Cierra la interacción activa antes de finalizar"
-            }
-          : { ok: true }
-      ),
+      beforeFinish: async (context) => {
+        if (activeInteractionCoordinator.hasAnyActive(context.sessionId)) {
+          return {
+            ok: false,
+            reason: "ACTIVE_INTERACTION",
+            message: "Cierra la interacción activa antes de finalizar"
+          };
+        }
+        const presentationSessionId = await presentationMetricsRepository?.activeLiveSession(context);
+        if (presentationSessionId) {
+          await interactionSockets.persistMetricsForPresentation?.(context, presentationSessionId);
+        }
+        return { ok: true };
+      },
       afterFinish: async (context, state) => {
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);

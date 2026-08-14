@@ -34,7 +34,8 @@ class InteractionStore {
       this.sessions.set(key, {
         active: null,
         responses: new Map(),
-        resultsVisible: false
+        resultsVisible: false,
+        metricsSnapshots: new Map()
       });
     }
     return this.sessions.get(key);
@@ -84,7 +85,10 @@ class InteractionStore {
 
   close(sessionId) {
     const session = this.getSession(sessionId);
-    if (session.active) session.active = { ...session.active, closedAt: new Date().toISOString() };
+    if (session.active) {
+      session.active = { ...session.active, closedAt: new Date().toISOString() };
+      this.rememberMetricsSnapshot(sessionId, session.active.closedAt);
+    }
     session.resultsVisible = false;
     const closed = session.active;
     session.active = null;
@@ -174,6 +178,24 @@ class InteractionStore {
     };
   }
 
+  rememberMetricsSnapshot(sessionId, closedAt = null) {
+    const session = this.getSession(sessionId);
+    const snapshot = this.getMetricsSnapshot(sessionId);
+    if (!snapshot?.active?.launchedAt) return null;
+    const remembered = { snapshot, closedAt: closedAt || null };
+    session.metricsSnapshots.set(String(snapshot.active.launchedAt), remembered);
+    return remembered;
+  }
+
+  getMetricsSnapshots(sessionId) {
+    const session = this.getSession(sessionId);
+    this.rememberMetricsSnapshot(sessionId, session.active?.closedAt || null);
+    return Array.from(session.metricsSnapshots.values()).map((item) => ({
+      snapshot: item.snapshot,
+      closedAt: item.closedAt
+    }));
+  }
+
   getState(sessionId, audienceId = "") {
     const session = this.getSession(sessionId);
     const active = session.active;
@@ -229,6 +251,7 @@ function createInteractionSocketHandlers({
     if (typeof onPollChanged !== "function") return;
     const snapshot = store.getMetricsSnapshot(context.sessionId);
     if (!snapshot) return;
+    store.rememberMetricsSnapshot(context.sessionId, closedAt);
     try {
       await onPollChanged(context, snapshot, closedAt);
     } catch (error) {
@@ -337,8 +360,17 @@ function createInteractionSocketHandlers({
     socket.on("interaction:close", async () => {
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
-      await persistPoll(context, new Date().toISOString());
       const closed = store.close(context.sessionId);
+      const remembered = store.getMetricsSnapshots(context.sessionId).find((item) => (
+        item.snapshot?.active?.launchedAt === closed?.launchedAt
+      ));
+      if (remembered && typeof onPollChanged === "function") {
+        try {
+          await onPollChanged(context, remembered.snapshot, remembered.closedAt);
+        } catch (error) {
+          console.error("Unable to persist closed poll metrics", error);
+        }
+      }
       coordinator?.notifyActivityChange?.(context.sessionId);
       io.to(context.roomKey).emit("interaction:closed", { interactionId: closed?.id || "" });
       io.to(context.roomKey).emit("interaction:state", store.getState(context.sessionId));
@@ -373,7 +405,20 @@ function createInteractionSocketHandlers({
     pongStore,
     pongSockets,
     mediaSockets,
-    resetSession
+    resetSession,
+    async persistMetricsForPresentation(context, presentationSessionId) {
+      if (!presentationSessionId || typeof onPollChanged !== "function") return 0;
+      let persisted = 0;
+      for (const item of store.getMetricsSnapshots(context.sessionId)) {
+        try {
+          const result = await onPollChanged(context, item.snapshot, item.closedAt, presentationSessionId);
+          if (result !== false) persisted += 1;
+        } catch (error) {
+          console.error("Unable to flush poll metrics", error);
+        }
+      }
+      return persisted;
+    }
   };
 }
 

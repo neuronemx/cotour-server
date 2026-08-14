@@ -77,6 +77,7 @@ test("server exposes Speaker basic metrics only through deck ownership and plan 
   assert.match(server, /AUTO_START_AUDIENCE_THRESHOLD = 5/);
   assert.match(server, /\/api\/decks\/:deckId\/metrics\/basic/);
   assert.match(server, /requireDeckFeature\(CAPABILITIES\.METRICS_BASIC\)/);
+  assert.match(server, /persistMetricsForPresentation\?\.\(context, presentationSessionId\)/);
   assert.match(migration, /presentation_session_attendance/);
   assert.match(migration, /presentation_poll_executions/);
   assert.match(migration, /presentation_poll_responses/);
