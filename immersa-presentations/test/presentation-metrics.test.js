@@ -24,11 +24,10 @@ test("poll snapshots persist options and one response per audience", async () =>
   const pool = {
     async execute(sql, params) {
       calls.push({ sql, params });
-      if (/SELECT id FROM presentation_poll_executions/.test(sql)) return [[{ id: "poll-run-1" }]];
       return [{ affectedRows: 1 }];
     }
   };
-  const repository = new PresentationMetricsRepository(pool, { createId: () => "poll-run-new" });
+  const repository = new PresentationMetricsRepository(pool, { createPollExecutionId: () => "poll-run-1" });
   assert.equal(await repository.recordPollSnapshot({
     presentationSessionId: "session-1",
     snapshot: {
@@ -43,6 +42,26 @@ test("poll snapshots persist options and one response per audience", async () =>
   assert.equal(calls.filter((call) => /INSERT INTO presentation_poll_options/.test(call.sql)).length, 2);
   assert.equal(calls.filter((call) => /INSERT INTO presentation_poll_responses/.test(call.sql)).length, 1);
   assert.equal(calls.some((call) => /SET closed_at = COALESCE/.test(call.sql)), true);
+  assert.equal(calls.some((call) => /SELECT id FROM presentation_poll_executions/.test(call.sql)), false);
+  assert.equal(calls.filter((call) => call.params?.[0] === "poll-run-1").length >= 4, true);
+});
+
+test("poll execution ids are stable for repeated snapshots of one launch", async () => {
+  const ids = [];
+  const pool = { async execute(sql, params) { if (/INSERT INTO presentation_poll_executions/.test(sql)) ids.push(params[0]); return [{ affectedRows: 1 }]; } };
+  const repository = new PresentationMetricsRepository(pool);
+  const snapshot = {
+    active: {
+      id: "poll-1", title: "Encuesta", prompt: "¿Cuál?", launchedAt: "2026-08-14T05:00:00.123Z",
+      options: [{ id: "a", label: "A" }]
+    },
+    responses: []
+  };
+  await repository.recordPollSnapshot({ presentationSessionId: "session-1", snapshot });
+  await repository.recordPollSnapshot({ presentationSessionId: "session-1", snapshot });
+  assert.equal(ids.length, 2);
+  assert.equal(ids[0], ids[1]);
+  assert.match(ids[0], /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
 });
 
 test("basic metrics combine session, attendance, polls and Q&A", async () => {

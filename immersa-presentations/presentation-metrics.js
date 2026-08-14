@@ -1,4 +1,4 @@
-const { randomUUID } = require("node:crypto");
+const { createHash } = require("node:crypto");
 
 function text(value) {
   return String(value || "").trim();
@@ -9,11 +9,18 @@ function date(value) {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
+function pollExecutionId(presentationSessionId, active) {
+  const hex = createHash("sha256")
+    .update([text(presentationSessionId), text(active?.id), date(active?.launchedAt).toISOString()].join("::"))
+    .digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 class PresentationMetricsRepository {
   constructor(pool, options = {}) {
     if (!pool?.execute) throw new Error("A MySQL pool is required for presentation metrics");
     this.pool = pool;
-    this.createId = options.createId || randomUUID;
+    this.createPollExecutionId = options.createPollExecutionId || pollExecutionId;
   }
 
   async activeLiveSession({ deckId, sourceSessionId }) {
@@ -58,7 +65,7 @@ class PresentationMetricsRepository {
 
   async ensurePollExecution(presentationSessionId, active) {
     if (!presentationSessionId || !active?.id || !active?.launchedAt) return null;
-    const executionId = this.createId();
+    const executionId = this.createPollExecutionId(presentationSessionId, active);
     const launchedAt = date(active.launchedAt);
     await this.pool.execute(
       `INSERT INTO presentation_poll_executions
@@ -67,13 +74,7 @@ class PresentationMetricsRepository {
        ON DUPLICATE KEY UPDATE title = VALUES(title), prompt = VALUES(prompt)`,
       [executionId, presentationSessionId, text(active.id), text(active.title) || "Encuesta", text(active.prompt) || "Encuesta", launchedAt]
     );
-    const [rows] = await this.pool.execute(
-      `SELECT id FROM presentation_poll_executions
-       WHERE presentation_session_id = ? AND interaction_id = ? AND launched_at = ?
-       LIMIT 1`,
-      [presentationSessionId, text(active.id), launchedAt]
-    );
-    return rows?.[0]?.id ? String(rows[0].id) : null;
+    return executionId;
   }
 
   async recordPollSnapshot({ presentationSessionId, snapshot, closedAt = null }) {
@@ -139,7 +140,7 @@ class PresentationMetricsRepository {
               pe.launched_at, pe.closed_at, po.option_id, po.label, po.sort_order,
               COUNT(pr.audience_id) AS response_count
        FROM presentation_poll_executions pe
-       INNER JOIN presentation_poll_options po ON po.poll_execution_id = pe.id
+       LEFT JOIN presentation_poll_options po ON po.poll_execution_id = pe.id
        LEFT JOIN presentation_poll_responses pr
          ON pr.poll_execution_id = po.poll_execution_id AND pr.option_id = po.option_id
        WHERE pe.presentation_session_id IN (${placeholders})
@@ -177,7 +178,7 @@ class PresentationMetricsRepository {
       const poll = sessionPolls.get(pollId);
       const count = Number(row.response_count || 0);
       poll.totalResponses += count;
-      poll.options.push({ id: String(row.option_id), label: row.label, count });
+      if (row.option_id != null) poll.options.push({ id: String(row.option_id), label: row.label, count });
     }
     const qnaBySession = new Map((qnaRows || []).map((row) => [String(row.presentation_session_id), {
       received: Number(row.questions_received || 0),
