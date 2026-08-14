@@ -1,0 +1,28 @@
+.immersa-slide-transition-dissolve { animation: immersa-slide-dissolve .38s ease both; }
+.immersa-slide-transition-swipe { animation: immersa-slide-swipe-forward .42s cubic-bezier(.22,.72,.2,1) both; }
+.immersa-slide-transition-swipe.immersa-slide-transition-backward { animation-name: immersa-slide-swipe-backward; }
+.immersa-slide-transition-flash { animation: immersa-slide-flash .34s ease-out both; }
+
+@keyframes immersa-slide-dissolve {
+  from { opacity: .08; }
+  to { opacity: 1; }
+}
+@keyframes immersa-slide-swipe-forward {
+  from { clip-path: inset(0 100% 0 0); opacity: .72; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+@keyframes immersa-slide-swipe-backward {
+  from { clip-path: inset(0 0 0 100%); opacity: .72; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+@keyframes immersa-slide-flash {
+  0% { opacity: .35; filter: brightness(2.15) saturate(.72); }
+  42% { opacity: 1; filter: brightness(1.28) saturate(.9); }
+  100% { opacity: 1; filter: brightness(1) saturate(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .immersa-slide-transition-dissolve,
+  .immersa-slide-transition-swipe,
+  .immersa-slide-transition-flash { animation: none !important; }
+}

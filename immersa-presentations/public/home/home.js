@@ -42,6 +42,9 @@ const detailDate = document.getElementById("detailDate");
 const detailSlides = document.getElementById("detailSlides");
 const detailStatus = document.getElementById("detailStatus");
 const detailActions = document.getElementById("detailActions");
+const deckTransitionSettings = document.getElementById("deckTransitionSettings");
+const deckTransitionOptions = document.getElementById("deckTransitionOptions");
+const deckTransitionStatus = document.getElementById("deckTransitionStatus");
 const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
 const detailDemoAdmin = document.getElementById("detailDemoAdmin");
@@ -990,6 +993,56 @@ function renderDetailActions(deck) {
     });
 }
 
+function syncDeckTransitionEditor(deck) {
+  if (!deckTransitionSettings || !deckTransitionOptions) return;
+  const editable = Boolean(deck && !deck.systemDemo && !deck.missing && !planUsage?.pendingDowngrade?.adjustmentRequired);
+  deckTransitionSettings.hidden = !editable;
+  const selected = String(deck?.slideTransition || "dissolve");
+  deckTransitionOptions.querySelectorAll("[data-deck-transition]").forEach((button) => {
+    const active = button.dataset.deckTransition === selected;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-checked", String(active));
+    button.disabled = !editable;
+  });
+  if (deckTransitionStatus) {
+    deckTransitionStatus.textContent = "";
+    deckTransitionStatus.classList.remove("is-error");
+  }
+}
+
+async function saveDeckTransition(transition) {
+  const deck = detailDeck;
+  if (!deck || deck.systemDemo || deck.missing || !deckTransitionOptions) return;
+  const buttons = [...deckTransitionOptions.querySelectorAll("[data-deck-transition]")];
+  buttons.forEach((button) => { button.disabled = true; });
+  if (deckTransitionStatus) {
+    deckTransitionStatus.textContent = "Guardando…";
+    deckTransitionStatus.classList.remove("is-error");
+  }
+  try {
+    const response = await fetch("/api/decks/" + encodeURIComponent(deck.deckId) + "/transition", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slideTransition: transition })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo guardar la transición");
+    Object.assign(deck, data);
+    const listed = decks.find((item) => item.deckId === deck.deckId);
+    if (listed) Object.assign(listed, data);
+    syncDeckTransitionEditor(deck);
+    if (deckTransitionStatus) deckTransitionStatus.textContent = "Transición guardada.";
+  } catch (error) {
+    syncDeckTransitionEditor(deck);
+    if (deckTransitionStatus) {
+      deckTransitionStatus.textContent = error.message || "No se pudo guardar la transición.";
+      deckTransitionStatus.classList.add("is-error");
+    }
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+  }
+}
+
 function openDeckModal(deck) {
   if (!deckDetailModal || !deck) return;
   detailDeck = deck;
@@ -1008,6 +1061,7 @@ function openDeckModal(deck) {
     detailStatus.className = "deck-detail-status" + deckBadgeClass(deck);
   }
   renderDetailActions(deck);
+  syncDeckTransitionEditor(deck);
   const isMaster = deck.demoRole === "master";
   const isPublishedDemo = deck.demoRole === "published";
   const adjustmentRequired = Boolean(planUsage?.pendingDowngrade?.adjustmentRequired);
@@ -1205,6 +1259,12 @@ if (deckDetailModal) {
     if (event.target === deckDetailModal) closeDeckModal();
   });
 }
+
+deckTransitionOptions?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-deck-transition]");
+  if (!button || button.disabled || button.classList.contains("is-active")) return;
+  saveDeckTransition(button.dataset.deckTransition);
+});
 
 detailPreviousSlide?.addEventListener("click", () => selectDetailSlide((detailSlideNavigation?.index || 0) - 1));
 detailNextSlide?.addEventListener("click", () => selectDetailSlide((detailSlideNavigation?.index || 0) + 1));

@@ -33,6 +33,7 @@ let manifest = null;
 let overlays = normalizeOverlayState();
 let currentState = null;
 let currentSlideIndex = 0;
+let renderedSlideIndex = 0;
 let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
 let drawingOverlay = null;
@@ -320,10 +321,14 @@ function render(state) {
   }
 
   const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
+  const previousIndex = renderedSlideIndex;
+  const changed = index !== previousIndex;
   currentSlideIndex = index;
+  renderedSlideIndex = index;
   const item = manifest.slides[index];
   const src = "/decks/" + deckId + "/" + item.src;
   slide.src = src;
+  if (changed) window.ImmersaSlideTransitions?.apply(slide, manifest.slideTransition, index - previousIndex);
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenFrame, item, manifest);
   drawingOverlay?.refresh();

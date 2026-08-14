@@ -100,9 +100,12 @@ function render(state) {
   const index = state?.liveSlideIndex ?? state?.slideIndex ?? 0;
   const item = manifest.slides[index];
   if (!item?.src) return;
+  const previousIndex = currentSlideIndex;
+  const changed = index !== previousIndex;
   currentSlideIndex = index;
   const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
   slide.src = src;
+  if (changed) window.ImmersaSlideTransitions?.apply(slide, manifest.slideTransition, index - previousIndex);
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();

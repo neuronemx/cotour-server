@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=55">
+  <link rel="stylesheet" href="/home/home.css?v=56">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
@@ -114,6 +114,16 @@
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
+          <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
+            <div class="deck-transition-copy"><strong id="deckTransitionTitle">Transición de slides</strong><span>Se aplicará a todo el Deck.</span></div>
+            <div id="deckTransitionOptions" class="deck-transition-options" role="radiogroup" aria-label="Transición global del Deck">
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="none">Sin transición</button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="dissolve">Disolvencia</button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="swipe">Swipe</button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="flash">Flash suave</button>
+            </div>
+            <p id="deckTransitionStatus" class="deck-transition-status" role="status" aria-live="polite"></p>
+          </section>
         </section>
         <section id="deckPanelParticipation" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabParticipation" data-deck-panel="participation" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="participation"></div>
@@ -168,7 +178,7 @@
   </div>
   <script src="/home/home-account.js?v=1"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=64"></script>
+  <script src="/home/home.js?v=65"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>

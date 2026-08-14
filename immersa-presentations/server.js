@@ -365,12 +365,20 @@ function manifestSummary(manifest, manifestStats = null) {
     associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
     replacement: manifest.replacement || null,
     thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || "",
+    slideTransition: normalizeSlideTransition(manifest.slideTransition),
     systemDemo: Boolean(manifest.systemDemo),
     demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
     immutable: manifest.systemDemo?.role === "published",
     publishedAt: manifest.systemDemo?.publishedAt || "",
     ...manifestTimestamps(manifest, manifestStats)
   };
+}
+
+const SLIDE_TRANSITIONS = new Set(["none", "dissolve", "swipe", "flash"]);
+
+function normalizeSlideTransition(value) {
+  const transition = String(value || "").trim().toLowerCase();
+  return SLIDE_TRANSITIONS.has(transition) ? transition : "dissolve";
 }
 
 async function readManifest(deckId) {
@@ -460,6 +468,22 @@ async function renameDeck(deckId, requestedTitle) {
   const manifestPath = path.join(deckDir, "manifest.json");
   const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
   manifest.title = title;
+  manifest.updatedAt = new Date().toISOString();
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
+}
+
+async function updateDeckSlideTransition(deckId, requestedTransition) {
+  const transition = String(requestedTransition || "").trim().toLowerCase();
+  if (!SLIDE_TRANSITIONS.has(transition)) {
+    const error = new Error("Invalid slide transition");
+    error.statusCode = 400;
+    throw error;
+  }
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  manifest.slideTransition = transition;
   manifest.updatedAt = new Date().toISOString();
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   return manifestSummary(manifest);
@@ -1152,6 +1176,16 @@ app.put("/api/decks/:deckId/title", ...requireDeckAccount, requireAccountAdjustm
     const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
     if (statusCode >= 500) console.error("Unable to rename deck", error);
     res.status(statusCode).json({ error: statusCode === 400 ? "Escribe un nombre de hasta 120 caracteres" : statusCode === 404 ? "Deck not found" : "Unable to rename presentation" });
+  }
+});
+app.put("/api/decks/:deckId/transition", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
+  try {
+    if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "La transición del Deck Demo es administrada por IMMERSA" });
+    res.json(await updateDeckSlideTransition(req.params.deckId, req.body?.slideTransition));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to update Deck slide transition", error);
+    res.status(statusCode).json({ error: statusCode === 400 ? "Selecciona una transición válida" : statusCode === 404 ? "Deck not found" : "Unable to update slide transition" });
   }
 });
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
