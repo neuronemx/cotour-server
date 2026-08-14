@@ -23,7 +23,7 @@ class PresentationMetricsRepository {
     this.createPollExecutionId = options.createPollExecutionId || pollExecutionId;
   }
 
-  async activeLiveSession({ deckId, sourceSessionId }) {
+  async activeLiveSession({ deckId, sourceSessionId, sessionId }) {
     const [rows] = await this.pool.execute(
       `SELECT id
        FROM presentation_sessions
@@ -31,7 +31,7 @@ class PresentationMetricsRepository {
          AND recording_started_at IS NOT NULL AND ended_at IS NULL
        ORDER BY recording_started_at DESC, id DESC
        LIMIT 1`,
-      [text(deckId), text(sourceSessionId)]
+      [text(deckId), text(sourceSessionId || sessionId)]
     );
     return rows?.[0]?.id ? String(rows[0].id) : null;
   }

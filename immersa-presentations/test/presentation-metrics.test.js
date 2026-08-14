@@ -64,6 +64,25 @@ test("poll execution ids are stable for repeated snapshots of one launch", async
   assert.match(ids[0], /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
 });
 
+test("socket sessionId resolves the active live presentation for poll persistence", async () => {
+  const calls = [];
+  const pool = {
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/FROM presentation_sessions/.test(sql)) return [[{ id: "live-1" }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const repository = new PresentationMetricsRepository(pool, { createPollExecutionId: () => "poll-run-1" });
+  const result = await repository.recordPollForContext(
+    { deckId: "deck-1", sessionId: "source-room-1" },
+    { active: { id: "poll-1", title: "Encuesta", prompt: "¿Cuál?", launchedAt: "2026-08-14T05:00:00.000Z", options: [{ id: "a", label: "A" }] }, responses: [] }
+  );
+  assert.equal(result, true);
+  assert.deepEqual(calls[0].params, ["deck-1", "source-room-1"]);
+  assert.equal(calls.some((call) => /INSERT INTO presentation_poll_executions/.test(call.sql)), true);
+});
+
 test("basic metrics combine session, attendance, polls and Q&A", async () => {
   let query = 0;
   const pool = {
