@@ -148,6 +148,17 @@ function syncPlanTabs() {
 
 function currentPlanBlockMessage() {
   if (!planUsage) return "";
+  const pending = planUsage.pendingDowngrade;
+  if (pending?.targetPlan) {
+    const deckAction = pending.excess?.decks > 0
+      ? "Elimina " + pending.excess.decks + " Deck" + (pending.excess.decks === 1 ? "" : "s")
+      : "";
+    const storageAction = pending.excess?.storageBytes > 0
+      ? "libera al menos " + storageLabel(pending.excess.storageBytes)
+      : "";
+    return "Solicitaste cambiar a " + pending.targetPlan + ". "
+      + [deckAction, storageAction].filter(Boolean).join(" y ") + " para completar el cambio.";
+  }
   const usedDecks = Math.max(0, Number(planUsage.usage?.decks) || 0);
   const deckLimit = Math.max(0, Number(planUsage.limits?.decks) || 0);
   const usedStorage = Math.max(0, Number(planUsage.usage?.storageBytes) || 0);

@@ -13,7 +13,7 @@ const {
   isPaidMetricsEvent,
   changedDeckCapabilities
 } = require("../auth/plan-features");
-const { WorkspaceRepository } = require("../auth/workspace-repository");
+const { WorkspaceRepository, pendingDowngrade } = require("../auth/workspace-repository");
 
 test("FREE, SPEAKER and SPEAKER PRO expose the approved capability matrix", () => {
   const free = featureAccessForPlan("free");
@@ -107,6 +107,62 @@ test("manual plan changes reject invalid plans before opening a transaction", as
   assert.equal(connectionRequested, false);
 });
 
+test("pending downgrade reports the exact cleanup without changing the active plan", () => {
+  const pending = pendingDowngrade({ pending_plan: "FREE", pending_plan_requested_at: "2026-08-13" }, {
+    decks: 5,
+    storageBytes: 70 * 1024 * 1024
+  });
+  assert.equal(pending.targetPlan, "FREE");
+  assert.equal(pending.excess.decks, 3);
+  assert.equal(pending.excess.storageBytes, 20 * 1024 * 1024);
+  assert.equal(pending.ready, false);
+});
+
+test("an over-limit downgrade is persisted and finishes after the user removes the excess", async () => {
+  const calls = [];
+  const connection = {
+    async beginTransaction() { calls.push("begin"); },
+    async commit() { calls.push("commit"); },
+    async rollback() { calls.push("rollback"); },
+    release() { calls.push("release"); },
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/FROM workspaces WHERE id/.test(sql)) return [[{ id: "workspace-a", plan: "SPEAKER" }]];
+      if (/COUNT\(\*\) AS deck_count/.test(sql)) return [[{ deck_count: 5, storage_bytes: 70 * 1024 * 1024 }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const repository = new WorkspaceRepository({ async getConnection() { return connection; } });
+  const result = await repository.changePlan({
+    workspaceId: "workspace-a",
+    plan: "FREE",
+    changedByUserId: "admin-a",
+    note: "Solicitud"
+  });
+  assert.equal(result.plan, "SPEAKER");
+  assert.equal(result.pendingDowngrade.targetPlan, "FREE");
+  assert.equal(result.pendingDowngrade.excess.decks, 3);
+  assert.ok(calls.some((call) => /SET pending_plan = \?/.test(call.sql || "")));
+  assert.equal(calls.some((call) => /INSERT INTO workspace_plan_changes/.test(call.sql || "")), false);
+
+  calls.length = 0;
+  connection.execute = async (sql, params) => {
+    calls.push({ sql, params });
+    if (/SELECT w\.id, w\.plan, w\.pending_plan[\s\S]*FROM decks d/.test(sql)) return [[{
+      id: "workspace-a",
+      plan: "SPEAKER",
+      pending_plan: "FREE",
+      pending_plan_requested_by_user_id: "admin-a",
+      pending_plan_note: "Solicitud"
+    }]];
+    if (/COUNT\(\*\) AS deck_count/.test(sql)) return [[{ deck_count: 2, storage_bytes: 30 * 1024 * 1024 }]];
+    return [{ affectedRows: 1 }];
+  };
+  assert.equal(await repository.unregisterDeck("user-a", "deck-3"), true);
+  assert.ok(calls.some((call) => /SET plan = \?, pending_plan = NULL/.test(call.sql || "")));
+  assert.ok(calls.some((call) => /'pending_cleanup'/.test(call.sql || "")));
+});
+
 test("Speaker and Backstage render plan-aware interaction categories", () => {
   const presenterHtml = read("public/presenter/index.html");
   const presenter = read("public/presenter/presenter.js");
@@ -159,8 +215,18 @@ test("Participation locks Speaker Pro editors before their forms can open", () =
 
 test("Home explains how to resolve limits exceeded after a downgrade", () => {
   const home = read("public/home/home.js");
+  const repository = read("auth/workspace-repository.js");
+  const admin = read("public/admin/accounts.js");
+  const migration = read("db/migrations/013_pending_plan_downgrades.sql");
+  assert.match(home, /Solicitaste cambiar a/);
+  assert.match(home, /pendingDowngrade/);
   assert.match(home, /excessDecks = Math\.max\(0, usedDecks - deckLimit\)/);
   assert.match(home, /Actualmente tienes/);
   assert.match(home, /elimina " \+ excessDecks \+ " Deck/);
   assert.match(home, /para ajustar tu cuenta/);
+  assert.match(repository, /pending_plan_requested_at/);
+  assert.match(repository, /source, changed_by_user_id, note/);
+  assert.match(repository, /'pending_cleanup'/);
+  assert.match(admin, /Downgrade solicitado/);
+  assert.match(migration, /ADD COLUMN pending_plan/);
 });
