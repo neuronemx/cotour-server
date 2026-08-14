@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Administración de cuentas · IMMERSA</title>
+  <link rel="stylesheet" href="/admin/accounts.css?v=1">
+</head>
+<body>
+  <header class="admin-header">
+    <a href="/home" class="brand">IMMERSA</a>
+    <div><p>Administración</p><h1>Cuentas</h1></div>
+    <a href="/home" class="back">Volver a mis presentaciones</a>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Filtros de cuentas">
+      <label><span>Buscar</span><input id="search" type="search" placeholder="Nombre o correo"></label>
+      <label><span>Plan</span><select id="planFilter"><option value="">Todos</option><option>FREE</option><option>SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select></label>
+    </section>
+    <p id="status" class="status" role="status">Cargando cuentas…</p>
+    <section id="accounts" class="accounts" aria-live="polite"></section>
+  </main>
+  <template id="accountTemplate">
+    <article class="account-card">
+      <div class="identity"><strong></strong><a></a><small></small></div>
+      <div class="usage"><span class="plan"></span><span class="decks"></span><span class="storage"></span></div>
+      <form class="plan-form">
+        <label><span>Plan</span><select name="plan"><option>FREE</option><option>SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select></label>
+        <label class="note"><span>Nota interna opcional</span><input name="note" maxlength="500"></label>
+        <button type="submit">Cambiar plan</button>
+        <button type="button" class="resend-email" hidden>Reenviar correo</button>
+      </form>
+      <p class="feedback" role="status"></p>
+    </article>
+  </template>
+  <script src="/admin/accounts.js?v=6"></script>
+</body>
+</html>

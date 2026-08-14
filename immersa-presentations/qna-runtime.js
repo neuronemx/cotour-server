@@ -5,7 +5,8 @@ const { createQnaSocketHandlers } = require("./qna-sockets");
 const { buildQnaCsv } = require("./qna-csv");
 
 function qnaEnabled(env = process.env) {
-  return /^(1|true|yes|on)$/i.test(String(env.IMMERSA_QNA_ENABLED || "").trim());
+  const value = String(env.IMMERSA_QNA_ENABLED ?? "").trim();
+  return !/^(0|false|no|off|disabled)$/i.test(value);
 }
 
 function disabledRuntime() {
@@ -39,7 +40,13 @@ function createQnaRuntime(options = {}) {
       deckId: context.deckId,
       sourceSessionId: context.sessionId
     });
-    return active?.presentationSessionId || null;
+    if (active?.presentationSessionId) return active.presentationSessionId;
+    if (!["presenter", "stage"].includes(context.role)) return null;
+    const prepared = await executionCoordinator.ensureExecution({
+      deckId: context.deckId,
+      sourceSessionId: context.sessionId
+    });
+    return prepared?.presentationSessionId || null;
   }
 
   const sockets = createQnaSocketHandlers({

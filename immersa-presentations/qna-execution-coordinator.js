@@ -62,6 +62,28 @@ class QnaExecutionCoordinator {
       };
     });
   }
+
+  async ensureExecution({ deckId, sourceSessionId }) {
+    const normalizedDeckId = String(deckId || "").trim();
+    const normalizedSourceSessionId = String(sourceSessionId || "").trim();
+    if (!normalizedDeckId || !normalizedSourceSessionId) {
+      throw new Error("deckId and sourceSessionId are required");
+    }
+    const key = this.executionKey(normalizedDeckId, normalizedSourceSessionId);
+    return this.withLock(key, async () => {
+      const active = await this.repository.getActivePresentationSession({
+        deckId: normalizedDeckId,
+        sourceSessionId: normalizedSourceSessionId
+      });
+      if (active) return { ...active, created: false };
+      const started = await this.repository.startPresentationSession({
+        deckId: normalizedDeckId,
+        sourceSessionId: normalizedSourceSessionId,
+        replaceActive: false
+      });
+      return { ...started, created: true };
+    });
+  }
 }
 
 module.exports = { QnaExecutionCoordinator };

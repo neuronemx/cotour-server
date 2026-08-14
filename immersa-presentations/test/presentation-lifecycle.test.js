@@ -183,7 +183,7 @@ test("Speaker and Stage receive one synchronized live state", async () => {
   );
 });
 
-test("ten-person automatic start preserves an interaction and synchronizes En vivo", async () => {
+test("five-person automatic start preserves an interaction and synchronizes En vivo", async () => {
   const io = ioStub();
   const order = [];
   let startOptions = null;
@@ -209,7 +209,7 @@ test("ten-person automatic start preserves an interaction and synchronizes En vi
     role: "audience",
     sessionId: "source-a",
     deckId: "deck-a",
-    audienceId: "audience-10"
+    audienceId: "audience-5"
   });
 
   assert.equal(state.mode, "live");
@@ -315,7 +315,7 @@ test("finalization is rejected while an interaction is active", async () => {
   });
 });
 
-test("the lifecycle slider is mounted on paid Stage only and remains hidden from Speaker", () => {
+test("the lifecycle slider is mounted on Backstage with basic Metrics and remains hidden from Speaker", () => {
   const root = path.join(__dirname, "..");
   const control = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle-control.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle.css"), "utf8");
@@ -323,16 +323,17 @@ test("the lifecycle slider is mounted on paid Stage only and remains hidden from
   const stage = fs.readFileSync(path.join(root, "public/stage/index.html"), "utf8");
   const stageScript = fs.readFileSync(path.join(root, "public/stage/stage.js"), "utf8");
 
-  assert.match(control, /state\.mode === "live" \? "En vivo" : "Iniciar"/);
-  assert.match(control, /arming \? "Finalizar" : "En vivo"/);
+  assert.match(control, /state\.mode === "live" \? "Finalizar" : "Iniciar"/);
+  assert.match(control, /setLabel\("Finalizar"\)/);
   assert.match(control, /presentation:lifecycle:\$\{action\}/);
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
   assert.doesNotMatch(presenter, /presentationLifecycle/);
   assert.match(stage, /stage-brand[\s\S]*presentationLifecycle/);
-  assert.match(stageScript, /syncPresentationLifecycleFeature\(roleOpenContext\.features\?\.metrics !== false\)/);
+  assert.match(stageScript, /syncPresentationLifecycleFeature\(planAllows\("metrics\.basic"\)\)/);
   assert.match(stageScript, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
   assert.doesNotMatch(presenter, /presentation-lifecycle-control\.js/);
-  assert.match(stage, /presentation-lifecycle-control\.js\?v=1/);
+  assert.match(stage, /presentation-lifecycle-control\.js\?v=2/);
+  assert.match(stage, /presentation-lifecycle\.css\?v=2/);
 });
 
 test("only explicitly started sessions appear in Q&A and knowledge history", () => {
@@ -347,10 +348,10 @@ test("only explicitly started sessions appear in Q&A and knowledge history", () 
   assert.match(migration, /SET recording_started_at = started_at/);
 });
 
-test("server starts immediately at ten unique connected Público participants", () => {
+test("server starts immediately at five unique connected Público participants", () => {
   const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
 
-  assert.match(server, /const AUTO_START_AUDIENCE_THRESHOLD = 10/);
+  assert.match(server, /const AUTO_START_AUDIENCE_THRESHOLD = 5/);
   assert.match(
     server,
     /role === "audience"[\s\S]*session\.audience\.size >= AUTO_START_AUDIENCE_THRESHOLD[\s\S]*!session\.automaticLifecycleStarted[\s\S]*session\.automaticLifecycleStarted = true;[\s\S]*presentationLifecycleRuntime\.startAutomatically\(joinedContext\)/

@@ -3,10 +3,12 @@ import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import workspaceModule from "./workspace-repository.js";
 import profileModule from "./profile-repository.js";
 import accountActivationModule from "./account-activation-notifier.js";
+import downgradeNotifierModule from "./downgrade-notifier.js";
 
 const { WorkspaceRepository } = workspaceModule;
 const { ProfileRepository } = profileModule;
 const { AccountActivationNotifier } = accountActivationModule;
+const { DowngradeNotifier } = downgradeNotifierModule;
 
 function requireSetting(env, name) {
   const value = String(env?.[name] || "").trim();
@@ -113,6 +115,11 @@ export function createBetterAuthRuntime(options = {}) {
     env: options.env || process.env,
     logger: options.logger || console
   });
+  const downgradeNotifier = options.downgradeNotifier || new DowngradeNotifier(options.database, {
+    emailSender: options.emailSender,
+    env: options.env || process.env,
+    logger: options.logger || console
+  });
   const auth = betterAuth(createBetterAuthOptions({ ...options, workspaces, accountNotifier }));
 
   return {
@@ -120,6 +127,7 @@ export function createBetterAuthRuntime(options = {}) {
     workspaces,
     profiles,
     accountNotifier,
+    downgradeNotifier,
     capabilities: {
       email: Boolean(options.emailSender),
       google: Boolean(String((options.env || process.env).GOOGLE_CLIENT_ID || "").trim())

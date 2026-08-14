@@ -17,6 +17,7 @@ async function fixture(t) {
     fs.promises.mkdir(dataDir, { recursive: true }),
     fs.promises.mkdir(deckDir, { recursive: true }),
     fs.promises.mkdir(path.join(publicDir, 'screen'), { recursive: true }),
+    fs.promises.mkdir(path.join(publicDir, 'stage'), { recursive: true }),
     fs.promises.mkdir(path.join(publicDir, 'audience'), { recursive: true })
   ]);
   await fs.promises.writeFile(path.join(deckDir, 'manifest.json'), JSON.stringify({
@@ -26,6 +27,7 @@ async function fixture(t) {
     slides: []
   }));
   await fs.promises.writeFile(path.join(publicDir, 'screen', 'index.html'), '<html><head></head><body>Screen</body></html>');
+  await fs.promises.writeFile(path.join(publicDir, 'stage', 'index.html'), '<html><head></head><body>Backstage</body></html>');
   await fs.promises.writeFile(path.join(publicDir, 'audience', 'index.html'), '<html><head></head><body>Audience</body></html>');
   const accessLinks = [{
     access_token: 'a_abcdefghij',
@@ -123,6 +125,37 @@ test('without a runtime callback Screen remains available and no DB binding is a
   assert.match(res.body, /"presentation_session_id":""/);
   const stored = JSON.parse(await fs.promises.readFile(path.join(paths.dataDir, 'access-links.json'), 'utf8'));
   assert.equal(Object.hasOwn(stored[0], 'presentation_session_id'), false);
+});
+
+test('an existing Backstage link stays unavailable to FREE accounts', async (t) => {
+  const paths = await fixture(t);
+  const storePath = path.join(paths.dataDir, 'access-links.json');
+  const stored = JSON.parse(await fs.promises.readFile(storePath, 'utf8'));
+  stored.push({
+    access_token: 'a_stg1234567',
+    session_id: 's_abcdefghij',
+    deck_id: 'deck-a',
+    role: 'stage',
+    active: true
+  });
+  await fs.promises.writeFile(storePath, JSON.stringify(stored));
+  const handlers = createAccessLinkHandlers({
+    ...paths,
+    resolveDeckFeatureAccess: async () => ({
+      plan: 'FREE',
+      capabilities: { 'access.backstage': false },
+      features: {}
+    })
+  });
+  const res = response();
+  await handlers.openRole('stage', 'stage')(
+    request({ access_token: 'a_stg1234567' }),
+    res,
+    () => assert.fail('FREE must not open Backstage')
+  );
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.code, 'PLAN_FEATURE_LOCKED');
+  assert.equal(res.body.feature, 'access.backstage');
 });
 
 test('a system Deck can use a private account session without cloning its manifest', async (t) => {

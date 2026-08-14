@@ -83,7 +83,9 @@
 }
 
 .presentation-lifecycle-slider.is-live {
-  border-color: rgba(54, 211, 138, .3);
+  border-color: rgba(255, 126, 54, .72);
+  background: linear-gradient(180deg, rgba(126, 42, 30, .92), rgba(74, 20, 25, .94));
+  box-shadow: 0 0 0 1px rgba(255, 126, 54, .12), 0 10px 28px rgba(75, 18, 24, .38), inset 0 1px 0 rgba(255, 255, 255, .12);
 }
 
 .presentation-lifecycle-slider.is-live:not(.is-arming):not(.is-pending) .interaction-close-slider-label::before {
@@ -93,9 +95,18 @@
   height: 6px;
   margin-right: 6px;
   border-radius: 50%;
-  background: #36d38a;
-  box-shadow: 0 0 0 4px rgba(54, 211, 138, .16);
+  background: #ff9a4f;
+  box-shadow: 0 0 0 4px rgba(255, 126, 54, .18);
   vertical-align: 1px;
+}
+
+.presentation-lifecycle-slider.is-live .interaction-close-slider-track {
+  background: linear-gradient(105deg, rgba(255, 173, 77, .94), rgba(255, 91, 75, .96) 52%, rgba(204, 42, 78, .96));
+}
+
+.presentation-lifecycle-slider.is-live .interaction-close-slider-knob {
+  color: #6d1b15;
+  background: linear-gradient(135deg, #fff7ef, #ff9a4f);
 }
 
 .presentation-lifecycle-slider.is-pending {

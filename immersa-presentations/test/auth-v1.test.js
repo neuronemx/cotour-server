@@ -5,7 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 const express = require("express");
 const { createBetterAuthCompatibilityBridge } = require("../auth/better-auth-bridge");
-const { createResendEmailSender, RESEND_EMAILS_URL } = require("../auth/resend-email");
+const { createResendEmailSender, downgradeEmailCopy, RESEND_EMAILS_URL } = require("../auth/resend-email");
 const { AccountActivationNotifier, adminNotificationEmails } = require("../auth/account-activation-notifier");
 const { WorkspaceRepository, UNVERIFIED_RETENTION_MS } = require("../auth/workspace-repository");
 
@@ -114,6 +114,25 @@ test("Resend sends the active-account alert to every Immersa administrator", asy
   assert.match(calls[0].html, /FREE/);
 });
 
+test("downgrade emails explain the deadline, consequences, and completion without threatening deletion", () => {
+  const downgrade = {
+    targetPlan: "FREE",
+    deadlineAt: "2026-08-20T18:00:00.000Z",
+    limits: { decks: 2, storageBytes: 50 * 1024 * 1024 },
+    excess: { decks: 3, storageBytes: 20 * 1024 * 1024 }
+  };
+  const requested = downgradeEmailCopy("downgrade-requested", "Ana", "https://app.immersalive.com/home", downgrade);
+  const reminder = downgradeEmailCopy("downgrade-reminder", "Ana", "https://app.immersalive.com/home", downgrade);
+  const expired = downgradeEmailCopy("downgrade-expired", "Ana", "https://app.immersalive.com/home", downgrade);
+  const completed = downgradeEmailCopy("downgrade-completed", "Ana", "https://app.immersalive.com/home", downgrade);
+  assert.match(requested.subject, /cambio a FREE está pendiente/);
+  assert.match(requested.html, /eliminar 3 Decks/);
+  assert.match(reminder.subject, /2 días/);
+  assert.match(expired.html, /No podrás iniciar ni modificar presentaciones/);
+  assert.match(completed.subject, /ya está en el plan FREE/);
+  for (const email of [requested, reminder, expired, completed]) assert.match(email.html, /nunca eliminará tus Decks automáticamente/);
+});
+
 test("active-account notification is verified, recent, deduplicated, and non-blocking", async () => {
   const sent = [];
   const calls = [];
@@ -218,13 +237,51 @@ test("account and ownership guards reject anonymous users and another user's dec
   await bridge.close();
 });
 
+test("a pending downgrade confirms its immediate email before the admin response", async () => {
+  const calls = [];
+  const runtime = {
+    workspaces: {
+      async changePlan(payload) {
+        calls.push({ type: "plan", payload });
+        return {
+          plan: "SPEAKER",
+          usage: { decks: 5, storageBytes: 0 },
+          limits: { decks: 5, storageBytes: 200 * 1024 * 1024 },
+          pendingDowngrade: { targetPlan: "FREE" }
+        };
+      }
+    },
+    downgradeNotifier: {
+      async sendDueForWorkspace(workspaceId, kind) {
+        calls.push({ type: "email", workspaceId, kind });
+        return { status: "sent" };
+      }
+    }
+  };
+  const bridge = createBetterAuthCompatibilityBridge({
+    enabled: true,
+    databaseFactory: () => ({ end: async () => {} }),
+    emailSenderFactory: () => null,
+    loadRuntime: async () => ({ createBetterAuthRuntime: () => runtime })
+  });
+  const result = await bridge.changeWorkspacePlan({ accountContext: { user: { id: "admin-1" } } }, {
+    workspaceId: "workspace-1",
+    plan: "FREE",
+    note: "Piloto"
+  });
+  assert.deepEqual(result.emailNotification, { status: "sent" });
+  assert.deepEqual(calls.map((call) => call.type), ["plan", "email"]);
+  assert.deepEqual(calls[1], { type: "email", workspaceId: "workspace-1", kind: "requested" });
+  await bridge.close();
+});
+
 test("server protects Home and deck administration while Público and Screen stay account-public", () => {
   assert.match(serverSource, /app\.get\("\/home", betterAuthCompatibilityBridge\.requirePageAuth\(\)/);
   assert.match(serverSource, /app\.get\("\/api\/decks\/:deckId\/interactions", deckInteractionHandlers\.getInteractions\)/);
   assert.match(serverSource, /app\.put\("\/api\/decks\/:deckId\/interactions", requireAccountOrControllerDeck/);
   assert.match(serverSource, /app\.get\("\/api\/decks\/:deckId\/brand-mentions", \.\.\.requireDeckAccount/);
   assert.match(serverSource, /app\.post\("\/api\/upload-pptx", requireAccount/);
-  assert.match(serverSource, /app\.post\("\/api\/access-links", requireAccount, requireOwnedOrPublishedSession/);
+  assert.match(serverSource, /app\.post\("\/api\/access-links", requireAccount, requireAccountAdjustmentCleared, requireOwnedOrPublishedSession/);
   assert.match(serverSource, /app\.get\("\/audience\/:access_token", accessLinkHandlers\.openRole/);
   assert.match(serverSource, /app\.get\("\/screen\/:access_token", accessLinkHandlers\.openRole/);
   assert.match(serverSource, /app\.get\("\/:public_id", accessLinkHandlers\.openPublicAudience\)/);

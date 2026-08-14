@@ -17,10 +17,10 @@ function fakeSocket() {
   };
 }
 
-test("Q&A is disabled by default and never constructs a MySQL pool", async () => {
+test("Q&A can be explicitly disabled without constructing a MySQL pool", async () => {
   let poolCreated = false;
   const runtime = createQnaRuntime({
-    env: {},
+    env: { IMMERSA_QNA_ENABLED: "false" },
     createPool() { poolCreated = true; throw new Error("must not run"); }
   });
   const socket = fakeSocket();
@@ -33,11 +33,12 @@ test("Q&A is disabled by default and never constructs a MySQL pool", async () =>
   assert.deepEqual(socket.emissions, []);
 });
 
-test("Q&A feature flag accepts explicit true values only", () => {
-  for (const value of ["1", "true", "TRUE", "yes", "on"]) {
+test("Q&A is enabled by default and accepts an explicit opt-out", () => {
+  for (const value of ["", "1", "true", "TRUE", "yes", "on", undefined]) {
     assert.equal(qnaEnabled({ IMMERSA_QNA_ENABLED: value }), true);
   }
-  for (const value of ["", "0", "false", "disabled", undefined]) {
+  assert.equal(qnaEnabled({}), true);
+  for (const value of ["0", "false", "no", "off", "disabled"]) {
     assert.equal(qnaEnabled({ IMMERSA_QNA_ENABLED: value }), false);
   }
 });
@@ -123,6 +124,38 @@ test("enabled runtime reports state failures without breaking the presentation j
     payload: { event: "qna:state", reason: "QNA_UNAVAILABLE" }
   }]);
   assert.equal(logger.errors.length, 1);
+});
+
+test("Speaker state prepares a draft Q&A execution without starting Metrics", async () => {
+  const calls = [];
+  const repository = {
+    async getActivePresentationSession() { return null; },
+    async startPresentationSession(payload) {
+      calls.push(payload);
+      return { presentationSessionId: "draft-session", qnaRoundId: "round-1", roundNumber: 1, questionsOpen: false };
+    },
+    async getActiveState(id) {
+      assert.equal(id, "draft-session");
+      return { roundId: "round-1", roundNumber: 1, questionsOpen: false, selectedQuestionId: null, questions: [] };
+    }
+  };
+  const runtime = createQnaRuntime({
+    env: {},
+    pool: { async end() {} },
+    repository,
+    io: fakeIo(),
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getConnectedAudience: () => []
+  });
+  const socket = fakeSocket();
+  await runtime.sendCurrentState(socket, {
+    roomKey: "room-a",
+    role: "presenter",
+    sessionId: "source-session-1",
+    deckId: "deck-a"
+  });
+  assert.deepEqual(calls, [{ deckId: "deck-a", sourceSessionId: "source-session-1", replaceActive: false }]);
+  assert.equal(socket.emissions.at(-1).event, "qna:state");
 });
 
 test("inactivity shutdown archives the old Q&A execution and starts closed", async () => {

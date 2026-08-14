@@ -149,7 +149,7 @@
       badge.className = 'immersa-media-status';
       if (!screenConnected) {
         badge.classList.add('is-warning');
-        badge.textContent = 'Screen desconectada · ' + total + ' video' + (total === 1 ? '' : 's');
+        badge.textContent = 'Pantalla desconectada · ' + total + ' video' + (total === 1 ? '' : 's');
         return;
       }
       if (!status || Number(status.total) !== total) {

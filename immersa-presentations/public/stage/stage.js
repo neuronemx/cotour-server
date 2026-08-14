@@ -3,6 +3,8 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
+const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
+const planAllows = (capability) => planCapabilities[capability] === true;
 const socket = io();
 const presentationLifecycleHost = document.getElementById("presentationLifecycle");
 let presentationLifecycleControl = null;
@@ -20,9 +22,9 @@ function syncPresentationLifecycleFeature(enabled) {
     }) || null;
   }
 }
-syncPresentationLifecycleFeature(roleOpenContext.features?.metrics !== false);
+syncPresentationLifecycleFeature(planAllows("metrics.basic"));
 socket.on("plan:features", (access = {}) => {
-  syncPresentationLifecycleFeature(access.features?.metrics !== false);
+  syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
 });
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 
@@ -67,20 +69,6 @@ const knowledgeActivityController = window.ImmersaKnowledgeActivities?.createCon
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
-const fallbackDemoInteraction = {
-  id: "demo-poll-1",
-  type: "poll",
-  title: "Encuesta demo",
-  prompt: "¿Qué experiencia te gustaría probar primero en Immersa?",
-  options: [
-    { id: "live-polls", label: "Encuestas en vivo" },
-    { id: "quizzes", label: "Quizzes con puntaje" },
-    { id: "decision-exercises", label: "Ejercicios de decisión" },
-    { id: "attendee-results", label: "Resultados por asistente" }
-  ],
-  source: "fallback-demo"
-};
-
 const slide = document.getElementById("slide");
 const stageShell = document.querySelector(".stage-shell");
 const screenFrame = document.querySelector(".screen-frame");
@@ -108,7 +96,7 @@ const stageThumbsPanel = document.getElementById("stageThumbsPanel");
 const stageThumbsToggle = document.getElementById("stageThumbsToggle");
 const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
-let qnaAvailable = false;
+let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
@@ -182,9 +170,8 @@ async function loadInteractions() {
     const data = await res.json();
     interactions = normalizeInteractionList(data);
     videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
-    if (!interactions.length) interactions = [fallbackDemoInteraction];
   } catch (_error) {
-    interactions = [fallbackDemoInteraction];
+    interactions = [];
     videoSlideIds = new Set();
   }
   clearSelectedInteraction();
@@ -497,6 +484,14 @@ function ensureInteractionsShell() {
   if (interactionShell || !window.ImmersaInteractionsShell || !interactionShellMount) return interactionShell;
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
+    categoryEnabled: {
+      polls: planAllows("polls.run"),
+      qna: planAllows("qna.run"),
+      assessments: planAllows("assessments.run"),
+      raffles: planAllows("raffles.run"),
+      contests: planAllows("trivia.run"),
+      games: planAllows("games.run")
+    },
     categoryVisibility: {
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
@@ -546,8 +541,7 @@ function interactionListMarkup() {
   if (!interactions.length) return "";
   return '<div class="interaction-picker" role="listbox" aria-label="Interacciones disponibles">' + interactions.map((item) => {
     const selected = String(item.id) === String(selectedInteractionId);
-    const demo = item.source === "fallback-demo" ? '<small>Demo temporal</small>' : '';
-    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span>' + demo + '</button>';
+    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
   }).join("") + '</div>';
 }
 

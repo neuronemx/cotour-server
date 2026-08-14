@@ -28,8 +28,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/home/home.css?v=55">
-  <link rel="stylesheet" href="/home/interactions-editor.css?v=6">
+  <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
+  <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
   <link rel="stylesheet" href="/home/video-editor.css?v=109">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
   <link rel="stylesheet" href="/home/profile-editor.css?v=4">
@@ -54,7 +55,7 @@
     <div class="stage-inner">
       <header class="stage-header">
         <a class="brand" href="/home" aria-label="Immersa Home"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></a>
-        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><span id="accountPlanBadge" class="account-plan-badge">FREE</span><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
+        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><span id="accountPlanBadge" class="account-plan-badge">FREE</span><a id="adminAccountsLink" class="account-profile-button" href="/admin/accounts" hidden>Administración</a><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
       </header>
       <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
@@ -122,8 +123,12 @@
         </section>
         <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
           <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
+          <section id="basicMetrics" class="basic-metrics" aria-labelledby="basicMetricsTitle" hidden>
+            <div class="basic-metrics-head"><div><h4 id="basicMetricsTitle">Sesiones registradas</h4><p id="basicMetricsStatus" role="status" aria-live="polite">Entra a Métricas para consultar tus resultados.</p></div><button id="basicMetricsRefresh" type="button">Actualizar</button></div>
+            <div id="basicMetricsSessions" class="basic-metrics-sessions"></div>
+          </section>
           <section id="qnaHistory" class="qna-history" aria-labelledby="qnaHistoryTitle" hidden><button id="qnaHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="qnaHistoryBody"><span id="qnaHistoryTitle">Historial de preguntas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="qnaHistoryBody" class="qna-history-body" hidden><div class="qna-history-head"><p id="qnaHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div class="qna-history-actions"><button id="qnaHistoryExport" class="qna-history-export" type="button" hidden>Descargar CSV</button><button id="qnaHistoryDelete" class="qna-history-delete" type="button" hidden>Borrar historial</button></div></div><div id="qnaHistoryList" class="qna-history-list"></div><div id="qnaHistoryConfirm" class="qna-history-confirm" role="alertdialog" aria-labelledby="qnaHistoryConfirmTitle" hidden><strong id="qnaHistoryConfirmTitle">Esta acción es permanente</strong><p>Se eliminarán todas las preguntas y ejecuciones anteriores. Si Screen está abierto, se conservará únicamente una ejecución vacía para no interrumpir la sesión.</p><div class="qna-history-confirm-actions"><button id="qnaHistoryCancelDelete" class="qna-history-cancel" type="button">Cancelar</button><button id="qnaHistoryConfirmDelete" class="qna-history-confirm-delete" type="button">Borrar definitivamente</button></div></div></div></section>
-          <section id="knowledgeActivityHistory" class="qna-history" aria-labelledby="knowledgeActivityHistoryTitle" hidden><button id="knowledgeActivityHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="knowledgeActivityHistoryBody"><span id="knowledgeActivityHistoryTitle">Concursos y evaluaciones</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="knowledgeActivityHistoryBody" class="qna-history-body" hidden><p id="knowledgeActivityHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div id="knowledgeActivityHistoryList" class="qna-history-list"></div></div></section>
+          <section id="knowledgeActivityHistory" class="qna-history" aria-labelledby="knowledgeActivityHistoryTitle" hidden><button id="knowledgeActivityHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="knowledgeActivityHistoryBody"><span id="knowledgeActivityHistoryTitle">Trivias y evaluaciones</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="knowledgeActivityHistoryBody" class="qna-history-body" hidden><p id="knowledgeActivityHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div id="knowledgeActivityHistoryList" class="qna-history-list"></div></div></section>
         </section>
       </div>
       <div id="deckEditorLaunchers" hidden aria-hidden="true"></div>
@@ -163,11 +168,12 @@
   </div>
   <script src="/home/home-account.js?v=1"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=59"></script>
+  <script src="/home/home.js?v=64"></script>
+  <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
-  <script src="/home/interactions-editor.js?v=6"></script>
-  <script src="/home/video-editor.js?v=111"></script>
+  <script src="/home/interactions-editor.js?v=8"></script>
+  <script src="/home/video-editor.js?v=112"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
   <script src="/home/deck-management-shell.js?v=10"></script>

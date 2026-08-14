@@ -191,7 +191,12 @@
 
   document.addEventListener("immersa:deck-detail-open", (event) => {
     const deck = event.detail?.deck;
-    if (!deck?.deckId) return;
+    const hasDetailedHistory = event.detail?.capabilities?.["metrics.export"] === true;
+    if (!deck?.deckId || !hasDetailedHistory) {
+      activeDeck = null;
+      section.hidden = true;
+      return;
+    }
     requestVersion += 1;
     activeDeck = deck;
     historyLoaded = false;

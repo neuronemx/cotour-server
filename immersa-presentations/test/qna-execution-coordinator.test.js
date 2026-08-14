@@ -106,3 +106,19 @@ test("concurrent opens of one Screen link create only one execution", async () =
   assert.equal(first.presentationSessionId, second.presentationSessionId);
   assert.equal(repository.calls.filter((call) => call.method === "startPresentationSession").length, 1);
 });
+
+test("Speaker can prepare one draft execution before Screen connects", async () => {
+  const repository = repositoryStub();
+  const coordinator = new QnaExecutionCoordinator(repository);
+  const first = await coordinator.ensureExecution({ deckId: "deck-a", sourceSessionId: "room-a" });
+  const second = await coordinator.ensureExecution({ deckId: "deck-a", sourceSessionId: "room-a" });
+  assert.equal(first.presentationSessionId, "presentation-1");
+  assert.equal(second.presentationSessionId, "presentation-1");
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.deepEqual(repository.calls.find((call) => call.method === "startPresentationSession").payload, {
+    deckId: "deck-a",
+    sourceSessionId: "room-a",
+    replaceActive: false
+  });
+});

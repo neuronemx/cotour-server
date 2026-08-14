@@ -1,6 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
 const roles = ["speaker", "audience", "screen", "stage"];
-const labels = { speaker: "Speaker", audience: "Público", screen: "Screen", stage: "Stage" };
+const labels = { speaker: "Speaker", audience: "Público", screen: "Pantalla", stage: "Backstage" };
 let profilePublicTitle = String(window.IMMERSA_PROFILE_PUBLIC_TITLE || labels.speaker).trim() || labels.speaker;
 let decks = [];
 let activeDeck = null;
@@ -16,6 +16,7 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const accountPlanBadge = document.getElementById("accountPlanBadge");
+const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
 const planName = document.getElementById("planName");
 const planDeckUsage = document.getElementById("planDeckUsage");
@@ -23,6 +24,8 @@ const planStorageUsage = document.getElementById("planStorageUsage");
 const planDeckBar = document.getElementById("planDeckBar");
 const planStorageBar = document.getElementById("planStorageBar");
 const planLimitMessage = document.getElementById("planLimitMessage");
+const deckTabParticipation = document.getElementById("deckTabParticipation");
+const deckTabMetrics = document.getElementById("deckTabMetrics");
 const nameModal = document.getElementById("nameModal");
 const nameForm = document.getElementById("nameForm");
 const presentationName = document.getElementById("presentationName");
@@ -121,8 +124,64 @@ function storageLabel(bytes) {
   return (megabytes >= 10 ? Math.round(megabytes) : Math.round(megabytes * 10) / 10) + " MB";
 }
 
+function planLabel(plan) {
+  return String(plan || "FREE").replace(/_/g, " ");
+}
+
+function capabilityEnabled(capability) {
+  if (planUsage?.pendingDowngrade?.adjustmentRequired) return false;
+  return planUsage?.capabilities?.[capability] === true || planUsage?.features?.[capability] === true;
+}
+
+function syncPlanTabs() {
+  const participationEnabled = capabilityEnabled("polls.configure");
+  const metricsEnabled = capabilityEnabled("metrics.basic");
+  if (deckTabParticipation) {
+    deckTabParticipation.dataset.planEnabled = String(participationEnabled);
+    deckTabParticipation.disabled = !participationEnabled;
+    deckTabParticipation.setAttribute("aria-disabled", String(!participationEnabled));
+  }
+  if (deckTabMetrics) {
+    deckTabMetrics.disabled = !metricsEnabled;
+    deckTabMetrics.setAttribute("aria-disabled", String(!metricsEnabled));
+  }
+}
+
 function currentPlanBlockMessage() {
   if (!planUsage) return "";
+  const pending = planUsage.pendingDowngrade;
+  if (pending?.targetPlan) {
+    const deckAction = pending.excess?.decks > 0
+      ? "Elimina " + pending.excess.decks + " Deck" + (pending.excess.decks === 1 ? "" : "s")
+      : "";
+    const storageAction = pending.excess?.storageBytes > 0
+      ? "libera al menos " + storageLabel(pending.excess.storageBytes)
+      : "";
+    const deadline = pending.deadlineAt
+      ? new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(pending.deadlineAt))
+      : "";
+    const action = [deckAction, storageAction].filter(Boolean).join(" y ");
+    if (pending.adjustmentRequired) {
+      return "Ajuste requerido. " + action
+        + ". No puedes iniciar ni modificar presentaciones hasta completar el cambio a " + pending.targetPlan + ".";
+    }
+    return "Solicitaste cambiar a " + pending.targetPlan + ". " + action
+      + " antes del " + deadline + " para evitar que se bloqueen las presentaciones y funciones de tu plan.";
+  }
+  const usedDecks = Math.max(0, Number(planUsage.usage?.decks) || 0);
+  const deckLimit = Math.max(0, Number(planUsage.limits?.decks) || 0);
+  const usedStorage = Math.max(0, Number(planUsage.usage?.storageBytes) || 0);
+  const storageLimit = Math.max(0, Number(planUsage.limits?.storageBytes) || 0);
+  const excessDecks = Math.max(0, usedDecks - deckLimit);
+  const excessStorage = Math.max(0, usedStorage - storageLimit);
+  if (excessDecks > 0 || excessStorage > 0) {
+    const current = "Tu plan " + planUsage.plan + " permite " + deckLimit + " Decks y " + storageLabel(storageLimit)
+      + ". Actualmente tienes " + usedDecks + " Decks y usas " + storageLabel(usedStorage) + ". ";
+    const actions = [];
+    if (excessDecks > 0) actions.push("elimina " + excessDecks + " Deck" + (excessDecks === 1 ? "" : "s"));
+    if (excessStorage > 0) actions.push("libera al menos " + storageLabel(excessStorage));
+    return current + actions.join(" y ").replace(/^./, (letter) => letter.toUpperCase()) + " para ajustar tu cuenta.";
+  }
   if (planUsage.remaining?.decks < 1) {
     return "Alcanzaste las " + planUsage.limits.decks + " presentaciones de tu plan " + planUsage.plan + ".";
   }
@@ -155,8 +214,8 @@ function replacementIssue(file, deck) {
 function renderPlanUsage() {
   if (!planUsage) return;
   const plan = String(planUsage.plan || "FREE");
-  if (accountPlanBadge) accountPlanBadge.textContent = plan;
-  if (planName) planName.textContent = plan;
+  if (accountPlanBadge) accountPlanBadge.textContent = planLabel(plan);
+  if (planName) planName.textContent = planLabel(plan);
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
@@ -172,6 +231,9 @@ function renderPlanUsage() {
   fileDrop.setAttribute("aria-disabled", blockedMessage ? "true" : "false");
   fileDrop.tabIndex = blockedMessage ? -1 : 0;
   fileInput.disabled = Boolean(blockedMessage);
+  syncPlanTabs();
+  if (adminAccountsLink) adminAccountsLink.hidden = planUsage.admin !== true;
+  if (detailDeck) renderDetailActions(detailDeck);
 }
 
 async function loadPlanUsage() {
@@ -909,9 +971,11 @@ function renderDecks() {
 function renderDetailActions(deck) {
   if (!detailActions) return;
   detailActions.innerHTML = "";
-  if (deck?.missing) return;
+  if (deck?.missing || planUsage?.pendingDowngrade?.adjustmentRequired) return;
 
-  roles.forEach((role) => {
+  roles
+    .filter((role) => role !== "stage" || capabilityEnabled("access.backstage") || deck?.systemDemo)
+    .forEach((role) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "detail-role-action role-" + role;
@@ -923,7 +987,7 @@ function renderDetailActions(deck) {
       copyRoleLink(role, deck, event.currentTarget);
     });
     detailActions.appendChild(button);
-  });
+    });
 }
 
 function openDeckModal(deck) {
@@ -946,9 +1010,10 @@ function openDeckModal(deck) {
   renderDetailActions(deck);
   const isMaster = deck.demoRole === "master";
   const isPublishedDemo = deck.demoRole === "published";
-  if (detailRename) detailRename.hidden = Boolean(deck.systemDemo);
+  const adjustmentRequired = Boolean(planUsage?.pendingDowngrade?.adjustmentRequired);
+  if (detailRename) detailRename.hidden = Boolean(deck.systemDemo) || adjustmentRequired;
   if (detailReplace) {
-    detailReplace.hidden = isPublishedDemo;
+    detailReplace.hidden = isPublishedDemo || adjustmentRequired;
     const label = detailReplace.querySelector("span");
     if (label) label.textContent = deck.missing ? "Subir presentación" : "Sustituir";
   }
@@ -958,7 +1023,9 @@ function openDeckModal(deck) {
   deckDetailModal.hidden = false;
   deckDetailModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
-  document.dispatchEvent(new CustomEvent("immersa:deck-detail-open", { detail: { deck } }));
+  document.dispatchEvent(new CustomEvent("immersa:deck-detail-open", {
+    detail: { deck, capabilities: planUsage?.capabilities || planUsage?.features || {} }
+  }));
   window.setTimeout(() => closeDeckDetail?.focus(), 20);
 }
 
