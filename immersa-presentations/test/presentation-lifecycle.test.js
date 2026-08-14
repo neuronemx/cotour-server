@@ -323,8 +323,8 @@ test("the lifecycle slider is mounted on Backstage with basic Metrics and remain
   const stage = fs.readFileSync(path.join(root, "public/stage/index.html"), "utf8");
   const stageScript = fs.readFileSync(path.join(root, "public/stage/stage.js"), "utf8");
 
-  assert.match(control, /state\.mode === "live" \? "En vivo" : "Iniciar"/);
-  assert.match(control, /arming \? "Finalizar" : "En vivo"/);
+  assert.match(control, /state\.mode === "live" \? "Finalizar" : "Iniciar"/);
+  assert.match(control, /setLabel\("Finalizar"\)/);
   assert.match(control, /presentation:lifecycle:\$\{action\}/);
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
   assert.doesNotMatch(presenter, /presentationLifecycle/);
@@ -332,7 +332,8 @@ test("the lifecycle slider is mounted on Backstage with basic Metrics and remain
   assert.match(stageScript, /syncPresentationLifecycleFeature\(planAllows\("metrics\.basic"\)\)/);
   assert.match(stageScript, /presentationLifecycleControl\?\.destroy\?\.\(\)/);
   assert.doesNotMatch(presenter, /presentation-lifecycle-control\.js/);
-  assert.match(stage, /presentation-lifecycle-control\.js\?v=1/);
+  assert.match(stage, /presentation-lifecycle-control\.js\?v=2/);
+  assert.match(stage, /presentation-lifecycle\.css\?v=2/);
 });
 
 test("only explicitly started sessions appear in Q&A and knowledge history", () => {

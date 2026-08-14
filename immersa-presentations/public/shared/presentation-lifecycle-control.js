@@ -15,7 +15,7 @@
     }
 
     function restingLabel() {
-      return state.mode === "live" ? "En vivo" : "Iniciar";
+      return state.mode === "live" ? "Finalizar" : "Iniciar";
     }
 
     function setLabel(label) {
@@ -26,7 +26,7 @@
     function setArming(arming) {
       if (!control || state.mode !== "live" || pending) return;
       control.classList.toggle("is-arming", Boolean(arming));
-      setLabel(arming ? "Finalizar" : "En vivo");
+      setLabel("Finalizar");
     }
 
     function render() {
