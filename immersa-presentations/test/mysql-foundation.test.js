@@ -43,7 +43,7 @@ test("MySQL config fails clearly when required values are absent", () => {
   assert.throws(() => readMysqlConfig({ IMMERSA_MYSQL_URL: "postgres://example.test/db" }), /mysql:\/\//);
 });
 
-test("Q&A schema preserves the frozen storage contract", async () => {
+test("database schema preserves Q&A and Speaker metrics storage contracts", async () => {
   const files = (await fs.promises.readdir(migrationsDir)).sort();
   assert.deepEqual(files, [
     "001_presentation_sessions.sql",
@@ -59,7 +59,8 @@ test("Q&A schema preserves the frozen storage contract", async () => {
     "011_qna_submission_cooldown.sql",
     "012_workspace_plan_changes.sql",
     "013_pending_plan_downgrades.sql",
-    "014_plan_downgrade_grace_period.sql"
+    "014_plan_downgrade_grace_period.sql",
+    "015_speaker_basic_metrics.sql"
   ]);
   const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
   assert.match(schema, /ENGINE=InnoDB/g);
@@ -74,6 +75,9 @@ test("Q&A schema preserves the frozen storage contract", async () => {
   assert.match(schema, /status = 'selected' AND selected_round_id = qna_round_id/);
   assert.doesNotMatch(schema, /GENERATED ALWAYS/);
   assert.doesNotMatch(schema, /deleted_at|projected_by|projection_count|projected_with_name/i);
+  assert.match(schema, /presentation_session_attendance/);
+  assert.match(schema, /presentation_poll_executions/);
+  assert.match(schema, /presentation_poll_responses/);
 });
 
 test("migration runner serializes and records pending SQL files", async () => {
@@ -106,15 +110,16 @@ test("migration runner serializes and records pending SQL files", async () => {
     "011_qna_submission_cooldown.sql",
     "012_workspace_plan_changes.sql",
     "013_pending_plan_downgrades.sql",
-    "014_plan_downgrade_grace_period.sql"
+    "014_plan_downgrade_grace_period.sql",
+    "015_speaker_basic_metrics.sql"
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);
   const migrationQueries = calls.filter((call) => (
     call.kind === "query"
-    && /CREATE TABLE IF NOT EXISTS (presentation_sessions|qna_|knowledge_activity_)/.test(call.sql || "")
+    && /CREATE TABLE IF NOT EXISTS (presentation_(?:sessions|session_attendance|poll_)|qna_|knowledge_activity_)/.test(call.sql || "")
   ));
-  assert.equal(migrationQueries.length, 9);
+  assert.equal(migrationQueries.length, 13);
   assert.ok(migrationQueries.every((call) => (
     (call.sql.match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 1
   )));
