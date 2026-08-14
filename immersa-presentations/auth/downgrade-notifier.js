@@ -56,6 +56,7 @@ class DowngradeNotifier {
   async findDue({ workspaceId = "", kind = "", limit = 20 } = {}) {
     const filters = [];
     const params = [];
+    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 20));
     if (workspaceId) {
       filters.push("n.workspace_id = ?");
       params.push(workspaceId);
@@ -64,7 +65,6 @@ class DowngradeNotifier {
       filters.push("n.kind = ?");
       params.push(kind);
     }
-    params.push(Math.max(1, Math.min(100, Number(limit) || 20)));
     const [rows] = await this.pool.execute(
       `SELECT n.request_id, n.kind, n.workspace_id, n.target_plan, n.deadline_at,
               u.name, u.email, w.pending_plan_request_id,
@@ -84,7 +84,7 @@ class DowngradeNotifier {
          AND (n.claimed_at IS NULL OR n.claimed_at < DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 15 MINUTE))
          ${filters.length ? `AND ${filters.join(" AND ")}` : ""}
        ORDER BY n.available_at, n.request_id
-       LIMIT ?`,
+       LIMIT ${safeLimit}`,
       params
     );
     return rows || [];

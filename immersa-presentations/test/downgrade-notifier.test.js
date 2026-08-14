@@ -84,7 +84,8 @@ test("an immediate downgrade email can be delivered for one workspace", async ()
   assert.match(calls[0].sql, /n\.workspace_id = \?/);
   assert.match(calls[0].sql, /n\.kind = \?/);
   assert.doesNotMatch(calls[0].sql, /GROUP BY n\.request_id/);
-  assert.deepEqual(calls[0].params, ["workspace-2", "requested", 1]);
+  assert.match(calls[0].sql, /LIMIT 1/);
+  assert.deepEqual(calls[0].params, ["workspace-2", "requested"]);
 });
 
 test("an administrator can reset and resend the current downgrade email", async () => {
