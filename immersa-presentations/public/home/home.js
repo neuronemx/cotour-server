@@ -1023,7 +1023,9 @@ function openDeckModal(deck) {
   deckDetailModal.hidden = false;
   deckDetailModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
-  document.dispatchEvent(new CustomEvent("immersa:deck-detail-open", { detail: { deck } }));
+  document.dispatchEvent(new CustomEvent("immersa:deck-detail-open", {
+    detail: { deck, capabilities: planUsage?.capabilities || planUsage?.features || {} }
+  }));
   window.setTimeout(() => closeDeckDetail?.focus(), 20);
 }
 
