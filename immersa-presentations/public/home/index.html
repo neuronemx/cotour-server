@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=56">
+  <link rel="stylesheet" href="/home/home.css?v=57">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
@@ -115,12 +115,12 @@
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
           <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
-            <div class="deck-transition-copy"><strong id="deckTransitionTitle">Transición de slides</strong><span>Se aplicará a todo el Deck.</span></div>
+            <div class="deck-transition-copy"><strong id="deckTransitionTitle">Transición de slides</strong><span>Se aplicará a todo el deck</span></div>
             <div id="deckTransitionOptions" class="deck-transition-options" role="radiogroup" aria-label="Transición global del Deck">
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="none">Sin transición</button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="dissolve">Disolvencia</button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="swipe">Swipe</button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="flash">Flash suave</button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="none"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="8.5" height="14" rx="2"/><rect x="13.5" y="5" width="8.5" height="14" rx="2"/><path d="M12 4v16"/></svg><span>Sin transición</span></button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="dissolve"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="is-dashed" cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/></svg><span>Disolvencia</span></button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="wipe"><svg viewBox="0 0 24 24" aria-hidden="true"><rect class="is-dashed" x="2" y="5" width="9" height="14" rx="2"/><rect x="13" y="5" width="9" height="14" rx="2"/><path d="M9.5 12H14M12 9.8l2.2 2.2-2.2 2.2"/></svg><span>Wipe</span></button>
+              <button type="button" role="radio" aria-checked="false" data-deck-transition="flash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg><span>Flash</span></button>
             </div>
             <p id="deckTransitionStatus" class="deck-transition-status" role="status" aria-live="polite"></p>
           </section>

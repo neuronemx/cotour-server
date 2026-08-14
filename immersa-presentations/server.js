@@ -374,10 +374,11 @@ function manifestSummary(manifest, manifestStats = null) {
   };
 }
 
-const SLIDE_TRANSITIONS = new Set(["none", "dissolve", "swipe", "flash"]);
+const SLIDE_TRANSITIONS = new Set(["none", "dissolve", "wipe", "flash"]);
 
 function normalizeSlideTransition(value) {
   const transition = String(value || "").trim().toLowerCase();
+  if (transition === "swipe") return "wipe";
   return SLIDE_TRANSITIONS.has(transition) ? transition : "dissolve";
 }
 
@@ -474,8 +475,9 @@ async function renameDeck(deckId, requestedTitle) {
 }
 
 async function updateDeckSlideTransition(deckId, requestedTransition) {
-  const transition = String(requestedTransition || "").trim().toLowerCase();
-  if (!SLIDE_TRANSITIONS.has(transition)) {
+  const requested = String(requestedTransition || "").trim().toLowerCase();
+  const transition = normalizeSlideTransition(requested);
+  if (!SLIDE_TRANSITIONS.has(requested) && requested !== "swipe") {
     const error = new Error("Invalid slide transition");
     error.statusCode = 400;
     throw error;

@@ -1,8 +1,8 @@
 (function slideTransitions(global) {
-  const ALLOWED = new Set(["none", "dissolve", "swipe", "flash"]);
+  const ALLOWED = new Set(["none", "dissolve", "wipe", "flash"]);
   const ACTIVE_CLASSES = [
     "immersa-slide-transition-dissolve",
-    "immersa-slide-transition-swipe",
+    "immersa-slide-transition-wipe",
     "immersa-slide-transition-flash",
     "immersa-slide-transition-backward"
   ];
@@ -11,6 +11,7 @@
 
   function normalize(value) {
     const transition = String(value || "").trim().toLowerCase();
+    if (transition === "swipe") return "wipe";
     return ALLOWED.has(transition) ? transition : "dissolve";
   }
 
@@ -50,14 +51,52 @@
     return Promise.allSettled(sources.filter(Boolean).map(loadSource));
   }
 
+  function clearOutgoing(slide) {
+    slide?.parentElement?.querySelectorAll(".immersa-slide-outgoing").forEach((item) => item.remove());
+  }
+
+  function outgoingLayer(slide) {
+    const layer = slide.cloneNode(false);
+    layer.removeAttribute("id");
+    layer.removeAttribute("aria-describedby");
+    layer.setAttribute("aria-hidden", "true");
+    ACTIVE_CLASSES.forEach((className) => layer.classList.remove(className));
+    layer.classList.add("immersa-slide-outgoing");
+    const computed = global.getComputedStyle?.(slide);
+    if (computed) {
+      layer.style.objectFit = computed.objectFit;
+      layer.style.objectPosition = computed.objectPosition;
+      layer.style.transform = computed.transform;
+      layer.style.transformOrigin = computed.transformOrigin;
+    }
+    return layer;
+  }
+
   async function swap(slide, src, value, direction = 1) {
     if (!slide || !src) return false;
     const token = (swaps.get(slide) || 0) + 1;
     swaps.set(slide, token);
     try { await loadSource(src); } catch (_error) {}
     if (swaps.get(slide) !== token) return false;
+
+    const transition = normalize(value);
+    clearOutgoing(slide);
+    if (transition === "none" || global.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      slide.src = src;
+      apply(slide, "none", direction);
+      return true;
+    }
+
+    const layer = outgoingLayer(slide);
+    slide.parentElement?.insertBefore(layer, slide);
     slide.src = src;
-    apply(slide, value, direction);
+    apply(slide, transition, direction);
+    const cleanup = () => {
+      if (swaps.get(slide) === token) ACTIVE_CLASSES.forEach((className) => slide.classList.remove(className));
+      layer.remove();
+    };
+    slide.addEventListener("animationend", cleanup, { once: true });
+    global.setTimeout(cleanup, 700);
     return true;
   }
 

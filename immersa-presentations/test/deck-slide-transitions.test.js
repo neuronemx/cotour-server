@@ -11,13 +11,14 @@ test("Deck stores one global slide transition and exposes it in Home", () => {
   const home = read("public/home/index.html");
   const homeScript = read("public/home/home.js");
 
-  assert.match(server, /SLIDE_TRANSITIONS = new Set\(\["none", "dissolve", "swipe", "flash"\]\)/);
+  assert.match(server, /SLIDE_TRANSITIONS = new Set\(\["none", "dissolve", "wipe", "flash"\]\)/);
+  assert.match(server, /if \(transition === "swipe"\) return "wipe"/);
   assert.match(server, /slideTransition: normalizeSlideTransition\(manifest\.slideTransition\)/);
   assert.match(server, /\/api\/decks\/:deckId\/transition/);
   assert.match(server, /manifest\.slideTransition = transition/);
   assert.match(home, /data-deck-transition="none"/);
   assert.match(home, /data-deck-transition="dissolve"/);
-  assert.match(home, /data-deck-transition="swipe"/);
+  assert.match(home, /data-deck-transition="wipe"/);
   assert.match(home, /data-deck-transition="flash"/);
   assert.match(homeScript, /body: JSON\.stringify\(\{ slideTransition: transition \}\)/);
 });
@@ -32,13 +33,15 @@ test("all live roles animate slide changes from the Deck manifest", () => {
     "public/audience/audience.js"
   ];
 
+  assert.match(transitionScript, /if \(transition === "swipe"\) return "wipe"/);
   assert.match(transitionScript, /return ALLOWED\.has\(transition\) \? transition : "dissolve"/);
   assert.match(transitionScript, /if \(transition === "none"\) return/);
   assert.match(transitionCss, /immersa-slide-transition-dissolve/);
-  assert.match(transitionCss, /immersa-slide-transition-swipe/);
+  assert.match(transitionCss, /immersa-slide-transition-wipe/);
+  assert.match(transitionCss, /immersa-slide-outgoing/);
   assert.match(transitionCss, /immersa-slide-transition-flash/);
   assert.match(transitionCss, /prefers-reduced-motion: reduce/);
-  assert.match(transitionScript, /await loadSource\(src\)[\s\S]*slide\.src = src;[\s\S]*apply\(slide, value, direction\)/);
+  assert.match(transitionScript, /await loadSource\(src\)[\s\S]*insertBefore\(layer, slide\)[\s\S]*slide\.src = src;[\s\S]*apply\(slide, transition, direction\)/);
   roles.forEach((file) => {
     const source = read(file);
     assert.match(source, /ImmersaSlideTransitions\?\.swap/);

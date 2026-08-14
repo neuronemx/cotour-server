@@ -94,7 +94,7 @@ test("Deck cards use a geometrically centered delete icon on iPhone", () => {
   const source = read("public/home/home.js");
   const css = read("public/home/home.css");
 
-  assert.match(html, /home\.css\?v=56/);
+  assert.match(html, /home\.css\?v=57/);
   assert.match(html, /home\.js\?v=65/);
   assert.match(source, /deleteButton\.innerHTML = '<svg[^']+M6 6l12 12M18 6 6 18/);
   assert.doesNotMatch(source, /deleteButton\.textContent = "×"/);
