@@ -1062,6 +1062,18 @@ app.put("/api/admin/accounts/:workspaceId/plan", requireAccount, requireImmersaA
     });
   }
 });
+app.post("/api/admin/accounts/:workspaceId/downgrade-email", requireAccount, requireImmersaAdmin, async (req, res) => {
+  try {
+    const emailNotification = await betterAuthCompatibilityBridge.resendWorkspaceDowngradeEmail(String(req.params.workspaceId || "").trim());
+    res.status(emailNotification?.status === "sent" ? 200 : 502).json({ emailNotification });
+  } catch (error) {
+    console.error("Unable to resend Immersa downgrade notification", error);
+    res.status(500).json({
+      error: "No se pudo reenviar el correo",
+      emailNotification: { status: "failed", detail: String(error?.message || error).slice(0, 300) }
+    });
+  }
+});
 app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
 app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
 app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);

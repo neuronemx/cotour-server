@@ -86,3 +86,23 @@ test("an immediate downgrade email can be delivered for one workspace", async ()
   assert.doesNotMatch(calls[0].sql, /GROUP BY n\.request_id/);
   assert.deepEqual(calls[0].params, ["workspace-2", "requested", 1]);
 });
+
+test("an administrator can reset and resend the current downgrade email", async () => {
+  const calls = [];
+  const pool = {
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/UPDATE plan_downgrade_notifications n/.test(sql)) return [{ affectedRows: 1 }];
+      if (/SELECT n\.request_id/.test(sql)) return [[{
+        request_id: "request-3", kind: "requested", workspace_id: "workspace-3", target_plan: "FREE",
+        deadline_at: "2026-08-20T18:00:00.000Z", pending_plan_request_id: "request-3",
+        name: "Ana", email: "ana@example.com", deck_count: 4, storage_bytes: 0
+      }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const notifier = new DowngradeNotifier(pool, { emailSender: async () => ({ id: "email-3" }) });
+  assert.deepEqual(await notifier.retryRequestedForWorkspace("workspace-3"), { status: "sent" });
+  assert.match(calls[0].sql, /n\.request_id = w\.pending_plan_request_id/);
+  assert.deepEqual(calls[0].params, ["workspace-3"]);
+});

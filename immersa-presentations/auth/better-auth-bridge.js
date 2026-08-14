@@ -198,14 +198,19 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     });
     let emailNotification = null;
     if (usage.pendingDowngrade) {
-      const sent = await runtime.downgradeNotifier?.runDueForWorkspace?.(payload.workspaceId, "requested")
+      emailNotification = await runtime.downgradeNotifier?.sendDueForWorkspace?.(payload.workspaceId, "requested")
         .catch((error) => {
           console.error("Unable to send immediate Immersa downgrade notification", error);
-          return 0;
+          return { status: "failed", detail: String(error?.message || error).slice(0, 300) };
         });
-      emailNotification = { status: Number(sent || 0) > 0 ? "sent" : "retrying" };
+      if (!emailNotification) emailNotification = { status: "failed", detail: "No se pudo iniciar el envío" };
     }
     return { ...usage, ...featureAccessForPlan(usage.plan), emailNotification };
+  }
+
+  async function resendWorkspaceDowngradeEmail(workspaceId) {
+    const runtime = await initialize();
+    return runtime.downgradeNotifier.retryRequestedForWorkspace(workspaceId);
   }
 
   async function listWorkspaceDeckIds(workspaceId) {
@@ -356,6 +361,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     getPlanUsage,
     listAdminAccounts,
     changeWorkspacePlan,
+    resendWorkspaceDowngradeEmail,
     listWorkspaceDeckIds,
     getDeckFeatureAccess,
     listUnmeteredDeckIds,

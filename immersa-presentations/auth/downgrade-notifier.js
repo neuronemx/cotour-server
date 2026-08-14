@@ -20,14 +20,37 @@ class DowngradeNotifier {
   }
 
   async runDueForWorkspace(workspaceId, kind = "requested") {
-    if (!this.emailSender) return 0;
+    const result = await this.sendDueForWorkspace(workspaceId, kind);
+    return result.status === "sent" ? 1 : 0;
+  }
+
+  async sendDueForWorkspace(workspaceId, kind = "requested") {
+    if (!this.emailSender) return { status: "disabled", detail: "El servicio de correo no está configurado" };
     const normalizedWorkspaceId = String(workspaceId || "").trim();
     const normalizedKind = String(kind || "").trim();
-    if (!normalizedWorkspaceId || !normalizedKind) return 0;
+    if (!normalizedWorkspaceId || !normalizedKind) return { status: "not_found", detail: "No se encontró la notificación" };
     const rows = await this.findDue({ workspaceId: normalizedWorkspaceId, kind: normalizedKind, limit: 1 });
-    let sent = 0;
-    for (const row of rows) sent += await this.deliver(row) ? 1 : 0;
-    return sent;
+    if (!rows.length) return { status: "not_found", detail: "No hay un correo pendiente disponible para envío" };
+    return this.deliverResult(rows[0]);
+  }
+
+  async retryRequestedForWorkspace(workspaceId) {
+    if (!this.emailSender) return { status: "disabled", detail: "El servicio de correo no está configurado" };
+    const normalizedWorkspaceId = String(workspaceId || "").trim();
+    if (!normalizedWorkspaceId) return { status: "not_found", detail: "No se encontró la cuenta" };
+    const [reset] = await this.pool.execute(
+      `UPDATE plan_downgrade_notifications n
+       INNER JOIN workspaces w ON w.id = n.workspace_id
+       SET n.sent_at = NULL, n.claimed_at = NULL, n.last_error = NULL,
+           n.available_at = CURRENT_TIMESTAMP(3)
+       WHERE n.workspace_id = ? AND n.kind = 'requested'
+         AND n.request_id = w.pending_plan_request_id`,
+      [normalizedWorkspaceId]
+    );
+    if (Number(reset?.affectedRows || 0) < 1) {
+      return { status: "not_found", detail: "La cuenta no tiene un downgrade pendiente" };
+    }
+    return this.sendDueForWorkspace(normalizedWorkspaceId, "requested");
   }
 
   async findDue({ workspaceId = "", kind = "", limit = 20 } = {}) {
@@ -68,13 +91,17 @@ class DowngradeNotifier {
   }
 
   async deliver(row) {
+    return (await this.deliverResult(row)).status === "sent";
+  }
+
+  async deliverResult(row) {
     const activeRequest = String(row.pending_plan_request_id || "") === String(row.request_id || "");
     if (row.kind !== "completed" && !activeRequest) {
       await this.pool.execute(
         "DELETE FROM plan_downgrade_notifications WHERE request_id = ? AND kind = ? AND sent_at IS NULL",
         [row.request_id, row.kind]
       );
-      return false;
+      return { status: "cancelled", detail: "La solicitud ya no está activa" };
     }
     const [claim] = await this.pool.execute(
       `UPDATE plan_downgrade_notifications
@@ -83,7 +110,7 @@ class DowngradeNotifier {
          AND (claimed_at IS NULL OR claimed_at < DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 15 MINUTE))`,
       [row.request_id, row.kind]
     );
-    if (Number(claim?.affectedRows || 0) !== 1) return false;
+    if (Number(claim?.affectedRows || 0) !== 1) return { status: "busy", detail: "Otro proceso está enviando el correo" };
     try {
       const limits = getPlanLimits(row.target_plan);
       const usage = {
@@ -112,7 +139,7 @@ class DowngradeNotifier {
          WHERE request_id = ? AND kind = ?`,
         [row.request_id, row.kind]
       );
-      return true;
+      return { status: "sent" };
     } catch (error) {
       await this.pool.execute(
         `UPDATE plan_downgrade_notifications
@@ -121,7 +148,7 @@ class DowngradeNotifier {
         [String(error?.message || error).slice(0, 500), row.request_id, row.kind]
       ).catch(() => {});
       this.logger.error("Unable to send an Immersa downgrade notification", error);
-      return false;
+      return { status: "failed", detail: String(error?.message || error).slice(0, 300) };
     }
   }
 }

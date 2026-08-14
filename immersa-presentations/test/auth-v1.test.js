@@ -252,9 +252,9 @@ test("a pending downgrade confirms its immediate email before the admin response
       }
     },
     downgradeNotifier: {
-      async runDueForWorkspace(workspaceId, kind) {
+      async sendDueForWorkspace(workspaceId, kind) {
         calls.push({ type: "email", workspaceId, kind });
-        return 1;
+        return { status: "sent" };
       }
     }
   };

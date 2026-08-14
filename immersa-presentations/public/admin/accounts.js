@@ -38,6 +38,8 @@ function render() {
     card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
     card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
     const form = card.querySelector("form");
+    const resendButton = form.querySelector(".resend-email");
+    resendButton.hidden = !account.pendingDowngrade;
     form.elements.plan.value = account.pendingDowngrade?.targetPlan || account.plan;
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -60,17 +62,41 @@ function render() {
         card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
         feedback.classList.add("success");
         if (data.pendingDowngrade) {
+          resendButton.hidden = false;
           feedback.textContent = data.emailNotification?.status === "sent"
             ? "Downgrade solicitado. Correo enviado al usuario; tiene 7 días para ajustar sus Decks."
-            : "Downgrade solicitado. No se confirmó el envío del correo; IMMERSA lo reintentará automáticamente.";
+            : "Downgrade solicitado. " + (data.emailNotification?.detail || "No se confirmó el envío; IMMERSA lo reintentará automáticamente.");
           if (data.emailNotification?.status !== "sent") feedback.classList.add("error");
-        } else feedback.textContent = "Plan actualizado a " + planLabel(data.plan) + ".";
+        } else {
+          resendButton.hidden = true;
+          feedback.textContent = "Plan actualizado a " + planLabel(data.plan) + ".";
+        }
         form.elements.note.value = "";
       } catch (error) {
         feedback.classList.add("error");
         feedback.textContent = error.message;
       } finally {
         button.disabled = false;
+      }
+    });
+    resendButton.addEventListener("click", async () => {
+      const feedback = card.querySelector(".feedback");
+      resendButton.disabled = true;
+      feedback.className = "feedback";
+      feedback.textContent = "Reenviando…";
+      try {
+        const response = await fetch("/api/admin/accounts/" + encodeURIComponent(account.workspaceId) + "/downgrade-email", { method: "POST" });
+        const data = await response.json();
+        if (!response.ok || data.emailNotification?.status !== "sent") {
+          throw new Error(data.emailNotification?.detail || data.error || "No se pudo reenviar el correo");
+        }
+        feedback.classList.add("success");
+        feedback.textContent = "Correo de downgrade reenviado a " + account.email + ".";
+      } catch (error) {
+        feedback.classList.add("error");
+        feedback.textContent = error.message;
+      } finally {
+        resendButton.disabled = false;
       }
     });
     accountsRoot.appendChild(card);
