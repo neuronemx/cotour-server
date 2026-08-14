@@ -69,20 +69,6 @@ const knowledgeActivityController = window.ImmersaKnowledgeActivities?.createCon
 const STAGE_COMMAND_DEBOUNCE_MS = 360;
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" class="play-icon"><path d="M9 6L18 12L9 18Z"></path></svg>';
-const fallbackDemoInteraction = {
-  id: "demo-poll-1",
-  type: "poll",
-  title: "Encuesta demo",
-  prompt: "¿Qué experiencia te gustaría probar primero en Immersa?",
-  options: [
-    { id: "live-polls", label: "Encuestas en vivo" },
-    { id: "quizzes", label: "Quizzes con puntaje" },
-    { id: "decision-exercises", label: "Ejercicios de decisión" },
-    { id: "attendee-results", label: "Resultados por asistente" }
-  ],
-  source: "fallback-demo"
-};
-
 const slide = document.getElementById("slide");
 const stageShell = document.querySelector(".stage-shell");
 const screenFrame = document.querySelector(".screen-frame");
@@ -184,9 +170,8 @@ async function loadInteractions() {
     const data = await res.json();
     interactions = normalizeInteractionList(data);
     videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
-    if (!interactions.length) interactions = [fallbackDemoInteraction];
   } catch (_error) {
-    interactions = [fallbackDemoInteraction];
+    interactions = [];
     videoSlideIds = new Set();
   }
   clearSelectedInteraction();
@@ -556,8 +541,7 @@ function interactionListMarkup() {
   if (!interactions.length) return "";
   return '<div class="interaction-picker" role="listbox" aria-label="Interacciones disponibles">' + interactions.map((item) => {
     const selected = String(item.id) === String(selectedInteractionId);
-    const demo = item.source === "fallback-demo" ? '<small>Demo temporal</small>' : '';
-    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span>' + demo + '</button>';
+    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
   }).join("") + '</div>';
 }
 

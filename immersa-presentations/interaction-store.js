@@ -5,24 +5,6 @@ const { PongStore } = require("./pong-store");
 const { createPongSocketHandlers } = require("./pong-sockets");
 const { createMediaSocketHandlers } = require("./media-sockets");
 
-const FALLBACK_DEMO_INTERACTION = {
-  id: "demo-poll-1",
-  type: "poll",
-  title: "Encuesta demo",
-  prompt: "¿Qué experiencia te gustaría probar primero en Immersa?",
-  options: [
-    { id: "live-polls", label: "Encuestas en vivo" },
-    { id: "quizzes", label: "Quizzes con puntaje" },
-    { id: "decision-exercises", label: "Ejercicios de decisión" },
-    { id: "attendee-results", label: "Resultados por asistente" }
-  ],
-  source: "fallback-demo"
-};
-
-function withFallbackInteractions(interactions) {
-  return Array.isArray(interactions) && interactions.length ? interactions : [FALLBACK_DEMO_INTERACTION];
-}
-
 class InteractionStore {
   constructor() {
     this.sessions = new Map();
@@ -309,8 +291,10 @@ function createInteractionSocketHandlers({
       if (coordinator?.hasAnyActive?.(context.sessionId, "interaction")) {
         return { ok: false, reason: "active_interaction_exists" };
       }
-      const interactions = withFallbackInteractions(await loadInteractionsForDeck(context.deckId));
-      const interaction = interactions.find((item) => String(item.id) === String(interactionId)) || interactions[0];
+      const loaded = await loadInteractionsForDeck(context.deckId);
+      const interactions = Array.isArray(loaded) ? loaded : [];
+      const interaction = interactions.find((item) => String(item.id) === String(interactionId));
+      if (!interaction) return { ok: false, reason: "interaction_not_found" };
       const active = store.launch({ sessionId: context.sessionId, interaction });
       if (!active) return { ok: false, reason: "invalid_interaction" };
       return { ok: true, active };
@@ -422,4 +406,4 @@ function createInteractionSocketHandlers({
   };
 }
 
-module.exports = { InteractionStore, createInteractionSocketHandlers, FALLBACK_DEMO_INTERACTION };
+module.exports = { InteractionStore, createInteractionSocketHandlers };
