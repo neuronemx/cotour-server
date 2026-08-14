@@ -5,6 +5,7 @@ const { normalizePlan } = require("./plan-features");
 const PERSONAL_WORKSPACE_KIND = "personal";
 const FREE_PLAN = "FREE";
 const UNVERIFIED_RETENTION_MS = 48 * 60 * 60 * 1000;
+const DOWNGRADE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function pendingDowngrade(row, usage) {
   const targetPlan = normalizePlan(row?.pending_plan);
@@ -15,13 +16,26 @@ function pendingDowngrade(row, usage) {
     decks: Math.max(0, normalizedUsage.decks - limits.decks),
     storageBytes: Math.max(0, normalizedUsage.storageBytes - limits.storageBytes)
   };
+  const deadlineAt = row.pending_plan_deadline_at || null;
+  const adjustmentRequired = Boolean(deadlineAt && new Date(deadlineAt).getTime() <= Date.now());
   return {
     targetPlan,
     limits: { decks: limits.decks, storageBytes: limits.storageBytes },
     excess,
     ready: excess.decks === 0 && excess.storageBytes === 0,
-    requestedAt: row.pending_plan_requested_at || null
+    requestedAt: row.pending_plan_requested_at || null,
+    deadlineAt,
+    adjustmentRequired,
+    state: adjustmentRequired ? "adjustment_required" : "pending"
   };
+}
+
+function adjustmentRequiredError() {
+  const error = new Error("Tu cuenta requiere ajustar sus Decks antes de continuar");
+  error.statusCode = 409;
+  error.code = "ACCOUNT_ADJUSTMENT_REQUIRED";
+  error.publicMessage = error.message;
+  return error;
 }
 
 class WorkspaceRepository {
@@ -115,15 +129,26 @@ class WorkspaceRepository {
   }
 
   async getDeckPlan(deckId) {
+    const state = await this.getDeckPlanState(deckId);
+    return state?.plan || null;
+  }
+
+  async getDeckPlanState(deckId) {
     const [rows] = await this.pool.execute(
-      `SELECT w.plan
+      `SELECT w.plan, w.pending_plan, w.pending_plan_deadline_at
        FROM decks d
        INNER JOIN workspaces w ON w.id = d.workspace_id
        WHERE d.deck_id = ?
        LIMIT 1`,
       [String(deckId)]
     );
-    return rows?.[0]?.plan ? String(rows[0].plan).trim().toUpperCase() : null;
+    const row = rows?.[0];
+    if (!row?.plan) return null;
+    const deadline = row.pending_plan_deadline_at ? new Date(row.pending_plan_deadline_at).getTime() : 0;
+    return {
+      plan: String(row.plan).trim().toUpperCase(),
+      adjustmentRequired: Boolean(row.pending_plan && deadline && deadline <= Date.now())
+    };
   }
 
   async listAdminAccounts() {
@@ -138,12 +163,13 @@ class WorkspaceRepository {
          w.plan,
          w.pending_plan,
          w.pending_plan_requested_at,
+         w.pending_plan_deadline_at,
          COUNT(d.deck_id) AS deck_count,
          COALESCE(SUM(d.source_size_bytes), 0) AS storage_bytes
        FROM \`user\` u
        INNER JOIN workspaces w ON w.personal_owner_user_id = u.id
        LEFT JOIN decks d ON d.workspace_id = w.id
-       GROUP BY u.id, u.name, u.email, u.emailVerified, u.createdAt, w.id, w.plan, w.pending_plan, w.pending_plan_requested_at
+       GROUP BY u.id, u.name, u.email, u.emailVerified, u.createdAt, w.id, w.plan, w.pending_plan, w.pending_plan_requested_at, w.pending_plan_deadline_at
        ORDER BY u.createdAt DESC, u.id DESC`
     );
     return (rows || []).map((row) => {
@@ -177,7 +203,7 @@ class WorkspaceRepository {
     try {
       await connection.beginTransaction();
       const [workspaces] = await connection.execute(
-        `SELECT id, plan, pending_plan, pending_plan_requested_at,
+        `SELECT id, plan, pending_plan, pending_plan_request_id, pending_plan_requested_at, pending_plan_deadline_at,
                 pending_plan_requested_by_user_id, pending_plan_note
          FROM workspaces WHERE id = ? LIMIT 1 FOR UPDATE`,
         [String(workspaceId)]
@@ -201,23 +227,44 @@ class WorkspaceRepository {
         storageBytes: Number(usageRows?.[0]?.storage_bytes || 0)
       };
       if (usage.decks > targetLimits.decks || usage.storageBytes > targetLimits.storageBytes) {
+        const requestId = crypto.randomUUID();
+        const requestedAt = new Date();
+        const deadlineAt = new Date(requestedAt.getTime() + DOWNGRADE_GRACE_MS);
+        await connection.execute(
+          "DELETE FROM plan_downgrade_notifications WHERE workspace_id = ? AND sent_at IS NULL",
+          [String(workspaceId)]
+        );
         await connection.execute(
           `UPDATE workspaces
-           SET pending_plan = ?, pending_plan_requested_at = CURRENT_TIMESTAMP(3),
+           SET pending_plan = ?, pending_plan_request_id = ?, pending_plan_requested_at = ?, pending_plan_deadline_at = ?,
                pending_plan_requested_by_user_id = ?, pending_plan_note = ?
            WHERE id = ?`,
-          [targetPlan, String(changedByUserId), String(note || "").trim().slice(0, 500) || null, String(workspaceId)]
+          [targetPlan, requestId, requestedAt, deadlineAt, String(changedByUserId), String(note || "").trim().slice(0, 500) || null, String(workspaceId)]
+        );
+        await connection.execute(
+          `INSERT INTO plan_downgrade_notifications
+             (request_id, kind, workspace_id, target_plan, deadline_at, available_at)
+           VALUES (?, 'requested', ?, ?, ?, ?),
+                  (?, 'reminder', ?, ?, ?, ?),
+                  (?, 'expired', ?, ?, ?, ?)`,
+          [requestId, String(workspaceId), targetPlan, deadlineAt, requestedAt,
+            requestId, String(workspaceId), targetPlan, deadlineAt, new Date(deadlineAt.getTime() - 2 * 24 * 60 * 60 * 1000),
+            requestId, String(workspaceId), targetPlan, deadlineAt, deadlineAt]
         );
         await connection.commit();
         return {
           ...summarizePlanUsage(previousPlan, usage),
-          pendingDowngrade: pendingDowngrade({ pending_plan: targetPlan, pending_plan_requested_at: new Date() }, usage)
+          pendingDowngrade: pendingDowngrade({ pending_plan: targetPlan, pending_plan_requested_at: requestedAt, pending_plan_deadline_at: deadlineAt }, usage)
         };
       }
+      await connection.execute(
+        "DELETE FROM plan_downgrade_notifications WHERE workspace_id = ? AND sent_at IS NULL",
+        [String(workspaceId)]
+      );
       if (previousPlan !== targetPlan) {
         await connection.execute(
           `UPDATE workspaces
-           SET plan = ?, pending_plan = NULL, pending_plan_requested_at = NULL,
+           SET plan = ?, pending_plan = NULL, pending_plan_request_id = NULL, pending_plan_requested_at = NULL, pending_plan_deadline_at = NULL,
                pending_plan_requested_by_user_id = NULL, pending_plan_note = NULL
            WHERE id = ?`,
           [targetPlan, String(workspaceId)]
@@ -230,7 +277,7 @@ class WorkspaceRepository {
         );
       } else await connection.execute(
         `UPDATE workspaces
-         SET pending_plan = NULL, pending_plan_requested_at = NULL,
+         SET pending_plan = NULL, pending_plan_request_id = NULL, pending_plan_requested_at = NULL, pending_plan_deadline_at = NULL,
              pending_plan_requested_by_user_id = NULL, pending_plan_note = NULL
          WHERE id = ?`,
         [String(workspaceId)]
@@ -255,14 +302,14 @@ class WorkspaceRepository {
 
   async getPlanUsage({ userId, workspaceId }) {
     const [rows] = await this.pool.execute(
-      `SELECT w.plan, w.pending_plan, w.pending_plan_requested_at,
+      `SELECT w.plan, w.pending_plan, w.pending_plan_requested_at, w.pending_plan_deadline_at,
               COUNT(d.deck_id) AS deck_count,
               COALESCE(SUM(d.source_size_bytes), 0) AS storage_bytes
        FROM workspaces w
        INNER JOIN workspace_members wm ON wm.workspace_id = w.id
        LEFT JOIN decks d ON d.workspace_id = w.id
        WHERE w.id = ? AND wm.user_id = ?
-       GROUP BY w.id, w.plan, w.pending_plan, w.pending_plan_requested_at
+       GROUP BY w.id, w.plan, w.pending_plan, w.pending_plan_requested_at, w.pending_plan_deadline_at
        LIMIT 1`,
       [String(workspaceId), String(userId)]
     );
@@ -308,7 +355,8 @@ class WorkspaceRepository {
     try {
       await connection.beginTransaction();
       const [workspaces] = await connection.execute(
-        `SELECT w.id, w.plan
+        `SELECT w.id, w.plan, w.pending_plan, w.pending_plan_request_id, w.pending_plan_deadline_at,
+                w.pending_plan_requested_by_user_id, w.pending_plan_note
          FROM workspaces w
          INNER JOIN workspace_members wm ON wm.workspace_id = w.id
          WHERE w.id = ? AND wm.user_id = ?
@@ -318,6 +366,9 @@ class WorkspaceRepository {
       );
       const workspace = workspaces?.[0];
       if (!workspace) throw new Error("Immersa workspace not found");
+      if (workspace.pending_plan && new Date(workspace.pending_plan_deadline_at).getTime() <= Date.now()) {
+        throw adjustmentRequiredError();
+      }
 
       const [usageRows] = await connection.execute(
         `SELECT COUNT(*) AS deck_count,
@@ -359,7 +410,7 @@ class WorkspaceRepository {
     try {
       await connection.beginTransaction();
       const [workspaces] = await connection.execute(
-        `SELECT w.id, w.plan
+        `SELECT w.id, w.plan, w.pending_plan, w.pending_plan_deadline_at
          FROM workspaces w
          INNER JOIN workspace_members wm ON wm.workspace_id = w.id
          WHERE w.id = ? AND wm.user_id = ?
@@ -369,6 +420,9 @@ class WorkspaceRepository {
       );
       const workspace = workspaces?.[0];
       if (!workspace) throw new Error("Immersa workspace not found");
+      if (workspace.pending_plan && new Date(workspace.pending_plan_deadline_at).getTime() <= Date.now()) {
+        throw adjustmentRequiredError();
+      }
 
       const [deckRows] = await connection.execute(
         `SELECT d.source_size_bytes
@@ -405,13 +459,44 @@ class WorkspaceRepository {
          WHERE workspace_id = ? AND deck_id = ?`,
         [nextSourceSizeBytes, String(workspaceId), String(deckId)]
       );
+      const nextUsage = {
+        decks: usage.usage.decks,
+        storageBytes: usage.usage.storageBytes - previousSourceSizeBytes + nextSourceSizeBytes
+      };
+      let resultingPlan = workspace.plan;
+      const pending = pendingDowngrade(workspace, nextUsage);
+      if (pending?.ready) {
+        await connection.execute(
+          "DELETE FROM plan_downgrade_notifications WHERE workspace_id = ? AND sent_at IS NULL",
+          [workspace.id]
+        );
+        await connection.execute(
+          `INSERT IGNORE INTO plan_downgrade_notifications
+             (request_id, kind, workspace_id, target_plan, deadline_at, available_at)
+           VALUES (?, 'completed', ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+          [workspace.pending_plan_request_id, workspace.id, pending.targetPlan, workspace.pending_plan_deadline_at]
+        );
+        await connection.execute(
+          `UPDATE workspaces
+           SET plan = ?, pending_plan = NULL, pending_plan_request_id = NULL,
+               pending_plan_requested_at = NULL, pending_plan_deadline_at = NULL,
+               pending_plan_requested_by_user_id = NULL, pending_plan_note = NULL
+           WHERE id = ?`,
+          [pending.targetPlan, workspace.id]
+        );
+        await connection.execute(
+          `INSERT INTO workspace_plan_changes
+             (workspace_id, previous_plan, next_plan, source, changed_by_user_id, note)
+           VALUES (?, ?, ?, 'pending_cleanup', ?, ?)`,
+          [workspace.id, normalizePlan(workspace.plan), pending.targetPlan,
+            String(workspace.pending_plan_requested_by_user_id || userId), workspace.pending_plan_note || null]
+        );
+        resultingPlan = pending.targetPlan;
+      }
       await connection.commit();
       return {
         previousSourceSizeBytes,
-        plan: summarizePlanUsage(workspace.plan, {
-          decks: usage.usage.decks,
-          storageBytes: usage.usage.storageBytes - previousSourceSizeBytes + nextSourceSizeBytes
-        })
+        plan: summarizePlanUsage(resultingPlan, nextUsage)
       };
     } catch (error) {
       await connection.rollback().catch(() => {});
@@ -426,7 +511,8 @@ class WorkspaceRepository {
     try {
       await connection.beginTransaction();
       const [rows] = await connection.execute(
-        `SELECT w.id, w.plan, w.pending_plan, w.pending_plan_requested_by_user_id, w.pending_plan_note
+        `SELECT w.id, w.plan, w.pending_plan, w.pending_plan_request_id, w.pending_plan_deadline_at,
+                w.pending_plan_requested_by_user_id, w.pending_plan_note
          FROM decks d
          INNER JOIN workspaces w ON w.id = d.workspace_id
          INNER JOIN workspace_members wm ON wm.workspace_id = w.id
@@ -447,8 +533,18 @@ class WorkspaceRepository {
         });
         if (pending?.ready) {
           await connection.execute(
+            "DELETE FROM plan_downgrade_notifications WHERE workspace_id = ? AND sent_at IS NULL",
+            [workspace.id]
+          );
+          await connection.execute(
+            `INSERT IGNORE INTO plan_downgrade_notifications
+               (request_id, kind, workspace_id, target_plan, deadline_at, available_at)
+             VALUES (?, 'completed', ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+            [workspace.pending_plan_request_id, workspace.id, pending.targetPlan, workspace.pending_plan_deadline_at]
+          );
+          await connection.execute(
             `UPDATE workspaces
-             SET plan = ?, pending_plan = NULL, pending_plan_requested_at = NULL,
+             SET plan = ?, pending_plan = NULL, pending_plan_request_id = NULL, pending_plan_requested_at = NULL, pending_plan_deadline_at = NULL,
                  pending_plan_requested_by_user_id = NULL, pending_plan_note = NULL
              WHERE id = ?`,
             [pending.targetPlan, workspace.id]
@@ -539,4 +635,4 @@ class WorkspaceRepository {
   }
 }
 
-module.exports = { WorkspaceRepository, PERSONAL_WORKSPACE_KIND, FREE_PLAN, UNVERIFIED_RETENTION_MS, pendingDowngrade };
+module.exports = { WorkspaceRepository, PERSONAL_WORKSPACE_KIND, FREE_PLAN, UNVERIFIED_RETENTION_MS, DOWNGRADE_GRACE_MS, pendingDowngrade, adjustmentRequiredError };

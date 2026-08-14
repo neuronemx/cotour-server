@@ -3,6 +3,7 @@ const { createResendEmailSender } = require("./resend-email");
 const { featureAccessForPlan } = require("./plan-features");
 
 const UNVERIFIED_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const DOWNGRADE_NOTIFICATION_INTERVAL_MS = 15 * 60 * 1000;
 
 function isEnabled(value) {
   return /^(1|true|yes|on)$/i.test(String(value || "").trim());
@@ -25,6 +26,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   let runtimePromise = null;
   let database = null;
   let cleanupTimer = null;
+  let downgradeTimer = null;
 
   function startUnverifiedCleanup(runtime) {
     if (cleanupTimer || typeof runtime?.workspaces?.cleanupStaleUnverifiedAccounts !== "function") return;
@@ -36,6 +38,16 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     cleanupTimer.unref?.();
   }
 
+  function startDowngradeNotifications(runtime) {
+    if (downgradeTimer || typeof runtime?.downgradeNotifier?.runDue !== "function") return;
+    const run = () => runtime.downgradeNotifier.runDue().then((sent) => {
+      if (sent) console.log(`Sent ${sent} Immersa downgrade notification(s)`);
+    }).catch((error) => console.error("Unable to process Immersa downgrade notifications", error));
+    run();
+    downgradeTimer = setInterval(run, DOWNGRADE_NOTIFICATION_INTERVAL_MS);
+    downgradeTimer.unref?.();
+  }
+
   function initialize() {
     if (!enabled) return Promise.resolve(null);
     if (!runtimePromise) {
@@ -43,6 +55,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
         database = databaseFactory();
         const runtime = runtimeModule.createBetterAuthRuntime({ database, env, emailSender: emailSenderFactory(env) });
         if (unverifiedCleanupEnabled) startUnverifiedCleanup(runtime);
+        startDowngradeNotifications(runtime);
         return runtime;
       }).catch(async (error) => {
         if (database?.end) await database.end().catch(() => {});
@@ -183,6 +196,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
       note: payload.note,
       changedByUserId: req.accountContext.user.id
     });
+    void runtime.downgradeNotifier?.runDue?.();
     return { ...usage, ...featureAccessForPlan(usage.plan) };
   }
 
@@ -194,8 +208,9 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   async function getDeckFeatureAccess(deckId) {
     if (!enabled) return featureAccessForPlan(null, { allowWhenUnknown: true });
     const runtime = await initialize();
-    const plan = await runtime.workspaces.getDeckPlan(deckId);
-    return featureAccessForPlan(plan);
+    const state = await runtime.workspaces.getDeckPlanState(deckId);
+    const access = featureAccessForPlan(state?.adjustmentRequired ? "FREE" : state?.plan);
+    return { ...access, plan: state?.plan || access.plan, adjustmentRequired: Boolean(state?.adjustmentRequired) };
   }
 
   async function listUnmeteredDeckIds(req) {
@@ -250,7 +265,9 @@ function createBetterAuthCompatibilityBridge(options = {}) {
 
   async function unregisterDeck(req, deckId) {
     const runtime = await initialize();
-    return runtime.workspaces.unregisterDeck(req.accountContext.user.id, deckId);
+    const result = await runtime.workspaces.unregisterDeck(req.accountContext.user.id, deckId);
+    void runtime.downgradeNotifier?.runDue?.();
+    return result;
   }
 
   async function getAccountProfile(req) {
@@ -309,6 +326,8 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   async function close() {
     if (cleanupTimer) clearInterval(cleanupTimer);
     cleanupTimer = null;
+    if (downgradeTimer) clearInterval(downgradeTimer);
+    downgradeTimer = null;
     if (database?.end) await database.end();
     database = null;
     runtimePromise = null;
@@ -347,4 +366,4 @@ function createBetterAuthCompatibilityBridge(options = {}) {
   };
 }
 
-module.exports = { createBetterAuthCompatibilityBridge, isEnabled, UNVERIFIED_CLEANUP_INTERVAL_MS };
+module.exports = { createBetterAuthCompatibilityBridge, isEnabled, UNVERIFIED_CLEANUP_INTERVAL_MS, DOWNGRADE_NOTIFICATION_INTERVAL_MS };

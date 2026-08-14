@@ -10,6 +10,12 @@ const mb = (bytes) => {
   return (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10) + " MB";
 };
 const planLabel = (plan) => String(plan || "FREE").replace(/_/g, " ");
+const pendingLabel = (pending) => {
+  if (!pending) return "";
+  if (pending.adjustmentRequired) return " → " + planLabel(pending.targetPlan) + " · AJUSTE REQUERIDO";
+  const deadline = pending.deadlineAt ? new Date(pending.deadlineAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
+  return " → " + planLabel(pending.targetPlan) + " pendiente" + (deadline ? " hasta " + deadline : "");
+};
 
 function render() {
   const query = search.value.trim().toLowerCase();
@@ -28,7 +34,7 @@ function render() {
     email.href = "mailto:" + account.email;
     card.querySelector(".identity small").textContent = "Registro: " + new Date(account.registeredAt).toLocaleDateString("es-MX");
     const planNode = card.querySelector(".plan");
-    planNode.textContent = planLabel(account.plan) + (account.pendingDowngrade ? " → " + planLabel(account.pendingDowngrade.targetPlan) + " pendiente" : "");
+    planNode.textContent = planLabel(account.plan) + pendingLabel(account.pendingDowngrade);
     card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
     card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
     const form = card.querySelector("form");
@@ -49,12 +55,12 @@ function render() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "No se pudo cambiar el plan");
         Object.assign(account, data);
-        planNode.textContent = planLabel(account.plan) + (data.pendingDowngrade ? " → " + planLabel(data.pendingDowngrade.targetPlan) + " pendiente" : "");
+        planNode.textContent = planLabel(account.plan) + pendingLabel(data.pendingDowngrade);
         card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
         card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
         feedback.classList.add("success");
         feedback.textContent = data.pendingDowngrade
-          ? "Downgrade solicitado. El usuario debe ajustar sus Decks para completarlo."
+          ? "Downgrade solicitado. El usuario tiene 7 días para ajustar sus Decks y recibirá la notificación por correo."
           : "Plan actualizado a " + planLabel(data.plan) + ".";
         form.elements.note.value = "";
       } catch (error) {

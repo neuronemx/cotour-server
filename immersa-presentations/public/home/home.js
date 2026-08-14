@@ -129,6 +129,7 @@ function planLabel(plan) {
 }
 
 function capabilityEnabled(capability) {
+  if (planUsage?.pendingDowngrade?.adjustmentRequired) return false;
   return planUsage?.capabilities?.[capability] === true || planUsage?.features?.[capability] === true;
 }
 
@@ -156,8 +157,16 @@ function currentPlanBlockMessage() {
     const storageAction = pending.excess?.storageBytes > 0
       ? "libera al menos " + storageLabel(pending.excess.storageBytes)
       : "";
-    return "Solicitaste cambiar a " + pending.targetPlan + ". "
-      + [deckAction, storageAction].filter(Boolean).join(" y ") + " para completar el cambio.";
+    const deadline = pending.deadlineAt
+      ? new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(pending.deadlineAt))
+      : "";
+    const action = [deckAction, storageAction].filter(Boolean).join(" y ");
+    if (pending.adjustmentRequired) {
+      return "Ajuste requerido. " + action
+        + ". No puedes iniciar ni modificar presentaciones hasta completar el cambio a " + pending.targetPlan + ".";
+    }
+    return "Solicitaste cambiar a " + pending.targetPlan + ". " + action
+      + " antes del " + deadline + " para evitar que se bloqueen las presentaciones y funciones de tu plan.";
   }
   const usedDecks = Math.max(0, Number(planUsage.usage?.decks) || 0);
   const deckLimit = Math.max(0, Number(planUsage.limits?.decks) || 0);
@@ -962,7 +971,7 @@ function renderDecks() {
 function renderDetailActions(deck) {
   if (!detailActions) return;
   detailActions.innerHTML = "";
-  if (deck?.missing) return;
+  if (deck?.missing || planUsage?.pendingDowngrade?.adjustmentRequired) return;
 
   roles
     .filter((role) => role !== "stage" || capabilityEnabled("access.backstage") || deck?.systemDemo)
@@ -1001,9 +1010,10 @@ function openDeckModal(deck) {
   renderDetailActions(deck);
   const isMaster = deck.demoRole === "master";
   const isPublishedDemo = deck.demoRole === "published";
-  if (detailRename) detailRename.hidden = Boolean(deck.systemDemo);
+  const adjustmentRequired = Boolean(planUsage?.pendingDowngrade?.adjustmentRequired);
+  if (detailRename) detailRename.hidden = Boolean(deck.systemDemo) || adjustmentRequired;
   if (detailReplace) {
-    detailReplace.hidden = isPublishedDemo;
+    detailReplace.hidden = isPublishedDemo || adjustmentRequired;
     const label = detailReplace.querySelector("span");
     if (label) label.textContent = deck.missing ? "Subir presentación" : "Sustituir";
   }

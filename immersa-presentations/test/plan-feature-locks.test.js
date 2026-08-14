@@ -108,7 +108,11 @@ test("manual plan changes reject invalid plans before opening a transaction", as
 });
 
 test("pending downgrade reports the exact cleanup without changing the active plan", () => {
-  const pending = pendingDowngrade({ pending_plan: "FREE", pending_plan_requested_at: "2026-08-13" }, {
+  const pending = pendingDowngrade({
+    pending_plan: "FREE",
+    pending_plan_requested_at: "2026-08-13",
+    pending_plan_deadline_at: new Date(Date.now() + 60_000)
+  }, {
     decks: 5,
     storageBytes: 70 * 1024 * 1024
   });
@@ -116,6 +120,10 @@ test("pending downgrade reports the exact cleanup without changing the active pl
   assert.equal(pending.excess.decks, 3);
   assert.equal(pending.excess.storageBytes, 20 * 1024 * 1024);
   assert.equal(pending.ready, false);
+  assert.equal(pending.adjustmentRequired, false);
+  const expired = pendingDowngrade({ pending_plan: "FREE", pending_plan_deadline_at: new Date(Date.now() - 60_000) }, {});
+  assert.equal(expired.adjustmentRequired, true);
+  assert.equal(expired.state, "adjustment_required");
 });
 
 test("an over-limit downgrade is persisted and finishes after the user removes the excess", async () => {
@@ -188,6 +196,8 @@ test("server enforces capabilities independently of the client", () => {
   assert.match(server, /requireDeckFeature\(CAPABILITIES\.METRICS_EXPORT\)/);
   assert.match(server, /changedDeckCapabilities\(req\.body, current\)/);
   assert.match(server, /requireRequestedRoleFeature/);
+  assert.match(server, /ACCOUNT_ADJUSTMENT_REQUIRED/);
+  assert.match(server, /currentFeatureAccess\.adjustmentRequired/);
 });
 
 test("Home keeps the plan sections visible and filters Backstage on FREE", () => {
@@ -218,6 +228,7 @@ test("Home explains how to resolve limits exceeded after a downgrade", () => {
   const repository = read("auth/workspace-repository.js");
   const admin = read("public/admin/accounts.js");
   const migration = read("db/migrations/013_pending_plan_downgrades.sql");
+  const graceMigration = read("db/migrations/014_plan_downgrade_grace_period.sql");
   assert.match(home, /Solicitaste cambiar a/);
   assert.match(home, /pendingDowngrade/);
   assert.match(home, /excessDecks = Math\.max\(0, usedDecks - deckLimit\)/);
@@ -229,4 +240,7 @@ test("Home explains how to resolve limits exceeded after a downgrade", () => {
   assert.match(repository, /'pending_cleanup'/);
   assert.match(admin, /Downgrade solicitado/);
   assert.match(migration, /ADD COLUMN pending_plan/);
+  assert.match(graceMigration, /pending_plan_deadline_at/);
+  assert.match(graceMigration, /plan_downgrade_notifications/);
+  assert.match(home, /Ajuste requerido/);
 });

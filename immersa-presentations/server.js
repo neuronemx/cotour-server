@@ -839,6 +839,21 @@ app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) =>
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
+async function requireAccountAdjustmentCleared(req, res, next) {
+  if (!req.accountContext) return next();
+  try {
+    const usage = await betterAuthCompatibilityBridge.getPlanUsage(req);
+    if (!usage.pendingDowngrade?.adjustmentRequired) return next();
+    return res.status(409).json({
+      error: "Tu cuenta requiere ajustar sus Decks antes de continuar",
+      code: "ACCOUNT_ADJUSTMENT_REQUIRED",
+      pendingDowngrade: usage.pendingDowngrade
+    });
+  } catch (error) {
+    console.error("Unable to validate account adjustment", error);
+    return res.status(503).json({ error: "No se pudo validar el estado de la cuenta" });
+  }
+}
 function requireOwnedDeck(req, res, next) {
   if (req.params?.deckId === DEMO_MASTER_DECK_ID && isImmersaAdmin(req.accountContext)) return next();
   return requireDatabaseOwnedDeck(req, res, next);
@@ -1055,18 +1070,19 @@ app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProf
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
-app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
-app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
+app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireAccountAdjustmentCleared, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
+app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireAccountAdjustmentCleared, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
-app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.createBrand);
-app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, brandMentionHandlers.reorderBrands);
-app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.updateBrand);
-app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, brandMentionHandlers.deleteBrand);
+app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.createBrand);
+app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.reorderBrands);
+app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.updateBrand);
+app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), knowledgeActivityHistoryHandlers.listHistory);
 app.post(
   "/api/decks/:deckId/replace",
   ...requireDeckAccount,
+  requireAccountAdjustmentCleared,
   createDeckReplacementHandler({
     beforeDeckSwap: ({ deck }) => assertDeckCanBeReplaced(deck.deckId),
     onDeckReplaced: async ({ req, deck }) => {
@@ -1081,7 +1097,7 @@ app.post(
     }
   })
 );
-app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (req, res) => {
+app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
   try {
     res.json(await markDeckAssociationsReviewed(req.params.deckId));
   } catch (error) {
@@ -1090,7 +1106,7 @@ app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, async (
     res.status(statusCode).json({ error: statusCode === 404 ? "Deck not found" : "Unable to update presentation review" });
   }
 });
-app.put("/api/decks/:deckId/title", ...requireDeckAccount, async (req, res) => {
+app.put("/api/decks/:deckId/title", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
   try {
     if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "El nombre del Deck Demo es administrado por IMMERSA" });
     res.json(await renameDeck(req.params.deckId, req.body?.title));
@@ -1142,7 +1158,7 @@ app.post("/api/admin/demo/publish", requireAccount, requireImmersaAdmin, async (
     res.status(error.statusCode || 500).json(payload);
   }
 });
-app.post("/api/access-links", requireAccount, requireOwnedOrPublishedSession, requireRequestedRoleFeature, accessLinkHandlers.createAccessLink);
+app.post("/api/access-links", requireAccount, requireAccountAdjustmentCleared, requireOwnedOrPublishedSession, requireRequestedRoleFeature, accessLinkHandlers.createAccessLink);
 app.get("/api/access-links/:access_token", accessLinkHandlers.resolveAccessLink);
 app.get("/api/open/:access_token", accessLinkHandlers.openPresentation);
 app.get("/api/qna/export/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature(CAPABILITIES.METRICS_EXPORT), qnaHistoryHandlers.exportDeck);
@@ -1167,7 +1183,7 @@ app.get("/api/conversion-health", async (_req, res) => {
     res.status(500).json({ error: "Unable to check conversion health" });
   }
 });
-app.post("/api/upload-pptx", requireAccount, createUploadHandler({
+app.post("/api/upload-pptx", requireAccount, requireAccountAdjustmentCleared, createUploadHandler({
   onDeckCreateStart: ({ req, deck }) => reserveUploadedDeck(req, deck),
   onDeckCreateFailed: ({ req, deck }) => betterAuthCompatibilityBridge.unregisterDeck(req, deck.deckId)
 }));
@@ -1285,6 +1301,13 @@ io.on("connection", (socket) => {
       console.error("Unable to resolve live plan features", error);
     }
     socket.emit("plan:features", currentFeatureAccess);
+    if (currentFeatureAccess.adjustmentRequired) {
+      socket.emit("plan:adjustment_required", {
+        code: "ACCOUNT_ADJUSTMENT_REQUIRED",
+        message: "Esta cuenta debe ajustar sus Decks antes de iniciar una presentación"
+      });
+      return socket.disconnect(true);
+    }
     if (role === "stage" && !canUseFeature(currentFeatureAccess, CAPABILITIES.ACCESS_BACKSTAGE)) {
       socket.emit("plan:feature_locked", {
         feature: CAPABILITIES.ACCESS_BACKSTAGE,

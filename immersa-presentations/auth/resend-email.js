@@ -46,6 +46,47 @@ function accountActivationEmailCopy(user = {}, activatedAt = new Date()) {
   };
 }
 
+function megabytes(bytes) {
+  return Math.ceil(Math.max(0, Number(bytes) || 0) / (1024 * 1024));
+}
+
+function downgradeEmailCopy(kind, name, url, downgrade = {}) {
+  const variant = String(kind || "").replace(/^downgrade-/, "");
+  const target = escapeHtml(String(downgrade.targetPlan || "FREE").replace(/_/g, " "));
+  const deadline = new Intl.DateTimeFormat("es-MX", {
+    dateStyle: "long", timeStyle: "short", timeZone: "America/Mexico_City"
+  }).format(new Date(downgrade.deadlineAt));
+  const excessDecks = Math.max(0, Number(downgrade.excess?.decks) || 0);
+  const excessStorage = megabytes(downgrade.excess?.storageBytes);
+  const cleanup = [
+    excessDecks ? `eliminar ${excessDecks} Deck${excessDecks === 1 ? "" : "s"}` : "",
+    excessStorage ? `liberar ${excessStorage} MB` : ""
+  ].filter(Boolean).join(" y ");
+  const subjects = {
+    requested: `Tu cambio a ${target} está pendiente`,
+    reminder: "Te quedan 2 días para ajustar tu cuenta IMMERSA",
+    expired: "Tu cuenta IMMERSA requiere un ajuste",
+    completed: `Tu cuenta ya está en el plan ${target}`
+  };
+  const titles = {
+    requested: "Cambio de plan solicitado",
+    reminder: "Tu plazo está por terminar",
+    expired: "Ajuste requerido",
+    completed: "Cambio de plan completado"
+  };
+  const descriptions = {
+    requested: `Tienes hasta el ${escapeHtml(deadline)} para ${escapeHtml(cleanup || "ajustar tu cuenta")}.`,
+    reminder: `El plazo termina el ${escapeHtml(deadline)}. Actualmente necesitas ${escapeHtml(cleanup || "completar el ajuste")}.`,
+    expired: `El plazo terminó. No podrás iniciar ni modificar presentaciones hasta ${escapeHtml(cleanup || "completar el ajuste")}. Sí puedes entrar y eliminar Decks.`,
+    completed: `Tu cuenta ya utiliza ${target}. Puedes continuar con hasta ${Number(downgrade.limits?.decks || 0)} Decks y ${megabytes(downgrade.limits?.storageBytes)} MB.`
+  };
+  const greeting = escapeHtml(String(name || "").trim());
+  return {
+    subject: subjects[variant] || subjects.requested,
+    html: `<!doctype html><html><body style="margin:0;padding:0;background:#f3f4fb;font-family:Arial,sans-serif;color:#0a0d28"><table role="presentation" width="100%"><tr><td align="center" style="padding:42px 18px"><table role="presentation" width="100%" style="max-width:580px;background:#fff;border-radius:22px;overflow:hidden"><tr><td height="7" style="background:linear-gradient(90deg,#06cfe0,#7057ff 52%,#b20de9)"></td></tr><tr><td style="padding:34px 42px"><h1 style="margin:0 0 18px;font-size:27px">${titles[variant] || titles.requested}</h1><p style="font-size:16px;line-height:1.6">Hola${greeting ? ` ${greeting}` : ""},</p><p style="font-size:16px;line-height:1.65;color:#555b72">${descriptions[variant] || descriptions.requested}</p><p style="font-size:14px;line-height:1.6;color:#555b72">IMMERSA nunca eliminará tus Decks automáticamente.</p><a href="${escapeHtml(url)}" style="display:inline-block;margin-top:12px;padding:14px 24px;border-radius:999px;background:#7057ff;color:#fff;text-decoration:none;font-weight:bold">Ir a Mis presentaciones</a></td></tr><tr><td style="padding:19px 42px;background:#f7f7fb;color:#8b90a3;font-size:11px">IMMERSA · Presenta e interactúa.</td></tr></table></td></tr></table></body></html>`
+  };
+}
+
 function createResendEmailSender(options = {}) {
   const env = options.env || process.env;
   const apiKey = setting(env, "RESEND_API_KEY");
@@ -54,11 +95,14 @@ function createResendEmailSender(options = {}) {
   if (!apiKey || !from) return null;
   if (typeof fetchImpl !== "function") throw new Error("fetch is required for Resend email delivery");
 
-  return async ({ kind, to, name, url, user, activatedAt }) => {
+  return async ({ kind, to, name, url, user, activatedAt, downgrade }) => {
     const recipients = (Array.isArray(to) ? to : [to]).map((value) => String(value || "").trim()).filter(Boolean);
     const accountActivation = kind === "account-activation";
+    const planDowngrade = String(kind || "").startsWith("downgrade-");
     if (!recipients.length || (!accountActivation && !url)) throw new Error("Email recipient and action URL are required");
-    const copy = accountActivation ? accountActivationEmailCopy(user, activatedAt) : emailCopy(kind, name, url);
+    const copy = accountActivation
+      ? accountActivationEmailCopy(user, activatedAt)
+      : (planDowngrade ? downgradeEmailCopy(kind, name, url, downgrade) : emailCopy(kind, name, url));
     const response = await fetchImpl(RESEND_EMAILS_URL, {
       method: "POST",
       headers: {
@@ -75,4 +119,4 @@ function createResendEmailSender(options = {}) {
   };
 }
 
-module.exports = { createResendEmailSender, emailCopy, accountActivationEmailCopy, RESEND_EMAILS_URL };
+module.exports = { createResendEmailSender, emailCopy, accountActivationEmailCopy, downgradeEmailCopy, RESEND_EMAILS_URL };
