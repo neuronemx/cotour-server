@@ -104,8 +104,9 @@ function render(state) {
   const changed = index !== previousIndex;
   currentSlideIndex = index;
   const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
-  slide.src = src;
-  if (changed) window.ImmersaSlideTransitions?.apply(slide, manifest.slideTransition, index - previousIndex);
+  if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
+  else slide.src = src;
+  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();

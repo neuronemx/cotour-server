@@ -38,7 +38,12 @@ test("all live roles animate slide changes from the Deck manifest", () => {
   assert.match(transitionCss, /immersa-slide-transition-swipe/);
   assert.match(transitionCss, /immersa-slide-transition-flash/);
   assert.match(transitionCss, /prefers-reduced-motion: reduce/);
-  roles.forEach((file) => assert.match(read(file), /ImmersaSlideTransitions\?\.apply\(slide, manifest\.slideTransition/));
+  assert.match(transitionScript, /await loadSource\(src\)[\s\S]*slide\.src = src;[\s\S]*apply\(slide, value, direction\)/);
+  roles.forEach((file) => {
+    const source = read(file);
+    assert.match(source, /ImmersaSlideTransitions\?\.swap/);
+    assert.match(source, /ImmersaSlideTransitions\?\.preload/);
+  });
 });
 
 test("Público centers Texto en vivo", () => {
