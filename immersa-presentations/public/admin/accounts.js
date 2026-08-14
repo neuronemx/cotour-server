@@ -87,11 +87,13 @@ function render() {
       try {
         const response = await fetch("/api/admin/accounts/" + encodeURIComponent(account.workspaceId) + "/downgrade-email", { method: "POST" });
         const data = await response.json();
-        if (!response.ok || data.emailNotification?.status !== "sent") {
+        if (!response.ok || !["sent", "already_sent"].includes(data.emailNotification?.status)) {
           throw new Error(data.emailNotification?.detail || data.error || "No se pudo reenviar el correo");
         }
         feedback.classList.add("success");
-        feedback.textContent = "Correo de downgrade reenviado a " + account.email + ".";
+        feedback.textContent = data.emailNotification.status === "already_sent"
+          ? "El correo de downgrade ya había sido enviado a " + account.email + "."
+          : "Correo de downgrade reenviado a " + account.email + ".";
       } catch (error) {
         feedback.classList.add("error");
         feedback.textContent = error.message;

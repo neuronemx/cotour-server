@@ -1065,7 +1065,7 @@ app.put("/api/admin/accounts/:workspaceId/plan", requireAccount, requireImmersaA
 app.post("/api/admin/accounts/:workspaceId/downgrade-email", requireAccount, requireImmersaAdmin, async (req, res) => {
   try {
     const emailNotification = await betterAuthCompatibilityBridge.resendWorkspaceDowngradeEmail(String(req.params.workspaceId || "").trim());
-    res.status(emailNotification?.status === "sent" ? 200 : 502).json({ emailNotification });
+    res.status(["sent", "already_sent"].includes(emailNotification?.status) ? 200 : 502).json({ emailNotification });
   } catch (error) {
     console.error("Unable to resend Immersa downgrade notification", error);
     res.status(500).json({

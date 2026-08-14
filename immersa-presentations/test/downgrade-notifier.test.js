@@ -107,3 +107,17 @@ test("an administrator can reset and resend the current downgrade email", async 
   assert.match(calls[0].sql, /n\.request_id = w\.pending_plan_request_id/);
   assert.deepEqual(calls[0].params, ["workspace-3"]);
 });
+
+test("manual retry does not duplicate an email already sent by the worker", async () => {
+  let delivered = false;
+  const pool = {
+    async execute(sql) {
+      if (/UPDATE plan_downgrade_notifications n/.test(sql)) return [{ affectedRows: 0 }];
+      if (/SELECT n\.sent_at/.test(sql)) return [[{ sent_at: new Date("2026-08-14T05:19:00.000Z") }]];
+      throw new Error("unexpected query");
+    }
+  };
+  const notifier = new DowngradeNotifier(pool, { emailSender: async () => { delivered = true; } });
+  assert.deepEqual(await notifier.retryRequestedForWorkspace("workspace-3"), { status: "already_sent" });
+  assert.equal(delivered, false);
+});

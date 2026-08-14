@@ -44,10 +44,21 @@ class DowngradeNotifier {
        SET n.sent_at = NULL, n.claimed_at = NULL, n.last_error = NULL,
            n.available_at = CURRENT_TIMESTAMP(3)
        WHERE n.workspace_id = ? AND n.kind = 'requested'
-         AND n.request_id = w.pending_plan_request_id`,
+         AND n.request_id = w.pending_plan_request_id
+         AND n.sent_at IS NULL`,
       [normalizedWorkspaceId]
     );
     if (Number(reset?.affectedRows || 0) < 1) {
+      const [existing] = await this.pool.execute(
+        `SELECT n.sent_at
+         FROM plan_downgrade_notifications n
+         INNER JOIN workspaces w ON w.id = n.workspace_id
+         WHERE n.workspace_id = ? AND n.kind = 'requested'
+           AND n.request_id = w.pending_plan_request_id
+         LIMIT 1`,
+        [normalizedWorkspaceId]
+      );
+      if (existing?.[0]?.sent_at) return { status: "already_sent" };
       return { status: "not_found", detail: "La cuenta no tiene un downgrade pendiente" };
     }
     return this.sendDueForWorkspace(normalizedWorkspaceId, "requested");
