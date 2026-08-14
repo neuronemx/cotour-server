@@ -13,27 +13,58 @@ class DowngradeNotifier {
 
   async runDue(limit = 20) {
     if (!this.emailSender) return 0;
+    const rows = await this.findDue({ limit });
+    let sent = 0;
+    for (const row of rows) sent += await this.deliver(row) ? 1 : 0;
+    return sent;
+  }
+
+  async runDueForWorkspace(workspaceId, kind = "requested") {
+    if (!this.emailSender) return 0;
+    const normalizedWorkspaceId = String(workspaceId || "").trim();
+    const normalizedKind = String(kind || "").trim();
+    if (!normalizedWorkspaceId || !normalizedKind) return 0;
+    const rows = await this.findDue({ workspaceId: normalizedWorkspaceId, kind: normalizedKind, limit: 1 });
+    let sent = 0;
+    for (const row of rows) sent += await this.deliver(row) ? 1 : 0;
+    return sent;
+  }
+
+  async findDue({ workspaceId = "", kind = "", limit = 20 } = {}) {
+    const filters = [];
+    const params = [];
+    if (workspaceId) {
+      filters.push("n.workspace_id = ?");
+      params.push(workspaceId);
+    }
+    if (kind) {
+      filters.push("n.kind = ?");
+      params.push(kind);
+    }
+    params.push(Math.max(1, Math.min(100, Number(limit) || 20)));
     const [rows] = await this.pool.execute(
       `SELECT n.request_id, n.kind, n.workspace_id, n.target_plan, n.deadline_at,
               u.name, u.email, w.pending_plan_request_id,
-              COUNT(d.deck_id) AS deck_count,
-              COALESCE(SUM(d.source_size_bytes), 0) AS storage_bytes
+              COALESCE(du.deck_count, 0) AS deck_count,
+              COALESCE(du.storage_bytes, 0) AS storage_bytes
        FROM plan_downgrade_notifications n
        INNER JOIN workspaces w ON w.id = n.workspace_id
        INNER JOIN \`user\` u ON u.id = w.personal_owner_user_id
-       LEFT JOIN decks d ON d.workspace_id = w.id
+       LEFT JOIN (
+         SELECT workspace_id, COUNT(*) AS deck_count,
+                COALESCE(SUM(source_size_bytes), 0) AS storage_bytes
+         FROM decks
+         GROUP BY workspace_id
+       ) du ON du.workspace_id = w.id
        WHERE n.sent_at IS NULL
          AND n.available_at <= CURRENT_TIMESTAMP(3)
          AND (n.claimed_at IS NULL OR n.claimed_at < DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 15 MINUTE))
-       GROUP BY n.request_id, n.kind, n.workspace_id, n.target_plan, n.deadline_at,
-                u.name, u.email, w.pending_plan_request_id
+         ${filters.length ? `AND ${filters.join(" AND ")}` : ""}
        ORDER BY n.available_at, n.request_id
        LIMIT ?`,
-      [Math.max(1, Math.min(100, Number(limit) || 20))]
+      params
     );
-    let sent = 0;
-    for (const row of rows || []) sent += await this.deliver(row) ? 1 : 0;
-    return sent;
+    return rows || [];
   }
 
   async deliver(row) {

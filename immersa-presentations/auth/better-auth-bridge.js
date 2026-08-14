@@ -196,8 +196,16 @@ function createBetterAuthCompatibilityBridge(options = {}) {
       note: payload.note,
       changedByUserId: req.accountContext.user.id
     });
-    void runtime.downgradeNotifier?.runDue?.();
-    return { ...usage, ...featureAccessForPlan(usage.plan) };
+    let emailNotification = null;
+    if (usage.pendingDowngrade) {
+      const sent = await runtime.downgradeNotifier?.runDueForWorkspace?.(payload.workspaceId, "requested")
+        .catch((error) => {
+          console.error("Unable to send immediate Immersa downgrade notification", error);
+          return 0;
+        });
+      emailNotification = { status: Number(sent || 0) > 0 ? "sent" : "retrying" };
+    }
+    return { ...usage, ...featureAccessForPlan(usage.plan), emailNotification };
   }
 
   async function listWorkspaceDeckIds(workspaceId) {

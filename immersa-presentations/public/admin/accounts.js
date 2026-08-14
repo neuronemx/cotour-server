@@ -59,9 +59,12 @@ function render() {
         card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
         card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
         feedback.classList.add("success");
-        feedback.textContent = data.pendingDowngrade
-          ? "Downgrade solicitado. El usuario tiene 7 días para ajustar sus Decks y recibirá la notificación por correo."
-          : "Plan actualizado a " + planLabel(data.plan) + ".";
+        if (data.pendingDowngrade) {
+          feedback.textContent = data.emailNotification?.status === "sent"
+            ? "Downgrade solicitado. Correo enviado al usuario; tiene 7 días para ajustar sus Decks."
+            : "Downgrade solicitado. No se confirmó el envío del correo; IMMERSA lo reintentará automáticamente.";
+          if (data.emailNotification?.status !== "sent") feedback.classList.add("error");
+        } else feedback.textContent = "Plan actualizado a " + planLabel(data.plan) + ".";
         form.elements.note.value = "";
       } catch (error) {
         feedback.classList.add("error");

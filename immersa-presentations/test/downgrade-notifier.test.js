@@ -56,3 +56,33 @@ test("notifications from a cancelled downgrade are removed without sending", asy
   assert.equal(await notifier.runDue(), 0);
   assert.equal(sent, false);
 });
+
+test("an immediate downgrade email can be delivered for one workspace", async () => {
+  const calls = [];
+  const pool = {
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/SELECT n\.request_id/.test(sql)) return [[{
+        request_id: "request-2",
+        kind: "requested",
+        workspace_id: "workspace-2",
+        target_plan: "FREE",
+        deadline_at: "2026-08-20T18:00:00.000Z",
+        pending_plan_request_id: "request-2",
+        name: "Arturo",
+        email: "arturo@example.com",
+        deck_count: 5,
+        storage_bytes: 40 * 1024 * 1024
+      }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  const sent = [];
+  const notifier = new DowngradeNotifier(pool, { emailSender: async (message) => sent.push(message) });
+  assert.equal(await notifier.runDueForWorkspace("workspace-2"), 1);
+  assert.equal(sent[0].kind, "downgrade-requested");
+  assert.match(calls[0].sql, /n\.workspace_id = \?/);
+  assert.match(calls[0].sql, /n\.kind = \?/);
+  assert.doesNotMatch(calls[0].sql, /GROUP BY n\.request_id/);
+  assert.deepEqual(calls[0].params, ["workspace-2", "requested", 1]);
+});

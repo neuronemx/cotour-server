@@ -237,6 +237,44 @@ test("account and ownership guards reject anonymous users and another user's dec
   await bridge.close();
 });
 
+test("a pending downgrade confirms its immediate email before the admin response", async () => {
+  const calls = [];
+  const runtime = {
+    workspaces: {
+      async changePlan(payload) {
+        calls.push({ type: "plan", payload });
+        return {
+          plan: "SPEAKER",
+          usage: { decks: 5, storageBytes: 0 },
+          limits: { decks: 5, storageBytes: 200 * 1024 * 1024 },
+          pendingDowngrade: { targetPlan: "FREE" }
+        };
+      }
+    },
+    downgradeNotifier: {
+      async runDueForWorkspace(workspaceId, kind) {
+        calls.push({ type: "email", workspaceId, kind });
+        return 1;
+      }
+    }
+  };
+  const bridge = createBetterAuthCompatibilityBridge({
+    enabled: true,
+    databaseFactory: () => ({ end: async () => {} }),
+    emailSenderFactory: () => null,
+    loadRuntime: async () => ({ createBetterAuthRuntime: () => runtime })
+  });
+  const result = await bridge.changeWorkspacePlan({ accountContext: { user: { id: "admin-1" } } }, {
+    workspaceId: "workspace-1",
+    plan: "FREE",
+    note: "Piloto"
+  });
+  assert.deepEqual(result.emailNotification, { status: "sent" });
+  assert.deepEqual(calls.map((call) => call.type), ["plan", "email"]);
+  assert.deepEqual(calls[1], { type: "email", workspaceId: "workspace-1", kind: "requested" });
+  await bridge.close();
+});
+
 test("server protects Home and deck administration while Público and Screen stay account-public", () => {
   assert.match(serverSource, /app\.get\("\/home", betterAuthCompatibilityBridge\.requirePageAuth\(\)/);
   assert.match(serverSource, /app\.get\("\/api\/decks\/:deckId\/interactions", deckInteractionHandlers\.getInteractions\)/);
