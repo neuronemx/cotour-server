@@ -20,7 +20,9 @@ function setup(overrides = {}) {
       return overrides.duplicate ? false : true;
     },
     async finishWebhookEvent(...args) { calls.push(["finish", ...args]); },
-    async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [] }; }
+    async getActiveGrants() { return []; },
+    async createPlanGrant(payload) { calls.push(["grant", payload]); return { id: "grant-1", ...payload }; },
+    async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [], history: [] }; }
   };
   const stripe = {
     customers: { async create() { return { id: "cus_1" }; } },
@@ -67,6 +69,28 @@ test("Checkout resolves price and discount only from server configuration", asyn
   assert.deepEqual(checkout.discounts, [{ coupon: "coupon_py" }]);
   assert.equal(checkout.metadata.immersa_workspace_id, "workspace-1");
   assert.equal(JSON.stringify(checkout).includes("evil"), false);
+});
+
+test("admin cannot lower an active paid subscription with a manual action", async () => {
+  const { service } = setup({ subscription: { status: "active", plan: "SPEAKER_PRO" } });
+  await assert.rejects(
+    () => service.assertManualPlanChangeAllowed("workspace-1", "SPEAKER"),
+    (error) => error.code === "PAID_SUBSCRIPTION_PROTECTED" && error.statusCode === 409
+  );
+});
+
+test("plan grants preserve their commercial origin without creating Stripe data", async () => {
+  const { service, calls } = setup();
+  const result = await service.createPlanGrant(
+    { user: { id: "admin-1" } },
+    "workspace-1",
+    { plan: "SPEAKER", origin: "pilot", endsAt: "2026-09-01T00:00:00Z", note: "Piloto de evento" }
+  );
+  const grant = calls.find(([name]) => name === "grant")[1];
+  assert.equal(grant.origin, "pilot");
+  assert.equal(grant.plan, "SPEAKER");
+  assert.equal(result.entitlement.plan, "SPEAKER");
+  assert.equal(calls.some(([name]) => name === "saveCustomer"), false);
 });
 
 test("an existing paid subscription cannot silently create a second Checkout", async () => {

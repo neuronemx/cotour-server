@@ -60,6 +60,52 @@ class StripeBillingService {
     return { ...this.catalog(), ...(await this.repository.accountStatus(workspaceId)) };
   }
 
+  async assertManualPlanChangeAllowed(workspaceId, targetPlan) {
+    if (!this.repository) return;
+    const subscription = await this.repository.getSubscription(workspaceId);
+    if (!subscription || !["active", "past_due"].includes(String(subscription.status))) return;
+    const currentRank = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 }[String(subscription.plan)] || 0;
+    const targetRank = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 }[String(targetPlan).trim().toUpperCase()] ?? -1;
+    if (targetRank < currentRank) {
+      throw publicError(
+        "PAID_SUBSCRIPTION_PROTECTED",
+        "No puedes reducir manualmente una suscripción pagada activa. Programa el cambio desde Cobros.",
+        409
+      );
+    }
+  }
+
+  async createPlanGrant(accountContext, workspaceId, payload = {}) {
+    if (!this.repository) throw publicError("BILLING_UNAVAILABLE", "Cobros no está disponible", 503);
+    const plan = String(payload.plan || "").trim().toUpperCase();
+    const origin = String(payload.origin || "").trim().toLowerCase();
+    if (!["SPEAKER", "SPEAKER_PRO"].includes(plan)) {
+      throw publicError("INVALID_GRANT_PLAN", "Selecciona SPEAKER o SPEAKER PRO");
+    }
+    if (!["pilot", "courtesy", "manual", "support"].includes(origin)) {
+      throw publicError("INVALID_GRANT_ORIGIN", "Selecciona piloto, cortesía, manual o soporte");
+    }
+    const endsAt = payload.endsAt ? new Date(payload.endsAt) : null;
+    if (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt.getTime() <= this.now())) {
+      throw publicError("INVALID_GRANT_END", "La vigencia debe terminar en una fecha futura");
+    }
+    await this.assertManualPlanChangeAllowed(workspaceId, plan);
+    const grant = await this.repository.createPlanGrant({
+      workspaceId,
+      plan,
+      origin,
+      endsAt,
+      note: payload.note,
+      actorUserId: accountContext.user.id
+    });
+    const protectDowngrade = await this.isWorkspaceActive(workspaceId);
+    const entitlement = await this.repository.recalculateEntitlement(workspaceId, {
+      now: this.now(),
+      protectDowngrade
+    });
+    return { grant, entitlement, status: await this.repository.accountStatus(workspaceId) };
+  }
+
   async createCheckout(accountContext, payload = {}, options = {}) {
     this.assertEnabled();
     if (!this.flags.checkoutEnabled && !options.admin) throw publicError("BILLING_CHECKOUT_DISABLED", "La contratación todavía no está disponible", 503);

@@ -26,6 +26,23 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo iniciar el pago");
       }
     },
+    adminGrant: async (req, res) => {
+      if (!isAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
+      try {
+        res.json(await service.createPlanGrant(req.accountContext, req.params.workspaceId, req.body));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo registrar la activación comercial");
+      }
+    },
+    adminStatus: async (req, res) => {
+      if (!isAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
+      try {
+        res.set("Cache-Control", "no-store");
+        res.json(await service.status(req.params.workspaceId));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo consultar el estado comercial");
+      }
+    },
     portal: async (req, res) => {
       try {
         res.json(await service.createPortal(req.accountContext));

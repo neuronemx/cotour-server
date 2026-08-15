@@ -199,6 +199,69 @@ class BillingRepository {
     );
   }
 
+  async createPlanGrant({ workspaceId, plan, origin, endsAt = null, note = "", actorUserId }) {
+    const id = crypto.randomUUID();
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [workspaces] = await connection.execute(
+        "SELECT id FROM workspaces WHERE id = ? LIMIT 1 FOR UPDATE",
+        [String(workspaceId)]
+      );
+      if (!workspaces?.[0]) {
+        const error = new Error("Cuenta IMMERSA no encontrada");
+        error.statusCode = 404;
+        throw error;
+      }
+      await connection.execute(
+        `UPDATE workspace_plan_grants
+         SET revoked_at = CURRENT_TIMESTAMP(3), revoked_by_user_id = ?
+         WHERE workspace_id = ? AND revoked_at IS NULL`,
+        [String(actorUserId), String(workspaceId)]
+      );
+      await connection.execute(
+        `INSERT INTO workspace_plan_grants
+           (id, workspace_id, plan, origin, ends_at, note, created_by_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, String(workspaceId), plan, origin, sqlDate(endsAt), String(note || "").trim().slice(0, 500) || null, String(actorUserId)]
+      );
+      await connection.execute(
+        `INSERT INTO billing_audit_log
+           (workspace_id, event_type, next_plan, source, provider_object_id, actor_user_id, note)
+         VALUES (?, 'plan_grant_created', ?, ?, ?, ?, ?)`,
+        [String(workspaceId), plan, origin, id, String(actorUserId), String(note || "").trim().slice(0, 500) || null]
+      );
+      await connection.commit();
+      return { id, plan, origin, endsAt: sqlDate(endsAt) };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async listAudit(workspaceId, limit = 20) {
+    const safeLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+    const [rows] = await this.pool.execute(
+      `SELECT event_type, previous_plan, next_plan, source, actor_user_id, note, created_at
+       FROM billing_audit_log
+       WHERE workspace_id = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT ${safeLimit}`,
+      [String(workspaceId)]
+    );
+    return (rows || []).map((row) => ({
+      type: String(row.event_type),
+      previousPlan: row.previous_plan ? normalizePlan(row.previous_plan) : null,
+      nextPlan: row.next_plan ? normalizePlan(row.next_plan) : null,
+      source: String(row.source),
+      actorUserId: row.actor_user_id || null,
+      note: row.note || null,
+      createdAt: row.created_at
+    }));
+  }
+
   async accountStatus(workspaceId) {
     const [rows] = await this.pool.execute(
       `SELECT w.plan AS effective_plan, s.provider_subscription_id, s.plan AS subscribed_plan,
@@ -224,7 +287,8 @@ class BillingRepository {
         discountId: row.discount_id || null,
         syncedAt: row.synced_at
       } : null,
-      grants: await this.getActiveGrants(workspaceId)
+      grants: await this.getActiveGrants(workspaceId),
+      history: await this.listAudit(workspaceId)
     };
   }
 

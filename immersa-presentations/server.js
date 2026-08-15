@@ -948,6 +948,8 @@ app.get("/api/billing/catalog", requireAccount, billingHandlers.catalog);
 app.get("/api/billing/status", requireAccount, billingHandlers.status);
 app.post("/api/billing/checkout", requireAccount, billingHandlers.checkout);
 app.post("/api/billing/portal", requireAccount, billingHandlers.portal);
+app.get("/api/admin/accounts/:workspaceId/billing", requireAccount, requireImmersaAdmin, billingHandlers.adminStatus);
+app.post("/api/admin/accounts/:workspaceId/billing/grants", requireAccount, requireImmersaAdmin, billingHandlers.adminGrant);
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
 async function requireAccountAdjustmentCleared(req, res, next) {
   if (!req.accountContext) return next();
@@ -1157,6 +1159,7 @@ app.put("/api/admin/accounts/:workspaceId/plan", requireAccount, requireImmersaA
       && (session.presenterConnected || session.stageConnected || session.screenConnected || session.audience.size > 0)
     ));
     if (active) return res.status(409).json({ error: "No puedes cambiar el plan durante una presentación activa", code: "ACTIVE_PRESENTATION" });
+    await billingRuntime.service.assertManualPlanChangeAllowed(workspaceId, req.body?.plan);
     res.json(await betterAuthCompatibilityBridge.changeWorkspacePlan(req, {
       workspaceId,
       plan: req.body?.plan,
