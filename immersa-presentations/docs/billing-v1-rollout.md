@@ -4,42 +4,53 @@ Este documento congela la configuración aprobada para el environment temporal. 
 
 ## Objetos Stripe (modo de pruebas)
 
-Crear un solo producto recurrente `IMMERSA`. Sus cuatro precios deben pertenecer al mismo producto; Stripe sólo puede programar downgrades desde Customer Portal entre precios del mismo producto.
+Crear dos productos recurrentes:
 
-| Precio | Importe total | Moneda | Intervalo |
-| --- | ---: | --- | --- |
-| SPEAKER mensual | $500.00 | MXN | month |
-| SPEAKER anual | $5,000.00 | MXN | year |
-| SPEAKER PRO mensual | $1,500.00 | MXN | month |
-| SPEAKER PRO anual | $15,000.00 | MXN | year |
+- `IMMERSA SPEAKER`;
+- `IMMERSA SPEAKER PRO`.
 
-Los importes son IVA incluido. COBROS v1 no activa Stripe Tax ni pruebas gratuitas. La facturación CFDI sigue siendo manual.
+Cada producto tiene sus precios mensual y anual. Los importes son finales, en MXN e IVA incluido. COBROS v1 no activa Stripe Tax ni pruebas gratuitas. La facturación CFDI sigue siendo manual.
+
+| Producto | Precio | Importe total | Moneda | Intervalo |
+| --- | --- | ---: | --- | --- |
+| IMMERSA SPEAKER | mensual | $500.00 | MXN | month |
+| IMMERSA SPEAKER | anual | $5,000.00 | MXN | year |
+| IMMERSA SPEAKER PRO | mensual | $1,500.00 | MXN | month |
+| IMMERSA SPEAKER PRO | anual | $15,000.00 | MXN | year |
 
 Crear cuatro cupones de importe fijo y duración `forever` para Precio Fundadores:
 
-| Cupón | Descuento fijo |
-| --- | ---: |
-| SPEAKER mensual | $101.00 MXN |
-| SPEAKER anual | $1,010.00 MXN |
-| SPEAKER PRO mensual | $301.00 MXN |
-| SPEAKER PRO anual | $3,010.00 MXN |
+| Cupón | Descuento fijo | Precio final |
+| --- | ---: | ---: |
+| SPEAKER mensual | $101.00 MXN | $399.00 MXN |
+| SPEAKER anual | $1,010.00 MXN | $3,990.00 MXN |
+| SPEAKER PRO mensual | $301.00 MXN | $1,199.00 MXN |
+| SPEAKER PRO anual | $3,010.00 MXN | $11,990.00 MXN |
 
-No combinar el cupón Fundadores con otro descuento. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México; una suscripción Fundadores activa conserva el cupón correspondiente cuando cambia de plan o intervalo.
+No combinar el cupón Fundadores con otro descuento. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México; una suscripción Fundadores activa conserva el precio Fundadores aplicable cuando cambia de plan o intervalo.
 
 ## Customer Portal
 
 Crear una configuración exclusiva para IMMERSA con:
 
+- encabezado: `Administra tu suscripción y método de pago de IMMERSA.`;
 - método de pago: habilitado;
 - historial de facturas/recibos: habilitado;
+- datos de cliente: deshabilitados;
 - cancelación: al final del periodo, sin prorrateo;
-- cambio de precio: habilitado sólo para los cuatro precios del producto IMMERSA;
-- prorrateo de upgrades: `always_invoice`;
-- downgrades: programados al final del periodo;
-- cambio anual a mensual: programado al final del periodo;
-- códigos promocionales: habilitarlos sólo para campañas aprobadas.
+- cambio de plan o intervalo: deshabilitado en Portal;
+- pausar suscripción: deshabilitado;
+- enlace público sin código: deshabilitado;
+- URL de retorno: enviada por IMMERSA para cada environment.
 
-IMMERSA abre `subscription_update_confirm` para el precio seleccionado. Stripe muestra el crédito, el cargo, la fecha y cualquier autenticación 3DS antes de confirmar. Un webhook posterior reconcilia el plan efectivo; el retorno del navegador nunca concede acceso.
+IMMERSA controla el cambio de membresía mediante una sesión Stripe de confirmación de actualización. Stripe muestra crédito, cargo, fecha y cualquier autenticación 3DS antes de confirmar. Un webhook posterior reconcilia el plan efectivo; el retorno del navegador nunca concede acceso.
+
+Los cambios se rigen por estas reglas:
+
+- upgrade y mensual a anual: inmediatos, con crédito o prorrateo mostrado y confirmado por Stripe;
+- downgrade y anual a mensual: al final del periodo;
+- nunca borrar Decks automáticamente;
+- conservar las validaciones de presentación activa y recursos excedentes.
 
 ## Variables Railway
 
@@ -62,7 +73,7 @@ STRIPE_FOUNDERS_SPEAKER_PRO_MONTHLY_COUPON_ID=...
 STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID=...
 ```
 
-Mantener en producción:
+`STRIPE_SECRET_KEY` debe ser una clave restringida de pruebas, con el mínimo de permisos que requiera la aplicación. Mantener en producción:
 
 ```text
 IMMERSA_BILLING_ENABLED=false
@@ -78,6 +89,8 @@ Apuntar el endpoint de Stripe al environment temporal:
 ```text
 POST /api/billing/webhooks/stripe
 ```
+
+La ruta recibe el cuerpo crudo y valida `stripe-signature` con `STRIPE_WEBHOOK_SECRET`. El repositorio registra cada evento para procesamiento idempotente y tolera eventos repetidos, retrasados o fuera de orden.
 
 Suscribir únicamente:
 
