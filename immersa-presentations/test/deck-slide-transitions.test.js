@@ -13,6 +13,7 @@ test("Deck stores one global slide transition and exposes it in Home", () => {
 
   assert.match(server, /SLIDE_TRANSITIONS = new Set\(\["none", "dissolve", "wipe", "flash"\]\)/);
   assert.match(server, /if \(transition === "swipe"\) return "wipe"/);
+  assert.match(server, /return SLIDE_TRANSITIONS\.has\(transition\) \? transition : "flash"/);
   assert.match(server, /slideTransition: normalizeSlideTransition\(manifest\.slideTransition\)/);
   assert.match(server, /\/api\/decks\/:deckId\/transition/);
   assert.match(server, /manifest\.slideTransition = transition/);
@@ -34,7 +35,7 @@ test("all live roles animate slide changes from the Deck manifest", () => {
   ];
 
   assert.match(transitionScript, /if \(transition === "swipe"\) return "wipe"/);
-  assert.match(transitionScript, /return ALLOWED\.has\(transition\) \? transition : "dissolve"/);
+  assert.match(transitionScript, /return ALLOWED\.has\(transition\) \? transition : "flash"/);
   assert.match(transitionScript, /if \(transition === "none"\) return/);
   assert.match(transitionCss, /immersa-slide-transition-dissolve/);
   assert.match(transitionCss, /immersa-slide-transition-wipe/);

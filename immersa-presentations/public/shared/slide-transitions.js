@@ -12,7 +12,7 @@
   function normalize(value) {
     const transition = String(value || "").trim().toLowerCase();
     if (transition === "swipe") return "wipe";
-    return ALLOWED.has(transition) ? transition : "dissolve";
+    return ALLOWED.has(transition) ? transition : "flash";
   }
 
   function apply(slide, value, direction = 1) {

@@ -379,7 +379,7 @@ const SLIDE_TRANSITIONS = new Set(["none", "dissolve", "wipe", "flash"]);
 function normalizeSlideTransition(value) {
   const transition = String(value || "").trim().toLowerCase();
   if (transition === "swipe") return "wipe";
-  return SLIDE_TRANSITIONS.has(transition) ? transition : "dissolve";
+  return SLIDE_TRANSITIONS.has(transition) ? transition : "flash";
 }
 
 async function readManifest(deckId) {

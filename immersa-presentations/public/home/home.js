@@ -997,7 +997,7 @@ function syncDeckTransitionEditor(deck) {
   if (!deckTransitionSettings || !deckTransitionOptions) return;
   const editable = Boolean(deck && !deck.systemDemo && !deck.missing && !planUsage?.pendingDowngrade?.adjustmentRequired);
   deckTransitionSettings.hidden = !editable;
-  const selected = String(deck?.slideTransition || "dissolve");
+  const selected = String(deck?.slideTransition || "flash");
   deckTransitionOptions.querySelectorAll("[data-deck-transition]").forEach((button) => {
     const active = button.dataset.deckTransition === selected;
     button.classList.toggle("is-active", active);
