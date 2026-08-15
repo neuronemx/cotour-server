@@ -33,6 +33,7 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
+const { createBillingRuntime } = require("./billing/runtime");
 const {
   CAPABILITIES,
   featureAccessForPlan,
@@ -126,6 +127,21 @@ const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
   getConnectedAudience
 });
 const lifecyclePool = qnaRuntime.pool || knowledgeActivityRuntime.pool || null;
+async function workspaceHasActivePresentation(workspaceId) {
+  const deckIds = new Set(await betterAuthCompatibilityBridge.listWorkspaceDeckIds(workspaceId));
+  return Array.from(sessions.values()).some((session) => (
+    deckIds.has(String(session.deckId))
+    && !session.inactivityShutdownAt
+    && (session.presenterConnected || session.stageConnected || session.screenConnected || session.audience.size > 0)
+  ));
+}
+const billingRuntime = createBillingRuntime({
+  pool: lifecyclePool,
+  env: process.env,
+  isAdmin: isImmersaAdmin,
+  isWorkspaceActive: workspaceHasActivePresentation
+});
+const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
   ? createPresentationMetricsHandlers(presentationMetricsRepository)
@@ -910,6 +926,7 @@ function normalizeDrawingStroke(session, stroke) {
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
+app.post("/api/billing/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }), billingHandlers.webhook);
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
@@ -925,6 +942,10 @@ app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC
 app.get("/operacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "backstage.html")));
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
+app.get("/api/billing/catalog", requireAccount, billingHandlers.catalog);
+app.get("/api/billing/status", requireAccount, billingHandlers.status);
+app.post("/api/billing/checkout", requireAccount, billingHandlers.checkout);
+app.post("/api/billing/portal", requireAccount, billingHandlers.portal);
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
 async function requireAccountAdjustmentCleared(req, res, next) {
   if (!req.accountContext) return next();
