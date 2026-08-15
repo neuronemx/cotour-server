@@ -2,6 +2,14 @@ function normalizeAudienceId(audienceId, fallback) {
   return String(audienceId || fallback || "");
 }
 
+function canRegisterAudience(session, audienceId, limit) {
+  if (!session?.audience) return false;
+  const normalizedAudienceId = normalizeAudienceId(audienceId);
+  if (normalizedAudienceId && session.audience.has(normalizedAudienceId)) return true;
+  const capacity = Math.max(0, Math.floor(Number(limit) || 0));
+  return capacity > 0 && session.audience.size < capacity;
+}
+
 function registerAudience(session, { audienceId, socketId, audienceName, label, joinedAt = Date.now() }) {
   if (!session?.audience) return "";
   const normalizedAudienceId = normalizeAudienceId(audienceId, socketId);
@@ -24,4 +32,4 @@ function unregisterAudience(session, audienceId, socketId) {
   return session.audience.delete(normalizedAudienceId);
 }
 
-module.exports = { registerAudience, unregisterAudience };
+module.exports = { canRegisterAudience, registerAudience, unregisterAudience };

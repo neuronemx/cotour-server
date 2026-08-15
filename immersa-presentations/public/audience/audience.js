@@ -26,6 +26,7 @@ let qnaSubmitting = false;
 let qnaConfirmationTimer = null;
 let qnaCooldownTimer = null;
 let qnaCooldownUntil = 0;
+let audienceAccessMessage = "";
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -134,6 +135,7 @@ function updateFullscreenButton() {
 }
 function setConnectionNotice(visible) {
   if (!connectionNotice) return;
+  connectionNotice.textContent = audienceAccessMessage || "Conexión pausada. Recarga la página para volver a entrar.";
   connectionNotice.classList.toggle("hidden", !visible);
 }
 function closeQnaComposer() { qnaComposer?.classList.add("hidden"); qnaComposer?.setAttribute("aria-hidden", "true"); qnaFormStatus.textContent = ""; }
@@ -223,7 +225,11 @@ viewport.addEventListener("pointerdown", handlePointerDown);
 viewport.addEventListener("pointermove", handlePointerMove);
 viewport.addEventListener("pointerup", handlePointerUp);
 viewport.addEventListener("pointercancel", handlePointerUp);
-socket.on("connect", () => { setConnectionNotice(false); joinAudience(); });
+socket.on("connect", () => { audienceAccessMessage = ""; setConnectionNotice(false); joinAudience(); });
+socket.on("plan:audience_limit", (payload = {}) => {
+  audienceAccessMessage = payload.message || "Esta presentación alcanzó el límite de Público simultáneo.";
+  setConnectionNotice(true);
+});
 socket.on("disconnect", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience(); });
 socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));

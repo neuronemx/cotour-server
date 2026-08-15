@@ -12,7 +12,8 @@ const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
 const { GameQueueStore } = require("./game-queue-store");
 const { createGameQueueSocketHandlers } = require("./game-queue-sockets");
-const { registerAudience, unregisterAudience } = require("./audience-registry");
+const { canRegisterAudience, registerAudience, unregisterAudience } = require("./audience-registry");
+const { getPlanLimits } = require("./auth/plan-limits");
 const {
   resolveSessionInactivityMs,
   isMeaningfulSessionEvent,
@@ -1439,8 +1440,19 @@ io.on("connection", (socket) => {
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
+      const requestedAudienceId = String(audienceId || socket.id);
+      const audienceLimit = getPlanLimits(currentFeatureAccess.plan).audience;
+      if (!canRegisterAudience(session, requestedAudienceId, audienceLimit)) {
+        socket.emit("plan:audience_limit", {
+          code: "AUDIENCE_LIMIT_REACHED",
+          limit: audienceLimit,
+          plan: currentFeatureAccess.plan,
+          message: "Esta presentación alcanzó el límite de Público simultáneo."
+        });
+        return socket.disconnect(true);
+      }
       currentAudienceId = registerAudience(session, {
-        audienceId: audienceId || socket.id,
+        audienceId: requestedAudienceId,
         socketId: socket.id,
         audienceName,
         label
