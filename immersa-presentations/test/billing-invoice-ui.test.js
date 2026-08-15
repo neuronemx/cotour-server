@@ -36,3 +36,12 @@ test("account administration exposes the minimal manual CFDI queue", () => {
   assert.match(script, /adminNote/);
   assert.doesNotThrow(() => new Function(script));
 });
+
+
+test("paid plan cards open a controlled Stripe change flow instead of a generic portal", () => {
+  assert.match(script, /fetch\("\/api\/billing\/change"/);
+  assert.match(script, /changePlan\(plan, button\)/);
+  assert.match(script, /timing === "period_end"/);
+  assert.match(script, /timing === "scheduled_exists"/);
+  assert.match(script, /"change-return"/);
+});

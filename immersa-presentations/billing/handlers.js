@@ -75,6 +75,13 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo actualizar la solicitud de factura");
       }
     },
+    change: async (req, res) => {
+      try {
+        res.json(await service.createPlanChangePortal(req.accountContext, req.body));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo preparar el cambio de membresía");
+      }
+    },
     portal: async (req, res) => {
       try {
         res.json(await service.createPortal(req.accountContext));

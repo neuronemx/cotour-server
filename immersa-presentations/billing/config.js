@@ -74,12 +74,12 @@ function foundersOfferAvailable(env = process.env, now = Date.now()) {
   return Boolean(endsAt && Number(now) < endsAt.getTime());
 }
 
-function resolveCatalogEntry({ plan, interval, offer = "official", env = process.env, now = Date.now() }) {
+function resolveCatalogEntry({ plan, interval, offer = "official", env = process.env, now = Date.now(), retainFounders = false }) {
   const normalizedPlan = normalizeBillingPlan(plan);
   const normalizedInterval = normalizeBillingInterval(interval);
   const normalizedOffer = String(offer || "official").trim().toLowerCase();
   if (!["official", "founders"].includes(normalizedOffer)) throw publicError("INVALID_BILLING_OFFER", "La promoción seleccionada no es válida");
-  if (normalizedOffer === "founders" && !foundersOfferAvailable(env, now)) {
+  if (normalizedOffer === "founders" && !retainFounders && !foundersOfferAvailable(env, now)) {
     throw publicError("BILLING_OFFER_UNAVAILABLE", "El Precio Fundadores ya no está disponible", 409);
   }
   const priceId = String(env[PRICE_ENV_KEYS[normalizedPlan][normalizedInterval]] || "").trim();

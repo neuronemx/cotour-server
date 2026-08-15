@@ -72,7 +72,7 @@
       card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>`;
       const button = card.querySelector("button");
       button.disabled = active || !state.checkoutEnabled;
-      button.addEventListener("click", () => subscription ? openPortal() : checkout(plan, button));
+      button.addEventListener("click", () => subscription ? changePlan(plan, button) : checkout(plan, button));
       plansRoot.appendChild(card);
     }
     if (!state.enabled) showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
@@ -105,6 +105,30 @@
     }
   }
 
+
+  async function changePlan(plan, button) {
+    button.disabled = true;
+    showNotice("Preparando el cambio seguro en Stripe…", "pending");
+    try {
+      const response = await fetch("/api/billing/change", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, interval })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo preparar el cambio");
+      if (data.timing === "period_end") {
+        showNotice("El cambio se aplicará al terminar tu periodo actual. Stripe mostrará la fecha exacta.", "pending");
+      } else if (data.timing === "scheduled_exists") {
+        showNotice(data.message, "pending");
+      } else {
+        showNotice("Stripe calculará el crédito y el cobro inmediato antes de confirmar el cambio.", "pending");
+      }
+      window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      button.disabled = false;
+    }
+  }
 
   const invoiceStatusLabel = (status) => ({
     pending: "Pendiente",
@@ -257,9 +281,15 @@
   invoiceForm?.addEventListener("submit", submitInvoiceRequest);
 
   const query = new URLSearchParams(location.search);
-  if (query.has("upgrade") || query.get("billing") === "success") {
+  if (query.has("upgrade") || ["success", "change-return"].includes(query.get("billing"))) {
     void open().then(async () => {
-      if (query.get("billing") !== "success") return;
+      if (query.get("billing") !== "success") {
+        showNotice("Estamos confirmando el cambio directamente con Stripe…", "pending");
+        await load().catch(() => null);
+        showNotice("Estado actualizado. Si el cambio quedó programado, conservarás tu plan actual hasta la fecha indicada por Stripe.", "success");
+        window.dispatchEvent(new Event("immersa:billing-updated"));
+        return;
+      }
       showNotice("Pago recibido. Estamos esperando la confirmación segura de Stripe…", "pending");
       for (let attempt = 0; attempt < 10; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));

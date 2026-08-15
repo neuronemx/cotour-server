@@ -5,6 +5,7 @@ const {
   billingFlags,
   publicCatalog,
   resolveCatalogEntry,
+  PLAN_RANK,
   publicError
 } = require("./config");
 
@@ -300,6 +301,101 @@ class StripeBillingService {
         adminNote: payload.adminNote,
         cfdiUuid: payload.cfdiUuid
       })
+    };
+  }
+
+  founderOfferForDiscount(discountId) {
+    const current = String(discountId || "");
+    return Object.values(FOUNDERS_COUPON_ENV_KEYS)
+      .flatMap((intervals) => Object.values(intervals))
+      .some((key) => String(this.env[key] || "") === current)
+      ? "founders"
+      : "official";
+  }
+
+  changeTiming(current, target) {
+    const planDowngrade = (PLAN_RANK[target.plan] || 0) < (PLAN_RANK[current.plan] || 0);
+    const shorterInterval = current.interval === "annual" && target.interval === "monthly";
+    return planDowngrade || shorterInterval ? "period_end" : "immediate";
+  }
+
+  async createPlanChangePortal(accountContext, payload = {}) {
+    this.assertEnabled();
+    if (!this.flags.checkoutEnabled) {
+      throw publicError("BILLING_CHECKOUT_DISABLED", "Los cambios de membresía todavía no están habilitados", 503);
+    }
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    const current = await this.repository.getSubscription(workspaceId);
+    if (!current || String(current.status) !== "active") {
+      throw publicError(
+        "ACTIVE_SUBSCRIPTION_REQUIRED",
+        String(current?.status) === "past_due"
+          ? "Actualiza tu forma de pago antes de cambiar de membresía"
+          : "Necesitas una suscripción activa para cambiar de membresía",
+        409
+      );
+    }
+    const offer = this.founderOfferForDiscount(current.discount_id);
+    const target = resolveCatalogEntry({
+      ...payload,
+      offer,
+      env: this.env,
+      now: this.now(),
+      retainFounders: offer === "founders"
+    });
+    const currentPlan = String(current.plan || "");
+    const currentInterval = String(current.billing_interval || "");
+    if (currentPlan === target.plan && currentInterval === target.interval) {
+      throw publicError("SUBSCRIPTION_CHANGE_NOT_NEEDED", "Esa ya es tu membresía actual", 409);
+    }
+    const customerId = await this.repository.getCustomer(workspaceId);
+    const subscription = await this.stripe.subscriptions.retrieve(String(current.provider_subscription_id), {
+      expand: ["discounts"]
+    });
+    const item = subscription.items?.data?.[0];
+    if (!customerId || !item?.id || !subscription.id) {
+      throw publicError("SUBSCRIPTION_NOT_MANAGEABLE", "No pudimos preparar el cambio de membresía", 409);
+    }
+    const configuration = String(this.env.STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID || "").trim();
+    const returnUrl = `${this.baseUrl}/home?billing=change-return`;
+    const common = {
+      customer: customerId,
+      return_url: returnUrl,
+      ...(configuration ? { configuration } : {})
+    };
+    if (stripeId(subscription.schedule)) {
+      const session = await this.stripe.billingPortal.sessions.create(common);
+      return {
+        url: session.url,
+        timing: "scheduled_exists",
+        message: "Ya existe un cambio programado. Revísalo o cancélalo en el portal antes de solicitar otro."
+      };
+    }
+    const timing = this.changeTiming(
+      { plan: currentPlan, interval: currentInterval },
+      { plan: target.plan, interval: target.interval }
+    );
+    const session = await this.stripe.billingPortal.sessions.create({
+      ...common,
+      flow_data: {
+        type: "subscription_update_confirm",
+        subscription_update_confirm: {
+          subscription: String(subscription.id),
+          items: [{ id: String(item.id), price: target.priceId, quantity: 1 }],
+          ...(target.couponId ? { discounts: [{ coupon: target.couponId }] } : {})
+        },
+        after_completion: {
+          type: "redirect",
+          redirect: { return_url: returnUrl }
+        }
+      }
+    });
+    return {
+      url: session.url,
+      timing,
+      targetPlan: target.plan,
+      targetInterval: target.interval,
+      offer
     };
   }
 

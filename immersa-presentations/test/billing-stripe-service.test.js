@@ -42,7 +42,9 @@ function setup(overrides = {}) {
       async create(payload, request) { calls.push(["checkout", payload, request]); return { id: "cs_1", url: "https://checkout.stripe.test/1", expires_at: 1800000000 }; },
       async retrieve() { return null; }
     } },
-    billingPortal: { sessions: { async create() { return { url: "https://billing.stripe.test/1" }; } } },
+    billingPortal: { sessions: {
+      async create(payload) { calls.push(["portal", payload]); return { url: "https://billing.stripe.test/1" }; }
+    } },
     invoices: {
       async list() { return { data: overrides.stripeInvoices || [] }; },
       async retrieve(id) {
@@ -51,7 +53,7 @@ function setup(overrides = {}) {
     },
     subscriptions: { async retrieve() { return overrides.stripeSubscription || {
       id: "sub_1", customer: "cus_1", status: "active",
-      items: { data: [{ price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
+      items: { data: [{ id: "si_1", price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
     }; } },
     webhooks: { constructEvent() { return overrides.event; } }
   };
@@ -296,4 +298,95 @@ test("payment failure queues a transactional email without changing Stripe truth
   assert.equal(notification.kind, "payment-failed");
   assert.equal(notification.objectId, "in_failed");
   assert.equal(notification.amountTotal, 50000);
+});
+
+
+test("plan change uses a Stripe-hosted confirmation flow and preserves founders pricing", async () => {
+  const { service, calls } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER",
+      billing_interval: "monthly",
+      status: "active",
+      discount_id: "coupon_sm"
+    }
+  });
+  const result = await service.createPlanChangePortal(
+    { workspace: { id: "workspace-1" } },
+    { plan: "SPEAKER_PRO", interval: "annual", offer: "official" }
+  );
+  assert.equal(result.timing, "immediate");
+  assert.equal(result.offer, "founders");
+  const portal = calls.find(([name]) => name === "portal")[1];
+  const flow = portal.flow_data.subscription_update_confirm;
+  assert.equal(flow.subscription, "sub_1");
+  assert.deepEqual(flow.items, [{ id: "si_1", price: "price_pro_year", quantity: 1 }]);
+  assert.deepEqual(flow.discounts, [{ coupon: "coupon_py" }]);
+});
+
+test("downgrades and annual to monthly changes are sent to Stripe as period-end changes", async () => {
+  const { service } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER_PRO",
+      billing_interval: "annual",
+      status: "active",
+      discount_id: null
+    },
+    stripeSubscription: {
+      id: "sub_1",
+      customer: "cus_1",
+      status: "active",
+      items: { data: [{ id: "si_1", price: { id: "price_pro_year" }, current_period_end: 1789300000 }] }
+    }
+  });
+  const result = await service.createPlanChangePortal(
+    { workspace: { id: "workspace-1" } },
+    { plan: "SPEAKER", interval: "monthly" }
+  );
+  assert.equal(result.timing, "period_end");
+});
+
+test("past due subscriptions must recover payment before changing membership", async () => {
+  const { service } = setup({
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER",
+      billing_interval: "monthly",
+      status: "past_due"
+    }
+  });
+  await assert.rejects(
+    () => service.createPlanChangePortal(
+      { workspace: { id: "workspace-1" } },
+      { plan: "SPEAKER_PRO", interval: "monthly" }
+    ),
+    (error) => error.code === "ACTIVE_SUBSCRIPTION_REQUIRED" && error.statusCode === 409
+  );
+});
+
+test("an existing Stripe schedule opens general management instead of stacking changes", async () => {
+  const { service, calls } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER_PRO",
+      billing_interval: "annual",
+      status: "active"
+    },
+    stripeSubscription: {
+      id: "sub_1",
+      customer: "cus_1",
+      schedule: "sub_sched_1",
+      items: { data: [{ id: "si_1", price: { id: "price_pro_year" } }] }
+    }
+  });
+  const result = await service.createPlanChangePortal(
+    { workspace: { id: "workspace-1" } },
+    { plan: "SPEAKER", interval: "monthly" }
+  );
+  assert.equal(result.timing, "scheduled_exists");
+  assert.equal("flow_data" in calls.find(([name]) => name === "portal")[1], false);
 });
