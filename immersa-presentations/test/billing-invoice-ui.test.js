@@ -39,6 +39,7 @@ test("account administration exposes the minimal manual CFDI queue", () => {
 
 
 test("paid plan cards open a controlled Stripe change flow instead of a generic portal", () => {
+  const script = read("public/home/billing.js");
   assert.match(script, /fetch\("\/api\/billing\/change"/);
   assert.match(script, /changePlan\(plan, button\)/);
   assert.match(script, /timing === "period_end"/);
