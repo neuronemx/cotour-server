@@ -1,2 +1,24 @@
 :root{color-scheme:dark;--ink:#f8f7ff;--muted:#aaa8c5;--violet:#7c3cff;--cyan:#20d8df;--panel:rgba(255,255,255,.075)}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 15%,#392070 0,transparent 34%),radial-gradient(circle at 88% 8%,#075e72 0,transparent 31%),#0b0919;color:var(--ink);font-family:Inter,system-ui,sans-serif}.completion{min-height:100vh;display:grid;place-items:center;padding:32px}.card{width:min(760px,100%);padding:clamp(28px,6vw,58px);border:1px solid rgba(255,255,255,.14);border-radius:30px;background:rgba(18,15,38,.88);box-shadow:0 30px 90px rgba(0,0,0,.42);backdrop-filter:blur(18px)}.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px}.brand-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center}.eyebrow{margin:42px 0 12px;color:#72f2e7;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}h1{margin:0;font:800 clamp(38px,7vw,68px)/1.02 Poppins,Inter,sans-serif;letter-spacing:-.045em}h1 span{background:linear-gradient(90deg,#b99aff,#67e9e2);-webkit-background-clip:text;color:transparent}.lead{max-width:610px;color:#cbc9db;font-size:17px;line-height:1.65}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:30px 0}.stat{padding:20px;border-radius:18px;background:var(--panel);border:1px solid rgba(255,255,255,.08)}.stat strong{display:block;font-size:28px}.stat span{color:var(--muted);font-size:12px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:14px;text-decoration:none;color:white;font-weight:800;background:linear-gradient(90deg,var(--violet),#436bff,var(--cyan))}.button.secondary{background:transparent;border:1px solid rgba(255,255,255,.2)}.hint{margin-top:20px;color:var(--muted);font-size:13px;line-height:1.5}.screen-card{text-align:center}.screen-card .eyebrow{margin-top:30px}.screen-card h1{font-size:clamp(40px,8vw,82px)}@media(max-width:620px){.completion{padding:16px}.stats{grid-template-columns:1fr}.card{border-radius:22px}.button{width:100%}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 15%,#392070 0,transparent 34%),radial-gradient(circle at 88% 8%,#075e72 0,transparent 31%),#0b0919;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+.completion{min-height:100vh;display:grid;place-items:center;padding:32px}
+.card{width:min(760px,100%);padding:clamp(28px,6vw,58px);border:1px solid rgba(255,255,255,.14);border-radius:30px;background:rgba(18,15,38,.88);box-shadow:0 30px 90px rgba(0,0,0,.42);backdrop-filter:blur(18px)}
+.brand{display:flex;align-items:center}
+.brand-logo{display:block;width:clamp(150px,22vw,190px);height:auto;object-fit:contain}
+.eyebrow{margin:42px 0 12px;color:#72f2e7;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+h1{margin:0;font:800 clamp(38px,7vw,68px)/1.02 Poppins,Inter,sans-serif;letter-spacing:-.045em}
+h1 span{background:linear-gradient(90deg,#b99aff,#67e9e2);-webkit-background-clip:text;color:transparent}
+.lead{max-width:610px;color:#cbc9db;font-size:17px;line-height:1.65}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:30px 0}
+.stat{padding:20px;border-radius:18px;background:var(--panel);border:1px solid rgba(255,255,255,.08)}
+.stat strong{display:block;font-size:28px}
+.stat span{color:var(--muted);font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:14px;text-decoration:none;color:white;font-weight:800;background:linear-gradient(90deg,var(--violet),#436bff,var(--cyan))}
+.button.secondary{background:transparent;border:1px solid rgba(255,255,255,.2)}
+.hint{margin-top:20px;color:var(--muted);font-size:13px;line-height:1.5}
+.screen-card{text-align:center}
+.screen-card .brand{justify-content:center}
+.screen-card .eyebrow{margin-top:30px}
+.screen-card h1{font-size:clamp(40px,8vw,82px)}
+@media(max-width:620px){.completion{padding:16px}.stats{grid-template-columns:1fr}.card{border-radius:22px}.button{width:100%}}
