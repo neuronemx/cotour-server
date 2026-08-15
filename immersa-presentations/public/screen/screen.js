@@ -3,6 +3,7 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
+window.ImmersaPresentationCompletion?.create({ socket, role: "screen", context: roleOpenContext });
 let knowledgeActivityScreen = null;
 try {
   knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({

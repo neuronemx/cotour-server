@@ -1471,4 +1471,13 @@ if (nameForm) {
   });
 }
 
-Promise.all([loadDecks(), loadPlanUsage()]);
+Promise.all([loadDecks(), loadPlanUsage()]).then(() => {
+  const homeParams = new URLSearchParams(window.location.search);
+  const requestedDeckId = homeParams.get("deck");
+  const requestedTab = homeParams.get("tab");
+  if (!requestedDeckId) return;
+  const requestedDeck = decks.find((deck) => deck.deckId === requestedDeckId);
+  if (!requestedDeck) return;
+  openDeckModal(requestedDeck);
+  if (requestedTab === "metrics") window.setTimeout(() => deckTabMetrics?.click(), 0);
+});

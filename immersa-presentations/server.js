@@ -129,6 +129,29 @@ presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepositor
 const presentationMetricsHandlers = presentationMetricsRepository
   ? createPresentationMetricsHandlers(presentationMetricsRepository)
   : null;
+async function presentationCompletionFor(context, state, reason = "FINISHED") {
+  const completedId = String(state?.completedPresentationSessionId || "");
+  const sessions = completedId && presentationMetricsRepository
+    ? await presentationMetricsRepository.listDeckSessions(context.deckId)
+    : [];
+  const session = sessions.find((item) => item.id === completedId) || null;
+  const pollResponses = (session?.polls || []).reduce((total, poll) => total + Number(poll.totalResponses || 0), 0);
+  const qnaReceived = Number(session?.qna?.received || 0);
+  return {
+    reason,
+    presentationSessionId: completedId || null,
+    deckId: context.deckId,
+    summary: {
+      durationSeconds: Number(session?.durationSeconds || 0),
+      attendance: Math.max(Number(session?.participants?.connected || 0), Number(session?.participants?.peak || 0)),
+      activityCount: pollResponses + qnaReceived,
+      pollCount: Number(session?.polls?.length || 0),
+      pollResponses,
+      qnaReceived,
+      qnaProjected: Number(session?.qna?.projected || 0)
+    }
+  };
+}
 const presentationLifecycleRuntime = lifecyclePool
   ? createPresentationLifecycleRuntime({
       io,
@@ -181,11 +204,14 @@ const presentationLifecycleRuntime = lifecyclePool
           sourceSessionId: context.sessionId,
           presentationSessionId: state.presentationSessionId
         });
+        return presentationCompletionFor(context, state, context.finishReason || "FINISHED");
       }
     })
   : {
       attach() {},
       async startAutomatically() {},
+      async finishInactive() { return null; },
+      emitClosed() {},
       async sendCurrentState(socket) {
         socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
       }
@@ -775,9 +801,13 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
     role: "system"
   };
   const shutdown = (async () => {
+    context.finishReason = "INACTIVITY";
+    const lifecycleResult = await presentationLifecycleRuntime.finishInactive(context);
     const asyncResets = await Promise.allSettled([
       knowledgeActivityRuntime.resetSession(context),
-      qnaRuntime.shutdownSession?.({ deckId: session.deckId, sourceSessionId: session.sessionId })
+      lifecycleResult
+        ? Promise.resolve({ presentationSessionId: lifecycleResult.state.presentationSessionId })
+        : qnaRuntime.shutdownSession?.({ deckId: session.deckId, sourceSessionId: session.sessionId })
     ]);
     asyncResets.forEach((result) => {
       if (result.status === "rejected") console.error("Unable to fully reset inactive session", result.reason);
@@ -801,6 +831,9 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
       reason: "INACTIVITY",
       inactivityMinutes: Math.round(SESSION_INACTIVITY_MS / 60_000)
     });
+    if (!lifecycleResult) {
+      presentationLifecycleRuntime.emitClosed(context, await presentationCompletionFor(context, null, "INACTIVITY"));
+    }
     if (qnaReplacement?.presentationSessionId) {
       presentationLifecycleRuntime.emitState(context, {
         available: true,
@@ -885,6 +918,9 @@ app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "inde
 app.get("/api/account/capabilities", betterAuthCompatibilityBridge.capabilitiesHandler);
 app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+app.get("/presentacion-completada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "speaker.html")));
+app.get("/gracias-por-participar", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "audience.html")));
+app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "screen.html")));
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
