@@ -94,12 +94,21 @@ test("Deck cards use a geometrically centered delete icon on iPhone", () => {
   const source = read("public/home/home.js");
   const css = read("public/home/home.css");
 
-  assert.match(html, /home\.css\?v=58/);
+  assert.match(html, /home\.css\?v=59/);
   assert.match(html, /home\.js\?v=68/);
   assert.match(source, /deleteButton\.innerHTML = '<svg[^']+M6 6l12 12M18 6 6 18/);
   assert.doesNotMatch(source, /deleteButton\.textContent = "×"/);
   assert.match(css, /\.deck-delete \{[\s\S]+min-width: 30px; max-width: 30px;[\s\S]+padding: 0;[\s\S]+-webkit-appearance: none;/);
   assert.match(css, /\.deck-delete svg \{[\s\S]+width: 14px; height: 14px;[\s\S]+stroke: currentColor;/);
+});
+
+test("Home uses the compact IMMERSA mark in portrait mobile", () => {
+  const html = read("public/home/index.html");
+  const css = read("public/home/home.css");
+
+  assert.match(html, /source media="\(max-width: 700px\) and \(orientation: portrait\)" srcset="\/presenter\/immersa-mark\.png"/);
+  assert.match(css, /@media \(max-width: 700px\) and \(orientation: portrait\) \{[\s\S]*?\.brand-logo-full \{[^}]*width: 44px;[^}]*height: 44px;[^}]*object-fit: contain;/);
+  assert.match(css, /\.account-pill \{ max-width: calc\(100% - 56px\); \}/);
 });
 
 test("Deck detail provides visual slide navigation and direct video editing without changing the show", () => {
