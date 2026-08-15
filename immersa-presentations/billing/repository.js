@@ -99,6 +99,14 @@ class BillingRepository {
     return rows || [];
   }
 
+  async workspaceForDeck(deckId) {
+    const [rows] = await this.pool.execute(
+      "SELECT workspace_id FROM decks WHERE deck_id = ? LIMIT 1",
+      [String(deckId)]
+    );
+    return rows?.[0]?.workspace_id ? String(rows[0].workspace_id) : null;
+  }
+
   async workspaceForProvider({ customerId = "", subscriptionId = "", checkoutSessionId = "" } = {}) {
     if (subscriptionId) {
       const [rows] = await this.pool.execute(
@@ -157,12 +165,27 @@ class BillingRepository {
     );
   }
 
-  async recordWebhookEvent(event) {
-    const [result] = await this.pool.execute(
+  async claimWebhookEvent(event) {
+    const values = [
+      String(event.id),
+      String(event.type),
+      String(event.data?.object?.id || "") || null,
+      sqlDate(Number(event.created) * 1000)
+    ];
+    await this.pool.execute(
       `INSERT IGNORE INTO billing_webhook_events
          (event_id, event_type, provider_object_id, event_created_at)
        VALUES (?, ?, ?, ?)`,
-      [String(event.id), String(event.type), String(event.data?.object?.id || "") || null, sqlDate(Number(event.created) * 1000)]
+      values
+    );
+    const [result] = await this.pool.execute(
+      `UPDATE billing_webhook_events
+       SET status = 'pending', claimed_at = CURRENT_TIMESTAMP(3), last_error = NULL
+       WHERE event_id = ?
+         AND status IN ('pending', 'failed')
+         AND available_at <= CURRENT_TIMESTAMP(3)
+         AND (claimed_at IS NULL OR claimed_at < CURRENT_TIMESTAMP(3) - INTERVAL 5 MINUTE)`,
+      [String(event.id)]
     );
     return Number(result?.affectedRows || 0) === 1;
   }

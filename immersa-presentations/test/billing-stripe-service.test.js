@@ -15,7 +15,10 @@ function setup(overrides = {}) {
     async markCheckoutSession(...args) { calls.push(["mark", ...args]); },
     async upsertSubscription(_workspace, snapshot) { calls.push(["subscription", snapshot]); },
     async recalculateEntitlement(_workspace, options) { calls.push(["entitlement", options]); return { plan: "SPEAKER" }; },
-    async recordWebhookEvent() { return overrides.duplicate ? false : true; },
+    async claimWebhookEvent() {
+      if (Array.isArray(overrides.claims)) return overrides.claims.shift();
+      return overrides.duplicate ? false : true;
+    },
     async finishWebhookEvent(...args) { calls.push(["finish", ...args]); },
     async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [] }; }
   };
@@ -79,6 +82,15 @@ test("duplicate webhook is acknowledged without applying side effects twice", as
   const { service, calls } = setup({ event, duplicate: true });
   assert.deepEqual(await service.receiveWebhook(Buffer.from("{}"), "sig"), { duplicate: true });
   assert.equal(calls.some(([name]) => name === "subscription"), false);
+});
+
+test("a failed webhook can be claimed again without replaying a processed event", async () => {
+  const event = { id: "evt_retry", type: "invoice.paid", created: 1786795200, data: { object: { subscription: "sub_1" } } };
+  const { service, calls } = setup({ event, claims: [true, true, false] });
+  await service.receiveWebhook(Buffer.from("{}"), "sig");
+  await service.receiveWebhook(Buffer.from("{}"), "sig");
+  assert.deepEqual(await service.receiveWebhook(Buffer.from("{}"), "sig"), { duplicate: true });
+  assert.equal(calls.filter(([name]) => name === "subscription").length, 2);
 });
 
 test("out-of-order invoice events reconcile the current Stripe subscription snapshot", async () => {

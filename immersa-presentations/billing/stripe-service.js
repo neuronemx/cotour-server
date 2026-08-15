@@ -201,12 +201,28 @@ class StripeBillingService {
     return this.reconcileSubscription(subscription, new Date(Number(event.created) * 1000));
   }
 
+  async recalculateWorkspaceForDeck(deckId, options = {}) {
+    if (!this.flags.enabled || !this.repository) return null;
+    const workspaceId = await this.repository.workspaceForDeck(deckId);
+    if (!workspaceId) return null;
+    const [subscription, grants] = await Promise.all([
+      this.repository.getSubscription(workspaceId),
+      this.repository.getActiveGrants(workspaceId)
+    ]);
+    if (!subscription && !grants.length) return null;
+    const protectDowngrade = options.force ? false : await this.isWorkspaceActive(workspaceId);
+    return this.repository.recalculateEntitlement(workspaceId, {
+      now: this.now(),
+      protectDowngrade
+    });
+  }
+
   async receiveWebhook(rawBody, signature) {
     this.assertEnabled();
     if (!this.webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET is required when billing is enabled");
     const event = this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
-    const inserted = await this.repository.recordWebhookEvent(event);
-    if (!inserted) return { duplicate: true };
+    const claimed = await this.repository.claimWebhookEvent(event);
+    if (!claimed) return { duplicate: true };
     try {
       const result = await this.processEvent(event);
       await this.repository.finishWebhookEvent(event.id);

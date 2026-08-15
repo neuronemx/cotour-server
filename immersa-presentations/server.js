@@ -221,6 +221,8 @@ const presentationLifecycleRuntime = lifecyclePool
           sourceSessionId: context.sessionId,
           presentationSessionId: state.presentationSessionId
         });
+        await billingRuntime.service.recalculateWorkspaceForDeck(context.deckId, { force: true })
+          .catch((error) => console.error("[billing] Unable to apply deferred entitlement", error));
         return presentationCompletionFor(context, state, context.finishReason || "FINISHED");
       }
     })
