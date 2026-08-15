@@ -155,6 +155,41 @@ test("disabled Games remains visible in the Demo shell", () => {
   assert.deepEqual(selected, []);
 });
 
+test("plan labels show only capabilities that require an upgrade", () => {
+  const speakerSetup = setup();
+  Shell.create({
+    root: speakerSetup.root,
+    categoryEnabled: {
+      polls: true,
+      qna: true,
+      assessments: false,
+      raffles: false,
+      contests: false
+    }
+  });
+  assert.equal(category(speakerSetup.root, "polls").querySelector(".interactions-shell-plan-label").textContent, "");
+  assert.equal(category(speakerSetup.root, "qna").querySelector(".interactions-shell-plan-label").textContent, "");
+  assert.equal(category(speakerSetup.root, "assessments").querySelector(".interactions-shell-plan-label").textContent, "SPEAKER PRO");
+  assert.equal(category(speakerSetup.root, "raffles").querySelector(".interactions-shell-plan-label").textContent, "SPEAKER PRO");
+  assert.equal(category(speakerSetup.root, "contests").querySelector(".interactions-shell-plan-label").textContent, "SPEAKER PRO");
+
+  const proSetup = setup();
+  Shell.create({
+    root: proSetup.root,
+    categoryEnabled: {
+      polls: true,
+      qna: true,
+      assessments: true,
+      raffles: true,
+      contests: true
+    }
+  });
+  assert.equal(
+    proSetup.root.querySelectorAll(".interactions-shell-plan-label").every((label) => label.textContent === ""),
+    true
+  );
+});
+
 test("home groups keep the same three-column alignment and distribution", () => {
   const css = fs.readFileSync(path.join(__dirname, "..", "public/shared/interactions.css"), "utf8");
   assert.match(css, /\.interaction-panel \.interactions-shell-group-row,[\s\S]*display: grid !important;[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) !important;/);

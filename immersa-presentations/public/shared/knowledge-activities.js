@@ -2,7 +2,7 @@
   "use strict";
 
   const LABELS = {
-    contest: "Concurso",
+    contest: "Trivia",
     assessment: "Evaluación"
   };
   const CATEGORY_ICON_PATHS = {

@@ -198,6 +198,8 @@
         button.disabled = !enabled;
         button.setAttribute("aria-disabled", String(!enabled));
         button.tabIndex = enabled ? 0 : -1;
+        const planLabel = button.querySelector(".interactions-shell-plan-label");
+        if (planLabel) planLabel.textContent = enabled ? "" : (CATEGORY_PLAN_LABELS[id] || "");
       });
       if (!enabled && view === id) setView("home");
       return true;
