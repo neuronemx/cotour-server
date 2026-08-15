@@ -8,6 +8,56 @@ const {
   publicError
 } = require("./config");
 
+
+const INVOICE_REQUEST_STATUSES = Object.freeze([
+  "pending", "in_process", "sent", "correction_required"
+]);
+const FISCAL_TIME_ZONE = "America/Mexico_City";
+
+function invoiceRequestDeadline(paidAt) {
+  const value = paidAt instanceof Date ? paidAt : new Date(paidAt);
+  if (!Number.isFinite(value.getTime())) throw new Error("A valid invoice payment date is required");
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: FISCAL_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit"
+  }).formatToParts(value).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  let year = Number(parts.year);
+  let month = Number(parts.month) + 1;
+  if (month === 13) { month = 1; year += 1; }
+  return new Date(`${year}-${String(month).padStart(2, "0")}-03T23:59:59-06:00`);
+}
+
+function fiscalData(payload = {}) {
+  const rfc = String(payload.rfc || "").trim().toUpperCase();
+  const legalName = String(payload.legalName || "").trim();
+  const fiscalPostalCode = String(payload.fiscalPostalCode || "").trim();
+  const fiscalRegime = String(payload.fiscalRegime || "").trim();
+  const cfdiUse = String(payload.cfdiUse || "").trim().toUpperCase();
+  if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc)) {
+    throw publicError("INVALID_FISCAL_RFC", "Ingresa un RFC válido");
+  }
+  if (!legalName || legalName.length > 200) {
+    throw publicError("INVALID_FISCAL_NAME", "Ingresa el nombre o razón social fiscal");
+  }
+  if (!/^\d{5}$/.test(fiscalPostalCode)) {
+    throw publicError("INVALID_FISCAL_POSTAL_CODE", "Ingresa el código postal fiscal de 5 dígitos");
+  }
+  if (!/^\d{3}$/.test(fiscalRegime)) {
+    throw publicError("INVALID_FISCAL_REGIME", "Selecciona un régimen fiscal válido");
+  }
+  if (!/^[A-Z0-9]{3}$/.test(cfdiUse)) {
+    throw publicError("INVALID_CFDI_USE", "Selecciona un uso de CFDI válido");
+  }
+  return { rfc, legalName, fiscalPostalCode, fiscalRegime, cfdiUse };
+}
+
+function invoicePaidAt(invoice = {}) {
+  const seconds = invoice.status_transitions?.paid_at || invoice.created;
+  const date = new Date(Number(seconds || 0) * 1000);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
 const PAYMENT_RECOVERY_MS = 7 * 24 * 60 * 60 * 1000;
 const RELEVANT_EVENTS = new Set([
   "checkout.session.completed",
@@ -166,6 +216,93 @@ class StripeBillingService {
     return { url: session.url, reused: false };
   }
 
+
+  async listInvoices(accountContext) {
+    this.assertEnabled();
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    const customerId = await this.repository.getCustomer(workspaceId);
+    if (!customerId) return { invoices: [] };
+    const [stripeInvoices, requests] = await Promise.all([
+      this.stripe.invoices.list({ customer: customerId, status: "paid", limit: 12 }),
+      this.repository.listInvoiceRequests(workspaceId)
+    ]);
+    const byInvoice = new Map(requests.map((request) => [String(request.provider_invoice_id), request]));
+    return {
+      invoices: (stripeInvoices.data || []).map((invoice) => {
+        const paidAt = invoicePaidAt(invoice);
+        const deadline = invoiceRequestDeadline(paidAt);
+        return {
+          id: String(invoice.id),
+          number: invoice.number || null,
+          paidAt,
+          amountTotal: Math.max(0, Number(invoice.amount_paid ?? invoice.total) || 0),
+          currency: String(invoice.currency || "mxn").toUpperCase(),
+          ordinaryDeadlineAt: deadline,
+          timing: this.now() <= deadline.getTime() ? "ordinary" : "late",
+          request: byInvoice.get(String(invoice.id)) || null
+        };
+      })
+    };
+  }
+
+  async requestInvoice(accountContext, payload = {}) {
+    this.assertEnabled();
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    const customerId = await this.repository.getCustomer(workspaceId);
+    if (!customerId) throw publicError("BILLING_CUSTOMER_NOT_FOUND", "No encontramos pagos facturables", 404);
+    let invoice;
+    if (payload.invoiceId) {
+      invoice = await this.stripe.invoices.retrieve(String(payload.invoiceId));
+    } else {
+      const listed = await this.stripe.invoices.list({ customer: customerId, status: "paid", limit: 1 });
+      invoice = listed.data?.[0];
+    }
+    if (!invoice || stripeId(invoice.customer) !== customerId || String(invoice.status) !== "paid") {
+      throw publicError("INVOICE_NOT_ELIGIBLE", "El pago seleccionado no está disponible para facturación", 404);
+    }
+    const existing = await this.repository.getInvoiceRequest(workspaceId, invoice.id);
+    if (existing) return { request: existing, duplicate: true };
+    const paidAt = invoicePaidAt(invoice);
+    const ordinaryDeadlineAt = invoiceRequestDeadline(paidAt);
+    const timing = this.now() <= ordinaryDeadlineAt.getTime() ? "ordinary" : "late";
+    const request = await this.repository.createInvoiceRequest({
+      workspaceId,
+      providerInvoiceId: invoice.id,
+      providerCustomerId: customerId,
+      paidAt,
+      amountTotal: invoice.amount_paid ?? invoice.total,
+      currency: invoice.currency || "mxn",
+      ordinaryDeadlineAt,
+      timing,
+      ...fiscalData(payload)
+    });
+    return { request, duplicate: false };
+  }
+
+  async listAdminInvoiceRequests(status = "") {
+    if (!this.repository) return { requests: [] };
+    const normalized = String(status || "").trim();
+    if (normalized && !INVOICE_REQUEST_STATUSES.includes(normalized)) {
+      throw publicError("INVALID_INVOICE_REQUEST_STATUS", "Estado de factura no válido");
+    }
+    return { requests: await this.repository.listAdminInvoiceRequests(normalized) };
+  }
+
+  async updateAdminInvoiceRequest(id, payload = {}) {
+    const status = String(payload.status || "").trim();
+    if (!INVOICE_REQUEST_STATUSES.includes(status)) {
+      throw publicError("INVALID_INVOICE_REQUEST_STATUS", "Estado de factura no válido");
+    }
+    return {
+      request: await this.repository.updateInvoiceRequest({
+        id,
+        status,
+        adminNote: payload.adminNote,
+        cfdiUuid: payload.cfdiUuid
+      })
+    };
+  }
+
   async createPortal(accountContext) {
     this.assertEnabled();
     const workspaceId = String(accountContext?.workspace?.id || "");
@@ -294,5 +431,10 @@ module.exports = {
   PAYMENT_RECOVERY_MS,
   RELEVANT_EVENTS,
   subscriptionIdFromInvoice,
-  stripeId
+  stripeId,
+  invoiceRequestDeadline,
+  fiscalData,
+  invoicePaidAt,
+  INVOICE_REQUEST_STATUSES,
+  FISCAL_TIME_ZONE
 };

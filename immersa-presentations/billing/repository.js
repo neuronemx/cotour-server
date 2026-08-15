@@ -262,6 +262,104 @@ class BillingRepository {
     }));
   }
 
+
+  async getInvoiceRequest(workspaceId, providerInvoiceId) {
+    const [rows] = await this.pool.execute(
+      `SELECT id, provider_invoice_id, paid_at, amount_total, currency, ordinary_deadline_at,
+              timing, status, rfc, legal_name, fiscal_postal_code, fiscal_regime,
+              cfdi_use, admin_note, cfdi_uuid, requested_at, updated_at, sent_at
+       FROM billing_invoice_requests
+       WHERE workspace_id = ? AND provider_invoice_id = ?
+       LIMIT 1`,
+      [String(workspaceId), String(providerInvoiceId)]
+    );
+    return rows?.[0] || null;
+  }
+
+  async listInvoiceRequests(workspaceId) {
+    const [rows] = await this.pool.execute(
+      `SELECT id, provider_invoice_id, paid_at, amount_total, currency, ordinary_deadline_at,
+              timing, status, rfc, legal_name, fiscal_postal_code, fiscal_regime,
+              cfdi_use, admin_note, cfdi_uuid, requested_at, updated_at, sent_at
+       FROM billing_invoice_requests
+       WHERE workspace_id = ?
+       ORDER BY paid_at DESC, requested_at DESC`,
+      [String(workspaceId)]
+    );
+    return rows || [];
+  }
+
+  async createInvoiceRequest(payload) {
+    const id = crypto.randomUUID();
+    await this.pool.execute(
+      `INSERT INTO billing_invoice_requests
+         (id, workspace_id, provider_invoice_id, provider_customer_id, paid_at,
+          amount_total, currency, ordinary_deadline_at, timing, status, rfc,
+          legal_name, fiscal_postal_code, fiscal_regime, cfdi_use)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+      [
+        id, String(payload.workspaceId), String(payload.providerInvoiceId),
+        String(payload.providerCustomerId), sqlDate(payload.paidAt),
+        Math.max(0, Math.floor(Number(payload.amountTotal) || 0)),
+        String(payload.currency || "mxn").toLowerCase(), sqlDate(payload.ordinaryDeadlineAt),
+        payload.timing, payload.rfc, payload.legalName, payload.fiscalPostalCode,
+        payload.fiscalRegime, payload.cfdiUse
+      ]
+    );
+    return this.getInvoiceRequest(payload.workspaceId, payload.providerInvoiceId);
+  }
+
+  async listAdminInvoiceRequests(status = "") {
+    const params = [];
+    const filter = status ? "WHERE r.status = ?" : "";
+    if (status) params.push(String(status));
+    const [rows] = await this.pool.execute(
+      `SELECT r.id, r.workspace_id, r.provider_invoice_id, r.paid_at, r.amount_total,
+              r.currency, r.ordinary_deadline_at, r.timing, r.status, r.rfc,
+              r.legal_name, r.fiscal_postal_code, r.fiscal_regime, r.cfdi_use,
+              r.admin_note, r.cfdi_uuid, r.requested_at, r.updated_at, r.sent_at,
+              u.name AS account_name, u.email AS account_email
+       FROM billing_invoice_requests r
+       INNER JOIN workspaces w ON w.id = r.workspace_id
+       INNER JOIN \`user\` u ON u.id = w.personal_owner_user_id
+       ${filter}
+       ORDER BY CASE r.status
+         WHEN 'pending' THEN 0 WHEN 'correction_required' THEN 1
+         WHEN 'in_process' THEN 2 ELSE 3 END,
+         r.requested_at ASC`,
+      params
+    );
+    return rows || [];
+  }
+
+  async updateInvoiceRequest({ id, status, adminNote = "", cfdiUuid = "" }) {
+    const sentAt = status === "sent" ? new Date() : null;
+    const [result] = await this.pool.execute(
+      `UPDATE billing_invoice_requests
+       SET status = ?, admin_note = ?, cfdi_uuid = ?, sent_at = ?
+       WHERE id = ?`,
+      [
+        status,
+        String(adminNote || "").trim().slice(0, 500) || null,
+        String(cfdiUuid || "").trim().slice(0, 64) || null,
+        sentAt,
+        String(id)
+      ]
+    );
+    if (Number(result?.affectedRows || 0) !== 1) {
+      const error = new Error("Solicitud de factura no encontrada");
+      error.statusCode = 404;
+      throw error;
+    }
+    const [rows] = await this.pool.execute(
+      `SELECT id, workspace_id, provider_invoice_id, status, admin_note,
+              cfdi_uuid, requested_at, updated_at, sent_at
+       FROM billing_invoice_requests WHERE id = ? LIMIT 1`,
+      [String(id)]
+    );
+    return rows?.[0] || null;
+  }
+
   async accountStatus(workspaceId) {
     const [rows] = await this.pool.execute(
       `SELECT w.plan AS effective_plan, s.provider_subscription_id, s.plan AS subscribed_plan,

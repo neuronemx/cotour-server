@@ -43,6 +43,38 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo consultar el estado comercial");
       }
     },
+    invoices: async (req, res) => {
+      try {
+        res.set("Cache-Control", "no-store");
+        res.json(await service.listInvoices(req.accountContext));
+      } catch (error) {
+        errorResponse(res, error, "No se pudieron consultar tus pagos facturables");
+      }
+    },
+    requestInvoice: async (req, res) => {
+      try {
+        res.status(201).json(await service.requestInvoice(req.accountContext, req.body));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo registrar la solicitud de factura");
+      }
+    },
+    adminInvoiceRequests: async (req, res) => {
+      if (!isAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
+      try {
+        res.set("Cache-Control", "no-store");
+        res.json(await service.listAdminInvoiceRequests(req.query.status));
+      } catch (error) {
+        errorResponse(res, error, "No se pudieron consultar las solicitudes de factura");
+      }
+    },
+    adminUpdateInvoiceRequest: async (req, res) => {
+      if (!isAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
+      try {
+        res.json(await service.updateAdminInvoiceRequest(req.params.requestId, req.body));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo actualizar la solicitud de factura");
+      }
+    },
     portal: async (req, res) => {
       try {
         res.json(await service.createPortal(req.accountContext));

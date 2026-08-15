@@ -1,6 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { StripeBillingService, PAYMENT_RECOVERY_MS, subscriptionIdFromInvoice } = require("../billing/stripe-service");
+const {
+  StripeBillingService,
+  PAYMENT_RECOVERY_MS,
+  subscriptionIdFromInvoice,
+  invoiceRequestDeadline,
+  fiscalData
+} = require("../billing/stripe-service");
 
 function setup(overrides = {}) {
   const calls = [];
@@ -21,6 +27,11 @@ function setup(overrides = {}) {
     },
     async finishWebhookEvent(...args) { calls.push(["finish", ...args]); },
     async getActiveGrants() { return []; },
+    async listInvoiceRequests() { return overrides.invoiceRequests || []; },
+    async getInvoiceRequest() { return overrides.existingInvoiceRequest || null; },
+    async createInvoiceRequest(payload) { calls.push(["invoiceRequest", payload]); return { id: "request-1", ...payload, status: "pending" }; },
+    async listAdminInvoiceRequests() { return []; },
+    async updateInvoiceRequest(payload) { calls.push(["invoiceRequestUpdate", payload]); return payload; },
     async createPlanGrant(payload) { calls.push(["grant", payload]); return { id: "grant-1", ...payload }; },
     async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [], history: [] }; }
   };
@@ -31,6 +42,12 @@ function setup(overrides = {}) {
       async retrieve() { return null; }
     } },
     billingPortal: { sessions: { async create() { return { url: "https://billing.stripe.test/1" }; } } },
+    invoices: {
+      async list() { return { data: overrides.stripeInvoices || [] }; },
+      async retrieve(id) {
+        return (overrides.stripeInvoices || []).find((invoice) => invoice.id === id) || null;
+      }
+    },
     subscriptions: { async retrieve() { return overrides.stripeSubscription || {
       id: "sub_1", customer: "cus_1", status: "active",
       items: { data: [{ price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
@@ -40,7 +57,7 @@ function setup(overrides = {}) {
   const env = {
     IMMERSA_BILLING_ENABLED: "true",
     IMMERSA_BILLING_CHECKOUT_ENABLED: "true",
-    IMMERSA_FOUNDERS_OFFER_END_AT: "2026-09-30T23:59:59-06:00",
+    IMMERSA_FOUNDERS_OFFER_END_AT: "2026-10-31T23:59:59-06:00",
     STRIPE_SECRET_KEY: "sk_test_example",
     STRIPE_WEBHOOK_SECRET: "whsec_example",
     STRIPE_SPEAKER_MONTHLY_PRICE_ID: "price_speaker_month",
@@ -53,7 +70,12 @@ function setup(overrides = {}) {
     STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_py",
     BETTER_AUTH_URL: "https://app.immersalive.com"
   };
-  const service = new StripeBillingService({ repository, stripe, env, now: () => Date.parse("2026-08-15T12:00:00Z") });
+  const service = new StripeBillingService({
+    repository,
+    stripe,
+    env,
+    now: overrides.now || (() => Date.parse("2026-08-15T12:00:00Z"))
+  });
   return { service, calls, repository };
 }
 
@@ -156,4 +178,84 @@ test("past_due access receives one explicit seven-day recovery boundary", async 
 test("invoice subscription id supports legacy and current Stripe invoice shapes", () => {
   assert.equal(subscriptionIdFromInvoice({ subscription: "sub_legacy" }), "sub_legacy");
   assert.equal(subscriptionIdFromInvoice({ parent: { subscription_details: { subscription: "sub_current" } } }), "sub_current");
+});
+
+
+test("invoice request deadline gives purchases through month end until day three", () => {
+  assert.equal(
+    invoiceRequestDeadline("2026-10-31T23:59:00-06:00").toISOString(),
+    "2026-11-04T05:59:59.000Z"
+  );
+  assert.equal(
+    invoiceRequestDeadline("2026-12-31T12:00:00-06:00").toISOString(),
+    "2027-01-04T05:59:59.000Z"
+  );
+});
+
+test("fiscal request accepts only the five required SAT fields", () => {
+  assert.deepEqual(fiscalData({
+    rfc: "  ABC010203AB1 ",
+    legalName: "Empresa Demo SA de CV",
+    fiscalPostalCode: "01000",
+    fiscalRegime: "601",
+    cfdiUse: "g03",
+    constancia: "ignored"
+  }), {
+    rfc: "ABC010203AB1",
+    legalName: "Empresa Demo SA de CV",
+    fiscalPostalCode: "01000",
+    fiscalRegime: "601",
+    cfdiUse: "G03"
+  });
+  assert.throws(() => fiscalData({}), (error) => error.code === "INVALID_FISCAL_RFC");
+});
+
+test("invoice requests validate Stripe ownership and become extemporaneous after the deadline", async () => {
+  const paidAt = Math.floor(Date.parse("2026-10-31T18:00:00-06:00") / 1000);
+  const { service, calls } = setup({
+    customerId: "cus_1",
+    now: () => Date.parse("2026-11-04T00:00:00-06:00"),
+    stripeInvoices: [{
+      id: "in_1",
+      customer: "cus_1",
+      status: "paid",
+      status_transitions: { paid_at: paidAt },
+      amount_paid: 50000,
+      currency: "mxn"
+    }]
+  });
+  const result = await service.requestInvoice(
+    { workspace: { id: "workspace-1" }, user: { id: "user-1" } },
+    {
+      invoiceId: "in_1",
+      rfc: "ABC010203AB1",
+      legalName: "Empresa Demo SA de CV",
+      fiscalPostalCode: "01000",
+      fiscalRegime: "601",
+      cfdiUse: "G03"
+    }
+  );
+  assert.equal(result.request.timing, "late");
+  assert.equal(calls.find(([name]) => name === "invoiceRequest")[1].amountTotal, 50000);
+});
+
+test("invoice request cannot use a Stripe invoice from another customer", async () => {
+  const { service } = setup({
+    customerId: "cus_1",
+    stripeInvoices: [{
+      id: "in_other",
+      customer: "cus_other",
+      status: "paid",
+      created: 1786700000,
+      amount_paid: 50000,
+      currency: "mxn"
+    }]
+  });
+  await assert.rejects(
+    () => service.requestInvoice(
+      { workspace: { id: "workspace-1" }, user: { id: "user-1" } },
+      { invoiceId: "in_other", rfc: "ABC010203AB1", legalName: "Demo", fiscalPostalCode: "01000", fiscalRegime: "601", cfdiUse: "G03" }
+    ),
+    (error) => error.code === "INVOICE_NOT_ELIGIBLE" && error.statusCode === 404
+  );
 });
