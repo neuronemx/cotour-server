@@ -263,6 +263,24 @@ class BillingRepository {
   }
 
 
+
+  async queueBillingEmail(payload) {
+    const [result] = await this.pool.execute(
+      `INSERT IGNORE INTO billing_email_notifications
+         (workspace_id, provider_event_id, kind, provider_object_id, plan,
+          amount_total, currency, period_end)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        String(payload.workspaceId), String(payload.eventId), String(payload.kind),
+        String(payload.objectId), payload.plan || null,
+        payload.amountTotal == null ? null : Math.max(0, Math.floor(Number(payload.amountTotal) || 0)),
+        payload.currency ? String(payload.currency).toLowerCase() : null,
+        sqlDate(payload.periodEnd)
+      ]
+    );
+    return Number(result?.affectedRows || 0) === 1;
+  }
+
   async getInvoiceRequest(workspaceId, providerInvoiceId) {
     const [rows] = await this.pool.execute(
       `SELECT id, provider_invoice_id, paid_at, amount_total, currency, ordinary_deadline_at,

@@ -33,6 +33,7 @@ const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
 const { createProfileHandlers } = require("./profile-api");
+const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const {
   CAPABILITIES,
@@ -139,7 +140,8 @@ const billingRuntime = createBillingRuntime({
   pool: lifecyclePool,
   env: process.env,
   isAdmin: isImmersaAdmin,
-  isWorkspaceActive: workspaceHasActivePresentation
+  isWorkspaceActive: workspaceHasActivePresentation,
+  emailSender: createResendEmailSender({ env: process.env })
 });
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;

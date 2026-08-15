@@ -364,7 +364,8 @@ class StripeBillingService {
       eventCreatedAt
     });
     const protectDowngrade = await this.isWorkspaceActive(workspaceId);
-    return this.repository.recalculateEntitlement(workspaceId, { now: this.now(), protectDowngrade });
+    const entitlement = await this.repository.recalculateEntitlement(workspaceId, { now: this.now(), protectDowngrade });
+    return { ...entitlement, workspaceId };
   }
 
   async processEvent(event) {
@@ -385,12 +386,49 @@ class StripeBillingService {
       await this.repository.markCheckoutSession(object.id, "completed", subscriptionId);
       if (!subscriptionId) return { pending: true };
       const subscription = await this.stripe.subscriptions.retrieve(subscriptionId, { expand: ["discounts"] });
-      return this.reconcileSubscription(subscription, new Date(Number(event.created) * 1000));
+      const result = await this.reconcileSubscription(subscription, new Date(Number(event.created) * 1000));
+      await this.repository.queueBillingEmail({
+        workspaceId: result.workspaceId,
+        eventId: event.id,
+        kind: "subscription-active",
+        objectId: object.id,
+        plan: result.plan,
+        periodEnd: subscription.items?.data?.[0]?.current_period_end
+          ? new Date(Number(subscription.items.data[0].current_period_end) * 1000)
+          : null
+      });
+      return result;
     }
-    let subscriptionId = event.type.startsWith("invoice.") ? subscriptionIdFromInvoice(object) : String(object.id || "");
+    const subscriptionId = event.type.startsWith("invoice.")
+      ? subscriptionIdFromInvoice(object)
+      : String(object.id || "");
     if (!subscriptionId) return { ignored: true };
     const subscription = await this.stripe.subscriptions.retrieve(subscriptionId, { expand: ["discounts"] });
-    return this.reconcileSubscription(subscription, new Date(Number(event.created) * 1000));
+    const result = await this.reconcileSubscription(subscription, new Date(Number(event.created) * 1000));
+    let kind = "";
+    let objectId = String(object.id || subscriptionId);
+    if (event.type === "invoice.paid") kind = "payment-receipt";
+    if (event.type === "invoice.payment_failed" || event.type === "invoice.payment_action_required") kind = "payment-failed";
+    if (
+      event.type === "customer.subscription.updated"
+      && object.cancel_at_period_end
+      && event.data?.previous_attributes?.cancel_at_period_end === false
+    ) kind = "cancellation-scheduled";
+    if (event.type === "customer.subscription.deleted") kind = "cancellation-effective";
+    if (kind) {
+      const periodEndSeconds = subscription.items?.data?.[0]?.current_period_end || subscription.current_period_end;
+      await this.repository.queueBillingEmail({
+        workspaceId: result.workspaceId,
+        eventId: event.id,
+        kind,
+        objectId,
+        plan: result.plan,
+        amountTotal: event.type.startsWith("invoice.") ? (object.amount_paid ?? object.amount_due ?? object.total) : null,
+        currency: object.currency || subscription.currency || "mxn",
+        periodEnd: periodEndSeconds ? new Date(Number(periodEndSeconds) * 1000) : null
+      });
+    }
+    return result;
   }
 
   async recalculateWorkspaceForDeck(deckId, options = {}) {

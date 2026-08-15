@@ -32,6 +32,7 @@ function setup(overrides = {}) {
     async createInvoiceRequest(payload) { calls.push(["invoiceRequest", payload]); return { id: "request-1", ...payload, status: "pending" }; },
     async listAdminInvoiceRequests() { return []; },
     async updateInvoiceRequest(payload) { calls.push(["invoiceRequestUpdate", payload]); return payload; },
+    async queueBillingEmail(payload) { calls.push(["billingEmail", payload]); return true; },
     async createPlanGrant(payload) { calls.push(["grant", payload]); return { id: "grant-1", ...payload }; },
     async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [], history: [] }; }
   };
@@ -258,4 +259,41 @@ test("invoice request cannot use a Stripe invoice from another customer", async 
     ),
     (error) => error.code === "INVOICE_NOT_ELIGIBLE" && error.statusCode === 404
   );
+});
+
+
+test("successful Checkout queues one transactional activation email after reconciliation", async () => {
+  const event = {
+    id: "evt_checkout",
+    type: "checkout.session.completed",
+    created: 1786795200,
+    data: { object: { id: "cs_paid", customer: "cus_1", subscription: "sub_1" } }
+  };
+  const { service, calls } = setup({ event });
+  await service.receiveWebhook(Buffer.from("{}"), "sig");
+  const notification = calls.find(([name]) => name === "billingEmail")[1];
+  assert.equal(notification.kind, "subscription-active");
+  assert.equal(notification.objectId, "cs_paid");
+  assert.equal(notification.plan, "SPEAKER");
+});
+
+test("payment failure queues a transactional email without changing Stripe truth", async () => {
+  const event = {
+    id: "evt_failed",
+    type: "invoice.payment_failed",
+    created: 1786795200,
+    data: { object: { id: "in_failed", subscription: "sub_1", amount_due: 50000, currency: "mxn" } }
+  };
+  const { service, calls } = setup({
+    event,
+    stripeSubscription: {
+      id: "sub_1", customer: "cus_1", status: "past_due",
+      items: { data: [{ price: { id: "price_speaker_month" }, current_period_end: 1789300000 }] }
+    }
+  });
+  await service.receiveWebhook(Buffer.from("{}"), "sig");
+  const notification = calls.find(([name]) => name === "billingEmail")[1];
+  assert.equal(notification.kind, "payment-failed");
+  assert.equal(notification.objectId, "in_failed");
+  assert.equal(notification.amountTotal, 50000);
 });
