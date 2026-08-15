@@ -1176,7 +1176,7 @@ app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, requir
 app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
-app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), knowledgeActivityHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_EXPORT), knowledgeActivityHistoryHandlers.listHistory);
 if (presentationMetricsHandlers) {
   app.get("/api/decks/:deckId/metrics/basic", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), presentationMetricsHandlers.listDeckSessions);
 }
