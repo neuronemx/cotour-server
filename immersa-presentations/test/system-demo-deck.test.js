@@ -210,5 +210,5 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
   }
-  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=3/);
+  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=4/);
 });

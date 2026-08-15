@@ -39,12 +39,15 @@
   function localVideoFormat(file) {
     const name = String(file?.name || "");
     const type = String(file?.type || "").toLowerCase();
+    if (/\.m4v$/i.test(name) || type === "video/x-m4v" || type === "video/m4v") return "M4V";
     return /\.mov$/i.test(name) || type === "video/quicktime" ? "MOV" : "MP4";
   }
 
   function localVideoMime(file) {
     if (file?.type) return file.type;
-    return localVideoFormat(file) === "MOV" ? "video/quicktime" : "video/mp4";
+    const format = localVideoFormat(file);
+    if (format === "M4V") return "video/x-m4v";
+    return format === "MOV" ? "video/quicktime" : "video/mp4";
   }
 
   function slideId(slide, index) {
@@ -236,7 +239,7 @@
     if (!config.videos.length) {
       const empty = document.createElement("div");
       empty.className = "video-editor-empty";
-      empty.innerHTML = '<strong>Este deck todavía no tiene videos.</strong><p>Asigna a una slide un archivo MP4 / MOV local o un link de YouTube.</p>';
+      empty.innerHTML = '<strong>Este deck todavía no tiene videos.</strong><p>Asigna a una slide un archivo MP4 / MOV / M4V local o un link de YouTube.</p>';
       bodyNode.appendChild(empty);
     } else {
       const stack = document.createElement("div");
@@ -309,8 +312,8 @@
     const existingLocal = existing && !existingIsYouTube;
     const linkedFile = existingLocal
       ? '<div class="video-editor-linked-file" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">' + localVideoFormat(existing.file) + '</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo vinculado</span><strong data-file-name>' + escapeHtml(existing.file?.name || "Archivo registrado") + '</strong><small data-file-size>' + escapeHtml(formatBytes(existing.file?.size)) + '</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Reemplazar</button></div>'
-      : '<div class="video-editor-linked-file is-empty" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4 / MOV</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo MP4 / MOV</span><strong data-file-name>Ningún archivo seleccionado</strong><small data-file-size>Selecciona el archivo que se utilizará en Pantalla.</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Seleccionar</button></div>';
-    form.innerHTML = '<div class="video-editor-form-heading"><h3>' + (existing ? "Configuración Multimedia" : "Agregar video") + '</h3><p>Elige un MP4 / MOV local o pega un link de Youtube.</p></div><label><span>Slide</span><select name="slide_id" required>' + options + '</select></label><fieldset class="video-editor-source"><legend>Fuente</legend><div class="video-editor-source-choice"><label class="video-editor-radio"><input type="radio" name="source_type" value="local"' + (existingIsYouTube ? "" : " checked") + '><span>Archivo MP4 / MOV</span></label><label class="video-editor-radio"><input type="radio" name="source_type" value="youtube"' + (existingIsYouTube ? " checked" : "") + '><span>Link de YouTube</span></label></div><div class="video-editor-file" data-local-source>' + linkedFile + '<input class="video-editor-native-file" name="file" type="file" accept=".mp4,.mov" aria-label="Seleccionar archivo MP4 o MOV"></div><label class="video-editor-youtube" data-youtube-source><span>Link de YouTube</span><input name="youtube_url" type="text" inputmode="url" autocomplete="off" placeholder="https://youtu.be/..." value="' + escapeHtml(existingIsYouTube ? existing.source?.url || "" : "") + '"><small data-youtube-help>Puedes usar links normales, youtu.be, Shorts o Embed.</small><img data-youtube-preview alt="" hidden></label></fieldset><fieldset><legend>Inicio</legend><label class="video-editor-radio"><input type="radio" name="autoplay" value="true" checked><span>Play automático <small>Recomendado</small></span></label><label class="video-editor-radio"><input type="radio" name="autoplay" value="false"><span>Esperar acción de Play</span></label></fieldset><fieldset><legend>Al terminar</legend><label class="video-editor-radio"><input type="radio" name="end_behavior" value="next"><span>Avanzar automáticamente</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="stay" checked><span>Permanecer en el slide</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="loop"><span>Repetir hasta recibir Siguiente</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-action" data-cancel>Cancelar</button><button type="submit" class="primary-action">' + (existing ? "Guardar configuración" : "Guardar video") + '</button></div>';
+      : '<div class="video-editor-linked-file is-empty" data-linked-file><span class="video-editor-file-preview"><span class="video-editor-file-badge" data-file-badge aria-hidden="true">MP4 / MOV / M4V</span><img data-file-preview alt="" hidden></span><div class="video-editor-linked-copy"><span>Archivo MP4 / MOV / M4V</span><strong data-file-name>Ningún archivo seleccionado</strong><small data-file-size>Selecciona el archivo que se utilizará en Pantalla.</small></div><button class="secondary-action video-editor-file-action" type="button" data-select-file>Seleccionar</button></div>';
+    form.innerHTML = '<div class="video-editor-form-heading"><h3>' + (existing ? "Configuración Multimedia" : "Agregar video") + '</h3><p>Elige un MP4 / MOV / M4V local o pega un link de Youtube.</p></div><label><span>Slide</span><select name="slide_id" required>' + options + '</select></label><fieldset class="video-editor-source"><legend>Fuente</legend><div class="video-editor-source-choice"><label class="video-editor-radio"><input type="radio" name="source_type" value="local"' + (existingIsYouTube ? "" : " checked") + '><span>Archivo MP4 / MOV / M4V</span></label><label class="video-editor-radio"><input type="radio" name="source_type" value="youtube"' + (existingIsYouTube ? " checked" : "") + '><span>Link de YouTube</span></label></div><div class="video-editor-file" data-local-source>' + linkedFile + '<input class="video-editor-native-file" name="file" type="file" accept=".mp4,.mov,.m4v" aria-label="Seleccionar archivo MP4, MOV o M4V"></div><label class="video-editor-youtube" data-youtube-source><span>Link de YouTube</span><input name="youtube_url" type="text" inputmode="url" autocomplete="off" placeholder="https://youtu.be/..." value="' + escapeHtml(existingIsYouTube ? existing.source?.url || "" : "") + '"><small data-youtube-help>Puedes usar links normales, youtu.be, Shorts o Embed.</small><img data-youtube-preview alt="" hidden></label></fieldset><fieldset><legend>Inicio</legend><label class="video-editor-radio"><input type="radio" name="autoplay" value="true" checked><span>Play automático <small>Recomendado</small></span></label><label class="video-editor-radio"><input type="radio" name="autoplay" value="false"><span>Esperar acción de Play</span></label></fieldset><fieldset><legend>Al terminar</legend><label class="video-editor-radio"><input type="radio" name="end_behavior" value="next"><span>Avanzar automáticamente</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="stay" checked><span>Permanecer en el slide</span></label><label class="video-editor-radio"><input type="radio" name="end_behavior" value="loop"><span>Repetir hasta recibir Siguiente</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-action" data-cancel>Cancelar</button><button type="submit" class="primary-action">' + (existing ? "Guardar configuración" : "Guardar video") + '</button></div>';
     bodyNode.appendChild(form);
 
     const slideSelect = form.elements.slide_id;
@@ -392,8 +395,8 @@
       const file = fileInput.files[0];
       const currentLocalFile = existingLocal ? existing.file : null;
       const youtube = sourceType === "youtube" ? parseYouTubeUrl(youtubeInput.value) : null;
-      if (sourceType === "local" && !file && !currentLocalFile) return setStatus("Selecciona un archivo MP4 o MOV.", "error");
-      if (sourceType === "local" && file && !/\.(?:mp4|mov)$/i.test(file.name)) return setStatus("El archivo debe ser MP4 o MOV.", "error");
+      if (sourceType === "local" && !file && !currentLocalFile) return setStatus("Selecciona un archivo MP4, MOV o M4V.", "error");
+      if (sourceType === "local" && file && !/\.(?:mp4|mov|m4v)$/i.test(file.name)) return setStatus("El archivo debe ser MP4, MOV o M4V.", "error");
       if (sourceType === "youtube" && !youtube) return setStatus("Pega un link válido de YouTube.", "error");
       try {
         setStatus("Guardando…");
@@ -468,7 +471,7 @@
     button.type = "button";
     button.className = "detail-role-action role-videos";
     button.textContent = "Videos";
-    button.title = "Asignar archivos MP4 / MOV o links de YouTube a este deck";
+    button.title = "Asignar archivos MP4 / MOV / M4V o links de YouTube a este deck";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       openModal(deck);

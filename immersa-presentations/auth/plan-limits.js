@@ -3,14 +3,17 @@ const BYTES_PER_MEGABYTE = 1024 * 1024;
 const PLAN_LIMITS = Object.freeze({
   FREE: Object.freeze({
     decks: 2,
+    audience: 25,
     storageBytes: 50 * BYTES_PER_MEGABYTE
   }),
   SPEAKER: Object.freeze({
     decks: 5,
+    audience: 100,
     storageBytes: 200 * BYTES_PER_MEGABYTE
   }),
   SPEAKER_PRO: Object.freeze({
     decks: 15,
+    audience: 250,
     storageBytes: 500 * BYTES_PER_MEGABYTE
   })
 });
@@ -51,7 +54,7 @@ function summarizePlanUsage(plan, usage = {}) {
   return {
     plan: limits.plan,
     usage: { decks, storageBytes },
-    limits: { decks: limits.decks, storageBytes: limits.storageBytes },
+    limits: { decks: limits.decks, audience: limits.audience, storageBytes: limits.storageBytes },
     remaining: { decks: remainingDecks, storageBytes: remainingStorageBytes },
     canCreateDeck: remainingDecks > 0 && remainingStorageBytes > 0
   };

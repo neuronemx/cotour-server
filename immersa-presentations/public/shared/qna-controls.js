@@ -55,12 +55,8 @@
           <button class="qna-control-close" type="button" data-qna-close aria-label="Cerrar preguntas">×</button>
         </header>
         <div class="qna-control-toolbar">
-          <label class="qna-open-switch">
-            <input type="checkbox" data-qna-open>
-            <span class="qna-open-track" aria-hidden="true"></span>
-            <strong>Abrir preguntas</strong>
-          </label>
           <div class="qna-control-secondary-actions">
+            <button class="qna-open-button" type="button" data-qna-open aria-pressed="false">Abrir preguntas</button>
             <button class="qna-new-round" type="button" data-qna-new-round>Nueva ronda</button>
           </div>
         </div>
@@ -100,6 +96,13 @@
       return actionNode;
     }
 
+    function syncOpenButton() {
+      const questionsOpen = Boolean(state?.questionsOpen);
+      openToggle.textContent = questionsOpen ? "Cerrar preguntas" : "Abrir preguntas";
+      openToggle.setAttribute("aria-pressed", String(questionsOpen));
+      openToggle.classList.toggle("is-active", questionsOpen);
+    }
+
     function renderQuestion(question) {
       const selected = question.id === state.selectedQuestionId;
       const card = element("article", "qna-question-card");
@@ -132,7 +135,7 @@
       if (!nextState || !Array.isArray(nextState.questions)) return;
       state = nextState;
       round.textContent = String(state.roundNumber || 1);
-      openToggle.checked = Boolean(state.questionsOpen);
+      syncOpenButton();
       openToggle.disabled = false;
       newRoundButton.disabled = false;
       status.textContent = "";
@@ -159,7 +162,9 @@
       button.setAttribute("aria-expanded", "true");
       if (!state) {
         round.textContent = "—";
-        openToggle.checked = false;
+        openToggle.textContent = "Abrir preguntas";
+        openToggle.setAttribute("aria-pressed", "false");
+        openToggle.classList.remove("is-active");
         openToggle.disabled = true;
         newRoundButton.disabled = true;
         status.textContent = "Preparando preguntas…";
@@ -196,7 +201,7 @@
         if (global.confirm("¿Eliminar esta pregunta definitivamente?")) emit("qna:delete", { questionId });
       }
     });
-    openToggle.addEventListener("change", () => emit("qna:set_open", { open: openToggle.checked }));
+    openToggle.addEventListener("click", () => emit("qna:set_open", { open: !Boolean(state?.questionsOpen) }));
     newRoundButton.addEventListener("click", () => {
       if (global.confirm("¿Comenzar una nueva ronda? La ronda actual quedará archivada.")) emit("qna:new_round");
     });
@@ -208,7 +213,7 @@
     socket.on("qna:rejected", ({ event, reason } = {}) => {
       if (!String(event || "").startsWith("qna:")) return;
       status.textContent = REJECTION_MESSAGES[reason] || "No fue posible completar la acción.";
-      if (state) openToggle.checked = Boolean(state.questionsOpen);
+      if (state) syncOpenButton();
     });
 
     return { open: show, close: hide, render, button, modal };

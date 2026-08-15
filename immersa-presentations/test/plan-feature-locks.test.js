@@ -200,6 +200,18 @@ test("server enforces capabilities independently of the client", () => {
   assert.match(server, /currentFeatureAccess\.adjustmentRequired/);
 });
 
+test("Speaker Pro activity history cannot be read with basic Speaker Metrics", () => {
+  const server = read("server.js");
+  assert.match(
+    server,
+    /app\.get\("\/api\/decks\/:deckId\/knowledge-activities\/history", \.\.\.requireDeckAccount, requireDeckFeature\(CAPABILITIES\.METRICS_EXPORT\)/
+  );
+  assert.doesNotMatch(
+    server,
+    /app\.get\("\/api\/decks\/:deckId\/knowledge-activities\/history", \.\.\.requireDeckAccount, requireDeckFeature\(CAPABILITIES\.METRICS_BASIC\)/
+  );
+});
+
 test("Home keeps the plan sections visible and filters Backstage on FREE", () => {
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");

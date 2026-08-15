@@ -18,6 +18,7 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
   assert.match(html, /maxlength="1000"/);
   assert.match(html, /Nombre <span>\(opcional\)<\/span>/);
   assert.match(html, /Autorizo que mi nombre aparezca en Pantalla/);
+  assert.match(html, /id="qnaAllowName"[^>]*checked/);
   assert.match(script, /socket\.on\("qna:state", renderQnaState\)/);
   assert.match(script, /socket\.emit\("qna:submit"/);
   assert.match(script, /questionsOpen: Boolean\(state\.questionsOpen\)/);

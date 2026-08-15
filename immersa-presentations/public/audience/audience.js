@@ -3,6 +3,7 @@ const publicOpenContext = window.IMMERSA_PUBLIC_OPEN || {};
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
+window.ImmersaPresentationCompletion?.create({ socket, role: "audience", context: publicOpenContext });
 let knowledgeActivityAudience = null;
 let manifest = null;
 let currentSlideIndex = 0;
@@ -25,6 +26,7 @@ let qnaSubmitting = false;
 let qnaConfirmationTimer = null;
 let qnaCooldownTimer = null;
 let qnaCooldownUntil = 0;
+let audienceAccessMessage = "";
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
 const viewport = document.getElementById("slideViewport");
@@ -100,7 +102,7 @@ function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }
 function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
 function applyLiveMessage(overlays = {}) { if (!liveMessage) return; const text = overlays.messageText || ""; const visible = Boolean(overlays.messageVisible && text); liveMessage.textContent = visible ? text : ""; liveMessage.classList.toggle("hidden", !visible); }
-function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); if (nextIndex !== currentSlideIndex) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); slide.src = src; applySlideOrientation(item, src); window.ImmersaDemoPlanBadge?.update(viewport, item, manifest); applyLiveMessage(state.overlays || {}); drawingOverlay?.refresh(); }
+function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); const previousIndex = currentSlideIndex; const changed = nextIndex !== previousIndex; if (changed) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, nextIndex - previousIndex); else slide.src = src; window.ImmersaSlideTransitions?.preload([currentSlideIndex - 1, currentSlideIndex + 1].filter((slideIndex) => manifest.slides[slideIndex]).map(slideUrl)); applySlideOrientation(item, src); window.ImmersaDemoPlanBadge?.update(viewport, item, manifest); applyLiveMessage(state.overlays || {}); drawingOverlay?.refresh(); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
 function takeSnapshot() { if (!manifest || snapshot?.disabled) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
@@ -133,6 +135,7 @@ function updateFullscreenButton() {
 }
 function setConnectionNotice(visible) {
   if (!connectionNotice) return;
+  connectionNotice.textContent = audienceAccessMessage || "Conexión pausada. Recarga la página para volver a entrar.";
   connectionNotice.classList.toggle("hidden", !visible);
 }
 function closeQnaComposer() { qnaComposer?.classList.add("hidden"); qnaComposer?.setAttribute("aria-hidden", "true"); qnaFormStatus.textContent = ""; }
@@ -222,7 +225,11 @@ viewport.addEventListener("pointerdown", handlePointerDown);
 viewport.addEventListener("pointermove", handlePointerMove);
 viewport.addEventListener("pointerup", handlePointerUp);
 viewport.addEventListener("pointercancel", handlePointerUp);
-socket.on("connect", () => { setConnectionNotice(false); joinAudience(); });
+socket.on("connect", () => { audienceAccessMessage = ""; setConnectionNotice(false); joinAudience(); });
+socket.on("plan:audience_limit", (payload = {}) => {
+  audienceAccessMessage = payload.message || "Esta presentación alcanzó el límite de Público simultáneo.";
+  setConnectionNotice(true);
+});
 socket.on("disconnect", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience(); });
 socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));

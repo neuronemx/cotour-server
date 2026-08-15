@@ -6,6 +6,7 @@ const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== fa
 const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
 const planAllows = (capability) => planCapabilities[capability] === true;
 const socket = io();
+window.ImmersaPresentationCompletion?.create({ socket, role: "stage", context: roleOpenContext });
 const presentationLifecycleHost = document.getElementById("presentationLifecycle");
 let presentationLifecycleControl = null;
 function syncPresentationLifecycleFeature(enabled) {
@@ -33,6 +34,7 @@ let manifest = null;
 let overlays = normalizeOverlayState();
 let currentState = null;
 let currentSlideIndex = 0;
+let renderedSlideIndex = 0;
 let lastStageCommandAt = 0;
 let renderedStageQrUrl = "";
 let drawingOverlay = null;
@@ -320,10 +322,15 @@ function render(state) {
   }
 
   const index = clampSlideIndex(state.presenterSlideIndex ?? state.slideIndex ?? currentSlideIndex);
+  const previousIndex = renderedSlideIndex;
+  const changed = index !== previousIndex;
   currentSlideIndex = index;
+  renderedSlideIndex = index;
   const item = manifest.slides[index];
   const src = "/decks/" + deckId + "/" + item.src;
-  slide.src = src;
+  if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
+  else slide.src = src;
+  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => stageAssetSrc(manifest.slides[slideIndex])));
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenFrame, item, manifest);
   drawingOverlay?.refresh();

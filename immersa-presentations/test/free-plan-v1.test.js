@@ -47,19 +47,19 @@ async function withServer(app, operation) {
 }
 
 test("FREE plan is frozen at 2 Decks and 50 MB of original uploads", () => {
-  assert.deepEqual(PLAN_LIMITS.FREE, { decks: 2, storageBytes: 50 * BYTES_PER_MEGABYTE });
+  assert.deepEqual(PLAN_LIMITS.FREE, { decks: 2, audience: 25, storageBytes: 50 * BYTES_PER_MEGABYTE });
   assert.deepEqual(summarizePlanUsage("free", { decks: "1", storageBytes: String(25 * BYTES_PER_MEGABYTE) }), {
     plan: "FREE",
     usage: { decks: 1, storageBytes: 25 * BYTES_PER_MEGABYTE },
-    limits: { decks: 2, storageBytes: 50 * BYTES_PER_MEGABYTE },
+    limits: { decks: 2, audience: 25, storageBytes: 50 * BYTES_PER_MEGABYTE },
     remaining: { decks: 1, storageBytes: 25 * BYTES_PER_MEGABYTE },
     canCreateDeck: true
   });
 });
 
 test("SPEAKER and SPEAKER PRO use the approved Deck and storage limits", () => {
-  assert.deepEqual(PLAN_LIMITS.SPEAKER, { decks: 5, storageBytes: 200 * BYTES_PER_MEGABYTE });
-  assert.deepEqual(PLAN_LIMITS.SPEAKER_PRO, { decks: 15, storageBytes: 500 * BYTES_PER_MEGABYTE });
+  assert.deepEqual(PLAN_LIMITS.SPEAKER, { decks: 5, audience: 100, storageBytes: 200 * BYTES_PER_MEGABYTE });
+  assert.deepEqual(PLAN_LIMITS.SPEAKER_PRO, { decks: 15, audience: 250, storageBytes: 500 * BYTES_PER_MEGABYTE });
   assert.equal(summarizePlanUsage("speaker-pro", { decks: 14, storageBytes: 499 * BYTES_PER_MEGABYTE }).canCreateDeck, true);
 });
 
@@ -189,13 +189,17 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(html, /id="accountPlanBadge"[^>]*>FREE</);
   assert.match(html, /id="planDeckUsage">0 de 2</);
   assert.match(html, /id="planStorageUsage">0 MB de 50 MB</);
+  assert.match(html, /id="planAudienceLimit">Hasta 25</);
   assert.ok(html.indexOf('id="fileDrop"') < html.indexOf('id="planUsage"'));
   assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planUsage"'));
   assert.match(source, /fetch\("\/api\/account\/plan"/);
   assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
   assert.match(source, /fileInput\.disabled = Boolean\(blockedMessage\)/);
+  assert.match(source, /planAudienceLimit\.textContent = "Hasta " \+ Math\.max/);
   assert.match(css, /\.drop-zone\.is-disabled/);
   assert.match(server, /app\.get\("\/api\/account\/plan", requireAccount/);
   assert.match(server, /synchronizeWorkspaceSourceSizes/);
   assert.match(server, /onDeckCreateStart:[^\n]+reserveUploadedDeck/);
+  assert.match(server, /canRegisterAudience\(session, requestedAudienceId, audienceLimit\)/);
+  assert.match(server, /AUDIENCE_LIMIT_REACHED/);
 });

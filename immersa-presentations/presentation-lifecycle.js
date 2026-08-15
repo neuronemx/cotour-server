@@ -137,7 +137,8 @@ class PresentationLifecycleRepository {
         available: true,
         mode: "test",
         presentationSessionId,
-        startedAt: null
+        startedAt: null,
+        completedPresentationSessionId: String(active.id)
       };
     });
   }
@@ -188,6 +189,14 @@ function createPresentationLifecycleRuntime({
     return state;
   }
 
+  function emitClosed(context, completion) {
+    if (!completion) return null;
+    for (const role of ["presenter", "stage", "screen", "audience"]) {
+      io.to(getRoleRoomKey(context.roomKey, role)).emit("presentation:closed", completion);
+    }
+    return completion;
+  }
+
   function reject(socket, event, error) {
     socket.emit("presentation:lifecycle:rejected", {
       event,
@@ -218,6 +227,26 @@ function createPresentationLifecycleRuntime({
     return state;
   }
 
+  async function finish(context, { skipGuard = false } = {}) {
+    const result = await withLock(context, async () => {
+      if (!skipGuard) {
+        const allowed = await beforeFinish(context);
+        if (allowed?.ok === false) {
+          throw new PresentationLifecycleError(
+            allowed.reason || "ACTIVE_INTERACTION",
+            allowed.message || "Close the active interaction before finishing"
+          );
+        }
+      }
+      const state = await repository.finish(payload(context));
+      const completion = await afterFinish(context, state);
+      return { state, completion: completion || null };
+    });
+    emitClosed(context, result.completion);
+    emitState(context, result.state);
+    return result;
+  }
+
   function attach(socket, getContext) {
     socket.on("presentation:lifecycle:request", async () => {
       const context = getContext();
@@ -245,19 +274,7 @@ function createPresentationLifecycleRuntime({
       const context = getContext();
       if (!validControl(context)) return;
       try {
-        const state = await withLock(context, async () => {
-          const allowed = await beforeFinish(context);
-          if (allowed?.ok === false) {
-            throw new PresentationLifecycleError(
-              allowed.reason || "ACTIVE_INTERACTION",
-              allowed.message || "Close the active interaction before finishing"
-            );
-          }
-          const finished = await repository.finish(payload(context));
-          await afterFinish(context, finished);
-          return finished;
-        });
-        emitState(context, state);
+        await finish(context);
       } catch (error) {
         logger.error("Unable to finish presentation lifecycle", error);
         reject(socket, "finish", error);
@@ -280,7 +297,19 @@ function createPresentationLifecycleRuntime({
     }
   }
 
-  return { attach, sendCurrentState, startAutomatically, emitState };
+  async function finishInactive(context) {
+    if (!context?.roomKey || !context?.sessionId || !context?.deckId) return null;
+    try {
+      const current = await repository.state(payload(context));
+      if (current.mode !== "live") return null;
+      return await finish(context, { skipGuard: true });
+    } catch (error) {
+      logger.error("Unable to finish inactive presentation lifecycle", error);
+      return null;
+    }
+  }
+
+  return { attach, sendCurrentState, startAutomatically, finishInactive, emitState, emitClosed };
 }
 
 module.exports = {

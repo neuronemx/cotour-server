@@ -17,9 +17,9 @@ test('persistent multimedia fallback keeps stable deck and slide keys', () => {
 test('Screen loads picker adapter and canonical persistence before the media manager', () => {
   const screen = read('public/screen/index.html');
   const fix = read('public/screen/screen-local-media-persistence-fix.js');
-  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=115');
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=116');
   const fixPosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=114');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=115');
   const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
 
   assert.ok(adapterPosition >= 0);
@@ -40,10 +40,11 @@ test('Screen multimedia modal uses one picker per video and no diagnostic marker
   const manager = read('public/screen/screen-local-media.js');
   const polish = read('public/screen/screen-multimedia-modal-polish.js');
   assert.doesNotMatch(adapter, /Persistencia/);
-  assert.match(adapter, /input\.accept = '\.mp4,\.mov'/);
+  assert.match(adapter, /input\.accept = '\.mp4,\.mov,\.m4v'/);
   assert.doesNotMatch(adapter, /input\.accept = '[^']*video\//);
   assert.doesNotMatch(adapter, /\bcapture\b/);
   assert.match(manager, /'video\/quicktime': \['\.mov'\]/);
+  assert.match(manager, /'video\/mp4': \['\.mp4', '\.m4v'\]/);
   assert.match(polish, /\[data-pick\]/);
   assert.match(polish, /\[data-multi-input\]/);
   assert.match(polish, /Archivo distinto al registrado en la presentación/);

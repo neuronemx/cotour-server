@@ -41,7 +41,11 @@ test("Speaker and Stage expose Q&A immediately when the plan allows it", async (
   assert.match(controls, /button\.hidden = !launcher/);
   assert.match(controls, /onAvailabilityChange/);
   assert.match(controls, /Abrir preguntas/);
+  assert.match(controls, /Cerrar preguntas/);
   assert.match(controls, /Nueva ronda/);
+  assert.match(controls, /data-qna-open[\s\S]*data-qna-new-round/);
+  assert.doesNotMatch(controls, /qna-open-switch/);
+  assert.match(controls, /open: !Boolean\(state\?\.questionsOpen\)/);
   assert.doesNotMatch(controls, /Descargar CSV/);
   assert.doesNotMatch(controls, /IMMERSA_ROLE_OPEN\?\.access_token/);
   assert.doesNotMatch(controls, /\/api\/qna\/export\//);

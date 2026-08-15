@@ -85,22 +85,14 @@
   padding: 0 24px 18px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, .1);
 }
 
-.qna-open-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
-.qna-open-switch input { position: absolute; opacity: 0; pointer-events: none; }
-.qna-open-track { width: 46px; height: 26px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .17); transition: background .2s ease; }
-.qna-open-track::after { content: ""; display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
-.qna-open-switch input:checked + .qna-open-track { background: #53e0d4; }
-.qna-open-switch input:checked + .qna-open-track::after { transform: translateX(20px); }
-.qna-open-switch input:focus-visible + .qna-open-track { outline: 3px solid rgba(83, 224, 212, .34); outline-offset: 3px; }
-.qna-open-switch strong { font-size: 14px; }
-
 .qna-control-secondary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
+.qna-open-button,
 .qna-new-round,
 .qna-question-actions button {
   border: 1px solid rgba(255, 255, 255, .16);
@@ -113,8 +105,10 @@
   text-decoration: none;
 }
 
+.qna-open-button:hover,
 .qna-new-round:hover,
 .qna-question-actions button:hover { background: rgba(255, 255, 255, .13); }
+.qna-open-button.is-active { border-color: rgba(255, 145, 93, .64); color: #ffd3be; background: rgba(255, 108, 70, .16); }
 .qna-control-status { min-height: 19px; margin: 10px 24px 0; color: #ff99af; font-size: 13px; font-weight: 700; }
 .qna-question-list { min-height: 0; overflow: auto; padding: 10px 24px 24px; display: grid; align-content: start; gap: 12px; }
 
@@ -147,6 +141,5 @@
   .qna-control-toolbar { padding: 0 18px 15px; }
   .qna-control-status { margin-inline: 18px; }
   .qna-question-list { padding: 8px 18px 20px; }
-  .qna-open-switch strong { max-width: 88px; line-height: 1.15; }
   .qna-control-secondary-actions { flex-wrap: wrap; }
 }

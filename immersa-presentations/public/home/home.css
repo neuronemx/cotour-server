@@ -88,7 +88,8 @@ button:disabled { cursor: wait; opacity: .65; }
 }
 .account-pill{display:flex;align-items:center;gap:9px;max-width:min(46vw,360px);padding:7px 8px 7px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.07);backdrop-filter:blur(12px);color:#fff;font-size:12px}.account-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.account-pill #logoutButton{flex:none;border:0;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.78);font-size:11px;font-weight:700;cursor:pointer}.account-pill #logoutButton:hover{background:rgba(255,255,255,.17);color:#fff}.account-pill #logoutButton:disabled{opacity:.55}.account-pill .live-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#36d49a;box-shadow:0 0 0 3px rgba(54,212,154,.12)}
 .account-plan-badge{flex:none;padding:4px 7px;border:1px solid rgba(126,240,255,.32);border-radius:999px;background:rgba(6,207,224,.12);color:#9ee9f0;font-family:var(--font-display);font-size:9px;font-weight:800;letter-spacing:.08em}
-.brand { display: inline-flex; align-items: center; min-width: 0; }
+.brand { display: inline-flex; align-items: center; min-width: 0; flex: none; }
+.brand picture { display: contents; }
 .brand-logo-full { width: clamp(120px, 11vw, 156px); height: auto; display: block; }
 .admin-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -178,7 +179,7 @@ button:disabled { cursor: wait; opacity: .65; }
   max-width: 620px;
 }
 .upload-form { display: grid; gap: 22px; }
-.plan-usage{display:grid;gap:11px;padding:13px 14px;border:1px solid rgba(67,104,246,.11);border-radius:var(--radius-md);background:linear-gradient(120deg,rgba(139,47,224,.045),rgba(6,207,224,.055))}.plan-usage-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:11px;font-weight:700}.plan-usage-head strong{color:var(--violet);font-family:var(--font-display);font-size:10px;letter-spacing:.08em}.plan-usage-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.plan-usage-metric{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center}.plan-usage-metric span{min-width:0;color:var(--muted-2);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plan-usage-metric strong{color:var(--ink-soft);font-size:10.5px;white-space:nowrap}.plan-usage-metric i{grid-column:1/-1;height:4px;overflow:hidden;border-radius:999px;background:rgba(67,104,246,.1)}.plan-usage-metric b{display:block;width:0;height:100%;border-radius:inherit;background:var(--grad);transition:width .2s ease}.plan-limit-message{margin:0;color:var(--red);font-size:11px;font-weight:700;line-height:1.35}
+.plan-usage{display:grid;gap:11px;padding:13px 14px;border:1px solid rgba(67,104,246,.11);border-radius:var(--radius-md);background:linear-gradient(120deg,rgba(139,47,224,.045),rgba(6,207,224,.055))}.plan-usage-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:11px;font-weight:700}.plan-usage-head strong{color:var(--violet);font-family:var(--font-display);font-size:10px;letter-spacing:.08em}.plan-usage-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.plan-usage-metric{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center}.plan-usage-metric-limit{grid-column:1/-1}.plan-usage-metric span{min-width:0;color:var(--muted-2);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plan-usage-metric strong{color:var(--ink-soft);font-size:10.5px;white-space:nowrap}.plan-usage-metric i{grid-column:1/-1;height:4px;overflow:hidden;border-radius:999px;background:rgba(67,104,246,.1)}.plan-usage-metric b{display:block;width:0;height:100%;border-radius:inherit;background:var(--grad);transition:width .2s ease}.plan-limit-message{margin:0;color:var(--red);font-size:11px;font-weight:700;line-height:1.35}
 .panel-heading { display: flex; align-items: center; gap: 16px; }
 .heading-icon {
   flex: 0 0 auto;
@@ -481,6 +482,11 @@ body.modal-open { overflow: hidden; }
   .deck-delete { opacity: 1; background: rgba(10,10,30,.38); }
 }
 
+@media (max-width: 700px) and (orientation: portrait) {
+  .brand-logo-full { width: 44px; height: 44px; object-fit: contain; }
+  .account-pill { max-width: calc(100% - 56px); }
+}
+
 @media (max-width: 460px) {
   .deck-list-rows { grid-template-columns: 1fr; }
 }
@@ -735,3 +741,19 @@ body.modal-open { overflow: hidden; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.deck-transition-settings { display:grid; gap:10px; margin-top:16px; padding:20px; border:0; border-radius:16px; background:#f4f5fb; }
+.deck-transition-copy { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.deck-transition-copy strong { color:#1f2140; font:600 14px/1.2 var(--font-display); }
+.deck-transition-copy span { color:#8b8da3; font-size:11.5px; }
+.deck-transition-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.deck-transition-options button { min-width:0; min-height:53px; padding:9px 6px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:1px solid #e4e5f0; border-radius:10px; color:#4b4d63; background:#fff; font-size:10.5px; font-weight:500; line-height:1.15; transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,color .15s ease,background .15s ease; }
+.deck-transition-options button svg { width:18px; height:18px; flex:0 0 auto; fill:none; stroke:#6b6d85; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.deck-transition-options button svg .is-dashed { stroke-dasharray:2 2.4; opacity:.6; }
+.deck-transition-options button:hover { transform:translateY(-1px); border-color:rgba(96,76,246,.42); color:var(--violet); }
+.deck-transition-options button:hover svg { stroke:currentColor; }
+.deck-transition-options button.is-active { color:#fff; border-color:transparent; background:linear-gradient(135deg,#8B5CF6,#3B82F6,#22D3EE); box-shadow:none; }
+.deck-transition-options button.is-active svg { stroke:#fff; }
+.deck-transition-options button:disabled { opacity:.58; cursor:wait; transform:none; }
+.deck-transition-status { min-height:16px; margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
+.deck-transition-status.is-error { color:var(--red); font-weight:700; }

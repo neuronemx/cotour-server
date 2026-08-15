@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { registerAudience, unregisterAudience } = require("../audience-registry");
+const { canRegisterAudience, registerAudience, unregisterAudience } = require("../audience-registry");
 
 function createSession() {
   return { audience: new Map() };
@@ -31,4 +31,13 @@ test("two distinct audienceIds are counted as two connected audience", () => {
 
   assert.equal(session.audience.size, 2);
   assert.deepEqual(Array.from(session.audience.keys()).sort(), ["A", "B"]);
+});
+
+test("audience capacity blocks only new people and preserves reconnections", () => {
+  const session = createSession();
+  registerAudience(session, { audienceId: "A", socketId: "socket-A" });
+  registerAudience(session, { audienceId: "B", socketId: "socket-B" });
+
+  assert.equal(canRegisterAudience(session, "C", 2), false);
+  assert.equal(canRegisterAudience(session, "A", 2), true);
 });

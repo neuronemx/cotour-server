@@ -159,16 +159,18 @@ test('Home exposes compact multimedia configuration with visible linked file', (
   const visibility = read('public/shared/slide-visibility.js');
 
   assert.match(html, /video-editor\.css\?v=109/);
-  assert.match(html, /video-editor\.js\?v=112/);
+  assert.match(html, /video-editor\.js\?v=113/);
   assert.match(html, /video-slide-labels\.js\?v=106/);
   assert.match(editor, /button\.textContent = "Videos"/);
   assert.match(editor, /Configuración Multimedia/);
   assert.match(editor, /Archivo vinculado/);
   assert.match(editor, /Reemplazar/);
   assert.doesNotMatch(editor, />Video local</);
-  assert.match(editor, /Elige un MP4 \/ MOV local o pega un link de Youtube/);
-  assert.match(editor, /Archivo MP4 \/ MOV/);
+  assert.match(editor, /Elige un MP4 \/ MOV \/ M4V local o pega un link de Youtube/);
+  assert.match(editor, /Archivo MP4 \/ MOV \/ M4V/);
   assert.match(editor, /video\/quicktime/);
+  assert.match(editor, /video\/x-m4v/);
+  assert.match(editor, /accept="\.mp4,\.mov,\.m4v"/);
   assert.match(editor, /Link de YouTube/);
   assert.match(editor, /youtube_url/);
   assert.match(editor, /\["embed", "shorts", "live"\]/);

@@ -3,6 +3,7 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
+window.ImmersaPresentationCompletion?.create({ socket, role: "screen", context: roleOpenContext });
 let knowledgeActivityScreen = null;
 try {
   knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
@@ -100,9 +101,13 @@ function render(state) {
   const index = state?.liveSlideIndex ?? state?.slideIndex ?? 0;
   const item = manifest.slides[index];
   if (!item?.src) return;
+  const previousIndex = currentSlideIndex;
+  const changed = index !== previousIndex;
   currentSlideIndex = index;
   const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
-  slide.src = src;
+  if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
+  else slide.src = src;
+  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();

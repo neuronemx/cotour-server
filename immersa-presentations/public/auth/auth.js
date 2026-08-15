@@ -202,6 +202,7 @@ async function boot() {
     if (!qs.get("token")) document.getElementById("resetStatus").textContent = "Este enlace ya no es válido. Solicita uno nuevo.";
     return;
   }
+  if (qs.get("mode") === "signup") setCreateMode(true);
   try {
     const sessionResponse = await fetch("/api/auth/get-session");
     const session = sessionResponse.ok ? await sessionResponse.json() : null;

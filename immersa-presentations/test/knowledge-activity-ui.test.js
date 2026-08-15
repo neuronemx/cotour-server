@@ -180,6 +180,8 @@ test("Público keeps Snapshot hidden on the assessment receipt and restores it o
     clearTimeout() {}
   };
   vm.runInNewContext(read("public/shared/knowledge-activities.js"), { window });
+  assert.match(read("public/shared/knowledge-activities.js"), /contest: "Trivia"/);
+  assert.doesNotMatch(read("public/shared/knowledge-activities.js"), /contest: "Concurso"/);
   window.ImmersaKnowledgeActivities.createAudience({
     socket,
     root: rootElement,

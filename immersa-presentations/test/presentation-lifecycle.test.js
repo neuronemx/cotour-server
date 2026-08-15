@@ -142,7 +142,8 @@ test("finishing closes the live session and creates a fresh test session", async
     available: true,
     mode: "test",
     presentationSessionId: "draft-2",
-    startedAt: null
+    startedAt: null,
+    completedPresentationSessionId: "live-1"
   });
   const inserts = pool.calls.filter((call) => /INSERT INTO (presentation_sessions|qna_rounds)/.test(call.sql || ""));
   assert.equal(inserts.length, 2);
@@ -313,6 +314,29 @@ test("finalization is rejected while an interaction is active", async () => {
       message: "Cierra la interacción activa antes de finalizar"
     }
   });
+});
+
+test("finalization closes Speaker, Backstage, Pantalla and Público", async () => {
+  const io = ioStub();
+  const socket = socketStub();
+  const completion = { reason: "FINISHED", summary: { attendance: 8, activityCount: 5 } };
+  const runtime = createPresentationLifecycleRuntime({
+    io,
+    repository: {
+      async state() { return { available: true, mode: "live" }; },
+      async start() { return { available: true, mode: "live" }; },
+      async finish() { return { available: true, mode: "test", presentationSessionId: "draft-2", completedPresentationSessionId: "live-1" }; }
+    },
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    afterFinish: async () => completion
+  });
+  runtime.attach(socket, () => ({ roomKey: "room-a", role: "stage", sessionId: "source-a", deckId: "deck-a" }));
+
+  await socket.handlers.get("presentation:lifecycle:finish")();
+
+  const closeRooms = io.events.filter(({ event }) => event === "presentation:closed").map(({ room }) => room);
+  assert.deepEqual(closeRooms, ["room-a::presenter", "room-a::stage", "room-a::screen", "room-a::audience"]);
+  assert.deepEqual(io.events.find(({ event }) => event === "presentation:closed").payload, completion);
 });
 
 test("the lifecycle slider is mounted on Backstage with basic Metrics and remains hidden from Speaker", () => {

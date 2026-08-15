@@ -12,7 +12,8 @@ const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
 const { ActiveInteractionCoordinator } = require("./active-interaction-coordinator");
 const { GameQueueStore } = require("./game-queue-store");
 const { createGameQueueSocketHandlers } = require("./game-queue-sockets");
-const { registerAudience, unregisterAudience } = require("./audience-registry");
+const { canRegisterAudience, registerAudience, unregisterAudience } = require("./audience-registry");
+const { getPlanLimits } = require("./auth/plan-limits");
 const {
   resolveSessionInactivityMs,
   isMeaningfulSessionEvent,
@@ -129,6 +130,29 @@ presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepositor
 const presentationMetricsHandlers = presentationMetricsRepository
   ? createPresentationMetricsHandlers(presentationMetricsRepository)
   : null;
+async function presentationCompletionFor(context, state, reason = "FINISHED") {
+  const completedId = String(state?.completedPresentationSessionId || "");
+  const sessions = completedId && presentationMetricsRepository
+    ? await presentationMetricsRepository.listDeckSessions(context.deckId)
+    : [];
+  const session = sessions.find((item) => item.id === completedId) || null;
+  const pollResponses = (session?.polls || []).reduce((total, poll) => total + Number(poll.totalResponses || 0), 0);
+  const qnaReceived = Number(session?.qna?.received || 0);
+  return {
+    reason,
+    presentationSessionId: completedId || null,
+    deckId: context.deckId,
+    summary: {
+      durationSeconds: Number(session?.durationSeconds || 0),
+      attendance: Math.max(Number(session?.participants?.connected || 0), Number(session?.participants?.peak || 0)),
+      activityCount: pollResponses + qnaReceived,
+      pollCount: Number(session?.polls?.length || 0),
+      pollResponses,
+      qnaReceived,
+      qnaProjected: Number(session?.qna?.projected || 0)
+    }
+  };
+}
 const presentationLifecycleRuntime = lifecyclePool
   ? createPresentationLifecycleRuntime({
       io,
@@ -181,11 +205,14 @@ const presentationLifecycleRuntime = lifecyclePool
           sourceSessionId: context.sessionId,
           presentationSessionId: state.presentationSessionId
         });
+        return presentationCompletionFor(context, state, context.finishReason || "FINISHED");
       }
     })
   : {
       attach() {},
       async startAutomatically() {},
+      async finishInactive() { return null; },
+      emitClosed() {},
       async sendCurrentState(socket) {
         socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
       }
@@ -365,12 +392,21 @@ function manifestSummary(manifest, manifestStats = null) {
     associationsReviewRequired: Boolean(manifest.replacement?.associationsReviewRequired),
     replacement: manifest.replacement || null,
     thumbnail: manifest.slides?.[0]?.thumb || manifest.slides?.[0]?.src || "",
+    slideTransition: normalizeSlideTransition(manifest.slideTransition),
     systemDemo: Boolean(manifest.systemDemo),
     demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
     immutable: manifest.systemDemo?.role === "published",
     publishedAt: manifest.systemDemo?.publishedAt || "",
     ...manifestTimestamps(manifest, manifestStats)
   };
+}
+
+const SLIDE_TRANSITIONS = new Set(["none", "dissolve", "wipe", "flash"]);
+
+function normalizeSlideTransition(value) {
+  const transition = String(value || "").trim().toLowerCase();
+  if (transition === "swipe") return "wipe";
+  return SLIDE_TRANSITIONS.has(transition) ? transition : "flash";
 }
 
 async function readManifest(deckId) {
@@ -460,6 +496,23 @@ async function renameDeck(deckId, requestedTitle) {
   const manifestPath = path.join(deckDir, "manifest.json");
   const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
   manifest.title = title;
+  manifest.updatedAt = new Date().toISOString();
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return manifestSummary(manifest);
+}
+
+async function updateDeckSlideTransition(deckId, requestedTransition) {
+  const requested = String(requestedTransition || "").trim().toLowerCase();
+  const transition = normalizeSlideTransition(requested);
+  if (!SLIDE_TRANSITIONS.has(requested) && requested !== "swipe") {
+    const error = new Error("Invalid slide transition");
+    error.statusCode = 400;
+    throw error;
+  }
+  const { deckDir } = resolveDataDeckDirForDelete(deckId);
+  const manifestPath = path.join(deckDir, "manifest.json");
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+  manifest.slideTransition = transition;
   manifest.updatedAt = new Date().toISOString();
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   return manifestSummary(manifest);
@@ -749,9 +802,13 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
     role: "system"
   };
   const shutdown = (async () => {
+    context.finishReason = "INACTIVITY";
+    const lifecycleResult = await presentationLifecycleRuntime.finishInactive(context);
     const asyncResets = await Promise.allSettled([
       knowledgeActivityRuntime.resetSession(context),
-      qnaRuntime.shutdownSession?.({ deckId: session.deckId, sourceSessionId: session.sessionId })
+      lifecycleResult
+        ? Promise.resolve({ presentationSessionId: lifecycleResult.state.presentationSessionId })
+        : qnaRuntime.shutdownSession?.({ deckId: session.deckId, sourceSessionId: session.sessionId })
     ]);
     asyncResets.forEach((result) => {
       if (result.status === "rejected") console.error("Unable to fully reset inactive session", result.reason);
@@ -775,6 +832,9 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
       reason: "INACTIVITY",
       inactivityMinutes: Math.round(SESSION_INACTIVITY_MS / 60_000)
     });
+    if (!lifecycleResult) {
+      presentationLifecycleRuntime.emitClosed(context, await presentationCompletionFor(context, null, "INACTIVITY"));
+    }
     if (qnaReplacement?.presentationSessionId) {
       presentationLifecycleRuntime.emitState(context, {
         available: true,
@@ -859,6 +919,10 @@ app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "inde
 app.get("/api/account/capabilities", betterAuthCompatibilityBridge.capabilitiesHandler);
 app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
+app.get("/presentacion-completada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "speaker.html")));
+app.get("/gracias-por-participar", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "audience.html")));
+app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "screen.html")));
+app.get("/operacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "backstage.html")));
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();
@@ -1113,7 +1177,7 @@ app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, requir
 app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.updateBrand);
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
-app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), knowledgeActivityHistoryHandlers.listHistory);
+app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_EXPORT), knowledgeActivityHistoryHandlers.listHistory);
 if (presentationMetricsHandlers) {
   app.get("/api/decks/:deckId/metrics/basic", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), presentationMetricsHandlers.listDeckSessions);
 }
@@ -1152,6 +1216,16 @@ app.put("/api/decks/:deckId/title", ...requireDeckAccount, requireAccountAdjustm
     const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
     if (statusCode >= 500) console.error("Unable to rename deck", error);
     res.status(statusCode).json({ error: statusCode === 400 ? "Escribe un nombre de hasta 120 caracteres" : statusCode === 404 ? "Deck not found" : "Unable to rename presentation" });
+  }
+});
+app.put("/api/decks/:deckId/transition", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
+  try {
+    if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "La transición del Deck Demo es administrada por IMMERSA" });
+    res.json(await updateDeckSlideTransition(req.params.deckId, req.body?.slideTransition));
+  } catch (error) {
+    const statusCode = error.statusCode || (error.code === "ENOENT" ? 404 : 500);
+    if (statusCode >= 500) console.error("Unable to update Deck slide transition", error);
+    res.status(statusCode).json({ error: statusCode === 400 ? "Selecciona una transición válida" : statusCode === 404 ? "Deck not found" : "Unable to update slide transition" });
   }
 });
 app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
@@ -1366,8 +1440,19 @@ io.on("connection", (socket) => {
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
+      const requestedAudienceId = String(audienceId || socket.id);
+      const audienceLimit = getPlanLimits(currentFeatureAccess.plan).audience;
+      if (!canRegisterAudience(session, requestedAudienceId, audienceLimit)) {
+        socket.emit("plan:audience_limit", {
+          code: "AUDIENCE_LIMIT_REACHED",
+          limit: audienceLimit,
+          plan: currentFeatureAccess.plan,
+          message: "Esta presentación alcanzó el límite de Público simultáneo."
+        });
+        return socket.disconnect(true);
+      }
       currentAudienceId = registerAudience(session, {
-        audienceId: audienceId || socket.id,
+        audienceId: requestedAudienceId,
         socketId: socket.id,
         audienceName,
         label
