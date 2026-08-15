@@ -316,7 +316,7 @@ test("finalization is rejected while an interaction is active", async () => {
   });
 });
 
-test("finalization closes Speaker, Pantalla and Público while Backstage remains", async () => {
+test("finalization closes Speaker, Backstage, Pantalla and Público", async () => {
   const io = ioStub();
   const socket = socketStub();
   const completion = { reason: "FINISHED", summary: { attendance: 8, activityCount: 5 } };
@@ -335,8 +335,7 @@ test("finalization closes Speaker, Pantalla and Público while Backstage remains
   await socket.handlers.get("presentation:lifecycle:finish")();
 
   const closeRooms = io.events.filter(({ event }) => event === "presentation:closed").map(({ room }) => room);
-  assert.deepEqual(closeRooms, ["room-a::presenter", "room-a::screen", "room-a::audience"]);
-  assert.ok(!closeRooms.includes("room-a::stage"));
+  assert.deepEqual(closeRooms, ["room-a::presenter", "room-a::stage", "room-a::screen", "room-a::audience"]);
   assert.deepEqual(io.events.find(({ event }) => event === "presentation:closed").payload, completion);
 });
 

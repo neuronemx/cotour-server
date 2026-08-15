@@ -921,6 +921,7 @@ app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) =>
 app.get("/presentacion-completada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "speaker.html")));
 app.get("/gracias-por-participar", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "audience.html")));
 app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "screen.html")));
+app.get("/operacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "backstage.html")));
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 const requireDatabaseOwnedDeck = betterAuthCompatibilityBridge.requireDeckOwnership();

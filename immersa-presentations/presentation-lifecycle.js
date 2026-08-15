@@ -191,7 +191,7 @@ function createPresentationLifecycleRuntime({
 
   function emitClosed(context, completion) {
     if (!completion) return null;
-    for (const role of ["presenter", "screen", "audience"]) {
+    for (const role of ["presenter", "stage", "screen", "audience"]) {
       io.to(getRoleRoomKey(context.roomKey, role)).emit("presentation:closed", completion);
     }
     return completion;

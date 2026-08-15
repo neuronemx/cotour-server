@@ -10,9 +10,10 @@ test("role clients consume the unified presentation close event", () => {
   const runtime = read("public/shared/presentation-completion.js");
   assert.match(runtime, /presentation:closed/);
   assert.match(runtime, /presenter: "\/presentacion-completada"/);
+  assert.match(runtime, /stage: "\/operacion-finalizada"/);
   assert.match(runtime, /audience: "\/gracias-por-participar"/);
   assert.match(runtime, /screen: "\/presentacion-finalizada"/);
-  for (const file of ["public/presenter/index.html", "public/audience/index.html", "public/screen/index.html"]) {
+  for (const file of ["public/presenter/index.html", "public/stage/index.html", "public/audience/index.html", "public/screen/index.html"]) {
     assert.match(read(file), /presentation-completion\.js\?v=1/);
   }
 });
@@ -39,6 +40,7 @@ test("server exposes distinct completion landings and inactivity uses unified cl
   assert.match(server, /\/presentacion-completada/);
   assert.match(server, /\/gracias-por-participar/);
   assert.match(server, /\/presentacion-finalizada/);
+  assert.match(server, /\/operacion-finalizada/);
   assert.match(server, /finishInactive\(context\)/);
   assert.match(server, /emitClosed\(context, await presentationCompletionFor/);
 });

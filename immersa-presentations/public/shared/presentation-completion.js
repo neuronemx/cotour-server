@@ -1,6 +1,6 @@
 (function (root) {
   const STORAGE_KEY = "immersa:presentation-completion";
-  const DESTINATIONS = { presenter: "/presentacion-completada", audience: "/gracias-por-participar", screen: "/presentacion-finalizada" };
+  const DESTINATIONS = { presenter: "/presentacion-completada", stage: "/operacion-finalizada", audience: "/gracias-por-participar", screen: "/presentacion-finalizada" };
   function showScreenClosure() {
     const overlay = document.createElement("section");
     overlay.setAttribute("aria-live", "polite");
