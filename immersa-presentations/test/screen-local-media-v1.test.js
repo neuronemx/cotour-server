@@ -200,9 +200,9 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   const unlockHost = read('public/screen/screen-media-unlock-host.js');
   const socketSource = read('media-sockets.js');
 
-  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=115');
+  const adapterPosition = screen.indexOf('screen-local-file-picker-adapter.js?v=116');
   const storePosition = screen.indexOf('screen-local-media-persistence-fix.js?v=111');
-  const managerPosition = screen.indexOf('screen-local-media.js?v=114');
+  const managerPosition = screen.indexOf('screen-local-media.js?v=115');
   const polishPosition = screen.indexOf('screen-multimedia-modal-polish.js?v=113');
   assert.ok(adapterPosition >= 0);
   assert.ok(storePosition > adapterPosition);
@@ -223,17 +223,17 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.match(localSource, /Autorizar archivo/);
   assert.match(localSource, /Cambiar video/);
   assert.match(localSource, /video\/quicktime/);
-  assert.match(localSource, /accept="\.mp4,\.mov"/);
+  assert.match(localSource, /accept="\.mp4,\.mov,\.m4v"/);
   assert.doesNotMatch(localSource, /accept="[^"]*video\//);
   assert.doesNotMatch(localSource, /\scapture(?:[=\s>])/);
-  assert.match(localSource, /\.\(\?:mp4\|mov\)/);
+  assert.match(localSource, /\.\(\?:mp4\|mov\|m4v\)/);
   assert.match(localSource, /ready_override/);
   assert.match(storeSource, /discoverOpfs/);
   assert.match(storeSource, /deckDirectory\.entries/);
   assert.match(storeSource, /requestPermission/);
   assert.doesNotMatch(pickerAdapter, /Persistencia/);
-  assert.match(pickerAdapter, /v115/);
-  assert.match(pickerAdapter, /input\.accept = '\.mp4,\.mov'/);
+  assert.match(pickerAdapter, /v116/);
+  assert.match(pickerAdapter, /input\.accept = '\.mp4,\.mov,\.m4v'/);
   assert.doesNotMatch(pickerAdapter, /input\.accept = '[^']*video\//);
   assert.doesNotMatch(pickerAdapter, /\bcapture\b/);
   assert.match(pickerAdapter, /__immersaTransientHandle/);

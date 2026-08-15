@@ -182,7 +182,7 @@
     function pickerOptions(multiple) {
       return {
         multiple: Boolean(multiple),
-        types: [{ description: 'Video MP4 / MOV', accept: { 'video/mp4': ['.mp4'], 'video/quicktime': ['.mov'] } }],
+        types: [{ description: 'Video MP4 / MOV / M4V', accept: { 'video/mp4': ['.mp4', '.m4v'], 'video/quicktime': ['.mov'] } }],
         excludeAcceptAllOption: false
       };
     }
@@ -220,7 +220,7 @@
       modal = document.createElement('div');
       modal.className = 'screen-media-backdrop';
       modal.hidden = true;
-      modal.innerHTML = '<section class="screen-media-modal" role="dialog" aria-modal="true" aria-labelledby="screenMediaTitle"><button class="screen-media-close" type="button" aria-label="Cerrar">×</button><header><span>Multimedia local</span><h2 id="screenMediaTitle">Preparar videos</h2><p>Los vínculos se guardan en esta computadora. Los archivos nunca se suben.</p></header><div class="screen-media-summary"></div><div class="screen-media-list"></div><div class="screen-media-actions"><button type="button" class="screen-media-secondary" data-close>Presentar con posters</button><button type="button" class="screen-media-primary" data-pick>Seleccionar MP4 / MOV</button></div><input class="screen-media-input" data-multi-input type="file" accept=".mp4,.mov" multiple><input class="screen-media-input" data-single-input type="file" accept=".mp4,.mov"></section>';
+      modal.innerHTML = '<section class="screen-media-modal" role="dialog" aria-modal="true" aria-labelledby="screenMediaTitle"><button class="screen-media-close" type="button" aria-label="Cerrar">×</button><header><span>Multimedia local</span><h2 id="screenMediaTitle">Preparar videos</h2><p>Los vínculos se guardan en esta computadora. Los archivos nunca se suben.</p></header><div class="screen-media-summary"></div><div class="screen-media-list"></div><div class="screen-media-actions"><button type="button" class="screen-media-secondary" data-close>Presentar con posters</button><button type="button" class="screen-media-primary" data-pick>Seleccionar MP4 / MOV / M4V</button></div><input class="screen-media-input" data-multi-input type="file" accept=".mp4,.mov,.m4v" multiple><input class="screen-media-input" data-single-input type="file" accept=".mp4,.mov,.m4v"></section>';
       listNode = modal.querySelector('.screen-media-list');
       summaryNode = modal.querySelector('.screen-media-summary');
       multiInput = modal.querySelector('[data-multi-input]');
@@ -260,7 +260,7 @@
       if (record.status === 'mismatched' && record.file) {
         return '<button type="button" data-media-action="accept" data-slide-id="' + slideId + '">Usar este video</button><button type="button" data-media-action="change" data-slide-id="' + slideId + '">Elegir otro</button>';
       }
-      const label = isReadyStatus(record.status) ? 'Cambiar video' : 'Elegir MP4 / MOV';
+      const label = isReadyStatus(record.status) ? 'Cambiar video' : 'Elegir MP4 / MOV / M4V';
       return '<button type="button" data-media-action="change" data-slide-id="' + slideId + '">' + label + '</button>';
     }
 
@@ -320,7 +320,7 @@
       record.status = 'validating';
       renderUi();
       const type = String(file.type || '').toLowerCase();
-      const supportedLocalVideo = /\.(?:mp4|mov)$/i.test(String(file.name || '')) || type === 'video/mp4' || type === 'video/quicktime';
+      const supportedLocalVideo = /\.(?:mp4|mov|m4v)$/i.test(String(file.name || '')) || ['video/mp4', 'video/quicktime', 'video/x-m4v', 'video/m4v'].includes(type);
       if (!supportedLocalVideo || !urlApi?.createObjectURL) {
         record.status = 'incompatible';
         renderUi();
