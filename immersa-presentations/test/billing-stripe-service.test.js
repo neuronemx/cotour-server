@@ -93,6 +93,19 @@ test("plan grants preserve their commercial origin without creating Stripe data"
   assert.equal(calls.some(([name]) => name === "saveCustomer"), false);
 });
 
+test("a commercial grant cannot bypass downgrade validations", async () => {
+  const { service } = setup();
+  service.repository.accountStatus = async () => ({ effectivePlan: "SPEAKER_PRO", subscription: null, grants: [] });
+  await assert.rejects(
+    () => service.createPlanGrant(
+      { user: { id: "admin-1" } },
+      "workspace-1",
+      { plan: "SPEAKER", origin: "courtesy" }
+    ),
+    (error) => error.code === "GRANT_CANNOT_DOWNGRADE" && error.statusCode === 409
+  );
+});
+
 test("an existing paid subscription cannot silently create a second Checkout", async () => {
   const { service } = setup({ subscription: { status: "active" } });
   await assert.rejects(

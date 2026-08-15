@@ -34,7 +34,26 @@ function render() {
     email.href = "mailto:" + account.email;
     card.querySelector(".identity small").textContent = "Registro: " + new Date(account.registeredAt).toLocaleDateString("es-MX");
     const planNode = card.querySelector(".plan");
+    const commercialNode = card.querySelector(".commercial");
     planNode.textContent = planLabel(account.plan) + pendingLabel(account.pendingDowngrade);
+    void fetch("/api/admin/accounts/" + encodeURIComponent(account.workspaceId) + "/billing", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Estado no disponible");
+        account.billing = data;
+        const subscription = data.subscription;
+        const grant = data.grants?.[0];
+        if (subscription) {
+          commercialNode.textContent = "Pago · " + subscription.status + " · " + planLabel(subscription.plan)
+            + (subscription.cancelAtPeriodEnd ? " · cancelación programada" : "");
+        } else if (grant) {
+          commercialNode.textContent = planLabel(grant.origin) + " · " + planLabel(grant.plan)
+            + (grant.ends_at ? " · vence " + new Date(grant.ends_at).toLocaleDateString("es-MX") : " · sin vencimiento");
+        } else {
+          commercialNode.textContent = account.plan === "FREE" ? "FREE" : "Activación manual heredada";
+        }
+      })
+      .catch((error) => { commercialNode.textContent = error.message; });
     card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
     card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
     const form = card.querySelector("form");
@@ -49,14 +68,26 @@ function render() {
       feedback.className = "feedback";
       feedback.textContent = "Guardando…";
       try {
-        const response = await fetch("/api/admin/accounts/" + encodeURIComponent(account.workspaceId) + "/plan", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ plan: form.elements.plan.value, note: form.elements.note.value })
-        });
+        const ranks = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 };
+        const targetPlan = form.elements.plan.value;
+        const grantFlow = targetPlan !== "FREE" && (ranks[targetPlan] || 0) >= (ranks[account.plan] || 0);
+        const response = await fetch(
+          "/api/admin/accounts/" + encodeURIComponent(account.workspaceId) + (grantFlow ? "/billing/grants" : "/plan"),
+          {
+            method: grantFlow ? "POST" : "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              plan: targetPlan,
+              origin: form.elements.origin.value,
+              endsAt: form.elements.endsAt.value ? new Date(form.elements.endsAt.value + "T23:59:59").toISOString() : null,
+              note: form.elements.note.value
+            })
+          }
+        );
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "No se pudo cambiar el plan");
-        Object.assign(account, data);
+        const normalized = data.status ? { ...account, plan: data.status.effectivePlan, billing: data.status } : data;
+        Object.assign(account, normalized);
         planNode.textContent = planLabel(account.plan) + pendingLabel(data.pendingDowngrade);
         card.querySelector(".decks").textContent = account.usage.decks + " de " + account.limits.decks + " Decks";
         card.querySelector(".storage").textContent = mb(account.usage.storageBytes) + " de " + mb(account.limits.storageBytes);
@@ -69,7 +100,9 @@ function render() {
           if (data.emailNotification?.status !== "sent") feedback.classList.add("error");
         } else {
           resendButton.hidden = true;
-          feedback.textContent = "Plan actualizado a " + planLabel(data.plan) + ".";
+          feedback.textContent = data.grant
+            ? planLabel(data.grant.origin) + " registrado para " + planLabel(data.grant.plan) + "."
+            : "Plan actualizado a " + planLabel(data.plan) + ".";
         }
         form.elements.note.value = "";
       } catch (error) {

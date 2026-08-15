@@ -90,6 +90,15 @@ class StripeBillingService {
       throw publicError("INVALID_GRANT_END", "La vigencia debe terminar en una fecha futura");
     }
     await this.assertManualPlanChangeAllowed(workspaceId, plan);
+    const currentStatus = await this.repository.accountStatus(workspaceId);
+    const ranks = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 };
+    if ((ranks[plan] || 0) < (ranks[currentStatus?.effectivePlan] || 0)) {
+      throw publicError(
+        "GRANT_CANNOT_DOWNGRADE",
+        "Usa el flujo de downgrade para reducir límites y validar Decks o almacenamiento excedente.",
+        409
+      );
+    }
     const grant = await this.repository.createPlanGrant({
       workspaceId,
       plan,
