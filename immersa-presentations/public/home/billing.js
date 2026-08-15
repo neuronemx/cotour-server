@@ -8,11 +8,18 @@
   const currentPlan = document.getElementById("billingCurrentPlan");
   const renewal = document.getElementById("billingRenewal");
   const portalButton = document.getElementById("billingPortal");
+  const invoiceOpenButton = document.getElementById("billingInvoiceOpen");
+  const invoiceForm = document.getElementById("billingInvoiceForm");
+  const invoiceCancelButton = document.getElementById("billingInvoiceCancel");
+  const invoiceSelect = document.getElementById("billingInvoiceSelect");
+  const invoiceTiming = document.getElementById("billingInvoiceTiming");
+  const invoiceStatus = document.getElementById("billingInvoiceStatus");
   const offerWrap = document.getElementById("billingOfferWrap");
   const offerSelect = document.getElementById("billingOffer");
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "monthly";
+  let invoices = [];
 
   const money = (centavos) => new Intl.NumberFormat("es-MX", {
     style: "currency", currency: "MXN", maximumFractionDigits: 0
@@ -45,10 +52,13 @@
       const status = subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa");
       renewal.textContent = status + (subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : "");
       portalButton.hidden = false;
+      invoiceOpenButton.hidden = false;
     } else {
       const grant = state.grants?.[0];
       renewal.textContent = grant ? label(grant.origin) + (grant.ends_at ? " · hasta " + date(grant.ends_at) : " · sin vencimiento") : "";
       portalButton.hidden = true;
+      invoiceOpenButton.hidden = true;
+      invoiceForm.hidden = true;
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
@@ -95,6 +105,114 @@
     }
   }
 
+
+  const invoiceStatusLabel = (status) => ({
+    pending: "Pendiente",
+    in_process: "En proceso",
+    sent: "Enviada",
+    correction_required: "Requiere corrección"
+  })[status] || status;
+
+  function selectedInvoice() {
+    return invoices.find((invoice) => invoice.id === invoiceSelect.value) || null;
+  }
+
+  function renderInvoiceTiming() {
+    const invoice = selectedInvoice();
+    if (!invoice) {
+      invoiceTiming.textContent = "Selecciona un pago confirmado.";
+      return;
+    }
+    if (invoice.request) {
+      invoiceTiming.textContent = "Solicitud " + invoiceStatusLabel(invoice.request.status).toLowerCase()
+        + " · " + date(invoice.request.requested_at || invoice.request.requestedAt);
+      return;
+    }
+    invoiceTiming.textContent = invoice.timing === "late"
+      ? "Solicitud extemporánea: será revisada administrativamente."
+      : "Plazo ordinario hasta " + date(invoice.ordinaryDeadlineAt) + ".";
+  }
+
+  async function openInvoiceForm() {
+    invoiceOpenButton.disabled = true;
+    invoiceStatus.textContent = "Consultando pagos confirmados…";
+    invoiceStatus.className = "billing-invoice-status";
+    try {
+      const response = await fetch("/api/billing/invoices", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudieron consultar tus pagos");
+      invoices = Array.isArray(data.invoices) ? data.invoices : [];
+      invoiceSelect.replaceChildren();
+      for (const invoice of invoices) {
+        const option = document.createElement("option");
+        option.value = invoice.id;
+        option.textContent = (invoice.number ? "Factura Stripe " + invoice.number : "Pago del " + date(invoice.paidAt))
+          + " · " + money(invoice.amountTotal)
+          + (invoice.request ? " · " + invoiceStatusLabel(invoice.request.status) : "");
+        invoiceSelect.appendChild(option);
+      }
+      if (!invoices.length) {
+        invoiceStatus.textContent = "Todavía no hay pagos confirmados disponibles para facturar.";
+        invoiceStatus.classList.add("error");
+        invoiceForm.hidden = false;
+        invoiceForm.querySelector(".billing-invoice-submit").disabled = true;
+        return;
+      }
+      invoiceForm.querySelector(".billing-invoice-submit").disabled = false;
+      invoiceForm.hidden = false;
+      invoiceStatus.textContent = "";
+      renderInvoiceTiming();
+      invoiceForm.querySelector("input[name='rfc']")?.focus();
+    } catch (error) {
+      invoiceForm.hidden = false;
+      invoiceStatus.textContent = error.message;
+      invoiceStatus.classList.add("error");
+    } finally {
+      invoiceOpenButton.disabled = false;
+    }
+  }
+
+  async function submitInvoiceRequest(event) {
+    event.preventDefault();
+    const invoice = selectedInvoice();
+    if (!invoice) return;
+    if (invoice.request) {
+      invoiceStatus.textContent = "Ya existe una solicitud para este pago: " + invoiceStatusLabel(invoice.request.status) + ".";
+      return;
+    }
+    const button = invoiceForm.querySelector(".billing-invoice-submit");
+    button.disabled = true;
+    invoiceStatus.textContent = "Registrando solicitud…";
+    invoiceStatus.className = "billing-invoice-status";
+    const values = new FormData(invoiceForm);
+    try {
+      const response = await fetch("/api/billing/invoice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId: values.get("invoiceId"),
+          rfc: values.get("rfc"),
+          legalName: values.get("legalName"),
+          fiscalPostalCode: values.get("fiscalPostalCode"),
+          fiscalRegime: values.get("fiscalRegime"),
+          cfdiUse: values.get("cfdiUse")
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo registrar la solicitud");
+      invoice.request = data.request;
+      renderInvoiceTiming();
+      invoiceStatus.textContent = data.request.timing === "late"
+        ? "Solicitud extemporánea recibida. IMMERSA la revisará administrativamente."
+        : "Solicitud recibida. Enviaremos tu CFDI en un máximo de 3 días hábiles.";
+      invoiceStatus.classList.add("success");
+    } catch (error) {
+      invoiceStatus.textContent = error.message;
+      invoiceStatus.classList.add("error");
+      button.disabled = false;
+    }
+  }
+
   async function openPortal() {
     portalButton.disabled = true;
     showNotice("Abriendo administración de pagos…", "pending");
@@ -120,6 +238,7 @@
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+    invoiceForm.hidden = true;
   }
 
   openButton?.addEventListener("click", open);
@@ -132,6 +251,10 @@
   }));
   offerSelect?.addEventListener("change", render);
   portalButton?.addEventListener("click", openPortal);
+  invoiceOpenButton?.addEventListener("click", openInvoiceForm);
+  invoiceCancelButton?.addEventListener("click", () => { invoiceForm.hidden = true; });
+  invoiceSelect?.addEventListener("change", renderInvoiceTiming);
+  invoiceForm?.addEventListener("submit", submitInvoiceRequest);
 
   const query = new URLSearchParams(location.search);
   if (query.has("upgrade") || query.get("billing") === "success") {

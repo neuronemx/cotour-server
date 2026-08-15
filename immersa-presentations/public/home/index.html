@@ -28,7 +28,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/home/home.css?v=59">
-  <link rel="stylesheet" href="/home/billing.css?v=1">
+  <link rel="stylesheet" href="/home/billing.css?v=2">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
@@ -179,7 +179,21 @@
     <section class="billing-modal" role="dialog" aria-modal="true" aria-labelledby="billingTitle">
       <header class="billing-header"><div><p>COBROS v1</p><h2 id="billingTitle">Elige cómo quieres presentar</h2><span>Precios en MXN con IVA incluido.</span></div><button id="billingClose" type="button" aria-label="Cerrar">×</button></header>
       <div id="billingNotice" class="billing-notice" role="status" hidden></div>
-      <section id="billingCurrent" class="billing-current" hidden><div><span>Estado de tu cuenta</span><strong id="billingCurrentPlan">FREE</strong><small id="billingRenewal"></small></div><button id="billingPortal" type="button">Administrar pagos</button></section>
+      <section id="billingCurrent" class="billing-current" hidden><div><span>Estado de tu cuenta</span><strong id="billingCurrentPlan">FREE</strong><small id="billingRenewal"></small></div><div class="billing-current-actions"><button id="billingInvoiceOpen" type="button">Solicitar factura</button><button id="billingPortal" type="button">Administrar pagos</button></div></section>
+      <form id="billingInvoiceForm" class="billing-invoice-form" hidden>
+        <div class="billing-invoice-heading"><div><strong>Solicitar factura</strong><span id="billingInvoiceTiming">Selecciona un pago confirmado.</span></div><button id="billingInvoiceCancel" type="button">Cancelar</button></div>
+        <label><span>Pago</span><select id="billingInvoiceSelect" name="invoiceId" required></select></label>
+        <label><span>RFC</span><input name="rfc" maxlength="13" autocomplete="off" required></label>
+        <label class="billing-invoice-wide"><span>Nombre, denominación o razón social</span><input name="legalName" maxlength="200" autocomplete="organization" required></label>
+        <label><span>Código postal fiscal</span><input name="fiscalPostalCode" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required></label>
+        <label><span>Régimen fiscal</span><input name="fiscalRegime" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" list="billingFiscalRegimes" placeholder="Ej. 601" required></label>
+        <label><span>Uso de CFDI</span><input name="cfdiUse" maxlength="3" list="billingCfdiUses" placeholder="Ej. G03" required></label>
+        <datalist id="billingFiscalRegimes"><option value="601">General de Ley Personas Morales</option><option value="603">Personas Morales con Fines no Lucrativos</option><option value="605">Sueldos y Salarios</option><option value="606">Arrendamiento</option><option value="612">Personas Físicas con Actividades Empresariales</option><option value="616">Sin obligaciones fiscales</option><option value="626">Régimen Simplificado de Confianza</option></datalist>
+        <datalist id="billingCfdiUses"><option value="G01">Adquisición de mercancías</option><option value="G02">Devoluciones, descuentos o bonificaciones</option><option value="G03">Gastos en general</option><option value="I08">Otra maquinaria y equipo</option><option value="S01">Sin efectos fiscales</option><option value="CP01">Pagos</option></datalist>
+        <p id="billingInvoiceStatus" class="billing-invoice-status" role="status"></p>
+        <button class="billing-invoice-submit" type="submit">Enviar solicitud</button>
+        <small class="billing-invoice-policy">Plazo ordinario: día 3 del mes siguiente al pago. Después se recibe como solicitud extemporánea para revisión administrativa. No necesitas subir tu Constancia de Situación Fiscal.</small>
+      </form>
       <div class="billing-controls">
         <div class="billing-segment" role="group" aria-label="Periodicidad"><button type="button" data-billing-interval="monthly" class="is-active">Mensual</button><button type="button" data-billing-interval="annual">Anual · paga 10 meses</button></div>
         <label id="billingOfferWrap" hidden><span>Precio</span><select id="billingOffer"><option value="founders">Fundadores</option><option value="official">Regular / usar cupón</option></select></label>
@@ -192,7 +206,7 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=1"></script>
-  <script src="/home/billing.js?v=1"></script>
+  <script src="/home/billing.js?v=2"></script>
   <script src="/home/profile-editor.js?v=6"></script>
   <script src="/home/home.js?v=68"></script>
   <script src="/home/basic-metrics.js?v=1"></script>

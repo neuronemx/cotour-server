@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración de cuentas · IMMERSA</title>
-  <link rel="stylesheet" href="/admin/accounts.css?v=2">
+  <link rel="stylesheet" href="/admin/accounts.css?v=3">
 </head>
 <body>
   <header class="admin-header">
@@ -16,6 +16,11 @@
     <section class="toolbar" aria-label="Filtros de cuentas">
       <label><span>Buscar</span><input id="search" type="search" placeholder="Nombre o correo"></label>
       <label><span>Plan</span><select id="planFilter"><option value="">Todos</option><option>FREE</option><option>SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select></label>
+    </section>
+    <section class="invoice-admin" aria-labelledby="invoiceAdminTitle">
+      <header><div><h2 id="invoiceAdminTitle">Solicitudes de factura</h2><p>Emisión manual de CFDI vinculada a pagos confirmados.</p></div><label><span>Estado</span><select id="invoiceStatusFilter"><option value="">Todos</option><option value="pending">Pendiente</option><option value="in_process">En proceso</option><option value="correction_required">Requiere corrección</option><option value="sent">Enviada</option></select></label></header>
+      <p id="invoiceAdminStatus" class="status" role="status">Cargando solicitudes…</p>
+      <div id="invoiceRequests" class="invoice-requests"></div>
     </section>
     <p id="status" class="status" role="status">Cargando cuentas…</p>
     <section id="accounts" class="accounts" aria-live="polite"></section>
@@ -35,6 +40,6 @@
       <p class="feedback" role="status"></p>
     </article>
   </template>
-  <script src="/admin/accounts.js?v=7"></script>
+  <script src="/admin/accounts.js?v=8"></script>
 </body>
 </html>
