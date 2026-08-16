@@ -45,7 +45,9 @@
 
   function render() {
     if (!state) return;
-    const subscription = state.subscription;
+    const subscription = ["active", "past_due"].includes(String(state.subscription?.status || ""))
+      ? state.subscription
+      : null;
     current.hidden = !subscription && !(state.grants || []).length;
     currentPlan.textContent = label(state.effectivePlan);
     if (subscription) {
