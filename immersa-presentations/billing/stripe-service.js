@@ -375,6 +375,45 @@ class StripeBillingService {
       { plan: currentPlan, interval: currentInterval },
       { plan: target.plan, interval: target.interval }
     );
+
+    // Immediate changes are executed server-side so Founder discounts are
+    // applied to the subscription update and the resulting invoice. The
+    // Customer Portal remains the right surface for payment methods,
+    // invoices, cancellation, and period-end changes.
+    if (timing === "immediate") {
+      const updated = await this.stripe.subscriptions.update(String(subscription.id), {
+        items: [{ id: String(item.id), price: target.priceId, quantity: 1 }],
+        proration_behavior: "always_invoice",
+        payment_behavior: "pending_if_incomplete",
+        ...(target.couponId ? { discounts: [{ coupon: target.couponId }] } : {}),
+        metadata: {
+          immersa_workspace_id: workspaceId,
+          immersa_target_plan: target.plan,
+          immersa_target_interval: target.interval,
+          immersa_offer: target.offer
+        }
+      }, {
+        idempotencyKey: `plan-change:${subscription.id}:${target.priceId}`
+      });
+      const latestInvoice = typeof updated.latest_invoice === "object" ? updated.latest_invoice : null;
+      const hostedInvoiceUrl = String(latestInvoice?.hosted_invoice_url || "").trim();
+      const paymentIntent = latestInvoice?.payment_intent;
+      const paymentRequired = Boolean(
+        paymentIntent
+        && typeof paymentIntent === "object"
+        && !["succeeded", "processing"].includes(String(paymentIntent.status || ""))
+      );
+      return {
+        url: hostedInvoiceUrl || returnUrl,
+        timing,
+        targetPlan: target.plan,
+        targetInterval: target.interval,
+        offer,
+        paymentRequired,
+        providerSubscriptionId: String(updated.id || subscription.id)
+      };
+    }
+
     const session = await this.stripe.billingPortal.sessions.create({
       ...common,
       flow_data: {
