@@ -357,7 +357,7 @@ class StripeBillingService {
       throw publicError("SUBSCRIPTION_NOT_MANAGEABLE", "No pudimos preparar el cambio de membresía", 409);
     }
     const configuration = String(this.env.STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID || "").trim();
-    const returnUrl = `${this.baseUrl}/home?billing=change-return`;
+    const returnUrl = `${this.baseUrl}/home?billing=change-return&target_plan=${encodeURIComponent(target.plan)}&target_interval=${encodeURIComponent(target.interval)}`;
     const common = {
       customer: customerId,
       return_url: returnUrl,
