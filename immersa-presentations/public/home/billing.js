@@ -284,10 +284,28 @@
   if (query.has("upgrade") || ["success", "change-return"].includes(query.get("billing"))) {
     void open().then(async () => {
       if (query.get("billing") !== "success") {
+        const targetPlan = query.get("target_plan") || "";
+        const targetInterval = query.get("target_interval") || "";
         showNotice("Estamos confirmando el cambio directamente con Stripe…", "pending");
-        await load().catch(() => null);
-        showNotice("Estado actualizado. Si el cambio quedó programado, conservarás tu plan actual hasta la fecha indicada por Stripe.", "success");
-        window.dispatchEvent(new Event("immersa:billing-updated"));
+        let confirmed = false;
+        for (let attempt = 0; attempt < 15; attempt += 1) {
+          const next = await load().catch(() => null);
+          const nextSubscription = next?.subscription;
+          confirmed = Boolean(
+            nextSubscription
+            && nextSubscription.status === "active"
+            && (!targetPlan || nextSubscription.plan === targetPlan)
+            && (!targetInterval || nextSubscription.interval === targetInterval)
+          );
+          if (confirmed) break;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        if (confirmed) {
+          showNotice("Cambio confirmado. Tu plan ya está actualizado.", "success");
+          window.dispatchEvent(new Event("immersa:billing-updated"));
+        } else {
+          showNotice("El pago sigue procesándose. Actualizaremos este estado automáticamente cuando Stripe confirme el cambio.", "pending");
+        }
         return;
       }
       showNotice("Pago recibido. Estamos esperando la confirmación segura de Stripe…", "pending");
