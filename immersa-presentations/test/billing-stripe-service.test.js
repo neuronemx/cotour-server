@@ -51,10 +51,23 @@ function setup(overrides = {}) {
         return (overrides.stripeInvoices || []).find((invoice) => invoice.id === id) || null;
       }
     },
-    subscriptions: { async retrieve() { return overrides.stripeSubscription || {
-      id: "sub_1", customer: "cus_1", status: "active",
-      items: { data: [{ id: "si_1", price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
-    }; } },
+    subscriptions: {
+      async retrieve() { return overrides.stripeSubscription || {
+        id: "sub_1", customer: "cus_1", status: "active",
+        items: { data: [{ id: "si_1", price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
+      }; },
+      async update(id, payload, request) {
+        calls.push(["subscriptionUpdate", id, payload, request]);
+        return {
+          id,
+          latest_invoice: {
+            id: "in_1",
+            hosted_invoice_url: "https://invoice.stripe.test/1",
+            payment_intent: { status: "succeeded" }
+          }
+        };
+      }
+    },
     webhooks: { constructEvent() { return overrides.event; } }
   };
   const env = {
@@ -318,11 +331,14 @@ test("plan change uses a Stripe-hosted confirmation flow and preserves founders 
   );
   assert.equal(result.timing, "immediate");
   assert.equal(result.offer, "founders");
-  const portal = calls.find(([name]) => name === "portal")[1];
-  const flow = portal.flow_data.subscription_update_confirm;
-  assert.equal(flow.subscription, "sub_1");
-  assert.deepEqual(flow.items, [{ id: "si_1", price: "price_pro_year", quantity: 1 }]);
-  assert.deepEqual(flow.discounts, [{ coupon: "coupon_py" }]);
+  const update = calls.find(([name]) => name === "subscriptionUpdate");
+  assert.equal(update[1], "sub_1");
+  assert.deepEqual(update[2].items, [{ id: "si_1", price: "price_pro_year", quantity: 1 }]);
+  assert.equal(update[2].proration_behavior, "always_invoice");
+  assert.equal(update[2].payment_behavior, "pending_if_incomplete");
+  assert.deepEqual(update[2].discounts, [{ coupon: "coupon_py" }]);
+  assert.equal(update[3].idempotencyKey, "plan-change:sub_1:price_pro_year");
+  assert.equal(result.url, "https://invoice.stripe.test/1");
 });
 
 test("downgrades and annual to monthly changes are sent to Stripe as period-end changes", async () => {
