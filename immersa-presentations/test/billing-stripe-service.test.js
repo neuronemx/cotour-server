@@ -317,6 +317,30 @@ test("payment failure queues a transactional email without changing Stripe truth
 });
 
 
+test("plan change recognizes Stripe's nested subscription discount shape", async () => {
+  const { service, calls } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER",
+      billing_interval: "monthly",
+      status: "active"
+    },
+    stripeDiscounts: [{
+      source: { coupon: "coupon_sm", type: "coupon" },
+      promotion_code: null
+    }]
+  });
+  const result = await service.createPlanChangePortal(
+    { workspace: { id: "workspace-1" } },
+    { plan: "SPEAKER_PRO", interval: "monthly", offer: "official" }
+  );
+  assert.equal(result.offer, "founders");
+  const update = calls.find(([name]) => name === "subscriptionUpdate");
+  assert.deepEqual(update[2].discounts, [{ coupon: "coupon_pm" }]);
+  assert.equal(update[2].metadata.immersa_offer, "founders");
+});
+
 test("plan change uses a Stripe-hosted confirmation flow and preserves founders pricing", async () => {
   const { service, calls } = setup({
     customerId: "cus_1",

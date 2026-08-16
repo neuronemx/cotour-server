@@ -83,6 +83,16 @@ function stripeId(value) {
   return typeof value === "string" ? value : value?.id || "";
 }
 
+function stripeDiscountId(discount) {
+  return stripeId(
+    discount?.promotion_code
+      || discount?.coupon
+      || discount?.source?.promotion_code
+      || discount?.source?.coupon
+      || discount
+  );
+}
+
 class StripeBillingService {
   constructor(options = {}) {
     this.repository = options.repository;
@@ -341,7 +351,7 @@ class StripeBillingService {
     });
     const liveDiscount = subscription.discounts?.[0] || subscription.discount || null;
     const offer = this.founderOfferForDiscount(
-      stripeId(liveDiscount?.promotion_code || liveDiscount?.coupon || liveDiscount)
+      stripeDiscountId(liveDiscount)
     );
     const target = resolveCatalogEntry({
       ...payload,
@@ -498,7 +508,7 @@ class StripeBillingService {
       accessUntil,
       cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
       canceledAt: subscription.canceled_at ? new Date(Number(subscription.canceled_at) * 1000) : null,
-      discountId: stripeId(discount?.promotion_code || discount?.coupon || discount),
+      discountId: stripeDiscountId(discount),
       eventCreatedAt
     });
     const protectDowngrade = await this.isWorkspaceActive(workspaceId);

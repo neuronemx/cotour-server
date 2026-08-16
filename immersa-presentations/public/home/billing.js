@@ -308,12 +308,21 @@
     showNotice("Consultando tu estado…", "pending");
     try { await load(); showNotice(""); } catch (error) { showNotice(error.message, "error"); }
   }
+  function clearBillingReturnQuery() {
+    const url = new URL(window.location.href);
+    ["billing", "target_plan", "target_interval", "checkout_session_id", "upgrade"].forEach((key) => {
+      url.searchParams.delete(key);
+    });
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  }
+
   function close() {
     closePlanChangeConfirmation();
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
     invoiceForm.hidden = true;
+    clearBillingReturnQuery();
   }
 
   openButton?.addEventListener("click", open);
