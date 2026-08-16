@@ -128,11 +128,21 @@
     else if (!state.checkoutEnabled && !subscription) showNotice("El flujo está en pruebas. Todavía no se aceptan pagos.", "pending");
   }
 
+  function syncIntervalFromSubscription(data) {
+    const current = String(data?.subscription?.interval || "");
+    if (!["monthly", "annual"].includes(current)) return;
+    interval = current;
+    intervalButtons.forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.billingInterval === interval);
+    });
+  }
+
   async function load() {
     const response = await fetch("/api/billing/status", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "No se pudo consultar Cobros");
     state = data;
+    syncIntervalFromSubscription(data);
     render();
     return data;
   }
