@@ -335,7 +335,14 @@ class StripeBillingService {
         409
       );
     }
-    const offer = this.founderOfferForDiscount(current.discount_id);
+    const customerId = await this.repository.getCustomer(workspaceId);
+    const subscription = await this.stripe.subscriptions.retrieve(String(current.provider_subscription_id), {
+      expand: ["discounts"]
+    });
+    const liveDiscount = subscription.discounts?.[0] || subscription.discount || null;
+    const offer = this.founderOfferForDiscount(
+      stripeId(liveDiscount?.promotion_code || liveDiscount?.coupon || liveDiscount)
+    );
     const target = resolveCatalogEntry({
       ...payload,
       offer,
@@ -348,10 +355,6 @@ class StripeBillingService {
     if (currentPlan === target.plan && currentInterval === target.interval) {
       throw publicError("SUBSCRIPTION_CHANGE_NOT_NEEDED", "Esa ya es tu membresía actual", 409);
     }
-    const customerId = await this.repository.getCustomer(workspaceId);
-    const subscription = await this.stripe.subscriptions.retrieve(String(current.provider_subscription_id), {
-      expand: ["discounts"]
-    });
     const item = subscription.items?.data?.[0];
     if (!customerId || !item?.id || !subscription.id) {
       throw publicError("SUBSCRIPTION_NOT_MANAGEABLE", "No pudimos preparar el cambio de membresía", 409);
