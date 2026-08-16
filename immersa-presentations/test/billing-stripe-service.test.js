@@ -54,6 +54,9 @@ function setup(overrides = {}) {
     subscriptions: {
       async retrieve() { return overrides.stripeSubscription || {
         id: "sub_1", customer: "cus_1", status: "active",
+        discounts: overrides.stripeDiscounts || (overrides.subscription?.discount_id
+          ? [{ coupon: { id: overrides.subscription.discount_id } }]
+          : []),
         items: { data: [{ id: "si_1", price: { id: "price_speaker_month" }, current_period_start: 1786700000, current_period_end: 1789300000 }] }
       }; },
       async update(id, payload, request) {
