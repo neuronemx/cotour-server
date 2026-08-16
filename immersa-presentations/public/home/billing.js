@@ -14,12 +14,22 @@
   const invoiceSelect = document.getElementById("billingInvoiceSelect");
   const invoiceTiming = document.getElementById("billingInvoiceTiming");
   const invoiceStatus = document.getElementById("billingInvoiceStatus");
+  const changeConfirm = document.getElementById("billingChangeConfirm");
+  const changeConfirmTitle = document.getElementById("billingChangeConfirmTitle");
+  const changeConfirmSummary = document.getElementById("billingChangeConfirmSummary");
+  const changeConfirmCharge = document.getElementById("billingChangeConfirmCharge");
+  const changeConfirmCard = document.getElementById("billingChangeConfirmCard");
+  const changeConfirmCancel = document.getElementById("billingChangeConfirmCancel");
+  const changeConfirmBack = document.getElementById("billingChangeConfirmBack");
+  const changeConfirmSubmit = document.getElementById("billingChangeConfirmSubmit");
+
   const offerWrap = document.getElementById("billingOfferWrap");
   const offerSelect = document.getElementById("billingOffer");
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "monthly";
   let invoices = [];
+  let pendingPlanChange = null;
 
   const money = (centavos) => new Intl.NumberFormat("es-MX", {
     style: "currency", currency: "MXN", maximumFractionDigits: 0
@@ -35,6 +45,43 @@
 
   function selectedOffer() {
     return state?.foundersAvailable && offerSelect.value === "founders" ? "founders" : "official";
+  }
+
+  function closePlanChangeConfirmation() {
+    pendingPlanChange = null;
+    if (changeConfirm) changeConfirm.hidden = true;
+    if (plansRoot) plansRoot.hidden = false;
+  }
+
+  function planChangeTiming(plan) {
+    const ranks = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 };
+    const currentPlan = state?.subscription?.plan || state?.effectivePlan || "FREE";
+    const currentInterval = state?.subscription?.interval || "monthly";
+    return ranks[plan] < (ranks[currentPlan] || 0)
+      || (currentInterval === "annual" && interval === "monthly")
+      ? "period_end"
+      : "immediate";
+  }
+
+  function openPlanChangeConfirmation(plan, button) {
+    if (!state?.subscription || !changeConfirm) return;
+    const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+    const period = interval === "annual" ? "Anual · paga 10 meses" : "Mensual";
+    const timing = planChangeTiming(plan);
+    pendingPlanChange = { plan, button };
+    changeConfirmTitle.textContent = "Cambiar a " + label(plan);
+    changeConfirmSummary.textContent = label(plan) + " · " + period + " · " + money(amount);
+    if (timing === "period_end") {
+      changeConfirmCharge.textContent = "El cambio quedará programado para el final de tu periodo actual. No habrá un cobro inmediato.";
+      changeConfirmCard.textContent = "Conservarás tu plan actual hasta esa fecha. Stripe mostrará la fecha exacta y IMMERSA no eliminará tus Decks.";
+    } else {
+      changeConfirmCharge.textContent = "Al confirmar, Stripe calculará el prorrateo. Tu tarjeta guardada podría cobrarse automáticamente; el importe exacto se mostrará en Stripe.";
+      changeConfirmCard.textContent = "Este paso sí inicia la actualización en Stripe. Si el banco requiere autenticación, Stripe te la solicitará.";
+    }
+    plansRoot.hidden = true;
+    changeConfirm.hidden = false;
+    changeConfirmSubmit.disabled = false;
+    showNotice("");
   }
 
   function planFeatures(plan) {
@@ -74,7 +121,7 @@
       card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>`;
       const button = card.querySelector("button");
       button.disabled = active || !state.checkoutEnabled;
-      button.addEventListener("click", () => subscription ? changePlan(plan, button) : checkout(plan, button));
+      button.addEventListener("click", () => subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button));
       plansRoot.appendChild(card);
     }
     if (!state.enabled) showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
@@ -254,6 +301,7 @@
   }
 
   async function open() {
+    closePlanChangeConfirmation();
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
@@ -261,6 +309,7 @@
     try { await load(); showNotice(""); } catch (error) { showNotice(error.message, "error"); }
   }
   function close() {
+    closePlanChangeConfirmation();
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
@@ -271,12 +320,20 @@
   closeButton?.addEventListener("click", close);
   modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
+    closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
     render();
   }));
-  offerSelect?.addEventListener("change", render);
+  offerSelect?.addEventListener("change", () => { closePlanChangeConfirmation(); render(); });
   portalButton?.addEventListener("click", openPortal);
+  changeConfirmCancel?.addEventListener("click", closePlanChangeConfirmation);
+  changeConfirmBack?.addEventListener("click", closePlanChangeConfirmation);
+  changeConfirmSubmit?.addEventListener("click", () => {
+    if (!pendingPlanChange) return;
+    changeConfirmSubmit.disabled = true;
+    void changePlan(pendingPlanChange.plan, changeConfirmSubmit);
+  });
   invoiceOpenButton?.addEventListener("click", openInvoiceForm);
   invoiceCancelButton?.addEventListener("click", () => { invoiceForm.hidden = true; });
   invoiceSelect?.addEventListener("change", renderInvoiceTiming);
