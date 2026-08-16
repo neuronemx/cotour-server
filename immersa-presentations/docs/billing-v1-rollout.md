@@ -43,7 +43,7 @@ Crear una configuración exclusiva para IMMERSA con:
 - enlace público sin código: deshabilitado;
 - URL de retorno: enviada por IMMERSA para cada environment.
 
-IMMERSA controla el cambio de membresía mediante una sesión Stripe de confirmación de actualización. Stripe muestra crédito, cargo, fecha y cualquier autenticación 3DS antes de confirmar. Un webhook posterior reconcilia el plan efectivo; el retorno del navegador nunca concede acceso.
+Los upgrades inmediatos y los cambios mensuales a anuales se ejecutan en el backend mediante la API de Stripe Billing, con el precio normal y el cupón Fundadores explícito cuando corresponda. Se genera una factura de prorrateo y, si requiere acción del cliente, IMMERSA devuelve la URL alojada de Stripe. Un webhook posterior reconcilia el plan efectivo; el retorno del navegador nunca concede acceso. El Portal queda reservado para método de pago, facturas/recibos, cancelación y cambios programados al final del periodo.
 
 Los cambios se rigen por estas reglas:
 
