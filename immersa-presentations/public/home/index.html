@@ -179,6 +179,13 @@
     <section class="billing-modal" role="dialog" aria-modal="true" aria-labelledby="billingTitle">
       <header class="billing-header"><div><p>COBROS v1</p><h2 id="billingTitle">Elige cómo quieres presentar</h2><span>Precios en MXN con IVA incluido.</span></div><button id="billingClose" type="button" aria-label="Cerrar">×</button></header>
       <div id="billingNotice" class="billing-notice" role="status" hidden></div>
+      <section id="billingChangeConfirm" class="billing-change-confirm" hidden aria-live="polite">
+        <div class="billing-change-confirm-heading"><div><span>CONFIRMA TU CAMBIO</span><strong id="billingChangeConfirmTitle">Confirmar cambio</strong></div><button id="billingChangeConfirmCancel" type="button">Cancelar</button></div>
+        <p id="billingChangeConfirmSummary"></p>
+        <p id="billingChangeConfirmCharge"></p>
+        <small id="billingChangeConfirmCard"></small>
+        <div class="billing-change-confirm-actions"><button id="billingChangeConfirmBack" type="button">Volver a los planes</button><button id="billingChangeConfirmSubmit" type="button">Confirmar cambio</button></div>
+      </section>
       <section id="billingCurrent" class="billing-current" hidden><div><span>Estado de tu cuenta</span><strong id="billingCurrentPlan">FREE</strong><small id="billingRenewal"></small></div><div class="billing-current-actions"><button id="billingInvoiceOpen" type="button">Solicitar factura</button><button id="billingPortal" type="button">Administrar pagos</button></div></section>
       <form id="billingInvoiceForm" class="billing-invoice-form" hidden>
         <div class="billing-invoice-heading"><div><strong>Solicitar factura</strong><span id="billingInvoiceTiming">Selecciona un pago confirmado.</span></div><button id="billingInvoiceCancel" type="button">Cancelar</button></div>
