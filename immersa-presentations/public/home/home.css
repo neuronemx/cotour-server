@@ -856,16 +856,18 @@ body.modal-open { overflow: hidden; }
 .stage-header #adminAccountsLink[hidden] { display:none !important; }
 .stage-header .header-plans-button,
 .stage-header .account-profile-button {
-  border:1px solid rgba(255,255,255,.09);
-  background:rgba(255,255,255,.035);
+  border:1px solid transparent;
+  background:transparent;
   color:rgba(245,244,250,.72);
   font:500 13.5px/1 Inter,Arial,sans-serif;
 }
 .stage-header .header-plans-button:hover,
 .stage-header .account-profile-button:hover,
 .stage-header .account-pill:hover {
-  border-color:rgba(139,92,246,.35);
+  border-color:transparent;
   background:linear-gradient(90deg,rgba(139,92,246,.14),rgba(59,130,246,.14),rgba(34,211,238,.14));
   color:#F5F4FA;
 }
 .stage-header .account-pill:hover .account-plan-badge { background:transparent; }
+.stage-header .account-pill { cursor:pointer; }
+.stage-header .account-pill:focus-visible { outline:2px solid rgba(139,92,246,.75); outline-offset:3px; }

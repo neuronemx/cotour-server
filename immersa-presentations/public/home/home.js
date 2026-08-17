@@ -16,6 +16,7 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const accountPlanBadge = document.getElementById("accountPlanBadge");
+const planBadge = document.getElementById("planBadge");
 const planUpgradeLink = document.getElementById("planUpgradeLink");
 const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
@@ -1482,12 +1483,17 @@ if (nameForm) {
 
 const planUsagePopover = document.getElementById("planUsage");
 function setPlanUsageOpen(open) {
-  if (!accountPlanBadge || !planUsagePopover) return;
+  if (!planBadge || !planUsagePopover) return;
   planUsagePopover.hidden = !open;
-  accountPlanBadge.setAttribute("aria-expanded", String(open));
+  planBadge.setAttribute("aria-expanded", String(open));
 }
-accountPlanBadge?.addEventListener("click", (event) => {
+planBadge?.addEventListener("click", (event) => {
   event.stopPropagation();
+  setPlanUsageOpen(planUsagePopover.hidden);
+});
+planBadge?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
   setPlanUsageOpen(planUsagePopover.hidden);
 });
 planUpgradeLink?.addEventListener("click", (event) => {
@@ -1496,7 +1502,7 @@ planUpgradeLink?.addEventListener("click", (event) => {
   document.getElementById("billingOpen")?.click();
 });
 document.addEventListener("click", (event) => {
-  if (!planUsagePopover?.hidden && !planUsagePopover.contains(event.target) && event.target !== accountPlanBadge) setPlanUsageOpen(false);
+  if (!planUsagePopover?.hidden && !planUsagePopover.contains(event.target) && event.target !== planBadge) setPlanUsageOpen(false);
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setPlanUsageOpen(false);
