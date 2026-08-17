@@ -100,12 +100,12 @@
     if (subscription) {
       const status = subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa");
       renewal.textContent = status + (subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : "");
-      portalButton.hidden = false;
+      if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = false;
     } else {
       const grant = state.grants?.[0];
       renewal.textContent = grant ? label(grant.origin) + (grant.ends_at ? " · hasta " + date(grant.ends_at) : " · sin vencimiento") : "";
-      portalButton.hidden = true;
+      if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = true;
       invoiceForm.hidden = true;
     }

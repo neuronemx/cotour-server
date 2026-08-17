@@ -17,3 +17,13 @@
 .billing-change-confirm-actions button:last-child{background:var(--violet);color:#fff}
 .billing-change-confirm-actions button:disabled{opacity:.55;cursor:wait}
 @media(max-width:680px){.billing-change-confirm-actions{display:grid}.billing-change-confirm-actions button{width:100%}}
+
+/* Cobros v1 shell: calmer surface, explicit plan hierarchy, no payment-admin CTA. */
+.billing-modal { border: 1px solid rgba(109,59,239,.14); background: linear-gradient(180deg,#fff 0%,#fcfbff 100%); box-shadow: 0 28px 90px rgba(24,20,70,.22); }
+.billing-header { padding-bottom: 4px; }
+.billing-header p { margin-bottom: 7px; letter-spacing: .16em; }
+.billing-header span { margin-top: 8px; }
+.billing-current { background: linear-gradient(135deg,#fff,#faf9ff); border-color: rgba(109,59,239,.16); }
+.billing-current-actions #billingPortal { display: none !important; }
+.billing-plan { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.billing-plan:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(38,29,92,.08); border-color: rgba(109,59,239,.24); }

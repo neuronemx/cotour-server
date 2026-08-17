@@ -763,3 +763,20 @@ body.modal-open { overflow: hidden; }
 .deck-transition-options button:disabled { opacity:.58; cursor:wait; transform:none; }
 .deck-transition-status { min-height:16px; margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
 .deck-transition-status.is-error { color:var(--red); font-weight:700; }
+
+/* Billing/header v2: one coherent capsule language and readable usage metrics. */
+.stage-header-actions { gap: 8px; }
+.account-pill { max-width: min(46vw, 520px); padding: 0; border: 0; border-radius: 0; background: transparent; backdrop-filter: none; gap: 8px; }
+.account-name { display: inline-flex; align-items: center; min-height: 32px; max-width: 180px; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.07); font-weight: 700; }
+.header-plans-button, .account-plan-badge, .account-profile-button { appearance: none; -webkit-appearance: none; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 12px; border: 1px solid rgba(126,240,255,.36); border-radius: 999px; background: rgba(6,207,224,.10); color: #b8f4f7; font-size: 11px; font-weight: 800; line-height: 1; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.header-plans-button:hover, .account-plan-badge:hover, .account-profile-button:hover { background: rgba(6,207,224,.20); color: #fff; }
+.account-pill #logoutButton { min-height: 32px; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.78); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.account-pill #logoutButton:hover { background: rgba(255,255,255,.16); color: #fff; }
+.account-plan-popover { right: 0; width: min(320px, calc(100vw - 28px)); padding: 16px; }
+.account-plan-popover .plan-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 700; }
+.account-plan-popover .plan-usage-metrics { gap: 14px 16px; margin-top: 14px; }
+.account-plan-popover .plan-usage-metric { display: grid; gap: 5px; min-width: 0; }
+.account-plan-popover .plan-usage-metric span { display: block; }
+.account-plan-popover .plan-usage-metric strong { display: block; line-height: 1.2; }
+#planName { display: none !important; }
+#billingPortal { display: none !important; }
