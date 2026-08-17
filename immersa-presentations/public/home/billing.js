@@ -4,9 +4,6 @@
   const closeButton = document.getElementById("billingClose");
   const plansRoot = document.getElementById("billingPlans");
   const notice = document.getElementById("billingNotice");
-  const current = document.getElementById("billingCurrent");
-  const currentPlan = document.getElementById("billingCurrentPlan");
-  const renewal = document.getElementById("billingRenewal");
   const portalButton = document.getElementById("billingPortal");
   const invoiceOpenButton = document.getElementById("billingInvoiceOpen");
   const invoiceForm = document.getElementById("billingInvoiceForm");
@@ -25,6 +22,7 @@
 
   const offerWrap = document.getElementById("billingOfferWrap");
   const offerSelect = document.getElementById("billingOffer");
+  const offerButtons = [...document.querySelectorAll("[data-billing-offer]")];
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "monthly";
@@ -95,22 +93,20 @@
     const subscription = ["active", "past_due"].includes(String(state.subscription?.status || ""))
       ? state.subscription
       : null;
-    current.hidden = !subscription && !(state.grants || []).length;
-    currentPlan.textContent = label(state.effectivePlan);
+    const subscriptionStatus = subscription
+      ? (subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa"))
+      : "";
     if (subscription) {
-      const status = subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa");
-      renewal.textContent = status + (subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : "");
       if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = false;
     } else {
-      const grant = state.grants?.[0];
-      renewal.textContent = grant ? label(grant.origin) + (grant.ends_at ? " · hasta " + date(grant.ends_at) : " · sin vencimiento") : "";
       if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = true;
       invoiceForm.hidden = true;
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
+    offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
@@ -118,10 +114,17 @@
       const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
       const period = interval === "annual" ? "al año" : "al mes";
       const active = subscription && subscription.plan === plan && subscription.interval === interval;
-      card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>`;
+      const statusMarkup = active && subscriptionStatus
+        ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>`
+        : "";
+      card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
       const button = card.querySelector("button");
-      button.disabled = active || !state.checkoutEnabled;
-      button.addEventListener("click", () => subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button));
+      button.disabled = !active && !state.checkoutEnabled;
+      button.classList.toggle("is-current", Boolean(active));
+      button.addEventListener("click", () => {
+        if (active) return;
+        subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
+      });
       plansRoot.appendChild(card);
     }
     if (!state.enabled) showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
@@ -345,6 +348,12 @@
     render();
   }));
   offerSelect?.addEventListener("change", () => { closePlanChangeConfirmation(); render(); });
+  offerButtons.forEach((button) => button.addEventListener("click", () => {
+    offerSelect.value = button.dataset.billingOffer;
+    offerButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    closePlanChangeConfirmation();
+    render();
+  }));
   portalButton?.addEventListener("click", openPortal);
   changeConfirmCancel?.addEventListener("click", closePlanChangeConfirmation);
   changeConfirmBack?.addEventListener("click", closePlanChangeConfirmation);

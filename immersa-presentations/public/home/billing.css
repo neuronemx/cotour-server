@@ -32,3 +32,19 @@
 .billing-invoice-note{margin:18px 0 0;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.5}
 .billing-invoice-note button{padding:0;border:0;background:transparent;color:var(--violet);font:700 11.5px/1.5 var(--font-body);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .billing-invoice-note button:hover{color:var(--blue)}
+
+/* Cobros: compact commercial controls, centered as one visual row. */
+.billing-header p { display:none; }
+.billing-controls { justify-content:center; align-items:center; gap:12px; margin:24px 0 18px; }
+.billing-segment { align-items:center; padding:4px; border:1px solid #ecebf4; background:#f7f7fb; }
+.billing-segment button { min-height:34px; padding:0 14px; }
+.billing-segment button.is-active { color:#fff; background:linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); box-shadow:0 6px 14px rgba(67,104,246,.18); }
+.billing-offer-segment { position:relative; }
+.billing-offer-segment select { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; }
+.billing-plan button.is-current { color:#6d3bef; background:#fff; border:1.5px solid transparent; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); background-origin:border-box; background-clip:padding-box,border-box; box-shadow:0 8px 18px rgba(67,104,246,.10); }
+.billing-plan button.is-current:hover { color:#3B82F6; background-image:linear-gradient(90deg,rgba(139,92,246,.06),rgba(34,211,238,.06)),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); }
+.billing-plan-status { display:block; margin-top:8px; color:var(--muted); font-size:10.5px; line-height:1.4; text-align:center; }
+.billing-plan-status::first-letter { color:#13885b; }
+.billing-current { display:none !important; }
+
+/* Match the v4 reference: account name is text inside the single account+plan pill. */

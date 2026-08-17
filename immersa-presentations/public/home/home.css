@@ -844,3 +844,10 @@ body.modal-open { overflow: hidden; }
   .header-plans-button, .account-profile-button, .header-logout { width:40px; padding:0; }
   .account-name { max-width:clamp(58px,24vw,120px); }
 }
+
+/* Exact v4 capsule geometry: no nested account-name pill. */
+.stage-header .account-pill { display:flex; align-items:center; height:40px; min-height:40px; padding:0 6px 0 8px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(255,255,255,.035); }
+.stage-header .account-name { display:block; align-items:initial; min-height:0; max-width:180px; padding:0; border:0; border-radius:0; background:transparent; color:#F5F4FA; font:600 13.5px/1 Inter,Arial,sans-serif; }
+.stage-header .account-zone { height:100%; }
+.stage-header .account-plan-badge { min-height:0; border:0; border-radius:0; background:transparent; color:#F5F4FA; font:700 12.5px/1 Inter,Arial,sans-serif; }
+.stage-header .account-plan-badge:hover { background:transparent; }
