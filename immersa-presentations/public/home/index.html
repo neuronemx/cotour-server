@@ -27,8 +27,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=60&ui=2">
-  <link rel="stylesheet" href="/home/billing.css?v=4">
+  <link rel="stylesheet" href="/home/home.css?v=60&ui=3">
+  <link rel="stylesheet" href="/home/billing.css?v=5">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
@@ -58,8 +58,16 @@
         <div class="stage-header-inner">
           <a class="brand" href="/home" aria-label="Immersa Home"><picture><source media="(max-width: 700px) and (orientation: portrait)" srcset="/presenter/immersa-mark.png"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></picture></a>
           <div class="stage-header-actions">
-            <button id="billingOpen" class="header-plans-button" type="button">Ver planes</button>
-            <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><button id="accountPlanBadge" class="account-plan-badge" type="button" aria-expanded="false" aria-controls="planUsage" title="Ver uso de tu plan">FREE</button><section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><span>Uso de tu plan</span><strong id="planName">FREE</strong></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><span>Público simultáneo</span><strong id="planAudienceLimit">Hasta 25</strong></div></div></section><a id="adminAccountsLink" class="account-profile-button" href="/admin/accounts" hidden>Administración</a><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
+            <button id="billingOpen" class="header-pill header-plans-button" type="button">Ver planes</button>
+            <div class="account-pill header-pill" id="planBadge" aria-label="Tu cuenta">
+              <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true">M</span><span id="accountName" class="account-name">Mi cuenta</span></div>
+              <span class="header-divider" aria-hidden="true"></span>
+              <button id="accountPlanBadge" class="account-plan-badge" type="button" aria-expanded="false" aria-controls="planUsage" title="Ver uso de tu plan">FREE</button>
+              <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><div><span>Uso de tu plan</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><span>Público simultáneo</span><strong id="planAudienceLimit">Hasta 25</strong></div></div></section>
+            </div>
+            <a id="adminAccountsLink" class="header-pill account-profile-button" href="/admin/accounts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"></path></svg><span>Administración</span></a>
+            <button id="profileButton" class="header-pill account-profile-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"></path></svg><span>Mi perfil</span></button>
+            <button id="logoutButton" class="header-pill header-logout" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7M18 15l4-3-4-3M22 12H10"></path></svg><span>Salir</span></button>
           </div>
         </div>
       </header>
@@ -183,7 +191,7 @@
         <small id="billingChangeConfirmCard"></small>
         <div class="billing-change-confirm-actions"><button id="billingChangeConfirmBack" type="button">Volver a los planes</button><button id="billingChangeConfirmSubmit" type="button">Confirmar cambio</button></div>
       </section>
-      <section id="billingCurrent" class="billing-current" hidden><div><span>Estado de tu cuenta</span><strong id="billingCurrentPlan">FREE</strong><small id="billingRenewal"></small></div><div class="billing-current-actions"><button id="billingInvoiceOpen" type="button">Solicitar factura</button><button id="billingPortal" type="button">Administrar pagos</button></div></section>
+      <section id="billingCurrent" class="billing-current" hidden><div><span>Estado de tu cuenta</span><strong id="billingCurrentPlan">FREE</strong><small id="billingRenewal"></small></div></section>
       <form id="billingInvoiceForm" class="billing-invoice-form" hidden>
         <div class="billing-invoice-heading"><div><strong>Solicitar factura</strong><span id="billingInvoiceTiming">Selecciona un pago confirmado.</span></div><button id="billingInvoiceCancel" type="button">Cancelar</button></div>
         <label><span>Pago</span><select id="billingInvoiceSelect" name="invoiceId" required></select></label>
@@ -203,16 +211,17 @@
         <label id="billingOfferWrap" hidden><span>Precio</span><select id="billingOffer"><option value="founders">Fundadores</option><option value="official">Regular / usar cupón</option></select></label>
       </div>
       <div id="billingPlans" class="billing-plans"></div>
+      <p class="billing-invoice-note">¿Necesitas factura? <button id="billingInvoiceOpen" type="button">Solicitar factura</button></p>
       <p class="billing-legal">El plan se activa únicamente cuando Stripe confirma el pago. IMMERSA nunca elimina Decks automáticamente.</p>
     </section>
   </div>
   <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
-  <script src="/home/home-account.js?v=1"></script>
+  <script src="/home/home-account.js?v=2"></script>
   <script src="/home/billing.js?v=4"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=69"></script>
+  <script src="/home/home.js?v=69&ui=3"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>

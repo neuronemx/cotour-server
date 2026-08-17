@@ -27,3 +27,8 @@
 .billing-current-actions #billingPortal { display: none !important; }
 .billing-plan { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
 .billing-plan:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(38,29,92,.08); border-color: rgba(109,59,239,.24); }
+
+/* Manual invoice request is a quiet note below the commercial plans. */
+.billing-invoice-note{margin:18px 0 0;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.5}
+.billing-invoice-note button{padding:0;border:0;background:transparent;color:var(--violet);font:700 11.5px/1.5 var(--font-body);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.billing-invoice-note button:hover{color:var(--blue)}

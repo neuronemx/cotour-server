@@ -16,6 +16,7 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const accountPlanBadge = document.getElementById("accountPlanBadge");
+const planUpgradeLink = document.getElementById("planUpgradeLink");
 const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
 const planName = document.getElementById("planName");
@@ -1488,6 +1489,11 @@ function setPlanUsageOpen(open) {
 accountPlanBadge?.addEventListener("click", (event) => {
   event.stopPropagation();
   setPlanUsageOpen(planUsagePopover.hidden);
+});
+planUpgradeLink?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setPlanUsageOpen(false);
+  document.getElementById("billingOpen")?.click();
 });
 document.addEventListener("click", (event) => {
   if (!planUsagePopover?.hidden && !planUsagePopover.contains(event.target) && event.target !== accountPlanBadge) setPlanUsageOpen(false);
