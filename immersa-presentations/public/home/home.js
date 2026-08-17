@@ -224,7 +224,7 @@ function renderPlanUsage() {
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
-  if (planAudienceLimit) planAudienceLimit.textContent = "Hasta " + Math.max(0, Number(planUsage.limits.audience) || 0);
+  if (planAudienceLimit) planAudienceLimit.textContent = "Hasta " + Math.max(0, Number(planUsage.limits.audience) || 0) + " participantes simultáneos";
   if (planDeckBar) planDeckBar.style.width = percentage(planUsage.usage.decks, planUsage.limits.decks) + "%";
   if (planStorageBar) planStorageBar.style.width = percentage(planUsage.usage.storageBytes, planUsage.limits.storageBytes) + "%";
 
