@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=59">
+  <link rel="stylesheet" href="/home/home.css?v=60">
   <link rel="stylesheet" href="/home/billing.css?v=2">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -55,8 +55,13 @@
     <span class="orbit-ring r1" aria-hidden="true"></span><span class="orbit-ring r2" aria-hidden="true"></span><span class="orbit-ring r3" aria-hidden="true"></span>
     <div class="stage-inner">
       <header class="stage-header">
-        <a class="brand" href="/home" aria-label="Immersa Home"><picture><source media="(max-width: 700px) and (orientation: portrait)" srcset="/presenter/immersa-mark.png"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></picture></a>
-        <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><span id="accountPlanBadge" class="account-plan-badge">FREE</span><a id="adminAccountsLink" class="account-profile-button" href="/admin/accounts" hidden>Administración</a><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
+        <div class="stage-header-inner">
+          <a class="brand" href="/home" aria-label="Immersa Home"><picture><source media="(max-width: 700px) and (orientation: portrait)" srcset="/presenter/immersa-mark.png"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></picture></a>
+          <div class="stage-header-actions">
+            <button id="billingOpen" class="header-plans-button" type="button">Ver planes</button>
+            <div class="account-pill" aria-label="Tu cuenta"><span class="live-dot" aria-hidden="true"></span><span id="accountName" class="account-name">Mi cuenta</span><button id="accountPlanBadge" class="account-plan-badge" type="button" aria-expanded="false" aria-controls="planUsage" title="Ver uso de tu plan">FREE</button><section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><span>Uso de tu plan</span><strong id="planName">FREE</strong></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><span>Público simultáneo</span><strong id="planAudienceLimit">Hasta 25</strong></div></div></section><a id="adminAccountsLink" class="account-profile-button" href="/admin/accounts" hidden>Administración</a><button id="profileButton" class="account-profile-button" type="button">Mi perfil</button><button id="logoutButton" type="button">Salir</button></div>
+          </div>
+        </div>
       </header>
       <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
@@ -76,15 +81,7 @@
           <span class="drop-zone-copy"><strong>Arrastra PPTX o PDF</strong><span>o <u>selecciona archivo</u></span><span class="format-pills" aria-label="Formatos aceptados"><span class="format-pill"><i aria-hidden="true">PP</i>PPTX</span><span class="format-pill"><i aria-hidden="true">PDF</i>PDF</span></span><small id="selectedFileName">Ningún archivo seleccionado</small></span>
         </label>
         <p id="uploadStatus" class="upload-status" aria-live="polite"></p>
-        <section id="planUsage" class="plan-usage" aria-label="Uso del plan FREE">
-          <div class="plan-usage-head"><span>Plan personal</span><div><strong id="planName">FREE</strong><button id="billingOpen" class="billing-open" type="button">Ver planes</button></div></div>
-          <div class="plan-usage-metrics">
-            <div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div>
-            <div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div>
-            <div class="plan-usage-metric plan-usage-metric-limit"><span>Público simultáneo</span><strong id="planAudienceLimit">Hasta 25</strong></div>
-          </div>
-          <p id="planLimitMessage" class="plan-limit-message" role="status" hidden></p>
-        </section>
+        <p id="planLimitMessage" class="plan-limit-message" role="status" hidden></p>
       </form>
     </section>
     <section id="presentaciones" class="presentations-panel presentations-list-panel" aria-label="Mis presentaciones">
@@ -215,7 +212,7 @@
   <script src="/home/home-account.js?v=1"></script>
   <script src="/home/billing.js?v=2"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=68"></script>
+  <script src="/home/home.js?v=69"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>

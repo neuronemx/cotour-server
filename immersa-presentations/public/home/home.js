@@ -228,6 +228,12 @@ function renderPlanUsage() {
   if (planStorageBar) planStorageBar.style.width = percentage(planUsage.usage.storageBytes, planUsage.limits.storageBytes) + "%";
 
   const blockedMessage = currentPlanBlockMessage();
+  const atLimit = Boolean(
+    Number(planUsage.usage?.decks) >= Number(planUsage.limits?.decks)
+    || Number(planUsage.usage?.storageBytes) >= Number(planUsage.limits?.storageBytes)
+  );
+  accountPlanBadge?.classList.toggle("is-limit", atLimit);
+  accountPlanBadge?.setAttribute("aria-label", atLimit ? "Plan " + planLabel(plan) + ": límite alcanzado" : "Ver uso del plan " + planLabel(plan));
   if (planLimitMessage) {
     planLimitMessage.textContent = blockedMessage;
     planLimitMessage.hidden = !blockedMessage;
@@ -1472,6 +1478,23 @@ if (nameForm) {
     }
   });
 }
+
+const planUsagePopover = document.getElementById("planUsage");
+function setPlanUsageOpen(open) {
+  if (!accountPlanBadge || !planUsagePopover) return;
+  planUsagePopover.hidden = !open;
+  accountPlanBadge.setAttribute("aria-expanded", String(open));
+}
+accountPlanBadge?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setPlanUsageOpen(planUsagePopover.hidden);
+});
+document.addEventListener("click", (event) => {
+  if (!planUsagePopover?.hidden && !planUsagePopover.contains(event.target) && event.target !== accountPlanBadge) setPlanUsageOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setPlanUsageOpen(false);
+});
 
 Promise.all([loadDecks(), loadPlanUsage()]).then(() => {
   const homeParams = new URLSearchParams(window.location.search);

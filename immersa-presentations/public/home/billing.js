@@ -87,7 +87,7 @@
   function planFeatures(plan) {
     return plan === "SPEAKER"
       ? ["5 Decks · 200 MB", "Hasta 100 personas", "Encuestas, Q&A y métricas básicas"]
-      : ["15 Decks · 500 MB", "Hasta 300 personas", "Evaluaciones, sorteos, trivias y métricas detalladas"];
+      : ["15 Decks · 500 MB", "Hasta 300 personas", "Encuestas, Q&A y métricas básicas", "Evaluaciones, sorteos, trivias, historial y métricas detalladas"];
   }
 
   function render() {

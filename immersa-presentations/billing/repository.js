@@ -33,6 +33,15 @@ class BillingRepository {
     return String(customerId);
   }
 
+  async clearCustomer(workspaceId, customerId = null) {
+    const conditions = customerId ? " AND provider_customer_id = ?" : "";
+    const params = customerId ? [String(workspaceId), String(customerId)] : [String(workspaceId)];
+    await this.pool.execute(
+      `DELETE FROM billing_customers WHERE workspace_id = ?${conditions}`,
+      params
+    );
+  }
+
   async findReusableCheckout({ workspaceId, plan, interval, offer }) {
     const [rows] = await this.pool.execute(
       `SELECT id, provider_checkout_session_id, checkout_url_expires_at

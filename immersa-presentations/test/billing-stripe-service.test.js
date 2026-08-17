@@ -15,6 +15,7 @@ function setup(overrides = {}) {
     async findReusableCheckout() { return null; },
     async getCustomer() { return overrides.customerId || null; },
     async saveCustomer(_workspace, id) { calls.push(["saveCustomer", id]); return id; },
+    async clearCustomer(_workspace, id) { calls.push(["clearCustomer", id]); },
     async createCheckoutAttempt(payload) { calls.push(["attempt", payload]); return { id: "attempt-1", idempotencyKey: "idem-1" }; },
     async attachCheckoutSession(id, session) { calls.push(["attach", id, session.id]); },
     async workspaceForProvider() { return "workspace-1"; },
@@ -37,7 +38,10 @@ function setup(overrides = {}) {
     async accountStatus() { return { effectivePlan: "FREE", subscription: null, grants: [], history: [] }; }
   };
   const stripe = {
-    customers: { async create() { return { id: "cus_1" }; } },
+    customers: {
+      async create() { calls.push(["customerCreate"]); return { id: "cus_1" }; },
+      ...(overrides.customerRetrieve ? { async retrieve(id) { calls.push(["customerRetrieve", id]); return overrides.customerRetrieve(id); } } : {})
+    },
     checkout: { sessions: {
       async create(payload, request) { calls.push(["checkout", payload, request]); return { id: "cs_1", url: "https://checkout.stripe.test/1", expires_at: 1800000000 }; },
       async retrieve() { return null; }
@@ -110,6 +114,25 @@ test("Checkout resolves price and discount only from server configuration", asyn
   assert.deepEqual(checkout.discounts, [{ coupon: "coupon_py" }]);
   assert.equal(checkout.metadata.immersa_workspace_id, "workspace-1");
   assert.equal(JSON.stringify(checkout).includes("evil"), false);
+});
+
+test("Checkout replaces a stored Stripe customer that was deleted from the test environment", async () => {
+  const { service, calls } = setup({
+    customerId: "cus_deleted",
+    customerRetrieve: async () => {
+      const error = new Error("No such customer: 'cus_deleted'");
+      error.code = "resource_missing";
+      error.param = "customer";
+      throw error;
+    }
+  });
+  await service.createCheckout({
+    workspace: { id: "workspace-1" },
+    user: { email: "speaker@example.com", name: "Speaker" }
+  }, { plan: "SPEAKER", interval: "monthly", offer: "official" });
+  assert.deepEqual(calls.find(([name]) => name === "clearCustomer"), ["clearCustomer", "cus_deleted"]);
+  assert.deepEqual(calls.find(([name]) => name === "customerCreate"), ["customerCreate"]);
+  assert.equal(calls.find(([name]) => name === "checkout")[1].customer, "cus_1");
 });
 
 test("admin cannot lower an active paid subscription with a manual action", async () => {

@@ -193,13 +193,42 @@ class StripeBillingService {
       const session = await this.stripe.checkout.sessions.retrieve(String(reusable.provider_checkout_session_id));
       if (session?.url) return { url: session.url, reused: true };
     }
+    const customerDetails = {
+      email: String(accountContext.user?.email || "") || undefined,
+      name: String(accountContext.user?.name || "") || undefined,
+      metadata: { immersa_workspace_id: workspaceId }
+    };
     let customerId = await this.repository.getCustomer(workspaceId);
+    let replacedCustomerId = null;
+    if (customerId && typeof this.stripe.customers.retrieve === "function") {
+      try {
+        const existing = await this.stripe.customers.retrieve(customerId);
+        if (existing?.deleted) {
+          replacedCustomerId = customerId;
+          if (typeof this.repository.clearCustomer === "function") {
+            await this.repository.clearCustomer(workspaceId, customerId);
+          }
+          customerId = null;
+        }
+      } catch (error) {
+        const isMissingCustomer = error?.code === "resource_missing"
+          && (error?.param === "customer" || String(error?.message || "").includes("No such customer"));
+        if (!isMissingCustomer) throw error;
+        this.logger.warn?.("[billing] stored Stripe customer is no longer available; creating a replacement", {
+          workspaceId
+        });
+        replacedCustomerId = customerId;
+        if (typeof this.repository.clearCustomer === "function") {
+          await this.repository.clearCustomer(workspaceId, customerId);
+        }
+        customerId = null;
+      }
+    }
     if (!customerId) {
-      const customer = await this.stripe.customers.create({
-        email: String(accountContext.user?.email || "") || undefined,
-        name: String(accountContext.user?.name || "") || undefined,
-        metadata: { immersa_workspace_id: workspaceId }
-      }, { idempotencyKey: `customer:${workspaceId}` });
+      const customer = await this.stripe.customers.create(
+        customerDetails,
+        { idempotencyKey: `customer:${workspaceId}${replacedCustomerId ? `:recovery:${replacedCustomerId}` : ""}` }
+      );
       customerId = await this.repository.saveCustomer(workspaceId, customer.id);
     }
     const attempt = await this.repository.createCheckoutAttempt({
