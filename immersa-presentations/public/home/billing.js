@@ -118,7 +118,10 @@
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
-    if (founderPolicy) founderPolicy.hidden = !state.foundersAvailable || selectedOffer() !== "founders";
+    if (founderPolicy) {
+      founderPolicy.hidden = false;
+      founderPolicy.classList.toggle("is-visible", state.foundersAvailable && selectedOffer() === "founders");
+    }
     offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
@@ -128,7 +131,7 @@
       const officialAmount = state.plans?.[plan]?.[interval]?.official;
       const period = interval === "annual" ? "al año" : "al mes";
       const active = subscription && subscription.plan === plan && subscription.interval === interval;
-      const limitedNote = selectedOffer() === "founders" ? `<small class="billing-price-limited">Por tiempo limitado</small>` : "";
+      const limitedNote = `<small class="billing-price-limited${selectedOffer() === "founders" ? " is-visible" : ""}">Por tiempo limitado</small>`;
       const priceMarkup = selectedOffer() === "founders"
         ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${limitedNote}`
         : `${money(amount)} <small>${period}</small>`;
