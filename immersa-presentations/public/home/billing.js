@@ -115,7 +115,7 @@
       const period = interval === "annual" ? "al año" : "al mes";
       const active = subscription && subscription.plan === plan && subscription.interval === interval;
       const statusMarkup = active && subscriptionStatus
-        ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>`
+        ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado: ${label(state.pendingChange.plan)} ${state.pendingChange.interval === "annual" ? "anual" : "mensual"} · inicia el ${date(state.pendingChange.effectiveAt)}</small>` : ""}`
         : "";
       card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
       const button = card.querySelector("button");
