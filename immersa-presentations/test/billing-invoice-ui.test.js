@@ -44,5 +44,7 @@ test("paid plan cards open a controlled Stripe change flow instead of a generic 
   assert.match(script, /changePlan\(plan, button\)/);
   assert.match(script, /timing === "period_end"/);
   assert.match(script, /timing === "scheduled_exists"/);
+  assert.match(script, /closePlanChangeConfirmation\(\);\s*await load\(\);/);
+  assert.doesNotMatch(script, /await loadStatus\(\)/);
   assert.match(script, /"change-return"/);
 });
