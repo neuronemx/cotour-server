@@ -53,6 +53,8 @@
 .billing-price-founders{color:var(--ink)}
 .billing-price-limited{display:block;margin-top:4px;color:var(--violet)!important;font:700 10.5px/1.3 var(--font-body)!important;letter-spacing:.02em}
 .billing-plan-description{min-height:30px;font-size:13px!important;font-weight:600;color:var(--ink-secondary)!important;line-height:1.35}
+.billing-founder-policy{margin:15px auto 0;max-width:680px;text-align:center;color:var(--muted);font-size:11px;line-height:1.5}
+.billing-founder-policy[hidden]{display:none}
 
 /* Cobros v1 shell: calmer surface, explicit plan hierarchy, no payment-admin CTA. */
 .billing-modal { border: 1px solid rgba(109,59,239,.14); background: linear-gradient(180deg,#fff 0%,#fcfbff 100%); box-shadow: 0 28px 90px rgba(24,20,70,.22); }
