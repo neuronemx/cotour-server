@@ -46,6 +46,7 @@
 
 /* Plans modal commercial treatment. */
 .billing-plan-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em}
+.billing-plan{position:relative}
 .billing-plan-badge-pro{position:absolute;top:-12px;left:24px;background:linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE);color:#fff}
 .billing-plan-badge-pro svg{width:11px;height:11px;fill:currentColor}
 .billing-price-official{margin-right:6px;color:var(--muted);font-size:17px;font-weight:600;text-decoration:line-through;text-decoration-thickness:1.5px}
