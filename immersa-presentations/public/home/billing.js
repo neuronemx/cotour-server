@@ -19,6 +19,10 @@
   const changeConfirmCancel = document.getElementById("billingChangeConfirmCancel");
   const changeConfirmBack = document.getElementById("billingChangeConfirmBack");
   const changeConfirmSubmit = document.getElementById("billingChangeConfirmSubmit");
+  const cancelOpenButton = document.getElementById("billingCancelOpen");
+  const cancelConfirm = document.getElementById("billingCancelConfirm");
+  const cancelBackButton = document.getElementById("billingCancelBack");
+  const cancelSubmitButton = document.getElementById("billingCancelSubmit");
 
   const offerWrap = document.getElementById("billingOfferWrap");
   const offerSelect = document.getElementById("billingOffer");
@@ -49,6 +53,11 @@
     pendingPlanChange = null;
     if (changeConfirm) changeConfirm.hidden = true;
     if (plansRoot) plansRoot.hidden = false;
+  }
+
+  function closeCancelConfirmation() {
+    if (cancelConfirm) cancelConfirm.hidden = true;
+    if (cancelOpenButton) cancelOpenButton.hidden = !state?.subscription;
   }
 
   function planChangeTiming(plan) {
@@ -99,10 +108,12 @@
     if (subscription) {
       if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = false;
+      cancelOpenButton.hidden = Boolean(subscription.cancelAtPeriodEnd);
     } else {
       if (portalButton) portalButton.hidden = true;
       invoiceOpenButton.hidden = true;
       invoiceForm.hidden = true;
+      cancelOpenButton.hidden = true;
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
@@ -194,6 +205,22 @@
     } catch (error) {
       showNotice(error.message, "error");
       button.disabled = false;
+    }
+  }
+
+  async function cancelSubscription() {
+    cancelSubmitButton.disabled = true;
+    showNotice("Programando la cancelación…", "pending");
+    try {
+      const response = await fetch("/api/billing/cancel", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo programar la cancelación");
+      closeCancelConfirmation();
+      await load();
+      showNotice("Cancelación programada al final de tu periodo. Tu plan sigue activo hasta entonces.", "pending");
+    } catch (error) {
+      showNotice(error.message, "error");
+      cancelSubmitButton.disabled = false;
     }
   }
 
@@ -367,6 +394,12 @@
     changeConfirmSubmit.disabled = true;
     void changePlan(pendingPlanChange.plan, changeConfirmSubmit);
   });
+  cancelOpenButton?.addEventListener("click", () => {
+    cancelConfirm.hidden = false;
+    cancelOpenButton.hidden = true;
+  });
+  cancelBackButton?.addEventListener("click", closeCancelConfirmation);
+  cancelSubmitButton?.addEventListener("click", () => { void cancelSubscription(); });
   invoiceOpenButton?.addEventListener("click", openInvoiceForm);
   invoiceCancelButton?.addEventListener("click", () => { invoiceForm.hidden = true; });
   invoiceSelect?.addEventListener("change", renderInvoiceTiming);
