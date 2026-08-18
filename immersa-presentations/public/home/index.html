@@ -214,8 +214,10 @@
         <p>Tu suscripción seguirá activa hasta el final del periodo pagado. No habrá reembolso ni cobro adicional.</p>
         <div><button id="billingCancelBack" type="button">Conservar suscripción</button><button id="billingCancelSubmit" type="button">Confirmar cancelación</button></div>
       </section>
-      <button id="billingCancelOpen" class="billing-cancel-link" type="button" hidden>Cancelar suscripción</button>
-      <p class="billing-invoice-note">¿Necesitas factura? <button id="billingInvoiceOpen" type="button">Solicitar factura</button></p>
+      <div class="billing-secondary-links">
+        <button id="billingCancelOpen" class="billing-cancel-link" type="button" hidden>Cancelar suscripción</button>
+        <p class="billing-invoice-note">¿Necesitas factura? <button id="billingInvoiceOpen" type="button">Solicitar factura</button></p>
+      </div>
       <p class="billing-legal">El plan se activa únicamente cuando Stripe confirma el pago. IMMERSA nunca elimina Decks automáticamente.</p>
     </section>
   </div>
