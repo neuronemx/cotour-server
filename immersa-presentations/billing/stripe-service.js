@@ -359,8 +359,9 @@ class StripeBillingService {
   }
 
   async schedulePeriodEndChange({ subscription, item, target, workspaceId }) {
+    let schedule = null;
     try {
-      const schedule = await this.stripe.subscriptionSchedules.create({
+      schedule = await this.stripe.subscriptionSchedules.create({
         from_subscription: String(subscription.id)
       }, {
         idempotencyKey: `plan-schedule:${subscription.id}:${target.priceId}`
@@ -409,6 +410,17 @@ class StripeBillingService {
       });
       return { scheduleId: String(schedule.id), currentPeriodEnd: currentEnd };
     } catch (error) {
+      if (schedule?.id && typeof this.stripe.subscriptionSchedules.release === "function") {
+        try {
+          await this.stripe.subscriptionSchedules.release(String(schedule.id));
+        } catch (releaseError) {
+          this.logger.warn?.("[billing] unable to release incomplete subscription schedule", {
+            subscriptionId: subscription.id,
+            scheduleId: schedule.id,
+            error: String(releaseError?.message || releaseError)
+          });
+        }
+      }
       if (/coupon|cupón|promotion code/i.test(String(error?.message || ""))) {
         throw publicError(
           "FOUNDERS_COUPON_UNAVAILABLE",

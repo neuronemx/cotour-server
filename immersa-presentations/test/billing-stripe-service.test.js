@@ -91,6 +91,11 @@ function setup(overrides = {}) {
         calls.push(["scheduleUpdate", id, payload, request]);
         if (overrides.scheduleUpdateError) throw overrides.scheduleUpdateError;
         return { id };
+      },
+      async release(id) {
+        calls.push(["scheduleRelease", id]);
+        if (overrides.scheduleReleaseError) throw overrides.scheduleReleaseError;
+        return { id };
       }
     },
     webhooks: { constructEvent() { return overrides.event; } }
@@ -487,6 +492,7 @@ test("a retired founders coupon returns a clear IMMERSA message instead of Strip
     ),
     (error) => error.code === "FOUNDERS_COUPON_UNAVAILABLE" && /Precio Fundadores configurado/.test(error.publicMessage)
   );
+  assert.deepEqual(calls.find(([name]) => name === "scheduleRelease"), ["scheduleRelease", "sub_sched_1"]);
 });
 
 test("past due subscriptions must recover payment before changing membership", async () => {
