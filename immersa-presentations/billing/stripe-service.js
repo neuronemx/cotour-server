@@ -126,7 +126,11 @@ class StripeBillingService {
       if (scheduleId) {
         const schedule = await this.stripe.subscriptionSchedules.retrieve(scheduleId);
         const currentEnd = Number(schedule.phases?.[0]?.end_date || 0);
-        const nextPhase = schedule.phases?.find((phase) => Number(phase.start_date || 0) >= currentEnd);
+        // Stripe returns the future phase with a start_date equal to the
+        // current phase end, but some API responses omit phase start_date.
+        // The schedule created by IMMERSA always has the next price in phase 2.
+        const nextPhase = schedule.phases?.[1]
+          || schedule.phases?.find((phase) => Number(phase.start_date || 0) >= currentEnd);
         const nextItem = nextPhase?.items?.[0];
         const nextCatalog = this.catalogForPrice(stripeId(nextItem?.price));
         if (nextCatalog && nextPhase) {
