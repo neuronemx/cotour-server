@@ -25,6 +25,7 @@
   const cancelSubmitButton = document.getElementById("billingCancelSubmit");
 
   const offerWrap = document.getElementById("billingOfferWrap");
+  const offerNote = document.getElementById("billingOfferNote");
   const offerSelect = document.getElementById("billingOffer");
   const offerButtons = [...document.querySelectorAll("[data-billing-offer]")];
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
@@ -117,18 +118,26 @@
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
+    if (offerNote) offerNote.hidden = !state.foundersAvailable || selectedOffer() !== "founders";
     offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
       const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+      const officialAmount = state.plans?.[plan]?.[interval]?.official;
       const period = interval === "annual" ? "al año" : "al mes";
       const active = subscription && subscription.plan === plan && subscription.interval === interval;
+      const priceMarkup = selectedOffer() === "founders"
+        ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>`
+        : `${money(amount)} <small>${period}</small>`;
+      const badgeMarkup = plan === "SPEAKER_PRO"
+        ? `<span class="billing-plan-badge billing-plan-badge-pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2L12 16.4 5.7 21l2.3-7.2-6-4.6h7.6z"/></svg>MÁS POPULAR</span>`
+        : `<span class="billing-plan-badge billing-plan-badge-speaker"><span></span>SPEAKER</span>`;
       const statusMarkup = active && subscriptionStatus
         ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado al finalizar tu periodo actual.</small>` : ""}`
         : "";
-      card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
+      card.innerHTML = `${badgeMarkup}<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${priceMarkup}</strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
       const button = card.querySelector("button");
       button.disabled = active || (!active && !state.checkoutEnabled);
       button.classList.toggle("is-current", Boolean(active));
