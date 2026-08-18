@@ -82,6 +82,13 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo preparar el cambio de membresía");
       }
     },
+    cancel: async (req, res) => {
+      try {
+        res.json(await service.cancelSubscriptionAtPeriodEnd(req.accountContext));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo programar la cancelación");
+      }
+    },
     portal: async (req, res) => {
       try {
         res.json(await service.createPortal(req.accountContext));
