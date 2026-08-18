@@ -586,6 +586,36 @@ class StripeBillingService {
     return { url: session.url };
   }
 
+  async cancelSubscriptionAtPeriodEnd(accountContext) {
+    this.assertEnabled();
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    const current = await this.repository.getSubscription(workspaceId);
+    if (!current || !["active", "past_due"].includes(String(current.status))) {
+      throw publicError("ACTIVE_SUBSCRIPTION_REQUIRED", "No tienes una suscripción activa para cancelar", 409);
+    }
+    const subscription = await this.stripe.subscriptions.retrieve(String(current.provider_subscription_id));
+    if (stripeId(subscription.schedule)) {
+      throw publicError("SCHEDULED_CHANGE_EXISTS", "Primero debes resolver el cambio programado de tu suscripción", 409);
+    }
+    if (subscription.cancel_at_period_end) {
+      return {
+        scheduled: true,
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: subscription.items?.data?.[0]?.current_period_end || subscription.current_period_end
+      };
+    }
+    const updated = await this.stripe.subscriptions.update(String(subscription.id), {
+      cancel_at_period_end: true
+    }, {
+      idempotencyKey: `subscription-cancel:${subscription.id}`
+    });
+    return {
+      scheduled: true,
+      cancelAtPeriodEnd: Boolean(updated.cancel_at_period_end),
+      currentPeriodEnd: updated.items?.data?.[0]?.current_period_end || updated.current_period_end
+    };
+  }
+
   catalogForPrice(priceId) {
     for (const [plan, intervals] of Object.entries(PRICE_ENV_KEYS)) {
       for (const [interval, key] of Object.entries(intervals)) {
