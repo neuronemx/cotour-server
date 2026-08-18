@@ -37,7 +37,7 @@
   background-image: linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE);
   background-origin: border-box;
   background-clip: padding-box,border-box;
-  box-shadow: 0 8px 18px rgba(67,104,246,.10);
+  box-shadow: 0 0 0 1px rgba(139,92,246,.85), 0 0 0 2px rgba(34,211,238,.55), 0 8px 18px rgba(67,104,246,.10);
   cursor: default;
   pointer-events: none;
 }
@@ -68,7 +68,7 @@
 .billing-offer-segment { position:relative; }
 .billing-offer-segment select { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; }
 .billing-plan button.is-current { color:#6d3bef; background:#fff; border:1.5px solid transparent; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); background-origin:border-box; background-clip:padding-box,border-box; box-shadow:0 8px 18px rgba(67,104,246,.10); }
-.billing-plan button.is-current:disabled { color:#6d3bef; background:#fff; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); box-shadow:0 8px 18px rgba(67,104,246,.10); cursor:default; pointer-events:none; }
+.billing-plan button.is-current:disabled { color:#6d3bef; background:#fff; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); box-shadow:0 0 0 1px rgba(139,92,246,.85),0 0 0 2px rgba(34,211,238,.55),0 8px 18px rgba(67,104,246,.10); cursor:default; pointer-events:none; }
 .billing-plan-status { display:block; margin-top:8px; color:var(--muted); font-size:10.5px; line-height:1.4; text-align:center; }
 .billing-plan-status::first-letter { color:inherit; }
 .billing-current { display:none !important; }
