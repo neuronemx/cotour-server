@@ -21,6 +21,7 @@ const planUpgradeLink = document.getElementById("planUpgradeLink");
 const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
 const planName = document.getElementById("planName");
+const planUsageTitle = document.getElementById("planUsageTitle");
 const planDeckUsage = document.getElementById("planDeckUsage");
 const planStorageUsage = document.getElementById("planStorageUsage");
 const planAudienceLimit = document.getElementById("planAudienceLimit");
@@ -222,6 +223,7 @@ function renderPlanUsage() {
   const plan = String(planUsage.plan || "FREE");
   if (accountPlanBadge) accountPlanBadge.textContent = planLabel(plan);
   if (planName) planName.textContent = planLabel(plan);
+  if (planUsageTitle) planUsageTitle.textContent = "Uso de tu plan " + planLabel(plan);
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
