@@ -16,6 +16,14 @@
 .billing-change-confirm-actions button:first-child{background:#fff;color:var(--violet);border:1px solid rgba(109,59,239,.24)}
 .billing-change-confirm-actions button:last-child{background:var(--violet);color:#fff}
 .billing-change-confirm-actions button:disabled{opacity:.55;cursor:wait}
+.billing-cancel-link{display:block;margin:12px auto 0;color:var(--muted);font-size:11px;text-decoration:underline}
+.billing-cancel-confirm{margin:12px auto 0;max-width:520px;padding:13px 16px;border:1px solid rgba(112,87,255,.18);border-radius:14px;background:#faf9ff;color:var(--ink-soft);font-size:12px;text-align:center}
+.billing-cancel-confirm p{margin:0;line-height:1.45}
+.billing-cancel-confirm div{display:flex;justify-content:center;gap:8px;margin-top:10px}
+.billing-cancel-confirm button{padding:8px 12px;border-radius:999px;font-size:11px;font-weight:800}
+.billing-cancel-confirm button:first-child{background:#fff;color:var(--violet);border:1px solid rgba(109,59,239,.24)}
+.billing-cancel-confirm button:last-child{background:var(--violet);color:#fff}
+.billing-cancel-confirm button:disabled{opacity:.55;cursor:wait}
 @media(max-width:680px){.billing-change-confirm-actions{display:grid}.billing-change-confirm-actions button{width:100%}}
 
 /* Cobros v1 shell: calmer surface, explicit plan hierarchy, no payment-admin CTA. */
