@@ -27,7 +27,7 @@ Crear cuatro cupones de importe fijo y duración `forever` para Precio Fundadore
 | SPEAKER PRO mensual | $301.00 MXN | $1,199.00 MXN |
 | SPEAKER PRO anual | $3,010.00 MXN | $11,990.00 MXN |
 
-No combinar el cupón Fundadores con otro descuento. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México; una suscripción Fundadores activa conserva el precio Fundadores aplicable cuando cambia de plan o intervalo.
+No combinar el cupón Fundadores con otro descuento. Cada cupón debe tener duración `forever`, sin `redeem_by`, sin límite de redenciones y mantenerse activo en Stripe mientras sea elegible para una fase futura. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México; una suscripción Fundadores activa conserva el precio Fundadores aplicable cuando cambia de plan o intervalo.
 
 ## Customer Portal
 

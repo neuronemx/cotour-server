@@ -89,6 +89,7 @@ function setup(overrides = {}) {
       },
       async update(id, payload, request) {
         calls.push(["scheduleUpdate", id, payload, request]);
+        if (overrides.scheduleUpdateError) throw overrides.scheduleUpdateError;
         return { id };
       }
     },
@@ -453,6 +454,39 @@ test("downgrades and annual to monthly changes keep the paid period intact befor
   assert.equal(scheduleUpdate[2].phases[1].items[0].price, "price_speaker_month");
   assert.equal(scheduleUpdate[2].phases[1].duration.interval, "month");
   assert.deepEqual(scheduleUpdate[2].phases[1].discounts, [{ coupon: "coupon_sm" }]);
+});
+
+test("a retired founders coupon returns a clear IMMERSA message instead of Stripe internals", async () => {
+  const couponError = new Error("Phase 1 has a coupon that would be deleted, expired, or fully redeemed.");
+  const { service } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      plan: "SPEAKER_PRO",
+      billing_interval: "annual",
+      status: "active",
+      discount_id: "coupon_py"
+    },
+    stripeSubscription: {
+      id: "sub_1",
+      customer: "cus_1",
+      status: "active",
+      discounts: [{ coupon: { id: "coupon_py" } }],
+      items: { data: [{ id: "si_1", price: { id: "price_pro_year" }, current_period_end: 1789300000 }] }
+    },
+    stripeSchedule: {
+      id: "sub_sched_1",
+      phases: [{ start_date: 1757756000, end_date: 1789300000, items: [{ price: "price_pro_year", quantity: 1 }] }]
+    },
+    scheduleUpdateError: couponError
+  });
+  await assert.rejects(
+    () => service.createPlanChangePortal(
+      { workspace: { id: "workspace-1" } },
+      { plan: "SPEAKER_PRO", interval: "monthly" }
+    ),
+    (error) => error.code === "FOUNDERS_COUPON_UNAVAILABLE" && /Precio Fundadores configurado/.test(error.publicMessage)
+  );
 });
 
 test("past due subscriptions must recover payment before changing membership", async () => {

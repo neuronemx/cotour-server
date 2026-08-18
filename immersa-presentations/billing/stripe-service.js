@@ -359,54 +359,65 @@ class StripeBillingService {
   }
 
   async schedulePeriodEndChange({ subscription, item, target, workspaceId }) {
-    const schedule = await this.stripe.subscriptionSchedules.create({
-      from_subscription: String(subscription.id)
-    }, {
-      idempotencyKey: `plan-schedule:${subscription.id}:${target.priceId}`
-    });
-    const currentPhase = schedule.phases?.[0];
-    const currentStart = currentPhase?.start_date;
-    const currentEnd = currentPhase?.end_date;
-    const currentPrice = stripeId(currentPhase?.items?.[0]?.price) || stripeId(item.price);
-    if (!schedule?.id || !currentStart || !currentEnd || !currentPrice) {
-      throw publicError("SUBSCRIPTION_NOT_SCHEDULABLE", "No pudimos programar el cambio al final de tu periodo", 409);
+    try {
+      const schedule = await this.stripe.subscriptionSchedules.create({
+        from_subscription: String(subscription.id)
+      }, {
+        idempotencyKey: `plan-schedule:${subscription.id}:${target.priceId}`
+      });
+      const currentPhase = schedule.phases?.[0];
+      const currentStart = currentPhase?.start_date;
+      const currentEnd = currentPhase?.end_date;
+      const currentPrice = stripeId(currentPhase?.items?.[0]?.price) || stripeId(item.price);
+      if (!schedule?.id || !currentStart || !currentEnd || !currentPrice) {
+        throw publicError("SUBSCRIPTION_NOT_SCHEDULABLE", "No pudimos programar el cambio al final de tu periodo", 409);
+      }
+      const currentDiscount = stripeDiscountId(subscription.discounts?.[0] || subscription.discount);
+      const currentMetadata = { ...(subscription.metadata || {}) };
+      const targetMetadata = {
+        ...currentMetadata,
+        immersa_workspace_id: workspaceId,
+        immersa_target_plan: target.plan,
+        immersa_target_interval: target.interval,
+        immersa_offer: target.offer
+      };
+      await this.stripe.subscriptionSchedules.update(String(schedule.id), {
+        end_behavior: "release",
+        proration_behavior: "none",
+        phases: [
+          {
+            items: [{
+              price: currentPrice,
+              quantity: Number(currentPhase.items?.[0]?.quantity || item.quantity || 1)
+            }],
+            start_date: currentStart,
+            end_date: currentEnd,
+            ...(currentDiscount ? { discounts: [{ coupon: currentDiscount }] } : {}),
+            metadata: currentMetadata,
+            proration_behavior: "none"
+          },
+          {
+            items: [{ price: target.priceId, quantity: 1 }],
+            duration: { interval: target.interval === "annual" ? "year" : "month", interval_count: 1 },
+            ...(target.couponId ? { discounts: [{ coupon: target.couponId }] } : { discounts: [] }),
+            metadata: targetMetadata,
+            proration_behavior: "none"
+          }
+        ]
+      }, {
+        idempotencyKey: `plan-schedule-update:${schedule.id}:${target.priceId}`
+      });
+      return { scheduleId: String(schedule.id), currentPeriodEnd: currentEnd };
+    } catch (error) {
+      if (/coupon|cupón|promotion code/i.test(String(error?.message || ""))) {
+        throw publicError(
+          "FOUNDERS_COUPON_UNAVAILABLE",
+          "El Precio Fundadores configurado en Stripe ya no está disponible. Actualiza el cupón antes de programar este cambio.",
+          409
+        );
+      }
+      throw error;
     }
-    const currentDiscount = stripeDiscountId(subscription.discounts?.[0] || subscription.discount);
-    const currentMetadata = { ...(subscription.metadata || {}) };
-    const targetMetadata = {
-      ...currentMetadata,
-      immersa_workspace_id: workspaceId,
-      immersa_target_plan: target.plan,
-      immersa_target_interval: target.interval,
-      immersa_offer: target.offer
-    };
-    await this.stripe.subscriptionSchedules.update(String(schedule.id), {
-      end_behavior: "release",
-      proration_behavior: "none",
-      phases: [
-        {
-          items: [{
-            price: currentPrice,
-            quantity: Number(currentPhase.items?.[0]?.quantity || item.quantity || 1)
-          }],
-          start_date: currentStart,
-          end_date: currentEnd,
-          ...(currentDiscount ? { discounts: [{ coupon: currentDiscount }] } : {}),
-          metadata: currentMetadata,
-          proration_behavior: "none"
-        },
-        {
-          items: [{ price: target.priceId, quantity: 1 }],
-          duration: { interval: target.interval === "annual" ? "year" : "month", interval_count: 1 },
-          ...(target.couponId ? { discounts: [{ coupon: target.couponId }] } : { discounts: [] }),
-          metadata: targetMetadata,
-          proration_behavior: "none"
-        }
-      ]
-    }, {
-      idempotencyKey: `plan-schedule-update:${schedule.id}:${target.priceId}`
-    });
-    return { scheduleId: String(schedule.id), currentPeriodEnd: currentEnd };
   }
 
   async createPlanChangePortal(accountContext, payload = {}) {
