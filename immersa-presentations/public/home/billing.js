@@ -3,6 +3,7 @@
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
   const plansRoot = document.getElementById("billingPlans");
+  const founderPolicy = document.getElementById("billingFounderPolicy");
   const notice = document.getElementById("billingNotice");
   const portalButton = document.getElementById("billingPortal");
   const invoiceOpenButton = document.getElementById("billingInvoiceOpen");
@@ -117,6 +118,7 @@
     }
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable) offerSelect.value = "official";
+    if (founderPolicy) founderPolicy.hidden = !state.foundersAvailable || selectedOffer() !== "founders";
     offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
