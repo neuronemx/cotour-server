@@ -27,6 +27,23 @@
 .billing-cancel-confirm button:disabled{opacity:.55;cursor:wait}
 @media(max-width:680px){.billing-change-confirm-actions{display:grid}.billing-change-confirm-actions button{width:100%}}
 
+/* Final billing controls alignment and current-plan treatment. */
+.billing-plan button.is-current:disabled,
+.billing-plan button.is-current:disabled:hover {
+  opacity: 1;
+  color: #6d3bef;
+  background: #fff;
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE);
+  background-origin: border-box;
+  background-clip: padding-box,border-box;
+  box-shadow: 0 8px 18px rgba(67,104,246,.10);
+  cursor: default;
+  pointer-events: none;
+}
+.billing-secondary-links { display:flex; justify-content:center; align-items:center; gap:18px; white-space:nowrap; }
+.billing-secondary-links .billing-invoice-note { margin:0; }
+
 /* Cobros v1 shell: calmer surface, explicit plan hierarchy, no payment-admin CTA. */
 .billing-modal { border: 1px solid rgba(109,59,239,.14); background: linear-gradient(180deg,#fff 0%,#fcfbff 100%); box-shadow: 0 28px 90px rgba(24,20,70,.22); }
 .billing-header { padding-bottom: 4px; }
