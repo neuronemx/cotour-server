@@ -48,7 +48,7 @@ Los upgrades inmediatos y los cambios mensuales a anuales se ejecutan en el back
 Los cambios se rigen por estas reglas:
 
 - upgrade y mensual a anual: inmediatos, con crédito o prorrateo mostrado y confirmado por Stripe;
-- downgrade y anual a mensual: al final del periodo;
+- downgrade y anual a mensual: al final del periodo mediante un Subscription Schedule de Stripe con dos fases; la fase vigente se conserva intacta y la siguiente usa el nuevo precio con `end_behavior=release` y sin prorrateo;
 - nunca borrar Decks automáticamente;
 - conservar las validaciones de presentación activa y recursos excedentes.
 

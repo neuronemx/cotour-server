@@ -179,13 +179,18 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo preparar el cambio");
       if (data.timing === "period_end") {
-        showNotice("El cambio se aplicará al terminar tu periodo actual. Stripe mostrará la fecha exacta.", "pending");
+        const end = Number(data.currentPeriodEnd || 0);
+        const dateLabel = end ? date(new Date(end * 1000)) : "el final de tu periodo actual";
+        closePlanChangeConfirmation();
+        await loadStatus();
+        showNotice("Cambio programado para " + dateLabel + ". No habrá un cobro inmediato.", "pending");
+        return;
       } else if (data.timing === "scheduled_exists") {
         showNotice(data.message, "pending");
       } else {
         showNotice("Stripe calculará el crédito y el cobro inmediato antes de confirmar el cambio.", "pending");
       }
-      window.location.assign(data.url);
+      if (data.url) window.location.assign(data.url);
     } catch (error) {
       showNotice(error.message, "error");
       button.disabled = false;

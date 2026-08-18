@@ -75,6 +75,23 @@ function setup(overrides = {}) {
         };
       }
     },
+    subscriptionSchedules: {
+      async create(payload, request) {
+        calls.push(["scheduleCreate", payload, request]);
+        return overrides.stripeSchedule || {
+          id: "sub_sched_1",
+          phases: [{
+            start_date: 1786700000,
+            end_date: 1789300000,
+            items: [{ price: "price_speaker_month", quantity: 1 }]
+          }]
+        };
+      },
+      async update(id, payload, request) {
+        calls.push(["scheduleUpdate", id, payload, request]);
+        return { id };
+      }
+    },
     webhooks: { constructEvent() { return overrides.event; } }
   };
   const env = {
@@ -391,21 +408,30 @@ test("plan change uses a Stripe-hosted confirmation flow and preserves founders 
   assert.equal(result.url, "https://invoice.stripe.test/1");
 });
 
-test("downgrades and annual to monthly changes are sent to Stripe as period-end changes", async () => {
-  const { service } = setup({
+test("downgrades and annual to monthly changes keep the paid period intact before scheduling the next price", async () => {
+  const { service, calls } = setup({
     customerId: "cus_1",
     subscription: {
       provider_subscription_id: "sub_1",
       plan: "SPEAKER_PRO",
       billing_interval: "annual",
       status: "active",
-      discount_id: null
+      discount_id: "coupon_py"
     },
     stripeSubscription: {
       id: "sub_1",
       customer: "cus_1",
       status: "active",
+      discounts: [{ coupon: { id: "coupon_py" } }],
       items: { data: [{ id: "si_1", price: { id: "price_pro_year" }, current_period_end: 1789300000 }] }
+    },
+    stripeSchedule: {
+      id: "sub_sched_1",
+      phases: [{
+        start_date: 1757756000,
+        end_date: 1789300000,
+        items: [{ price: "price_pro_year", quantity: 1 }]
+      }]
     }
   });
   const result = await service.createPlanChangePortal(
@@ -413,6 +439,20 @@ test("downgrades and annual to monthly changes are sent to Stripe as period-end 
     { plan: "SPEAKER", interval: "monthly" }
   );
   assert.equal(result.timing, "period_end");
+  assert.equal(result.scheduled, true);
+  assert.equal(calls.some(([name]) => name === "portal"), false);
+  assert.equal(calls.some(([name]) => name === "subscriptionUpdate"), false);
+  const scheduleCreate = calls.find(([name]) => name === "scheduleCreate");
+  assert.equal(scheduleCreate[1].from_subscription, "sub_1");
+  const scheduleUpdate = calls.find(([name]) => name === "scheduleUpdate");
+  assert.equal(scheduleUpdate[2].end_behavior, "release");
+  assert.equal(scheduleUpdate[2].proration_behavior, "none");
+  assert.equal(scheduleUpdate[2].phases[0].items[0].price, "price_pro_year");
+  assert.equal(scheduleUpdate[2].phases[0].end_date, 1789300000);
+  assert.deepEqual(scheduleUpdate[2].phases[0].discounts, [{ coupon: "coupon_py" }]);
+  assert.equal(scheduleUpdate[2].phases[1].items[0].price, "price_speaker_month");
+  assert.equal(scheduleUpdate[2].phases[1].duration.interval, "month");
+  assert.deepEqual(scheduleUpdate[2].phases[1].discounts, [{ coupon: "coupon_sm" }]);
 });
 
 test("past due subscriptions must recover payment before changing membership", async () => {
