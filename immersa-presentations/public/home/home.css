@@ -84,7 +84,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .stage-header {
   position: fixed;
   inset: 0 0 auto;
-  z-index: 50;
+  z-index: 100;
   padding: 14px max(20px, calc((100vw - 1240px) / 2));
   background: rgba(10,11,38,.76);
   border-bottom: 1px solid rgba(255,255,255,.10);
@@ -871,3 +871,28 @@ body.modal-open { overflow: hidden; }
 .stage-header .account-pill:hover .account-plan-badge { background:transparent; }
 .stage-header .account-pill { cursor:pointer; }
 .stage-header .account-pill:focus-visible { outline:2px solid rgba(139,92,246,.75); outline-offset:3px; }
+
+/* Header y carga: el header siempre permanece por encima del panel de Upload. */
+.stage-header { isolation:isolate; }
+.stage-header .account-plan-badge { position:relative; z-index:2; border:1px solid rgba(255,255,255,.82); border-radius:999px; background:#fff; color:#6d3bef; box-shadow:0 4px 12px rgba(0,0,0,.16); }
+.stage-header .account-plan-badge::before { background:linear-gradient(90deg,#8B5CF6,#3B82F6,#22D3EE); }
+.stage-header .account-plan-badge:hover { background:#fff; color:#5d2fdb; }
+.home-shell { z-index:2; }
+.create-panel { z-index:1; }
+
+@media (max-width: 620px) and (orientation: portrait) {
+  .stage-header { padding:10px 10px; }
+  .stage-header-inner { gap:8px; }
+  .stage-header-actions { gap:4px; }
+  .header-plans-button { min-height:34px; height:34px; padding:0 10px; font-size:12px; }
+  .stage-header .account-pill { height:34px; min-height:34px; padding:0 5px 0 7px; gap:0; }
+  .stage-header .account-name,
+  .stage-header .header-divider { display:none; }
+  .stage-header .account-avatar { width:24px; height:24px; font-size:11px; }
+  .stage-header .account-plan-badge { height:26px; margin-left:5px; padding:0 16px 0 11px; font-size:10px; }
+  .stage-header .account-plan-badge::before { left:3px; width:6px; height:6px; }
+  .stage-header .account-plan-badge::after { right:4px; width:6px; height:6px; }
+  .stage-header .account-profile-button,
+  .stage-header .header-logout { width:34px; height:34px; min-height:34px; padding:0; }
+  .stage-header .header-pill svg { width:17px; height:17px; }
+}
