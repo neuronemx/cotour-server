@@ -92,3 +92,10 @@
 .billing-current { display:none !important; }
 
 /* Match the v4 reference: account name is text inside the single account+plan pill. */
+
+@media(max-width:680px){
+  .billing-modal{width:calc(100% - 12px);padding:18px 14px}
+  .billing-secondary-links{gap:8px;white-space:normal}
+  .billing-secondary-links>*{flex:1 1 45%;min-width:0;text-align:center;line-height:1.35}
+  .billing-invoice-note{font-size:11px}
+}
