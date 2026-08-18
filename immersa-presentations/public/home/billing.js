@@ -130,7 +130,7 @@
         : "";
       card.innerHTML = `<p>${plan === "SPEAKER_PRO" ? "Más capacidad" : "Para presentar e interactuar"}</p><h3>${label(plan)}</h3><strong>${money(amount)} <small>${period}</small></strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
       const button = card.querySelector("button");
-      button.disabled = !active && !state.checkoutEnabled;
+      button.disabled = active || (!active && !state.checkoutEnabled);
       button.classList.toggle("is-current", Boolean(active));
       button.addEventListener("click", () => {
         if (active) return;
