@@ -118,7 +118,33 @@ class StripeBillingService {
 
   async status(workspaceId) {
     if (!this.repository) return { ...this.catalog(), effectivePlan: "FREE", subscription: null, grants: [] };
-    return { ...this.catalog(), ...(await this.repository.accountStatus(workspaceId)) };
+    const account = await this.repository.accountStatus(workspaceId);
+    if (!account?.subscription?.id || !this.stripe) return { ...this.catalog(), ...account };
+    try {
+      const liveSubscription = await this.stripe.subscriptions.retrieve(account.subscription.id);
+      const scheduleId = stripeId(liveSubscription.schedule);
+      if (scheduleId) {
+        const schedule = await this.stripe.subscriptionSchedules.retrieve(scheduleId);
+        const currentEnd = Number(schedule.phases?.[0]?.end_date || 0);
+        const nextPhase = schedule.phases?.find((phase) => Number(phase.start_date || 0) >= currentEnd);
+        const nextItem = nextPhase?.items?.[0];
+        const nextCatalog = this.catalogForPrice(stripeId(nextItem?.price));
+        if (nextCatalog && nextPhase) {
+          account.pendingChange = {
+            plan: nextCatalog.plan,
+            interval: nextCatalog.interval,
+            effectiveAt: Number(nextPhase.start_date || currentEnd) * 1000,
+            scheduleId
+          };
+        }
+      }
+    } catch (error) {
+      this.logger.warn?.("[billing] unable to read pending subscription schedule", {
+        workspaceId,
+        error: String(error?.message || error)
+      });
+    }
+    return { ...this.catalog(), ...account };
   }
 
   async assertManualPlanChangeAllowed(workspaceId, targetPlan) {
