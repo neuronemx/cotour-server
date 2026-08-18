@@ -16,7 +16,8 @@
 .billing-change-confirm-actions button:first-child{background:#fff;color:var(--violet);border:1px solid rgba(109,59,239,.24)}
 .billing-change-confirm-actions button:last-child{background:var(--violet);color:#fff}
 .billing-change-confirm-actions button:disabled{opacity:.55;cursor:wait}
-.billing-cancel-link{display:block;margin:12px auto 0;color:var(--muted);font-size:11px;text-decoration:underline}
+.billing-secondary-links{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:18px}
+.billing-cancel-link{display:block;color:var(--muted);font-size:11px;text-decoration:underline}
 .billing-cancel-confirm{margin:12px auto 0;max-width:520px;padding:13px 16px;border:1px solid rgba(112,87,255,.18);border-radius:14px;background:#faf9ff;color:var(--ink-soft);font-size:12px;text-align:center}
 .billing-cancel-confirm p{margin:0;line-height:1.45}
 .billing-cancel-confirm div{display:flex;justify-content:center;gap:8px;margin-top:10px}
@@ -50,9 +51,9 @@
 .billing-offer-segment { position:relative; }
 .billing-offer-segment select { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; }
 .billing-plan button.is-current { color:#6d3bef; background:#fff; border:1.5px solid transparent; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); background-origin:border-box; background-clip:padding-box,border-box; box-shadow:0 8px 18px rgba(67,104,246,.10); }
-.billing-plan button.is-current:hover { color:#3B82F6; background-image:linear-gradient(90deg,rgba(139,92,246,.06),rgba(34,211,238,.06)),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); }
+.billing-plan button.is-current:disabled { color:#6d3bef; background:#fff; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); box-shadow:0 8px 18px rgba(67,104,246,.10); cursor:default; pointer-events:none; }
 .billing-plan-status { display:block; margin-top:8px; color:var(--muted); font-size:10.5px; line-height:1.4; text-align:center; }
-.billing-plan-status::first-letter { color:#13885b; }
+.billing-plan-status::first-letter { color:inherit; }
 .billing-current { display:none !important; }
 
 /* Match the v4 reference: account name is text inside the single account+plan pill. */
