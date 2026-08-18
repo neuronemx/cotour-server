@@ -182,7 +182,7 @@
         const end = Number(data.currentPeriodEnd || 0);
         const dateLabel = end ? date(new Date(end * 1000)) : "el final de tu periodo actual";
         closePlanChangeConfirmation();
-        await loadStatus();
+        await load();
         showNotice("Cambio programado para " + dateLabel + ". No habrá un cobro inmediato.", "pending");
         return;
       } else if (data.timing === "scheduled_exists") {
