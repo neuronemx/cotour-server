@@ -950,6 +950,7 @@ app.get("/api/billing/catalog", requireAccount, billingHandlers.catalog);
 app.get("/api/billing/status", requireAccount, billingHandlers.status);
 app.post("/api/billing/checkout", requireAccount, billingHandlers.checkout);
 app.post("/api/billing/change", requireAccount, billingHandlers.change);
+app.post("/api/billing/cancel", requireAccount, billingHandlers.cancel);
 app.post("/api/billing/portal", requireAccount, billingHandlers.portal);
 app.get("/api/billing/invoices", requireAccount, billingHandlers.invoices);
 app.post("/api/billing/invoice-requests", requireAccount, billingHandlers.requestInvoice);
