@@ -915,3 +915,9 @@ body.modal-open { overflow: hidden; }
   .stage-header .header-logout { width:34px; height:34px; min-height:34px; padding:0; }
   .stage-header .header-pill svg { width:17px; height:17px; }
 }
+
+/* Final compact desktop header and plan colors. */
+.stage-header .account-name { font-size:12px; }
+.stage-header .account-plan-badge.is-free::before { background:#9ca3af; }
+.stage-header .account-plan-badge.is-speaker::before { background:#3b82f6; }
+.stage-header .account-plan-badge.is-pro::before { background:linear-gradient(135deg,#8b5cf6,#6d3bef,#b66cff); }

@@ -99,3 +99,6 @@
   .billing-secondary-links>*{flex:1 1 45%;min-width:0;text-align:center;line-height:1.35}
   .billing-invoice-note{font-size:11px}
 }
+
+/* Cobros must sit above the fixed header and every Home layer. */
+.billing-backdrop { z-index:4000; }

@@ -221,7 +221,12 @@ function replacementIssue(file, deck) {
 function renderPlanUsage() {
   if (!planUsage) return;
   const plan = String(planUsage.plan || "FREE");
-  if (accountPlanBadge) accountPlanBadge.textContent = planLabel(plan);
+  if (accountPlanBadge) {
+    accountPlanBadge.textContent = planLabel(plan);
+    accountPlanBadge.classList.toggle("is-free", plan === "FREE");
+    accountPlanBadge.classList.toggle("is-speaker", plan === "SPEAKER");
+    accountPlanBadge.classList.toggle("is-pro", plan === "SPEAKER_PRO");
+  }
   if (planName) planName.textContent = planLabel(plan);
   if (planUsageTitle) planUsageTitle.textContent = "Uso de tu plan " + planLabel(plan);
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
