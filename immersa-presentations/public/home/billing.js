@@ -44,6 +44,16 @@
     notice.textContent = message || "";
     notice.className = "billing-notice" + (kind ? " " + kind : "");
     notice.hidden = !message;
+    const recoveryNotice = String(message || "").startsWith("No pudimos cobrar tu suscripción.");
+    if (recoveryNotice) {
+      const action = ensurePortalButton();
+      action.hidden = false;
+      action.style.display = "block";
+      notice.insertAdjacentElement("afterend", action);
+    } else if (portalButton) {
+      portalButton.hidden = true;
+      portalButton.style.display = "none";
+    }
   }
 
   function ensurePortalButton() {
