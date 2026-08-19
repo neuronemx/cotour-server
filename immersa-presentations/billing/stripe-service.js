@@ -625,7 +625,7 @@ class StripeBillingService {
       ...(paymentMethodId ? { payment_method: paymentMethodId } : {}),
       expand: ["payment_intent"]
     }, {
-      idempotencyKey: `invoice-recovery:${invoice.id}`
+      idempotencyKey: `invoice-recovery:${invoice.id}:${paymentMethodId || "default"}`
     });
     const paymentIntentStatus = typeof paidInvoice.payment_intent === "object"
       ? String(paidInvoice.payment_intent.status || "")
