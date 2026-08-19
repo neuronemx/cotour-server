@@ -404,6 +404,35 @@
     }
   }
 
+  async function recoverPayment() {
+    showNotice("Tarjeta actualizada. Intentando cobrar la factura pendiente…", "pending");
+    try {
+      const response = await fetch("/api/billing/recover", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo intentar el cobro");
+      if (data.requiresAction && data.hostedInvoiceUrl) {
+        showNotice("Tu banco requiere una confirmación adicional para completar el pago.", "pending");
+        window.location.assign(data.hostedInvoiceUrl);
+        return;
+      }
+      if (data.paid) {
+        showNotice("Pago confirmado. Estamos actualizando tu plan…", "success");
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const next = await load().catch(() => null);
+          if (next?.subscription?.status === "active") {
+            showNotice("Pago confirmado. Tu plan ya está activo.", "success");
+            window.dispatchEvent(new Event("immersa:billing-updated"));
+            return;
+          }
+        }
+      }
+      showNotice("Tarjeta actualizada. Stripe está procesando el cobro y te avisaremos cuando quede confirmado.", "pending");
+    } catch (error) {
+      showNotice(error.message, "error");
+    }
+  }
+
   async function open() {
     closePlanChangeConfirmation();
     modal.hidden = false;
@@ -470,6 +499,10 @@
     paymentMethodUpdated = query.get("billing") === "portal-return";
     void open().then(async () => {
       if (query.get("billing") !== "success") {
+        if (query.get("billing") === "portal-return") {
+          await recoverPayment();
+          return;
+        }
         const targetPlan = query.get("target_plan") || "";
         const targetInterval = query.get("target_interval") || "";
         showNotice("Estamos confirmando el cambio directamente con Stripe…", "pending");

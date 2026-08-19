@@ -952,6 +952,7 @@ app.post("/api/billing/checkout", requireAccount, billingHandlers.checkout);
 app.post("/api/billing/change", requireAccount, billingHandlers.change);
 app.post("/api/billing/cancel", requireAccount, billingHandlers.cancel);
 app.post("/api/billing/portal", requireAccount, billingHandlers.portal);
+app.post("/api/billing/recover", requireAccount, billingHandlers.recoverPayment);
 app.get("/api/billing/invoices", requireAccount, billingHandlers.invoices);
 app.post("/api/billing/invoice-requests", requireAccount, billingHandlers.requestInvoice);
 app.get("/api/admin/billing/invoice-requests", requireAccount, requireImmersaAdmin, billingHandlers.adminInvoiceRequests);

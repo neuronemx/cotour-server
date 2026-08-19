@@ -96,6 +96,13 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo abrir la administración de pagos");
       }
     },
+    recoverPayment: async (req, res) => {
+      try {
+        res.json(await service.recoverPayment(req.accountContext));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo intentar el cobro de la factura pendiente");
+      }
+    },
     webhook: async (req, res) => {
       try {
         const result = await service.receiveWebhook(req.body, req.get("stripe-signature"));

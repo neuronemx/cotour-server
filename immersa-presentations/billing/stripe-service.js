@@ -597,6 +597,37 @@ class StripeBillingService {
     return { url: session.url };
   }
 
+  async recoverPayment(accountContext) {
+    this.assertEnabled();
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    const current = await this.repository.getSubscription(workspaceId);
+    if (!current || String(current.status) !== "past_due") {
+      return { status: "not_required", paid: false };
+    }
+    const subscription = await this.stripe.subscriptions.retrieve(
+      String(current.provider_subscription_id),
+      { expand: ["latest_invoice"] }
+    );
+    const invoice = typeof subscription.latest_invoice === "object"
+      ? subscription.latest_invoice
+      : null;
+    if (!invoice?.id || String(invoice.status) !== "open") {
+      return { status: String(invoice?.status || "processing"), paid: invoice?.status === "paid" };
+    }
+    const paidInvoice = await this.stripe.invoices.pay(invoice.id, { expand: ["payment_intent"] }, {
+      idempotencyKey: `invoice-recovery:${invoice.id}`
+    });
+    const paymentIntentStatus = typeof paidInvoice.payment_intent === "object"
+      ? String(paidInvoice.payment_intent.status || "")
+      : "";
+    return {
+      status: String(paidInvoice.status || "processing"),
+      paid: String(paidInvoice.status) === "paid",
+      requiresAction: paymentIntentStatus === "requires_action",
+      hostedInvoiceUrl: paidInvoice.hosted_invoice_url || null
+    };
+  }
+
   async cancelSubscriptionAtPeriodEnd(accountContext) {
     this.assertEnabled();
     const workspaceId = String(accountContext?.workspace?.id || "");
