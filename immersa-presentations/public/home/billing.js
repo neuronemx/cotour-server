@@ -5,7 +5,7 @@
   const plansRoot = document.getElementById("billingPlans");
   const founderPolicy = document.getElementById("billingFounderPolicy");
   const notice = document.getElementById("billingNotice");
-  const portalButton = document.getElementById("billingPortal");
+  let portalButton = document.getElementById("billingPortal");
   const invoiceOpenButton = document.getElementById("billingInvoiceOpen");
   const invoiceForm = document.getElementById("billingInvoiceForm");
   const invoiceCancelButton = document.getElementById("billingInvoiceCancel");
@@ -44,6 +44,18 @@
     notice.textContent = message || "";
     notice.className = "billing-notice" + (kind ? " " + kind : "");
     notice.hidden = !message;
+  }
+
+  function ensurePortalButton() {
+    if (portalButton) return portalButton;
+    portalButton = document.createElement("button");
+    portalButton.id = "billingPortal";
+    portalButton.className = "billing-recovery-action";
+    portalButton.type = "button";
+    portalButton.textContent = "Actualizar tarjeta y pagar";
+    notice.insertAdjacentElement("afterend", portalButton);
+    portalButton.addEventListener("click", openPortal);
+    return portalButton;
   }
 
   function selectedOffer() {
@@ -100,6 +112,7 @@
 
   function render() {
     if (!state) return;
+    ensurePortalButton();
     const subscription = ["active", "past_due"].includes(String(state.subscription?.status || ""))
       ? state.subscription
       : null;
