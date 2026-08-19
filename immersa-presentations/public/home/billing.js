@@ -107,7 +107,7 @@
       ? (subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa"))
       : "";
     if (subscription) {
-      if (portalButton) portalButton.hidden = true;
+      if (portalButton) portalButton.hidden = subscription.status !== "past_due";
       invoiceOpenButton.hidden = false;
       cancelOpenButton.hidden = Boolean(subscription.cancelAtPeriodEnd);
     } else {

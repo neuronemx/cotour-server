@@ -184,6 +184,7 @@
     <section class="billing-modal" role="dialog" aria-modal="true" aria-labelledby="billingTitle">
       <header class="billing-header"><div><h2 id="billingTitle">Elige cómo quieres presentar</h2><span>Precios en MXN con IVA incluido.</span></div><button id="billingClose" type="button" aria-label="Cerrar">×</button></header>
       <div id="billingNotice" class="billing-notice" role="status" hidden></div>
+      <button id="billingPortal" class="billing-recovery-action" type="button" hidden>Actualizar tarjeta y pagar</button>
       <section id="billingChangeConfirm" class="billing-change-confirm" hidden aria-live="polite">
         <div class="billing-change-confirm-heading"><div><span>CONFIRMA TU CAMBIO</span><strong id="billingChangeConfirmTitle">Confirmar cambio</strong></div><button id="billingChangeConfirmCancel" type="button">Cancelar</button></div>
         <p id="billingChangeConfirmSummary"></p>
@@ -226,7 +227,7 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=2"></script>
-  <script src="/home/billing.js?v=5"></script>
+  <script src="/home/billing.js?v=6"></script>
   <script src="/home/profile-editor.js?v=6"></script>
   <script src="/home/home.js?v=69&ui=3"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
