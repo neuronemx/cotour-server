@@ -779,7 +779,7 @@ body.modal-open { overflow: hidden; }
 .account-plan-popover .plan-usage-metric span { display: block; }
 .account-plan-popover .plan-usage-metric strong { display: block; line-height: 1.2; }
 #planName { display: none !important; }
-#billingPortal { display: none !important; }
+.billing-current-actions #billingPortal { display: none !important; }
 
 /* Header v4: flat sibling pills, one combined account + plan capsule. */
 .stage-header {
