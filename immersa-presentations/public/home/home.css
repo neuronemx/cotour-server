@@ -924,6 +924,7 @@ body.modal-open { overflow: hidden; }
 .stage-header .account-name,
 .stage-header .account-plan-badge { position:relative; top:2px; }
 .stage-header .account-avatar { color:#fff; }
+.stage-header .account-plan-badge::before { transform:translateY(-1px); }
 .stage-header .account-plan-badge::after { transform:translateY(-3px) rotate(45deg); }
 .stage-header .account-plan-badge.is-free::before { background:#9ca3af; }
 .stage-header .account-plan-badge.is-speaker::before { background:#3b82f6; }
