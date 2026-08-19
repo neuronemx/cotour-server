@@ -871,6 +871,7 @@ body.modal-open { overflow: hidden; }
 .stage-header .account-pill:hover .account-plan-badge { background:transparent; }
 .stage-header .account-pill { cursor:pointer; }
 .stage-header .account-pill:focus-visible { outline:2px solid rgba(139,92,246,.75); outline-offset:3px; }
+.stage-header .account-pill.is-billing-alert { border-color:rgba(255,116,140,.95); box-shadow:0 0 0 1px rgba(255,116,140,.55), 0 0 18px rgba(255,75,110,.28); }
 
 /* Header y carga: el header y su panel de uso siempre quedan por encima del Upload. */
 .stage-header { isolation:isolate; z-index:1000; }

@@ -577,10 +577,21 @@ class StripeBillingService {
     const workspaceId = String(accountContext?.workspace?.id || "");
     const customerId = await this.repository.getCustomer(workspaceId);
     if (!customerId) throw publicError("BILLING_CUSTOMER_NOT_FOUND", "Todavía no tienes una suscripción para administrar", 404);
+    const current = await this.repository.getSubscription(workspaceId);
     const configuration = String(this.env.STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID || "").trim();
+    const returnUrl = `${this.baseUrl}/home?billing=portal-return`;
     const session = await this.stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${this.baseUrl}/home?billing=portal-return`,
+      return_url: returnUrl,
+      ...(String(current?.status || "") === "past_due" ? {
+        flow_data: {
+          type: "payment_method_update",
+          after_completion: {
+            type: "redirect",
+            redirect: { return_url: returnUrl }
+          }
+        }
+      } : {}),
       ...(configuration ? { configuration } : {})
     });
     return { url: session.url };

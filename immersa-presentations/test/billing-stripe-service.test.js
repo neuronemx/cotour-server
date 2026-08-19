@@ -125,6 +125,21 @@ function setup(overrides = {}) {
   return { service, calls, repository };
 }
 
+test("a past-due subscription opens the focused payment method update flow", async () => {
+  const { service, calls } = setup({
+    customerId: "cus_1",
+    subscription: {
+      provider_subscription_id: "sub_1",
+      status: "past_due"
+    }
+  });
+  await service.createPortal({ workspace: { id: "workspace-1" } });
+  const portal = calls.find(([name]) => name === "portal")[1];
+  assert.equal(portal.flow_data.type, "payment_method_update");
+  assert.equal(portal.flow_data.after_completion.type, "redirect");
+  assert.match(portal.flow_data.after_completion.redirect.return_url, /billing=portal-return/);
+});
+
 test("Checkout resolves price and discount only from server configuration", async () => {
   const { service, calls } = setup();
   const result = await service.createCheckout({

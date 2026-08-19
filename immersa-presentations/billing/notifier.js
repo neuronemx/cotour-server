@@ -38,11 +38,14 @@ class BillingNotifier {
     );
     if (Number(claim?.affectedRows || 0) !== 1) return false;
     try {
+      const emailUrl = row.kind === "payment-failed"
+        ? this.baseUrl + "/home?billing=recovery"
+        : this.baseUrl + "/home";
       await this.emailSender({
         kind: "billing-" + row.kind,
         to: row.email,
         name: row.name,
-        url: this.baseUrl + "/home",
+        url: emailUrl,
         billing: {
           plan: row.plan,
           amountTotal: row.amount_total,

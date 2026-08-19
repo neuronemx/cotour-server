@@ -242,6 +242,9 @@ function renderPlanUsage() {
     || Number(planUsage.usage?.storageBytes) >= Number(planUsage.limits?.storageBytes)
   );
   accountPlanBadge?.classList.toggle("is-limit", atLimit);
+  const billingAlert = String(planUsage.billingStatus || "") === "past_due";
+  planBadge?.classList.toggle("is-billing-alert", billingAlert);
+  planBadge?.setAttribute("title", billingAlert ? "Pago pendiente: actualiza tu método de pago" : "Mi cuenta");
   accountPlanBadge?.setAttribute("aria-label", atLimit ? "Plan " + planLabel(plan) + ": límite alcanzado" : "Ver uso del plan " + planLabel(plan));
   if (planLimitMessage) {
     planLimitMessage.textContent = blockedMessage;
@@ -261,6 +264,15 @@ async function loadPlanUsage() {
     const response = await fetch("/api/account/plan", { cache: "no-store" });
     if (!response.ok) throw new Error("No se pudo cargar el plan");
     planUsage = await response.json();
+    try {
+      const billingResponse = await fetch("/api/billing/status", { cache: "no-store" });
+      if (billingResponse.ok) {
+        const billing = await billingResponse.json();
+        planUsage.billingStatus = String(billing?.subscription?.status || "");
+      }
+    } catch (_error) {
+      planUsage.billingStatus = "";
+    }
     renderPlanUsage();
   } catch (_error) {
     planUsage = null;
