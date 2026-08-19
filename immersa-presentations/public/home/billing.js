@@ -154,8 +154,15 @@
       });
       plansRoot.appendChild(card);
     }
-    if (!state.enabled) showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
-    else if (!state.checkoutEnabled && !subscription) showNotice("El flujo está en pruebas. Todavía no se aceptan pagos.", "pending");
+    if (!state.enabled) {
+      showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
+    } else if (subscription?.status === "past_due") {
+      showNotice("No pudimos cobrar tu suscripción. Tu acceso se mantiene durante el periodo de recuperación; actualiza tu método de pago para evitar la cancelación.", "error");
+    } else if (!state.checkoutEnabled && !subscription) {
+      showNotice("El flujo está en pruebas. Todavía no se aceptan pagos.", "pending");
+    } else {
+      showNotice("");
+    }
   }
 
   function syncIntervalFromSubscription(data) {
@@ -367,7 +374,7 @@
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
     showNotice("Consultando tu estado…", "pending");
-    try { await load(); showNotice(""); } catch (error) { showNotice(error.message, "error"); }
+    try { await load(); } catch (error) { showNotice(error.message, "error"); }
   }
   function clearBillingReturnQuery() {
     const url = new URL(window.location.href);
