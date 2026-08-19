@@ -107,11 +107,18 @@
       ? (subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa"))
       : "";
     if (subscription) {
-      if (portalButton) portalButton.hidden = subscription.status !== "past_due";
+      if (portalButton) {
+        const canRecover = subscription.status === "past_due";
+        portalButton.hidden = !canRecover;
+        portalButton.style.display = canRecover ? "block" : "none";
+      }
       invoiceOpenButton.hidden = false;
       cancelOpenButton.hidden = Boolean(subscription.cancelAtPeriodEnd);
     } else {
-      if (portalButton) portalButton.hidden = true;
+      if (portalButton) {
+        portalButton.hidden = true;
+        portalButton.style.display = "none";
+      }
       invoiceOpenButton.hidden = true;
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;

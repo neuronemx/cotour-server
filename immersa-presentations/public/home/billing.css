@@ -71,6 +71,7 @@
 .billing-current-actions #billingPortal { display: none !important; }
 .billing-recovery-action { display:block; margin:10px 0 0; padding:10px 14px; border-radius:999px; background:var(--violet); color:#fff; font-size:12px; font-weight:800; }
 .billing-recovery-action:disabled { opacity:.6; cursor:wait; }
+.billing-recovery-action[hidden] { display:none; }
 .billing-plan { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
 .billing-plan:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(38,29,92,.08); border-color: rgba(109,59,239,.24); }
 
