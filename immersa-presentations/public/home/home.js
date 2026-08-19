@@ -1508,11 +1508,21 @@ function setPlanUsageOpen(open) {
 }
 planBadge?.addEventListener("click", (event) => {
   event.stopPropagation();
+  if (String(planUsage?.billingStatus || "") === "past_due") {
+    setPlanUsageOpen(false);
+    document.getElementById("billingOpen")?.click();
+    return;
+  }
   setPlanUsageOpen(planUsagePopover.hidden);
 });
 planBadge?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
+  if (String(planUsage?.billingStatus || "") === "past_due") {
+    setPlanUsageOpen(false);
+    document.getElementById("billingOpen")?.click();
+    return;
+  }
   setPlanUsageOpen(planUsagePopover.hidden);
 });
 planUpgradeLink?.addEventListener("click", (event) => {
@@ -1526,6 +1536,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setPlanUsageOpen(false);
 });
+window.addEventListener("immersa:billing-updated", () => { void loadPlanUsage(); });
 
 Promise.all([loadDecks(), loadPlanUsage()]).then(() => {
   const homeParams = new URLSearchParams(window.location.search);
