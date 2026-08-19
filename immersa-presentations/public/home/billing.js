@@ -33,6 +33,7 @@
   let interval = "monthly";
   let invoices = [];
   let pendingPlanChange = null;
+  let paymentMethodUpdated = false;
 
   const money = (centavos) => new Intl.NumberFormat("es-MX", {
     style: "currency", currency: "MXN", maximumFractionDigits: 0
@@ -187,7 +188,12 @@
     if (!state.enabled) {
       showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
     } else if (subscription?.status === "past_due") {
-      showNotice("No pudimos cobrar tu suscripción. Tu acceso se mantiene durante el periodo de recuperación; actualiza tu método de pago para evitar la cancelación.", "error");
+      showNotice(
+        paymentMethodUpdated
+          ? "Método de pago actualizado. Stripe reintentará el cobro automáticamente; tu acceso se mantiene durante el periodo de recuperación."
+          : "No pudimos cobrar tu suscripción. Tu acceso se mantiene durante el periodo de recuperación; actualiza tu método de pago para evitar la cancelación.",
+        paymentMethodUpdated ? "pending" : "error"
+      );
     } else if (!state.checkoutEnabled && !subscription) {
       showNotice("El flujo está en pruebas. Todavía no se aceptan pagos.", "pending");
     } else {
@@ -420,6 +426,7 @@
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
     invoiceForm.hidden = true;
+    paymentMethodUpdated = false;
     clearBillingReturnQuery();
   }
 
@@ -459,7 +466,8 @@
   invoiceForm?.addEventListener("submit", submitInvoiceRequest);
 
   const query = new URLSearchParams(location.search);
-  if (query.has("upgrade") || ["success", "change-return"].includes(query.get("billing"))) {
+  if (query.has("upgrade") || ["success", "change-return", "portal-return"].includes(query.get("billing"))) {
+    paymentMethodUpdated = query.get("billing") === "portal-return";
     void open().then(async () => {
       if (query.get("billing") !== "success") {
         const targetPlan = query.get("target_plan") || "";
