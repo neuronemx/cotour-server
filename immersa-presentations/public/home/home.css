@@ -919,6 +919,10 @@ body.modal-open { overflow: hidden; }
 /* Final compact desktop header and plan colors. */
 .stage-header .account-name,
 .stage-header .account-plan-badge { font-size:12.5px; font-weight:700; }
+.stage-header .account-name,
+.stage-header .account-plan-badge { font-size:11.5px; }
+.stage-header .account-avatar { color:#fff; }
+.stage-header .account-plan-badge::after { transform:translateY(-4px) rotate(45deg); }
 .stage-header .account-plan-badge.is-free::before { background:#9ca3af; }
 .stage-header .account-plan-badge.is-speaker::before { background:#3b82f6; }
 .stage-header .account-plan-badge.is-pro::before { background:linear-gradient(135deg,#8b5cf6,#6d3bef,#b66cff); }
