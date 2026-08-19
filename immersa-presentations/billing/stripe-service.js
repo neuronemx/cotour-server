@@ -614,7 +614,17 @@ class StripeBillingService {
     if (!invoice?.id || String(invoice.status) !== "open") {
       return { status: String(invoice?.status || "processing"), paid: invoice?.status === "paid" };
     }
-    const paidInvoice = await this.stripe.invoices.pay(invoice.id, { expand: ["payment_intent"] }, {
+    let paymentMethodId = stripeId(subscription.default_payment_method);
+    if (this.stripe.customers?.retrieve) {
+      const customer = await this.stripe.customers.retrieve(String(await this.repository.getCustomer(workspaceId)), {
+        expand: ["invoice_settings.default_payment_method"]
+      });
+      paymentMethodId = stripeId(customer.invoice_settings?.default_payment_method) || paymentMethodId;
+    }
+    const paidInvoice = await this.stripe.invoices.pay(invoice.id, {
+      ...(paymentMethodId ? { payment_method: paymentMethodId } : {}),
+      expand: ["payment_intent"]
+    }, {
       idempotencyKey: `invoice-recovery:${invoice.id}`
     });
     const paymentIntentStatus = typeof paidInvoice.payment_intent === "object"
