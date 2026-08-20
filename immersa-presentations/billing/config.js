@@ -10,8 +10,8 @@ const PUBLIC_PRICES_MXN = Object.freeze({
     annual: Object.freeze({ official: 999000, founders: 799000 })
   }),
   SPEAKER_PRO: Object.freeze({
-    monthly: Object.freeze({ official: 299900 }),
-    annual: Object.freeze({ official: 2999000, founders: 2399000 })
+    monthly: Object.freeze({ official: 249900 }),
+    annual: Object.freeze({ official: 2499000, founders: 1999000 })
   })
 });
 

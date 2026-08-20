@@ -28,8 +28,8 @@ const env = {
 test("billing catalog freezes approved MXN tax-inclusive prices", () => {
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.monthly, { official: 99900 });
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.annual, { official: 999000, founders: 799000 });
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.monthly, { official: 299900 });
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 2999000, founders: 2399000 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.monthly, { official: 249900 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 2499000, founders: 1999000 });
   assert.equal(PLAN_LIMITS.SPEAKER_PRO.audience, 300);
   assert.equal(publicCatalog(env, Date.parse("2026-09-01T12:00:00Z")).taxIncluded, true);
 });
@@ -44,7 +44,7 @@ test("founders offer has an explicit deadline and exact coupon per plan and inte
     interval: "annual",
     offer: "founders",
     currency: "mxn",
-    unitAmount: 2399000,
+    unitAmount: 1999000,
     priceId: "price_pro_year",
     couponId: "coupon_pro_year"
   });

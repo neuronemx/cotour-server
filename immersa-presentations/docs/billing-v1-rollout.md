@@ -15,15 +15,15 @@ Cada producto tiene sus precios mensual y anual. Los importes son finales, en MX
 | --- | --- | ---: | --- | --- |
 | IMMERSA SPEAKER | mensual | $999.00 | MXN | month |
 | IMMERSA SPEAKER | anual | $9,990.00 | MXN | year |
-| IMMERSA SPEAKER PRO | mensual | $2,999.00 | MXN | month |
-| IMMERSA SPEAKER PRO | anual | $29,990.00 | MXN | year |
+| IMMERSA SPEAKER PRO | mensual | $2,499.00 | MXN | month |
+| IMMERSA SPEAKER PRO | anual | $24,990.00 | MXN | year |
 
 Crear dos cupones de importe fijo y duración `forever` para Precio Fundadores anual:
 
 | Cupón | Descuento fijo | Precio final |
 | --- | ---: | ---: |
 | SPEAKER anual | $2,000.00 MXN | $7,990.00 MXN |
-| SPEAKER PRO anual | $6,000.00 MXN | $23,990.00 MXN |
+| SPEAKER PRO anual | $5,000.00 MXN | $19,990.00 MXN |
 
 No combinar el cupón Fundadores con otro descuento. Cada cupón debe tener duración `forever`, sin `redeem_by`, sin límite de redenciones y mantenerse activo en Stripe mientras sea elegible para una fase futura. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México. Founders sólo está disponible para membresías anuales y una suscripción Founders activa conserva su precio mientras permanezca activa.
 
