@@ -30,7 +30,7 @@
   const offerButtons = [...document.querySelectorAll("[data-billing-offer]")];
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
-  let interval = "monthly";
+  let interval = "annual";
   let invoices = [];
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
@@ -147,7 +147,7 @@
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;
     }
-    offerWrap.hidden = !state.foundersAvailable || interval !== "annual";
+    offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable || interval !== "annual") offerSelect.value = "official";
     if (founderPolicy) {
       founderPolicy.hidden = false;
@@ -465,11 +465,16 @@
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
+    if (interval === "monthly") offerSelect.value = "official";
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
     render();
   }));
   offerSelect?.addEventListener("change", () => { closePlanChangeConfirmation(); render(); });
   offerButtons.forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.billingOffer === "founders" && interval === "monthly") {
+      interval = "annual";
+      intervalButtons.forEach((item) => item.classList.toggle("is-active", item.dataset.billingInterval === interval));
+    }
     offerSelect.value = button.dataset.billingOffer;
     offerButtons.forEach((item) => item.classList.toggle("is-active", item === button));
     closePlanChangeConfirmation();

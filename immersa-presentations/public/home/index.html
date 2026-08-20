@@ -207,8 +207,8 @@
         <small class="billing-invoice-policy">Plazo ordinario: día 3 del mes siguiente al pago. Después se recibe como solicitud extemporánea para revisión administrativa. No necesitas subir tu Constancia de Situación Fiscal.</small>
       </form>
       <div class="billing-controls">
-        <div class="billing-segment" role="group" aria-label="Periodicidad"><button type="button" data-billing-interval="monthly" class="is-active">Mensual</button><button type="button" data-billing-interval="annual">Anual · paga 10 meses</button></div>
-        <div id="billingOfferWrap" class="billing-segment billing-offer-segment" role="group" aria-label="Precio" hidden><button type="button" data-billing-offer="founders" class="is-active">Fundadores</button><button type="button" data-billing-offer="official">Oficial</button><select id="billingOffer" aria-hidden="true" tabindex="-1"><option value="founders">Fundadores</option><option value="official">Oficial</option></select></div>
+        <div class="billing-segment" role="group" aria-label="Periodicidad"><button type="button" data-billing-interval="monthly">Mensual</button><button type="button" data-billing-interval="annual" class="is-active">Anual · paga 10 meses</button></div>
+        <div id="billingOfferWrap" class="billing-segment billing-offer-segment" role="group" aria-label="Precio" hidden><button type="button" data-billing-offer="founders" class="is-active">Fundadores</button><button type="button" data-billing-offer="official">Oficial</button><select id="billingOffer" aria-hidden="true" tabindex="-1"><option value="founders" selected>Fundadores</option><option value="official">Oficial</option></select></div>
       </div>
       <p id="billingFounderPolicy" class="billing-founder-policy" hidden>Precio Founders: 20% de descuento en la membresía anual. Contrata antes del 31 de octubre de 2026 a las 23:59 y conserva ese precio mientras mantengas activa tu suscripción.</p>
       <div id="billingPlans" class="billing-plans"></div>
@@ -227,7 +227,7 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=2"></script>
-  <script src="/home/billing.js?v=9"></script>
+  <script src="/home/billing.js?v=10"></script>
   <script src="/home/profile-editor.js?v=6"></script>
   <script src="/home/home.js?v=69&ui=3"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
