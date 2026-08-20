@@ -39,6 +39,9 @@
   const money = (centavos) => new Intl.NumberFormat("es-MX", {
     style: "currency", currency: "MXN", maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100);
+  const moneyMonthly = (centavos) => new Intl.NumberFormat("es-MX", {
+    style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2
+  }).format(Math.max(0, Number(centavos) || 0) / 100 / 12);
   const date = (value) => value ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(value)) : "";
   const label = (plan) => String(plan || "FREE").replace(/_/g, " ");
 
@@ -164,11 +167,14 @@
       const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
       const officialAmount = state.plans?.[plan]?.[interval]?.official;
       const period = interval === "annual" ? "al año" : "al mes";
+      const monthlyEquivalent = interval === "annual"
+        ? `<small class="billing-price-monthly-equivalent">${moneyMonthly(amount)} al mes</small>`
+        : "";
       const active = subscription && subscription.plan === plan && subscription.interval === interval;
       const limitedNote = `<small class="billing-price-limited${selectedOffer() === "founders" ? " is-visible" : ""}">Por tiempo limitado</small>`;
       const priceMarkup = selectedOffer() === "founders"
-        ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${limitedNote}`
-        : `${money(amount)} <small>${period}</small>`;
+        ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${monthlyEquivalent}${limitedNote}`
+        : `${money(amount)} <small>${period}</small>${monthlyEquivalent}`;
       const badgeMarkup = plan === "SPEAKER_PRO"
         ? `<span class="billing-plan-badge billing-plan-badge-pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2L12 16.4 5.7 21l2.3-7.2-6-4.6h7.6z"/></svg>Todo incluido</span>`
         : "";
