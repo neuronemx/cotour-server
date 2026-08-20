@@ -52,6 +52,7 @@
 .billing-plan-badge-pro svg{width:11px;height:11px;fill:currentColor}
 .billing-price-official{margin-right:6px;color:var(--muted);font-size:17px;font-weight:600;text-decoration:line-through;text-decoration-thickness:1.5px}
 .billing-price-founders{color:var(--ink)}
+.billing-price-monthly-equivalent{display:block;margin-top:3px;color:var(--muted)!important;font:600 11px/1.3 var(--font-body)!important}
 .billing-price-limited{display:block;min-height:18px;margin-top:4px;color:var(--violet)!important;font:700 10.5px/1.3 var(--font-body)!important;letter-spacing:.02em;visibility:hidden}
 .billing-price-limited.is-visible{visibility:visible}
 .billing-plan-description{min-height:36px;font-size:13px!important;font-weight:600;color:var(--ink-secondary)!important;line-height:1.35}
