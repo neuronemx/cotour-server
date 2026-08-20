@@ -42,14 +42,15 @@ class BillingRepository {
     );
   }
 
-  async findReusableCheckout({ workspaceId, plan, interval, offer }) {
+  async findReusableCheckout({ workspaceId, plan, interval, offer, priceId }) {
     const [rows] = await this.pool.execute(
-      `SELECT id, provider_checkout_session_id, checkout_url_expires_at
+      `SELECT id, provider_checkout_session_id, provider_price_id, checkout_url_expires_at
        FROM billing_checkout_attempts
        WHERE workspace_id = ? AND requested_plan = ? AND billing_interval = ? AND offer_source = ?
+         AND provider_price_id = ?
          AND status = 'open' AND checkout_url_expires_at > CURRENT_TIMESTAMP(3)
        ORDER BY created_at DESC LIMIT 1`,
-      [String(workspaceId), plan, interval, offer]
+      [String(workspaceId), plan, interval, offer, priceId]
     );
     return rows?.[0] || null;
   }
