@@ -217,7 +217,7 @@ class StripeBillingService {
       throw publicError("SUBSCRIPTION_ALREADY_EXISTS", "Administra tu suscripción actual para cambiar de plan", 409);
     }
     const reusable = await this.repository.findReusableCheckout({
-      workspaceId, plan: entry.plan, interval: entry.interval, offer: entry.offer
+      workspaceId, plan: entry.plan, interval: entry.interval, offer: entry.offer, priceId: entry.priceId
     });
     if (reusable?.provider_checkout_session_id) {
       const session = await this.stripe.checkout.sessions.retrieve(String(reusable.provider_checkout_session_id));
