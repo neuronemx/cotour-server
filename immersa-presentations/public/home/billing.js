@@ -24,6 +24,7 @@
   const cancelConfirm = document.getElementById("billingCancelConfirm");
   const cancelBackButton = document.getElementById("billingCancelBack");
   const cancelSubmitButton = document.getElementById("billingCancelSubmit");
+  const secondaryLinks = document.querySelector(".billing-secondary-links");
 
   const offerWrap = document.getElementById("billingOfferWrap");
   const offerSelect = document.getElementById("billingOffer");
@@ -131,6 +132,7 @@
       ? (subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa"))
       : "";
     if (subscription) {
+      if (secondaryLinks) secondaryLinks.hidden = false;
       if (portalButton) {
         const canRecover = subscription.status === "past_due";
         portalButton.hidden = !canRecover;
@@ -139,6 +141,7 @@
       invoiceOpenButton.hidden = false;
       cancelOpenButton.hidden = Boolean(subscription.cancelAtPeriodEnd);
     } else {
+      if (secondaryLinks) secondaryLinks.hidden = true;
       if (portalButton) {
         portalButton.hidden = true;
         portalButton.style.display = "none";
