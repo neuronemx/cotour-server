@@ -70,7 +70,7 @@
   }
 
   function selectedOffer() {
-    return state?.foundersAvailable && offerSelect.value === "founders" ? "founders" : "official";
+    return state?.foundersAvailable && interval === "annual" && offerSelect.value === "founders" ? "founders" : "official";
   }
 
   function closePlanChangeConfirmation() {
@@ -147,11 +147,11 @@
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;
     }
-    offerWrap.hidden = !state.foundersAvailable;
-    if (!state.foundersAvailable) offerSelect.value = "official";
+    offerWrap.hidden = !state.foundersAvailable || interval !== "annual";
+    if (!state.foundersAvailable || interval !== "annual") offerSelect.value = "official";
     if (founderPolicy) {
       founderPolicy.hidden = false;
-      founderPolicy.classList.toggle("is-visible", state.foundersAvailable && selectedOffer() === "founders");
+      founderPolicy.classList.toggle("is-visible", state.foundersAvailable && interval === "annual" && selectedOffer() === "founders");
     }
     offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();

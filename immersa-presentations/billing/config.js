@@ -6,12 +6,12 @@ const PLAN_RANK = Object.freeze({ FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 });
 
 const PUBLIC_PRICES_MXN = Object.freeze({
   SPEAKER: Object.freeze({
-    monthly: Object.freeze({ official: 50000, founders: 39900 }),
-    annual: Object.freeze({ official: 500000, founders: 399000 })
+    monthly: Object.freeze({ official: 99900 }),
+    annual: Object.freeze({ official: 999000, founders: 799000 })
   }),
   SPEAKER_PRO: Object.freeze({
-    monthly: Object.freeze({ official: 150000, founders: 119900 }),
-    annual: Object.freeze({ official: 1500000, founders: 1199000 })
+    monthly: Object.freeze({ official: 299900 }),
+    annual: Object.freeze({ official: 2999000, founders: 2399000 })
   })
 });
 
@@ -28,11 +28,9 @@ const PRICE_ENV_KEYS = Object.freeze({
 
 const FOUNDERS_COUPON_ENV_KEYS = Object.freeze({
   SPEAKER: Object.freeze({
-    monthly: "STRIPE_FOUNDERS_SPEAKER_MONTHLY_COUPON_ID",
     annual: "STRIPE_FOUNDERS_SPEAKER_ANNUAL_COUPON_ID"
   }),
   SPEAKER_PRO: Object.freeze({
-    monthly: "STRIPE_FOUNDERS_SPEAKER_PRO_MONTHLY_COUPON_ID",
     annual: "STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID"
   })
 });
@@ -79,6 +77,9 @@ function resolveCatalogEntry({ plan, interval, offer = "official", env = process
   const normalizedInterval = normalizeBillingInterval(interval);
   const normalizedOffer = String(offer || "official").trim().toLowerCase();
   if (!["official", "founders"].includes(normalizedOffer)) throw publicError("INVALID_BILLING_OFFER", "La promoción seleccionada no es válida");
+  if (normalizedOffer === "founders" && normalizedInterval !== "annual") {
+    throw publicError("BILLING_FOUNDERS_ANNUAL_ONLY", "El Precio Fundadores sólo está disponible en la membresía anual", 409);
+  }
   if (normalizedOffer === "founders" && !retainFounders && !foundersOfferAvailable(env, now)) {
     throw publicError("BILLING_OFFER_UNAVAILABLE", "El Precio Fundadores ya no está disponible", 409);
   }

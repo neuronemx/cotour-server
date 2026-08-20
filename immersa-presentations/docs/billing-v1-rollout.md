@@ -1,4 +1,4 @@
-# COBROS v1 — configuración y rollout
+# COBROS — Pricing v2 y rollout
 
 Este documento congela la configuración aprobada para el environment temporal. No habilita cobros en producción.
 
@@ -13,21 +13,21 @@ Cada producto tiene sus precios mensual y anual. Los importes son finales, en MX
 
 | Producto | Precio | Importe total | Moneda | Intervalo |
 | --- | --- | ---: | --- | --- |
-| IMMERSA SPEAKER | mensual | $500.00 | MXN | month |
-| IMMERSA SPEAKER | anual | $5,000.00 | MXN | year |
-| IMMERSA SPEAKER PRO | mensual | $1,500.00 | MXN | month |
-| IMMERSA SPEAKER PRO | anual | $15,000.00 | MXN | year |
+| IMMERSA SPEAKER | mensual | $999.00 | MXN | month |
+| IMMERSA SPEAKER | anual | $9,990.00 | MXN | year |
+| IMMERSA SPEAKER PRO | mensual | $2,999.00 | MXN | month |
+| IMMERSA SPEAKER PRO | anual | $29,990.00 | MXN | year |
 
-Crear cuatro cupones de importe fijo y duración `forever` para Precio Fundadores:
+Crear dos cupones de importe fijo y duración `forever` para Precio Fundadores anual:
 
 | Cupón | Descuento fijo | Precio final |
 | --- | ---: | ---: |
-| SPEAKER mensual | $101.00 MXN | $399.00 MXN |
-| SPEAKER anual | $1,010.00 MXN | $3,990.00 MXN |
-| SPEAKER PRO mensual | $301.00 MXN | $1,199.00 MXN |
-| SPEAKER PRO anual | $3,010.00 MXN | $11,990.00 MXN |
+| SPEAKER anual | $2,000.00 MXN | $7,990.00 MXN |
+| SPEAKER PRO anual | $6,000.00 MXN | $23,990.00 MXN |
 
-No combinar el cupón Fundadores con otro descuento. Cada cupón debe tener duración `forever`, sin `redeem_by`, sin límite de redenciones y mantenerse activo en Stripe mientras sea elegible para una fase futura. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México; una suscripción Fundadores activa conserva el precio Fundadores aplicable cuando cambia de plan o intervalo.
+No combinar el cupón Fundadores con otro descuento. Cada cupón debe tener duración `forever`, sin `redeem_by`, sin límite de redenciones y mantenerse activo en Stripe mientras sea elegible para una fase futura. La elegibilidad inicial termina el 31 de octubre de 2026 a las 11:59:59 p.m. de Ciudad de México. Founders sólo está disponible para membresías anuales y una suscripción Founders activa conserva su precio mientras permanezca activa.
+
+Los precios aprobados por evento son $799.00 MXN para SPEAKER y $2,499.00 MXN para SPEAKER PRO. El Checkout por evento queda como modalidad separada: no debe modelarse como una suscripción recurrente ni activar el entitlement mensual hasta definir su webhook y vigencia.
 
 ## Customer Portal
 
@@ -67,9 +67,7 @@ STRIPE_SPEAKER_MONTHLY_PRICE_ID=price_...
 STRIPE_SPEAKER_ANNUAL_PRICE_ID=price_...
 STRIPE_SPEAKER_PRO_MONTHLY_PRICE_ID=price_...
 STRIPE_SPEAKER_PRO_ANNUAL_PRICE_ID=price_...
-STRIPE_FOUNDERS_SPEAKER_MONTHLY_COUPON_ID=...
 STRIPE_FOUNDERS_SPEAKER_ANNUAL_COUPON_ID=...
-STRIPE_FOUNDERS_SPEAKER_PRO_MONTHLY_COUPON_ID=...
 STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID=...
 ```
 

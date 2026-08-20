@@ -21,17 +21,15 @@ const env = {
   STRIPE_SPEAKER_ANNUAL_PRICE_ID: "price_speaker_year",
   STRIPE_SPEAKER_PRO_MONTHLY_PRICE_ID: "price_pro_month",
   STRIPE_SPEAKER_PRO_ANNUAL_PRICE_ID: "price_pro_year",
-  STRIPE_FOUNDERS_SPEAKER_MONTHLY_COUPON_ID: "coupon_speaker_month",
   STRIPE_FOUNDERS_SPEAKER_ANNUAL_COUPON_ID: "coupon_speaker_year",
-  STRIPE_FOUNDERS_SPEAKER_PRO_MONTHLY_COUPON_ID: "coupon_pro_month",
   STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_pro_year"
 };
 
 test("billing catalog freezes approved MXN tax-inclusive prices", () => {
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.monthly, { official: 50000, founders: 39900 });
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.annual, { official: 500000, founders: 399000 });
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.monthly, { official: 150000, founders: 119900 });
-  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 1500000, founders: 1199000 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.monthly, { official: 99900 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.annual, { official: 999000, founders: 799000 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.monthly, { official: 299900 });
+  assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 2999000, founders: 2399000 });
   assert.equal(PLAN_LIMITS.SPEAKER_PRO.audience, 300);
   assert.equal(publicCatalog(env, Date.parse("2026-09-01T12:00:00Z")).taxIncluded, true);
 });
@@ -46,12 +44,16 @@ test("founders offer has an explicit deadline and exact coupon per plan and inte
     interval: "annual",
     offer: "founders",
     currency: "mxn",
-    unitAmount: 1199000,
+    unitAmount: 2399000,
     priceId: "price_pro_year",
     couponId: "coupon_pro_year"
   });
   assert.throws(
-    () => resolveCatalogEntry({ plan: "SPEAKER", interval: "monthly", offer: "founders", env, now: after }),
+    () => resolveCatalogEntry({ plan: "SPEAKER", interval: "monthly", offer: "founders", env, now: before }),
+    (error) => error.code === "BILLING_FOUNDERS_ANNUAL_ONLY" && error.statusCode === 409
+  );
+  assert.throws(
+    () => resolveCatalogEntry({ plan: "SPEAKER", interval: "annual", offer: "founders", env, now: after }),
     (error) => error.code === "BILLING_OFFER_UNAVAILABLE" && error.statusCode === 409
   );
 });
