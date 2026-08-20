@@ -468,7 +468,7 @@
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
-    if (interval === "monthly") offerSelect.value = "official";
+    offerSelect.value = interval === "annual" && state?.foundersAvailable ? "founders" : "official";
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
     render();
   }));
