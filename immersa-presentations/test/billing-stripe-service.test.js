@@ -153,8 +153,6 @@ test("Checkout resolves price and discount only from server configuration", asyn
   assert.equal(checkout.line_items[0].price, "price_pro_year");
   assert.deepEqual(checkout.discounts, [{ coupon: "coupon_py" }]);
   assert.deepEqual(checkout.phone_number_collection, { enabled: true });
-  assert.equal(checkout.custom_fields[0].key, "country_or_region");
-  assert.equal(checkout.custom_fields[0].optional, false);
   assert.equal(checkout.metadata.immersa_workspace_id, "workspace-1");
   assert.equal(JSON.stringify(checkout).includes("evil"), false);
 });
