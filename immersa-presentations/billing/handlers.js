@@ -26,6 +26,13 @@ function createBillingHandlers(service, options = {}) {
         errorResponse(res, error, "No se pudo iniciar el pago");
       }
     },
+    eventPassCheckout: async (req, res) => {
+      try {
+        res.json(await service.createEventPassCheckout(req.accountContext, req.body, { admin: isAdmin(req.accountContext) }));
+      } catch (error) {
+        errorResponse(res, error, "No se pudo iniciar el pase de 7 días");
+      }
+    },
     adminGrant: async (req, res) => {
       if (!isAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
       try {
