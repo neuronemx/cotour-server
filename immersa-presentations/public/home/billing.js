@@ -154,6 +154,7 @@
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;
     }
+    intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !state.eventPass?.available; });
     offerWrap.hidden = !state.foundersAvailable;
     if (!state.foundersAvailable || interval !== "annual") offerSelect.value = "official";
     if (founderPolicy) {
