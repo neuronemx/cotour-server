@@ -152,3 +152,8 @@
 .billing-legal{padding:20px 32px 28px;margin-top:20px;text-align:center;font-size:11.5px;line-height:1.7;color:rgba(21,19,31,.38)}
 .billing-secondary-links{margin:0 32px 4px}
 @media(max-width:680px){.billing-modal{width:calc(100% - 20px);max-height:92vh}.billing-header{padding:30px 20px 18px}.billing-controls{padding:0 20px 18px}.billing-segment{width:100%}.billing-segment button{flex:1;padding-left:8px;padding-right:8px}.billing-founder-policy{margin-left:20px;margin-right:20px}.billing-plans{grid-template-columns:1fr;padding:0 20px}.billing-legal{padding-left:20px;padding-right:20px}.billing-secondary-links{margin-left:20px;margin-right:20px}}
+
+/* Remove the hairline above the Immersa gradient pleca. */
+.billing-modal{border:0!important;}
+/* Founders sparkle on the Pro annual savings indicator. */
+.billing-savings-chip svg{stroke:currentColor;}
