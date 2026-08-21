@@ -791,6 +791,18 @@ class StripeBillingService {
         });
         await this.repository.markCheckoutSession(object.id, "completed");
         await this.repository.recalculateEntitlement(workspaceId, { now: this.now(), protectDowngrade: false });
+        if (workspaceId && !purchase.duplicate) {
+          await this.repository.queueBillingEmail({
+            workspaceId,
+            eventId: event.id,
+            kind: "event-pass-confirmed",
+            objectId: object.id,
+            plan,
+            amountTotal: object.amount_total ?? null,
+            currency: object.currency || "mxn",
+            periodEnd: endsAt
+          });
+        }
         return { eventPass: true, workspaceId, plan, endsAt, duplicate: purchase.duplicate };
       }
       const subscriptionId = stripeId(object.subscription);
