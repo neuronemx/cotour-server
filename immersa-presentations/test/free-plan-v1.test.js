@@ -191,7 +191,7 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(html, /id="planStorageUsage">0 MB de 50 MB</);
   assert.match(html, /id="planAudienceLimit">Hasta 25</);
   assert.match(html, /id="billingOpen"[^>]*>Ver planes</);
-  assert.match(html, /id="accountPlanBadge"[^>]*aria-controls="planUsage"/);
+  assert.match(html, /id="planBadge"[^>]*aria-controls="planUsage"/);
   assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planLimitMessage"'));
   assert.match(source, /fetch\("\/api\/account\/plan"/);
   assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);

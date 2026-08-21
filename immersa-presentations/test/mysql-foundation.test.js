@@ -63,6 +63,7 @@ test("database schema preserves Q&A and Speaker metrics storage contracts", asyn
     "015_speaker_basic_metrics.sql",
     "016_billing_v1.sql",
     "017_billing_cleanup_requirements.sql",
+    "017_billing_event_pass.sql",
     "018_billing_invoice_requests.sql",
     "019_billing_email_notifications.sql"
   ]);
@@ -118,6 +119,7 @@ test("migration runner serializes and records pending SQL files", async () => {
     "015_speaker_basic_metrics.sql",
     "016_billing_v1.sql",
     "017_billing_cleanup_requirements.sql",
+    "017_billing_event_pass.sql",
     "018_billing_invoice_requests.sql",
     "019_billing_email_notifications.sql"
   ]);

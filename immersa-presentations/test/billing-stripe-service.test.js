@@ -114,6 +114,8 @@ function setup(overrides = {}) {
     STRIPE_FOUNDERS_SPEAKER_ANNUAL_COUPON_ID: "coupon_sy",
     STRIPE_FOUNDERS_SPEAKER_PRO_MONTHLY_COUPON_ID: "coupon_pm",
     STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_py",
+    STRIPE_SPEAKER_7_DAY_PASS_PRICE_ID: "price_speaker_pass",
+    STRIPE_SPEAKER_PRO_7_DAY_PASS_PRICE_ID: "price_pro_pass",
     BETTER_AUTH_URL: "https://app.immersalive.com"
   };
   const service = new StripeBillingService({
@@ -150,6 +152,9 @@ test("Checkout resolves price and discount only from server configuration", asyn
   const checkout = calls.find(([name]) => name === "checkout")[1];
   assert.equal(checkout.line_items[0].price, "price_pro_year");
   assert.deepEqual(checkout.discounts, [{ coupon: "coupon_py" }]);
+  assert.deepEqual(checkout.phone_number_collection, { enabled: true });
+  assert.equal(checkout.custom_fields[0].key, "country_or_region");
+  assert.equal(checkout.custom_fields[0].optional, false);
   assert.equal(checkout.metadata.immersa_workspace_id, "workspace-1");
   assert.equal(JSON.stringify(checkout).includes("evil"), false);
 });
@@ -384,21 +389,21 @@ test("plan change recognizes Stripe's nested subscription discount shape", async
     subscription: {
       provider_subscription_id: "sub_1",
       plan: "SPEAKER",
-      billing_interval: "monthly",
+      billing_interval: "annual",
       status: "active"
     },
     stripeDiscounts: [{
-      source: { coupon: "coupon_sm", type: "coupon" },
+      source: { coupon: "coupon_sy", type: "coupon" },
       promotion_code: null
     }]
   });
   const result = await service.createPlanChangePortal(
     { workspace: { id: "workspace-1" } },
-    { plan: "SPEAKER_PRO", interval: "monthly", offer: "official" }
+    { plan: "SPEAKER_PRO", interval: "annual", offer: "official" }
   );
   assert.equal(result.offer, "founders");
   const update = calls.find(([name]) => name === "subscriptionUpdate");
-  assert.deepEqual(update[2].discounts, [{ coupon: "coupon_pm" }]);
+  assert.deepEqual(update[2].discounts, [{ coupon: "coupon_py" }]);
   assert.equal(update[2].metadata.immersa_offer, "founders");
 });
 
@@ -408,9 +413,16 @@ test("plan change uses a Stripe-hosted confirmation flow and preserves founders 
     subscription: {
       provider_subscription_id: "sub_1",
       plan: "SPEAKER",
-      billing_interval: "monthly",
+      billing_interval: "annual",
       status: "active",
-      discount_id: "coupon_sm"
+      discount_id: "coupon_sy"
+    },
+    stripeSubscription: {
+      id: "sub_1",
+      customer: "cus_1",
+      status: "active",
+      discounts: [{ coupon: { id: "coupon_sy" } }],
+      items: { data: [{ id: "si_1", price: { id: "price_speaker_year" } }] }
     }
   });
   const result = await service.createPlanChangePortal(
@@ -460,6 +472,7 @@ test("downgrades and annual to monthly changes keep the paid period intact befor
     { plan: "SPEAKER", interval: "monthly" }
   );
   assert.equal(result.timing, "period_end");
+  assert.equal(result.offer, "official");
   assert.equal(result.scheduled, true);
   assert.equal(calls.some(([name]) => name === "portal"), false);
   assert.equal(calls.some(([name]) => name === "subscriptionUpdate"), false);
@@ -473,7 +486,7 @@ test("downgrades and annual to monthly changes keep the paid period intact befor
   assert.deepEqual(scheduleUpdate[2].phases[0].discounts, [{ coupon: "coupon_py" }]);
   assert.equal(scheduleUpdate[2].phases[1].items[0].price, "price_speaker_month");
   assert.equal(scheduleUpdate[2].phases[1].duration.interval, "month");
-  assert.deepEqual(scheduleUpdate[2].phases[1].discounts, [{ coupon: "coupon_sm" }]);
+  assert.deepEqual(scheduleUpdate[2].phases[1].discounts, []);
 });
 
 test("a retired founders coupon returns a clear IMMERSA message instead of Stripe internals", async () => {
@@ -503,7 +516,7 @@ test("a retired founders coupon returns a clear IMMERSA message instead of Strip
   await assert.rejects(
     () => service.createPlanChangePortal(
       { workspace: { id: "workspace-1" } },
-      { plan: "SPEAKER_PRO", interval: "monthly" }
+      { plan: "SPEAKER", interval: "annual" }
     ),
     (error) => error.code === "FOUNDERS_COUPON_UNAVAILABLE" && /Precio Fundadores configurado/.test(error.publicMessage)
   );

@@ -541,9 +541,15 @@ class StripeBillingService {
       expand: ["discounts"]
     });
     const liveDiscount = subscription.discounts?.[0] || subscription.discount || null;
-    const offer = this.founderOfferForDiscount(
+    const currentOffer = this.founderOfferForDiscount(
       stripeDiscountId(liveDiscount)
     );
+    // Founders is annual-only. Downgrading to monthly keeps the current
+    // benefit through the paid period, then continues at the Official price.
+    const requestedInterval = String(payload.interval || "").trim().toLowerCase();
+    const offer = currentOffer === "founders" && requestedInterval === "monthly"
+      ? "official"
+      : currentOffer;
     const target = resolveCatalogEntry({
       ...payload,
       offer,
