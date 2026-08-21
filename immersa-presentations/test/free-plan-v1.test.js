@@ -223,4 +223,6 @@ test("Cobros renders FREE as a non-purchasable in-app plan reference", () => {
   assert.match(billing, /freeButton\.classList\.toggle\("is-current", freeActive\)/);
   assert.match(css, /\.billing-plans\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(css, /\.billing-tier-dot\.free\{background:#A1A1AA\}/);
+  assert.match(css, /\.billing-modal\{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain/);
+  assert.match(css, /@media\(max-width:680px\)\{\n  \.billing-backdrop\{align-items:flex-start;overflow-y:auto;padding:10px 0\}/);
 });
