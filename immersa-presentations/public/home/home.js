@@ -16,9 +16,12 @@ const fileDrop = document.getElementById("fileDrop");
 const fileInput = document.getElementById("pptxFile");
 const selectedFileName = document.getElementById("selectedFileName");
 const accountPlanBadge = document.getElementById("accountPlanBadge");
+const planBadge = document.getElementById("planBadge");
+const planUpgradeLink = document.getElementById("planUpgradeLink");
 const adminAccountsLink = document.getElementById("adminAccountsLink");
 const planUsagePanel = document.getElementById("planUsage");
 const planName = document.getElementById("planName");
+const planUsageTitle = document.getElementById("planUsageTitle");
 const planDeckUsage = document.getElementById("planDeckUsage");
 const planStorageUsage = document.getElementById("planStorageUsage");
 const planAudienceLimit = document.getElementById("planAudienceLimit");
@@ -218,16 +221,31 @@ function replacementIssue(file, deck) {
 function renderPlanUsage() {
   if (!planUsage) return;
   const plan = String(planUsage.plan || "FREE");
-  if (accountPlanBadge) accountPlanBadge.textContent = planLabel(plan);
+  if (accountPlanBadge) {
+    accountPlanBadge.textContent = planLabel(plan);
+    accountPlanBadge.classList.toggle("is-free", plan === "FREE");
+    accountPlanBadge.classList.toggle("is-speaker", plan === "SPEAKER");
+    accountPlanBadge.classList.toggle("is-pro", plan === "SPEAKER_PRO");
+  }
   if (planName) planName.textContent = planLabel(plan);
+  if (planUsageTitle) planUsageTitle.textContent = "Uso de tu plan " + planLabel(plan);
   if (planUsagePanel) planUsagePanel.setAttribute("aria-label", "Uso del plan " + plan);
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
-  if (planAudienceLimit) planAudienceLimit.textContent = "Hasta " + Math.max(0, Number(planUsage.limits.audience) || 0);
+  if (planAudienceLimit) planAudienceLimit.textContent = "Hasta " + Math.max(0, Number(planUsage.limits.audience) || 0) + " participantes simultáneos";
   if (planDeckBar) planDeckBar.style.width = percentage(planUsage.usage.decks, planUsage.limits.decks) + "%";
   if (planStorageBar) planStorageBar.style.width = percentage(planUsage.usage.storageBytes, planUsage.limits.storageBytes) + "%";
 
   const blockedMessage = currentPlanBlockMessage();
+  const atLimit = Boolean(
+    Number(planUsage.usage?.decks) >= Number(planUsage.limits?.decks)
+    || Number(planUsage.usage?.storageBytes) >= Number(planUsage.limits?.storageBytes)
+  );
+  accountPlanBadge?.classList.toggle("is-limit", atLimit);
+  const billingAlert = String(planUsage.billingStatus || "") === "past_due";
+  planBadge?.classList.toggle("is-billing-alert", billingAlert);
+  planBadge?.setAttribute("title", billingAlert ? "Pago pendiente: actualiza tu método de pago" : "Mi cuenta");
+  accountPlanBadge?.setAttribute("aria-label", atLimit ? "Plan " + planLabel(plan) + ": límite alcanzado" : "Ver uso del plan " + planLabel(plan));
   if (planLimitMessage) {
     planLimitMessage.textContent = blockedMessage;
     planLimitMessage.hidden = !blockedMessage;
@@ -246,6 +264,15 @@ async function loadPlanUsage() {
     const response = await fetch("/api/account/plan", { cache: "no-store" });
     if (!response.ok) throw new Error("No se pudo cargar el plan");
     planUsage = await response.json();
+    try {
+      const billingResponse = await fetch("/api/billing/status", { cache: "no-store" });
+      if (billingResponse.ok) {
+        const billing = await billingResponse.json();
+        planUsage.billingStatus = String(billing?.subscription?.status || "");
+      }
+    } catch (_error) {
+      planUsage.billingStatus = "";
+    }
     renderPlanUsage();
   } catch (_error) {
     planUsage = null;
@@ -1472,6 +1499,44 @@ if (nameForm) {
     }
   });
 }
+
+const planUsagePopover = document.getElementById("planUsage");
+function setPlanUsageOpen(open) {
+  if (!planBadge || !planUsagePopover) return;
+  planUsagePopover.hidden = !open;
+  planBadge.setAttribute("aria-expanded", String(open));
+}
+planBadge?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  if (String(planUsage?.billingStatus || "") === "past_due") {
+    setPlanUsageOpen(false);
+    document.getElementById("billingOpen")?.click();
+    return;
+  }
+  setPlanUsageOpen(planUsagePopover.hidden);
+});
+planBadge?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  if (String(planUsage?.billingStatus || "") === "past_due") {
+    setPlanUsageOpen(false);
+    document.getElementById("billingOpen")?.click();
+    return;
+  }
+  setPlanUsageOpen(planUsagePopover.hidden);
+});
+planUpgradeLink?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setPlanUsageOpen(false);
+  document.getElementById("billingOpen")?.click();
+});
+document.addEventListener("click", (event) => {
+  if (!planUsagePopover?.hidden && !planUsagePopover.contains(event.target) && event.target !== planBadge) setPlanUsageOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setPlanUsageOpen(false);
+});
+window.addEventListener("immersa:billing-updated", () => { void loadPlanUsage(); });
 
 Promise.all([loadDecks(), loadPlanUsage()]).then(() => {
   const homeParams = new URLSearchParams(window.location.search);

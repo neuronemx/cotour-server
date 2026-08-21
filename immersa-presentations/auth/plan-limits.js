@@ -13,7 +13,7 @@ const PLAN_LIMITS = Object.freeze({
   }),
   SPEAKER_PRO: Object.freeze({
     decks: 15,
-    audience: 250,
+    audience: 300,
     storageBytes: 500 * BYTES_PER_MEGABYTE
   })
 });

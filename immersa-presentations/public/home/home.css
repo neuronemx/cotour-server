@@ -75,19 +75,25 @@ button:disabled { cursor: wait; opacity: .65; }
 
 .stage-inner {
   position: relative;
-  z-index: 1;
+  z-index: 1000;
   width: min(1240px, calc(100% - 40px));
   margin: 0 auto;
+  padding-top: 86px;
 }
 
 .stage-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 26px 0 0;
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  padding: 14px max(20px, calc((100vw - 1240px) / 2));
+  background: rgba(10,11,38,.76);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(16px);
 }
-.account-pill{display:flex;align-items:center;gap:9px;max-width:min(46vw,360px);padding:7px 8px 7px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.07);backdrop-filter:blur(12px);color:#fff;font-size:12px}.account-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.account-pill #logoutButton{flex:none;border:0;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.78);font-size:11px;font-weight:700;cursor:pointer}.account-pill #logoutButton:hover{background:rgba(255,255,255,.17);color:#fff}.account-pill #logoutButton:disabled{opacity:.55}.account-pill .live-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#36d49a;box-shadow:0 0 0 3px rgba(54,212,154,.12)}
-.account-plan-badge{flex:none;padding:4px 7px;border:1px solid rgba(126,240,255,.32);border-radius:999px;background:rgba(6,207,224,.12);color:#9ee9f0;font-family:var(--font-display);font-size:9px;font-weight:800;letter-spacing:.08em}
+.stage-header-inner{display:flex;align-items:center;justify-content:space-between;width:min(1240px,100%);margin:0 auto}.stage-header-actions{display:flex;align-items:center;gap:10px}.header-plans-button{padding:8px 13px;border:1px solid rgba(126,240,255,.36);border-radius:999px;background:rgba(6,207,224,.10);color:#b8f4f7;font-size:11px;font-weight:800}.header-plans-button:hover{background:rgba(6,207,224,.20);color:#fff}
+.account-pill{position:relative;display:flex;align-items:center;gap:9px;max-width:min(46vw,420px);padding:7px 8px 7px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.07);backdrop-filter:blur(12px);color:#fff;font-size:12px}.account-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.account-pill #logoutButton{flex:none;border:0;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.78);font-size:11px;font-weight:700;cursor:pointer}.account-pill #logoutButton:hover{background:rgba(255,255,255,.17);color:#fff}.account-pill #logoutButton:disabled{opacity:.55}.account-pill .live-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#36d49a;box-shadow:0 0 0 3px rgba(54,212,154,.12)}
+.account-plan-badge{appearance:none;-webkit-appearance:none;display:inline-flex;align-items:center;justify-content:center;flex:none;margin:0;padding:4px 8px;border:1px solid rgba(126,240,255,.32);border-radius:999px;background:rgba(6,207,224,.12);color:#9ee9f0;font:800 9px/1 var(--font-display);letter-spacing:.08em;white-space:nowrap;cursor:pointer}.account-plan-badge:hover,.account-plan-badge:focus-visible{background:rgba(6,207,224,.22);outline:2px solid rgba(126,240,255,.40);outline-offset:2px}.account-plan-badge.is-limit{border-color:rgba(255,116,140,.62);background:rgba(239,68,98,.22);color:#ffd1da}
+.account-plan-popover{position:absolute;right:10px;top:calc(100% + 10px);width:min(300px,calc(100vw - 28px));padding:15px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(20,20,53,.96);box-shadow:0 20px 48px rgba(0,0,0,.28);color:#fff}.account-plan-popover[hidden]{display:none}.account-plan-popover .plan-usage-head{color:rgba(255,255,255,.68)}.account-plan-popover .plan-usage-head strong{color:#b8f4f7}.account-plan-popover .plan-usage-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.account-plan-popover .plan-usage-metric-limit{grid-column:1/-1}.account-plan-popover .plan-usage-metric span{color:rgba(255,255,255,.58)}.account-plan-popover .plan-usage-metric strong{color:#fff}.account-plan-popover .plan-usage-metric i{background:rgba(255,255,255,.14)}
 .brand { display: inline-flex; align-items: center; min-width: 0; flex: none; }
 .brand picture { display: contents; }
 .brand-logo-full { width: clamp(120px, 11vw, 156px); height: auto; display: block; }
@@ -179,7 +185,7 @@ button:disabled { cursor: wait; opacity: .65; }
   max-width: 620px;
 }
 .upload-form { display: grid; gap: 22px; }
-.plan-usage{display:grid;gap:11px;padding:13px 14px;border:1px solid rgba(67,104,246,.11);border-radius:var(--radius-md);background:linear-gradient(120deg,rgba(139,47,224,.045),rgba(6,207,224,.055))}.plan-usage-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:11px;font-weight:700}.plan-usage-head strong{color:var(--violet);font-family:var(--font-display);font-size:10px;letter-spacing:.08em}.plan-usage-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.plan-usage-metric{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center}.plan-usage-metric-limit{grid-column:1/-1}.plan-usage-metric span{min-width:0;color:var(--muted-2);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plan-usage-metric strong{color:var(--ink-soft);font-size:10.5px;white-space:nowrap}.plan-usage-metric i{grid-column:1/-1;height:4px;overflow:hidden;border-radius:999px;background:rgba(67,104,246,.1)}.plan-usage-metric b{display:block;width:0;height:100%;border-radius:inherit;background:var(--grad);transition:width .2s ease}.plan-limit-message{margin:0;color:var(--red);font-size:11px;font-weight:700;line-height:1.35}
+.plan-limit-message{margin:0;padding:11px 13px;border-radius:12px;background:#fff0f3;color:var(--red);font-size:12px;font-weight:700;line-height:1.4}.plan-limit-message[hidden]{display:none}
 .panel-heading { display: flex; align-items: center; gap: 16px; }
 .heading-icon {
   flex: 0 0 auto;
@@ -757,3 +763,170 @@ body.modal-open { overflow: hidden; }
 .deck-transition-options button:disabled { opacity:.58; cursor:wait; transform:none; }
 .deck-transition-status { min-height:16px; margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
 .deck-transition-status.is-error { color:var(--red); font-weight:700; }
+
+/* Billing/header v2: one coherent capsule language and readable usage metrics. */
+.stage-header-actions { gap: 8px; }
+.account-pill { max-width: min(46vw, 520px); padding: 0; border: 0; border-radius: 0; background: transparent; backdrop-filter: none; gap: 8px; }
+.account-name { display: inline-flex; align-items: center; min-height: 32px; max-width: 180px; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.07); font-weight: 700; }
+.header-plans-button, .account-plan-badge, .account-profile-button { appearance: none; -webkit-appearance: none; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 12px; border: 1px solid rgba(126,240,255,.36); border-radius: 999px; background: rgba(6,207,224,.10); color: #b8f4f7; font-size: 11px; font-weight: 800; line-height: 1; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.header-plans-button:hover, .account-plan-badge:hover, .account-profile-button:hover { background: rgba(6,207,224,.20); color: #fff; }
+.account-pill #logoutButton { min-height: 32px; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.78); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.account-pill #logoutButton:hover { background: rgba(255,255,255,.16); color: #fff; }
+.account-plan-popover { right: 0; width: min(320px, calc(100vw - 28px)); padding: 16px; }
+.account-plan-popover .plan-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 700; }
+.account-plan-popover .plan-usage-metrics { gap: 14px 16px; margin-top: 14px; }
+.account-plan-popover .plan-usage-metric { display: grid; gap: 5px; min-width: 0; }
+.account-plan-popover .plan-usage-metric span { display: block; }
+.account-plan-popover .plan-usage-metric strong { display: block; line-height: 1.2; }
+#planName { display: none !important; }
+.billing-current-actions #billingPortal { display: none !important; }
+
+/* Header v4: flat sibling pills, one combined account + plan capsule. */
+.stage-header {
+  padding: 0 max(20px, calc((100vw - 1240px) / 2));
+  height: 68px;
+  background: rgba(8,7,13,.74);
+  border-bottom-color: rgba(255,255,255,.09);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+.stage-header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); opacity:.5; }
+.stage-header::before { content:""; position:absolute; left:8%; right:8%; bottom:-16px; height:16px; background:linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); filter:blur(16px); opacity:.18; pointer-events:none; }
+.stage-header-inner { height:100%; }
+.stage-header-actions { gap:10px; }
+.header-pill { min-height:40px; height:40px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(255,255,255,.035); transition:background .15s ease,border-color .15s ease,color .15s ease; }
+.header-pill:hover { background:linear-gradient(90deg,rgba(139,92,246,.14),rgba(59,130,246,.14),rgba(34,211,238,.14)); border-color:rgba(139,92,246,.35); }
+.header-plans-button, .account-profile-button, .header-logout { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 16px; color:rgba(245,244,250,.72); font:500 13.5px/1 Inter,Arial,sans-serif; text-decoration:none; cursor:pointer; }
+.header-pill svg { width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
+.header-plans-button { color:rgba(245,244,250,.72); background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09); }
+.header-plans-button:hover, .account-profile-button:hover { color:#F5F4FA; background:linear-gradient(90deg,rgba(139,92,246,.14),rgba(59,130,246,.14),rgba(34,211,238,.14)); }
+.account-pill { position:relative; display:flex; align-items:center; gap:0; max-width:min(46vw,520px); padding:0 6px 0 8px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(255,255,255,.035); color:#F5F4FA; backdrop-filter:none; }
+.account-zone { display:flex; align-items:center; gap:9px; height:100%; min-width:0; }
+.account-avatar { display:flex; align-items:center; justify-content:center; width:24px; height:24px; flex:none; border-radius:50%; background:linear-gradient(135deg,#8B5CF6,#3B82F6 55%,#22D3EE); color:#0A0812; font:700 11px/1 Poppins,Arial,sans-serif; }
+.account-name { display:block; max-width:180px; min-width:0; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#F5F4FA; font:600 13.5px/1 Inter,Arial,sans-serif; }
+.header-divider { width:1px; height:16px; margin:0 12px; flex:none; background:rgba(255,255,255,.18); }
+.account-plan-badge { position:relative; display:inline-flex; align-items:center; gap:7px; height:100%; padding:0 23px 0 15px; border:0; background:transparent; color:#F5F4FA; font:700 12.5px/1 Inter,Arial,sans-serif; letter-spacing:.02em; cursor:pointer; white-space:nowrap; }
+.account-plan-badge::before { content:""; position:absolute; left:0; width:8px; height:8px; border-radius:50%; background:linear-gradient(90deg,#8B5CF6,#3B82F6,#22D3EE); }
+.account-plan-badge::after { content:""; position:absolute; right:3px; width:8px; height:8px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-2px) rotate(45deg); opacity:.65; transition:transform .18s ease; }
+.account-plan-badge:hover, .account-plan-badge:focus-visible { outline:0; color:#fff; }
+.tier-dot { width:8px; height:8px; flex:none; border-radius:50%; background:linear-gradient(90deg,#8B5CF6,#3B82F6,#22D3EE); }
+.account-plan-badge.is-limit .tier-dot { background:#F87171; }
+.account-plan-badge.is-limit { color:#FCA5A5; }
+.account-plan-badge.is-limit::before { background:#F87171; }
+.account-plan-badge[aria-expanded="true"]::after { transform:translateY(2px) rotate(225deg); }
+.account-plan-popover { top:calc(100% + 12px); right:0; width:min(320px,calc(100vw - 28px)); padding:16px; border:1px solid rgba(255,255,255,.18); border-radius:16px; background:rgba(15,13,23,.96); box-shadow:0 20px 50px rgba(0,0,0,.55); }
+.account-plan-popover::before { content:""; position:absolute; top:-6px; right:26px; width:11px; height:11px; background:rgba(15,13,23,.96); border-left:1px solid rgba(255,255,255,.18); border-top:1px solid rgba(255,255,255,.18); transform:rotate(45deg); }
+.account-plan-popover .plan-usage-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; color:rgba(245,244,250,.62); font-size:11px; }
+.account-plan-popover .plan-usage-head strong { display:block; margin-top:4px; color:#F5F4FA; font-size:13.5px; }
+.account-plan-popover .plan-usage-head button { padding:5px 10px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:transparent; color:rgba(245,244,250,.72); font:600 11.5px/1 Inter,Arial,sans-serif; cursor:pointer; }
+.account-plan-popover .plan-usage-head button:hover { color:#fff; border-color:rgba(139,92,246,.4); background:rgba(139,92,246,.14); }
+.account-plan-popover .plan-usage-metrics { gap:14px 16px; margin-top:14px; }
+.account-plan-popover .plan-usage-metric { display:grid; gap:5px; min-width:0; }
+.account-plan-popover .plan-usage-metric span { color:rgba(245,244,250,.62); font-size:12.5px; }
+.account-plan-popover .plan-usage-metric strong { color:#F5F4FA; font-size:12.5px; }
+.account-plan-popover .plan-usage-metric i { height:6px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; }
+.account-plan-popover .plan-usage-metric i b { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#8B5CF6,#3B82F6,#22D3EE); }
+.account-profile-button { flex:none; }
+.header-logout { padding:0 15px; border-color:transparent; background:transparent; color:rgba(245,244,250,.4); }
+.header-logout:hover { color:#F87171; background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.2); }
+.account-pill #logoutButton { all:unset; }
+
+@media (max-width: 820px) {
+  .stage-header { padding-left:12px; padding-right:12px; }
+  .stage-header-actions { gap:6px; }
+  .header-plans-button, .account-profile-button, .header-logout { padding-left:10px; padding-right:10px; }
+  .header-pill span { white-space:nowrap; }
+  .account-name { max-width:clamp(72px,18vw,150px); }
+}
+@media (max-width: 620px) {
+  .header-plans-button span, .account-profile-button span, .header-logout span { display:none; }
+  .header-plans-button { width:auto; padding:0 10px; }
+  .account-profile-button, .header-logout { width:40px; padding:0; }
+  .account-name { max-width:clamp(58px,24vw,120px); }
+}
+
+/* Exact v4 capsule geometry: no nested account-name pill. */
+.stage-header .account-pill { display:flex; align-items:center; height:40px; min-height:40px; padding:0 6px 0 8px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(255,255,255,.035); }
+.stage-header .account-name { display:block; align-items:initial; min-height:0; max-width:180px; padding:0; border:0; border-radius:0; background:transparent; color:#F5F4FA; font:600 13.5px/1 Inter,Arial,sans-serif; }
+.stage-header .account-zone { height:100%; }
+.stage-header .account-plan-badge { min-height:0; border:0; border-radius:0; background:transparent; color:#F5F4FA; font:700 12.5px/1 Inter,Arial,sans-serif; }
+.stage-header .account-plan-badge:hover { background:transparent; }
+
+/* Header v4: every top-level control shares the same flat hover treatment. */
+.stage-header #adminAccountsLink[hidden] { display:none !important; }
+.stage-header .header-plans-button,
+.stage-header .account-profile-button {
+  border:1px solid transparent;
+  background:transparent;
+  color:rgba(245,244,250,.72);
+  font:500 13.5px/1 Inter,Arial,sans-serif;
+}
+.stage-header .header-plans-button:hover,
+.stage-header .account-profile-button:hover,
+.stage-header .account-pill:hover {
+  border-color:transparent;
+  background:linear-gradient(90deg,rgba(139,92,246,.14),rgba(59,130,246,.14),rgba(34,211,238,.14));
+  color:#F5F4FA;
+}
+.stage-header .account-pill:hover .account-plan-badge { background:transparent; }
+.stage-header .account-pill { cursor:pointer; }
+.stage-header .account-pill:focus-visible { outline:2px solid rgba(139,92,246,.75); outline-offset:3px; }
+.stage-header .account-pill.is-billing-alert { border-color:rgba(255,116,140,.95); box-shadow:0 0 0 1px rgba(255,116,140,.55), 0 0 18px rgba(255,75,110,.28); }
+
+/* Header y carga: el header y su panel de uso siempre quedan por encima del Upload. */
+.stage-header { isolation:isolate; z-index:1000; }
+.stage-header .account-pill { position:relative; z-index:1001; background:rgba(10,11,38,.88); }
+.stage-header .account-pill:hover { background:rgba(10,11,38,.96); }
+.stage-header .account-zone { display:flex; align-items:center; justify-content:center; height:100%; }
+.stage-header .account-avatar { display:flex; align-items:center; justify-content:center; line-height:1; }
+.stage-header .header-pill { height:34px; min-height:34px; }
+.stage-header .account-plan-badge { display:inline-flex; align-items:center; justify-content:center; font-size:10px; }
+.stage-header .header-plans-button,
+.stage-header .account-profile-button,
+.stage-header .header-logout { font-size:12px; }
+.stage-header .header-pill svg { width:17px; height:17px; }
+.stage-header #planUpgradeLink { background:linear-gradient(135deg,#8B5CF6,#3B82F6 58%,#22D3EE); color:#fff; border-color:transparent; }
+.stage-header #planUpgradeLink:hover { color:#fff; filter:brightness(1.08); }
+.stage-header #planUsage { position:absolute; z-index:2000; }
+.stage-header #planUsage[hidden] { display:none !important; }
+.stage-header #planUsage,
+.stage-header #planUsage::before { background:#fff; color:#17132f; }
+.stage-header #planUsage::before { border-color:rgba(255,255,255,.95); }
+.stage-header #planUsage .plan-usage-head,
+.stage-header #planUsage .plan-usage-metric span { color:rgba(23,19,47,.68); }
+.stage-header #planUsage .plan-usage-head strong,
+.stage-header #planUsage .plan-usage-metric strong { color:#17132f; }
+.stage-header #planUsage .plan-usage-metric i { background:rgba(23,19,47,.12); }
+.home-shell { position:relative; z-index:1; }
+.create-panel { position:relative; z-index:0; }
+
+@media (max-width: 620px) and (orientation: portrait) {
+  .stage-header { padding:10px 10px; }
+  .stage-header-inner { gap:8px; }
+  .stage-header-actions { gap:4px; }
+  .header-plans-button { min-height:34px; height:34px; padding:0 10px; font-size:12px; }
+  .stage-header .account-pill { height:34px; min-height:34px; padding:0 5px 0 7px; gap:0; }
+  .stage-header .account-name,
+  .stage-header .header-divider { display:none; }
+  .stage-header .account-avatar { width:24px; height:24px; font-size:11px; }
+  .stage-header .account-plan-badge { display:none; }
+  /* En vertical la cápsula sólo muestra la inicial; el plan vive en el badge de uso. */
+  .stage-header #planUsage { position:fixed; top:54px; right:10px; z-index:2000; width:min(360px,calc(100vw - 20px)); background:#fff; color:#17132f; border-color:rgba(255,255,255,.95); box-shadow:0 18px 42px rgba(0,0,0,.35); }
+  .stage-header .account-profile-button,
+  .stage-header .header-logout { width:34px; height:34px; min-height:34px; padding:0; }
+  .stage-header .header-pill svg { width:17px; height:17px; }
+}
+
+/* Final compact desktop header and plan colors. */
+.stage-header .account-name,
+.stage-header .account-plan-badge { font-size:12.5px; font-weight:700; }
+.stage-header .account-name,
+.stage-header .account-plan-badge { font-size:11.5px; }
+.stage-header .account-name,
+.stage-header .account-plan-badge { position:relative; top:2px; }
+.stage-header .account-avatar { color:#fff; }
+.stage-header .account-plan-badge::before { transform:translateY(-1px); }
+.stage-header .account-plan-badge::after { transform:translateY(-3px) rotate(45deg); }
+.stage-header .account-plan-badge.is-free::before { background:#9ca3af; }
+.stage-header .account-plan-badge.is-speaker::before { background:#3b82f6; }
+.stage-header .account-plan-badge.is-pro::before { background:linear-gradient(135deg,#8b5cf6,#6d3bef,#b66cff); }

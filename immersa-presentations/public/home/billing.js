@@ -1,0 +1,587 @@
+(() => {
+  const openButton = document.getElementById("billingOpen");
+  const modal = document.getElementById("billingModal");
+  const closeButton = document.getElementById("billingClose");
+  const plansRoot = document.getElementById("billingPlans");
+  const founderPolicy = document.getElementById("billingFounderPolicy");
+  const notice = document.getElementById("billingNotice");
+  let portalButton = document.getElementById("billingPortal");
+  const invoiceOpenButton = document.getElementById("billingInvoiceOpen");
+  const invoiceForm = document.getElementById("billingInvoiceForm");
+  const invoiceCancelButton = document.getElementById("billingInvoiceCancel");
+  const invoiceSelect = document.getElementById("billingInvoiceSelect");
+  const invoiceTiming = document.getElementById("billingInvoiceTiming");
+  const invoiceStatus = document.getElementById("billingInvoiceStatus");
+  const changeConfirm = document.getElementById("billingChangeConfirm");
+  const changeConfirmTitle = document.getElementById("billingChangeConfirmTitle");
+  const changeConfirmSummary = document.getElementById("billingChangeConfirmSummary");
+  const changeConfirmCharge = document.getElementById("billingChangeConfirmCharge");
+  const changeConfirmCard = document.getElementById("billingChangeConfirmCard");
+  const changeConfirmCancel = document.getElementById("billingChangeConfirmCancel");
+  const changeConfirmBack = document.getElementById("billingChangeConfirmBack");
+  const changeConfirmSubmit = document.getElementById("billingChangeConfirmSubmit");
+  const cancelOpenButton = document.getElementById("billingCancelOpen");
+  const cancelConfirm = document.getElementById("billingCancelConfirm");
+  const cancelBackButton = document.getElementById("billingCancelBack");
+  const cancelSubmitButton = document.getElementById("billingCancelSubmit");
+  const secondaryLinks = document.querySelector(".billing-secondary-links");
+
+  const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
+  let state = null;
+  let interval = "annual";
+  const isEventPass = () => interval === "week";
+  let invoices = [];
+  let pendingPlanChange = null;
+  let paymentMethodUpdated = false;
+
+  const money = (centavos) => new Intl.NumberFormat("es-MX", {
+    style: "currency", currency: "MXN", maximumFractionDigits: 0
+  }).format(Math.max(0, Number(centavos) || 0) / 100);
+  const moneyMonthly = (centavos) => new Intl.NumberFormat("es-MX", {
+    style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2
+  }).format(Math.max(0, Number(centavos) || 0) / 100 / 12);
+  const date = (value) => value ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(value)) : "";
+  const label = (plan) => String(plan || "FREE").replace(/_/g, " ");
+
+  function showNotice(message, kind = "") {
+    notice.textContent = message || "";
+    notice.className = "billing-notice" + (kind ? " " + kind : "");
+    notice.hidden = !message;
+    const recoveryNotice = String(message || "").startsWith("No pudimos cobrar tu suscripción.");
+    if (recoveryNotice) {
+      const action = ensurePortalButton();
+      action.hidden = false;
+      action.style.display = "block";
+      notice.insertAdjacentElement("afterend", action);
+    } else if (portalButton) {
+      portalButton.hidden = true;
+      portalButton.style.display = "none";
+    }
+  }
+
+  function ensurePortalButton() {
+    if (portalButton) return portalButton;
+    portalButton = document.createElement("button");
+    portalButton.id = "billingPortal";
+    portalButton.className = "billing-recovery-action";
+    portalButton.type = "button";
+    portalButton.textContent = "Actualizar tarjeta y pagar";
+    notice.insertAdjacentElement("afterend", portalButton);
+    portalButton.addEventListener("click", openPortal);
+    return portalButton;
+  }
+
+  function selectedOffer() {
+    return state?.foundersAvailable && interval === "annual" ? "founders" : "official";
+  }
+
+  function closePlanChangeConfirmation() {
+    pendingPlanChange = null;
+    if (changeConfirm) changeConfirm.hidden = true;
+    if (plansRoot) plansRoot.hidden = false;
+  }
+
+  function closeCancelConfirmation() {
+    if (cancelConfirm) cancelConfirm.hidden = true;
+    if (cancelOpenButton) cancelOpenButton.hidden = !state?.subscription;
+  }
+
+  function planChangeTiming(plan) {
+    const ranks = { FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 };
+    const currentPlan = state?.subscription?.plan || state?.effectivePlan || "FREE";
+    const currentInterval = state?.subscription?.interval || "monthly";
+    return ranks[plan] < (ranks[currentPlan] || 0)
+      || (currentInterval === "annual" && interval === "monthly")
+      ? "period_end"
+      : "immediate";
+  }
+
+  function openPlanChangeConfirmation(plan, button) {
+    if (!state?.subscription || !changeConfirm) return;
+    const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+    const period = interval === "annual" ? "Anual" : "Mensual";
+    const timing = planChangeTiming(plan);
+    pendingPlanChange = { plan, button };
+    changeConfirmTitle.textContent = "Cambiar a " + label(plan);
+    changeConfirmSummary.textContent = label(plan) + " · " + period + " · " + money(amount);
+    if (timing === "period_end") {
+      changeConfirmCharge.textContent = "El cambio quedará programado para el final de tu periodo actual. No habrá un cobro inmediato.";
+      changeConfirmCard.textContent = "Conservarás tu plan actual hasta esa fecha. Stripe mostrará la fecha exacta y IMMERSA no eliminará tus Decks.";
+    } else {
+      changeConfirmCharge.textContent = "Al confirmar, Stripe calculará el prorrateo. Tu tarjeta guardada podría cobrarse automáticamente; el importe exacto se mostrará en Stripe.";
+      changeConfirmCard.textContent = "Este paso sí inicia la actualización en Stripe. Si el banco requiere autenticación, Stripe te la solicitará.";
+    }
+    plansRoot.hidden = true;
+    changeConfirm.hidden = false;
+    changeConfirmSubmit.disabled = false;
+    showNotice("");
+  }
+
+  function planFeatures(plan) {
+    return plan === "SPEAKER"
+      ? ["5 Decks · 200 MB", "Hasta 100 personas", "Encuestas, Q&A y métricas básicas"]
+      : ["15 Decks · 500 MB", "Hasta 300 personas", "Todo Speaker más:", "Evaluaciones, sorteos, trivias, historial y métricas detalladas"];
+  }
+
+  function updatePassCountdown() {
+    document.querySelectorAll(".billing-pass-remaining").forEach((element) => {
+      const end = new Date(element.dataset.passEndsAt || "").getTime();
+      if (!Number.isFinite(end)) return;
+      const remainingMs = Math.max(0, end - Date.now());
+      const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+      element.textContent = remainingDays > 0
+        ? `Acceso por 7 días · quedan ${remainingDays} ${remainingDays === 1 ? "día" : "días"}`
+        : "Acceso por 7 días · finaliza hoy";
+    });
+  }
+
+  function render() {
+    if (!state) return;
+    ensurePortalButton();
+    const subscription = ["active", "past_due"].includes(String(state.subscription?.status || ""))
+      ? state.subscription
+      : null;
+    const subscriptionStatus = subscription
+      ? (subscription.status === "past_due" ? "Pago pendiente" : (subscription.cancelAtPeriodEnd ? "Cancelación programada" : "Suscripción activa"))
+      : "";
+    if (subscription) {
+      if (secondaryLinks) secondaryLinks.hidden = false;
+      if (portalButton) {
+        const canRecover = subscription.status === "past_due";
+        portalButton.hidden = !canRecover;
+        portalButton.style.display = canRecover ? "block" : "none";
+      }
+      invoiceOpenButton.hidden = false;
+      cancelOpenButton.hidden = Boolean(subscription.cancelAtPeriodEnd);
+    } else {
+      if (secondaryLinks) secondaryLinks.hidden = true;
+      if (portalButton) {
+        portalButton.hidden = true;
+        portalButton.style.display = "none";
+      }
+      invoiceOpenButton.hidden = true;
+      invoiceForm.hidden = true;
+      cancelOpenButton.hidden = true;
+    }
+    intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !state.eventPass?.available; });
+    if (founderPolicy) {
+      const founderVisible = Boolean(state.foundersAvailable && interval === "annual");
+      founderPolicy.hidden = !founderVisible;
+      founderPolicy.classList.toggle("is-visible", founderVisible);
+    }
+    plansRoot.replaceChildren();
+    for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
+      const card = document.createElement("article");
+      card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
+      const amount = isEventPass() ? state.eventPass?.plans?.[plan] : state.plans?.[plan]?.[interval]?.[selectedOffer()];
+      const annualAmount = state.plans?.[plan]?.annual?.[selectedOffer()];
+      const annualOfficialAmount = state.plans?.[plan]?.annual?.official;
+      const monthlyAmount = state.plans?.[plan]?.monthly?.official;
+      const activeGrant = isEventPass() ? state.grants?.find((grant) => grant.origin === "event_pass" && grant.plan === plan) : null;
+      const passActive = Boolean(activeGrant);
+      const active = !isEventPass() && subscription && subscription.plan === plan && subscription.interval === interval;
+      const badgeMarkup = plan === "SPEAKER_PRO"
+        ? `<span class="billing-plan-badge billing-plan-badge-pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2L12 16.4 5.7 21l2.3-7.2-6-4.6h7.6z"/></svg>Todo incluido</span>`
+        : "";
+      const description = plan === "SPEAKER_PRO"
+        ? "Funciones avanzadas y audiencia máxima"
+        : "Mayor audiencia con participaciones interactivas";
+      let priceMarkup = "";
+      let savingsMarkup = "";
+      if (isEventPass()) {
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">por 7 días</span></div><div class="billing-price-secondary">Acceso completo durante 7 días</div>`;
+      } else if (interval === "annual") {
+        const savings = Math.max(0, (Number(monthlyAmount) || 0) * 12 - (Number(annualAmount) || 0));
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${moneyMonthly(annualAmount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary"><span class="billing-price-official">${money(annualOfficialAmount)}</span><span>${money(annualAmount)} al año</span></div>`;
+        if (savings) {
+          const savingsIcon = plan === "SPEAKER_PRO"
+            ? `<svg class="billing-founder-sparkle" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg>`
+            : `<svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>`;
+          savingsMarkup = `<div class="billing-savings-chip">${savingsIcon}Ahorras ${money(savings)} al año</div>`;
+        }
+      } else {
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary">Sin compromiso anual</div>`;
+      }
+      const statusMarkup = active && subscriptionStatus
+        ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado al finalizar tu periodo actual.</small>` : ""}`
+        : "";
+      const actionLabel = passActive ? "Pase activo" : (isEventPass() ? "Comprar 7 Day Pass" : (active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")));
+      const featureMarkup = planFeatures(plan).map((item) => `<li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>${item}</li>`).join("");
+      const passTimingMarkup = passActive ? `<small class="billing-pass-remaining" data-pass-ends-at="${activeGrant.ends_at || activeGrant.endsAt || ""}">Acceso por 7 días · calculando tiempo restante…</small>` : "";
+      card.innerHTML = `${badgeMarkup}<div class="billing-plan-description">${description}</div><h3 class="billing-plan-name"><span class="billing-tier-dot ${plan === "SPEAKER_PRO" ? "pro" : "speaker"}"></span>${label(plan)}</h3><div class="billing-price-block">${priceMarkup}${savingsMarkup}</div><ul class="billing-features">${featureMarkup}</ul><button type="button">${actionLabel}</button>${passTimingMarkup}${statusMarkup}`;
+      const button = card.querySelector("button");
+      button.disabled = passActive || active || (!active && !state.checkoutEnabled);
+      button.classList.toggle("is-current", Boolean(active));
+      button.classList.toggle("is-pass-active", passActive);
+      button.addEventListener("click", () => {
+        if (active) return;
+        if (isEventPass()) eventPassCheckout(plan, button);
+        else subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
+      });
+      plansRoot.appendChild(card);
+    }
+    updatePassCountdown();
+    if (!state.enabled) {
+      showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
+    } else if (subscription?.status === "past_due") {
+      showNotice(
+        paymentMethodUpdated
+          ? "Método de pago actualizado. Stripe reintentará el cobro automáticamente; tu acceso se mantiene durante el periodo de recuperación."
+          : "No pudimos cobrar tu suscripción. Tu acceso se mantiene durante el periodo de recuperación; actualiza tu método de pago para evitar la cancelación.",
+        paymentMethodUpdated ? "pending" : "error"
+      );
+    } else if (!state.checkoutEnabled && !subscription) {
+      showNotice("El flujo está en pruebas. Todavía no se aceptan pagos.", "pending");
+    } else {
+      showNotice("");
+    }
+  }
+
+  function syncIntervalFromSubscription(data) {
+    const current = String(data?.subscription?.interval || "");
+    if (!["monthly", "annual"].includes(current)) return;
+    interval = current;
+    intervalButtons.forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.billingInterval === interval);
+    });
+  }
+
+  async function load() {
+    const response = await fetch("/api/billing/status", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo consultar Cobros");
+    state = data;
+    syncIntervalFromSubscription(data);
+    render();
+    return data;
+  }
+
+  async function checkout(plan, button) {
+    button.disabled = true;
+    showNotice("Preparando Checkout seguro…", "pending");
+    try {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, interval, offer: selectedOffer() })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pago");
+      window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      button.disabled = false;
+    }
+  }
+
+
+  async function eventPassCheckout(plan, button) {
+    button.disabled = true;
+    showNotice("Preparando tu 7 Day Pass…", "pending");
+    try {
+      const response = await fetch("/api/billing/event-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pase");
+      window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      button.disabled = false;
+    }
+  }
+
+  async function changePlan(plan, button) {
+    button.disabled = true;
+    showNotice("Preparando el cambio seguro en Stripe…", "pending");
+    try {
+      const response = await fetch("/api/billing/change", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, interval })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo preparar el cambio");
+      if (data.timing === "period_end") {
+        const end = Number(data.currentPeriodEnd || 0);
+        const dateLabel = end ? date(new Date(end * 1000)) : "el final de tu periodo actual";
+        closePlanChangeConfirmation();
+        await load();
+        showNotice("Cambio programado para " + dateLabel + ". No habrá un cobro inmediato.", "pending");
+        return;
+      } else if (data.timing === "scheduled_exists") {
+        showNotice(data.message, "pending");
+      } else {
+        showNotice("Stripe calculará el crédito y el cobro inmediato antes de confirmar el cambio.", "pending");
+      }
+      if (data.url) window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      button.disabled = false;
+    }
+  }
+
+  async function cancelSubscription() {
+    cancelSubmitButton.disabled = true;
+    showNotice("Programando la cancelación…", "pending");
+    try {
+      const response = await fetch("/api/billing/cancel", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo programar la cancelación");
+      closeCancelConfirmation();
+      await load();
+      showNotice("Cancelación programada al final de tu periodo. Tu plan sigue activo hasta entonces.", "pending");
+    } catch (error) {
+      showNotice(error.message, "error");
+      cancelSubmitButton.disabled = false;
+    }
+  }
+
+  const invoiceStatusLabel = (status) => ({
+    pending: "Pendiente",
+    in_process: "En proceso",
+    sent: "Enviada",
+    correction_required: "Requiere corrección"
+  })[status] || status;
+
+  function selectedInvoice() {
+    return invoices.find((invoice) => invoice.id === invoiceSelect.value) || null;
+  }
+
+  function renderInvoiceTiming() {
+    const invoice = selectedInvoice();
+    if (!invoice) {
+      invoiceTiming.textContent = "Selecciona un pago confirmado.";
+      return;
+    }
+    if (invoice.request) {
+      invoiceTiming.textContent = "Solicitud " + invoiceStatusLabel(invoice.request.status).toLowerCase()
+        + " · " + date(invoice.request.requested_at || invoice.request.requestedAt);
+      return;
+    }
+    invoiceTiming.textContent = invoice.timing === "late"
+      ? "Solicitud extemporánea: será revisada administrativamente."
+      : "Plazo ordinario hasta " + date(invoice.ordinaryDeadlineAt) + ".";
+  }
+
+  async function openInvoiceForm() {
+    invoiceOpenButton.disabled = true;
+    invoiceStatus.textContent = "Consultando pagos confirmados…";
+    invoiceStatus.className = "billing-invoice-status";
+    try {
+      const response = await fetch("/api/billing/invoices", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudieron consultar tus pagos");
+      invoices = Array.isArray(data.invoices) ? data.invoices : [];
+      invoiceSelect.replaceChildren();
+      for (const invoice of invoices) {
+        const option = document.createElement("option");
+        option.value = invoice.id;
+        option.textContent = (invoice.number ? "Factura Stripe " + invoice.number : "Pago del " + date(invoice.paidAt))
+          + " · " + money(invoice.amountTotal)
+          + (invoice.request ? " · " + invoiceStatusLabel(invoice.request.status) : "");
+        invoiceSelect.appendChild(option);
+      }
+      if (!invoices.length) {
+        invoiceStatus.textContent = "Todavía no hay pagos confirmados disponibles para facturar.";
+        invoiceStatus.classList.add("error");
+        invoiceForm.hidden = false;
+        invoiceForm.querySelector(".billing-invoice-submit").disabled = true;
+        return;
+      }
+      invoiceForm.querySelector(".billing-invoice-submit").disabled = false;
+      invoiceForm.hidden = false;
+      invoiceStatus.textContent = "";
+      renderInvoiceTiming();
+      invoiceForm.querySelector("input[name='rfc']")?.focus();
+    } catch (error) {
+      invoiceForm.hidden = false;
+      invoiceStatus.textContent = error.message;
+      invoiceStatus.classList.add("error");
+    } finally {
+      invoiceOpenButton.disabled = false;
+    }
+  }
+
+  async function submitInvoiceRequest(event) {
+    event.preventDefault();
+    const invoice = selectedInvoice();
+    if (!invoice) return;
+    if (invoice.request) {
+      invoiceStatus.textContent = "Ya existe una solicitud para este pago: " + invoiceStatusLabel(invoice.request.status) + ".";
+      return;
+    }
+    const button = invoiceForm.querySelector(".billing-invoice-submit");
+    button.disabled = true;
+    invoiceStatus.textContent = "Registrando solicitud…";
+    invoiceStatus.className = "billing-invoice-status";
+    const values = new FormData(invoiceForm);
+    try {
+      const response = await fetch("/api/billing/invoice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId: values.get("invoiceId"),
+          rfc: values.get("rfc"),
+          legalName: values.get("legalName"),
+          fiscalPostalCode: values.get("fiscalPostalCode"),
+          fiscalRegime: values.get("fiscalRegime"),
+          cfdiUse: values.get("cfdiUse")
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo registrar la solicitud");
+      invoice.request = data.request;
+      renderInvoiceTiming();
+      invoiceStatus.textContent = data.request.timing === "late"
+        ? "Solicitud extemporánea recibida. IMMERSA la revisará administrativamente."
+        : "Solicitud recibida. Enviaremos tu CFDI en un máximo de 3 días hábiles.";
+      invoiceStatus.classList.add("success");
+    } catch (error) {
+      invoiceStatus.textContent = error.message;
+      invoiceStatus.classList.add("error");
+      button.disabled = false;
+    }
+  }
+
+  async function openPortal() {
+    portalButton.disabled = true;
+    showNotice("Abriendo administración de pagos…", "pending");
+    try {
+      const response = await fetch("/api/billing/portal", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo abrir el portal");
+      window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      portalButton.disabled = false;
+    }
+  }
+
+  async function recoverPayment() {
+    showNotice("Tarjeta actualizada. Intentando cobrar la factura pendiente…", "pending");
+    try {
+      const response = await fetch("/api/billing/recover", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo intentar el cobro");
+      if (data.requiresAction && data.hostedInvoiceUrl) {
+        showNotice("Tu banco requiere una confirmación adicional para completar el pago.", "pending");
+        window.location.assign(data.hostedInvoiceUrl);
+        return;
+      }
+      if (data.paid) {
+        showNotice("Pago confirmado. Estamos actualizando tu plan…", "success");
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const next = await load().catch(() => null);
+          if (next?.subscription?.status === "active") {
+            showNotice("Pago confirmado. Tu plan ya está activo.", "success");
+            window.dispatchEvent(new Event("immersa:billing-updated"));
+            return;
+          }
+        }
+      }
+      showNotice("Tarjeta actualizada. Stripe está procesando el cobro y te avisaremos cuando quede confirmado.", "pending");
+    } catch (error) {
+      showNotice(error.message, "error");
+    }
+  }
+
+  async function open() {
+    closePlanChangeConfirmation();
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    showNotice("Consultando tu estado…", "pending");
+    try { await load(); } catch (error) { showNotice(error.message, "error"); }
+  }
+  function clearBillingReturnQuery() {
+    const url = new URL(window.location.href);
+    ["billing", "target_plan", "target_interval", "checkout_session_id", "upgrade"].forEach((key) => {
+      url.searchParams.delete(key);
+    });
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function close() {
+    closePlanChangeConfirmation();
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+    invoiceForm.hidden = true;
+    paymentMethodUpdated = false;
+    clearBillingReturnQuery();
+  }
+
+  window.setInterval(updatePassCountdown, 60 * 1000);
+
+  openButton?.addEventListener("click", open);
+  closeButton?.addEventListener("click", close);
+  modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
+  intervalButtons.forEach((button) => button.addEventListener("click", () => {
+    closePlanChangeConfirmation();
+    interval = button.dataset.billingInterval;
+    intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    render();
+  }));
+  portalButton?.addEventListener("click", openPortal);
+  changeConfirmCancel?.addEventListener("click", closePlanChangeConfirmation);
+  changeConfirmBack?.addEventListener("click", closePlanChangeConfirmation);
+  changeConfirmSubmit?.addEventListener("click", () => {
+    if (!pendingPlanChange) return;
+    changeConfirmSubmit.disabled = true;
+    void changePlan(pendingPlanChange.plan, changeConfirmSubmit);
+  });
+  cancelOpenButton?.addEventListener("click", () => {
+    cancelConfirm.hidden = false;
+    cancelOpenButton.hidden = true;
+  });
+  cancelBackButton?.addEventListener("click", closeCancelConfirmation);
+  cancelSubmitButton?.addEventListener("click", () => { void cancelSubscription(); });
+  invoiceOpenButton?.addEventListener("click", openInvoiceForm);
+  invoiceCancelButton?.addEventListener("click", () => { invoiceForm.hidden = true; });
+  invoiceSelect?.addEventListener("change", renderInvoiceTiming);
+  invoiceForm?.addEventListener("submit", submitInvoiceRequest);
+
+  const query = new URLSearchParams(location.search);
+  if (query.has("upgrade") || ["success", "change-return", "portal-return"].includes(query.get("billing"))) {
+    paymentMethodUpdated = query.get("billing") === "portal-return";
+    void open().then(async () => {
+      if (query.get("billing") !== "success") {
+        if (query.get("billing") === "portal-return") {
+          await recoverPayment();
+          return;
+        }
+        const targetPlan = query.get("target_plan") || "";
+        const targetInterval = query.get("target_interval") || "";
+        showNotice("Estamos confirmando el cambio directamente con Stripe…", "pending");
+        let confirmed = false;
+        for (let attempt = 0; attempt < 15; attempt += 1) {
+          const next = await load().catch(() => null);
+          const nextSubscription = next?.subscription;
+          confirmed = Boolean(
+            nextSubscription
+            && nextSubscription.status === "active"
+            && (!targetPlan || nextSubscription.plan === targetPlan)
+            && (!targetInterval || nextSubscription.interval === targetInterval)
+          );
+          if (confirmed) break;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        if (confirmed) {
+          showNotice("Cambio confirmado. Tu plan ya está actualizado.", "success");
+          window.dispatchEvent(new Event("immersa:billing-updated"));
+        } else {
+          showNotice("El pago sigue procesándose. Actualizaremos este estado automáticamente cuando Stripe confirme el cambio.", "pending");
+        }
+        return;
+      }
+      showNotice("Pago recibido. Estamos esperando la confirmación segura de Stripe…", "pending");
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const next = await load().catch(() => null);
+        if (next?.subscription?.status === "active") {
+          showNotice("Pago confirmado. Tu plan ya está activo.", "success");
+          window.dispatchEvent(new Event("immersa:billing-updated"));
+          break;
+        }
+      }
+    });
+  }
+})();

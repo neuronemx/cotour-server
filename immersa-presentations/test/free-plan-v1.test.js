@@ -59,7 +59,7 @@ test("FREE plan is frozen at 2 Decks and 50 MB of original uploads", () => {
 
 test("SPEAKER and SPEAKER PRO use the approved Deck and storage limits", () => {
   assert.deepEqual(PLAN_LIMITS.SPEAKER, { decks: 5, audience: 100, storageBytes: 200 * BYTES_PER_MEGABYTE });
-  assert.deepEqual(PLAN_LIMITS.SPEAKER_PRO, { decks: 15, audience: 250, storageBytes: 500 * BYTES_PER_MEGABYTE });
+  assert.deepEqual(PLAN_LIMITS.SPEAKER_PRO, { decks: 15, audience: 300, storageBytes: 500 * BYTES_PER_MEGABYTE });
   assert.equal(summarizePlanUsage("speaker-pro", { decks: 14, storageBytes: 499 * BYTES_PER_MEGABYTE }).canCreateDeck, true);
 });
 
@@ -190,13 +190,17 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(html, /id="planDeckUsage">0 de 2</);
   assert.match(html, /id="planStorageUsage">0 MB de 50 MB</);
   assert.match(html, /id="planAudienceLimit">Hasta 25</);
-  assert.ok(html.indexOf('id="fileDrop"') < html.indexOf('id="planUsage"'));
-  assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planUsage"'));
+  assert.match(html, /id="billingOpen"[^>]*>Ver planes</);
+  assert.match(html, /id="planBadge"[^>]*aria-controls="planUsage"/);
+  assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planLimitMessage"'));
   assert.match(source, /fetch\("\/api\/account\/plan"/);
   assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
   assert.match(source, /fileInput\.disabled = Boolean\(blockedMessage\)/);
   assert.match(source, /planAudienceLimit\.textContent = "Hasta " \+ Math\.max/);
+  assert.match(source, /classList\.toggle\("is-limit", atLimit\)/);
+  assert.match(source, /setPlanUsageOpen\(planUsagePopover\.hidden\)/);
   assert.match(css, /\.drop-zone\.is-disabled/);
+  assert.match(css, /\.stage-header \{[\s\S]*position:\s*fixed/);
   assert.match(server, /app\.get\("\/api\/account\/plan", requireAccount/);
   assert.match(server, /synchronizeWorkspaceSourceSizes/);
   assert.match(server, /onDeckCreateStart:[^\n]+reserveUploadedDeck/);

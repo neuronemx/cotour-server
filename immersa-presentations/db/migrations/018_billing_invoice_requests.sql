@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS billing_invoice_requests (
+  id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  workspace_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  provider_invoice_id VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  provider_customer_id VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  paid_at DATETIME(3) NOT NULL,
+  amount_total BIGINT UNSIGNED NOT NULL,
+  currency CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'mxn',
+  ordinary_deadline_at DATETIME(3) NOT NULL,
+  timing VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  status VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'pending',
+  rfc VARCHAR(13) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  legal_name VARCHAR(200) NOT NULL,
+  fiscal_postal_code CHAR(5) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  fiscal_regime CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  cfdi_use CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  admin_note VARCHAR(500) NULL,
+  cfdi_uuid VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  requested_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  sent_at DATETIME(3) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_billing_invoice_requests_workspace_invoice (workspace_id, provider_invoice_id),
+  KEY idx_billing_invoice_requests_status_requested (status, requested_at),
+  CONSTRAINT fk_billing_invoice_requests_workspace
+    FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

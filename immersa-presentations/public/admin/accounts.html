@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración de cuentas · IMMERSA</title>
-  <link rel="stylesheet" href="/admin/accounts.css?v=1">
+  <link rel="stylesheet" href="/admin/accounts.css?v=3">
 </head>
 <body>
   <header class="admin-header">
@@ -17,15 +17,22 @@
       <label><span>Buscar</span><input id="search" type="search" placeholder="Nombre o correo"></label>
       <label><span>Plan</span><select id="planFilter"><option value="">Todos</option><option>FREE</option><option>SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select></label>
     </section>
+    <section class="invoice-admin" aria-labelledby="invoiceAdminTitle">
+      <header><div><h2 id="invoiceAdminTitle">Solicitudes de factura</h2><p>Emisión manual de CFDI vinculada a pagos confirmados.</p></div><label><span>Estado</span><select id="invoiceStatusFilter"><option value="">Todos</option><option value="pending">Pendiente</option><option value="in_process">En proceso</option><option value="correction_required">Requiere corrección</option><option value="sent">Enviada</option></select></label></header>
+      <p id="invoiceAdminStatus" class="status" role="status">Cargando solicitudes…</p>
+      <div id="invoiceRequests" class="invoice-requests"></div>
+    </section>
     <p id="status" class="status" role="status">Cargando cuentas…</p>
     <section id="accounts" class="accounts" aria-live="polite"></section>
   </main>
   <template id="accountTemplate">
     <article class="account-card">
       <div class="identity"><strong></strong><a></a><small></small></div>
-      <div class="usage"><span class="plan"></span><span class="decks"></span><span class="storage"></span></div>
+      <div class="usage"><span class="plan"></span><span class="commercial">Estado comercial: consultando…</span><span class="decks"></span><span class="storage"></span></div>
       <form class="plan-form">
         <label><span>Plan</span><select name="plan"><option>FREE</option><option>SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select></label>
+        <label><span>Origen</span><select name="origin"><option value="manual">Manual</option><option value="pilot">Piloto</option><option value="courtesy">Cortesía</option><option value="support">Soporte</option></select></label>
+        <label><span>Vigencia opcional</span><input name="endsAt" type="date"></label>
         <label class="note"><span>Nota interna opcional</span><input name="note" maxlength="500"></label>
         <button type="submit">Cambiar plan</button>
         <button type="button" class="resend-email" hidden>Reenviar correo</button>
@@ -33,6 +40,6 @@
       <p class="feedback" role="status"></p>
     </article>
   </template>
-  <script src="/admin/accounts.js?v=6"></script>
+  <script src="/admin/accounts.js?v=8"></script>
 </body>
 </html>
