@@ -101,6 +101,7 @@ function billingEmailCopy(kind, name, url, billing = {}) {
   }).format(Math.max(0, Number(billing.amountTotal) || 0) / 100);
   const subjects = {
     "subscription-active": `Tu plan ${plan} ya está activo`,
+    "event-pass-confirmed": `Tu 7 Day Pass ${plan} está activo`,
     "payment-receipt": "Recibimos tu pago de IMMERSA",
     "payment-failed": "No pudimos procesar tu pago de IMMERSA",
     "cancellation-scheduled": "Tu cancelación quedó programada",
@@ -108,6 +109,7 @@ function billingEmailCopy(kind, name, url, billing = {}) {
   };
   const titles = {
     "subscription-active": "Suscripción confirmada",
+    "event-pass-confirmed": "7 Day Pass confirmado",
     "payment-receipt": "Pago recibido",
     "payment-failed": "Actualiza tu forma de pago",
     "cancellation-scheduled": "Cancelación programada",
@@ -115,6 +117,7 @@ function billingEmailCopy(kind, name, url, billing = {}) {
   };
   const descriptions = {
     "subscription-active": `Stripe confirmó el pago y tu workspace ya utiliza ${plan}.`,
+    "event-pass-confirmed": `Confirmamos tu pago${amount ? ` por ${escapeHtml(amount)}` : ""}. Tu acceso ${plan} está activo por 7 días${periodEnd ? ` hasta el ${escapeHtml(periodEnd)}` : ""}. Este pase no tiene renovación automática.`,
     "payment-receipt": `Confirmamos tu pago${amount ? ` por ${escapeHtml(amount)}` : ""}.${periodEnd ? ` Tu siguiente renovación es el ${escapeHtml(periodEnd)}.` : ""}`,
     "payment-failed": "Stripe no pudo completar el cobro. Conservas temporalmente el acceso mientras actualizas tu forma de pago desde IMMERSA.",
     "cancellation-scheduled": `Tu suscripción seguirá activa${periodEnd ? ` hasta el ${escapeHtml(periodEnd)}` : " hasta el final del periodo pagado"}. No eliminaremos tus Decks automáticamente.`,
