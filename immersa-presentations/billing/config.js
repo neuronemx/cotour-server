@@ -2,6 +2,7 @@ const { normalizePlan } = require("../auth/plan-features");
 
 const BILLING_INTERVALS = Object.freeze(["monthly", "annual"]);
 const BILLING_PLANS = Object.freeze(["SPEAKER", "SPEAKER_PRO"]);
+const EVENT_PASS_DAYS = 7;
 const PLAN_RANK = Object.freeze({ FREE: 0, SPEAKER: 1, SPEAKER_PRO: 2 });
 
 const PUBLIC_PRICES_MXN = Object.freeze({
@@ -33,6 +34,12 @@ const FOUNDERS_COUPON_ENV_KEYS = Object.freeze({
   SPEAKER_PRO: Object.freeze({
     annual: "STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID"
   })
+});
+
+const EVENT_PASS_PRICES_MXN = Object.freeze({ SPEAKER: 79900, SPEAKER_PRO: 199900 });
+const EVENT_PASS_PRICE_ENV_KEYS = Object.freeze({
+  SPEAKER: "STRIPE_SPEAKER_7_DAY_PASS_PRICE_ID",
+  SPEAKER_PRO: "STRIPE_SPEAKER_PRO_7_DAY_PASS_PRICE_ID"
 });
 
 function enabled(value) {
@@ -113,17 +120,25 @@ function publicCatalog(env = process.env, now = Date.now()) {
     taxIncluded: true,
     foundersAvailable: foundersOfferAvailable(env, now),
     foundersOfferEndsAt: foundersOfferEndsAt(env)?.toISOString() || null,
-    plans: PUBLIC_PRICES_MXN
+    plans: PUBLIC_PRICES_MXN,
+    eventPass: {
+      durationDays: EVENT_PASS_DAYS,
+      plans: EVENT_PASS_PRICES_MXN,
+      available: BILLING_PLANS.every((plan) => Boolean(String(env[EVENT_PASS_PRICE_ENV_KEYS[plan]] || "").trim()))
+    }
   };
 }
 
 module.exports = {
   BILLING_INTERVALS,
   BILLING_PLANS,
+  EVENT_PASS_DAYS,
   PLAN_RANK,
   PUBLIC_PRICES_MXN,
   PRICE_ENV_KEYS,
   FOUNDERS_COUPON_ENV_KEYS,
+  EVENT_PASS_PRICES_MXN,
+  EVENT_PASS_PRICE_ENV_KEYS,
   normalizeBillingPlan,
   normalizeBillingInterval,
   foundersOfferEndsAt,
