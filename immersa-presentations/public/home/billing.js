@@ -182,7 +182,7 @@
         priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${moneyMonthly(annualAmount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary"><span class="billing-price-official">${money(annualOfficialAmount)}</span><span>${money(annualAmount)} al año</span></div>`;
         if (savings) {
           const savingsIcon = plan === "SPEAKER_PRO"
-            ? `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg>`
+            ? `<svg class="billing-founder-sparkle" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg>`
             : `<svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>`;
           savingsMarkup = `<div class="billing-savings-chip">${savingsIcon}Ahorras ${money(savings)} al año</div>`;
         }
