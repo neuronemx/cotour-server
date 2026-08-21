@@ -3,6 +3,8 @@
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
   const plansRoot = document.getElementById("billingPlans");
+  const eventPassRoot = document.getElementById("billingEventPass");
+  const eventPassPlansRoot = document.getElementById("billingEventPassPlans");
   const founderPolicy = document.getElementById("billingFounderPolicy");
   const notice = document.getElementById("billingNotice");
   let portalButton = document.getElementById("billingPortal");
@@ -194,6 +196,22 @@
       });
       plansRoot.appendChild(card);
     }
+    if (eventPassRoot && eventPassPlansRoot) {
+      const pass = state.eventPass;
+      eventPassRoot.hidden = !pass?.available;
+      eventPassPlansRoot.replaceChildren();
+      if (pass?.available) {
+        for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
+          const card = document.createElement("article");
+          card.className = "billing-event-pass-card" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
+          card.innerHTML = `<div><strong>${label(plan)}</strong><small>Acceso durante 7 días</small></div><b>${money(pass.plans[plan])}</b><button type="button">Comprar pase</button>`;
+          const button = card.querySelector("button");
+          button.disabled = !state.checkoutEnabled;
+          button.addEventListener("click", () => eventPassCheckout(plan, button));
+          eventPassPlansRoot.appendChild(card);
+        }
+      }
+    }
     if (!state.enabled) {
       showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
     } else if (subscription?.status === "past_due") {
@@ -246,6 +264,20 @@
     }
   }
 
+
+  async function eventPassCheckout(plan, button) {
+    button.disabled = true;
+    showNotice("Preparando tu 7 Day Pass…", "pending");
+    try {
+      const response = await fetch("/api/billing/event-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pase");
+      window.location.assign(data.url);
+    } catch (error) {
+      showNotice(error.message, "error");
+      button.disabled = false;
+    }
+  }
 
   async function changePlan(plan, button) {
     button.disabled = true;
