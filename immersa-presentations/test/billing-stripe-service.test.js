@@ -491,7 +491,7 @@ test("downgrades and annual to monthly changes keep the paid period intact befor
 
 test("a retired founders coupon returns a clear IMMERSA message instead of Stripe internals", async () => {
   const couponError = new Error("Phase 1 has a coupon that would be deleted, expired, or fully redeemed.");
-  const { service } = setup({
+  const { service, calls } = setup({
     customerId: "cus_1",
     subscription: {
       provider_subscription_id: "sub_1",
