@@ -160,3 +160,14 @@
 
 .billing-plan button.is-pass-active{background:#fff;color:#6d3bef;border:1.5px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE);background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 8px 18px rgba(67,104,246,.10);cursor:default;opacity:1}
 .billing-pass-remaining{display:block;margin-top:8px;color:var(--muted);font-size:10.5px;line-height:1.4;text-align:center}
+
+
+/* FREE plan reference card inside the authenticated Cobros modal. */
+.billing-modal{max-width:1060px}
+.billing-plans{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.billing-plan.is-free{background:#fff;border-color:rgba(20,18,30,.09)}
+.billing-tier-dot.free{background:#A1A1AA}
+.billing-plan.is-free .billing-price-block{min-height:74px}
+.billing-plan button.is-free-reference:disabled{opacity:1;cursor:default;color:rgba(21,19,31,.42);background:rgba(20,18,30,.06);border:0;box-shadow:none;pointer-events:none}
+@media(max-width:920px){.billing-modal{max-width:820px}.billing-plans{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.billing-plans{grid-template-columns:1fr}}

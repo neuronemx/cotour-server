@@ -117,6 +117,16 @@
     showNotice("");
   }
 
+  function freePlanFeatures() {
+    return [
+      "2 Decks · 50 MB",
+      "Hasta 25 personas",
+      "Compartir pantalla",
+      "Trazo y reacciones en vivo",
+      "Semblanza del Speaker"
+    ];
+  }
+
   function planFeatures(plan) {
     return plan === "SPEAKER"
       ? ["5 Decks · 200 MB", "Hasta 100 personas", "Encuestas, Q&A y métricas básicas"]
@@ -170,6 +180,16 @@
       founderPolicy.classList.toggle("is-visible", founderVisible);
     }
     plansRoot.replaceChildren();
+    const currentPlan = subscription?.plan || state.effectivePlan || "FREE";
+    const freeActive = currentPlan === "FREE";
+    const freeCard = document.createElement("article");
+    freeCard.className = "billing-plan is-free";
+    const freeFeatureMarkup = freePlanFeatures().map((item) => `<li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>${item}</li>`).join("");
+    freeCard.innerHTML = `<div class="billing-plan-description">Para conocer Immersa</div><h3 class="billing-plan-name"><span class="billing-tier-dot free"></span>FREE</h3><div class="billing-price-block"><div class="billing-hero-price"><span class="billing-price-amount">Gratis</span></div><div class="billing-price-secondary">Sin tarjeta requerida</div></div><ul class="billing-features">${freeFeatureMarkup}</ul><button type="button" disabled>${freeActive ? "Plan actual" : "Plan gratuito"}</button>`;
+    const freeButton = freeCard.querySelector("button");
+    freeButton.classList.toggle("is-current", freeActive);
+    freeButton.classList.toggle("is-free-reference", !freeActive);
+    plansRoot.appendChild(freeCard);
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
