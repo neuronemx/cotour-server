@@ -63,15 +63,6 @@ function invoicePaidAt(invoice = {}) {
 }
 
 const PAYMENT_RECOVERY_MS = 7 * 24 * 60 * 60 * 1000;
-const CHECKOUT_CONTACT_FIELDS = Object.freeze([
-  {
-    key: "country_or_region",
-    label: { type: "custom", custom: "País o región" },
-    type: "text",
-    text: { minimum_length: 2, maximum_length: 100 },
-    optional: false
-  }
-]);
 const RELEVANT_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.expired",
@@ -283,9 +274,6 @@ class StripeBillingService {
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: entry.priceId, quantity: 1 }],
-      // Stripe's billing address option also asks for street, city and postal code.
-      // IMMERSA only needs country/region and a phone number at checkout.
-      custom_fields: CHECKOUT_CONTACT_FIELDS,
       phone_number_collection: { enabled: true },
       ...(entry.couponId ? { discounts: [{ coupon: entry.couponId }] } : { allow_promotion_codes: true }),
       success_url: `${this.baseUrl}/home?billing=success&checkout_session_id={CHECKOUT_SESSION_ID}`,
