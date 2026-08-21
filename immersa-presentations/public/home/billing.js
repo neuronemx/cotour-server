@@ -3,8 +3,6 @@
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
   const plansRoot = document.getElementById("billingPlans");
-  const eventPassRoot = document.getElementById("billingEventPass");
-  const eventPassPlansRoot = document.getElementById("billingEventPassPlans");
   const founderPolicy = document.getElementById("billingFounderPolicy");
   const notice = document.getElementById("billingNotice");
   let portalButton = document.getElementById("billingPortal");
@@ -34,6 +32,7 @@
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "annual";
+  const isEventPass = () => interval === "week";
   let invoices = [];
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
@@ -166,15 +165,16 @@
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
-      const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+      const amount = isEventPass() ? state.eventPass?.plans?.[plan] : state.plans?.[plan]?.[interval]?.[selectedOffer()];
       const officialAmount = state.plans?.[plan]?.[interval]?.official;
-      const period = interval === "annual" ? "al año" : "al mes";
+      const period = isEventPass() ? "por 7 días" : (interval === "annual" ? "al año" : "al mes");
       const monthlyEquivalent = interval === "annual"
         ? `<small class="billing-price-monthly-equivalent">${moneyMonthly(amount)} al mes</small>`
         : "";
-      const active = subscription && subscription.plan === plan && subscription.interval === interval;
+      const passActive = isEventPass() && state.grants?.some((grant) => grant.origin === "event_pass" && grant.plan === plan);
+      const active = !isEventPass() && subscription && subscription.plan === plan && subscription.interval === interval;
       const limitedNote = `<small class="billing-price-limited${selectedOffer() === "founders" ? " is-visible" : ""}">Por tiempo limitado</small>`;
-      const priceMarkup = selectedOffer() === "founders"
+      const priceMarkup = !isEventPass() && selectedOffer() === "founders"
         ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${monthlyEquivalent}${limitedNote}`
         : `${money(amount)} <small>${period}</small>${monthlyEquivalent}`;
       const badgeMarkup = plan === "SPEAKER_PRO"
@@ -186,31 +186,17 @@
       const statusMarkup = active && subscriptionStatus
         ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado al finalizar tu periodo actual.</small>` : ""}`
         : "";
-      card.innerHTML = `${badgeMarkup}<p class="billing-plan-description">${description}</p><h3>${label(plan)}</h3><strong>${priceMarkup}</strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
+      const actionLabel = passActive ? "Pase activo" : (isEventPass() ? "Comprar 7 Day Pass" : (active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")));
+      card.innerHTML = `${badgeMarkup}<p class="billing-plan-description">${description}</p><h3>${label(plan)}</h3><strong>${priceMarkup}</strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${actionLabel}</button>${statusMarkup}`;
       const button = card.querySelector("button");
-      button.disabled = active || (!active && !state.checkoutEnabled);
+      button.disabled = passActive || active || (!active && !state.checkoutEnabled);
       button.classList.toggle("is-current", Boolean(active));
       button.addEventListener("click", () => {
         if (active) return;
-        subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
+        if (isEventPass()) eventPassCheckout(plan, button);
+        else subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
       });
       plansRoot.appendChild(card);
-    }
-    if (eventPassRoot && eventPassPlansRoot) {
-      const pass = state.eventPass;
-      eventPassRoot.hidden = !pass?.available;
-      eventPassPlansRoot.replaceChildren();
-      if (pass?.available) {
-        for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
-          const card = document.createElement("article");
-          card.className = "billing-event-pass-card" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
-          card.innerHTML = `<div><strong>${label(plan)}</strong><small>Acceso durante 7 días</small></div><b>${money(pass.plans[plan])}</b><button type="button">Comprar pase</button>`;
-          const button = card.querySelector("button");
-          button.disabled = !state.checkoutEnabled;
-          button.addEventListener("click", () => eventPassCheckout(plan, button));
-          eventPassPlansRoot.appendChild(card);
-        }
-      }
     }
     if (!state.enabled) {
       showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
