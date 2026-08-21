@@ -76,6 +76,50 @@ class BillingRepository {
     );
   }
 
+  async createEventPassPurchase({ workspaceId, sessionId, paymentIntentId, plan, priceId, startsAt, endsAt }) {
+    const purchaseId = crypto.randomUUID();
+    const grantId = crypto.randomUUID();
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [existing] = await connection.execute(
+        "SELECT id, grant_id FROM billing_event_pass_purchases WHERE provider_checkout_session_id = ? LIMIT 1 FOR UPDATE",
+        [String(sessionId)]
+      );
+      if (existing?.[0]) {
+        await connection.commit();
+        return { duplicate: true, id: existing[0].id, grantId: existing[0].grant_id };
+      }
+      await connection.execute(
+        `INSERT INTO workspace_plan_grants
+           (id, workspace_id, plan, origin, starts_at, ends_at, note, created_by_user_id)
+         VALUES (?, ?, ?, 'event_pass', ?, ?, ?, 'stripe')`,
+        [grantId, String(workspaceId), plan, sqlDate(startsAt), sqlDate(endsAt), `7 Day Pass · ${String(sessionId)}`]
+      );
+      await connection.execute(
+        `INSERT INTO billing_event_pass_purchases
+           (id, workspace_id, provider_checkout_session_id, provider_payment_intent_id,
+            plan, provider_price_id, grant_id, starts_at, ends_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [purchaseId, String(workspaceId), String(sessionId), paymentIntentId ? String(paymentIntentId) : null,
+          plan, String(priceId), grantId, sqlDate(startsAt), sqlDate(endsAt)]
+      );
+      await connection.execute(
+        `INSERT INTO billing_audit_log
+           (workspace_id, event_type, next_plan, source, provider_object_id, note)
+         VALUES (?, 'event_pass_activated', ?, 'event_pass', ?, 'Pase de 7 días activado')`,
+        [String(workspaceId), plan, String(sessionId)]
+      );
+      await connection.commit();
+      return { duplicate: false, id: purchaseId, grantId };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   async markCheckoutSession(sessionId, status, subscriptionId = null) {
     await this.pool.execute(
       `UPDATE billing_checkout_attempts
