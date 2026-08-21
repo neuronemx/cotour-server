@@ -207,3 +207,20 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(server, /canRegisterAudience\(session, requestedAudienceId, audienceLimit\)/);
   assert.match(server, /AUDIENCE_LIMIT_REACHED/);
 });
+
+
+test("Cobros renders FREE as a non-purchasable in-app plan reference", () => {
+  const billing = fs.readFileSync(path.join(appDir, "public", "home", "billing.js"), "utf8");
+  const css = fs.readFileSync(path.join(appDir, "public", "home", "billing.css"), "utf8");
+
+  assert.match(billing, /function freePlanFeatures\(\)/);
+  assert.match(billing, /"2 Decks · 50 MB"/);
+  assert.match(billing, /"Hasta 25 personas"/);
+  assert.match(billing, /"Compartir pantalla"/);
+  assert.match(billing, /"Trazo y reacciones en vivo"/);
+  assert.match(billing, /"Semblanza del Speaker"/);
+  assert.match(billing, /freeActive \? "Plan actual" : "Plan gratuito"/);
+  assert.match(billing, /freeButton\.classList\.toggle\("is-current", freeActive\)/);
+  assert.match(css, /\.billing-plans\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.billing-tier-dot\.free\{background:#A1A1AA\}/);
+});
