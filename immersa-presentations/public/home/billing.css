@@ -157,3 +157,6 @@
 .billing-modal{border:0!important;}
 /* Founders sparkle on the Pro annual savings indicator. */
 .billing-savings-chip svg{width:12px;height:12px;stroke:currentColor;align-self:center;flex:0 0 12px}.billing-savings-chip .billing-founder-sparkle{color:#8B5CF6;stroke:#8B5CF6;}
+
+.billing-plan button.is-pass-active{background:#fff;color:#6d3bef;border:1.5px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE);background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 8px 18px rgba(67,104,246,.10);cursor:default;opacity:1}
+.billing-pass-remaining{display:block;margin-top:8px;color:var(--muted);font-size:10.5px;line-height:1.4;text-align:center}
