@@ -156,4 +156,4 @@
 /* Remove the hairline above the Immersa gradient pleca. */
 .billing-modal{border:0!important;}
 /* Founders sparkle on the Pro annual savings indicator. */
-.billing-savings-chip svg{stroke:currentColor;}
+.billing-savings-chip svg{width:12px;height:12px;stroke:currentColor;align-self:center;flex:0 0 12px}.billing-savings-chip .billing-founder-sparkle{color:#8B5CF6;stroke:#8B5CF6;}
