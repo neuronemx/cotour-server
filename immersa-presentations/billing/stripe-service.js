@@ -5,6 +5,9 @@ const {
   billingFlags,
   publicCatalog,
   resolveCatalogEntry,
+  EVENT_PASS_DAYS,
+  EVENT_PASS_PRICES_MXN,
+  EVENT_PASS_PRICE_ENV_KEYS,
   PLAN_RANK,
   publicError
 } = require("./config");
@@ -118,6 +121,9 @@ class StripeBillingService {
 
   async status(workspaceId) {
     if (!this.repository) return { ...this.catalog(), effectivePlan: "FREE", subscription: null, grants: [] };
+    if (typeof this.repository.recalculateEntitlement === "function") {
+      await this.repository.recalculateEntitlement(workspaceId, { now: this.now(), protectDowngrade: false });
+    }
     const account = await this.repository.accountStatus(workspaceId);
     if (!account?.subscription?.id || !this.stripe) return { ...this.catalog(), ...account };
     try {
@@ -286,6 +292,43 @@ class StripeBillingService {
     return { url: session.url, reused: false };
   }
 
+
+  async createEventPassCheckout(accountContext, payload = {}, options = {}) {
+    this.assertEnabled();
+    if (!this.flags.checkoutEnabled && !options.admin) throw publicError("BILLING_CHECKOUT_DISABLED", "La contratación todavía no está disponible", 503);
+    const workspaceId = String(accountContext?.workspace?.id || "");
+    if (!workspaceId) throw publicError("BILLING_ACCOUNT_REQUIRED", "Inicia sesión para contratar", 401);
+    const plan = String(payload.plan || "").trim().toUpperCase();
+    if (!Object.prototype.hasOwnProperty.call(EVENT_PASS_PRICES_MXN, plan)) throw publicError("INVALID_EVENT_PASS_PLAN", "Selecciona SPEAKER o SPEAKER PRO");
+    const priceId = String(this.env[EVENT_PASS_PRICE_ENV_KEYS[plan]] || "").trim();
+    if (!priceId) throw new Error(`Missing Stripe event pass price for ${plan}`);
+    let customerId = await this.repository.getCustomer(workspaceId);
+    if (!customerId) {
+      const customer = await this.stripe.customers.create({
+        email: String(accountContext.user?.email || "") || undefined,
+        name: String(accountContext.user?.name || "") || undefined,
+        metadata: { immersa_workspace_id: workspaceId }
+      }, { idempotencyKey: `customer:${workspaceId}` });
+      customerId = await this.repository.saveCustomer(workspaceId, customer.id);
+    }
+    const attempt = await this.repository.createCheckoutAttempt({ workspaceId, plan, interval: "event_pass", offer: "official", priceId });
+    const session = await this.stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${this.baseUrl}/home?billing=pass-success&checkout_session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${this.baseUrl}/home?billing=cancelled`,
+      metadata: {
+        immersa_workspace_id: workspaceId,
+        immersa_checkout_attempt_id: attempt.id,
+        immersa_event_pass: "7_day",
+        immersa_pass_plan: plan,
+        immersa_price_id: priceId
+      }
+    }, { idempotencyKey: attempt.idempotencyKey });
+    await this.repository.attachCheckoutSession(attempt.id, session);
+    return { url: session.url, reused: false };
+  }
 
   async listInvoices(accountContext) {
     this.assertEnabled();
@@ -733,6 +776,23 @@ class StripeBillingService {
         checkoutSessionId: object.id
       });
       if (workspaceId && customerId) await this.repository.saveCustomer(workspaceId, customerId);
+      if (object.mode === "payment" && object.metadata?.immersa_event_pass === "7_day") {
+        const plan = String(object.metadata.immersa_pass_plan || "").trim().toUpperCase();
+        const startsAt = new Date(this.now());
+        const endsAt = new Date(startsAt.getTime() + EVENT_PASS_DAYS * 24 * 60 * 60 * 1000);
+        const purchase = await this.repository.createEventPassPurchase({
+          workspaceId,
+          sessionId: object.id,
+          paymentIntentId: stripeId(object.payment_intent),
+          plan,
+          priceId: String(object.metadata.immersa_price_id || ""),
+          startsAt,
+          endsAt
+        });
+        await this.repository.markCheckoutSession(object.id, "completed");
+        await this.repository.recalculateEntitlement(workspaceId, { now: this.now(), protectDowngrade: false });
+        return { eventPass: true, workspaceId, plan, endsAt, duplicate: purchase.duplicate };
+      }
       const subscriptionId = stripeId(object.subscription);
       await this.repository.markCheckoutSession(object.id, "completed", subscriptionId);
       if (!subscriptionId) return { pending: true };
