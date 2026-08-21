@@ -2,7 +2,7 @@ const { PLAN_RANK } = require("./config");
 const { normalizePlan } = require("../auth/plan-features");
 
 const PAID_ACCESS_STATUSES = new Set(["active"]);
-const GRANT_ORIGINS = Object.freeze(["pilot", "courtesy", "manual", "support"]);
+const GRANT_ORIGINS = Object.freeze(["pilot", "courtesy", "manual", "support", "event_pass"]);
 
 function dateValue(value) {
   if (!value) return null;
