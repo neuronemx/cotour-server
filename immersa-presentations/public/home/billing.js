@@ -26,9 +26,6 @@
   const cancelSubmitButton = document.getElementById("billingCancelSubmit");
   const secondaryLinks = document.querySelector(".billing-secondary-links");
 
-  const offerWrap = document.getElementById("billingOfferWrap");
-  const offerSelect = document.getElementById("billingOffer");
-  const offerButtons = [...document.querySelectorAll("[data-billing-offer]")];
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "annual";
@@ -75,7 +72,7 @@
   }
 
   function selectedOffer() {
-    return state?.foundersAvailable && interval === "annual" && offerSelect.value === "founders" ? "founders" : "official";
+    return state?.foundersAvailable && interval === "annual" ? "founders" : "official";
   }
 
   function closePlanChangeConfirmation() {
@@ -102,7 +99,7 @@
   function openPlanChangeConfirmation(plan, button) {
     if (!state?.subscription || !changeConfirm) return;
     const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
-    const period = interval === "annual" ? "Anual · paga 10 meses" : "Mensual";
+    const period = interval === "annual" ? "Anual" : "Mensual";
     const timing = planChangeTiming(plan);
     pendingPlanChange = { plan, button };
     changeConfirmTitle.textContent = "Cambiar a " + label(plan);
@@ -155,40 +152,44 @@
       cancelOpenButton.hidden = true;
     }
     intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !state.eventPass?.available; });
-    offerWrap.hidden = !state.foundersAvailable;
-    if (!state.foundersAvailable || interval !== "annual") offerSelect.value = "official";
     if (founderPolicy) {
-      founderPolicy.hidden = false;
-      founderPolicy.classList.toggle("is-visible", state.foundersAvailable && interval === "annual" && selectedOffer() === "founders");
+      const founderVisible = Boolean(state.foundersAvailable && interval === "annual");
+      founderPolicy.hidden = !founderVisible;
+      founderPolicy.classList.toggle("is-visible", founderVisible);
     }
-    offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
       const amount = isEventPass() ? state.eventPass?.plans?.[plan] : state.plans?.[plan]?.[interval]?.[selectedOffer()];
-      const officialAmount = state.plans?.[plan]?.[interval]?.official;
-      const period = isEventPass() ? "por 7 días" : (interval === "annual" ? "al año" : "al mes");
-      const monthlyEquivalent = interval === "annual"
-        ? `<small class="billing-price-monthly-equivalent">${moneyMonthly(amount)} al mes</small>`
-        : "";
+      const annualAmount = state.plans?.[plan]?.annual?.[selectedOffer()];
+      const annualOfficialAmount = state.plans?.[plan]?.annual?.official;
+      const monthlyAmount = state.plans?.[plan]?.monthly?.official;
       const passActive = isEventPass() && state.grants?.some((grant) => grant.origin === "event_pass" && grant.plan === plan);
       const active = !isEventPass() && subscription && subscription.plan === plan && subscription.interval === interval;
-      const limitedNote = `<small class="billing-price-limited${selectedOffer() === "founders" ? " is-visible" : ""}">Por tiempo limitado</small>`;
-      const priceMarkup = !isEventPass() && selectedOffer() === "founders"
-        ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${monthlyEquivalent}${limitedNote}`
-        : `${money(amount)} <small>${period}</small>${monthlyEquivalent}`;
       const badgeMarkup = plan === "SPEAKER_PRO"
         ? `<span class="billing-plan-badge billing-plan-badge-pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2L12 16.4 5.7 21l2.3-7.2-6-4.6h7.6z"/></svg>Todo incluido</span>`
         : "";
       const description = plan === "SPEAKER_PRO"
         ? "Funciones avanzadas y audiencia máxima"
         : "Mayor audiencia con participaciones interactivas";
+      let priceMarkup = "";
+      let savingsMarkup = "";
+      if (isEventPass()) {
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">por 7 días</span></div><div class="billing-price-secondary">Acceso completo durante 7 días</div>`;
+      } else if (interval === "annual") {
+        const savings = Math.max(0, (Number(monthlyAmount) || 0) * 12 - (Number(annualAmount) || 0));
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${moneyMonthly(annualAmount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary"><span class="billing-price-official">${money(annualOfficialAmount)}</span><span>${money(annualAmount)} al año</span></div>`;
+        if (savings) savingsMarkup = `<div class="billing-savings-chip"><svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>Ahorras ${money(savings)} al año</div>`;
+      } else {
+        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary">Sin compromiso anual</div>`;
+      }
       const statusMarkup = active && subscriptionStatus
         ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado al finalizar tu periodo actual.</small>` : ""}`
         : "";
       const actionLabel = passActive ? "Pase activo" : (isEventPass() ? "Comprar 7 Day Pass" : (active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")));
-      card.innerHTML = `${badgeMarkup}<p class="billing-plan-description">${description}</p><h3>${label(plan)}</h3><strong>${priceMarkup}</strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${actionLabel}</button>${statusMarkup}`;
+      const featureMarkup = planFeatures(plan).map((item) => `<li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>${item}</li>`).join("");
+      card.innerHTML = `${badgeMarkup}<div class="billing-plan-description">${description}</div><h3 class="billing-plan-name"><span class="billing-tier-dot ${plan === "SPEAKER_PRO" ? "pro" : "speaker"}"></span>${label(plan)}</h3><div class="billing-price-block">${priceMarkup}${savingsMarkup}</div><ul class="billing-features">${featureMarkup}</ul><button type="button">${actionLabel}</button>${statusMarkup}`;
       const button = card.querySelector("button");
       button.disabled = passActive || active || (!active && !state.checkoutEnabled);
       button.classList.toggle("is-current", Boolean(active));
@@ -493,19 +494,7 @@
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
-    offerSelect.value = interval === "annual" && state?.foundersAvailable ? "founders" : "official";
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
-    render();
-  }));
-  offerSelect?.addEventListener("change", () => { closePlanChangeConfirmation(); render(); });
-  offerButtons.forEach((button) => button.addEventListener("click", () => {
-    if (button.dataset.billingOffer === "founders" && interval === "monthly") {
-      interval = "annual";
-      intervalButtons.forEach((item) => item.classList.toggle("is-active", item.dataset.billingInterval === interval));
-    }
-    offerSelect.value = button.dataset.billingOffer;
-    offerButtons.forEach((item) => item.classList.toggle("is-active", item === button));
-    closePlanChangeConfirmation();
     render();
   }));
   portalButton?.addEventListener("click", openPortal);
