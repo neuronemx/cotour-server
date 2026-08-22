@@ -30,6 +30,6 @@
     }));
   };
   const load = async () => { const [event, activityData] = await Promise.all([request(base), request(`${base}/activities`)]); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso de paga" : "Acceso gratuito"; registration.classList.toggle("hidden", Boolean(participantId())); render(activityData.activities); };
-  document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value }) }); localStorage.setItem(key, result.participantId); await load(); };
+  document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const registrationKey = document.querySelector("#registration-key").value.trim(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey }) }); localStorage.setItem(key, result.participantId); await load(); };
   load().catch((error) => { title.textContent = error.message; });
 })();
