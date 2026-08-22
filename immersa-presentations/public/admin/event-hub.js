@@ -31,6 +31,13 @@ function activityDate(value) {
   return `${dateLabel}, ${hour12}:${minutes} ${period}`;
 }
 function dateForInput(value) { return value ? String(value).slice(0, 16).replace(" ", "T") : ""; }
+function activityDay(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "Sin horario programado";
+  const [, year, month, day] = match;
+  return new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))));
+}
 function clearActivityEditor() {
   editingActivity = null;
   activityForm.reset();
@@ -56,7 +63,16 @@ function renderActivities(activities) {
     const rightStart = right.scheduled_starts_at || "9999-12-31";
     return leftStart.localeCompare(rightStart) || left.stage_name.localeCompare(right.stage_name) || left.title.localeCompare(right.title);
   });
+  let currentDay = null;
   for (const activity of scheduled) {
+    const day = activityDay(activity.scheduled_starts_at);
+    if (day !== currentDay) {
+      const heading = document.createElement("h4");
+      heading.className = "agenda-day";
+      heading.textContent = day;
+      activityAdminList.appendChild(heading);
+      currentDay = day;
+    }
     const item = document.createElement("article");
     item.className = "activity-card";
     item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div><button type='button'>Editar</button>";
