@@ -25,7 +25,10 @@ function activityDate(value) {
   const [, year, month, day, hours, minutes] = match;
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   const dateLabel = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
-  return `${dateLabel}, ${hours}:${minutes}`;
+  const hour = Number(hours);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${dateLabel}, ${hour12}:${minutes} ${period}`;
 }
 function dateForInput(value) { return value ? String(value).slice(0, 16).replace(" ", "T") : ""; }
 function clearActivityEditor() {
