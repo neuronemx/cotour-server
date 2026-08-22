@@ -1047,7 +1047,7 @@ app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requir
       accessLevel: req.body?.accessLevel,
       deckId: req.body?.deckId,
       scheduledStartsAt: req.body?.scheduledStartsAt,
-      scheduledEndsAt: req.body?.scheduledEndsAt
+      durationMinutes: req.body?.durationMinutes
     });
     return res.status(201).json(activity);
   } catch (error) {

@@ -140,7 +140,7 @@ class EventHubRepository {
 
   async listActivities(eventWorkspaceId) {
     const [rows] = await this.pool.execute(
-      `SELECT a.id, a.title, a.access_level, a.deck_id, a.status,
+      `SELECT a.id, a.title, a.access_level, a.deck_id, a.status, a.duration_minutes,
               a.scheduled_starts_at, a.scheduled_ends_at,
               s.id AS event_stage_id, s.name AS stage_name
        FROM event_activities a
@@ -210,15 +210,20 @@ class EventHubRepository {
     }));
   }
 
-  async createActivity({ eventWorkspaceId, eventStageId, title, accessLevel = "PAID", deckId = null, scheduledStartsAt = null, scheduledEndsAt = null }) {
+  async createActivity({ eventWorkspaceId, eventStageId, title, accessLevel = "PAID", deckId = null, scheduledStartsAt = null, durationMinutes = 60 }) {
     const id = this.createId();
+    const duration = Number(durationMinutes);
+    if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
+      throw new EventHubError("INVALID_ACTIVITY_DURATION", "Activity duration must be between 5 and 480 minutes");
+    }
     await this.pool.execute(
       `INSERT INTO event_activities
-       (id, event_workspace_id, event_stage_id, title, access_level, deck_id, scheduled_starts_at, scheduled_ends_at)
-       SELECT ?, ?, s.id, ?, ?, ?, ?, ? FROM event_stages s
+       (id, event_workspace_id, event_stage_id, title, access_level, deck_id, scheduled_starts_at, scheduled_ends_at, duration_minutes)
+       SELECT ?, ?, s.id, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE DATE_ADD(?, INTERVAL ? MINUTE) END, ? FROM event_stages s
        WHERE s.id = ? AND s.event_workspace_id = ? AND s.active = 1`,
       [id, required(eventWorkspaceId, "event workspace id"), required(title, "title"), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
-        deckId ? String(deckId) : null, scheduledStartsAt, scheduledEndsAt, required(eventStageId, "event stage id"), eventWorkspaceId]
+        deckId ? String(deckId) : null, scheduledStartsAt, scheduledStartsAt, scheduledStartsAt, duration, duration,
+        required(eventStageId, "event stage id"), eventWorkspaceId]
     ).then(([result]) => {
       if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_STAGE_NOT_FOUND", "Event Stage not found", 404);
     });

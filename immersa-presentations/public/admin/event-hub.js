@@ -28,7 +28,7 @@ function renderActivities(activities) {
     item.className = "activity-card";
     item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div>";
     item.querySelector("strong").textContent = activity.title;
-    item.querySelector("span").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
+    item.querySelector("span").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
     item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
     activityAdminList.appendChild(item);
   }
@@ -144,7 +144,8 @@ activityForm.addEventListener("submit", async (event) => {
         title: activityForm.elements.title.value.trim(),
         eventStageId: activityForm.elements.eventStageId.value,
         accessLevel: activityForm.elements.accessLevel.value,
-        scheduledStartsAt: activityForm.elements.scheduledStartsAt.value || null
+        scheduledStartsAt: activityForm.elements.scheduledStartsAt.value || null,
+        durationMinutes: Number(activityForm.elements.durationMinutes.value)
       })
     });
     const body = await response.json();

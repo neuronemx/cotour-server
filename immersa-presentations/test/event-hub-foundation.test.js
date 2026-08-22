@@ -138,4 +138,6 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_live_sessions/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_participants/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_live_attendance/);
+  const durationMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "023_event_activity_duration.sql"), "utf8");
+  assert.match(durationMigration, /duration_minutes/);
 });
