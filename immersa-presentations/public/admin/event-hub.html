@@ -38,7 +38,7 @@
           <label><span>Actividad</span><input name="title" maxlength="160" required placeholder="Conferencia inaugural"></label>
           <label><span>Event Stage</span><select id="activityStage" name="eventStageId" required></select></label>
           <label><span>Acceso</span><select name="accessLevel"><option value="PAID">Público Paid</option><option value="FREE">Público Free</option></select></label>
-          <label><span>Inicio programado</span><input name="scheduledStartsAt" type="datetime-local"></label>
+          <label><span>Inicio programado (CDMX)</span><input name="scheduledStartsAt" type="datetime-local"></label>
           <label><span>Duración (min)</span><input name="durationMinutes" type="number" min="5" max="480" value="60" required></label>
           <button id="activitySubmit" type="submit">Agregar al programa</button>
           <button id="activityCancel" type="button" hidden>Cancelar</button>
@@ -49,6 +49,6 @@
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/admin/event-hub.js?v=2"></script>
+  <script src="/admin/event-hub.js?v=3"></script>
 </body>
 </html>

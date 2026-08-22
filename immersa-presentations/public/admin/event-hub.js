@@ -20,8 +20,12 @@ let editingActivity = null;
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
 function activityDate(value) {
   if (!value) return "Horario por definir";
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? "Horario por definir" : date.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!match) return "Horario por definir";
+  const [, year, month, day, hours, minutes] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const dateLabel = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  return `${dateLabel}, ${hours}:${minutes}`;
 }
 function dateForInput(value) { return value ? String(value).slice(0, 16).replace(" ", "T") : ""; }
 function clearActivityEditor() {
@@ -44,7 +48,12 @@ function editActivity(activity) {
 function renderActivities(activities) {
   activityAdminList.replaceChildren();
   if (!activities.length) return void (activityAdminList.textContent = "Aún no hay actividades programadas.");
-  for (const activity of activities) {
+  const scheduled = [...activities].sort((left, right) => {
+    const leftStart = left.scheduled_starts_at || "9999-12-31";
+    const rightStart = right.scheduled_starts_at || "9999-12-31";
+    return leftStart.localeCompare(rightStart) || left.stage_name.localeCompare(right.stage_name) || left.title.localeCompare(right.title);
+  });
+  for (const activity of scheduled) {
     const item = document.createElement("article");
     item.className = "activity-card";
     item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div><button type='button'>Editar</button>";
