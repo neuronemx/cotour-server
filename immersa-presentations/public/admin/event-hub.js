@@ -9,6 +9,8 @@ const activityForm = document.getElementById("activityForm");
 const activityStage = document.getElementById("activityStage");
 const activityFeedback = document.getElementById("activityFeedback");
 const activityAdminList = document.getElementById("activityAdminList");
+const existingHubs = document.getElementById("existingHubs");
+const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 let currentHub = null;
 
@@ -37,6 +39,35 @@ async function loadActivities() {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "No se pudo cargar el programa");
   renderActivities(body.activities || []);
+}
+async function selectHub(workspaceId) {
+  const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(workspaceId)}`);
+  const hub = await response.json();
+  if (!response.ok) throw new Error(hub.error || "No se pudo abrir el Event Hub");
+  renderHub(hub);
+  await loadActivities();
+}
+function renderExistingHubs(hubs) {
+  existingHubs.replaceChildren();
+  existingHubsFeedback.textContent = hubs.length ? "Selecciona un Event Hub para administrarlo." : "Aún no hay Event Hubs en este ambiente.";
+  for (const item of hubs) {
+    const card = document.createElement("article");
+    card.className = "existing-hub";
+    card.innerHTML = "<div><strong></strong><span></span></div><button type='button'>Abrir</button>";
+    card.querySelector("strong").textContent = item.title;
+    card.querySelector("span").textContent = item.slug;
+    card.querySelector("button").addEventListener("click", async () => {
+      try { await selectHub(item.workspace_id); }
+      catch (error) { existingHubsFeedback.className = "error"; existingHubsFeedback.textContent = error.message; }
+    });
+    existingHubs.appendChild(card);
+  }
+}
+async function loadExistingHubs() {
+  const response = await fetch("/api/admin/event-hubs");
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "No se pudo cargar los Event Hubs");
+  renderExistingHubs(body.hubs || []);
 }
 
 function renderHub(hub) {
@@ -89,6 +120,7 @@ form.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(hub.error || "No se pudo crear el Event Hub");
     renderHub(hub);
     await loadActivities();
+    await loadExistingHubs();
     feedback.className = "success";
     feedback.textContent = "Event Hub creado. Los QR ya están listos para probarse.";
     form.reset();
@@ -128,15 +160,13 @@ activityForm.addEventListener("submit", async (event) => {
 });
 
 (async () => {
-  const workspaceId = localStorage.getItem(savedHubKey);
-  if (!workspaceId) return;
   try {
-    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(workspaceId)}`);
-    const hub = await response.json();
-    if (!response.ok) throw new Error(hub.error || "No se pudo restaurar el Event Hub");
-    renderHub(hub);
-    await loadActivities();
+    await loadExistingHubs();
+    const workspaceId = localStorage.getItem(savedHubKey);
+    if (workspaceId) await selectHub(workspaceId);
   } catch {
     localStorage.removeItem(savedHubKey);
+    existingHubsFeedback.className = "error";
+    existingHubsFeedback.textContent = "No se pudo cargar los Event Hubs.";
   }
 })();

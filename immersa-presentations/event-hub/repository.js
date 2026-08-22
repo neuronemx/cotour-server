@@ -71,6 +71,10 @@ class EventHubRepository {
     const eventSlug = slug(requestedSlug);
     const normalizedStages = [...new Set((stages || []).map((name) => required(name, "stage name")))];
     if (!normalizedStages.length) throw new EventHubError("INVALID_INPUT", "At least one Event Stage is required");
+    const [existingHubs] = await this.pool.execute("SELECT workspace_id FROM event_hubs WHERE slug = ? LIMIT 1", [eventSlug]);
+    if (existingHubs?.[0]) {
+      throw new EventHubError("EVENT_HUB_SLUG_EXISTS", "Ya existe un Event Hub con este identificador", 409);
+    }
     return transaction(this.pool, async (connection) => {
       await connection.execute(
         "INSERT INTO workspaces (id, kind, personal_owner_user_id, plan) VALUES (?, 'event', NULL, 'FREE')",
@@ -112,6 +116,13 @@ class EventHubRepository {
       [hub.workspace_id]
     );
     return { ...hub, stages: stages || [], publicQrs: qrs || [] };
+  }
+
+  async listHubs() {
+    const [rows] = await this.pool.execute(
+      "SELECT workspace_id, slug, title, timezone, status FROM event_hubs ORDER BY created_at DESC, title"
+    );
+    return rows || [];
   }
 
   async setStageCapacity({ eventStageId, audienceCapacity }) {

@@ -1013,6 +1013,14 @@ app.post("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (re
     return sendEventHubError(res, error);
   }
 });
+app.get("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json({ hubs: await eventHubRepository.listHubs() });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
