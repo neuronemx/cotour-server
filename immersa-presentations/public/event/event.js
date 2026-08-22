@@ -8,6 +8,7 @@
   const registration = document.querySelector("#registration");
   const list = document.querySelector("#activity-list");
   const participantId = () => localStorage.getItem(key);
+  registration.classList.toggle("hidden", Boolean(participantId()));
   const request = async (url, options) => {
     const response = await fetch(url, options);
     const body = await response.json();
