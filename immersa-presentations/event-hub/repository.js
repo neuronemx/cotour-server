@@ -127,6 +127,20 @@ class EventHubRepository {
     return { eventStageId, audienceCapacity: capacity };
   }
 
+  async listActivities(eventWorkspaceId) {
+    const [rows] = await this.pool.execute(
+      `SELECT a.id, a.title, a.access_level, a.deck_id, a.status,
+              a.scheduled_starts_at, a.scheduled_ends_at,
+              s.id AS event_stage_id, s.name AS stage_name
+       FROM event_activities a
+       INNER JOIN event_stages s ON s.id = a.event_stage_id
+       WHERE a.event_workspace_id = ?
+       ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, s.sort_order, a.title`,
+      [required(eventWorkspaceId, "event workspace id")]
+    );
+    return rows || [];
+  }
+
   async getLiveStageCapacityForDeck(deckId) {
     const normalizedDeckId = required(deckId, "deck id");
     const [rows] = await this.pool.execute(

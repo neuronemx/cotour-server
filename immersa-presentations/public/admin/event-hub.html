@@ -26,9 +26,22 @@
     <section id="hub" hidden aria-live="polite">
       <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><span id="hubSlug"></span></header>
       <div class="stages"><section><h3>Event Stages</h3><ul id="stageList"></ul></section><section><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section></div>
+      <section class="activities-admin">
+        <h3>Programa</h3>
+        <p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p>
+        <form id="activityForm">
+          <label><span>Actividad</span><input name="title" maxlength="160" required placeholder="Conferencia inaugural"></label>
+          <label><span>Event Stage</span><select id="activityStage" name="eventStageId" required></select></label>
+          <label><span>Acceso</span><select name="accessLevel"><option value="PAID">Público Paid</option><option value="FREE">Público Free</option></select></label>
+          <label><span>Inicio programado</span><input name="scheduledStartsAt" type="datetime-local"></label>
+          <button type="submit">Agregar al programa</button>
+        </form>
+        <p id="activityFeedback" role="status"></p>
+        <div id="activityAdminList" class="activity-list"></div>
+      </section>
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/admin/event-hub.js?v=1"></script>
+  <script src="/admin/event-hub.js?v=2"></script>
 </body>
 </html>

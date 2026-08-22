@@ -1021,6 +1021,14 @@ app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmi
     return sendEventHubError(res, error);
   }
 });
+app.get("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json({ activities: await eventHubRepository.listActivities(req.params.workspaceId) });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
