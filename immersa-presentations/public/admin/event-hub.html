@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Hub · IMMERSA</title>
+  <link rel="stylesheet" href="/admin/event-hub.css?v=1">
+</head>
+<body>
+  <header class="admin-header">
+    <a href="/home" class="brand">IMMERSA</a>
+    <div><p>Administración</p><h1>Event Hub</h1></div>
+    <nav><a href="/admin/accounts">Cuentas</a><a href="/home">Volver a mis presentaciones</a></nav>
+  </header>
+  <main>
+    <section class="intro">
+      <h2>Crear Event Hub</h2>
+      <p>Crea un workspace de evento independiente. Incluye los Stages <strong>CCC</strong> y <strong>Foro 2</strong>, además de un QR Free y uno Paid.</p>
+      <form id="createHub">
+        <label><span>Nombre del evento</span><input name="title" maxlength="160" required placeholder="Semana AMC"></label>
+        <label><span>Identificador</span><input name="slug" maxlength="80" required pattern="[a-z0-9-]+" placeholder="semana-amc"></label>
+        <button type="submit">Crear Event Hub</button>
+      </form>
+      <p id="feedback" role="status"></p>
+    </section>
+    <section id="hub" hidden aria-live="polite">
+      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><span id="hubSlug"></span></header>
+      <div class="stages"><section><h3>Event Stages</h3><ul id="stageList"></ul></section><section><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section></div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/admin/event-hub.js?v=1"></script>
+</body>
+</html>

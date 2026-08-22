@@ -1149,6 +1149,9 @@ app.post("/api/event/live-sessions/:liveSessionId/enter", async (req, res) => {
 app.get("/admin/accounts", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "admin", "accounts.html"));
 });
+app.get("/admin/event-hub", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "admin", "event-hub.html"));
+});
 async function requireOwnedOrPublishedSession(req, res, next) {
   const requestedSessionId = String(req.body?.session_id || "").trim();
   const published = await readSystemDemoManifest(DATA_DECKS_DIR, DEMO_PUBLISHED_DECK_ID).catch(() => null);

@@ -639,20 +639,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     };
   }
 
-  async function publicAudiencePathForDeck(deckId) {
-    const normalizedDeckId = String(deckId || '').trim();
-    if (!normalizedDeckId) return null;
-    const accessLinks = await loadAccessLinks(storePath);
-    const link = accessLinks.find((item) => (
-      item.role === 'audience'
-      && item.active !== false
-      && item.deck_id === normalizedDeckId
-      && PUBLIC_ID_PATTERN.test(String(item.public_id || ''))
-    ));
-    return link ? '/' + link.public_id : null;
-  }
-
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck };
+  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles };
 }
 
 module.exports = {
