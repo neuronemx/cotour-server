@@ -9,10 +9,13 @@ const activityForm = document.getElementById("activityForm");
 const activityStage = document.getElementById("activityStage");
 const activityFeedback = document.getElementById("activityFeedback");
 const activityAdminList = document.getElementById("activityAdminList");
+const activitySubmit = document.getElementById("activitySubmit");
+const activityCancel = document.getElementById("activityCancel");
 const existingHubs = document.getElementById("existingHubs");
 const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 let currentHub = null;
+let editingActivity = null;
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
 function activityDate(value) {
@@ -20,16 +23,35 @@ function activityDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? "Horario por definir" : date.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 }
+function dateForInput(value) { return value ? String(value).slice(0, 16).replace(" ", "T") : ""; }
+function clearActivityEditor() {
+  editingActivity = null;
+  activityForm.reset();
+  activitySubmit.textContent = "Agregar al programa";
+  activityCancel.hidden = true;
+}
+function editActivity(activity) {
+  editingActivity = activity;
+  activityForm.elements.title.value = activity.title;
+  activityForm.elements.eventStageId.value = activity.event_stage_id;
+  activityForm.elements.accessLevel.value = activity.access_level;
+  activityForm.elements.scheduledStartsAt.value = dateForInput(activity.scheduled_starts_at);
+  activityForm.elements.durationMinutes.value = activity.duration_minutes || 60;
+  activitySubmit.textContent = "Guardar cambios";
+  activityCancel.hidden = false;
+  activityForm.scrollIntoView({ behavior: "smooth", block: "center" });
+}
 function renderActivities(activities) {
   activityAdminList.replaceChildren();
   if (!activities.length) return void (activityAdminList.textContent = "Aún no hay actividades programadas.");
   for (const activity of activities) {
     const item = document.createElement("article");
     item.className = "activity-card";
-    item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div>";
+    item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div><button type='button'>Editar</button>";
     item.querySelector("strong").textContent = activity.title;
     item.querySelector("span").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
     item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
+    item.querySelector("button").addEventListener("click", () => editActivity(activity));
     activityAdminList.appendChild(item);
   }
 }
@@ -136,10 +158,13 @@ activityForm.addEventListener("submit", async (event) => {
   const button = activityForm.querySelector("button");
   button.disabled = true;
   activityFeedback.className = "";
-  activityFeedback.textContent = "Agregando actividad…";
+  activityFeedback.textContent = editingActivity ? "Guardando cambios…" : "Agregando actividad…";
   try {
-    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+    const endpoint = editingActivity
+      ? `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}`
+      : `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities`;
+    const response = await fetch(endpoint, {
+      method: editingActivity ? "PUT" : "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: activityForm.elements.title.value.trim(),
         eventStageId: activityForm.elements.eventStageId.value,
@@ -150,15 +175,17 @@ activityForm.addEventListener("submit", async (event) => {
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "No se pudo agregar la actividad");
-    activityForm.reset();
+    const wasEditing = Boolean(editingActivity);
+    clearActivityEditor();
     activityFeedback.className = "success";
-    activityFeedback.textContent = "Actividad agregada. Deck por asignar.";
+    activityFeedback.textContent = wasEditing ? "Actividad actualizada." : "Actividad agregada. Deck por asignar.";
     await loadActivities();
   } catch (error) {
     activityFeedback.className = "error";
     activityFeedback.textContent = error.message;
   } finally { button.disabled = false; }
 });
+activityCancel.addEventListener("click", clearActivityEditor);
 
 (async () => {
   try {

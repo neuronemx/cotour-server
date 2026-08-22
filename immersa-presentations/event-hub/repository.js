@@ -230,6 +230,33 @@ class EventHubRepository {
     return this.getActivity(id);
   }
 
+  async updateActivity({ activityId, eventWorkspaceId, eventStageId, title, accessLevel = "PAID", scheduledStartsAt = null, durationMinutes = 60 }) {
+    const activity = await this.getActivity(activityId);
+    if (activity.event_workspace_id !== required(eventWorkspaceId, "event workspace id")) {
+      throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
+    }
+    if (activity.status !== "SCHEDULED") {
+      throw new EventHubError("ACTIVITY_NOT_EDITABLE", "Only scheduled activities can be edited", 409);
+    }
+    const duration = Number(durationMinutes);
+    if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
+      throw new EventHubError("INVALID_ACTIVITY_DURATION", "Activity duration must be between 5 and 480 minutes");
+    }
+    const [result] = await this.pool.execute(
+      `UPDATE event_activities a
+       INNER JOIN event_stages s ON s.id = ? AND s.event_workspace_id = a.event_workspace_id AND s.active = 1
+       SET a.event_stage_id = s.id, a.title = ?, a.access_level = ?, a.scheduled_starts_at = ?,
+           a.scheduled_ends_at = CASE WHEN ? IS NULL THEN NULL ELSE DATE_ADD(?, INTERVAL ? MINUTE) END,
+           a.duration_minutes = ?
+       WHERE a.id = ? AND a.event_workspace_id = ? AND a.status = 'SCHEDULED'`,
+      [required(eventStageId, "event stage id"), required(title, "title"), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
+        scheduledStartsAt, scheduledStartsAt, scheduledStartsAt, duration, duration,
+        required(activityId, "activity id"), eventWorkspaceId]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_STAGE_NOT_FOUND", "Event Stage not found", 404);
+    return this.getActivity(activityId);
+  }
+
   async grantStageOperatorAccess({ eventStageId, accessSecret, expiresAt = null }) {
     const id = this.createId();
     const [result] = await this.pool.execute(

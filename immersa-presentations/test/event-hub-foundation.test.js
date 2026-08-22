@@ -114,6 +114,15 @@ test("Event Admin can list Event Hubs to reopen one in another browser", async (
   assert.deepEqual(await repository.listHubs(), [{ workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", status: "DRAFT" }]);
 });
 
+test("only a scheduled activity can be edited", async () => {
+  const pool = fakePool([[[{ id: "activity-1", event_workspace_id: "hub-1", event_stage_id: "stage-1", status: "LIVE" }], []]]);
+  const repository = new EventHubRepository(pool);
+  await assert.rejects(
+    () => repository.updateActivity({ activityId: "activity-1", eventWorkspaceId: "hub-1", eventStageId: "stage-1", title: "Cambio", durationMinutes: 60 }),
+    (error) => error instanceof EventHubError && error.code === "ACTIVITY_NOT_EDITABLE"
+  );
+});
+
 test("a Stage cannot start a second LiveSession at the same time", async () => {
   const pool = fakePool([
     [[{ id: "activity-1", event_workspace_id: "hub-1", event_stage_id: "stage-1", title: "Conferencia", access_level: "PAID", deck_id: "deck-1", status: "SCHEDULED", stage_name: "CCC" }], []],

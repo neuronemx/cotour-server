@@ -40,7 +40,8 @@
           <label><span>Acceso</span><select name="accessLevel"><option value="PAID">Público Paid</option><option value="FREE">Público Free</option></select></label>
           <label><span>Inicio programado</span><input name="scheduledStartsAt" type="datetime-local"></label>
           <label><span>Duración (min)</span><input name="durationMinutes" type="number" min="5" max="480" value="60" required></label>
-          <button type="submit">Agregar al programa</button>
+          <button id="activitySubmit" type="submit">Agregar al programa</button>
+          <button id="activityCancel" type="button" hidden>Cancelar</button>
         </form>
         <p id="activityFeedback" role="status"></p>
         <div id="activityAdminList" class="activity-list"></div>

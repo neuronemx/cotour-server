@@ -1054,6 +1054,22 @@ app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requir
     return sendEventHubError(res, error);
   }
 });
+app.put("/api/admin/event-hubs/:workspaceId/activities/:activityId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.updateActivity({
+      activityId: req.params.activityId,
+      eventWorkspaceId: req.params.workspaceId,
+      eventStageId: req.body?.eventStageId,
+      title: req.body?.title,
+      accessLevel: req.body?.accessLevel,
+      scheduledStartsAt: req.body?.scheduledStartsAt,
+      durationMinutes: req.body?.durationMinutes
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
