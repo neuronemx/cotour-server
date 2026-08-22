@@ -35,6 +35,7 @@ const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-brid
 const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
+const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const {
   CAPABILITIES,
   featureAccessForPlan,
@@ -84,6 +85,7 @@ const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interact
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 let presentationMetricsRepository = null;
+let eventHubRepository = null;
 const gameQueueSockets = createGameQueueSocketHandlers({
   io,
   store: gameQueueStore,
@@ -143,6 +145,7 @@ const billingRuntime = createBillingRuntime({
   isWorkspaceActive: workspaceHasActivePresentation,
   emailSender: createResendEmailSender({ env: process.env })
 });
+eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
@@ -986,6 +989,163 @@ function requireImmersaAdmin(req, res, next) {
   if (!isImmersaAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
   return next();
 }
+function eventHubUnavailable(res) {
+  return res.status(503).json({ error: "Event Hub requiere la base de datos de IMMERSA" });
+}
+function sendEventHubError(res, error) {
+  if (error instanceof EventHubError) {
+    return res.status(error.statusCode).json({ error: error.message, code: error.code });
+  }
+  console.error("Event Hub request failed", error);
+  return res.status(500).json({ error: "No se pudo completar la operación de Event Hub" });
+}
+app.post("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const hub = await eventHubRepository.createHub({
+      slug: req.body?.slug,
+      title: req.body?.title,
+      createdByUserId: req.accountContext.user.id,
+      stages: req.body?.stages || ["CCC", "Foro 2"]
+    });
+    return res.status(201).json(hub);
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.getHub(req.params.workspaceId));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const activity = await eventHubRepository.createActivity({
+      eventWorkspaceId: req.params.workspaceId,
+      eventStageId: req.body?.eventStageId,
+      title: req.body?.title,
+      accessLevel: req.body?.accessLevel,
+      deckId: req.body?.deckId,
+      scheduledStartsAt: req.body?.scheduledStartsAt,
+      scheduledEndsAt: req.body?.scheduledEndsAt
+    });
+    return res.status(201).json(activity);
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json(await eventHubRepository.grantStageOperatorAccess({
+      eventStageId: req.params.stageId,
+      accessSecret: req.body?.accessSecret,
+      expiresAt: req.body?.expiresAt || null
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.put("/api/admin/event-stages/:stageId/capacity", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.setStageCapacity({
+      eventStageId: req.params.stageId,
+      audienceCapacity: req.body?.audienceCapacity
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/stages/:stageId/live-sessions", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: req.params.stageId,
+      accessSecret: req.headers["x-immersa-event-stage-access"]
+    });
+    const activity = await eventHubRepository.getActivity(req.body?.eventActivityId);
+    if (activity.event_stage_id !== req.params.stageId) {
+      throw new EventHubError("ACTIVITY_STAGE_MISMATCH", "This activity does not belong to this Event Stage", 403);
+    }
+    return res.status(201).json(await eventHubRepository.startLiveSession({ eventActivityId: activity.id }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/stages/:stageId/live-sessions/:liveSessionId/finish", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: req.params.stageId,
+      accessSecret: req.headers["x-immersa-event-stage-access"]
+    });
+    const liveSession = await eventHubRepository.getLiveSession(req.params.liveSessionId);
+    if (liveSession.event_stage_id !== req.params.stageId) {
+      throw new EventHubError("LIVE_SESSION_STAGE_MISMATCH", "This LiveSession does not belong to this Event Stage", 403);
+    }
+    return res.json(await eventHubRepository.finishLiveSession(liveSession.id));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/event/public/:publicId", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.getPublicQr(req.params.publicId));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/event/public/:publicId/activities", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    return res.json({
+      event: { title: qr.title, slug: qr.slug },
+      audienceLevel: qr.audienceLevel,
+      activities: await eventHubRepository.listPublicActivities({
+        eventWorkspaceId: qr.eventWorkspaceId,
+        audienceLevel: qr.audienceLevel
+      })
+    });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/public/:publicId/registration", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    const participant = await eventHubRepository.registerParticipant({
+      eventWorkspaceId: qr.eventWorkspaceId,
+      registrationKey: req.body?.registrationKey,
+      audienceLevel: qr.audienceLevel
+    });
+    return res.status(201).json({ participantId: participant.id, audienceLevel: participant.audienceLevel, event: { title: qr.title, slug: qr.slug } });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/live-sessions/:liveSessionId/enter", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const admission = await eventHubRepository.admitParticipant({
+      eventLiveSessionId: req.params.liveSessionId,
+      eventParticipantId: req.body?.participantId
+    });
+    const liveSession = await eventHubRepository.getLiveSession(req.params.liveSessionId);
+    const audiencePath = await accessLinkHandlers.publicAudiencePathForDeck(liveSession.deck_id);
+    if (!audiencePath) throw new EventHubError("EVENT_DECK_AUDIENCE_LINK_MISSING", "La presentación aún no tiene acceso Público", 409);
+    return res.json({ ...admission, audiencePath });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.get("/admin/accounts", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "admin", "accounts.html"));
 });
@@ -1345,6 +1505,19 @@ app.get("/assets/games/breakout/intro.mp4", (_req, res) => {
   res.type("video/mp4");
   res.sendFile(path.join(PUBLIC_DIR, "assets", "games", "breakout", "intro.mp4"));
 });
+app.get("/p_evt_:eventPublicId", async (req, res, next) => {
+  if (!eventHubRepository) return next();
+  const publicId = `p_evt_${String(req.params.eventPublicId || "")}`;
+  try {
+    await eventHubRepository.getPublicQr(publicId);
+    const html = await fs.promises.readFile(path.join(PUBLIC_DIR, "event", "index.html"), "utf8");
+    const context = JSON.stringify({ publicId }).replace(/</g, "\\u003c");
+    return res.type("html").send(html.replace("window.IMMERSA_EVENT_PUBLIC = null;", `window.IMMERSA_EVENT_PUBLIC = ${context};`));
+  } catch (error) {
+    if (error instanceof EventHubError && error.code === "EVENT_QR_NOT_FOUND") return next();
+    return sendEventHubError(res, error);
+  }
+});
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
@@ -1477,12 +1650,19 @@ io.on("connection", (socket) => {
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
       const requestedAudienceId = String(audienceId || socket.id);
-      const audienceLimit = getPlanLimits(currentFeatureAccess.plan).audience;
+      let eventStageCapacity = null;
+      try {
+        eventStageCapacity = await eventHubRepository?.getLiveStageCapacityForDeck(joinedDeckId);
+      } catch (error) {
+        console.error("Unable to resolve Event Stage capacity", error);
+      }
+      const audienceLimit = eventStageCapacity?.audienceCapacity || getPlanLimits(currentFeatureAccess.plan).audience;
       if (!canRegisterAudience(session, requestedAudienceId, audienceLimit)) {
         socket.emit("plan:audience_limit", {
           code: "AUDIENCE_LIMIT_REACHED",
           limit: audienceLimit,
-          plan: currentFeatureAccess.plan,
+          plan: eventStageCapacity ? null : currentFeatureAccess.plan,
+          eventStageId: eventStageCapacity?.eventStageId || null,
           message: "Esta presentación alcanzó el límite de Público simultáneo."
         });
         return socket.disconnect(true);
