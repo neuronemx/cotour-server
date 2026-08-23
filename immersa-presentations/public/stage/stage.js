@@ -23,9 +23,8 @@ function syncPresentationLifecycleFeature(enabled) {
     }) || null;
   }
 }
-syncPresentationLifecycleFeature(planAllows("metrics.basic"));
 socket.on("plan:features", (access = {}) => {
-  syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
+  if (!eventStageSession) syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
 });
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 
@@ -84,6 +83,7 @@ const stageDeckLabel = document.getElementById("stageDeckLabel");
 const eventStageControl = document.getElementById("eventStageControl");
 const eventStageName = document.getElementById("eventStageName");
 const eventActivityName = document.getElementById("eventActivityName");
+const eventStageMode = document.getElementById("eventStageMode");
 const eventStageAction = document.getElementById("eventStageAction");
 const prevSlide = document.getElementById("prevSlide");
 const nextSlide = document.getElementById("nextSlide");
@@ -141,40 +141,44 @@ async function loadDeck() {
 }
 
 async function loadEventStageControl() {
-  if (!roleOpenContext.access_token || !eventStageControl) return;
+  if (!roleOpenContext.access_token || !eventStageControl) return false;
   const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`, {
     headers: { "x-immersa-access-token": roleOpenContext.access_token }
   });
-  if (response.status === 404) return;
+  if (response.status === 404) return false;
   const control = await response.json();
   if (!response.ok) throw new Error(control.error || "No se pudo cargar Event Stage");
   eventStageSession = control;
   eventStageName.textContent = control.stageName;
   eventActivityName.textContent = control.title;
-  eventStageAction.textContent = control.liveSessionId ? "Finalizar" : "Iniciar";
+  eventStageAction.textContent = control.liveSessionId ? "Finalizar conferencia" : "Iniciar conferencia";
   eventStageAction.classList.toggle("is-live", Boolean(control.liveSessionId));
+  eventStageMode.textContent = control.liveSessionId ? "EN VIVO" : "Probar Deck";
+  eventStageMode.classList.toggle("is-live", Boolean(control.liveSessionId));
   eventStageControl.hidden = false;
+  syncPresentationLifecycleFeature(false);
+  return true;
 }
 
 eventStageAction?.addEventListener("click", async () => {
   if (!eventStageSession) return;
   const live = Boolean(eventStageSession.liveSessionId);
-  if (live && !window.confirm(`¿Finalizar ${eventStageSession.title}?`)) return;
+  if (!live && !window.confirm(`¿Iniciar conferencia: ${eventStageSession.title}?\n\nSe habilitarán Speaker y Público, y comenzarán las métricas.`)) return;
+  if (live && !window.confirm(`¿Finalizar conferencia: ${eventStageSession.title}?\n\nSe cerrará el acceso en vivo y las métricas.`)) return;
   eventStageAction.disabled = true;
   try {
-    const endpoint = live
-      ? `/api/event/stages/${encodeURIComponent(eventStageSession.stageId)}/live-sessions/${encodeURIComponent(eventStageSession.liveSessionId)}/finish`
-      : `/api/event/stages/${encodeURIComponent(eventStageSession.stageId)}/live-sessions`;
+    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}`;
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-immersa-event-stage-access": roleOpenContext.access_token },
-      body: live ? undefined : JSON.stringify({ eventActivityId: eventStageSession.activityId })
+      headers: { "Content-Type": "application/json", "x-immersa-access-token": roleOpenContext.access_token }
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "No se pudo actualizar la sesión en vivo");
-    eventStageSession.liveSessionId = live ? null : result.id;
-    eventStageAction.textContent = live ? "Iniciar" : "Finalizar";
+    eventStageSession.liveSessionId = live ? null : result.liveSessionId;
+    eventStageAction.textContent = live ? "Iniciar conferencia" : "Finalizar conferencia";
     eventStageAction.classList.toggle("is-live", !live);
+    eventStageMode.textContent = live ? "Probar Deck" : "EN VIVO";
+    eventStageMode.classList.toggle("is-live", !live);
   } catch (error) { window.alert(error.message); }
   finally { eventStageAction.disabled = false; }
 });
@@ -734,7 +738,8 @@ socket.on("interaction:closed", () => { activeInteraction = null; interactionRes
 
 syncStageThumbsMode();
 loadDeck().then(async () => {
-  await loadEventStageControl();
+  const managedByEventHub = await loadEventStageControl();
+  if (!managedByEventHub) syncPresentationLifecycleFeature(planAllows("metrics.basic"));
   initDrawingOverlay();
   updateDrawingMode();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });

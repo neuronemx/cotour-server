@@ -1234,6 +1234,49 @@ app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) =
     return res.json(control);
   } catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const action = String(req.params.action || "");
+    if (!new Set(["start", "finish"]).has(action)) {
+      throw new EventHubError("INVALID_CONFERENCE_ACTION", "La operación de conferencia no es válida", 400);
+    }
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    if (!control) throw new EventHubError("EVENT_STAGE_CONTROL_NOT_FOUND", "Esta presentación no tiene una actividad Event Hub operable", 404);
+    const accessLink = req.immersaAccess?.accessLink;
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: control.stageId,
+      accessSecret: accessLink?.access_token
+    });
+    const lifecycleContext = {
+      roomKey: getRoomKey(accessLink.session_id, req.params.deckId),
+      role: "stage",
+      sessionId: accessLink.session_id,
+      deckId: req.params.deckId
+    };
+    if (action === "start") {
+      if (control.liveSessionId) {
+        return res.json({ liveSessionId: control.liveSessionId, status: "LIVE" });
+      }
+      const liveSession = await eventHubRepository.startLiveSession({ eventActivityId: control.activityId });
+      try {
+        await presentationLifecycleRuntime.start(lifecycleContext);
+      } catch (error) {
+        await eventHubRepository.finishLiveSession(liveSession.id).catch(() => {});
+        throw error;
+      }
+      return res.status(201).json({ liveSessionId: liveSession.id, status: "LIVE" });
+    }
+    if (!control.liveSessionId) throw new EventHubError("LIVE_SESSION_NOT_FOUND", "No hay una conferencia en vivo para finalizar", 404);
+    try {
+      await presentationLifecycleRuntime.finish(lifecycleContext);
+    } catch (error) {
+      if (error?.code !== "NOT_LIVE") throw error;
+    }
+    await eventHubRepository.finishLiveSession(control.liveSessionId);
+    return res.json({ liveSessionId: null, status: "FINISHED" });
+  } catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/event/stages/:stageId/live-sessions/:liveSessionId/finish", async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {

@@ -175,6 +175,18 @@ test("Event Stage uses its access token when loading Event Hub controls", async 
   assert.match(stage, /"x-immersa-access-token": roleOpenContext\.access_token/);
 });
 
+test("Event Stage has one conference action and keeps Deck rehearsal separate", async () => {
+  const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  assert.match(stage, /Iniciar conferencia/);
+  assert.match(stage, /Finalizar conferencia/);
+  assert.match(stage, /Probar Deck/);
+  assert.match(stage, /conference\/\$\{live \? "finish" : "start"\}/);
+  assert.match(server, /stage-control\/:deckId\/conference\/:action/);
+  assert.match(server, /presentationLifecycleRuntime\.start\(lifecycleContext\)/);
+  assert.match(server, /presentationLifecycleRuntime\.finish\(lifecycleContext\)/);
+});
+
 test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tables", async () => {
   const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "020_event_hub_foundation.sql"), "utf8");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hubs/);
