@@ -183,3 +183,11 @@ test("a speaker can accept only their own Event Hub invitation", async () => {
   );
   assert.match(pool.calls[0].sql, /es\.account_user_id = \?/);
 });
+
+test("public Event Hub defaults Free visitors to Exposición and Paid visitors to Programa", async () => {
+  const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
+  const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  assert.match(page, /Feria de expositores/);
+  assert.match(page, /https:\/\/semanaamc\.expofp\.com\//);
+  assert.match(script, /event\.audienceLevel === "PAID" \? "program" : "exposition"/);
+});

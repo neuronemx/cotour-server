@@ -6,13 +6,17 @@
   const title = document.querySelector("#event-title");
   const level = document.querySelector("#event-level");
   const registration = document.querySelector("#registration");
+  const eventContent = document.querySelector("#event-content");
   const program = document.querySelector(".program");
+  const exposition = document.querySelector("#exposition");
+  const eventTabs = [...document.querySelectorAll(".event-tab")];
   const tabs = document.querySelector("#day-tabs");
   const legend = document.querySelector("#legend");
   const panels = document.querySelector("#day-panels");
   const overlay = document.querySelector("#speaker-overlay");
   const sheet = document.querySelector("#sheet-content");
   const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", OTHER: "Otra" };
+  let activeSection = null;
   const participantId = () => localStorage.getItem(key);
   const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };
   const rawDate = (value) => String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -22,6 +26,16 @@
   const initials = (name) => String(name || "?").split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const speakerAvatar = (speaker, small = false) => { const avatar = document.createElement("div"); avatar.className = small ? "avatar" : "speaker-photo"; if (speaker.photoUrl) avatar.style.backgroundImage = `url("${speaker.photoUrl}")`; else avatar.textContent = initials(speaker.name); return avatar; };
   const pin = () => { const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg"); icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.innerHTML = '<path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>'; return icon; };
+  function selectSection(section) {
+    activeSection = section;
+    exposition.classList.toggle("active", section === "exposition");
+    program.classList.toggle("active", section === "program");
+    eventTabs.forEach((tab) => {
+      const selected = tab.dataset.section === section;
+      tab.classList.toggle("active", selected);
+      tab.setAttribute("aria-selected", String(selected));
+    });
+  }
   function showSheet(activity) {
     sheet.replaceChildren();
     const detail = document.createElement("div");
@@ -109,12 +123,13 @@
       tabs.append(tab); panels.append(panel);
     });
   }
-  const revealProgram = () => requestAnimationFrame(() => requestAnimationFrame(() => program?.classList.add("event-program-ready")));
-  const load = async () => { const [event, data] = await Promise.all([request(base), request(`${base}/activities`)]); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); render(data.activities || []); revealProgram(); };
+  const revealContent = () => requestAnimationFrame(() => requestAnimationFrame(() => { program?.classList.add("event-program-ready"); eventContent?.classList.add("event-content-ready"); }));
+  const load = async () => { const [event, data] = await Promise.all([request(base), request(`${base}/activities`)]); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); render(data.activities || []); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
   overlay.onclick = (event) => { if (event.target === overlay) close(); };
+  eventTabs.forEach((tab) => tab.addEventListener("click", () => selectSection(tab.dataset.section)));
   registration.classList.toggle("hidden", Boolean(participantId()));
   load().catch((error) => { title.textContent = error.message; });
 })();
