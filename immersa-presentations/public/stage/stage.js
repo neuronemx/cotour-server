@@ -153,7 +153,7 @@ async function loadEventStageControl() {
   eventActivityName.textContent = control.title;
   eventStageAction.textContent = control.liveSessionId ? "Finalizar conferencia" : "Iniciar conferencia";
   eventStageAction.classList.toggle("is-live", Boolean(control.liveSessionId));
-  eventStageMode.textContent = control.liveSessionId ? "EN VIVO" : "Probar Deck";
+  eventStageMode.textContent = control.liveSessionId ? (control.deckCheckStatus === "DECK_CHECK" ? "EN VIVO" : "EN VIVO · sin Deck Check") : (control.deckCheckStatus === "DECK_CHECK" ? "Probar Deck" : "Probar Deck · sin Deck Check");
   eventStageMode.classList.toggle("is-live", Boolean(control.liveSessionId));
   eventStageControl.hidden = false;
   syncPresentationLifecycleFeature(false);
@@ -177,7 +177,7 @@ eventStageAction?.addEventListener("click", async () => {
     eventStageSession.liveSessionId = live ? null : result.liveSessionId;
     eventStageAction.textContent = live ? "Iniciar conferencia" : "Finalizar conferencia";
     eventStageAction.classList.toggle("is-live", !live);
-    eventStageMode.textContent = live ? "Probar Deck" : "EN VIVO";
+    eventStageMode.textContent = live ? (eventStageSession.deckCheckStatus === "DECK_CHECK" ? "Probar Deck" : "Probar Deck · sin Deck Check") : (eventStageSession.deckCheckStatus === "DECK_CHECK" ? "EN VIVO" : "EN VIVO · sin Deck Check");
     eventStageMode.classList.toggle("is-live", !live);
   } catch (error) { window.alert(error.message); }
   finally { eventStageAction.disabled = false; }

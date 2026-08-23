@@ -161,11 +161,11 @@ test("finishing a LiveSession preserves it for metrics and makes its Activity op
 
 test("Event Stage resolves only its scheduled or live activity from the approved Deck", async () => {
   const pool = fakePool([[[{
-    activity_id: "activity-1", activity_title: "Conferencia", event_stage_id: "stage-ccc", stage_name: "CCC Sala THX", activity_status: "SCHEDULED", live_session_id: null
+    activity_id: "activity-1", activity_title: "Conferencia", event_stage_id: "stage-ccc", stage_name: "CCC Sala THX", activity_status: "SCHEDULED", deck_check_status: "DECK_CHECK", live_session_id: null
   }], []]]);
   const repository = new EventHubRepository(pool);
   assert.deepEqual(await repository.getStageControlForDeck("deck-1"), {
-    activityId: "activity-1", title: "Conferencia", stageId: "stage-ccc", stageName: "CCC Sala THX", status: "SCHEDULED", liveSessionId: null
+    activityId: "activity-1", title: "Conferencia", stageId: "stage-ccc", stageName: "CCC Sala THX", status: "SCHEDULED", deckCheckStatus: "DECK_CHECK", liveSessionId: null
   });
 });
 
@@ -227,25 +227,35 @@ test("a speaker can accept only their own Event Hub invitation", async () => {
   assert.match(pool.calls[0].sql, /es\.account_user_id = \?/);
 });
 
-test("a linked Speaker can open only their approved Event Hub Deck from their account", async () => {
-  const pool = fakePool([[[{ id: "invite-1", activity_id: "activity-1", deck_id: "deck-1", deck_check_status: "DECK_CHECK" }], []]]);
+test("a linked Speaker can open their assigned Event Hub Deck without waiting for Deck Check", async () => {
+  const pool = fakePool([[[{ id: "invite-1", activity_id: "activity-1", deck_id: null, pending_deck_id: "deck-1", deck_check_status: "READY_FOR_TEST" }], []]]);
   const repository = new EventHubRepository(pool);
   assert.deepEqual(
     await repository.getSpeakerPresentationAccess({ assignmentId: "invite-1", userId: "speaker-1" }),
-    { assignmentId: "invite-1", activityId: "activity-1", deckId: "deck-1" }
+    { assignmentId: "invite-1", activityId: "activity-1", deckId: "deck-1", deckCheckStatus: "READY_FOR_TEST" }
   );
   const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
   assert.match(statements, /es\.account_user_id = \?/);
   assert.match(statements, /asa\.status = 'LINKED'/);
 });
 
-test("Speaker invitation cards open the approved Deck without exposing Event Stage access", async () => {
+test("Speaker invitation cards open the assigned Deck without exposing Event Stage access", async () => {
   const invitations = await fs.promises.readFile(path.join(__dirname, "..", "public", "home", "event-invitations.js"), "utf8");
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
   assert.match(invitations, /Abrir como Speaker/);
   assert.match(invitations, /speaker-access/);
   assert.match(server, /speaker-invitations\/:assignmentId\/speaker-access/);
   assert.match(server, /createAccessLinkForDeck\(\{ deckId: access\.deckId, role: "speaker" \}\)/);
+});
+
+test("Event Stage can operate an assigned pending Deck and clearly marks no Deck Check", async () => {
+  const repository = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "repository.js"), "utf8");
+  const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  assert.match(repository, /COALESCE\(a\.deck_id, a\.pending_deck_id\) = \?/);
+  assert.match(repository, /const deckId = activity\.deck_id \|\| activity\.pending_deck_id/);
+  assert.match(stage, /sin Deck Check/);
+  assert.match(admin, /Abrir Event Stage sin Deck Check/);
 });
 
 test("public Event Hub defaults Free visitors to Exposición and Paid visitors to Programa", async () => {

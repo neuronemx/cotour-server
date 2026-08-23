@@ -154,7 +154,25 @@ function renderDeckCheck(activity) {
     return;
   }
   if (status === "READY_FOR_TEST") {
-    activityDeckCheckStatus.textContent = "El Deck está preparado para prueba. Aprueba sólo después de comprobarlo.";
+    activityDeckCheckStatus.textContent = "El Deck está preparado para prueba. Aprueba después de comprobarlo, o abre Event Stage sin Deck Check si es una incorporación de último momento.";
+    const openStage = document.createElement("button");
+    openStage.type = "button";
+    openStage.textContent = "Abrir Event Stage sin Deck Check";
+    openStage.addEventListener("click", async () => {
+      const stageWindow = window.open("about:blank", "_blank");
+      if (stageWindow) stageWindow.opener = null;
+      openStage.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/stage-access`, { method: "POST" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo abrir Event Stage");
+        if (!stageWindow) throw new Error("El navegador bloqueó la nueva pestaña.");
+        stageWindow.location.replace(body.url);
+      } catch (error) {
+        if (stageWindow && !stageWindow.closed) stageWindow.close();
+        activityDeckCheckStatus.textContent = error.message;
+      } finally { openStage.disabled = false; }
+    });
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Aprobar Deck Check";
@@ -170,7 +188,7 @@ function renderDeckCheck(activity) {
       } catch (error) { activityDeckCheckStatus.textContent = error.message; }
       finally { approve.disabled = false; }
     });
-    activityDeckCheckActions.appendChild(approve);
+    activityDeckCheckActions.append(openStage, approve);
     return;
   }
   activityDeckCheckStatus.textContent = linked.length ? "Selecciona un Deck actual de un ponente vinculado para prepararlo para prueba." : "Aún no hay una cuenta de ponente vinculada.";

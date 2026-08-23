@@ -1197,10 +1197,9 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/stage-access
   try {
     const activity = await eventHubRepository.getActivity(req.params.activityId);
     if (activity.event_workspace_id !== req.params.workspaceId) throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
-    if (activity.deck_check_status !== "DECK_CHECK" || !activity.deck_id) {
-      throw new EventHubError("DECK_CHECK_REQUIRED", "Aprueba el Deck Check antes de abrir Event Stage", 409);
-    }
-    const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: activity.deck_id, role: "stage" });
+    const eventDeckId = activity.deck_id || activity.pending_deck_id;
+    if (!eventDeckId) throw new EventHubError("EVENT_DECK_REQUIRED", "Selecciona un Deck antes de abrir Event Stage", 409);
+    const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: eventDeckId, role: "stage" });
     await eventHubRepository.grantStageOperatorAccess({ eventStageId: activity.event_stage_id, accessSecret: stageLink.access_token });
     const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
     return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}`, activityId: activity.id, stageId: activity.event_stage_id });

@@ -499,7 +499,8 @@ class EventHubRepository {
     return (rows || []).map((row) => ({
       id: row.id, status: row.status === 'DECK_SELECTED' ? 'INVITED' : row.status,
       invitedAt: row.invited_at, acceptedAt: row.accepted_at,
-      speakerAccessReady: row.status === 'LINKED' && row.deck_check_status === 'DECK_CHECK' && Boolean(row.deck_id),
+      speakerAccessReady: row.status === 'LINKED' && Boolean(row.deck_id || row.pending_deck_id),
+      deckCheckStatus: row.deck_check_status,
       activity: { id: row.activity_id, title: row.activity_title, scheduledStartsAt: row.scheduled_starts_at, durationMinutes: row.duration_minutes, stageName: row.stage_name },
       eventTitle: row.event_title
     }));
@@ -507,7 +508,7 @@ class EventHubRepository {
 
   async getSpeakerPresentationAccess({ assignmentId, userId }) {
     const [rows] = await this.pool.execute(
-      `SELECT asa.id, a.id AS activity_id, a.deck_id, a.deck_check_status
+      `SELECT asa.id, a.id AS activity_id, a.deck_id, a.pending_deck_id, a.deck_check_status
        FROM event_activity_speaker_assignments asa
        INNER JOIN event_speakers es ON es.id = asa.event_speaker_id AND es.account_user_id = ?
        INNER JOIN event_activities a ON a.id = asa.event_activity_id AND a.status IN ('SCHEDULED', 'LIVE')
@@ -516,10 +517,9 @@ class EventHubRepository {
     );
     const assignment = rows?.[0];
     if (!assignment) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "Esta invitación no está disponible", 404);
-    if (assignment.deck_check_status !== "DECK_CHECK" || !assignment.deck_id) {
-      throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estará disponible al aprobarse el Deck Check", 409);
-    }
-    return { assignmentId: assignment.id, activityId: assignment.activity_id, deckId: assignment.deck_id };
+    const deckId = assignment.deck_id || assignment.pending_deck_id;
+    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estará disponible cuando Event Stage asigne tu Deck", 409);
+    return { assignmentId: assignment.id, activityId: assignment.activity_id, deckId, deckCheckStatus: assignment.deck_check_status };
   }
 
   async acceptSpeakerInvitation({ assignmentId, userId }) {
@@ -586,12 +586,12 @@ class EventHubRepository {
 
   async getStageControlForDeck(deckId) {
     const [rows] = await this.pool.execute(
-      `SELECT a.id AS activity_id, a.title AS activity_title, a.event_stage_id, a.status AS activity_status,
+      `SELECT a.id AS activity_id, a.title AS activity_title, a.event_stage_id, a.status AS activity_status, a.deck_check_status,
               s.name AS stage_name, l.id AS live_session_id
        FROM event_activities a
        INNER JOIN event_stages s ON s.id = a.event_stage_id
        LEFT JOIN event_live_sessions l ON l.event_activity_id = a.id AND l.status = 'LIVE'
-       WHERE a.deck_id = ? AND a.status IN ('SCHEDULED', 'LIVE')
+       WHERE COALESCE(a.deck_id, a.pending_deck_id) = ? AND a.status IN ('SCHEDULED', 'LIVE')
        ORDER BY a.status = 'LIVE' DESC, a.scheduled_starts_at ASC
        LIMIT 1`,
       [required(deckId, "deck id")]
@@ -604,6 +604,7 @@ class EventHubRepository {
       stageId: row.event_stage_id,
       stageName: row.stage_name,
       status: row.activity_status,
+      deckCheckStatus: row.deck_check_status,
       liveSessionId: row.live_session_id || null
     };
   }
@@ -616,13 +617,15 @@ class EventHubRepository {
         [activity.event_stage_id]
       );
       if (liveRows?.[0]) throw new EventHubError("STAGE_ALREADY_LIVE", "This Event Stage already has a LiveSession", 409);
+      const deckId = activity.deck_id || activity.pending_deck_id;
+      if (!deckId) throw new EventHubError("EVENT_DECK_REQUIRED", "Selecciona un Deck antes de iniciar la conferencia", 409);
       const id = this.createId();
       await connection.execute(
         "INSERT INTO event_live_sessions (id, event_workspace_id, event_activity_id, event_stage_id, deck_id) VALUES (?, ?, ?, ?, ?)",
-        [id, activity.event_workspace_id, activity.id, activity.event_stage_id, activity.deck_id]
+        [id, activity.event_workspace_id, activity.id, activity.event_stage_id, deckId]
       );
       await connection.execute("UPDATE event_activities SET status = 'LIVE' WHERE id = ?", [activity.id]);
-      return { id, eventWorkspaceId: activity.event_workspace_id, activityId: activity.id, stageId: activity.event_stage_id, deckId: activity.deck_id, status: "LIVE" };
+      return { id, eventWorkspaceId: activity.event_workspace_id, activityId: activity.id, stageId: activity.event_stage_id, deckId, status: "LIVE" };
     });
   }
 
