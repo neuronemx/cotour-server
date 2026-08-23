@@ -1,19 +1,111 @@
 (() => {
-  const context=window.IMMERSA_EVENT_PUBLIC;if(!context?.publicId)return;
-  const base=`/api/event/public/${encodeURIComponent(context.publicId)}`,key=`immersa-event-participant:${context.publicId}`;
-  const title=document.querySelector("#event-title"),level=document.querySelector("#event-level"),registration=document.querySelector("#registration"),tabs=document.querySelector("#day-tabs"),legend=document.querySelector("#legend"),panels=document.querySelector("#day-panels"),overlay=document.querySelector("#speaker-overlay"),sheet=document.querySelector("#sheet-content");
-  const labels={CONFERENCE:"Conferencia",MASTER_CLASS:"Master Class",ROUND_TABLE:"Mesa redonda",WORKSHOP:"Taller",PANEL:"Panel",OTHER:"Otra"};
-  const participantId=()=>localStorage.getItem(key);
-  const request=async(url,options)=>{const r=await fetch(url,options),b=await r.json();if(!r.ok)throw new Error(b.error||"No se pudo completar la operación");return b;};
-  const rawDate=(value)=>String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  const time=(value)=>{const m=rawDate(value);if(!m)return "Por definir";const h=Number(m[4]),suffix=h>=12?"PM":"AM";return `${h%12||12}:${m[5]} ${suffix}`;};
-  const endTime=(activity)=>{const m=rawDate(activity.scheduledStartsAt);if(!m)return "";const total=Number(m[4])*60+Number(m[5])+Number(activity.durationMinutes||0),h=Math.floor((total%1440)/60),mins=String(total%60).padStart(2,"0");return `${h%12||12}:${mins} ${h>=12?"PM":"AM"}`;};
-  const dateInfo=(activity)=>{const m=rawDate(activity.scheduledStartsAt);if(!m)return {id:"unscheduled",name:"Por definir",date:""};const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));return {id:`${m[1]}-${m[2]}-${m[3]}`,name:new Intl.DateTimeFormat("es-MX",{weekday:"short",timeZone:"UTC"}).format(d),date:new Intl.DateTimeFormat("es-MX",{day:"numeric",month:"short",timeZone:"UTC"}).format(d)};};
-  const initials=(name)=>String(name||"?").split(" ").filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
-  const speakerAvatar=(speaker,small=false)=>{const avatar=document.createElement("div");avatar.className=small?"avatar":"speaker-photo";if(speaker.photoUrl)avatar.style.backgroundImage=`url("${speaker.photoUrl}")`;else avatar.textContent=initials(speaker.name);return avatar;};
-  const showSheet=(activity)=>{sheet.replaceChildren();const badge=document.createElement("span");badge.className=`type type-${activity.activityType||"OTHER"}`;badge.textContent=labels[activity.activityType]||"Actividad";const when=document.createElement("p");when.className="sheet-location";when.textContent=`${time(activity.scheduledStartsAt)}${endTime(activity)?` – ${endTime(activity)}`:""} · ${activity.stage.name}`;const heading=document.createElement("h2");heading.className="sheet-title";heading.textContent=activity.title;sheet.append(badge,heading,when);if(!activity.speakers?.length){const empty=document.createElement("p");empty.className="no-speakers";empty.textContent="La semblanza de los ponentes estará disponible próximamente.";sheet.append(empty);}for(const speaker of activity.speakers||[]){const block=document.createElement("article");block.className="speaker";const copy=document.createElement("div"),name=document.createElement("h3"),role=document.createElement("p"),bio=document.createElement("p");name.textContent=speaker.name||"Ponente";role.className="role";role.textContent=speaker.roleTitle||"";bio.className="bio";bio.textContent=speaker.bio||"";copy.append(name);if(speaker.roleTitle)copy.append(role);if(speaker.bio)copy.append(bio);block.append(speakerAvatar(speaker),copy);sheet.append(block);}overlay.classList.add("active");overlay.setAttribute("aria-hidden","false");};
-  const render=(activities)=>{const grouped=new Map();for(const activity of activities){const day=dateInfo(activity),entry=grouped.get(day.id)||{...day,activities:[]};entry.activities.push(activity);grouped.set(day.id,entry);}const days=[...grouped.values()].sort((a,b)=>a.id.localeCompare(b.id));tabs.replaceChildren();panels.replaceChildren();const used=[...new Set(activities.map(x=>x.activityType||"OTHER"))];legend.replaceChildren(...used.map(type=>{const item=document.createElement("span");item.className="legend-item";item.innerHTML=`<i class="dot dot-${type}"></i>`;item.append(document.createTextNode(labels[type]||"Actividad"));return item;}));days.forEach((day,index)=>{const tab=document.createElement("button");tab.className=`daytab${index===0?" active":""}`;tab.innerHTML=`<span>${day.name}</span><small>${day.date}</small>`;const panel=document.createElement("section");panel.className=`day-panel${index===0?" active":""}`;const timeline=document.createElement("div");timeline.className="timeline";day.activities.sort((a,b)=>String(a.scheduledStartsAt||"").localeCompare(String(b.scheduledStartsAt||""))).forEach(activity=>{const row=document.createElement("article");row.className="timeline-item";row.innerHTML=`<i class="line"></i><i class="timeline-dot dot-${activity.activityType||"OTHER"}"></i><div class="time">${time(activity.scheduledStartsAt)}<small>${endTime(activity)}</small></div>`;const card=document.createElement("div");card.className=`program-card type-${activity.activityType||"OTHER"}`;const badge=document.createElement("span");badge.className="type";badge.textContent=labels[activity.activityType]||"Actividad";const h=document.createElement("h3");h.textContent=activity.title;const speakers=document.createElement("div");speakers.className="meta";const avatars=document.createElement("div");avatars.className="avatars";(activity.speakers||[]).forEach(s=>avatars.append(speakerAvatar(s,true)));speakers.append(avatars,document.createTextNode((activity.speakers||[]).map(s=>s.name).join(", ")||"Ponentes por confirmar"));const schedule=document.createElement("div");schedule.className="meta";schedule.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>';schedule.append(document.createTextNode(`${time(activity.scheduledStartsAt)}${endTime(activity)?` – ${endTime(activity)}`:""}`));const place=document.createElement("div");place.className="meta";place.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>';place.append(document.createTextNode(activity.stage.name));card.append(badge,h,speakers,schedule,place);const actions=document.createElement("div");actions.className="activity-actions";if(activity.live&&activity.canEnter&&participantId()){const enter=document.createElement("button");enter.className="enter-button";enter.textContent="Entrar";enter.onclick=async e=>{e.stopPropagation();const entry=await request(`/api/event/live-sessions/${encodeURIComponent(activity.liveSessionId)}/enter`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({participantId:participantId()})});window.location.assign(entry.audiencePath);};actions.append(enter);}else if(activity.live&&!activity.canEnter){const locked=document.createElement("span");locked.className="access-badge";locked.textContent="Acceso de paga";actions.append(locked);}if(actions.childNodes.length)card.append(actions);card.onclick=()=>showSheet(activity);row.append(card);timeline.append(row);});panel.append(timeline);tab.onclick=()=>{tabs.querySelectorAll(".daytab").forEach(x=>x.classList.remove("active"));panels.querySelectorAll(".day-panel").forEach(x=>x.classList.remove("active"));tab.classList.add("active");panel.classList.add("active");};tabs.append(tab);panels.append(panel);});};
-  const load=async()=>{const [event,data]=await Promise.all([request(base),request(`${base}/activities`)]);title.textContent=event.title;level.textContent=event.audienceLevel==="PAID"?"Acceso preferente":"Acceso libre";registration.classList.toggle("hidden",Boolean(participantId()));render(data.activities||[]);};
-  document.querySelector("#registration-form").onsubmit=async e=>{e.preventDefault();const result=await request(`${base}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({registrationKey:document.querySelector("#registration-key").value.trim()})});localStorage.setItem(key,result.participantId);await load();};
-  const close=()=>{overlay.classList.remove("active");overlay.setAttribute("aria-hidden","true")};document.querySelector("#sheet-close").onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};registration.classList.toggle("hidden",Boolean(participantId()));load().catch(error=>{title.textContent=error.message;});
+  const context = window.IMMERSA_EVENT_PUBLIC;
+  if (!context?.publicId) return;
+  const base = `/api/event/public/${encodeURIComponent(context.publicId)}`;
+  const key = `immersa-event-participant:${context.publicId}`;
+  const title = document.querySelector("#event-title");
+  const level = document.querySelector("#event-level");
+  const registration = document.querySelector("#registration");
+  const tabs = document.querySelector("#day-tabs");
+  const legend = document.querySelector("#legend");
+  const panels = document.querySelector("#day-panels");
+  const overlay = document.querySelector("#speaker-overlay");
+  const sheet = document.querySelector("#sheet-content");
+  const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", OTHER: "Otra" };
+  const participantId = () => localStorage.getItem(key);
+  const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };
+  const rawDate = (value) => String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  const time = (value) => { const match = rawDate(value); if (!match) return "Por definir"; const hour = Number(match[4]); return `${hour % 12 || 12}:${match[5]} ${hour >= 12 ? "PM" : "AM"}`; };
+  const endTime = (activity) => { const match = rawDate(activity.scheduledStartsAt); if (!match) return ""; const total = Number(match[4]) * 60 + Number(match[5]) + Number(activity.durationMinutes || 0); const hour = Math.floor((total % 1440) / 60); return `${hour % 12 || 12}:${String(total % 60).padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`; };
+  const dateInfo = (activity) => { const match = rawDate(activity.scheduledStartsAt); if (!match) return { id: "unscheduled", name: "Por definir", date: "" }; const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))); return { id: `${match[1]}-${match[2]}-${match[3]}`, name: new Intl.DateTimeFormat("es-MX", { weekday: "short", timeZone: "UTC" }).format(date), date: new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" }).format(date) }; };
+  const initials = (name) => String(name || "?").split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  const speakerAvatar = (speaker, small = false) => { const avatar = document.createElement("div"); avatar.className = small ? "avatar" : "speaker-photo"; if (speaker.photoUrl) avatar.style.backgroundImage = `url("${speaker.photoUrl}")`; else avatar.textContent = initials(speaker.name); return avatar; };
+  const pin = () => { const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg"); icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.innerHTML = '<path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>'; return icon; };
+  function showSheet(activity) {
+    sheet.replaceChildren();
+    const detail = document.createElement("div");
+    detail.className = `sheet-detail type-${activity.activityType || "OTHER"}`;
+    const badgeRow = document.createElement("div");
+    badgeRow.className = "sheet-badge-row";
+    const badge = document.createElement("span");
+    badge.className = "type";
+    badge.textContent = labels[activity.activityType] || "Actividad";
+    const when = document.createElement("span");
+    when.className = "sheet-time";
+    when.textContent = `${time(activity.scheduledStartsAt)}${endTime(activity) ? ` – ${endTime(activity)}` : ""}`;
+    badgeRow.append(badge, when);
+    const heading = document.createElement("h2");
+    heading.className = "sheet-title";
+    heading.textContent = activity.title;
+    const location = document.createElement("div");
+    location.className = "sheet-location";
+    location.append(pin(), document.createTextNode(activity.stage.name));
+    detail.append(badgeRow, heading, location);
+    if (!activity.speakers?.length) {
+      const empty = document.createElement("p");
+      empty.className = "no-speakers";
+      empty.textContent = "La semblanza de los ponentes estará disponible próximamente.";
+      detail.append(empty);
+    }
+    for (const speaker of activity.speakers || []) {
+      const block = document.createElement("article");
+      block.className = "speaker";
+      const copy = document.createElement("div");
+      const name = document.createElement("h3");
+      const role = document.createElement("p");
+      const bio = document.createElement("p");
+      name.textContent = speaker.name || "Ponente";
+      role.className = "role"; role.textContent = speaker.roleTitle || "";
+      bio.className = "bio"; bio.textContent = speaker.bio || "";
+      copy.append(name);
+      if (speaker.roleTitle) copy.append(role);
+      if (speaker.bio) copy.append(bio);
+      block.append(speakerAvatar(speaker), copy);
+      detail.append(block);
+    }
+    sheet.append(detail);
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  function render(activities) {
+    const grouped = new Map();
+    for (const activity of activities) { const day = dateInfo(activity); const entry = grouped.get(day.id) || { ...day, activities: [] }; entry.activities.push(activity); grouped.set(day.id, entry); }
+    const days = [...grouped.values()].sort((left, right) => left.id.localeCompare(right.id));
+    tabs.replaceChildren(); panels.replaceChildren();
+    const used = [...new Set(activities.map((activity) => activity.activityType || "OTHER"))];
+    legend.replaceChildren(...used.map((type) => { const item = document.createElement("span"); item.className = "legend-item"; item.innerHTML = `<i class="dot dot-${type}"></i>`; item.append(document.createTextNode(labels[type] || "Actividad")); return item; }));
+    days.forEach((day, index) => {
+      const tab = document.createElement("button"); tab.className = `daytab${index === 0 ? " active" : ""}`; tab.innerHTML = `<span>${day.name}</span><small>${day.date}</small>`;
+      const panel = document.createElement("section"); panel.className = `day-panel${index === 0 ? " active" : ""}`;
+      const timeline = document.createElement("div"); timeline.className = "timeline";
+      day.activities.sort((left, right) => String(left.scheduledStartsAt || "").localeCompare(String(right.scheduledStartsAt || ""))).forEach((activity) => {
+        const row = document.createElement("article"); row.className = "timeline-item";
+        row.innerHTML = `<i class="line"></i><i class="timeline-dot dot-${activity.activityType || "OTHER"}"></i><div class="time">${time(activity.scheduledStartsAt)}<small>${endTime(activity)}</small></div>`;
+        const card = document.createElement("div"); card.className = `program-card type-${activity.activityType || "OTHER"}`;
+        const badge = document.createElement("span"); badge.className = "type"; badge.textContent = labels[activity.activityType] || "Actividad";
+        const heading = document.createElement("h3"); heading.textContent = activity.title;
+        const speakers = document.createElement("div"); speakers.className = "meta";
+        const avatars = document.createElement("div"); avatars.className = "avatars"; (activity.speakers || []).forEach((speaker) => avatars.append(speakerAvatar(speaker, true)));
+        speakers.append(avatars, document.createTextNode((activity.speakers || []).map((speaker) => speaker.name).join(", ") || "Ponentes por confirmar"));
+        const schedule = document.createElement("div"); schedule.className = "meta"; schedule.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>'; schedule.append(document.createTextNode(`${time(activity.scheduledStartsAt)}${endTime(activity) ? ` – ${endTime(activity)}` : ""}`));
+        const place = document.createElement("div"); place.className = "meta"; place.append(pin(), document.createTextNode(activity.stage.name));
+        card.append(badge, heading, speakers, schedule, place);
+        const actions = document.createElement("div"); actions.className = "activity-actions";
+        if (activity.live && activity.canEnter && participantId()) { const enter = document.createElement("button"); enter.className = "enter-button"; enter.textContent = "Entrar"; enter.onclick = async (event) => { event.stopPropagation(); const entry = await request(`/api/event/live-sessions/${encodeURIComponent(activity.liveSessionId)}/enter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: participantId() }) }); window.location.assign(entry.audiencePath); }; actions.append(enter); }
+        else if (activity.live && !activity.canEnter) { const locked = document.createElement("span"); locked.className = "access-badge"; locked.textContent = "Acceso preferente"; actions.append(locked); }
+        if (actions.childNodes.length) card.append(actions);
+        card.onclick = () => showSheet(activity); row.append(card); timeline.append(row);
+      });
+      panel.append(timeline);
+      tab.onclick = () => { tabs.querySelectorAll(".daytab").forEach((item) => item.classList.remove("active")); panels.querySelectorAll(".day-panel").forEach((item) => item.classList.remove("active")); tab.classList.add("active"); panel.classList.add("active"); };
+      tabs.append(tab); panels.append(panel);
+    });
+  }
+  const load = async () => { const [event, data] = await Promise.all([request(base), request(`${base}/activities`)]); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); render(data.activities || []); };
+  document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
+  const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
+  document.querySelector("#sheet-close").onclick = close;
+  overlay.onclick = (event) => { if (event.target === overlay) close(); };
+  registration.classList.toggle("hidden", Boolean(participantId()));
+  load().catch((error) => { title.textContent = error.message; });
 })();
