@@ -81,18 +81,24 @@ test("public event activity list hides Enter when a Free QR reaches a Paid live 
   assert.equal(activities[0].canEnter, false);
 });
 
-test("creating a hub seeds CCC, Foro 2, and exactly two audience QR levels", async () => {
+test("creating a hub seeds the five official Semana AMC Stages and exactly two audience QR levels", async () => {
   const pool = fakePool([
     [[], []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []],
-    [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []],
+    [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []],
     [[{ workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", timezone: "America/Mexico_City", status: "DRAFT" }], []],
-    [[{ id: "stage-ccc", name: "CCC", sort_order: 0, active: 1 }, { id: "stage-foro", name: "Foro 2", sort_order: 1, active: 1 }], []],
+    [[
+      { id: "stage-ccc", name: "CCC Sala THX", sort_order: 0, active: 1 },
+      { id: "stage-nela", name: "CHURUBUSCO Foro NELA", sort_order: 1, active: 1 },
+      { id: "stage-a", name: "CHURUBUSCO Foro A", sort_order: 2, active: 1 },
+      { id: "stage-foro", name: "CHURUBUSCO Foro 2", sort_order: 3, active: 1 },
+      { id: "stage-lobby", name: "CHURUBUSCO Lobby", sort_order: 4, active: 1 }
+    ], []],
     [[{ public_id: "p_evt_free", audience_level: "FREE", active: 1 }, { public_id: "p_evt_paid", audience_level: "PAID", active: 1 }], []]
   ]);
-  const ids = ["hub-1", "stage-ccc", "stage-foro", "qr-free", "qr-paid", "qr-free-public", "qr-paid-public"];
+  const ids = ["hub-1", "stage-ccc", "stage-nela", "stage-a", "stage-foro", "stage-lobby", "qr-free", "qr-paid", "qr-free-public", "qr-paid-public"];
   const repository = new EventHubRepository(pool, { createId: () => ids.shift() });
   const hub = await repository.createHub({ slug: "semana-amc", title: "Semana AMC", createdByUserId: "admin-1" });
-  assert.deepEqual(hub.stages.map((stage) => stage.name), ["CCC", "Foro 2"]);
+  assert.deepEqual(hub.stages.map((stage) => stage.name), ["CCC Sala THX", "CHURUBUSCO Foro NELA", "CHURUBUSCO Foro A", "CHURUBUSCO Foro 2", "CHURUBUSCO Lobby"]);
   assert.deepEqual(hub.publicQrs.map((qr) => qr.audience_level), ["FREE", "PAID"]);
   const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
   assert.match(statements, /INSERT INTO workspaces .*'event'/);
@@ -164,6 +170,8 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(orphanCleanupMigration, /DELETE asa/);
   const defaultCapacityMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "030_event_stage_default_capacity.sql"), "utf8");
   assert.match(defaultCapacityMigration, /audience_capacity = 300/);
+  const officialStagesMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "031_semana_amc_official_stages.sql"), "utf8");
+  assert.match(officialStagesMigration, /CHURUBUSCO Foro NELA/);
 });
 
 test("a speaker can accept only their own Event Hub invitation", async () => {

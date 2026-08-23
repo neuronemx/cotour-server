@@ -1007,7 +1007,7 @@ app.post("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (re
       slug: req.body?.slug,
       title: req.body?.title,
       createdByUserId: req.accountContext.user.id,
-      stages: req.body?.stages || ["CCC", "Foro 2"]
+      stages: req.body?.stages || ["CCC Sala THX", "CHURUBUSCO Foro NELA", "CHURUBUSCO Foro A", "CHURUBUSCO Foro 2", "CHURUBUSCO Lobby"]
     });
     return res.status(201).json(hub);
   } catch (error) {

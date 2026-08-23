@@ -88,7 +88,7 @@ class EventHubRepository {
     this.createId = options.createId || randomUUID;
   }
 
-  async createHub({ slug: requestedSlug, title, createdByUserId, stages = ["CCC", "Foro 2"] }) {
+  async createHub({ slug: requestedSlug, title, createdByUserId, stages = ["CCC Sala THX", "CHURUBUSCO Foro NELA", "CHURUBUSCO Foro A", "CHURUBUSCO Foro 2", "CHURUBUSCO Lobby"] }) {
     const workspaceId = this.createId();
     const eventSlug = slug(requestedSlug);
     const normalizedStages = [...new Set((stages || []).map((name) => required(name, "stage name")))];

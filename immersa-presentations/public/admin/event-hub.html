@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Event Hub · IMMERSA</title>
-  <link rel="stylesheet" href="/admin/event-hub.css?v=2">
+  <link rel="stylesheet" href="/admin/event-hub.css?v=3">
 </head>
 <body>
   <header class="admin-header">
@@ -15,7 +15,7 @@
   <main>
     <section class="intro">
       <h2>Crear Event Hub</h2>
-      <p>Crea un workspace de evento independiente. Incluye los Stages <strong>CCC</strong> y <strong>Foro 2</strong>, además de un QR Free y uno Paid.</p>
+      <p>Crea un workspace de evento independiente. Incluye los cinco Event Stages de Semana AMC, además de un QR Free y uno Paid.</p>
       <form id="createHub">
         <label><span>Nombre del evento</span><input name="title" maxlength="160" required placeholder="Semana AMC"></label>
         <label><span>Identificador</span><input name="slug" maxlength="80" required pattern="[a-z0-9-]+" placeholder="semana-amc"></label>
@@ -32,8 +32,7 @@
       <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><span id="hubSlug"></span></header>
       <div class="stages"><section><h3>Event Stages</h3><ul id="stageList"></ul></section><section><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section></div>
       <section class="activities-admin">
-        <h3>Programa</h3>
-        <p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p>
+        <div class="program-head"><div><h3>Programa</h3><p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p></div><button id="activityNew" type="button">Nueva actividad</button></div>
         <form id="activityForm">
           <label><span>Actividad</span><input name="title" maxlength="160" required placeholder="Conferencia inaugural"></label>
           <label><span>Tipo</span><select name="activityType"><option value="CONFERENCE">Conferencia</option><option value="ROUND_TABLE">Mesa redonda</option><option value="WORKSHOP">Taller</option><option value="MASTER_CLASS">Master Class</option><option value="PANEL">Panel</option><option value="OTHER">Otra</option></select></label>
@@ -71,6 +70,6 @@
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/admin/event-hub.js?v=7"></script>
+  <script src="/admin/event-hub.js?v=8"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ const activityFeedback = document.getElementById("activityFeedback");
 const activityAdminList = document.getElementById("activityAdminList");
 const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
+const activityNew = document.getElementById("activityNew");
 const activitySpeakers = document.getElementById("activitySpeakers");
 const activityDeckCheck = document.getElementById("activityDeckCheck");
 const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
@@ -26,6 +27,7 @@ const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 const activityEditor = document.createElement("div");
 activityEditor.className = "activity-editor";
+activityEditor.id = "activityEditor";
 activityForm.parentNode.insertBefore(activityEditor, activityForm);
 activityEditor.append(activityForm, activityFeedback, activitySpeakers);
 let currentHub = null;
@@ -61,6 +63,7 @@ function clearActivityEditor() {
   activityCancel.hidden = true;
   activitySpeakers.hidden = true;
   activityDeckCheck.hidden = true;
+  activityEditor.hidden = false;
   activityAdminList.before(activityEditor);
 }
 async function loadAccountSpeakers() {
@@ -367,6 +370,11 @@ activityForm.addEventListener("submit", async (event) => {
   } finally { button.disabled = false; }
 });
 activityCancel.addEventListener("click", clearActivityEditor);
+activityNew.addEventListener("click", () => {
+  clearActivityEditor();
+  activityEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+  activityForm.elements.title.focus();
+});
 activitySpeakerForm.elements.source.addEventListener("change", showSpeakerSource);
 speakerAccountSearch.addEventListener("input", renderAccountSpeakerOptions);
 activitySpeakerForm.addEventListener("submit", async (event) => {
