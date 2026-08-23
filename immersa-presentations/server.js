@@ -1114,7 +1114,9 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:sp
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
     const invitation = await eventHubRepository.inviteSpeakerToChooseDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
-    const baseUrl = String(process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+    // Event Hub invitations must return to the exact environment that created them.
+    // BETTER_AUTH_URL may point to production while this Event Hub runs on its isolated DB.
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
     let email = { status: "not_configured" };
     if (eventHubEmailSender && invitation.speakerEmail) {
       try {
