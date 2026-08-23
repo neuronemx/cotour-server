@@ -232,6 +232,8 @@ test("an Event Hub attendee can return to the public Program when their LiveSess
   const audience = await fs.promises.readFile(path.join(__dirname, "..", "public", "audience", "audience.js"), "utf8");
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
   assert.match(audience, /returnToEventProgramIfClosed/);
+  assert.match(audience, /\^\\\/p_\[a-z0-9_\]\+\$/);
+  assert.match(audience, /setInterval\(returnToEventProgramIfClosed, 3000\)/);
   assert.match(audience, /\/api\/event\/live-sessions\/\$\{encodeURIComponent\(state\.liveSessionId\)\}\/status/);
   assert.match(server, /isParticipantLiveSessionActive/);
 });
