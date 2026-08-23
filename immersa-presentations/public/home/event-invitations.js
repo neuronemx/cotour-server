@@ -3,11 +3,13 @@
   const list = document.getElementById("eventInvitationsList");
   const modal = document.getElementById("eventInvitationModal");
   const modalList = document.getElementById("eventInvitationModalList");
+  const modalTitle = document.getElementById("eventInvitationTitle");
+  const modalIntro = document.getElementById("eventInvitationIntro");
   const close = document.getElementById("eventInvitationClose");
   const presentations = document.getElementById("presentationsContent");
   const presentationsTab = document.getElementById("presentationsTab");
   const invitationsTab = document.getElementById("invitationsTab");
-  if (!panel || !list || !modal || !modalList || !presentations || !presentationsTab || !invitationsTab) return;
+  if (!panel || !list || !modal || !modalList || !modalTitle || !modalIntro || !presentations || !presentationsTab || !invitationsTab) return;
 
   let invitations = [];
   function schedule(value) {
@@ -31,7 +33,20 @@
     if (!response.ok) throw new Error(body.error || "No se pudo actualizar la invitación");
     invitation.status = body.status;
     render();
-    closeModal();
+    if (action === "accept") showAcceptanceConfirmation(invitation);
+    else closeModal();
+  }
+  function showAcceptanceConfirmation(invitation) {
+    modalTitle.textContent = `¡Listo! Ya estás conectado con ${invitation.eventTitle}`;
+    modalIntro.textContent = "";
+    modalList.replaceChildren();
+    const confirmation = document.createElement("div");
+    confirmation.className = "event-invitation-confirmation";
+    confirmation.innerHTML = "<p>Ahora completa <strong>Tu perfil</strong>, que se mostrará en el Programa en vivo.</p><p>Y prepara tu presentación para el Deck Check previo al evento.</p><button type='button'>Continuar</button>";
+    confirmation.querySelector("button").addEventListener("click", closeModal);
+    modalList.appendChild(confirmation);
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
   }
   function renderList() {
     list.replaceChildren();
@@ -57,6 +72,8 @@
   }
   function renderModal() {
     const pending = invitations.filter((invitation) => invitation.status === "INVITED");
+    modalTitle.textContent = "Tienes una invitación para presentar";
+    modalIntro.textContent = "Acepta para vincular tu cuenta IMMERSA con la actividad.";
     modalList.replaceChildren();
     if (!pending.length) return closeModal();
     for (const invitation of pending) {
