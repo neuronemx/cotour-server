@@ -295,7 +295,7 @@ activitySpeakerForm.addEventListener("submit", async (event) => {
   const button = activitySpeakerForm.querySelector("button");
   button.disabled = true;
   activitySpeakerFeedback.className = "";
-  activitySpeakerFeedback.textContent = "Agregando ponente…";
+  activitySpeakerFeedback.textContent = activitySpeakerForm.elements.source.value === "MANUAL" ? "Agregando ponente…" : "Enviando invitación…";
   try {
     const manual = activitySpeakerForm.elements.source.value === "MANUAL";
     const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers`, {
@@ -307,12 +307,22 @@ activitySpeakerForm.addEventListener("submit", async (event) => {
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "No se pudo agregar el ponente");
+    let invitation = null;
+    if (!manual) {
+      const speaker = (body.speakers || []).find((item) => item.accountUserId === activitySpeakerForm.elements.accountUserId.value);
+      if (!speaker) throw new Error("No se pudo identificar la cuenta del ponente");
+      const inviteResponse = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers/${encodeURIComponent(speaker.id)}/invite-deck`, { method: "POST" });
+      invitation = await inviteResponse.json();
+      if (!inviteResponse.ok) throw new Error(invitation.error || "No se pudo enviar la invitación");
+    }
     editingActivity.speakers = body.speakers || [];
     renderActivitySpeakers(editingActivity.speakers);
     activitySpeakerForm.reset();
     showSpeakerSource();
     activitySpeakerFeedback.className = "success";
-    activitySpeakerFeedback.textContent = "Ponente agregado.";
+    activitySpeakerFeedback.textContent = manual
+      ? "Ponente agregado."
+      : (invitation?.email?.status === "sent" ? "Ponente invitado. También recibió un correo." : "Ponente invitado. Verá la invitación al entrar a IMMERSA.");
     await loadActivities();
   } catch (error) { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; }
   finally { button.disabled = false; }

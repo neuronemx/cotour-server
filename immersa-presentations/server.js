@@ -145,6 +145,7 @@ const billingRuntime = createBillingRuntime({
   isWorkspaceActive: workspaceHasActivePresentation,
   emailSender: createResendEmailSender({ env: process.env })
 });
+const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
@@ -1111,8 +1112,42 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check",
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-deck", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
-  try { return res.status(201).json(await eventHubRepository.inviteSpeakerToChooseDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId })); }
+  try {
+    const invitation = await eventHubRepository.inviteSpeakerToChooseDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
+    const baseUrl = String(process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+    let email = { status: "not_configured" };
+    if (eventHubEmailSender && invitation.speakerEmail) {
+      try {
+        await eventHubEmailSender({
+          kind: "event-speaker-invitation",
+          to: invitation.speakerEmail,
+          name: invitation.speakerName,
+          url: `${baseUrl}/home#invitaciones`,
+          eventInvitation: invitation
+        });
+        email = { status: "sent" };
+      } catch (error) {
+        console.error("Unable to send Event Hub speaker invitation", error);
+        email = { status: "failed", detail: String(error?.message || error).slice(0, 300) };
+      }
+    }
+    return res.status(201).json({ ...invitation, email });
+  }
   catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/event-hub/speaker-invitations", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json({ invitations: await eventHubRepository.listSpeakerInvitations(req.accountContext.user.id) }); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.put("/api/event-hub/speaker-invitations/:assignmentId/deck", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const deckId = String(req.body?.deckId || "").trim();
+    const ownedDecks = await betterAuthCompatibilityBridge.listDeckIds(req);
+    if (!ownedDecks.map(String).includes(deckId)) return res.status(404).json({ error: "Deck not found" });
+    return res.json(await eventHubRepository.selectSpeakerDeck({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id, deckId }));
+  } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);

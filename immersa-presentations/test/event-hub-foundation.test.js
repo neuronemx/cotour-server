@@ -155,4 +155,16 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(speakersMigration, /event_activity_speakers/);
   const deckCheckMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "026_event_activity_deck_check.sql"), "utf8");
   assert.match(deckCheckMigration, /deck_check_status/);
+  const assignmentsMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "027_event_speaker_assignments.sql"), "utf8");
+  assert.match(assignmentsMigration, /event_activity_speaker_assignments/);
+});
+
+test("a speaker can choose a Deck only through their own invitation", async () => {
+  const pool = fakePool([[{ affectedRows: 1 }, []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(
+    await repository.selectSpeakerDeck({ assignmentId: "invite-1", userId: "speaker-1", deckId: "deck-1" }),
+    { assignmentId: "invite-1", deckId: "deck-1", status: "DECK_SELECTED" }
+  );
+  assert.match(pool.calls[0].sql, /es\.account_user_id = \?/);
 });

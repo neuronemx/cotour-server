@@ -419,7 +419,68 @@ class EventHubRepository {
       [this.createId(), required(eventSpeakerId, "event speaker id"), required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_INVITE_NOT_AVAILABLE", "Only a linked IMMERSA speaker can receive this invitation", 409);
-    return { activityId, eventSpeakerId, status: "INVITED" };
+    const invitation = await this.getSpeakerInvitationForAdmin({ activityId, eventWorkspaceId, eventSpeakerId });
+    return { ...invitation, status: "INVITED" };
+  }
+
+  async getSpeakerInvitationForAdmin({ activityId, eventWorkspaceId, eventSpeakerId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT asa.id, a.id AS activity_id, a.title AS activity_title, h.title AS event_title,
+              u.id AS user_id, u.name AS speaker_name, u.email AS speaker_email
+       FROM event_activity_speaker_assignments asa
+       INNER JOIN event_activities a ON a.id = asa.event_activity_id
+       INNER JOIN event_hubs h ON h.workspace_id = a.event_workspace_id
+       INNER JOIN event_speakers s ON s.id = asa.event_speaker_id
+       INNER JOIN \`user\` u ON u.id = s.account_user_id
+       WHERE asa.event_activity_id = ? AND a.event_workspace_id = ? AND asa.event_speaker_id = ? LIMIT 1`,
+      [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id"), required(eventSpeakerId, "event speaker id")]
+    );
+    const invitation = rows?.[0];
+    if (!invitation) throw new EventHubError("SPEAKER_INVITE_NOT_AVAILABLE", "Only a linked IMMERSA speaker can receive this invitation", 409);
+    return {
+      assignmentId: invitation.id,
+      activityId: invitation.activity_id,
+      activityTitle: invitation.activity_title,
+      eventTitle: invitation.event_title,
+      speakerUserId: invitation.user_id,
+      speakerName: invitation.speaker_name || "",
+      speakerEmail: invitation.speaker_email || ""
+    };
+  }
+
+  async listSpeakerInvitations(userId) {
+    const [rows] = await this.pool.execute(
+      `SELECT asa.id, asa.status, asa.selected_deck_id, asa.invited_at, asa.accepted_at,
+              a.id AS activity_id, a.title AS activity_title, a.scheduled_starts_at, a.duration_minutes,
+              s.name AS stage_name, h.title AS event_title
+       FROM event_activity_speaker_assignments asa
+       INNER JOIN event_speakers es ON es.id = asa.event_speaker_id AND es.account_user_id = ?
+       INNER JOIN event_activities a ON a.id = asa.event_activity_id
+       INNER JOIN event_stages s ON s.id = a.event_stage_id
+       INNER JOIN event_hubs h ON h.workspace_id = a.event_workspace_id
+       WHERE asa.status IN ('INVITED', 'DECK_SELECTED') AND a.status = 'SCHEDULED'
+       ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, h.title, a.title`,
+      [required(userId, "speaker user id")]
+    );
+    return (rows || []).map((row) => ({
+      id: row.id, status: row.status, selectedDeckId: row.selected_deck_id || null,
+      invitedAt: row.invited_at, acceptedAt: row.accepted_at,
+      activity: { id: row.activity_id, title: row.activity_title, scheduledStartsAt: row.scheduled_starts_at, durationMinutes: row.duration_minutes, stageName: row.stage_name },
+      eventTitle: row.event_title
+    }));
+  }
+
+  async selectSpeakerDeck({ assignmentId, userId, deckId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activity_speaker_assignments asa
+       INNER JOIN event_speakers es ON es.id = asa.event_speaker_id AND es.account_user_id = ?
+       INNER JOIN event_activities a ON a.id = asa.event_activity_id AND a.status = 'SCHEDULED'
+       SET asa.selected_deck_id = ?, asa.status = 'DECK_SELECTED', asa.accepted_at = CURRENT_TIMESTAMP(3)
+       WHERE asa.id = ? AND asa.status IN ('INVITED', 'DECK_SELECTED')`,
+      [required(userId, "speaker user id"), required(deckId, "deck id"), required(assignmentId, "invitation id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "This speaker invitation is not available", 404);
+    return { assignmentId, deckId, status: "DECK_SELECTED" };
   }
 
   async grantStageOperatorAccess({ eventStageId, accessSecret, expiresAt = null }) {
