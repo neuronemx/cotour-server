@@ -29,10 +29,11 @@ const activityEditor = document.createElement("div");
 activityEditor.className = "activity-editor";
 activityEditor.id = "activityEditor";
 activityForm.parentNode.insertBefore(activityEditor, activityForm);
-activityEditor.append(activityForm, activityFeedback, activitySpeakers);
+activityEditor.append(activityForm, activityFeedback, activitySpeakers, activityDeckCheck);
 let currentHub = null;
 let editingActivity = null;
 let accountSpeakers = null;
+let activeActivityTool = "";
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
@@ -58,9 +59,12 @@ function activityDay(value) {
 }
 function clearActivityEditor() {
   editingActivity = null;
+  activeActivityTool = "edit";
   activityForm.reset();
   activitySubmit.textContent = "Agregar al programa";
   activityCancel.hidden = true;
+  activityForm.hidden = false;
+  activityFeedback.hidden = false;
   activitySpeakers.hidden = true;
   activityDeckCheck.hidden = true;
   activityEditor.hidden = false;
@@ -124,7 +128,7 @@ function renderDeckCheck(activity) {
   const linked = (activity.speakers || []).filter((speaker) => speaker.invitation?.status === "LINKED");
   const status = activity.deck_check_status || "PENDING";
   activityDeckCheckActions.replaceChildren();
-  activityDeckCheck.hidden = !linked.length && status !== "READY_FOR_TEST" && status !== "DECK_CHECK";
+  activityDeckCheck.hidden = activeActivityTool !== "deck";
   if (activityDeckCheck.hidden) return;
   if (status === "DECK_CHECK") {
     activityDeckCheckStatus.textContent = "Deck Check aprobado. Esta es la versión comprobada para la actividad.";
@@ -213,8 +217,9 @@ function renderDeckCheck(activity) {
     activityDeckCheckActions.appendChild(choose);
   }
 }
-function editActivity(activity) {
+function openActivityTool(activity, tool, item, { scroll = true } = {}) {
   editingActivity = activity;
+  activeActivityTool = tool;
   activityForm.elements.title.value = activity.title;
   activityForm.elements.activityType.value = activity.activity_type || "CONFERENCE";
   activityForm.elements.eventStageId.value = activity.event_stage_id;
@@ -223,11 +228,16 @@ function editActivity(activity) {
   activityForm.elements.durationMinutes.value = activity.duration_minutes || 60;
   activitySubmit.textContent = "Guardar cambios";
   activityCancel.hidden = false;
-  activitySpeakers.hidden = false;
-  renderActivitySpeakers(activity.speakers || []);
+  activityForm.hidden = tool !== "edit";
+  activityFeedback.hidden = tool !== "edit";
+  activitySpeakers.hidden = tool !== "speaker";
+  if (tool === "speaker") {
+    renderActivitySpeakers(activity.speakers || []);
+    loadAccountSpeakers().catch((error) => { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; });
+  }
   renderDeckCheck(activity);
-  loadAccountSpeakers().catch((error) => { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; });
-  activityForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  item.after(activityEditor);
+  if (scroll) requestAnimationFrame(() => item.scrollIntoView({ behavior: "smooth", block: "start" }));
 }
 function renderActivities(activities) {
   activityAdminList.replaceChildren();
@@ -248,12 +258,13 @@ function renderActivities(activities) {
       currentDay = day;
     }
     const item = document.createElement("article");
-    item.className = "activity-card";
-    item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div><button type='button'>Editar</button>";
+    item.className = `activity-card type-${activity.activity_type || "OTHER"}`;
+    item.innerHTML = "<div class='activity-card-main'><div class='activity-card-kicker'><span class='activity-type'></span><span class='paid-symbol' hidden>$</span></div><strong></strong><span class='activity-detail'></span></div><div class='activity-card-actions'><button type='button' data-tool='edit'>Editar</button><button type='button' data-tool='speaker'>Ponente</button><button type='button' data-tool='deck'>Deck Check</button></div>";
+    item.querySelector(".activity-type").textContent = activityTypeLabels[activity.activity_type] || "Actividad";
     item.querySelector("strong").textContent = activity.title;
-    item.querySelector("span").textContent = `${activityTypeLabels[activity.activity_type] || "Actividad"} · ${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
-    item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
-    item.querySelector("button").addEventListener("click", () => { editActivity(activity); item.after(activityEditor); });
+    item.querySelector(".activity-detail").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min`;
+    item.querySelector(".paid-symbol").hidden = activity.access_level !== "PAID";
+    item.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => openActivityTool(activity, button.dataset.tool, item)));
     activityAdminList.appendChild(item);
   }
 }
