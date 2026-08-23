@@ -10,51 +10,42 @@
     return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", hour12: true }).format(date);
   }
 
-  async function load() {
-    const [invitationsResponse, decksResponse] = await Promise.all([
-      fetch("/api/event-hub/speaker-invitations", { cache: "no-store" }),
-      fetch("/api/decks", { cache: "no-store" })
-    ]);
-    const invitationsBody = await invitationsResponse.json();
-    const decksBody = await decksResponse.json();
-    if (!invitationsResponse.ok) throw new Error(invitationsBody.error || "No se pudieron cargar tus invitaciones");
-    if (!decksResponse.ok) throw new Error(decksBody.error || "No se pudieron cargar tus Decks");
-    render(invitationsBody.invitations || [], Array.isArray(decksBody) ? decksBody : (decksBody.decks || []));
-  }
-
-  function render(invitations, decks) {
+  function render(invitations) {
     panel.hidden = !invitations.length;
     list.replaceChildren();
     for (const invitation of invitations) {
       const card = document.createElement("article");
       card.className = "event-invitation-card";
-      const selected = invitation.selectedDeckId || "";
-      const options = [`<option value="">Elige un Deck</option>`, ...decks.map((deck) => `<option value="${String(deck.deckId).replace(/&/g, "&amp;").replace(/\"/g, "&quot;")}"${String(deck.deckId) === selected ? " selected" : ""}>${String(deck.title || deck.deckId).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</option>`)].join("");
-      card.innerHTML = `<div><span class="event-invitation-eyebrow">${invitation.eventTitle}</span><h3></h3><p></p></div><div class="event-invitation-action"><select aria-label="Deck para esta actividad">${options}</select><button type="button">${selected ? "Cambiar Deck" : "Elegir mi Deck"}</button><small role="status"></small></div>`;
+      const linked = invitation.status === "LINKED";
+      card.innerHTML = `<div><span class="event-invitation-eyebrow"></span><h3></h3><p></p></div><div class="event-invitation-action"><button type="button"></button><small role="status"></small></div>`;
+      card.querySelector(".event-invitation-eyebrow").textContent = invitation.eventTitle;
       card.querySelector("h3").textContent = invitation.activity.title;
       card.querySelector("p").textContent = `${invitation.activity.stageName} · ${schedule(invitation.activity.scheduledStartsAt)} · ${invitation.activity.durationMinutes} min`;
-      const select = card.querySelector("select");
       const button = card.querySelector("button");
       const status = card.querySelector("small");
-      if (selected) status.textContent = "Deck elegido. El Event Admin realizará el Deck Check.";
+      button.textContent = linked ? "Cuenta vinculada" : "Aceptar invitación";
+      button.disabled = linked;
+      status.textContent = linked ? "Tu Deck se seleccionará durante Deck Check." : "Al aceptar vinculas tu cuenta IMMERSA con esta actividad.";
       button.addEventListener("click", async () => {
-        if (!select.value) { status.textContent = "Elige primero el Deck que usarás."; return; }
         button.disabled = true;
-        status.textContent = "Guardando tu Deck…";
+        status.textContent = "Vinculando tu cuenta…";
         try {
-          const response = await fetch(`/api/event-hub/speaker-invitations/${encodeURIComponent(invitation.id)}/deck`, {
-            method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deckId: select.value })
-          });
+          const response = await fetch(`/api/event-hub/speaker-invitations/${encodeURIComponent(invitation.id)}/accept`, { method: "PUT" });
           const body = await response.json();
-          if (!response.ok) throw new Error(body.error || "No se pudo elegir el Deck");
-          status.textContent = "Deck elegido. El Event Admin realizará el Deck Check.";
-          button.textContent = "Cambiar Deck";
-        } catch (error) { status.textContent = error.message; }
-        finally { button.disabled = false; }
+          if (!response.ok) throw new Error(body.error || "No se pudo aceptar la invitación");
+          button.textContent = "Cuenta vinculada";
+          status.textContent = "Tu Deck se seleccionará durante Deck Check.";
+        } catch (error) { status.textContent = error.message; button.disabled = false; }
       });
       list.appendChild(card);
     }
   }
 
-  load().catch(() => { panel.hidden = true; });
+  fetch("/api/event-hub/speaker-invitations", { cache: "no-store" })
+    .then(async (response) => ({ response, body: await response.json() }))
+    .then(({ response, body }) => {
+      if (!response.ok) throw new Error(body.error || "No se pudieron cargar tus invitaciones");
+      render(body.invitations || []);
+    })
+    .catch(() => { panel.hidden = true; });
 })();

@@ -102,7 +102,8 @@ function renderActivitySpeakers(speakers) {
     item.className = "speaker-admin";
     item.innerHTML = "<div><strong></strong><span></span></div><button type='button'>Quitar</button>";
     item.querySelector("strong").textContent = speaker.name || "Perfil sin nombre";
-    item.querySelector("span").textContent = `${speaker.sourceKind === "ACCOUNT" ? "Cuenta IMMERSA" : "Manual"}${speaker.roleTitle ? ` · ${speaker.roleTitle}` : ""}`;
+    const linkStatus = speaker.sourceKind !== "ACCOUNT" ? "" : (speaker.invitation?.status === "LINKED" ? " · Cuenta vinculada" : (speaker.invitation ? " · Invitación enviada" : ""));
+    item.querySelector("span").textContent = `${speaker.sourceKind === "ACCOUNT" ? "Cuenta IMMERSA" : "Manual"}${speaker.roleTitle ? ` · ${speaker.roleTitle}` : ""}${linkStatus}`;
     item.querySelector("button").addEventListener("click", async () => {
       try {
         const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers/${encodeURIComponent(speaker.id)}`, { method: "DELETE" });
@@ -117,17 +118,17 @@ function renderActivitySpeakers(speakers) {
   }
 }
 function renderDeckCheck(activity) {
-  const selected = (activity.speakers || []).filter((speaker) => speaker.invitation?.status === "DECK_SELECTED" && speaker.invitation?.selectedDeckId);
+  const linked = (activity.speakers || []).filter((speaker) => speaker.invitation?.status === "LINKED");
   const status = activity.deck_check_status || "PENDING";
   activityDeckCheckActions.replaceChildren();
-  activityDeckCheck.hidden = !selected.length && status !== "READY_FOR_TEST" && status !== "DECK_CHECK";
+  activityDeckCheck.hidden = !linked.length && status !== "READY_FOR_TEST" && status !== "DECK_CHECK";
   if (activityDeckCheck.hidden) return;
   if (status === "DECK_CHECK") {
     activityDeckCheckStatus.textContent = "Deck Check aprobado. Esta es la versión comprobada para la actividad.";
     return;
   }
   if (status === "READY_FOR_TEST") {
-    activityDeckCheckStatus.textContent = "El Deck seleccionado está preparado para prueba. Aprueba sólo después de comprobarlo.";
+    activityDeckCheckStatus.textContent = "El Deck está preparado para prueba. Aprueba sólo después de comprobarlo.";
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Aprobar Deck Check";
@@ -146,26 +147,48 @@ function renderDeckCheck(activity) {
     activityDeckCheckActions.appendChild(approve);
     return;
   }
-  activityDeckCheckStatus.textContent = "El ponente eligió un Deck. Selecciónalo para prepararlo para Deck Check.";
-  for (const speaker of selected) {
-    const request = document.createElement("button");
-    request.type = "button";
-    request.textContent = `Preparar Deck de ${speaker.name || "ponente"} para prueba`;
-    request.addEventListener("click", async () => {
-      request.disabled = true;
+  activityDeckCheckStatus.textContent = linked.length ? "Selecciona un Deck actual de un ponente vinculado para prepararlo para prueba." : "Aún no hay una cuenta de ponente vinculada.";
+  for (const speaker of linked) {
+    const choose = document.createElement("button");
+    choose.type = "button";
+    choose.textContent = `Elegir Deck de ${speaker.name || "ponente"}`;
+    choose.addEventListener("click", async () => {
+      choose.disabled = true;
       try {
-        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/deck-check`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ speakerId: speaker.id })
-        });
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/speakers/${encodeURIComponent(speaker.id)}/decks`);
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "No se pudo preparar el Deck Check");
-        editingActivity = { ...editingActivity, ...body };
-        renderDeckCheck(editingActivity);
-        await loadActivities();
+        if (!response.ok) throw new Error(body.error || "No se pudieron cargar los Decks del ponente");
+        const select = document.createElement("select");
+        select.innerHTML = "<option value=''>Selecciona un Deck</option>";
+        for (const deck of body.decks || []) {
+          const option = document.createElement("option");
+          option.value = deck.deckId;
+          option.textContent = deck.title || deck.deckId;
+          select.appendChild(option);
+        }
+        const confirm = document.createElement("button");
+        confirm.type = "button";
+        confirm.textContent = "Preparar para prueba";
+        confirm.addEventListener("click", async () => {
+          if (!select.value) { activityDeckCheckStatus.textContent = "Selecciona un Deck."; return; }
+          confirm.disabled = true;
+          try {
+            const request = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/deck-check`, {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ speakerId: speaker.id, deckId: select.value })
+            });
+            const result = await request.json();
+            if (!request.ok) throw new Error(result.error || "No se pudo preparar el Deck Check");
+            editingActivity = { ...editingActivity, ...result };
+            renderDeckCheck(editingActivity);
+            await loadActivities();
+          } catch (error) { activityDeckCheckStatus.textContent = error.message; }
+          finally { confirm.disabled = false; }
+        });
+        activityDeckCheckActions.replaceChildren(select, confirm);
       } catch (error) { activityDeckCheckStatus.textContent = error.message; }
-      finally { request.disabled = false; }
+      finally { choose.disabled = false; }
     });
-    activityDeckCheckActions.appendChild(request);
+    activityDeckCheckActions.appendChild(choose);
   }
 }
 function editActivity(activity) {
@@ -368,7 +391,7 @@ activitySpeakerForm.addEventListener("submit", async (event) => {
     if (!manual) {
       const speaker = (body.speakers || []).find((item) => item.accountUserId === activitySpeakerForm.elements.accountUserId.value);
       if (!speaker) throw new Error("No se pudo identificar la cuenta del ponente");
-      const inviteResponse = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers/${encodeURIComponent(speaker.id)}/invite-deck`, { method: "POST" });
+      const inviteResponse = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers/${encodeURIComponent(speaker.id)}/invite-link`, { method: "POST" });
       invitation = await inviteResponse.json();
       if (!inviteResponse.ok) throw new Error(invitation.error || "No se pudo enviar la invitación");
     }
@@ -379,7 +402,7 @@ activitySpeakerForm.addEventListener("submit", async (event) => {
     activitySpeakerFeedback.className = "success";
     activitySpeakerFeedback.textContent = manual
       ? "Ponente agregado."
-      : (invitation?.email?.status === "sent" ? "Ponente invitado. También recibió un correo." : "Ponente invitado. Verá la invitación al entrar a IMMERSA.");
+      : (invitation?.email?.status === "sent" ? "Ponente invitado. También recibió un correo para vincular su cuenta." : "Ponente invitado. Verá la invitación para vincular su cuenta al entrar a IMMERSA.");
     await loadActivities();
   } catch (error) { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; }
   finally { button.disabled = false; }

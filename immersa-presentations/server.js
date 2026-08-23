@@ -1107,13 +1107,26 @@ app.get("/api/admin/event-hubs/:workspaceId/decks", requireAccount, requireImmer
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
-  try { return res.json(await eventHubRepository.requestDeckCheckFromSpeakerSelection({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.body?.speakerId })); }
+  try {
+    const speaker = await eventHubRepository.getLinkedSpeakerForActivity({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.body?.speakerId });
+    const deckId = String(req.body?.deckId || "").trim();
+    const speakerDeckIds = await betterAuthCompatibilityBridge.listDeckIdsForUser(speaker.userId);
+    if (!speakerDeckIds.map(String).includes(deckId)) return res.status(404).json({ error: "Deck not found for this speaker" });
+    return res.json(await eventHubRepository.requestDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, deckId }));
+  }
   catch (error) { return sendEventHubError(res, error); }
 });
-app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-deck", requireAccount, requireImmersaAdmin, async (req, res) => {
+app.get("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/decks", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    const invitation = await eventHubRepository.inviteSpeakerToChooseDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
+    const speaker = await eventHubRepository.getLinkedSpeakerForActivity({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
+    return res.json({ decks: await listDecks(await betterAuthCompatibilityBridge.listDeckIdsForUser(speaker.userId)) });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-link", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const invitation = await eventHubRepository.inviteSpeakerToLinkAccount({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
     // Event Hub invitations must return to the exact environment that created them.
     // BETTER_AUTH_URL may point to production while this Event Hub runs on its isolated DB.
     const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
@@ -1142,13 +1155,10 @@ app.get("/api/event-hub/speaker-invitations", requireAccount, async (req, res) =
   try { return res.json({ invitations: await eventHubRepository.listSpeakerInvitations(req.accountContext.user.id) }); }
   catch (error) { return sendEventHubError(res, error); }
 });
-app.put("/api/event-hub/speaker-invitations/:assignmentId/deck", requireAccount, async (req, res) => {
+app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccount, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    const deckId = String(req.body?.deckId || "").trim();
-    const ownedDecks = await betterAuthCompatibilityBridge.listDeckIds(req);
-    if (!ownedDecks.map(String).includes(deckId)) return res.status(404).json({ error: "Deck not found" });
-    return res.json(await eventHubRepository.selectSpeakerDeck({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id, deckId }));
+    return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
