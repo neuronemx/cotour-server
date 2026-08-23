@@ -201,6 +201,8 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(defaultCapacityMigration, /audience_capacity = 300/);
   const officialStagesMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "031_semana_amc_official_stages.sql"), "utf8");
   assert.match(officialStagesMigration, /CHURUBUSCO Foro NELA/);
+  const reopenActivitiesMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "032_event_activity_reopen_after_live_session.sql"), "utf8");
+  assert.match(reopenActivitiesMigration, /SET status = 'SCHEDULED'/);
 });
 
 test("a speaker can accept only their own Event Hub invitation", async () => {
