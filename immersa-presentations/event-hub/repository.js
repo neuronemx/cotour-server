@@ -556,6 +556,30 @@ class EventHubRepository {
     return rows[0];
   }
 
+  async getStageControlForDeck(deckId) {
+    const [rows] = await this.pool.execute(
+      `SELECT a.id AS activity_id, a.title AS activity_title, a.event_stage_id, a.status AS activity_status,
+              s.name AS stage_name, l.id AS live_session_id
+       FROM event_activities a
+       INNER JOIN event_stages s ON s.id = a.event_stage_id
+       LEFT JOIN event_live_sessions l ON l.event_activity_id = a.id AND l.status = 'LIVE'
+       WHERE a.deck_id = ? AND a.status IN ('SCHEDULED', 'LIVE')
+       ORDER BY a.status = 'LIVE' DESC, a.scheduled_starts_at ASC
+       LIMIT 1`,
+      [required(deckId, "deck id")]
+    );
+    const row = rows?.[0];
+    if (!row) return null;
+    return {
+      activityId: row.activity_id,
+      title: row.activity_title,
+      stageId: row.event_stage_id,
+      stageName: row.stage_name,
+      status: row.activity_status,
+      liveSessionId: row.live_session_id || null
+    };
+  }
+
   async startLiveSession({ eventActivityId }) {
     return transaction(this.pool, async (connection) => {
       const activity = await this.getActivity(eventActivityId, connection);

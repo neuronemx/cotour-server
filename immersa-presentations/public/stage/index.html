@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
   <link rel="stylesheet" href="/shared/presentation-lifecycle.css?v=2">
   <link rel="stylesheet" href="/shared/slide-transitions.css?v=2">
+  <style>.event-stage-control{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid rgba(112,86,237,.34);border-radius:11px;background:rgba(112,86,237,.1)}.event-stage-control[hidden]{display:none}.event-stage-copy{display:grid;gap:1px;min-width:0}.event-stage-copy strong{font-size:10px;line-height:1.15}.event-stage-copy span{max-width:180px;overflow:hidden;color:#b7b2d0;font-size:9px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.event-stage-control button{min-height:28px;padding:0 9px;border:0;border-radius:7px;background:#dfe9ff;color:#172442;font:600 10px Inter,system-ui,sans-serif;cursor:pointer}.event-stage-control button.is-live{background:#dcfce7;color:#166534}</style>
 </head>
 <body>
   <main class="stage-shell">
@@ -34,6 +35,7 @@
       <div class="presentation-name" aria-label="Presentación activa">
         <span id="stageDeckLabel">Presentación</span>
       </div>
+      <div id="eventStageControl" class="event-stage-control" hidden><div class="event-stage-copy"><strong id="eventStageName"></strong><span id="eventActivityName"></span></div><button id="eventStageAction" type="button"></button></div>
 
       <div class="toolbar-status" aria-label="Estado de sesión">
         <span class="status-pill"><em>Público</em><strong id="audience">0</strong></span>
@@ -121,7 +123,7 @@
   <script src="/shared/qna-controls.js?v=3"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>
   <script src="/shared/demo-plan-badge.js?v=1"></script>
-  <script src="/stage/stage.js?v=stage-v22"></script>
+  <script src="/stage/stage.js?v=stage-v23"></script>
   <script src="/shared/stage-game-audio.js?v=1"></script>
 </body>
 </html>

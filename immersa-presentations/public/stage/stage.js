@@ -81,6 +81,10 @@ const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
 const stageDeckLabel = document.getElementById("stageDeckLabel");
+const eventStageControl = document.getElementById("eventStageControl");
+const eventStageName = document.getElementById("eventStageName");
+const eventActivityName = document.getElementById("eventActivityName");
+const eventStageAction = document.getElementById("eventStageAction");
 const prevSlide = document.getElementById("prevSlide");
 const nextSlide = document.getElementById("nextSlide");
 const liveTextButton = document.getElementById("liveTextButton");
@@ -100,6 +104,7 @@ const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
+let eventStageSession = null;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
@@ -134,6 +139,43 @@ async function loadDeck() {
   await loadInteractions();
   renderStageThumbs();
 }
+
+async function loadEventStageControl() {
+  if (!roleOpenContext.access_token || !eventStageControl) return;
+  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`);
+  if (response.status === 404) return;
+  const control = await response.json();
+  if (!response.ok) throw new Error(control.error || "No se pudo cargar Event Stage");
+  eventStageSession = control;
+  eventStageName.textContent = control.stageName;
+  eventActivityName.textContent = control.title;
+  eventStageAction.textContent = control.liveSessionId ? "Finalizar" : "Iniciar";
+  eventStageAction.classList.toggle("is-live", Boolean(control.liveSessionId));
+  eventStageControl.hidden = false;
+}
+
+eventStageAction?.addEventListener("click", async () => {
+  if (!eventStageSession) return;
+  const live = Boolean(eventStageSession.liveSessionId);
+  if (live && !window.confirm(`¿Finalizar ${eventStageSession.title}?`)) return;
+  eventStageAction.disabled = true;
+  try {
+    const endpoint = live
+      ? `/api/event/stages/${encodeURIComponent(eventStageSession.stageId)}/live-sessions/${encodeURIComponent(eventStageSession.liveSessionId)}/finish`
+      : `/api/event/stages/${encodeURIComponent(eventStageSession.stageId)}/live-sessions`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-immersa-event-stage-access": roleOpenContext.access_token },
+      body: live ? undefined : JSON.stringify({ eventActivityId: eventStageSession.activityId })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "No se pudo actualizar la sesión en vivo");
+    eventStageSession.liveSessionId = live ? null : result.id;
+    eventStageAction.textContent = live ? "Iniciar" : "Finalizar";
+    eventStageAction.classList.toggle("is-live", !live);
+  } catch (error) { window.alert(error.message); }
+  finally { eventStageAction.disabled = false; }
+});
 
 function publicUrl() {
   return roleOpenContext.public_url || "";
@@ -689,7 +731,8 @@ socket.on("interaction:hide_results", () => { interactionResultsVisible = false;
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderStageActionsPanel(); returnInteractionsHome(); });
 
 syncStageThumbsMode();
-loadDeck().then(() => {
+loadDeck().then(async () => {
+  await loadEventStageControl();
   initDrawingOverlay();
   updateDrawingMode();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });

@@ -986,6 +986,7 @@ function requireOwnedDeck(req, res, next) {
 }
 const requireDeckAccount = [requireAccount, requireOwnedDeck];
 const requireControllerDeck = accessLinkHandlers.guardDeckRoles(["speaker", "stage"]);
+const requireStageDeck = accessLinkHandlers.guardDeckRoles(["stage"]);
 function requireImmersaAdmin(req, res, next) {
   if (!isImmersaAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
   return next();
@@ -1224,6 +1225,14 @@ app.post("/api/event/stages/:stageId/live-sessions", async (req, res) => {
   } catch (error) {
     return sendEventHubError(res, error);
   }
+});
+app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    if (!control) return res.status(404).json({ error: "Esta presentación no tiene una actividad Event Hub operable" });
+    return res.json(control);
+  } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/event/stages/:stageId/live-sessions/:liveSessionId/finish", async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);

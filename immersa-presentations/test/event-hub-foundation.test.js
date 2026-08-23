@@ -146,6 +146,16 @@ test("a LiveSession identifies its Event Stage before an operator can finish it"
   assert.equal(live.event_stage_id, "stage-ccc");
 });
 
+test("Event Stage resolves only its scheduled or live activity from the approved Deck", async () => {
+  const pool = fakePool([[[{
+    activity_id: "activity-1", activity_title: "Conferencia", event_stage_id: "stage-ccc", stage_name: "CCC Sala THX", activity_status: "SCHEDULED", live_session_id: null
+  }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.getStageControlForDeck("deck-1"), {
+    activityId: "activity-1", title: "Conferencia", stageId: "stage-ccc", stageName: "CCC Sala THX", status: "SCHEDULED", liveSessionId: null
+  });
+});
+
 test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tables", async () => {
   const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "020_event_hub_foundation.sql"), "utf8");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hubs/);
