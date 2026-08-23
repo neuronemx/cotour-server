@@ -16,19 +16,14 @@ const activitySpeakerList = document.getElementById("activitySpeakerList");
 const activitySpeakerForm = document.getElementById("activitySpeakerForm");
 const activitySpeakerFeedback = document.getElementById("activitySpeakerFeedback");
 const speakerAccount = document.getElementById("speakerAccount");
-const activityDeckCheck = document.getElementById("activityDeckCheck");
-const deckCheckStatus = document.getElementById("deckCheckStatus");
-const deckCheckDeck = document.getElementById("deckCheckDeck");
-const deckCheckRequest = document.getElementById("deckCheckRequest");
-const deckCheckApprove = document.getElementById("deckCheckApprove");
-const deckCheckFeedback = document.getElementById("deckCheckFeedback");
+const speakerAccountSearch = document.getElementById("speakerAccountSearch");
+const speakerSubmit = document.getElementById("speakerSubmit");
 const existingHubs = document.getElementById("existingHubs");
 const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 let currentHub = null;
 let editingActivity = null;
 let accountSpeakers = null;
-let eventDecks = null;
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
@@ -58,20 +53,6 @@ function clearActivityEditor() {
   activitySubmit.textContent = "Agregar al programa";
   activityCancel.hidden = true;
   activitySpeakers.hidden = true;
-  activityDeckCheck.hidden = true;
-}
-async function loadEventDecks() {
-  if (eventDecks) return eventDecks;
-  const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/decks`);
-  const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudieron cargar los Decks");
-  eventDecks = body.decks || []; deckCheckDeck.replaceChildren();
-  for (const deck of eventDecks) { const option = document.createElement("option"); option.value = deck.deckId; option.textContent = deck.title || deck.deckId; deckCheckDeck.appendChild(option); }
-  return eventDecks;
-}
-function renderDeckCheck(activity) {
-  const labels = { PENDING: "Pendiente: puede iniciar, pero quedará identificado sin Deck Check.", READY_FOR_TEST: "Preparado para prueba: hay un nuevo Deck Check pendiente.", DECK_CHECK: "Deck Check aprobado." };
-  deckCheckStatus.textContent = labels[activity.deck_check_status] || labels.PENDING;
-  deckCheckApprove.hidden = activity.deck_check_status !== "READY_FOR_TEST";
 }
 async function loadAccountSpeakers() {
   if (accountSpeakers) return accountSpeakers;
@@ -79,19 +60,24 @@ async function loadAccountSpeakers() {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "No se pudieron cargar las cuentas IMMERSA");
   accountSpeakers = body.accounts || [];
+  renderAccountSpeakerOptions();
+  return accountSpeakers;
+}
+function renderAccountSpeakerOptions() {
+  const query = speakerAccountSearch.value.trim().toLowerCase();
   speakerAccount.replaceChildren();
-  for (const account of accountSpeakers) {
+  for (const account of (accountSpeakers || []).filter((item) => !query || `${item.name} ${item.email}`.toLowerCase().includes(query))) {
     const option = document.createElement("option");
     option.value = account.userId;
     option.textContent = `${account.name || "Sin nombre"} · ${account.email}`;
     speakerAccount.appendChild(option);
   }
-  return accountSpeakers;
 }
 function showSpeakerSource() {
   const manual = activitySpeakerForm.elements.source.value === "MANUAL";
   document.querySelectorAll(".speaker-manual-field").forEach((field) => { field.hidden = !manual; });
   document.querySelectorAll(".speaker-account-field").forEach((field) => { field.hidden = manual; });
+  speakerSubmit.textContent = manual ? "Agregar ponente" : "Vincular ponente";
 }
 function renderActivitySpeakers(speakers) {
   activitySpeakerList.replaceChildren();
@@ -126,9 +112,6 @@ function editActivity(activity) {
   activitySubmit.textContent = "Guardar cambios";
   activityCancel.hidden = false;
   activitySpeakers.hidden = false;
-  activityDeckCheck.hidden = false;
-  renderDeckCheck(activity);
-  loadEventDecks().catch((error) => { deckCheckFeedback.className = "error"; deckCheckFeedback.textContent = error.message; });
   renderActivitySpeakers(activity.speakers || []);
   loadAccountSpeakers().catch((error) => { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; });
   activityForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -157,7 +140,7 @@ function renderActivities(activities) {
     item.querySelector("strong").textContent = activity.title;
     item.querySelector("span").textContent = `${activityTypeLabels[activity.activity_type] || "Actividad"} · ${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
     item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
-    item.querySelector("button").addEventListener("click", () => editActivity(activity));
+    item.querySelector("button").addEventListener("click", () => { editActivity(activity); item.after(activitySpeakers); });
     activityAdminList.appendChild(item);
   }
 }
@@ -293,15 +276,8 @@ activityForm.addEventListener("submit", async (event) => {
   } finally { button.disabled = false; }
 });
 activityCancel.addEventListener("click", clearActivityEditor);
-deckCheckRequest.addEventListener("click", async () => {
-  if (!editingActivity) return; deckCheckRequest.disabled = true;
-  try { const r = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/deck-check`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({deckId:deckCheckDeck.value}) }); const body=await r.json(); if(!r.ok)throw new Error(body.error||"No se pudo enviar a prueba"); editingActivity={...editingActivity,...body}; renderDeckCheck(editingActivity); deckCheckFeedback.className="success"; deckCheckFeedback.textContent="Deck preparado para prueba."; await loadActivities(); } catch(error){deckCheckFeedback.className="error";deckCheckFeedback.textContent=error.message;} finally{deckCheckRequest.disabled=false;}
-});
-deckCheckApprove.addEventListener("click", async () => {
-  if (!editingActivity) return; deckCheckApprove.disabled = true;
-  try { const r = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/deck-check/approve`, {method:"POST"}); const body=await r.json(); if(!r.ok)throw new Error(body.error||"No se pudo aprobar"); editingActivity={...editingActivity,...body}; renderDeckCheck(editingActivity); deckCheckFeedback.className="success"; deckCheckFeedback.textContent="Deck Check aprobado."; await loadActivities(); } catch(error){deckCheckFeedback.className="error";deckCheckFeedback.textContent=error.message;} finally{deckCheckApprove.disabled=false;}
-});
 activitySpeakerForm.elements.source.addEventListener("change", showSpeakerSource);
+speakerAccountSearch.addEventListener("input", renderAccountSpeakerOptions);
 activitySpeakerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!editingActivity || !currentHub) return;

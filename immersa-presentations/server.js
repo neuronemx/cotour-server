@@ -1109,6 +1109,11 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check",
   try { return res.json(await eventHubRepository.requestDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, deckId: req.body?.deckId })); }
   catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-deck", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.status(201).json(await eventHubRepository.inviteSpeakerToChooseDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }

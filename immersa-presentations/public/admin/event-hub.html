@@ -52,19 +52,15 @@
           <div id="activitySpeakerList" class="speaker-admin-list"></div>
           <form id="activitySpeakerForm">
             <label><span>Origen</span><select name="source"><option value="ACCOUNT">Cuenta IMMERSA</option><option value="MANUAL">Registro manual</option></select></label>
+            <label class="speaker-account-field"><span>Buscar cuenta</span><input id="speakerAccountSearch" type="search" placeholder="Nombre o correo"></label>
             <label class="speaker-account-field"><span>Cuenta</span><select id="speakerAccount" name="accountUserId"></select></label>
             <label class="speaker-manual-field" hidden><span>Nombre</span><input name="name" maxlength="120"></label>
             <label class="speaker-manual-field" hidden><span>Cargo / especialidad</span><input name="roleTitle" maxlength="120"></label>
             <label class="speaker-manual-field wide" hidden><span>Semblanza</span><textarea name="bio" maxlength="600"></textarea></label>
             <label class="speaker-manual-field wide" hidden><span>Foto (URL HTTPS opcional)</span><input name="photoUrl" type="url" maxlength="500"></label>
-            <button type="submit">Agregar ponente</button>
+            <button id="speakerSubmit" type="submit">Vincular ponente</button>
           </form>
           <p id="activitySpeakerFeedback" role="status"></p>
-        </section>
-        <section id="activityDeckCheck" class="activity-speakers" hidden>
-          <h4>Deck Check</h4><p id="deckCheckStatus"></p>
-          <div class="deck-check-actions"><select id="deckCheckDeck"></select><button id="deckCheckRequest" type="button">Enviar a prueba</button><button id="deckCheckApprove" type="button">Aprobar Deck Check</button></div>
-          <p id="deckCheckFeedback" role="status"></p>
         </section>
       </section>
     </section>

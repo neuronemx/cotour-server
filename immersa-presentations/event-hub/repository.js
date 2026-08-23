@@ -333,6 +333,7 @@ class EventHubRepository {
     if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
       throw new EventHubError("INVALID_ACTIVITY_DURATION", "Activity duration must be between 5 and 480 minutes");
     }
+    await this.assertStageScheduleAvailable({ eventWorkspaceId, eventStageId, scheduledStartsAt, durationMinutes: duration });
     await this.pool.execute(
       `INSERT INTO event_activities
        (id, event_workspace_id, event_stage_id, title, activity_type, access_level, deck_id, scheduled_starts_at, scheduled_ends_at, duration_minutes)
@@ -359,6 +360,7 @@ class EventHubRepository {
     if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
       throw new EventHubError("INVALID_ACTIVITY_DURATION", "Activity duration must be between 5 and 480 minutes");
     }
+    await this.assertStageScheduleAvailable({ eventWorkspaceId, eventStageId, scheduledStartsAt, durationMinutes: duration, excludeActivityId: activityId });
     const [result] = await this.pool.execute(
       `UPDATE event_activities a
        INNER JOIN event_stages s ON s.id = ? AND s.event_workspace_id = a.event_workspace_id AND s.active = 1
@@ -372,6 +374,19 @@ class EventHubRepository {
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_STAGE_NOT_FOUND", "Event Stage not found", 404);
     return this.getActivity(activityId);
+  }
+
+  async assertStageScheduleAvailable({ eventWorkspaceId, eventStageId, scheduledStartsAt, durationMinutes, excludeActivityId = null }) {
+    if (!scheduledStartsAt) return;
+    const [rows] = await this.pool.execute(
+      `SELECT id FROM event_activities
+       WHERE event_workspace_id = ? AND event_stage_id = ? AND scheduled_starts_at IS NOT NULL
+         AND scheduled_starts_at < DATE_ADD(?, INTERVAL ? MINUTE)
+         AND COALESCE(scheduled_ends_at, DATE_ADD(scheduled_starts_at, INTERVAL duration_minutes MINUTE)) > ?
+         AND (? IS NULL OR id <> ?) LIMIT 1`,
+      [required(eventWorkspaceId, "event workspace id"), required(eventStageId, "event stage id"), scheduledStartsAt, durationMinutes, scheduledStartsAt, excludeActivityId, excludeActivityId]
+    );
+    if (rows?.[0]) throw new EventHubError("STAGE_SCHEDULE_CONFLICT", "Ya existe una actividad en este Event Stage que se traslapa con ese horario", 409);
   }
 
   async requestDeckCheck({ activityId, eventWorkspaceId, deckId }) {
@@ -392,6 +407,19 @@ class EventHubRepository {
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("DECK_CHECK_NOT_READY", "There is no Deck pending approval", 409);
     return this.getActivity(activityId);
+  }
+
+  async inviteSpeakerToChooseDeck({ activityId, eventWorkspaceId, eventSpeakerId }) {
+    const [result] = await this.pool.execute(
+      `INSERT INTO event_activity_speaker_assignments (id, event_activity_id, event_speaker_id)
+       SELECT ?, a.id, s.id FROM event_activities a
+       INNER JOIN event_speakers s ON s.id = ? AND s.event_workspace_id = a.event_workspace_id AND s.source_kind = 'ACCOUNT'
+       WHERE a.id = ? AND a.event_workspace_id = ?
+       ON DUPLICATE KEY UPDATE status = 'INVITED', selected_deck_id = NULL, invited_at = CURRENT_TIMESTAMP(3), accepted_at = NULL`,
+      [this.createId(), required(eventSpeakerId, "event speaker id"), required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_INVITE_NOT_AVAILABLE", "Only a linked IMMERSA speaker can receive this invitation", 409);
+    return { activityId, eventSpeakerId, status: "INVITED" };
   }
 
   async grantStageOperatorAccess({ eventStageId, accessSecret, expiresAt = null }) {
