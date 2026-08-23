@@ -153,4 +153,6 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(typeMigration, /activity_type/);
   const speakersMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "025_event_activity_speakers.sql"), "utf8");
   assert.match(speakersMigration, /event_activity_speakers/);
+  const deckCheckMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "026_event_activity_deck_check.sql"), "utf8");
+  assert.match(deckCheckMigration, /deck_check_status/);
 });

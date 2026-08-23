@@ -1100,6 +1100,20 @@ app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:
     return sendEventHubError(res, error);
   }
 });
+app.get("/api/admin/event-hubs/:workspaceId/decks", requireAccount, requireImmersaAdmin, async (_req, res) => {
+  try { return res.json({ decks: await listDecks() }); }
+  catch (error) { console.error("Unable to list Event Hub decks", error); return res.status(500).json({ error: "No se pudieron cargar los Decks" }); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.requestDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, deckId: req.body?.deckId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {

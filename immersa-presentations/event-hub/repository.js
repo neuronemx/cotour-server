@@ -162,7 +162,7 @@ class EventHubRepository {
 
   async listActivities(eventWorkspaceId) {
     const [rows] = await this.pool.execute(
-      `SELECT a.id, a.title, a.activity_type, a.access_level, a.deck_id, a.status, a.duration_minutes,
+      `SELECT a.id, a.title, a.activity_type, a.access_level, a.deck_id, a.pending_deck_id, a.deck_check_status, a.status, a.duration_minutes,
               a.scheduled_starts_at, a.scheduled_ends_at,
               s.id AS event_stage_id, s.name AS stage_name
        FROM event_activities a
@@ -374,6 +374,26 @@ class EventHubRepository {
     return this.getActivity(activityId);
   }
 
+  async requestDeckCheck({ activityId, eventWorkspaceId, deckId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activities SET pending_deck_id = ?, deck_check_status = 'READY_FOR_TEST', deck_check_updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND event_workspace_id = ? AND status = 'SCHEDULED'`,
+      [required(deckId, "deck id"), required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_NOT_EDITABLE", "Only scheduled activities can request Deck Check", 409);
+    return this.getActivity(activityId);
+  }
+
+  async approveDeckCheck({ activityId, eventWorkspaceId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activities SET deck_id = pending_deck_id, pending_deck_id = NULL, deck_check_status = 'DECK_CHECK', deck_check_updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND event_workspace_id = ? AND status = 'SCHEDULED' AND pending_deck_id IS NOT NULL`,
+      [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("DECK_CHECK_NOT_READY", "There is no Deck pending approval", 409);
+    return this.getActivity(activityId);
+  }
+
   async grantStageOperatorAccess({ eventStageId, accessSecret, expiresAt = null }) {
     const id = this.createId();
     const [result] = await this.pool.execute(
@@ -401,7 +421,7 @@ class EventHubRepository {
 
   async getActivity(activityId, executor = this.pool) {
     const [rows] = await executor.execute(
-      `SELECT a.id, a.event_workspace_id, a.event_stage_id, a.title, a.access_level, a.deck_id, a.status,
+      `SELECT a.id, a.event_workspace_id, a.event_stage_id, a.title, a.access_level, a.deck_id, a.pending_deck_id, a.deck_check_status, a.status,
               s.name AS stage_name
        FROM event_activities a INNER JOIN event_stages s ON s.id = a.event_stage_id
        WHERE a.id = ? LIMIT 1`, [required(activityId, "activity id")]
