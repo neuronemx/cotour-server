@@ -21,6 +21,10 @@ const speakerSubmit = document.getElementById("speakerSubmit");
 const existingHubs = document.getElementById("existingHubs");
 const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
+const activityEditor = document.createElement("div");
+activityEditor.className = "activity-editor";
+activityForm.parentNode.insertBefore(activityEditor, activityForm);
+activityEditor.append(activityForm, activityFeedback, activitySpeakers);
 let currentHub = null;
 let editingActivity = null;
 let accountSpeakers = null;
@@ -53,6 +57,7 @@ function clearActivityEditor() {
   activitySubmit.textContent = "Agregar al programa";
   activityCancel.hidden = true;
   activitySpeakers.hidden = true;
+  activityAdminList.before(activityEditor);
 }
 async function loadAccountSpeakers() {
   if (accountSpeakers) return accountSpeakers;
@@ -75,9 +80,15 @@ function renderAccountSpeakerOptions() {
 }
 function showSpeakerSource() {
   const manual = activitySpeakerForm.elements.source.value === "MANUAL";
-  document.querySelectorAll(".speaker-manual-field").forEach((field) => { field.hidden = !manual; });
-  document.querySelectorAll(".speaker-account-field").forEach((field) => { field.hidden = manual; });
-  speakerSubmit.textContent = manual ? "Agregar ponente" : "Vincular ponente";
+  document.querySelectorAll(".speaker-manual-field").forEach((field) => {
+    field.hidden = !manual;
+    field.style.display = manual ? "grid" : "none";
+  });
+  document.querySelectorAll(".speaker-account-field").forEach((field) => {
+    field.hidden = manual;
+    field.style.display = manual ? "none" : "grid";
+  });
+  speakerSubmit.textContent = manual ? "Agregar ponente" : "Invitar ponente";
 }
 function renderActivitySpeakers(speakers) {
   activitySpeakerList.replaceChildren();
@@ -140,7 +151,7 @@ function renderActivities(activities) {
     item.querySelector("strong").textContent = activity.title;
     item.querySelector("span").textContent = `${activityTypeLabels[activity.activity_type] || "Actividad"} · ${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
     item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
-    item.querySelector("button").addEventListener("click", () => { editActivity(activity); item.after(activitySpeakers); });
+    item.querySelector("button").addEventListener("click", () => { editActivity(activity); item.after(activityEditor); });
     activityAdminList.appendChild(item);
   }
 }
