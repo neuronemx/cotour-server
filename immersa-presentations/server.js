@@ -1044,6 +1044,7 @@ app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requir
       eventWorkspaceId: req.params.workspaceId,
       eventStageId: req.body?.eventStageId,
       title: req.body?.title,
+      activityType: req.body?.activityType,
       accessLevel: req.body?.accessLevel,
       deckId: req.body?.deckId,
       scheduledStartsAt: req.body?.scheduledStartsAt,
@@ -1062,6 +1063,7 @@ app.put("/api/admin/event-hubs/:workspaceId/activities/:activityId", requireAcco
       eventWorkspaceId: req.params.workspaceId,
       eventStageId: req.body?.eventStageId,
       title: req.body?.title,
+      activityType: req.body?.activityType,
       accessLevel: req.body?.accessLevel,
       scheduledStartsAt: req.body?.scheduledStartsAt,
       durationMinutes: req.body?.durationMinutes

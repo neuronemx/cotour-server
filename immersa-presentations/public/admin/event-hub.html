@@ -36,6 +36,7 @@
         <p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p>
         <form id="activityForm">
           <label><span>Actividad</span><input name="title" maxlength="160" required placeholder="Conferencia inaugural"></label>
+          <label><span>Tipo</span><select name="activityType"><option value="CONFERENCE">Conferencia</option><option value="ROUND_TABLE">Mesa redonda</option><option value="WORKSHOP">Taller</option><option value="MASTER_CLASS">Master Class</option><option value="PANEL">Panel</option><option value="OTHER">Otra</option></select></label>
           <label><span>Event Stage</span><select id="activityStage" name="eventStageId" required></select></label>
           <label><span>Acceso</span><select name="accessLevel"><option value="PAID">Público Paid</option><option value="FREE">Público Free</option></select></label>
           <label><span>Inicio programado (CDMX)</span><input name="scheduledStartsAt" type="datetime-local"></label>
@@ -49,6 +50,6 @@
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/admin/event-hub.js?v=4"></script>
+  <script src="/admin/event-hub.js?v=5"></script>
 </body>
 </html>

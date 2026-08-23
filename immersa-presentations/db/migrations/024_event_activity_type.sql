@@ -1,0 +1,2 @@
+ALTER TABLE event_activities
+  ADD COLUMN activity_type VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'CONFERENCE' AFTER title;

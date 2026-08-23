@@ -16,6 +16,7 @@ const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 let currentHub = null;
 let editingActivity = null;
+const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
 function activityDate(value) {
@@ -47,6 +48,7 @@ function clearActivityEditor() {
 function editActivity(activity) {
   editingActivity = activity;
   activityForm.elements.title.value = activity.title;
+  activityForm.elements.activityType.value = activity.activity_type || "CONFERENCE";
   activityForm.elements.eventStageId.value = activity.event_stage_id;
   activityForm.elements.accessLevel.value = activity.access_level;
   activityForm.elements.scheduledStartsAt.value = dateForInput(activity.scheduled_starts_at);
@@ -77,7 +79,7 @@ function renderActivities(activities) {
     item.className = "activity-card";
     item.innerHTML = "<div><strong></strong><span></span></div><div class='access'></div><button type='button'>Editar</button>";
     item.querySelector("strong").textContent = activity.title;
-    item.querySelector("span").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
+    item.querySelector("span").textContent = `${activityTypeLabels[activity.activity_type] || "Actividad"} · ${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min · ${activity.deck_id ? "Deck asignado" : "Deck por asignar"}`;
     item.querySelector(".access").textContent = activity.access_level === "PAID" ? "Público Paid" : "Público Free";
     item.querySelector("button").addEventListener("click", () => editActivity(activity));
     activityAdminList.appendChild(item);
@@ -195,6 +197,7 @@ activityForm.addEventListener("submit", async (event) => {
       method: editingActivity ? "PUT" : "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: activityForm.elements.title.value.trim(),
+        activityType: activityForm.elements.activityType.value,
         eventStageId: activityForm.elements.eventStageId.value,
         accessLevel: activityForm.elements.accessLevel.value,
         scheduledStartsAt: activityForm.elements.scheduledStartsAt.value || null,

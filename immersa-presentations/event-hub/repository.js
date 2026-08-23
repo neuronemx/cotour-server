@@ -2,6 +2,7 @@ const { createHash, randomUUID } = require("node:crypto");
 
 const AUDIENCE_LEVELS = new Set(["FREE", "PAID"]);
 const ACTIVITY_ACCESS_LEVELS = new Set(["FREE", "PAID"]);
+const ACTIVITY_TYPES = new Set(["CONFERENCE", "ROUND_TABLE", "WORKSHOP", "MASTER_CLASS", "PANEL", "OTHER"]);
 
 class EventHubError extends Error {
   constructor(code, message, statusCode = 400) {
@@ -29,6 +30,12 @@ function slug(value) {
 function level(value, allowed = AUDIENCE_LEVELS) {
   const normalized = String(value || "").trim().toUpperCase();
   if (!allowed.has(normalized)) throw new EventHubError("INVALID_ACCESS_LEVEL", "Access level is invalid");
+  return normalized;
+}
+
+function activityType(value) {
+  const normalized = String(value || "CONFERENCE").trim().toUpperCase();
+  if (!ACTIVITY_TYPES.has(normalized)) throw new EventHubError("INVALID_ACTIVITY_TYPE", "Activity type is invalid");
   return normalized;
 }
 
@@ -140,7 +147,7 @@ class EventHubRepository {
 
   async listActivities(eventWorkspaceId) {
     const [rows] = await this.pool.execute(
-      `SELECT a.id, a.title, a.access_level, a.deck_id, a.status, a.duration_minutes,
+      `SELECT a.id, a.title, a.activity_type, a.access_level, a.deck_id, a.status, a.duration_minutes,
               a.scheduled_starts_at, a.scheduled_ends_at,
               s.id AS event_stage_id, s.name AS stage_name
        FROM event_activities a
@@ -210,7 +217,7 @@ class EventHubRepository {
     }));
   }
 
-  async createActivity({ eventWorkspaceId, eventStageId, title, accessLevel = "PAID", deckId = null, scheduledStartsAt = null, durationMinutes = 60 }) {
+  async createActivity({ eventWorkspaceId, eventStageId, title, activityType: requestedActivityType = "CONFERENCE", accessLevel = "PAID", deckId = null, scheduledStartsAt = null, durationMinutes = 60 }) {
     const id = this.createId();
     const duration = Number(durationMinutes);
     if (!Number.isInteger(duration) || duration < 5 || duration > 480) {
@@ -218,10 +225,10 @@ class EventHubRepository {
     }
     await this.pool.execute(
       `INSERT INTO event_activities
-       (id, event_workspace_id, event_stage_id, title, access_level, deck_id, scheduled_starts_at, scheduled_ends_at, duration_minutes)
-       SELECT ?, ?, s.id, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE DATE_ADD(?, INTERVAL ? MINUTE) END, ? FROM event_stages s
+       (id, event_workspace_id, event_stage_id, title, activity_type, access_level, deck_id, scheduled_starts_at, scheduled_ends_at, duration_minutes)
+       SELECT ?, ?, s.id, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE DATE_ADD(?, INTERVAL ? MINUTE) END, ? FROM event_stages s
        WHERE s.id = ? AND s.event_workspace_id = ? AND s.active = 1`,
-      [id, required(eventWorkspaceId, "event workspace id"), required(title, "title"), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
+      [id, required(eventWorkspaceId, "event workspace id"), required(title, "title"), activityType(requestedActivityType), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
         deckId ? String(deckId) : null, scheduledStartsAt, scheduledStartsAt, scheduledStartsAt, duration, duration,
         required(eventStageId, "event stage id"), eventWorkspaceId]
     ).then(([result]) => {
@@ -230,7 +237,7 @@ class EventHubRepository {
     return this.getActivity(id);
   }
 
-  async updateActivity({ activityId, eventWorkspaceId, eventStageId, title, accessLevel = "PAID", scheduledStartsAt = null, durationMinutes = 60 }) {
+  async updateActivity({ activityId, eventWorkspaceId, eventStageId, title, activityType: requestedActivityType = "CONFERENCE", accessLevel = "PAID", scheduledStartsAt = null, durationMinutes = 60 }) {
     const activity = await this.getActivity(activityId);
     if (activity.event_workspace_id !== required(eventWorkspaceId, "event workspace id")) {
       throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
@@ -245,11 +252,11 @@ class EventHubRepository {
     const [result] = await this.pool.execute(
       `UPDATE event_activities a
        INNER JOIN event_stages s ON s.id = ? AND s.event_workspace_id = a.event_workspace_id AND s.active = 1
-       SET a.event_stage_id = s.id, a.title = ?, a.access_level = ?, a.scheduled_starts_at = ?,
+       SET a.event_stage_id = s.id, a.title = ?, a.activity_type = ?, a.access_level = ?, a.scheduled_starts_at = ?,
            a.scheduled_ends_at = CASE WHEN ? IS NULL THEN NULL ELSE DATE_ADD(?, INTERVAL ? MINUTE) END,
            a.duration_minutes = ?
        WHERE a.id = ? AND a.event_workspace_id = ? AND a.status = 'SCHEDULED'`,
-      [required(eventStageId, "event stage id"), required(title, "title"), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
+      [required(eventStageId, "event stage id"), required(title, "title"), activityType(requestedActivityType), level(accessLevel, ACTIVITY_ACCESS_LEVELS),
         scheduledStartsAt, scheduledStartsAt, scheduledStartsAt, duration, duration,
         required(activityId, "activity id"), eventWorkspaceId]
     );
