@@ -159,6 +159,8 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(assignmentsMigration, /event_activity_speaker_assignments/);
   const linkingMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "028_event_speaker_linking.sql"), "utf8");
   assert.match(linkingMigration, /status = 'LINKED'/);
+  const orphanCleanupMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "029_remove_orphaned_event_speaker_assignments.sql"), "utf8");
+  assert.match(orphanCleanupMigration, /DELETE asa/);
 });
 
 test("a speaker can accept only their own Event Hub invitation", async () => {

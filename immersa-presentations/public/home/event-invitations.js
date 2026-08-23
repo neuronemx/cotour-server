@@ -38,13 +38,20 @@
     for (const invitation of invitations) {
       const card = document.createElement("article");
       card.className = "event-invitation-card";
-      const status = invitation.status === "LINKED" ? "Cuenta vinculada" : (invitation.status === "DECLINED" ? "Invitación declinada" : "Pendiente de aceptar");
-      card.innerHTML = `<div><span class="event-invitation-eyebrow"></span><h3></h3><p></p></div><div class="event-invitation-action"><strong></strong><small></small></div>`;
+      card.innerHTML = `<div><span class="event-invitation-eyebrow"></span><h3></h3><p></p></div><div class="event-invitation-action"></div>`;
       card.querySelector(".event-invitation-eyebrow").textContent = invitation.eventTitle;
       card.querySelector("h3").textContent = invitation.activity.title;
       card.querySelector("p").textContent = invitationText(invitation);
-      card.querySelector("strong").textContent = status;
-      card.querySelector("small").textContent = invitation.status === "LINKED" ? "El Deck se elegirá durante Deck Check." : "";
+      if (invitation.status === "INVITED") {
+        const accept = document.createElement("button");
+        accept.type = "button";
+        accept.textContent = "Aceptar invitación";
+        accept.addEventListener("click", async () => {
+          accept.disabled = true;
+          try { await respond(invitation, "accept"); } catch (error) { accept.disabled = false; }
+        });
+        card.querySelector(".event-invitation-action").appendChild(accept);
+      }
       list.appendChild(card);
     }
   }

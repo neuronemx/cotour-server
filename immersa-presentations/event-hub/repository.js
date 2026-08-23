@@ -254,14 +254,20 @@ class EventHubRepository {
   }
 
   async removeActivitySpeaker({ eventWorkspaceId, activityId, eventSpeakerId }) {
-    const [result] = await this.pool.execute(
-      `DELETE eas FROM event_activity_speakers eas
-       INNER JOIN event_activities a ON a.id = eas.event_activity_id
-       WHERE eas.event_activity_id = ? AND eas.event_speaker_id = ? AND a.event_workspace_id = ?`,
-      [required(activityId, "activity id"), required(eventSpeakerId, "event speaker id"), required(eventWorkspaceId, "event workspace id")]
-    );
-    if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_SPEAKER_NOT_FOUND", "Activity speaker not found", 404);
-    return { activityId, eventSpeakerId };
+    return transaction(this.pool, async (connection) => {
+      const [result] = await connection.execute(
+        `DELETE eas FROM event_activity_speakers eas
+         INNER JOIN event_activities a ON a.id = eas.event_activity_id
+         WHERE eas.event_activity_id = ? AND eas.event_speaker_id = ? AND a.event_workspace_id = ?`,
+        [required(activityId, "activity id"), required(eventSpeakerId, "event speaker id"), required(eventWorkspaceId, "event workspace id")]
+      );
+      if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_SPEAKER_NOT_FOUND", "Activity speaker not found", 404);
+      await connection.execute(
+        "DELETE FROM event_activity_speaker_assignments WHERE event_activity_id = ? AND event_speaker_id = ?",
+        [required(activityId, "activity id"), required(eventSpeakerId, "event speaker id")]
+      );
+      return { activityId, eventSpeakerId };
+    });
   }
 
   async getLiveStageCapacityForDeck(deckId) {
