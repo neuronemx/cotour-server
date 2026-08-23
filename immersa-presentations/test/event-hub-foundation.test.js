@@ -96,6 +96,7 @@ test("creating a hub seeds CCC, Foro 2, and exactly two audience QR levels", asy
   assert.deepEqual(hub.publicQrs.map((qr) => qr.audience_level), ["FREE", "PAID"]);
   const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
   assert.match(statements, /INSERT INTO workspaces .*'event'/);
+  assert.match(statements, /audience_capacity\) VALUES \(\?, \?, \?, \?, 300\)/);
   assert.match(statements, /INSERT INTO event_public_qrs/);
 });
 
@@ -161,6 +162,8 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(linkingMigration, /status = 'LINKED'/);
   const orphanCleanupMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "029_remove_orphaned_event_speaker_assignments.sql"), "utf8");
   assert.match(orphanCleanupMigration, /DELETE asa/);
+  const defaultCapacityMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "030_event_stage_default_capacity.sql"), "utf8");
+  assert.match(defaultCapacityMigration, /audience_capacity = 300/);
 });
 
 test("a speaker can accept only their own Event Hub invitation", async () => {

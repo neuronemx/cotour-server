@@ -108,7 +108,7 @@ class EventHubRepository {
       );
       for (const [index, name] of normalizedStages.entries()) {
         await connection.execute(
-          "INSERT INTO event_stages (id, event_workspace_id, name, sort_order) VALUES (?, ?, ?, ?)",
+          "INSERT INTO event_stages (id, event_workspace_id, name, sort_order, audience_capacity) VALUES (?, ?, ?, ?, 300)",
           [this.createId(), workspaceId, name, index]
         );
       }

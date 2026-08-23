@@ -282,37 +282,9 @@ function renderHub(hub) {
   activityStage.replaceChildren();
   for (const stage of hub.stages || []) {
     const item = document.createElement("li");
-    item.className = "stage-config";
-    item.innerHTML = "<div><strong></strong><span></span></div><form><label><span>Capacidad</span><input type='number' min='1' max='100000' inputmode='numeric' required></label><button type='submit'>Guardar</button></form><p role='status'></p>";
+    item.innerHTML = "<strong></strong><span></span>";
     item.querySelector("strong").textContent = stage.name;
-    const capacityLabel = item.querySelector("div span");
-    const capacityInput = item.querySelector("input");
-    const capacityForm = item.querySelector("form");
-    const capacityFeedback = item.querySelector("p");
-    capacityLabel.textContent = stage.audience_capacity ? `${stage.audience_capacity} participantes` : "Capacidad por definir";
-    capacityInput.value = stage.audience_capacity || "";
-    capacityForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const capacity = Number(capacityInput.value);
-      const button = capacityForm.querySelector("button");
-      button.disabled = true;
-      capacityFeedback.className = "";
-      capacityFeedback.textContent = "Guardando…";
-      try {
-        const response = await fetch(`/api/admin/event-stages/${encodeURIComponent(stage.id)}/capacity`, {
-          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audienceCapacity: capacity })
-        });
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "No se pudo guardar la capacidad");
-        stage.audience_capacity = body.audienceCapacity;
-        capacityLabel.textContent = `${body.audienceCapacity} participantes`;
-        capacityFeedback.className = "success";
-        capacityFeedback.textContent = "Capacidad guardada.";
-      } catch (error) {
-        capacityFeedback.className = "error";
-        capacityFeedback.textContent = error.message;
-      } finally { button.disabled = false; }
-    });
+    item.querySelector("span").textContent = `${stage.audience_capacity || 300} participantes`;
     stageList.appendChild(item);
     const option = document.createElement("option");
     option.value = stage.id;
