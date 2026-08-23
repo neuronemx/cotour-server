@@ -196,7 +196,7 @@ test("public Event Hub defaults Free visitors to Exposición and Paid visitors t
 test("Event Admin activity cards expose one focused shell per action", async () => {
   const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
   assert.match(script, /data-tool='edit'/);
-  assert.match(script, /data-tool='speaker'/);
-  assert.match(script, /data-tool='deck'/);
+  assert.match(script, /Invitación aceptada/);
+  assert.match(script, /action-deck-approved/);
   assert.match(script, /item\.after\(activityEditor\)/);
 });

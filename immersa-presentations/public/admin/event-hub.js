@@ -220,14 +220,16 @@ function renderDeckCheck(activity) {
 function openActivityTool(activity, tool, item, { scroll = true } = {}) {
   editingActivity = activity;
   activeActivityTool = tool;
-  activityForm.elements.title.value = activity.title;
-  activityForm.elements.activityType.value = activity.activity_type || "CONFERENCE";
-  activityForm.elements.eventStageId.value = activity.event_stage_id;
-  activityForm.elements.accessLevel.value = activity.access_level;
-  activityForm.elements.scheduledStartsAt.value = dateForInput(activity.scheduled_starts_at);
-  activityForm.elements.durationMinutes.value = activity.duration_minutes || 60;
-  activitySubmit.textContent = "Guardar cambios";
-  activityCancel.hidden = false;
+  if (tool === "edit") {
+    activityForm.elements.title.value = activity.title;
+    activityForm.elements.activityType.value = activity.activity_type || "CONFERENCE";
+    activityForm.elements.eventStageId.value = activity.event_stage_id;
+    activityForm.elements.accessLevel.value = activity.access_level;
+    activityForm.elements.scheduledStartsAt.value = dateForInput(activity.scheduled_starts_at);
+    activityForm.elements.durationMinutes.value = activity.duration_minutes || 60;
+    activitySubmit.textContent = "Guardar cambios";
+    activityCancel.hidden = false;
+  }
   activityForm.hidden = tool !== "edit";
   activityFeedback.hidden = tool !== "edit";
   activitySpeakers.hidden = tool !== "speaker";
@@ -238,6 +240,12 @@ function openActivityTool(activity, tool, item, { scroll = true } = {}) {
   renderDeckCheck(activity);
   item.after(activityEditor);
   if (scroll) requestAnimationFrame(() => item.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+function speakerAction(activity) {
+  const invitations = (activity.speakers || []).map((speaker) => speaker.invitation?.status).filter(Boolean);
+  if (invitations.includes("LINKED")) return { label: "Invitación aceptada", state: "accepted" };
+  if (invitations.includes("INVITED")) return { label: "Invitación enviada", state: "sent" };
+  return { label: "Enviar invitación", state: "pending" };
 }
 function renderActivities(activities) {
   activityAdminList.replaceChildren();
@@ -259,12 +267,27 @@ function renderActivities(activities) {
     }
     const item = document.createElement("article");
     item.className = `activity-card type-${activity.activity_type || "OTHER"}`;
-    item.innerHTML = "<div class='activity-card-main'><div class='activity-card-kicker'><span class='activity-type'></span><span class='paid-symbol' hidden>$</span></div><strong></strong><span class='activity-detail'></span></div><div class='activity-card-actions'><button type='button' data-tool='edit'>Editar</button><button type='button' data-tool='speaker'>Ponente</button><button type='button' data-tool='deck'>Deck Check</button></div>";
+    const speaker = speakerAction(activity);
+    const linked = (activity.speakers || []).some((candidate) => candidate.invitation?.status === "LINKED");
+    const deckApproved = activity.deck_check_status === "DECK_CHECK";
+    item.innerHTML = "<div class='activity-card-main'><div class='activity-card-kicker'><span class='activity-type'></span><span class='paid-symbol' hidden>$</span></div><strong></strong><span class='activity-detail'></span></div><div class='activity-card-actions'><button type='button' class='action-edit' data-tool='edit'>Editar</button><button type='button' class='action-speaker'></button></div>";
     item.querySelector(".activity-type").textContent = activityTypeLabels[activity.activity_type] || "Actividad";
     item.querySelector("strong").textContent = activity.title;
     item.querySelector(".activity-detail").textContent = `${activity.stage_name} · ${activityDate(activity.scheduled_starts_at)} · ${activity.duration_minutes} min`;
     item.querySelector(".paid-symbol").hidden = activity.access_level !== "PAID";
-    item.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => openActivityTool(activity, button.dataset.tool, item)));
+    const speakerButton = item.querySelector(".action-speaker");
+    speakerButton.textContent = speaker.label;
+    speakerButton.classList.add(`action-speaker-${speaker.state}`);
+    speakerButton.addEventListener("click", () => openActivityTool(activity, "speaker", item));
+    if (linked) {
+      const deckButton = document.createElement("button");
+      deckButton.type = "button";
+      deckButton.className = `action-deck ${deckApproved ? "action-deck-approved" : "action-deck-pending"}`;
+      deckButton.textContent = "Deck Check";
+      deckButton.addEventListener("click", () => openActivityTool(activity, "deck", item));
+      item.querySelector(".activity-card-actions").append(deckButton);
+    }
+    item.querySelector(".action-edit").addEventListener("click", () => openActivityTool(activity, "edit", item));
     activityAdminList.appendChild(item);
   }
 }
