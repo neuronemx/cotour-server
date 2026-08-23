@@ -1168,6 +1168,25 @@ app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccou
     return res.json(await eventHubRepository.declineSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/event-hub/speaker-invitations/:assignmentId/speaker-access", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const access = await eventHubRepository.getSpeakerPresentationAccess({
+      assignmentId: req.params.assignmentId,
+      userId: req.accountContext.user.id
+    });
+    const ownedDeckIds = await betterAuthCompatibilityBridge.listDeckIdsForUser(req.accountContext.user.id);
+    if (!ownedDeckIds.map(String).includes(String(access.deckId))) {
+      throw new EventHubError("SPEAKER_DECK_ACCESS_DENIED", "No tienes acceso a este Deck", 403);
+    }
+    const speakerLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: access.deckId, role: "speaker" });
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
+    return res.status(201).json({
+      activityId: access.activityId,
+      url: `${baseUrl}/speaker/${speakerLink.access_token}`
+    });
+  } catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }

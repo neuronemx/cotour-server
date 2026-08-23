@@ -227,6 +227,27 @@ test("a speaker can accept only their own Event Hub invitation", async () => {
   assert.match(pool.calls[0].sql, /es\.account_user_id = \?/);
 });
 
+test("a linked Speaker can open only their approved Event Hub Deck from their account", async () => {
+  const pool = fakePool([[[{ id: "invite-1", activity_id: "activity-1", deck_id: "deck-1", deck_check_status: "DECK_CHECK" }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(
+    await repository.getSpeakerPresentationAccess({ assignmentId: "invite-1", userId: "speaker-1" }),
+    { assignmentId: "invite-1", activityId: "activity-1", deckId: "deck-1" }
+  );
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /es\.account_user_id = \?/);
+  assert.match(statements, /asa\.status = 'LINKED'/);
+});
+
+test("Speaker invitation cards open the approved Deck without exposing Event Stage access", async () => {
+  const invitations = await fs.promises.readFile(path.join(__dirname, "..", "public", "home", "event-invitations.js"), "utf8");
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  assert.match(invitations, /Abrir como Speaker/);
+  assert.match(invitations, /speaker-access/);
+  assert.match(server, /speaker-invitations\/:assignmentId\/speaker-access/);
+  assert.match(server, /createAccessLinkForDeck\(\{ deckId: access\.deckId, role: "speaker" \}\)/);
+});
+
 test("public Event Hub defaults Free visitors to Exposición and Paid visitors to Programa", async () => {
   const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
   const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");

@@ -36,6 +36,18 @@
     if (action === "accept") showAcceptanceConfirmation(invitation);
     else closeModal();
   }
+  async function openSpeaker(invitation, button) {
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/event-hub/speaker-invitations/${encodeURIComponent(invitation.id)}/speaker-access`, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "No se pudo abrir tu acceso como Speaker");
+      window.location.assign(body.url);
+    } catch (error) {
+      window.alert(error.message);
+      button.disabled = false;
+    }
+  }
   function showAcceptanceConfirmation(invitation) {
     modalTitle.textContent = `¡Listo! Ya estás conectado con ${invitation.eventTitle}`;
     modalIntro.textContent = "";
@@ -66,6 +78,12 @@
           try { await respond(invitation, "accept"); } catch (error) { accept.disabled = false; }
         });
         card.querySelector(".event-invitation-action").appendChild(accept);
+      } else if (invitation.speakerAccessReady) {
+        const open = document.createElement("button");
+        open.type = "button";
+        open.textContent = "Abrir como Speaker";
+        open.addEventListener("click", () => openSpeaker(invitation, open));
+        card.querySelector(".event-invitation-action").appendChild(open);
       }
       list.appendChild(card);
     }
