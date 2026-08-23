@@ -305,6 +305,16 @@ class EventHubRepository {
     };
   }
 
+  async getPublicQrForAudience({ eventWorkspaceId, audienceLevel }) {
+    const [rows] = await this.pool.execute(
+      `SELECT public_id FROM event_public_qrs
+       WHERE event_workspace_id = ? AND audience_level = ? AND active = 1
+       LIMIT 1`,
+      [required(eventWorkspaceId, "event workspace id"), level(audienceLevel)]
+    );
+    return rows?.[0]?.public_id || null;
+  }
+
   async listPublicActivities({ eventWorkspaceId, audienceLevel }) {
     const viewerLevel = level(audienceLevel);
     const [rows] = await this.pool.execute(
@@ -664,8 +674,21 @@ class EventHubRepository {
          VALUES (?, ?) ON DUPLICATE KEY UPDATE last_joined_at = CURRENT_TIMESTAMP(3)`,
         [row.id, row.participant_id]
       );
-      return { admitted: true, liveSessionId: row.id, participantId: row.participant_id };
+      return { admitted: true, liveSessionId: row.id, participantId: row.participant_id, audienceLevel: row.audience_level };
     });
+  }
+
+  async isParticipantLiveSessionActive({ eventLiveSessionId, eventParticipantId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT l.status
+       FROM event_live_sessions l
+       INNER JOIN event_live_attendance attendance ON attendance.event_live_session_id = l.id
+       WHERE l.id = ? AND attendance.event_participant_id = ?
+       LIMIT 1`,
+      [required(eventLiveSessionId, "live session id"), required(eventParticipantId, "event participant id")]
+    );
+    if (!rows?.[0]) throw new EventHubError("LIVE_SESSION_ACCESS_DENIED", "LiveSession access denied", 403);
+    return rows[0].status === "LIVE";
   }
 }
 

@@ -1298,7 +1298,23 @@ app.post("/api/event/live-sessions/:liveSessionId/enter", async (req, res) => {
     const liveSession = await eventHubRepository.getLiveSession(req.params.liveSessionId);
     const audiencePath = await accessLinkHandlers.publicAudiencePathForDeck(liveSession.deck_id);
     if (!audiencePath) throw new EventHubError("EVENT_DECK_AUDIENCE_LINK_MISSING", "La presentación aún no tiene acceso Público", 409);
-    return res.json({ ...admission, audiencePath });
+    const publicId = await eventHubRepository.getPublicQrForAudience({
+      eventWorkspaceId: liveSession.event_workspace_id,
+      audienceLevel: admission.audienceLevel || "PAID"
+    });
+    return res.json({ ...admission, audiencePath, returnPath: publicId ? `/${publicId}` : null });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/live-sessions/:liveSessionId/status", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const live = await eventHubRepository.isParticipantLiveSessionActive({
+      eventLiveSessionId: req.params.liveSessionId,
+      eventParticipantId: req.body?.participantId
+    });
+    return res.json({ live });
   } catch (error) {
     return sendEventHubError(res, error);
   }

@@ -9,17 +9,22 @@
   const eventContent = document.querySelector("#event-content");
   const program = document.querySelector(".program");
   const exposition = document.querySelector("#exposition");
+  const eventNav = document.querySelector("#event-nav");
   const eventTabs = [...document.querySelectorAll(".event-tab")];
   const tabs = document.querySelector("#day-tabs");
   const legend = document.querySelector("#legend");
   const panels = document.querySelector("#day-panels");
   const overlay = document.querySelector("#speaker-overlay");
   const sheet = document.querySelector("#sheet-content");
+  const liveFilterNote = document.querySelector("#live-filter-note");
+  const showFullProgram = document.querySelector("#show-full-program");
   const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", OTHER: "Otra" };
   let activeSection = null;
   let activeDayId = null;
   let activitiesSnapshot = "";
   let refreshingActivities = false;
+  let allActivities = [];
+  let liveOnly = false;
   const participantId = () => localStorage.getItem(key);
   const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };
   const rawDate = (value) => String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -38,6 +43,18 @@
       tab.classList.toggle("active", selected);
       tab.setAttribute("aria-selected", String(selected));
     });
+  }
+  function updateLiveIndicator() {
+    const programTab = eventTabs.find((tab) => tab.dataset.section === "program");
+    if (!programTab) return;
+    const live = allActivities.some((activity) => activity.live);
+    programTab.querySelector(".live-now")?.remove();
+    if (live) { const marker = document.createElement("span"); marker.className = "live-now"; marker.dataset.liveFilter = "true"; marker.textContent = "En vivo"; programTab.append(marker); }
+    liveFilterNote.classList.toggle("hidden", !liveOnly);
+  }
+  function renderCurrentActivities() {
+    render(liveOnly ? allActivities.filter((activity) => activity.live) : allActivities);
+    updateLiveIndicator();
   }
   function showSheet(activity) {
     sheet.replaceChildren();
@@ -112,7 +129,7 @@
         const place = document.createElement("div"); place.className = "meta"; place.append(pin(), document.createTextNode(activity.stage.name));
         card.append(badge, heading, speakers, schedule, place);
         const actions = document.createElement("div"); actions.className = "activity-actions";
-        if (activity.live && activity.canEnter && participantId()) { const enter = document.createElement("button"); enter.className = "enter-button"; enter.textContent = "Entrar"; enter.onclick = async (event) => { event.stopPropagation(); const entry = await request(`/api/event/live-sessions/${encodeURIComponent(activity.liveSessionId)}/enter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: participantId() }) }); window.location.assign(entry.audiencePath); }; actions.append(enter); }
+        if (activity.live && activity.canEnter && participantId()) { const enter = document.createElement("button"); enter.className = "enter-button"; enter.textContent = "Entrar"; enter.onclick = async (event) => { event.stopPropagation(); const entry = await request(`/api/event/live-sessions/${encodeURIComponent(activity.liveSessionId)}/enter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: participantId() }) }); if (entry.returnPath) sessionStorage.setItem("immersa:event-live-return", JSON.stringify({ liveSessionId: activity.liveSessionId, participantId: participantId(), returnPath: entry.returnPath })); window.location.assign(entry.audiencePath); }; actions.append(enter); }
         else if (activity.live && !activity.canEnter) { const locked = document.createElement("span"); locked.className = "access-badge"; locked.textContent = "En vivo para acceso preferente"; actions.append(locked); }
         if (actions.childNodes.length) card.append(actions);
         card.onclick = () => showSheet(activity); row.append(card); timeline.append(row);
@@ -130,7 +147,7 @@
       tabs.append(tab); panels.append(panel);
     });
   }
-  const revealContent = () => requestAnimationFrame(() => requestAnimationFrame(() => { program?.classList.add("event-program-ready"); eventContent?.classList.add("event-content-ready"); }));
+  const revealContent = () => requestAnimationFrame(() => requestAnimationFrame(() => { program?.classList.add("event-program-ready"); eventContent?.classList.add("event-content-ready"); eventNav?.classList.add("event-nav-ready"); }));
   const refreshActivities = async ({ force = false } = {}) => {
     if (refreshingActivities) return;
     refreshingActivities = true;
@@ -140,7 +157,9 @@
       const nextSnapshot = JSON.stringify(activities);
       if (force || nextSnapshot !== activitiesSnapshot) {
         activitiesSnapshot = nextSnapshot;
-        render(activities);
+        allActivities = activities;
+        if (liveOnly && !allActivities.some((activity) => activity.live)) liveOnly = false;
+        renderCurrentActivities();
       }
     } finally { refreshingActivities = false; }
   };
@@ -152,11 +171,17 @@
   eventTabs.forEach((tab) => {
     tab.addEventListener("pointerdown", () => tab.classList.add("is-activating"), { passive: true });
     tab.addEventListener("pointercancel", () => tab.classList.remove("is-activating"), { passive: true });
-    tab.addEventListener("click", () => {
+    tab.addEventListener("click", (event) => {
+      const liveFilter = Boolean(event.target.closest("[data-live-filter]"));
       selectSection(tab.dataset.section);
+      if (tab.dataset.section === "program") {
+        liveOnly = liveFilter;
+        renderCurrentActivities();
+      }
       eventTabs.forEach((item) => { if (item !== tab) item.classList.remove("is-activating"); });
     });
   });
+  showFullProgram?.addEventListener("click", () => { liveOnly = false; renderCurrentActivities(); });
   registration.classList.toggle("hidden", Boolean(participantId()));
   load().catch((error) => { title.textContent = error.message; });
   window.setInterval(() => { refreshActivities().catch(() => {}); }, 5000);

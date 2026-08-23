@@ -203,6 +203,16 @@ test("public Event Hub defaults Free visitors to Exposición and Paid visitors t
   assert.match(script, /tab\.classList\.add\("is-activating"\)/);
   assert.match(script, /En vivo para acceso preferente/);
   assert.match(script, /setInterval\(\(\) => \{ refreshActivities\(\)\.catch\(\(\) => \{\}\); \}, 5000\)/);
+  assert.match(page, /Mostrando actividades en vivo/);
+  assert.match(script, /immersa:event-live-return/);
+});
+
+test("an Event Hub attendee can return to the public Program when their LiveSession closes", async () => {
+  const audience = await fs.promises.readFile(path.join(__dirname, "..", "public", "audience", "audience.js"), "utf8");
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  assert.match(audience, /returnToEventProgramIfClosed/);
+  assert.match(audience, /\/api\/event\/live-sessions\/\$\{encodeURIComponent\(state\.liveSessionId\)\}\/status/);
+  assert.match(server, /isParticipantLiveSessionActive/);
 });
 
 test("Event Admin activity cards expose one focused shell per action", async () => {
