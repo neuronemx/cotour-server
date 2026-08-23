@@ -201,6 +201,8 @@ test("public Event Hub defaults Free visitors to Exposición and Paid visitors t
   assert.match(page, /https:\/\/semanaamc\.expofp\.com\//);
   assert.match(script, /event\.audienceLevel === "PAID" \? "program" : "exposition"/);
   assert.match(script, /tab\.classList\.add\("is-activating"\)/);
+  assert.match(script, /En vivo para acceso preferente/);
+  assert.match(script, /setInterval\(\(\) => \{ refreshActivities\(\)\.catch\(\(\) => \{\}\); \}, 5000\)/);
 });
 
 test("Event Admin activity cards expose one focused shell per action", async () => {

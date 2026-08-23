@@ -17,6 +17,9 @@
   const sheet = document.querySelector("#sheet-content");
   const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", OTHER: "Otra" };
   let activeSection = null;
+  let activeDayId = null;
+  let activitiesSnapshot = "";
+  let refreshingActivities = false;
   const participantId = () => localStorage.getItem(key);
   const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };
   const rawDate = (value) => String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -89,9 +92,12 @@
     tabs.replaceChildren(); panels.replaceChildren();
     const used = [...new Set(activities.map((activity) => activity.activityType || "OTHER"))];
     legend.replaceChildren(...used.map((type) => { const item = document.createElement("span"); item.className = "legend-item"; item.innerHTML = `<i class="dot dot-${type}"></i>`; item.append(document.createTextNode(labels[type] || "Actividad")); return item; }));
-    days.forEach((day, index) => {
-      const tab = document.createElement("button"); tab.className = `daytab${index === 0 ? " active" : ""}`; tab.innerHTML = `<span>${day.name}</span><small>${day.date}</small>`;
-      const panel = document.createElement("section"); panel.className = `day-panel${index === 0 ? " active" : ""}`;
+    const selectedDayId = days.some((day) => day.id === activeDayId) ? activeDayId : days[0]?.id || null;
+    activeDayId = selectedDayId;
+    days.forEach((day) => {
+      const selected = day.id === selectedDayId;
+      const tab = document.createElement("button"); tab.className = `daytab${selected ? " active" : ""}`; tab.innerHTML = `<span>${day.name}</span><small>${day.date}</small>`;
+      const panel = document.createElement("section"); panel.className = `day-panel${selected ? " active" : ""}`;
       const timeline = document.createElement("div"); timeline.className = "timeline";
       day.activities.sort((left, right) => String(left.scheduledStartsAt || "").localeCompare(String(right.scheduledStartsAt || ""))).forEach((activity) => {
         const row = document.createElement("article"); row.className = "timeline-item";
@@ -107,7 +113,7 @@
         card.append(badge, heading, speakers, schedule, place);
         const actions = document.createElement("div"); actions.className = "activity-actions";
         if (activity.live && activity.canEnter && participantId()) { const enter = document.createElement("button"); enter.className = "enter-button"; enter.textContent = "Entrar"; enter.onclick = async (event) => { event.stopPropagation(); const entry = await request(`/api/event/live-sessions/${encodeURIComponent(activity.liveSessionId)}/enter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: participantId() }) }); window.location.assign(entry.audiencePath); }; actions.append(enter); }
-        else if (activity.live && !activity.canEnter) { const locked = document.createElement("span"); locked.className = "access-badge"; locked.textContent = "Acceso preferente"; actions.append(locked); }
+        else if (activity.live && !activity.canEnter) { const locked = document.createElement("span"); locked.className = "access-badge"; locked.textContent = "En vivo para acceso preferente"; actions.append(locked); }
         if (actions.childNodes.length) card.append(actions);
         card.onclick = () => showSheet(activity); row.append(card); timeline.append(row);
       });
@@ -115,6 +121,7 @@
       tab.addEventListener("pointerdown", () => tab.classList.add("is-activating"), { passive: true });
       tab.addEventListener("pointercancel", () => tab.classList.remove("is-activating"), { passive: true });
       tab.onclick = () => {
+        activeDayId = day.id;
         tab.classList.add("active");
         tabs.querySelectorAll(".daytab").forEach((item) => { if (item !== tab) item.classList.remove("active"); item.classList.remove("is-activating"); });
         panel.classList.add("active");
@@ -124,7 +131,20 @@
     });
   }
   const revealContent = () => requestAnimationFrame(() => requestAnimationFrame(() => { program?.classList.add("event-program-ready"); eventContent?.classList.add("event-content-ready"); }));
-  const load = async () => { const [event, data] = await Promise.all([request(base), request(`${base}/activities`)]); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); render(data.activities || []); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
+  const refreshActivities = async ({ force = false } = {}) => {
+    if (refreshingActivities) return;
+    refreshingActivities = true;
+    try {
+      const data = await request(`${base}/activities`);
+      const activities = data.activities || [];
+      const nextSnapshot = JSON.stringify(activities);
+      if (force || nextSnapshot !== activitiesSnapshot) {
+        activitiesSnapshot = nextSnapshot;
+        render(activities);
+      }
+    } finally { refreshingActivities = false; }
+  };
+  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await refreshActivities({ force: true }); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
@@ -139,4 +159,6 @@
   });
   registration.classList.toggle("hidden", Boolean(participantId()));
   load().catch((error) => { title.textContent = error.message; });
+  window.setInterval(() => { refreshActivities().catch(() => {}); }, 5000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshActivities().catch(() => {}); });
 })();
