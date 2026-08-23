@@ -4,7 +4,7 @@
   const modal = document.getElementById("eventInvitationModal");
   const modalList = document.getElementById("eventInvitationModalList");
   const close = document.getElementById("eventInvitationClose");
-  const presentations = document.getElementById("presentaciones");
+  const presentations = document.getElementById("presentationsContent");
   const presentationsTab = document.getElementById("presentationsTab");
   const invitationsTab = document.getElementById("invitationsTab");
   if (!panel || !list || !modal || !modalList || !presentations || !presentationsTab || !invitationsTab) return;
