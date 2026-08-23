@@ -128,6 +128,25 @@ function renderDeckCheck(activity) {
   if (activityDeckCheck.hidden) return;
   if (status === "DECK_CHECK") {
     activityDeckCheckStatus.textContent = "Deck Check aprobado. Esta es la versión comprobada para la actividad.";
+    const openStage = document.createElement("button");
+    openStage.type = "button";
+    openStage.textContent = "Abrir Event Stage";
+    openStage.addEventListener("click", async () => {
+      const stageWindow = window.open("about:blank", "_blank");
+      if (stageWindow) stageWindow.opener = null;
+      openStage.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/stage-access`, { method: "POST" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo abrir Event Stage");
+        if (!stageWindow) throw new Error("El navegador bloqueó la nueva pestaña.");
+        stageWindow.location.replace(body.url);
+      } catch (error) {
+        if (stageWindow && !stageWindow.closed) stageWindow.close();
+        activityDeckCheckStatus.textContent = error.message;
+      } finally { openStage.disabled = false; }
+    });
+    activityDeckCheckActions.appendChild(openStage);
     return;
   }
   if (status === "READY_FOR_TEST") {

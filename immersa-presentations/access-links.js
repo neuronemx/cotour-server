@@ -444,6 +444,30 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     }
   }
 
+  async function createAccessLinkForDeck({ deckId, role }) {
+    const normalizedRole = String(role || '').trim();
+    if (!isValidRole(normalizedRole)) throw new Error('Invalid role');
+    const deckResult = await findDeckManifestByDeckId(deckId, deckDirs);
+    const deck = deckResult?.deck;
+    if (!deck?.session_id) throw new Error('Presentation not found');
+
+    const accessLinks = await loadAccessLinks(storePath);
+    const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));
+    let accessToken = generateAccessToken();
+    while (usedTokens.has(accessToken)) accessToken = generateAccessToken();
+    const accessLink = {
+      access_token: accessToken,
+      session_id: deck.session_id,
+      deck_id: deck.deckId,
+      role: normalizedRole,
+      created_at: new Date().toISOString(),
+      active: true
+    };
+    accessLinks.push(accessLink);
+    await saveAccessLinks(storePath, accessLinks);
+    return publicAccessLink(accessLink, deck);
+  }
+
   async function resolveAccessLink(req, res) {
     const accessToken = String(req.params.access_token || '').trim();
 
@@ -652,7 +676,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck };
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck };
 }
 
 module.exports = {

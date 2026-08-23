@@ -1172,6 +1172,20 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/a
   try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
   catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/stage-access", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const activity = await eventHubRepository.getActivity(req.params.activityId);
+    if (activity.event_workspace_id !== req.params.workspaceId) throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
+    if (activity.deck_check_status !== "DECK_CHECK" || !activity.deck_id) {
+      throw new EventHubError("DECK_CHECK_REQUIRED", "Aprueba el Deck Check antes de abrir Event Stage", 409);
+    }
+    const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: activity.deck_id, role: "stage" });
+    await eventHubRepository.grantStageOperatorAccess({ eventStageId: activity.event_stage_id, accessSecret: stageLink.access_token });
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
+    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}`, activityId: activity.id, stageId: activity.event_stage_id });
+  } catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
