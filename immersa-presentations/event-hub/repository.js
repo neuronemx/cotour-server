@@ -183,11 +183,13 @@ class EventHubRepository {
     const [rows] = await executor.execute(
       `SELECT eas.event_activity_id, es.id, es.source_kind, es.account_user_id,
               es.manual_name, es.manual_role_title, es.manual_bio, es.manual_photo_url,
-              u.name AS auth_name, u.image AS auth_image, p.display_name, p.role_title, p.company, p.bio, p.photo_key
+              u.name AS auth_name, u.image AS auth_image, p.display_name, p.role_title, p.company, p.bio, p.photo_key,
+              asa.id AS assignment_id, asa.status AS assignment_status, asa.selected_deck_id
        FROM event_activity_speakers eas
        INNER JOIN event_speakers es ON es.id = eas.event_speaker_id
        LEFT JOIN \`user\` u ON u.id = es.account_user_id
        LEFT JOIN user_profiles p ON p.user_id = es.account_user_id
+       LEFT JOIN event_activity_speaker_assignments asa ON asa.event_activity_id = eas.event_activity_id AND asa.event_speaker_id = es.id
        WHERE eas.event_activity_id IN (${placeholders})
        ORDER BY eas.event_activity_id, eas.sort_order, es.created_at`,
       ids
@@ -201,7 +203,8 @@ class EventHubRepository {
         name: row.source_kind === "ACCOUNT" ? String(row.display_name || row.auth_name || "").trim() : String(row.manual_name || "").trim(),
         roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" · ") : String(row.manual_role_title || "").trim(),
         bio: row.source_kind === "ACCOUNT" ? String(row.bio || "").trim() : String(row.manual_bio || "").trim(),
-        photoUrl: publicSpeakerPhotoUrl({ photoKey: row.photo_key, authImage: row.auth_image, manualPhotoUrl: row.manual_photo_url })
+        photoUrl: publicSpeakerPhotoUrl({ photoKey: row.photo_key, authImage: row.auth_image, manualPhotoUrl: row.manual_photo_url }),
+        invitation: row.assignment_id ? { id: row.assignment_id, status: row.assignment_status, selectedDeckId: row.selected_deck_id || null } : null
       };
       const current = speakers.get(row.event_activity_id) || [];
       current.push(item);
@@ -397,6 +400,20 @@ class EventHubRepository {
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_NOT_EDITABLE", "Only scheduled activities can request Deck Check", 409);
     return this.getActivity(activityId);
+  }
+
+  async requestDeckCheckFromSpeakerSelection({ activityId, eventWorkspaceId, eventSpeakerId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT asa.selected_deck_id
+       FROM event_activity_speaker_assignments asa
+       INNER JOIN event_activities a ON a.id = asa.event_activity_id
+       WHERE asa.event_activity_id = ? AND a.event_workspace_id = ? AND asa.event_speaker_id = ?
+         AND asa.status = 'DECK_SELECTED' AND asa.selected_deck_id IS NOT NULL LIMIT 1`,
+      [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id"), required(eventSpeakerId, "event speaker id")]
+    );
+    const deckId = rows?.[0]?.selected_deck_id;
+    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_SELECTED", "The speaker has not selected a Deck yet", 409);
+    return this.requestDeckCheck({ activityId, eventWorkspaceId, deckId });
   }
 
   async approveDeckCheck({ activityId, eventWorkspaceId }) {

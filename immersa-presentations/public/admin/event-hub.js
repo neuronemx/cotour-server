@@ -12,6 +12,9 @@ const activityAdminList = document.getElementById("activityAdminList");
 const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
 const activitySpeakers = document.getElementById("activitySpeakers");
+const activityDeckCheck = document.getElementById("activityDeckCheck");
+const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
+const activityDeckCheckActions = document.getElementById("activityDeckCheckActions");
 const activitySpeakerList = document.getElementById("activitySpeakerList");
 const activitySpeakerForm = document.getElementById("activitySpeakerForm");
 const activitySpeakerFeedback = document.getElementById("activitySpeakerFeedback");
@@ -57,6 +60,7 @@ function clearActivityEditor() {
   activitySubmit.textContent = "Agregar al programa";
   activityCancel.hidden = true;
   activitySpeakers.hidden = true;
+  activityDeckCheck.hidden = true;
   activityAdminList.before(activityEditor);
 }
 async function loadAccountSpeakers() {
@@ -112,6 +116,58 @@ function renderActivitySpeakers(speakers) {
     activitySpeakerList.appendChild(item);
   }
 }
+function renderDeckCheck(activity) {
+  const selected = (activity.speakers || []).filter((speaker) => speaker.invitation?.status === "DECK_SELECTED" && speaker.invitation?.selectedDeckId);
+  const status = activity.deck_check_status || "PENDING";
+  activityDeckCheckActions.replaceChildren();
+  activityDeckCheck.hidden = !selected.length && status !== "READY_FOR_TEST" && status !== "DECK_CHECK";
+  if (activityDeckCheck.hidden) return;
+  if (status === "DECK_CHECK") {
+    activityDeckCheckStatus.textContent = "Deck Check aprobado. Esta es la versión comprobada para la actividad.";
+    return;
+  }
+  if (status === "READY_FOR_TEST") {
+    activityDeckCheckStatus.textContent = "El Deck seleccionado está preparado para prueba. Aprueba sólo después de comprobarlo.";
+    const approve = document.createElement("button");
+    approve.type = "button";
+    approve.textContent = "Aprobar Deck Check";
+    approve.addEventListener("click", async () => {
+      approve.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/deck-check/approve`, { method: "POST" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo aprobar el Deck Check");
+        editingActivity = { ...editingActivity, ...body };
+        renderDeckCheck(editingActivity);
+        await loadActivities();
+      } catch (error) { activityDeckCheckStatus.textContent = error.message; }
+      finally { approve.disabled = false; }
+    });
+    activityDeckCheckActions.appendChild(approve);
+    return;
+  }
+  activityDeckCheckStatus.textContent = "El ponente eligió un Deck. Selecciónalo para prepararlo para Deck Check.";
+  for (const speaker of selected) {
+    const request = document.createElement("button");
+    request.type = "button";
+    request.textContent = `Preparar Deck de ${speaker.name || "ponente"} para prueba`;
+    request.addEventListener("click", async () => {
+      request.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/deck-check`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ speakerId: speaker.id })
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo preparar el Deck Check");
+        editingActivity = { ...editingActivity, ...body };
+        renderDeckCheck(editingActivity);
+        await loadActivities();
+      } catch (error) { activityDeckCheckStatus.textContent = error.message; }
+      finally { request.disabled = false; }
+    });
+    activityDeckCheckActions.appendChild(request);
+  }
+}
 function editActivity(activity) {
   editingActivity = activity;
   activityForm.elements.title.value = activity.title;
@@ -124,6 +180,7 @@ function editActivity(activity) {
   activityCancel.hidden = false;
   activitySpeakers.hidden = false;
   renderActivitySpeakers(activity.speakers || []);
+  renderDeckCheck(activity);
   loadAccountSpeakers().catch((error) => { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; });
   activityForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }

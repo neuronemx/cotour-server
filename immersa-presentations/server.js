@@ -1107,7 +1107,7 @@ app.get("/api/admin/event-hubs/:workspaceId/decks", requireAccount, requireImmer
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
-  try { return res.json(await eventHubRepository.requestDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, deckId: req.body?.deckId })); }
+  try { return res.json(await eventHubRepository.requestDeckCheckFromSpeakerSelection({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.body?.speakerId })); }
   catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-deck", requireAccount, requireImmersaAdmin, async (req, res) => {
