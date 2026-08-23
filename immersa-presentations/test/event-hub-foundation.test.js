@@ -156,6 +156,12 @@ test("Event Stage resolves only its scheduled or live activity from the approved
   });
 });
 
+test("Event Stage uses its access token when loading Event Hub controls", async () => {
+  const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  assert.match(stage, /\/api\/event\/stage-control\//);
+  assert.match(stage, /"x-immersa-access-token": roleOpenContext\.access_token/);
+});
+
 test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tables", async () => {
   const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "020_event_hub_foundation.sql"), "utf8");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hubs/);

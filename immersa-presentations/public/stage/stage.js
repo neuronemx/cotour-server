@@ -142,7 +142,9 @@ async function loadDeck() {
 
 async function loadEventStageControl() {
   if (!roleOpenContext.access_token || !eventStageControl) return;
-  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`);
+  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`, {
+    headers: { "x-immersa-access-token": roleOpenContext.access_token }
+  });
   if (response.status === 404) return;
   const control = await response.json();
   if (!response.ok) throw new Error(control.error || "No se pudo cargar Event Stage");
