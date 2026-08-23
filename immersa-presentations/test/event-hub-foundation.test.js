@@ -1,1 +1,245 @@
-ÍÐ€ôÉ•ÅÕ¥É” ‰¹½‘”éÑ•ÍÐˆ¤ì)½¹ÍÐ…ÍÍ•ÉÐ€ôÉ•ÅÕ¥É” ‰¹½‘”é…ÍÍ•ÉÐ½ÍÑÉ¥Ðˆ¤ì)½¹ÍÐ™Ì€ôÉ•ÅÕ¥É” ‰¹½‘”é™Ìˆ¤ì)½¹ÍÐÁ…Ñ €ôÉ•ÅÕ¥É” ‰¹½‘”éÁ…Ñ ˆ¤ì)½¹ÍÐì(€Ù•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä°(€Ù•¹Ñ!Õ‰ÉÉ½È°(€…¹¹Ñ•ÉÑ¥Ù¥Ñä°(€É•¥ÍÑÉ…Ñ¥½¹-•å!…Í (€€±Í•É•Ñ!…Í )ô€ôÉ•ÅÕ¥É” ˆ¸¸½•Ù•¹Ðµ¡Õˆ½É•Á½Í¥Ñ½Éäˆ¤ì()™Õ¹Ñ¥½¸™…­•A½½°¡É•ÍÕ±ÑÌ€ômt¤ì(€½¹ÍÐ…±±Ì€ômtì(€½¹ÍÐÅÕ•Õ”€ôl¸¸¹É•ÍÕ±ÑÍtì(€½¹ÍÐ½¹¹•Ñ¥½¸€ôì(€€€…Íå¹Œ‰•¥¹QÉ…¹Í…Ñ¥½¸ ¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰‰•¥¸ˆô¤ìô°(€€€…Íå¹Œ½µµ¥Ð ¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰½µµ¥Ðˆô¤ìô°(€€€…Íå¹ŒÉ½±±‰…¬ ¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰É½±±‰…¬ˆô¤ìô°(€€€É•±•…Í” ¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰É•±•…Í”ˆô¤ìô°(€€€…Íå¹Œ•á•ÕÑ”¡ÍÅ°°Ù…±Õ•Ì€ômt¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰•á•ÕÑ”ˆ°ÍÅ°°Ù…±Õ•Ìô¤ìÉ•ÑÕÉ¸ÅÕ•Õ”¹Í¡¥™Ð ¤ñðmì…™™•Ñ•‘I½ÝÌè€Äô°mutìô(€ôì(€É•ÑÕÉ¸ì(€€€…±±Ì°(€€€…Íå¹Œ•Ñ½¹¹•Ñ¥½¸ ¤ìÉ•ÑÕÉ¸½¹¹•Ñ¥½¸ìô°(€€€…Íå¹Œ•á•ÕÑ”¡ÍÅ°°Ù…±Õ•Ì€ômt¤ì…±±Ì¹ÁÕÍ ¡ì­¥¹è€‰•á•ÕÑ”ˆ°ÍÅ°°Ù…±Õ•Ìô¤ìÉ•ÑÕÉ¸ÅÕ•Õ”¹Í¡¥™Ð ¤ñðmì…™™•Ñ•‘I½ÝÌè€Äô°mutìô(€ôì)ô()Ñ•ÍÐ ‰A…¥Á…ÉÑ¥¥Á…¹Ð•¹Ñ•ÉÌA…¥…¹É•”…Ñ¥Ù¥Ñ¥•ÌìÉ•”½¹±ä•¹Ñ•ÉÌÉ•”ˆ°€ ¤€ôøì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…¹¹Ñ•ÉÑ¥Ù¥Ñä ‰Iˆ°€‰Iˆ¤°ÑÉÕ”¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…¹¹Ñ•ÉÑ¥Ù¥Ñä ‰Iˆ°€‰A%ˆ¤°™…±Í”¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…¹¹Ñ•ÉÑ¥Ù¥Ñä ‰A%ˆ°€‰Iˆ¤°ÑÉÕ”¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…¹¹Ñ•ÉÑ¥Ù¥Ñä ‰A%ˆ°€‰A%ˆ¤°ÑÉÕ”¤ì)ô¤ì()Ñ•ÍÐ ‰É•¥ÍÑÉ…Ñ¥½¸¥‘•¹Ñ¥Ñä¥ÌÁ•ÉÍ¥ÍÑ•…Ì„¡…Í °¹½Ð…ÌÁÕ‰±¥Œ‘…Ñ„ˆ°€ ¤€ôøì(€…ÍÍ•ÉÐ¹µ…Ñ ¡É•¥ÍÑÉ…Ñ¥½¹-•å!…Í  ‰ÁÉ¥Ù…Ñ”µ•Ù•¹ÐµÉ•¥ÍÑÉ…Ñ¥½¸ˆ¤°€½ym„µ˜À´åuìØÑô¼¤ì(€…ÍÍ•ÉÐ¹¹½ÑÅÕ…°¡É•¥ÍÑÉ…Ñ¥½¹-•å!…Í  ‰ÁÉ¥Ù…Ñ”µ•Ù•¹ÐµÉ•¥ÍÑÉ…Ñ¥½¸ˆ¤°É•¥ÍÑÉ…Ñ¥½¹-•å!…Í  ‰½Ñ¡•ÈµÉ•¥ÍÑÉ…Ñ¥½¸ˆ¤¤ì)ô¤ì()Ñ•ÍÐ ‰„ÁÕ‰±¥ŒEHÉ•Í½±Ù•Ì¥ÑÌ•Ù•¹Ð…¹Ñ¡”½¹±ä±•Ù•°¥ÐÉ…¹ÑÌˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì(€€€ÁÕ‰±¥}¥è€‰Á}•ÙÑ}Á…¥ˆ°…Õ‘¥•¹•}±•Ù•°è€‰A%ˆ°Ý½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°Í±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°ÍÑ…ÑÕÌè€‰IPˆ(€õt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€½¹ÍÐÅÈ€ô…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹•ÑAÕ‰±¥EÈ ‰Á}•ÙÑ}Á…¥ˆ¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡ÅÈ¹…Õ‘¥•¹•1•Ù•°°€‰A%ˆ¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡ÅÈ¹•Ù•¹Ñ]½É­ÍÁ…•%°€‰¡Õˆ´Äˆ¤ì)ô¤ì()Ñ•ÍÐ ‰Ñ•µÁ½É…ÉäÙ•¹ÐMÑ…”…•ÍÌ¥Ì¡•­•‰äÍ•É•Ð¡…Í ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì¥è€‰ÍÑ…”µ…•ÍÌ´Äˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”µŒˆõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€½¹ÍÐ…•ÍÌ€ô…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹…ÕÑ¡½É¥é•MÑ…•=Á•É…Ñ¥½¸¡ì•Ù•¹ÑMÑ…•%è€‰ÍÑ…”µŒˆ°…•ÍÍM•É•Ðè€‰Ñ•µÁ½É…ÉäµÍ•É•Ðˆô¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…•ÍÌ¹•Ù•¹ÑMÑ…•%°€‰ÍÑ…”µŒˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Í•É•Ñ!…Í  ‰Ñ•µÁ½É…ÉäµÍ•É•Ðˆ¤°€½ym„µ˜À´åuìØÑô¼¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹ÐMÑ…”…Á…¥Ñä¥Ì•áÁ±¥¥Ð½¹™¥ÕÉ…Ñ¥½¸°¹•Ù•È¥¹™•ÉÉ•™É½´MÁ•…­•ÈÁ±…¸ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmì…™™•Ñ•‘I½ÝÌè€Äô°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹Í•ÑMÑ…•…Á…¥Ñä¡ì•Ù•¹ÑMÑ…•%è€‰ÍÑ…”µŒˆ°…Õ‘¥•¹•…Á…¥Ñäè€ØÀÀô¤°ì•Ù•¹ÑMÑ…•%è€‰ÍÑ…”µŒˆ°…Õ‘¥•¹•…Á…¥Ñäè€ØÀÀô¤ì(€…Ý…¥Ð…ÍÍ•ÉÐ¹É•©•ÑÌ  ¤€ôøÉ•Á½Í¥Ñ½Éä¹Í•ÑMÑ…•…Á…¥Ñä¡ì•Ù•¹ÑMÑ…•%è€‰ÍÑ…”µŒˆ°…Õ‘¥•¹•…Á…¥Ñäè€Àô¤°€½…Á…¥Ñä¼¤ì)ô¤ì()Ñ•ÍÐ ‰„±¥Ù”Ù•¹ÐMÑ…”…Á…¥Ñä¥ÌÉ•ÑÕÉ¹•™½È¥ÑÌ•¬ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”µŒˆ°…Õ‘¥•¹•}…Á…¥Ñäè€ØÀÀõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹•Ñ1¥Ù•MÑ…•…Á…¥Ñå½É•¬ ‰‘•¬´Äˆ¤°ì•Ù•¹ÑMÑ…•%è€‰ÍÑ…”µŒˆ°…Õ‘¥•¹•…Á…¥Ñäè€ØÀÀô¤ì)ô¤ì()Ñ•ÍÐ ‰ÁÕ‰±¥Œ•Ù•¹Ð…Ñ¥Ù¥Ñä±¥ÍÐ¡¥‘•Ì¹Ñ•ÈÝ¡•¸„É•”EHÉ•…¡•Ì„A…¥±¥Ù”…Ñ¥Ù¥Ñäˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì(€€€¥è€‰…Ñ¥Ù¥ÑäµÁ…¥ˆ°Ñ¥Ñ±”è€‰½¹™•É•¹¥„ˆ°…•ÍÍ}±•Ù•°è€‰A%ˆ°ÍÑ…ÑÕÌè€‰1%Yˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”µŒˆ°(€€€ÍÑ…•}¹…µ”è€‰ˆ°±¥Ù•}Í•ÍÍ¥½¹}¥è€‰±¥Ù”´Äˆ°±¥Ù•}ÍÑ…ÑÕÌè€‰1%Yˆ(€õt°mut°mmt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€½¹ÍÐ…Ñ¥Ù¥Ñ¥•Ì€ô…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹±¥ÍÑAÕ‰±¥Ñ¥Ù¥Ñ¥•Ì¡ì•Ù•¹Ñ]½É­ÍÁ…•%è€‰¡Õˆ´Äˆ°…Õ‘¥•¹•1•Ù•°è€‰Iˆô¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…Ñ¥Ù¥Ñ¥•ÍlÁt¹±¥Ù”°ÑÉÕ”¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡…Ñ¥Ù¥Ñ¥•ÍlÁt¹…¹¹Ñ•È°™…±Í”¤ì)ô¤ì()Ñ•ÍÐ ‰É•…Ñ¥¹œ„¡ÕˆÍ••‘ÌÑ¡”™¥Ù”½™™¥¥…°M•µ…¹„5MÑ…•Ì…¹•á…Ñ±äÑÝ¼…Õ‘¥•¹”EH±•Ù•±Ìˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡l(€€€mmt°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°(€€€mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°mì…™™•Ñ•‘I½ÝÌè€Äô°mut°(€€€mmìÝ½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°Í±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°Ñ¥µ•é½¹”è€‰µ•É¥„½5•á¥½}¥Ñäˆ°ÍÑ…ÑÕÌè€‰IPˆõt°mut°(€€€ml(€€€€€ì¥è€‰ÍÑ…”µŒˆ°¹…µ”è€‰M…±„Q!`ˆ°Í½ÉÑ}½É‘•Èè€À°…Ñ¥Ù”è€Äô°(€€€€€ì¥è€‰ÍÑ…”µ¹•±„ˆ°¹…µ”è€‰!UIU	UM<½É¼91ˆ°Í½ÉÑ}½É‘•Èè€Ä°…Ñ¥Ù”è€Äô°(€€€€€ì¥è€‰ÍÑ…”µ„ˆ°¹…µ”è€‰!UIU	UM<½É¼ˆ°Í½ÉÑ}½É‘•Èè€È°…Ñ¥Ù”è€Äô°(€€€€€ì¥è€‰ÍÑ…”µ™½É¼ˆ°¹…µ”è€‰!UIU	UM<½É¼€Èˆ°Í½ÉÑ}½É‘•Èè€Ì°…Ñ¥Ù”è€Äô°(€€€€€ì¥è€‰ÍÑ…”µ±½‰‰äˆ°¹…µ”è€‰!UIU	UM<1½‰‰äˆ°Í½ÉÑ}½É‘•Èè€Ð°…Ñ¥Ù”è€Äô(€€€t°mut°(€€€mmìÁÕ‰±¥}¥è€‰Á}•ÙÑ}™É•”ˆ°…Õ‘¥•¹•}±•Ù•°è€‰Iˆ°…Ñ¥Ù”è€Äô°ìÁÕ‰±¥}¥è€‰Á}•ÙÑ}Á…¥ˆ°…Õ‘¥•¹•}±•Ù•°è€‰A%ˆ°…Ñ¥Ù”è€Äõt°mut(€t¤ì(€½¹ÍÐ¥‘Ì€ôl‰¡Õˆ´Äˆ°€‰ÍÑ…”µŒˆ°€‰ÍÑ…”µ¹•±„ˆ°€‰ÍÑ…”µ„ˆ°€‰ÍÑ…”µ™½É¼ˆ°€‰ÍÑ…”µ±½‰‰äˆ°€‰ÅÈµ™É•”ˆ°€‰ÅÈµÁ…¥ˆ°€‰ÅÈµ™É•”µÁÕ‰±¥Œˆ°€‰ÅÈµÁ…¥µÁÕ‰±¥Œ‰tì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°°ìÉ•…Ñ•%è€ ¤€ôø¥‘Ì¹Í¡¥™Ð ¤ô¤ì(€½¹ÍÐ¡Õˆ€ô…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹É•…Ñ•!Õˆ¡ìÍ±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°É•…Ñ•‘	åUÍ•É%è€‰…‘µ¥¸´Äˆô¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡¡Õˆ¹ÍÑ…•Ì¹µ…À ¡ÍÑ…”¤€ôøÍÑ…”¹¹…µ”¤°l‰M…±„Q!`ˆ°€‰!UIU	UM<½É¼91ˆ°€‰!UIU	UM<½É¼ˆ°€‰!UIU	UM<½É¼€Èˆ°€‰!UIU	UM<1½‰‰ä‰t¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡¡Õˆ¹ÁÕ‰±¥EÉÌ¹µ…À ¡ÅÈ¤€ôøÅÈ¹…Õ‘¥•¹•}±•Ù•°¤°l‰Iˆ°€‰A%‰t¤ì(€½¹ÍÐÍÑ…Ñ•µ•¹ÑÌ€ôÁ½½°¹…±±Ì¹™¥±Ñ•È ¡…±°¤€ôø…±°¹­¥¹€ôôô€‰•á•ÕÑ”ˆ¤¹µ…À ¡…±°¤€ôø…±°¹ÍÅ°¤¹©½¥¸ ‰q¸ˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…Ñ•µ•¹ÑÌ°€½%9MIP%9Q<Ý½É­ÍÁ…•Ì€¸¨•Ù•¹Ðœ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…Ñ•µ•¹ÑÌ°€½…Õ‘¥•¹•}…Á…¥Ñåp¤Y1ULp¡pü°pü°pü°pü°€ÌÀÁp¤¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…Ñ•µ•¹ÑÌ°€½%9MIP%9Q<•Ù•¹Ñ}ÁÕ‰±¥}ÅÉÌ¼¤ì)ô¤ì()Ñ•ÍÐ ‰É•…Ñ¥¹œ„¡ÕˆÉ•©•ÑÌ…¸¥‘•¹Ñ¥™¥•È…±É•…‘ä¥¸ÕÍ”ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmìÝ½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…Ý…¥Ð…ÍÍ•ÉÐ¹É•©•ÑÌ (€€€€ ¤€ôøÉ•Á½Í¥Ñ½Éä¹É•…Ñ•!Õˆ¡ìÍ±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°É•…Ñ•‘	åUÍ•É%è€‰…‘µ¥¸´Äˆô¤°(€€€€¡•ÉÉ½È¤€ôø•ÉÉ½È¥¹ÍÑ…¹•½˜Ù•¹Ñ!Õ‰ÉÉ½È€˜˜•ÉÉ½È¹½‘”€ôôô€‰Y9Q}!U	}M1U}a%MQLˆ(€€¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹Ð‘µ¥¸…¸±¥ÍÐÙ•¹Ð!Õ‰ÌÑ¼É•½Á•¸½¹”¥¸…¹½Ñ¡•È‰É½ÝÍ•Èˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmìÝ½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°Í±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°ÍÑ…ÑÕÌè€‰IPˆõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹±¥ÍÑ!Õ‰Ì ¤°mìÝ½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°Í±Õœè€‰Í•µ…¹„µ…µŒˆ°Ñ¥Ñ±”è€‰M•µ…¹„5ˆ°ÍÑ…ÑÕÌè€‰IPˆõt¤ì)ô¤ì()Ñ•ÍÐ ‰½¹±ä„Í¡•‘Õ±•…Ñ¥Ù¥Ñä…¸‰”•‘¥Ñ•ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì¥è€‰…Ñ¥Ù¥Ñä´Äˆ°•Ù•¹Ñ}Ý½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”´Äˆ°ÍÑ…ÑÕÌè€‰1%Yˆõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…Ý…¥Ð…ÍÍ•ÉÐ¹É•©•ÑÌ (€€€€ ¤€ôøÉ•Á½Í¥Ñ½Éä¹ÕÁ‘…Ñ•Ñ¥Ù¥Ñä¡ì…Ñ¥Ù¥Ñå%è€‰…Ñ¥Ù¥Ñä´Äˆ°•Ù•¹Ñ]½É­ÍÁ…•%è€‰¡Õˆ´Äˆ°•Ù•¹ÑMÑ…•%è€‰ÍÑ…”´Äˆ°Ñ¥Ñ±”è€‰…µ‰¥¼ˆ°‘ÕÉ…Ñ¥½¹5¥¹ÕÑ•Ìè€ØÀô¤°(€€€€¡•ÉÉ½È¤€ôø•ÉÉ½È¥¹ÍÑ…¹•½˜Ù•¹Ñ!Õ‰ÉÉ½È€˜˜•ÉÉ½È¹½‘”€ôôô€‰Q%Y%Qe}9=Q}%Q	1ˆ(€€¤ì)ô¤ì()Ñ•ÍÐ ‰„MÑ…”…¹¹½ÐÍÑ…ÉÐ„Í•½¹1¥Ù•M•ÍÍ¥½¸…ÐÑ¡”Í…µ”Ñ¥µ”ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡l(€€€mmì¥è€‰…Ñ¥Ù¥Ñä´Äˆ°•Ù•¹Ñ}Ý½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”´Äˆ°Ñ¥Ñ±”è€‰½¹™•É•¹¥„ˆ°…•ÍÍ}±•Ù•°è€‰A%ˆ°‘•­}¥è€‰‘•¬´Äˆ°ÍÑ…ÑÕÌè€‰M!U1ˆ°ÍÑ…•}¹…µ”è€‰ˆõt°mut°(€€€mmì¥è€‰±¥Ù”´Äˆõt°mut(€t¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…Ý…¥Ð…ÍÍ•ÉÐ¹É•©•ÑÌ  ¤€ôøÉ•Á½Í¥Ñ½Éä¹ÍÑ…ÉÑ1¥Ù•M•ÍÍ¥½¸¡ì•Ù•¹ÑÑ¥Ù¥Ñå%è€‰…Ñ¥Ù¥Ñä´Äˆô¤°€¡•ÉÉ½È¤€ôø•ÉÉ½È¥¹ÍÑ…¹•½˜Ù•¹Ñ!Õ‰ÉÉ½È€˜˜•ÉÉ½È¹½‘”€ôôô€‰MQ}1Ie}1%Yˆ¤ì)ô¤ì()Ñ•ÍÐ ‰„1¥Ù•M•ÍÍ¥½¸¥‘•¹Ñ¥™¥•Ì¥ÑÌÙ•¹ÐMÑ…”‰•™½É”…¸½Á•É…Ñ½È…¸™¥¹¥Í ¥Ðˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì¥è€‰±¥Ù”´Äˆ°•Ù•¹Ñ}Ý½É­ÍÁ…•}¥è€‰¡Õˆ´Äˆ°•Ù•¹Ñ}…Ñ¥Ù¥Ñå}¥è€‰…Ñ¥Ù¥Ñä´Äˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”µŒˆ°‘•­}¥è€‰‘•¬´Äˆ°ÍÑ…ÑÕÌè€‰1%Yˆõt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€½¹ÍÐ±¥Ù”€ô…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹•Ñ1¥Ù•M•ÍÍ¥½¸ ‰±¥Ù”´Äˆ¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡±¥Ù”¹•Ù•¹Ñ}ÍÑ…•}¥°€‰ÍÑ…”µŒˆ¤ì)ô¤ì()Ñ•ÍÐ ‰™¥¹¥Í¡¥¹œ„1¥Ù•M•ÍÍ¥½¸ÁÉ•Í•ÉÙ•Ì¥Ð™½Èµ•ÑÉ¥Ì…¹µ…­•Ì¥ÑÌÑ¥Ù¥Ñä½Á•É…‰±”……¥¸ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡l(€€€mmì¥è€‰±¥Ù”´Äˆ°•Ù•¹Ñ}…Ñ¥Ù¥Ñå}¥è€‰…Ñ¥Ù¥Ñä´Äˆõt°mut°(€€€mì…™™•Ñ•‘I½ÝÌè€Äô°mut°(€€€mì…™™•Ñ•‘I½ÝÌè€Äô°mut(€t¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹™¥¹¥Í¡1¥Ù•M•ÍÍ¥½¸ ‰±¥Ù”´Äˆ¤°ì¥è€‰±¥Ù”´Äˆ°ÍÑ…ÑÕÌè€‰%9%M!ˆô¤ì(€½¹ÍÐÍÑ…Ñ•µ•¹ÑÌ€ôÁ½½°¹…±±Ì¹™¥±Ñ•È ¡…±°¤€ôø…±°¹­¥¹€ôôô€‰•á•ÕÑ”ˆ¤¹µ…À ¡…±°¤€ôø…±°¹ÍÅ°¤¹©½¥¸ ‰q¸ˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…Ñ•µ•¹ÑÌ°€½•Ù•¹Ñ}±¥Ù•}Í•ÍÍ¥½¹ÌMPÍÑ…ÑÕÌ€ô€%9%M!œ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…Ñ•µ•¹ÑÌ°€½•Ù•¹Ñ}…Ñ¥Ù¥Ñ¥•ÌMPÍÑ…ÑÕÌ€ô€M!U1œ¼¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹ÐMÑ…”É•Í½±Ù•Ì½¹±ä¥ÑÌÍ¡•‘Õ±•½È±¥Ù”…Ñ¥Ù¥Ñä™É½´Ñ¡”…ÁÁÉ½Ù••¬ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmmì(€€€…Ñ¥Ù¥Ñå}¥è€‰…Ñ¥Ù¥Ñä´Äˆ°…Ñ¥Ù¥Ñå}Ñ¥Ñ±”è€‰½¹™•É•¹¥„ˆ°•Ù•¹Ñ}ÍÑ…•}¥è€‰ÍÑ…”µŒˆ°ÍÑ…•}¹…µ”è€‰M…±„Q!`ˆ°…Ñ¥Ù¥Ñå}ÍÑ…ÑÕÌè€‰M!U1ˆ°±¥Ù•}Í•ÍÍ¥½¹}¥è¹Õ±°(€õt°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹•ÑMÑ…•½¹ÑÉ½±½É•¬ ‰‘•¬´Äˆ¤°ì(€€€…Ñ¥Ù¥Ñå%è€‰…Ñ¥Ù¥Ñä´Äˆ°Ñ¥Ñ±”è€‰½¹™•É•¹¥„ˆ°ÍÑ…•%è€‰ÍÑ…”µŒˆ°ÍÑ…•9…µ”è€‰M…±„Q!`ˆ°ÍÑ…ÑÕÌè€‰M!U1ˆ°±¥Ù•M•ÍÍ¥½¹%è¹Õ±°(€ô¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹ÐMÑ…”ÕÍ•Ì¥ÑÌ…•ÍÌÑ½­•¸Ý¡•¸±½…‘¥¹œÙ•¹Ð!Õˆ½¹ÑÉ½±Ìˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÍÑ…”€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰ÍÑ…”ˆ°€‰ÍÑ…”¹©Ìˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…”°€½p½…Á¥p½•Ù•¹Ñp½ÍÑ…”µ½¹ÑÉ½±p¼¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑ…”°€¼‰àµ¥µµ•ÉÍ„µ…•ÍÌµÑ½­•¸ˆèÉ½±•=Á•¹½¹Ñ•áÑp¹…•ÍÍ}Ñ½­•¸¼¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹Ð!Õˆµ¥É…Ñ¥½¸­••ÁÌ	…Í”°Ù•¹Ð!Õˆ…¹1¥Ù•M•ÍÍ¥½¸¥¸Í•Á…É…Ñ”Ñ…‰±•Ìˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐµ¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÁ}•Ù•¹Ñ}¡Õ‰}™½Õ¹‘…Ñ¥½¸¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}¡Õ‰Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}ÍÑ…•Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}…Ñ¥Ù¥Ñ¥•Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}±¥Ù•}Í•ÍÍ¥½¹Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}Á…ÉÑ¥¥Á…¹ÑÌ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡µ¥É…Ñ¥½¸°€½IQQ	1%9=Pa%MQL•Ù•¹Ñ}±¥Ù•}…ÑÑ•¹‘…¹”¼¤ì(€½¹ÍÐ‘ÕÉ…Ñ¥½¹5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÍ}•Ù•¹Ñ}…Ñ¥Ù¥Ñå}‘ÕÉ…Ñ¥½¸¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡‘ÕÉ…Ñ¥½¹5¥É…Ñ¥½¸°€½‘ÕÉ…Ñ¥½¹}µ¥¹ÕÑ•Ì¼¤ì(€½¹ÍÐÑåÁ•5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÑ}•Ù•¹Ñ}…Ñ¥Ù¥Ñå}ÑåÁ”¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÑåÁ•5¥É…Ñ¥½¸°€½…Ñ¥Ù¥Ñå}ÑåÁ”¼¤ì(€½¹ÍÐÍÁ•…­•ÉÍ5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÕ}•Ù•¹Ñ}…Ñ¥Ù¥Ñå}ÍÁ•…­•ÉÌ¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÁ•…­•ÉÍ5¥É…Ñ¥½¸°€½•Ù•¹Ñ}…Ñ¥Ù¥Ñå}ÍÁ•…­•ÉÌ¼¤ì(€½¹ÍÐ‘•­¡•­5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÙ}•Ù•¹Ñ}…Ñ¥Ù¥Ñå}‘•­}¡•¬¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡‘•­¡•­5¥É…Ñ¥½¸°€½‘•­}¡•­}ÍÑ…ÑÕÌ¼¤ì(€½¹ÍÐ…ÍÍ¥¹µ•¹ÑÍ5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈÝ}•Ù•¹Ñ}ÍÁ•…­•É}…ÍÍ¥¹µ•¹ÑÌ¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡…ÍÍ¥¹µ•¹ÑÍ5¥É…Ñ¥½¸°€½•Ù•¹Ñ}…Ñ¥Ù¥Ñå}ÍÁ•…­•É}…ÍÍ¥¹µ•¹ÑÌ¼¤ì(€½¹ÍÐ±¥¹­¥¹5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈá}•Ù•¹Ñ}ÍÁ•…­•É}±¥¹­¥¹œ¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡±¥¹­¥¹5¥É…Ñ¥½¸°€½ÍÑ…ÑÕÌ€ô€1%9-œ¼¤ì(€½¹ÍÐ½ÉÁ¡…¹±•…¹ÕÁ5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÈå}É•µ½Ù•}½ÉÁ¡…¹•‘}•Ù•¹Ñ}ÍÁ•…­•É}…ÍÍ¥¹µ•¹ÑÌ¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡½ÉÁ¡…¹±•…¹ÕÁ5¥É…Ñ¥½¸°€½1Q…Í„¼¤ì(€½¹ÍÐ‘•™…Õ±Ñ…Á…¥Ñå5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÌÁ}•Ù•¹Ñ}ÍÑ…•}‘•™…Õ±Ñ}…Á…¥Ñä¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡‘•™…Õ±Ñ…Á…¥Ñå5¥É…Ñ¥½¸°€½…Õ‘¥•¹•}…Á…¥Ñä€ô€ÌÀÀ¼¤ì(€½¹ÍÐ½™™¥¥…±MÑ…•Í5¥É…Ñ¥½¸€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰‘ˆˆ°€‰µ¥É…Ñ¥½¹Ìˆ°€ˆÀÌÅ}Í•µ…¹…}…µ}½™™¥¥…±}ÍÑ…•Ì¹ÍÅ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡½™™¥¥…±MÑ…•Í5¥É…Ñ¥½¸°€½!UIU	UM<½É¼91¼¤ì)ô¤ì()Ñ•ÍÐ ‰„ÍÁ•…­•È…¸…•ÁÐ½¹±äÑ¡•¥È½Ý¸Ù•¹Ð!Õˆ¥¹Ù¥Ñ…Ñ¥½¸ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ½½°€ô™…­•A½½°¡mmì…™™•Ñ•‘I½ÝÌè€Äô°muut¤ì(€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô¹•ÜÙ•¹Ñ!Õ‰I•Á½Í¥Ñ½Éä¡Á½½°¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…° (€€€…Ý…¥ÐÉ•Á½Í¥Ñ½Éä¹…•ÁÑMÁ•…­•É%¹Ù¥Ñ…Ñ¥½¸¡ì…ÍÍ¥¹µ•¹Ñ%è€‰¥¹Ù¥Ñ”´Äˆ°ÕÍ•É%è€‰ÍÁ•…­•È´Äˆô¤°(€€€ì…ÍÍ¥¹µ•¹Ñ%è€‰¥¹Ù¥Ñ”´Äˆ°ÍÑ…ÑÕÌè€‰1%9-ˆô(€€¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á½½°¹…±±ÍlÁt¹ÍÅ°°€½•Íp¹…½Õ¹Ñ}ÕÍ•É}¥€ôpü¼¤ì)ô¤ì()Ñ•ÍÐ ‰ÁÕ‰±¥ŒÙ•¹Ð!Õˆ‘•™…Õ±ÑÌÉ•”Ù¥Í¥Ñ½ÉÌÑ¼áÁ½Í¥§Í¸…¹A…¥Ù¥Í¥Ñ½ÉÌÑ¼AÉ½É…µ„ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÁ…”€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰•Ù•¹Ðˆ°€‰¥¹‘•à¹¡Ñµ°ˆ¤°€‰ÕÑ˜àˆ¤ì(€½¹ÍÐÍÉ¥ÁÐ€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰•Ù•¹Ðˆ°€‰•Ù•¹Ð¹©Ìˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á…”°€½•É¥„‘”•áÁ½Í¥Ñ½É•Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á…”°€½¡ÑÑÁÌép½p½Í•µ…¹……µp¹•áÁ½™Áp¹½µp¼¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½•Ù•¹Ñp¹…Õ‘¥•¹•1•Ù•°€ôôô€‰A%ˆpü€‰ÁÉ½É…´ˆ€è€‰•áÁ½Í¥Ñ¥½¸ˆ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½Ñ…‰p¹±…ÍÍ1¥ÍÑp¹…‘‘p ‰¥Ìµ…Ñ¥Ù…Ñ¥¹œ‰p¤¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½¸Ù¥Ù¼Á…É„…•Í¼ÁÉ•™•É•¹Ñ”¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½Í•Ñ%¹Ñ•ÉÙ…±p¡p¡p¤€ôøqìÉ•™É•Í¡Ñ¥Ù¥Ñ¥•Íp¡p¥p¹…Ñ¡p¡p¡p¤€ôøqíqõp¤ìqô°€ÔÀÀÁp¤¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á…”°€½5½ÍÑÉ…¹‘¼…Ñ¥Ù¥‘…‘•Ì•¸Ù¥Ù¼¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½¥µµ•ÉÍ„é•Ù•¹Ðµ±¥Ù”µÉ•ÑÕÉ¸¼¤ì)ô¤ì()Ñ•ÍÐ ‰…¸Ù•¹Ð!Õˆ…ÑÑ•¹‘•”…¸É•ÑÕÉ¸Ñ¼Ñ¡”ÁÕ‰±¥ŒAÉ½É…´Ý¡•¸Ñ¡•¥È1¥Ù•M•ÍÍ¥½¸±½Í•Ìˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐ…Õ‘¥•¹”€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰…Õ‘¥•¹”ˆ°€‰…Õ‘¥•¹”¹©Ìˆ¤°€‰ÕÑ˜àˆ¤ì(€½¹ÍÐÍ•ÉÙ•È€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰Í•ÉÙ•È¹©Ìˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡…Õ‘¥•¹”°€½É•ÑÕÉ¹Q½Ù•¹ÑAÉ½É…µ%™±½Í•¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡…Õ‘¥•¹”°€½p½…Á¥p½•Ù•¹Ñp½±¥Ù”µÍ•ÍÍ¥½¹Íp½p‘qí•¹½‘•UI%½µÁ½¹•¹Ñp¡ÍÑ…Ñ•p¹±¥Ù•M•ÍÍ¥½¹%‘p¥qõp½ÍÑ…ÑÕÌ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Í•ÉÙ•È°€½¥ÍA…ÉÑ¥¥Á…¹Ñ1¥Ù•M•ÍÍ¥½¹Ñ¥Ù”¼¤ì)ô¤ì()Ñ•ÍÐ ‰Ù•¹Ð‘µ¥¸…Ñ¥Ù¥Ñä…É‘Ì•áÁ½Í”½¹”™½ÕÍ•Í¡•±°Á•È…Ñ¥½¸ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÍÉ¥ÁÐ€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰…‘µ¥¸ˆ°€‰•Ù•¹Ðµ¡Õˆ¹©Ìˆ¤°€‰ÕÑ˜àˆ¤ì(€½¹ÍÐÍÑå±•Ì€ô…Ý…¥Ð™Ì¹ÁÉ½µ¥Í•Ì¹É•…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ˆ¸¸ˆ°€‰ÁÕ‰±¥Œˆ°€‰…‘µ¥¸ˆ°€‰•Ù•¹Ðµ¡Õˆ¹ÍÌˆ¤°€‰ÕÑ˜àˆ¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½‘…Ñ„µÑ½½°ô•‘¥Ðœ¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½%¹Ù¥Ñ…§Í¸…•ÁÑ…‘„¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½…Ñ¥½¸µ‘•¬µ…ÁÁÉ½Ù•¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÉ¥ÁÐ°€½¥Ñ•µp¹…™Ñ•Ép¡…Ñ¥Ù¥Ñå‘¥Ñ½Ép¤¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡ÍÑå±•Ì°€½p©qm¡¥‘‘•¹quqí‘¥ÍÁ±…äé¹½¹”…¥µÁ½ÉÑ…¹Ñqô¼¤ì)ô¤ì(
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const {
+  EventHubRepository,
+  EventHubError,
+  canEnterActivity,
+  registrationKeyHash
+  ,secretHash
+} = require("../event-hub/repository");
+
+function fakePool(results = []) {
+  const calls = [];
+  const queue = [...results];
+  const connection = {
+    async beginTransaction() { calls.push({ kind: "begin" }); },
+    async commit() { calls.push({ kind: "commit" }); },
+    async rollback() { calls.push({ kind: "rollback" }); },
+    release() { calls.push({ kind: "release" }); },
+    async execute(sql, values = []) { calls.push({ kind: "execute", sql, values }); return queue.shift() || [{ affectedRows: 1 }, []]; }
+  };
+  return {
+    calls,
+    async getConnection() { return connection; },
+    async execute(sql, values = []) { calls.push({ kind: "execute", sql, values }); return queue.shift() || [{ affectedRows: 1 }, []]; }
+  };
+}
+
+test("Paid participant enters Paid and Free activities; Free only enters Free", () => {
+  assert.equal(canEnterActivity("FREE", "FREE"), true);
+  assert.equal(canEnterActivity("FREE", "PAID"), false);
+  assert.equal(canEnterActivity("PAID", "FREE"), true);
+  assert.equal(canEnterActivity("PAID", "PAID"), true);
+});
+
+test("registration identity is persisted as a hash, not as public data", () => {
+  assert.match(registrationKeyHash("private-event-registration"), /^[a-f0-9]{64}$/);
+  assert.notEqual(registrationKeyHash("private-event-registration"), registrationKeyHash("other-registration"));
+});
+
+test("a public QR resolves its event and the only level it grants", async () => {
+  const pool = fakePool([[[{
+    public_id: "p_evt_paid", audience_level: "PAID", workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", status: "DRAFT"
+  }], []]]);
+  const repository = new EventHubRepository(pool);
+  const qr = await repository.getPublicQr("p_evt_paid");
+  assert.equal(qr.audienceLevel, "PAID");
+  assert.equal(qr.eventWorkspaceId, "hub-1");
+});
+
+test("temporary Event Stage access is checked by secret hash", async () => {
+  const pool = fakePool([[[{ id: "stage-access-1", event_stage_id: "stage-ccc" }], []]]);
+  const repository = new EventHubRepository(pool);
+  const access = await repository.authorizeStageOperation({ eventStageId: "stage-ccc", accessSecret: "temporary-secret" });
+  assert.equal(access.eventStageId, "stage-ccc");
+  assert.match(secretHash("temporary-secret"), /^[a-f0-9]{64}$/);
+});
+
+test("Event Stage capacity is explicit configuration, never inferred from Speaker plan", async () => {
+  const pool = fakePool([[{ affectedRows: 1 }, []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.setStageCapacity({ eventStageId: "stage-ccc", audienceCapacity: 600 }), { eventStageId: "stage-ccc", audienceCapacity: 600 });
+  await assert.rejects(() => repository.setStageCapacity({ eventStageId: "stage-ccc", audienceCapacity: 0 }), /capacity/);
+});
+
+test("a live Event Stage capacity is returned for its Deck", async () => {
+  const pool = fakePool([[[{ event_stage_id: "stage-ccc", audience_capacity: 600 }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.getLiveStageCapacityForDeck("deck-1"), { eventStageId: "stage-ccc", audienceCapacity: 600 });
+});
+
+test("public event activity list hides Enter when a Free QR reaches a Paid live activity", async () => {
+  const pool = fakePool([[[{
+    id: "activity-paid", title: "Conferencia", access_level: "PAID", status: "LIVE", event_stage_id: "stage-ccc",
+    stage_name: "CCC", live_session_id: "live-1", live_status: "LIVE"
+  }], []], [[], []]]);
+  const repository = new EventHubRepository(pool);
+  const activities = await repository.listPublicActivities({ eventWorkspaceId: "hub-1", audienceLevel: "FREE" });
+  assert.equal(activities[0].live, true);
+  assert.equal(activities[0].canEnter, false);
+});
+
+test("creating a hub seeds the five official Semana AMC Stages and exactly two audience QR levels", async () => {
+  const pool = fakePool([
+    [[], []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []],
+    [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []], [{ affectedRows: 1 }, []],
+    [[{ workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", timezone: "America/Mexico_City", status: "DRAFT" }], []],
+    [[
+      { id: "stage-ccc", name: "CCC Sala THX", sort_order: 0, active: 1 },
+      { id: "stage-nela", name: "CHURUBUSCO Foro NELA", sort_order: 1, active: 1 },
+      { id: "stage-a", name: "CHURUBUSCO Foro A", sort_order: 2, active: 1 },
+      { id: "stage-foro", name: "CHURUBUSCO Foro 2", sort_order: 3, active: 1 },
+      { id: "stage-lobby", name: "CHURUBUSCO Lobby", sort_order: 4, active: 1 }
+    ], []],
+    [[{ public_id: "p_evt_free", audience_level: "FREE", active: 1 }, { public_id: "p_evt_paid", audience_level: "PAID", active: 1 }], []]
+  ]);
+  const ids = ["hub-1", "stage-ccc", "stage-nela", "stage-a", "stage-foro", "stage-lobby", "qr-free", "qr-paid", "qr-free-public", "qr-paid-public"];
+  const repository = new EventHubRepository(pool, { createId: () => ids.shift() });
+  const hub = await repository.createHub({ slug: "semana-amc", title: "Semana AMC", createdByUserId: "admin-1" });
+  assert.deepEqual(hub.stages.map((stage) => stage.name), ["CCC Sala THX", "CHURUBUSCO Foro NELA", "CHURUBUSCO Foro A", "CHURUBUSCO Foro 2", "CHURUBUSCO Lobby"]);
+  assert.deepEqual(hub.publicQrs.map((qr) => qr.audience_level), ["FREE", "PAID"]);
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /INSERT INTO workspaces .*'event'/);
+  assert.match(statements, /audience_capacity\) VALUES \(\?, \?, \?, \?, 300\)/);
+  assert.match(statements, /INSERT INTO event_public_qrs/);
+});
+
+test("creating a hub rejects an identifier already in use", async () => {
+  const pool = fakePool([[[{ workspace_id: "hub-1" }], []]]);
+  const repository = new EventHubRepository(pool);
+  await assert.rejects(
+    () => repository.createHub({ slug: "semana-amc", title: "Semana AMC", createdByUserId: "admin-1" }),
+    (error) => error instanceof EventHubError && error.code === "EVENT_HUB_SLUG_EXISTS"
+  );
+});
+
+test("Event Admin can list Event Hubs to reopen one in another browser", async () => {
+  const pool = fakePool([[[{ workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", status: "DRAFT" }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.listHubs(), [{ workspace_id: "hub-1", slug: "semana-amc", title: "Semana AMC", status: "DRAFT" }]);
+});
+
+test("only a scheduled activity can be edited", async () => {
+  const pool = fakePool([[[{ id: "activity-1", event_workspace_id: "hub-1", event_stage_id: "stage-1", status: "LIVE" }], []]]);
+  const repository = new EventHubRepository(pool);
+  await assert.rejects(
+    () => repository.updateActivity({ activityId: "activity-1", eventWorkspaceId: "hub-1", eventStageId: "stage-1", title: "Cambio", durationMinutes: 60 }),
+    (error) => error instanceof EventHubError && error.code === "ACTIVITY_NOT_EDITABLE"
+  );
+});
+
+test("a Stage cannot start a second LiveSession at the same time", async () => {
+  const pool = fakePool([
+    [[{ id: "activity-1", event_workspace_id: "hub-1", event_stage_id: "stage-1", title: "Conferencia", access_level: "PAID", deck_id: "deck-1", status: "SCHEDULED", stage_name: "CCC" }], []],
+    [[{ id: "live-1" }], []]
+  ]);
+  const repository = new EventHubRepository(pool);
+  await assert.rejects(() => repository.startLiveSession({ eventActivityId: "activity-1" }), (error) => error instanceof EventHubError && error.code === "STAGE_ALREADY_LIVE");
+});
+
+test("a LiveSession identifies its Event Stage before an operator can finish it", async () => {
+  const pool = fakePool([[[{ id: "live-1", event_workspace_id: "hub-1", event_activity_id: "activity-1", event_stage_id: "stage-ccc", deck_id: "deck-1", status: "LIVE" }], []]]);
+  const repository = new EventHubRepository(pool);
+  const live = await repository.getLiveSession("live-1");
+  assert.equal(live.event_stage_id, "stage-ccc");
+});
+
+test("finishing a LiveSession preserves it for metrics and makes its Activity operable again", async () => {
+  const pool = fakePool([
+    [[{ id: "live-1", event_activity_id: "activity-1" }], []],
+    [{ affectedRows: 1 }, []],
+    [{ affectedRows: 1 }, []]
+  ]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.finishLiveSession("live-1"), { id: "live-1", status: "FINISHED" });
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /event_live_sessions SET status = 'FINISHED'/);
+  assert.match(statements, /event_activities SET status = 'SCHEDULED'/);
+});
+
+test("Event Stage resolves only its scheduled or live activity from the approved Deck", async () => {
+  const pool = fakePool([[[{
+    activity_id: "activity-1", activity_title: "Conferencia", event_stage_id: "stage-ccc", stage_name: "CCC Sala THX", activity_status: "SCHEDULED", live_session_id: null
+  }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.getStageControlForDeck("deck-1"), {
+    activityId: "activity-1", title: "Conferencia", stageId: "stage-ccc", stageName: "CCC Sala THX", status: "SCHEDULED", liveSessionId: null
+  });
+});
+
+test("Event Stage uses its access token when loading Event Hub controls", async () => {
+  const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  assert.match(stage, /\/api\/event\/stage-control\//);
+  assert.match(stage, /"x-immersa-access-token": roleOpenContext\.access_token/);
+});
+
+test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tables", async () => {
+  const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "020_event_hub_foundation.sql"), "utf8");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hubs/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_stages/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_activities/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_live_sessions/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_participants/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_live_attendance/);
+  const durationMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "023_event_activity_duration.sql"), "utf8");
+  assert.match(durationMigration, /duration_minutes/);
+  const typeMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "024_event_activity_type.sql"), "utf8");
+  assert.match(typeMigration, /activity_type/);
+  const speakersMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "025_event_activity_speakers.sql"), "utf8");
+  assert.match(speakersMigration, /event_activity_speakers/);
+  const deckCheckMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "026_event_activity_deck_check.sql"), "utf8");
+  assert.match(deckCheckMigration, /deck_check_status/);
+  const assignmentsMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "027_event_speaker_assignments.sql"), "utf8");
+  assert.match(assignmentsMigration, /event_activity_speaker_assignments/);
+  const linkingMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "028_event_speaker_linking.sql"), "utf8");
+  assert.match(linkingMigration, /status = 'LINKED'/);
+  const orphanCleanupMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "029_remove_orphaned_event_speaker_assignments.sql"), "utf8");
+  assert.match(orphanCleanupMigration, /DELETE asa/);
+  const defaultCapacityMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "030_event_stage_default_capacity.sql"), "utf8");
+  assert.match(defaultCapacityMigration, /audience_capacity = 300/);
+  const officialStagesMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "031_semana_amc_official_stages.sql"), "utf8");
+  assert.match(officialStagesMigration, /CHURUBUSCO Foro NELA/);
+});
+
+test("a speaker can accept only their own Event Hub invitation", async () => {
+  const pool = fakePool([[{ affectedRows: 1 }, []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(
+    await repository.acceptSpeakerInvitation({ assignmentId: "invite-1", userId: "speaker-1" }),
+    { assignmentId: "invite-1", status: "LINKED" }
+  );
+  assert.match(pool.calls[0].sql, /es\.account_user_id = \?/);
+});
+
+test("public Event Hub defaults Free visitors to ExposiciÃ³n and Paid visitors to Programa", async () => {
+  const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
+  const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  assert.match(page, /Feria de expositores/);
+  assert.match(page, /https:\/\/semanaamc\.expofp\.com\//);
+  assert.match(script, /event\.audienceLevel === "PAID" \? "program" : "exposition"/);
+  assert.match(script, /tab\.classList\.add\("is-activating"\)/);
+  assert.match(script, /En vivo para acceso preferente/);
+  assert.match(script, /setInterval\(\(\) => \{ refreshActivities\(\)\.catch\(\(\) => \{\}\); \}, 5000\)/);
+  assert.match(page, /Mostrando actividades en vivo/);
+  assert.match(script, /immersa:event-live-return/);
+});
+
+test("an Event Hub attendee can return to the public Program when their LiveSession closes", async () => {
+  const audience = await fs.promises.readFile(path.join(__dirname, "..", "public", "audience", "audience.js"), "utf8");
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  assert.match(audience, /returnToEventProgramIfClosed/);
+  assert.match(audience, /\/api\/event\/live-sessions\/\$\{encodeURIComponent\(state\.liveSessionId\)\}\/status/);
+  assert.match(server, /isParticipantLiveSessionActive/);
+});
+
+test("Event Admin activity cards expose one focused shell per action", async () => {
+  const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  const styles = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.css"), "utf8");
+  assert.match(script, /data-tool='edit'/);
+  assert.match(script, /InvitaciÃ³n aceptada/);
+  assert.match(script, /action-deck-approved/);
+  assert.match(script, /item\.after\(activityEditor\)/);
+  assert.match(styles, /\*\[hidden\]\{display:none!important\}/);
+});
