@@ -129,7 +129,14 @@
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
   overlay.onclick = (event) => { if (event.target === overlay) close(); };
-  eventTabs.forEach((tab) => tab.addEventListener("click", () => selectSection(tab.dataset.section)));
+  eventTabs.forEach((tab) => {
+    tab.addEventListener("pointerdown", () => tab.classList.add("is-activating"), { passive: true });
+    tab.addEventListener("pointercancel", () => tab.classList.remove("is-activating"), { passive: true });
+    tab.addEventListener("click", () => {
+      selectSection(tab.dataset.section);
+      eventTabs.forEach((item) => { if (item !== tab) item.classList.remove("is-activating"); });
+    });
+  });
   registration.classList.toggle("hidden", Boolean(participantId()));
   load().catch((error) => { title.textContent = error.message; });
 })();

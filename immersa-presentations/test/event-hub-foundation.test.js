@@ -190,4 +190,5 @@ test("public Event Hub defaults Free visitors to Exposición and Paid visitors t
   assert.match(page, /Feria de expositores/);
   assert.match(page, /https:\/\/semanaamc\.expofp\.com\//);
   assert.match(script, /event\.audienceLevel === "PAID" \? "program" : "exposition"/);
+  assert.match(script, /tab\.classList\.add\("is-activating"\)/);
 });
