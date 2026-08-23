@@ -476,7 +476,7 @@ class EventHubRepository {
        INNER JOIN event_activities a ON a.id = asa.event_activity_id
        INNER JOIN event_stages s ON s.id = a.event_stage_id
        INNER JOIN event_hubs h ON h.workspace_id = a.event_workspace_id
-       WHERE asa.status IN ('INVITED', 'LINKED', 'DECK_SELECTED') AND a.status = 'SCHEDULED'
+       WHERE asa.status IN ('INVITED', 'LINKED', 'DECLINED', 'DECK_SELECTED') AND a.status = 'SCHEDULED'
        ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, h.title, a.title`,
       [required(userId, "speaker user id")]
     );
@@ -499,6 +499,19 @@ class EventHubRepository {
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "This speaker invitation is not available", 404);
     return { assignmentId, status: "LINKED" };
+  }
+
+  async declineSpeakerInvitation({ assignmentId, userId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activity_speaker_assignments asa
+       INNER JOIN event_speakers es ON es.id = asa.event_speaker_id AND es.account_user_id = ?
+       INNER JOIN event_activities a ON a.id = asa.event_activity_id AND a.status = 'SCHEDULED'
+       SET asa.selected_deck_id = NULL, asa.status = 'DECLINED', accepted_at = NULL
+       WHERE asa.id = ? AND asa.status = 'INVITED'`,
+      [required(userId, "speaker user id"), required(assignmentId, "invitation id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "This speaker invitation is not available", 404);
+    return { assignmentId, status: "DECLINED" };
   }
 
   async grantStageOperatorAccess({ eventStageId, accessSecret, expiresAt = null }) {

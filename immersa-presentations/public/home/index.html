@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=61&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=62&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=8">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -92,6 +92,10 @@
         <p id="planLimitMessage" class="plan-limit-message" role="status" hidden></p>
       </form>
     </section>
+    <nav class="home-content-tabs" aria-label="Contenido de IMMERSA">
+      <button id="presentationsTab" class="is-active" type="button">Mis presentaciones</button>
+      <button id="invitationsTab" type="button" hidden>Mis invitaciones</button>
+    </nav>
     <section id="eventInvitations" class="event-invitations-panel" aria-label="Invitaciones para presentar" hidden>
       <div class="section-header"><div><h2>Invitaciones para presentar</h2><p>Acepta para vincular tu cuenta IMMERSA con cada actividad.</p></div></div>
       <div id="eventInvitationsList" class="event-invitations-list"></div>
@@ -153,6 +157,15 @@
         </section>
       </div>
       <div id="deckEditorLaunchers" hidden aria-hidden="true"></div>
+    </section>
+  </div>
+  <div id="eventInvitationModal" class="modal-backdrop event-invitation-backdrop" hidden aria-hidden="true">
+    <section class="event-invitation-modal" role="dialog" aria-modal="true" aria-labelledby="eventInvitationTitle">
+      <button id="eventInvitationClose" class="event-invitation-close" type="button" aria-label="Cerrar">×</button>
+      <span class="event-invitation-modal-eyebrow">EVENT HUB</span>
+      <h2 id="eventInvitationTitle">Tienes una invitación para presentar</h2>
+      <p>Acepta para vincular tu cuenta IMMERSA con la actividad. El Deck se definirá más adelante durante Deck Check.</p>
+      <div id="eventInvitationModalList" class="event-invitation-modal-list"></div>
     </section>
   </div>
   <div id="profileModal" class="profile-modal-backdrop" hidden aria-hidden="true">
@@ -237,7 +250,7 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=2"></script>
-  <script src="/home/event-invitations.js?v=1"></script>
+  <script src="/home/event-invitations.js?v=2"></script>
   <script src="/home/billing.js?v=12"></script>
   <script src="/home/profile-editor.js?v=6"></script>
   <script src="/home/home.js?v=69&ui=3"></script>
