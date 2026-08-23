@@ -98,7 +98,14 @@
         card.onclick = () => showSheet(activity); row.append(card); timeline.append(row);
       });
       panel.append(timeline);
-      tab.onclick = () => { tabs.querySelectorAll(".daytab").forEach((item) => item.classList.remove("active")); panels.querySelectorAll(".day-panel").forEach((item) => item.classList.remove("active")); tab.classList.add("active"); panel.classList.add("active"); };
+      tab.addEventListener("pointerdown", () => tab.classList.add("is-activating"), { passive: true });
+      tab.addEventListener("pointercancel", () => tab.classList.remove("is-activating"), { passive: true });
+      tab.onclick = () => {
+        tab.classList.add("active");
+        tabs.querySelectorAll(".daytab").forEach((item) => { if (item !== tab) item.classList.remove("active"); item.classList.remove("is-activating"); });
+        panel.classList.add("active");
+        panels.querySelectorAll(".day-panel").forEach((item) => { if (item !== panel) item.classList.remove("active"); });
+      };
       tabs.append(tab); panels.append(panel);
     });
   }
