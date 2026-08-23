@@ -74,7 +74,7 @@ test("public event activity list hides Enter when a Free QR reaches a Paid live 
   const pool = fakePool([[[{
     id: "activity-paid", title: "Conferencia", access_level: "PAID", status: "LIVE", event_stage_id: "stage-ccc",
     stage_name: "CCC", live_session_id: "live-1", live_status: "LIVE"
-  }], []]]);
+  }], []], [[], []]]);
   const repository = new EventHubRepository(pool);
   const activities = await repository.listPublicActivities({ eventWorkspaceId: "hub-1", audienceLevel: "FREE" });
   assert.equal(activities[0].live, true);
@@ -151,4 +151,6 @@ test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tabl
   assert.match(durationMigration, /duration_minutes/);
   const typeMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "024_event_activity_type.sql"), "utf8");
   assert.match(typeMigration, /activity_type/);
+  const speakersMigration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "025_event_activity_speakers.sql"), "utf8");
+  assert.match(speakersMigration, /event_activity_speakers/);
 });

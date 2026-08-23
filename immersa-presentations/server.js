@@ -1072,6 +1072,34 @@ app.put("/api/admin/event-hubs/:workspaceId/activities/:activityId", requireAcco
     return sendEventHubError(res, error);
   }
 });
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json({ speakers: await eventHubRepository.addActivitySpeaker({
+      eventWorkspaceId: req.params.workspaceId,
+      activityId: req.params.activityId,
+      accountUserId: req.body?.accountUserId,
+      name: req.body?.name,
+      roleTitle: req.body?.roleTitle,
+      bio: req.body?.bio,
+      photoUrl: req.body?.photoUrl
+    }) });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.removeActivitySpeaker({
+      eventWorkspaceId: req.params.workspaceId,
+      activityId: req.params.activityId,
+      eventSpeakerId: req.params.speakerId
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {

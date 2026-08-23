@@ -46,6 +46,21 @@
         </form>
         <p id="activityFeedback" role="status"></p>
         <div id="activityAdminList" class="activity-list"></div>
+        <section id="activitySpeakers" class="activity-speakers" hidden>
+          <h4>Ponentes</h4>
+          <p>Vincula una cuenta IMMERSA para usar su foto y semblanza, o registra un invitado manualmente.</p>
+          <div id="activitySpeakerList" class="speaker-admin-list"></div>
+          <form id="activitySpeakerForm">
+            <label><span>Origen</span><select name="source"><option value="ACCOUNT">Cuenta IMMERSA</option><option value="MANUAL">Registro manual</option></select></label>
+            <label class="speaker-account-field"><span>Cuenta</span><select id="speakerAccount" name="accountUserId"></select></label>
+            <label class="speaker-manual-field" hidden><span>Nombre</span><input name="name" maxlength="120"></label>
+            <label class="speaker-manual-field" hidden><span>Cargo / especialidad</span><input name="roleTitle" maxlength="120"></label>
+            <label class="speaker-manual-field wide" hidden><span>Semblanza</span><textarea name="bio" maxlength="600"></textarea></label>
+            <label class="speaker-manual-field wide" hidden><span>Foto (URL HTTPS opcional)</span><input name="photoUrl" type="url" maxlength="500"></label>
+            <button type="submit">Agregar ponente</button>
+          </form>
+          <p id="activitySpeakerFeedback" role="status"></p>
+        </section>
       </section>
     </section>
   </main>

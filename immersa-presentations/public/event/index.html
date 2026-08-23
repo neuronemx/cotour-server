@@ -2,16 +2,18 @@
 <html lang="es-MX">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>IMMERSA Event Hub</title>
-  <link rel="stylesheet" href="/event/event.css">
+  <link rel="stylesheet" href="/event/event.css?v=3">
 </head>
 <body>
-  <main class="event-shell">
-    <p class="eyebrow">IMMERSA · EVENT HUB</p>
+  <header class="event-top">
+    <div class="brandrow"><span class="brand-mark">◆</span><span>Powered by IMMERSA</span></div>
     <h1 id="event-title">Cargando evento…</h1>
-    <p id="event-level" class="level"></p>
-    <section id="registration" class="card">
+    <p id="event-level" class="access-pill"></p>
+  </header>
+  <main class="event-shell">
+    <section id="registration" class="registration-card">
       <h2>Registro</h2>
       <p>Regístrate para acceder al contenido disponible durante el evento.</p>
       <form id="registration-form">
@@ -19,12 +21,20 @@
         <button type="submit">Continuar</button>
       </form>
     </section>
-    <section class="activities">
-      <h2>Programa</h2>
-      <div id="activity-list" class="activity-list"></div>
+    <section class="program">
+      <nav id="day-tabs" class="daytabs" aria-label="Días del programa"></nav>
+      <div id="legend" class="legend"></div>
+      <div id="day-panels"></div>
     </section>
   </main>
+  <div id="speaker-overlay" class="overlay" aria-hidden="true">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <button id="sheet-close" class="sheet-close" type="button" aria-label="Cerrar">×</button>
+      <div class="sheet-handle"></div>
+      <div id="sheet-content"></div>
+    </section>
+  </div>
   <script>window.IMMERSA_EVENT_PUBLIC = null;</script>
-  <script src="/event/event.js?v=2"></script>
+  <script src="/event/event.js?v=3"></script>
 </body>
 </html>

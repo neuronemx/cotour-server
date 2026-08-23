@@ -39,6 +39,21 @@ function activityType(value) {
   return normalized;
 }
 
+function optionalText(value, name, limit) {
+  const normalized = String(value || "").trim();
+  if (normalized.length > limit) throw new EventHubError("INVALID_INPUT", `${name} is too long`);
+  return normalized;
+}
+
+function publicSpeakerPhotoUrl({ photoKey, authImage, manualPhotoUrl }) {
+  const key = String(photoKey || "").trim();
+  if (/^profile-[a-f0-9-]+\.(?:png|jpg|webp)$/i.test(key)) return `/profile-images/${encodeURIComponent(key)}`;
+  const accountImage = String(authImage || "").trim();
+  if (/^https:\/\//i.test(accountImage)) return accountImage;
+  const manualPhoto = String(manualPhotoUrl || "").trim();
+  return /^https:\/\//i.test(manualPhoto) ? manualPhoto : "";
+}
+
 function registrationKeyHash(value) {
   return createHash("sha256").update(required(value, "registration key")).digest("hex");
 }
@@ -156,7 +171,94 @@ class EventHubRepository {
        ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, s.sort_order, a.title`,
       [required(eventWorkspaceId, "event workspace id")]
     );
-    return rows || [];
+    const activities = rows || [];
+    const speakersByActivity = await this.listActivitySpeakers(activities.map((activity) => activity.id));
+    return activities.map((activity) => ({ ...activity, speakers: speakersByActivity.get(activity.id) || [] }));
+  }
+
+  async listActivitySpeakers(activityIds, executor = this.pool) {
+    const ids = [...new Set((activityIds || []).map(String).filter(Boolean))];
+    if (!ids.length) return new Map();
+    const placeholders = ids.map(() => "?").join(", ");
+    const [rows] = await executor.execute(
+      `SELECT eas.event_activity_id, es.id, es.source_kind, es.account_user_id,
+              es.manual_name, es.manual_role_title, es.manual_bio, es.manual_photo_url,
+              u.name AS auth_name, u.image AS auth_image, p.display_name, p.role_title, p.company, p.bio, p.photo_key
+       FROM event_activity_speakers eas
+       INNER JOIN event_speakers es ON es.id = eas.event_speaker_id
+       LEFT JOIN \`user\` u ON u.id = es.account_user_id
+       LEFT JOIN user_profiles p ON p.user_id = es.account_user_id
+       WHERE eas.event_activity_id IN (${placeholders})
+       ORDER BY eas.event_activity_id, eas.sort_order, es.created_at`,
+      ids
+    );
+    const speakers = new Map();
+    for (const row of rows || []) {
+      const item = {
+        id: row.id,
+        sourceKind: row.source_kind,
+        accountUserId: row.account_user_id || null,
+        name: row.source_kind === "ACCOUNT" ? String(row.display_name || row.auth_name || "").trim() : String(row.manual_name || "").trim(),
+        roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" · ") : String(row.manual_role_title || "").trim(),
+        bio: row.source_kind === "ACCOUNT" ? String(row.bio || "").trim() : String(row.manual_bio || "").trim(),
+        photoUrl: publicSpeakerPhotoUrl({ photoKey: row.photo_key, authImage: row.auth_image, manualPhotoUrl: row.manual_photo_url })
+      };
+      const current = speakers.get(row.event_activity_id) || [];
+      current.push(item);
+      speakers.set(row.event_activity_id, current);
+    }
+    return speakers;
+  }
+
+  async addActivitySpeaker({ eventWorkspaceId, activityId, accountUserId = null, name = "", roleTitle = "", bio = "", photoUrl = "" }) {
+    const activity = await this.getActivity(activityId);
+    if (activity.event_workspace_id !== required(eventWorkspaceId, "event workspace id")) {
+      throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
+    }
+    const accountId = String(accountUserId || "").trim();
+    let speakerId;
+    if (accountId) {
+      const [existing] = await this.pool.execute(
+        "SELECT id FROM event_speakers WHERE event_workspace_id = ? AND account_user_id = ? LIMIT 1",
+        [eventWorkspaceId, accountId]
+      );
+      speakerId = existing?.[0]?.id;
+      if (!speakerId) {
+        speakerId = this.createId();
+        const [result] = await this.pool.execute(
+          `INSERT INTO event_speakers (id, event_workspace_id, source_kind, account_user_id)
+           SELECT ?, ?, 'ACCOUNT', u.id FROM \`user\` u WHERE u.id = ?`,
+          [speakerId, eventWorkspaceId, accountId]
+        );
+        if (!Number(result?.affectedRows)) throw new EventHubError("SPEAKER_ACCOUNT_NOT_FOUND", "IMMERSA account not found", 404);
+      }
+    } else {
+      speakerId = this.createId();
+      const manualName = required(name, "speaker name");
+      await this.pool.execute(
+        `INSERT INTO event_speakers
+         (id, event_workspace_id, source_kind, manual_name, manual_role_title, manual_bio, manual_photo_url)
+         VALUES (?, ?, 'MANUAL', ?, ?, ?, ?)`,
+        [speakerId, eventWorkspaceId, manualName, optionalText(roleTitle, "speaker role", 120), optionalText(bio, "speaker bio", 600), optionalText(photoUrl, "speaker photo URL", 500)]
+      );
+    }
+    await this.pool.execute(
+      `INSERT IGNORE INTO event_activity_speakers (event_activity_id, event_speaker_id, sort_order)
+       VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM event_activity_speakers current WHERE current.event_activity_id = ?))`,
+      [activity.id, speakerId, activity.id]
+    );
+    return (await this.listActivitySpeakers([activity.id])).get(activity.id) || [];
+  }
+
+  async removeActivitySpeaker({ eventWorkspaceId, activityId, eventSpeakerId }) {
+    const [result] = await this.pool.execute(
+      `DELETE eas FROM event_activity_speakers eas
+       INNER JOIN event_activities a ON a.id = eas.event_activity_id
+       WHERE eas.event_activity_id = ? AND eas.event_speaker_id = ? AND a.event_workspace_id = ?`,
+      [required(activityId, "activity id"), required(eventSpeakerId, "event speaker id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_SPEAKER_NOT_FOUND", "Activity speaker not found", 404);
+    return { activityId, eventSpeakerId };
   }
 
   async getLiveStageCapacityForDeck(deckId) {
@@ -197,7 +299,8 @@ class EventHubRepository {
   async listPublicActivities({ eventWorkspaceId, audienceLevel }) {
     const viewerLevel = level(audienceLevel);
     const [rows] = await this.pool.execute(
-      `SELECT a.id, a.title, a.access_level, a.status, s.id AS event_stage_id, s.name AS stage_name,
+      `SELECT a.id, a.title, a.activity_type, a.access_level, a.status, a.duration_minutes,
+              a.scheduled_starts_at, a.scheduled_ends_at, s.id AS event_stage_id, s.name AS stage_name,
               l.id AS live_session_id, l.status AS live_status
        FROM event_activities a
        INNER JOIN event_stages s ON s.id = a.event_stage_id
@@ -206,11 +309,18 @@ class EventHubRepository {
        ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, s.sort_order, a.title`,
       [required(eventWorkspaceId, "event workspace id")]
     );
-    return (rows || []).map((activity) => ({
+    const activities = rows || [];
+    const speakersByActivity = await this.listActivitySpeakers(activities.map((activity) => activity.id));
+    return activities.map((activity) => ({
       id: activity.id,
       title: activity.title,
+      activityType: activity.activity_type,
       accessLevel: activity.access_level,
+      scheduledStartsAt: activity.scheduled_starts_at,
+      scheduledEndsAt: activity.scheduled_ends_at,
+      durationMinutes: activity.duration_minutes,
       stage: { id: activity.event_stage_id, name: activity.stage_name },
+      speakers: speakersByActivity.get(activity.id) || [],
       liveSessionId: activity.live_session_id || null,
       live: activity.live_status === "LIVE",
       canEnter: activity.live_status === "LIVE" && canEnterActivity(viewerLevel, activity.access_level)

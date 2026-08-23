@@ -11,11 +11,17 @@ const activityFeedback = document.getElementById("activityFeedback");
 const activityAdminList = document.getElementById("activityAdminList");
 const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
+const activitySpeakers = document.getElementById("activitySpeakers");
+const activitySpeakerList = document.getElementById("activitySpeakerList");
+const activitySpeakerForm = document.getElementById("activitySpeakerForm");
+const activitySpeakerFeedback = document.getElementById("activitySpeakerFeedback");
+const speakerAccount = document.getElementById("speakerAccount");
 const existingHubs = document.getElementById("existingHubs");
 const existingHubsFeedback = document.getElementById("existingHubsFeedback");
 const savedHubKey = "immersa-event-hub-admin-workspace";
 let currentHub = null;
 let editingActivity = null;
+let accountSpeakers = null;
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
@@ -44,6 +50,49 @@ function clearActivityEditor() {
   activityForm.reset();
   activitySubmit.textContent = "Agregar al programa";
   activityCancel.hidden = true;
+  activitySpeakers.hidden = true;
+}
+async function loadAccountSpeakers() {
+  if (accountSpeakers) return accountSpeakers;
+  const response = await fetch("/api/admin/accounts", { cache: "no-store" });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "No se pudieron cargar las cuentas IMMERSA");
+  accountSpeakers = body.accounts || [];
+  speakerAccount.replaceChildren();
+  for (const account of accountSpeakers) {
+    const option = document.createElement("option");
+    option.value = account.userId;
+    option.textContent = `${account.name || "Sin nombre"} · ${account.email}`;
+    speakerAccount.appendChild(option);
+  }
+  return accountSpeakers;
+}
+function showSpeakerSource() {
+  const manual = activitySpeakerForm.elements.source.value === "MANUAL";
+  document.querySelectorAll(".speaker-manual-field").forEach((field) => { field.hidden = !manual; });
+  document.querySelectorAll(".speaker-account-field").forEach((field) => { field.hidden = manual; });
+}
+function renderActivitySpeakers(speakers) {
+  activitySpeakerList.replaceChildren();
+  if (!speakers.length) activitySpeakerList.textContent = "Aún no hay ponentes vinculados.";
+  for (const speaker of speakers) {
+    const item = document.createElement("div");
+    item.className = "speaker-admin";
+    item.innerHTML = "<div><strong></strong><span></span></div><button type='button'>Quitar</button>";
+    item.querySelector("strong").textContent = speaker.name || "Perfil sin nombre";
+    item.querySelector("span").textContent = `${speaker.sourceKind === "ACCOUNT" ? "Cuenta IMMERSA" : "Manual"}${speaker.roleTitle ? ` · ${speaker.roleTitle}` : ""}`;
+    item.querySelector("button").addEventListener("click", async () => {
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers/${encodeURIComponent(speaker.id)}`, { method: "DELETE" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo quitar el ponente");
+        editingActivity.speakers = editingActivity.speakers.filter((candidate) => candidate.id !== speaker.id);
+        renderActivitySpeakers(editingActivity.speakers);
+        await loadActivities();
+      } catch (error) { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; }
+    });
+    activitySpeakerList.appendChild(item);
+  }
 }
 function editActivity(activity) {
   editingActivity = activity;
@@ -55,6 +104,9 @@ function editActivity(activity) {
   activityForm.elements.durationMinutes.value = activity.duration_minutes || 60;
   activitySubmit.textContent = "Guardar cambios";
   activityCancel.hidden = false;
+  activitySpeakers.hidden = false;
+  renderActivitySpeakers(activity.speakers || []);
+  loadAccountSpeakers().catch((error) => { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; });
   activityForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 function renderActivities(activities) {
@@ -217,6 +269,36 @@ activityForm.addEventListener("submit", async (event) => {
   } finally { button.disabled = false; }
 });
 activityCancel.addEventListener("click", clearActivityEditor);
+activitySpeakerForm.elements.source.addEventListener("change", showSpeakerSource);
+activitySpeakerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!editingActivity || !currentHub) return;
+  const button = activitySpeakerForm.querySelector("button");
+  button.disabled = true;
+  activitySpeakerFeedback.className = "";
+  activitySpeakerFeedback.textContent = "Agregando ponente…";
+  try {
+    const manual = activitySpeakerForm.elements.source.value === "MANUAL";
+    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(editingActivity.id)}/speakers`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(manual ? {
+        name: activitySpeakerForm.elements.name.value.trim(), roleTitle: activitySpeakerForm.elements.roleTitle.value.trim(),
+        bio: activitySpeakerForm.elements.bio.value.trim(), photoUrl: activitySpeakerForm.elements.photoUrl.value.trim()
+      } : { accountUserId: activitySpeakerForm.elements.accountUserId.value })
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "No se pudo agregar el ponente");
+    editingActivity.speakers = body.speakers || [];
+    renderActivitySpeakers(editingActivity.speakers);
+    activitySpeakerForm.reset();
+    showSpeakerSource();
+    activitySpeakerFeedback.className = "success";
+    activitySpeakerFeedback.textContent = "Ponente agregado.";
+    await loadActivities();
+  } catch (error) { activitySpeakerFeedback.className = "error"; activitySpeakerFeedback.textContent = error.message; }
+  finally { button.disabled = false; }
+});
+showSpeakerSource();
 
 (async () => {
   try {
