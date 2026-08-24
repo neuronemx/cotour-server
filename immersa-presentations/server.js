@@ -36,6 +36,7 @@ const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
+const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
   CAPABILITIES,
   featureAccessForPlan,
@@ -73,6 +74,7 @@ const DATA_DIR = process.env.IMMERSA_DATA_DIR
 const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
+const DATA_EVENT_HUBS_DIR = path.join(DATA_DIR, "event-hubs");
 const sessions = new Map();
 const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
@@ -259,9 +261,22 @@ const brandMentionHandlers = createBrandMentionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
 });
+const eventBrandMentionStore = new EventBrandMentionStore({ dataEventHubsDir: DATA_EVENT_HUBS_DIR });
+const eventBrandMentionHandlers = createBrandMentionHandlers({
+  dataDecksDir: DATA_EVENT_HUBS_DIR,
+  staticDecksDir: DATA_EVENT_HUBS_DIR,
+  store: eventBrandMentionStore
+});
 const brandMentionRuntime = new BrandMentionRuntime({
   io,
-  store: brandMentionHandlers.store,
+  store: {
+    read: (sourceId) => {
+      const source = String(sourceId || "");
+      return source.startsWith("event:")
+        ? eventBrandMentionStore.read(source.slice("event:".length))
+        : brandMentionHandlers.store.read(source);
+    }
+  },
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
@@ -1031,6 +1046,21 @@ app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmi
     return sendEventHubError(res, error);
   }
 });
+function eventBrandRequest(handler) {
+  return async (req, res, next) => {
+    try {
+      if (!eventHubRepository) return eventHubUnavailable(res);
+      await eventHubRepository.getHub(req.params.workspaceId);
+      req.params.deckId = req.params.workspaceId;
+      return handler(req, res, next);
+    } catch (error) { return sendEventHubError(res, error); }
+  };
+}
+app.get("/api/admin/event-hubs/:workspaceId/brand-mentions", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.getConfig));
+app.post("/api/admin/event-hubs/:workspaceId/brand-mentions", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.createBrand));
+app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/order", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.reorderBrands));
+app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.updateBrand));
+app.delete("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.deleteBrand));
 app.get("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
@@ -1318,6 +1348,14 @@ app.get("/api/event/public/:publicId", async (req, res) => {
   } catch (error) {
     return sendEventHubError(res, error);
   }
+});
+app.get("/api/event/public/:publicId/brand-mentions", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json(await eventBrandMentionStore.read(qr.eventWorkspaceId));
+  } catch (error) { return sendEventHubError(res, error); }
 });
 app.get("/api/event/public/:publicId/activities", async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
@@ -1755,6 +1793,15 @@ app.get("/p_evt_:eventPublicId", async (req, res, next) => {
     return sendEventHubError(res, error);
   }
 });
+app.get("/event-hubs/:workspaceId/brand-assets/:fileName", async (req, res) => {
+  if (!eventHubRepository) return res.sendStatus(404);
+  try {
+    await eventHubRepository.getHub(req.params.workspaceId);
+    const asset = eventBrandMentionStore.assetPath(req.params.workspaceId, req.params.fileName);
+    if (!asset) return res.sendStatus(404);
+    return res.sendFile(asset, (error) => { if (error && !res.headersSent) res.sendStatus(error.code === "ENOENT" ? 404 : 500); });
+  } catch (error) { return sendEventHubError(res, error); }
+});
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
@@ -1919,6 +1966,12 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     };
+    if (role === "audience") {
+      try {
+        const liveEvent = await eventHubRepository?.getLiveEventForDeck(currentDeckId);
+        if (liveEvent?.event_workspace_id) joinedContext.brandSourceId = `event:${liveEvent.event_workspace_id}`;
+      } catch (error) { console.error("Unable to resolve Event Hub brands", error); }
+    }
     emitState(currentRoomKey, session);
     if (
       role === "audience"

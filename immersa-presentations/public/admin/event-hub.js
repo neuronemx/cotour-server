@@ -12,6 +12,7 @@ const activityAdminList = document.getElementById("activityAdminList");
 const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
 const activityNew = document.getElementById("activityNew");
+const eventBrands = document.getElementById("eventBrands");
 const activitySpeakers = document.getElementById("activitySpeakers");
 const activityDeckCheck = document.getElementById("activityDeckCheck");
 const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
@@ -380,6 +381,15 @@ function renderHub(hub) {
     qrList.appendChild(card);
   }
 }
+eventBrands?.addEventListener("click", () => {
+  if (!currentHub) return;
+  window.ImmersaBrandMentionEditor?.open({
+    deckId: currentHub.workspace_id,
+    title: currentHub.title,
+    ownerLabel: "Event Hub",
+    apiBase: `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/brand-mentions`
+  });
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

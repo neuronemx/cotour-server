@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Event Hub · IMMERSA</title>
   <link rel="stylesheet" href="/admin/event-hub.css?v=6">
+  <link rel="stylesheet" href="/admin/event-hub-brands.css?v=1">
+  <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
 </head>
 <body>
   <header class="admin-header">
@@ -29,7 +31,7 @@
       <div id="existingHubs" class="existing-hubs-list"></div>
     </section>
     <section id="hub" hidden aria-live="polite">
-      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><span id="hubSlug"></span></header>
+      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><div class="hub-header-actions"><button id="eventBrands" class="event-brands-button" type="button">Marcas</button><span id="hubSlug"></span></div></header>
       <div class="stages"><section><h3>Event Stages</h3><ul id="stageList"></ul></section><section><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section></div>
       <section class="activities-admin">
         <div class="program-head"><div><h3>Programa</h3><p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p></div><button id="activityNew" type="button">Nueva actividad</button></div>
@@ -70,6 +72,7 @@
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/home/brand-mentions-editor.js?v=5"></script>
   <script src="/admin/event-hub.js?v=12"></script>
 </body>
 </html>

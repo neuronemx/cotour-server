@@ -653,6 +653,15 @@ class EventHubRepository {
     return rows[0];
   }
 
+  async getLiveEventForDeck(deckId) {
+    const [rows] = await this.pool.execute(
+      `SELECT event_workspace_id FROM event_live_sessions
+       WHERE deck_id = ? AND status = 'LIVE' ORDER BY started_at DESC LIMIT 1`,
+      [required(deckId, "deck id")]
+    );
+    return rows?.[0] || null;
+  }
+
   async registerParticipant({ eventWorkspaceId, registrationKey, audienceLevel }) {
     const hubId = required(eventWorkspaceId, "event workspace id");
     const requestedLevel = level(audienceLevel);

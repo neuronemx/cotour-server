@@ -11,6 +11,8 @@
   const exposition = document.querySelector("#exposition");
   const eventNav = document.querySelector("#event-nav");
   const eventTabs = [...document.querySelectorAll(".event-tab")];
+  const eventBrands = document.querySelector("#event-brands");
+  const eventBrandRail = document.querySelector("#event-brand-rail");
   const tabs = document.querySelector("#day-tabs");
   const legend = document.querySelector("#legend");
   const panels = document.querySelector("#day-panels");
@@ -43,6 +45,26 @@
       tab.classList.toggle("active", selected);
       tab.setAttribute("aria-selected", String(selected));
     });
+  }
+  async function refreshBrands() {
+    if (!eventBrands || !eventBrandRail) return;
+    const data = await request(`${base}/brand-mentions`);
+    const brands = (data.brands || []).filter((brand) => brand?.active && brand.logo?.src && brand.target_url);
+    eventBrandRail.replaceChildren(...brands.map((brand) => {
+      const link = document.createElement("a");
+      link.className = "event-brand";
+      link.href = brand.target_url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.title = brand.name;
+      link.setAttribute("role", "listitem");
+      const logo = document.createElement("img");
+      logo.src = brand.logo.src;
+      logo.alt = brand.name;
+      link.append(logo);
+      return link;
+    }));
+    eventBrands.hidden = brands.length === 0;
   }
   function updateLiveIndicator() {
     const programTab = eventTabs.find((tab) => tab.dataset.section === "program");
@@ -163,7 +185,7 @@
       }
     } finally { refreshingActivities = false; }
   };
-  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await refreshActivities({ force: true }); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
+  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;

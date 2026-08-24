@@ -494,10 +494,10 @@ function createBrandMentionHandlers({ dataDecksDir, staticDecksDir, store = null
 module.exports = {
   BrandMentionError,
   BrandMentionStore,
+  normalizeLogoFile,
   createBrandMentionHandlers,
   defaultBrandMentionConfig,
   detectLogo,
-  normalizeLogoFile,
   normalizeTargetUrl,
   constants: {
     BRAND_MENTIONS_SCHEMA_VERSION,

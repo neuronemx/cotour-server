@@ -14,7 +14,11 @@
   }
 
   function apiBase() {
-    return "/api/decks/" + encodeURIComponent(currentDeck.deckId) + "/brand-mentions";
+    return currentDeck.apiBase || ("/api/decks/" + encodeURIComponent(currentDeck.deckId) + "/brand-mentions");
+  }
+
+  function ownerLabel() {
+    return currentDeck?.ownerLabel || "deck";
   }
 
   function ensureModal() {
@@ -42,7 +46,7 @@
 
   function errorMessage(data, fallback) {
     const messages = {
-      BRAND_LIMIT_REACHED: "Este deck ya alcanzó el límite de 50 marcas.",
+      BRAND_LIMIT_REACHED: "Este " + ownerLabel() + " ya alcanzó el límite de 50 marcas.",
       INVALID_TARGET_URL: "Escribe un enlace HTTPS válido.",
       LOGO_REQUIRED: "Selecciona un logo.",
       LOGO_TOO_LARGE: "El logo debe pesar 5 MB o menos.",
@@ -142,7 +146,7 @@
     const title = document.createElement("strong");
     const detail = document.createElement("span");
     title.textContent = "¿Eliminar esta marca?";
-    detail.textContent = brand.name + " y su logo se borrarán del deck.";
+    detail.textContent = brand.name + " y su logo se borrarán del " + ownerLabel() + ".";
     copy.append(title, detail);
     const actions = document.createElement("div");
     actions.className = "brand-mention-delete-actions";
@@ -289,7 +293,7 @@
     if (!config.brands.length) {
       const empty = document.createElement("div");
       empty.className = "brand-mentions-empty";
-      empty.innerHTML = "<strong>Este deck todavía no tiene marcas.</strong><p>Agrega un patrocinador con logo, mensaje corto y enlace. Las menciones aparecerán únicamente en Público.</p>";
+      empty.innerHTML = `<strong>Este ${ownerLabel()} todavía no tiene marcas.</strong><p>Agrega un patrocinador con logo, mensaje corto y enlace. Las menciones aparecerán únicamente en Público.</p>`;
       bodyNode.appendChild(empty);
     } else {
       const list = document.createElement("div");
@@ -456,6 +460,7 @@
   }
 
   patchDetailActions();
+  window.ImmersaBrandMentionEditor = { open: openModal };
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal && !modal.hidden) closeModal();
   });

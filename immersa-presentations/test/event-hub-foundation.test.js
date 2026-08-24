@@ -70,6 +70,13 @@ test("a live Event Stage capacity is returned for its Deck", async () => {
   assert.deepEqual(await repository.getLiveStageCapacityForDeck("deck-1"), { eventStageId: "stage-ccc", audienceCapacity: 600 });
 });
 
+test("a live Deck resolves the Event Hub that owns its brands", async () => {
+  const pool = fakePool([[[{ event_workspace_id: "hub-1" }], []]]);
+  const repository = new EventHubRepository(pool);
+  assert.deepEqual(await repository.getLiveEventForDeck("deck-1"), { event_workspace_id: "hub-1" });
+  assert.match(pool.calls[0].sql, /status = 'LIVE'/);
+});
+
 test("public event activity list hides Enter when a Free QR reaches a Paid live activity", async () => {
   const pool = fakePool([[[{
     id: "activity-paid", title: "Conferencia", access_level: "PAID", status: "LIVE", event_stage_id: "stage-ccc",
@@ -269,6 +276,21 @@ test("public Event Hub defaults Free visitors to Exposición and Paid visitors t
   assert.match(script, /setInterval\(\(\) => \{ refreshActivities\(\)\.catch\(\(\) => \{\}\); \}, 5000\)/);
   assert.match(page, /Mostrando actividades en vivo/);
   assert.match(script, /immersa:event-live-return/);
+});
+
+test("Event Admin owns one brand configuration that is visible in both public views", async () => {
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
+  const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  const runtime = await fs.promises.readFile(path.join(__dirname, "..", "brand-mention-runtime.js"), "utf8");
+  assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
+  assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
+  assert.match(page, /Con el apoyo de/);
+  assert.match(script, /refreshBrands/);
+  assert.match(script, /eventBrands\.hidden = brands\.length === 0/);
+  assert.match(admin, /eventBrands/);
+  assert.match(runtime, /brandSourceId/);
 });
 
 test("an Event Hub attendee can return to the public Program when their LiveSession closes", async () => {
