@@ -46,6 +46,32 @@
       tab.setAttribute("aria-selected", String(selected));
     });
   }
+  function matchLogoSurface(image, surface) {
+    const sample = () => {
+      try {
+        const width = Math.min(64, image.naturalWidth || 0);
+        const height = Math.min(64, image.naturalHeight || 0);
+        if (!width || !height) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0, width, height);
+        const pixels = context.getImageData(0, 0, width, height).data;
+        const colors = new Map();
+        for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+          if (x > 2 && x < width - 3 && y > 2 && y < height - 3) continue;
+          const offset = (y * width + x) * 4;
+          if (pixels[offset + 3] < 220) continue;
+          const key = `${Math.round(pixels[offset] / 16) * 16},${Math.round(pixels[offset + 1] / 16) * 16},${Math.round(pixels[offset + 2] / 16) * 16}`;
+          colors.set(key, (colors.get(key) || 0) + 1);
+        }
+        const background = [...colors.entries()].sort((left, right) => right[1] - left[1])[0]?.[0];
+        if (background) surface.style.setProperty("--brand-logo-surface", `rgb(${background})`);
+      } catch (_error) { /* A remote logo keeps the neutral fallback. */ }
+    };
+    if (image.complete) sample(); else image.addEventListener("load", sample, { once: true });
+  }
   async function refreshBrands() {
     if (!eventBrands || !eventBrandRail) return;
     const data = await request(`${base}/brand-mentions`);
@@ -62,6 +88,7 @@
       logo.src = brand.logo.src;
       logo.alt = brand.name;
       link.append(logo);
+      matchLogoSurface(logo, link);
       return link;
     }));
     eventBrands.hidden = brands.length === 0;

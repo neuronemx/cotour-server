@@ -290,11 +290,12 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
   assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
   assert.match(page, /Con el apoyo de/);
-  assert.match(page, /event-brands\.css\?v=3/);
+  assert.match(page, /event-brands\.css\?v=4/);
   assert.match(page, /<\/main>\s*<section id="event-brands"/);
   assert.match(styles, /\.event-brands\{position:fixed/);
   assert.match(styles, /bottom:0/);
-  assert.match(styles, /width:92px;height:46px/);
+  assert.match(styles, /width:54px;height:54px/);
+  assert.match(script, /matchLogoSurface\(logo, link\)/);
   assert.match(script, /refreshBrands/);
   assert.match(script, /eventBrands\.hidden = brands\.length === 0/);
   assert.match(admin, /eventBrands/);
