@@ -297,7 +297,7 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
   assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
   assert.match(page, /Con el apoyo de/);
-  assert.match(page, /event-brands\.css\?v=7/);
+  assert.match(page, /event-brands\.css\?v=8/);
   assert.match(page, /<\/main>\s*<section id="event-brands"/);
   assert.match(styles, /\.event-brands\{position:fixed/);
   assert.match(styles, /bottom:0/);
@@ -330,6 +330,7 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   assert.match(publicProgram, /event-admin:join/);
   assert.match(publicProgram, /event-admin:interaction:state/);
   assert.match(publicProgram, /adminThankYou/);
+  assert.match(publicProgram, /Ayúdanos a mejorar para la siguiente edición de/);
   assert.match(publicProgram, /3000/);
   assert.match(publicProgram, /aria-modal="true"/);
   assert.match(runtime, /event-hub:\$\{workspaceId\}:program/);

@@ -51,8 +51,10 @@
     }
     if (!adminInteraction || adminResponse) { card.classList.add("hidden"); card.replaceChildren(); return; }
     card.classList.remove("hidden");
-    card.innerHTML = '<div class="event-admin-dialog" role="dialog" aria-modal="true"><p></p><div></div></div>';
-    card.querySelector("p").textContent = adminInteraction.prompt;
+    card.innerHTML = '<div class="event-admin-dialog" role="dialog" aria-modal="true"><p class="event-admin-intro"></p><p class="event-admin-question"></p><div></div></div>';
+    const eventName = String(title?.textContent || "este evento").trim() || "este evento";
+    card.querySelector(".event-admin-intro").textContent = `Ayúdanos a mejorar para la siguiente edición de ${eventName}`;
+    card.querySelector(".event-admin-question").textContent = adminInteraction.prompt;
     for (const option of adminInteraction.options || []) {
       const button = document.createElement("button");
       button.type = "button";
