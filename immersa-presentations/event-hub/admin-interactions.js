@@ -42,25 +42,30 @@ class EventHubAdminInteractions {
   async launch({ eventWorkspaceId, pollId }) {
     const poll = (await this.repository.listEventPolls(eventWorkspaceId, { activeOnly: true })).find((item) => item.id === String(pollId));
     if (!poll) throw new Error("Encuesta del evento no encontrada");
-    const active = { id: poll.id, type: "poll", source: "event_admin", title: poll.title, prompt: poll.prompt, options: poll.options.map((option) => ({ ...option })), launchedAt: new Date().toISOString() };
+    const executionId = await this.repository.startEventPollExecution({ eventWorkspaceId, pollId: poll.id });
+    const active = { id: poll.id, executionId, type: "poll", source: "event_admin", title: poll.title, prompt: poll.prompt, options: poll.options.map((option) => ({ ...option })), launchedAt: new Date().toISOString() };
     this.events.set(String(eventWorkspaceId), { active, responses: new Map() });
     this.io.to(this.room(eventWorkspaceId)).emit("event-admin:interaction:state", { active, response: null });
     return { active };
   }
 
-  close(eventWorkspaceId) {
+  async close(eventWorkspaceId) {
+    const current = this.events.get(String(eventWorkspaceId));
+    if (current?.active?.executionId) await this.repository.closeEventPollExecution(current.active.executionId);
     this.events.delete(String(eventWorkspaceId));
     this.io.to(this.room(eventWorkspaceId)).emit("event-admin:interaction:state", { active: null, response: null });
     return { active: null };
   }
 
-  submit(socket, { interactionId, optionId }) {
+  async submit(socket, { interactionId, optionId }) {
     const context = socket.data.eventHubParticipant;
     if (!context) return { ok: false, reason: "not_registered" };
     const current = this.events.get(context.eventWorkspaceId);
     if (!current || current.active.id !== String(interactionId)) return { ok: false, reason: "interaction_not_active" };
     if (!current.active.options.some((option) => option.id === String(optionId))) return { ok: false, reason: "invalid_option" };
     if (current.responses.has(context.participantId)) return { ok: false, reason: "duplicate_response" };
+    const persisted = await this.repository.recordEventPollResponse({ executionId: current.active.executionId, participantId: context.participantId, optionId });
+    if (!persisted) return { ok: false, reason: "duplicate_response" };
     const response = { optionId: String(optionId), submittedAt: new Date().toISOString() };
     current.responses.set(context.participantId, response);
     socket.emit("event-admin:interaction:state", this.state(context.eventWorkspaceId, context.participantId));
@@ -72,8 +77,8 @@ class EventHubAdminInteractions {
       try { await this.join(socket, payload); }
       catch (_error) { socket.emit("event-admin:interaction:state", { active: null, response: null }); }
     });
-    socket.on("event-admin:interaction:submit", (payload = {}) => {
-      const result = this.submit(socket, payload);
+    socket.on("event-admin:interaction:submit", async (payload = {}) => {
+      const result = await this.submit(socket, payload);
       if (!result.ok) socket.emit("event-admin:interaction:rejected", result);
     });
   }
