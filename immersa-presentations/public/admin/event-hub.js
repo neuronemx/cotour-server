@@ -461,14 +461,14 @@ function renderHub(hub) {
   hubSection.hidden = false;
   hubTitle.textContent = hub.title;
   hubSlug.textContent = hub.slug;
-  stageList.replaceChildren();
+  stageList?.replaceChildren();
   activityStage.replaceChildren();
   for (const stage of hub.stages || []) {
     const item = document.createElement("li");
     item.innerHTML = "<strong></strong><span></span>";
     item.querySelector("strong").textContent = stage.name;
     item.querySelector("span").textContent = `${stage.audience_capacity || 300} participantes`;
-    stageList.appendChild(item);
+    stageList?.appendChild(item);
     const option = document.createElement("option");
     option.value = stage.id;
     option.textContent = stage.name;
