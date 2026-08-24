@@ -601,7 +601,8 @@ function interactionListMarkup() {
   if (!interactions.length) return "";
   return '<div class="interaction-picker" role="listbox" aria-label="Interacciones disponibles">' + interactions.map((item) => {
     const selected = String(item.id) === String(selectedInteractionId);
-    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
+    const source = item.source === "event" ? "Evento · " : "";
+    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + source + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
   }).join("") + '</div>';
 }
 

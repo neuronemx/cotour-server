@@ -322,6 +322,7 @@ test("Event Admin can prepare unlimited Event Hub polls and only Event Stage can
   assert.match(repository, /listEventPolls/);
   assert.match(admin, /Encuesta lista para Event Stage/);
   assert.match(stage, /stage-control\/\$\{encodeURIComponent\(deckId\)\}\/polls/);
+  assert.match(stage, /item\.source === "event" \? "Evento · " : ""/);
   assert.match(interactions, /interaction\.source === "event" && context\.role !== "stage"/);
 });
 
