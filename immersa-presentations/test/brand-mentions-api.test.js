@@ -242,5 +242,6 @@ test("server exposes only deck administration routes and does not add Screen or 
   assert.match(server, /app\.post\("\/api\/decks\/:deckId\/brand-mentions", \.\.\.requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers\.createBrand\)/);
   assert.match(server, /app\.put\("\/api\/decks\/:deckId\/brand-mentions\/order", \.\.\.requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers\.reorderBrands\)/);
   assert.doesNotMatch(server, /brand_mention:state/);
-  assert.match(server, /api\\/admin\\/event-hubs\\/:workspaceId\\/brand-mentions/);\n  assert.match(server, /api\\/event\\/public\\/:publicId\\/brand-mentions/);
+  assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
+  assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
 });
