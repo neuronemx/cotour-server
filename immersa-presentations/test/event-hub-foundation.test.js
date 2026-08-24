@@ -334,6 +334,9 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   assert.match(publicProgram, /event-admin:join/);
   assert.match(publicProgram, /event-admin:interaction:state/);
   assert.match(publicProgram, /adminThankYou/);
+  assert.match(publicProgram, /participantNameKey/);
+  assert.match(publicProgram, /Gracias \$\{participantName\}/);
+  assert.match(publicProgram, /: "Gracias";/);
   assert.match(publicProgram, /Ayúdanos a mejorar para la siguiente edición de/);
   assert.match(publicProgram, /3000/);
   assert.match(publicProgram, /aria-modal="true"/);
@@ -362,4 +365,17 @@ test("Event Admin activity cards expose one focused shell per action", async () 
   assert.match(script, /action-deck-approved/);
   assert.match(script, /item\.after\(activityEditor\)/);
   assert.match(styles, /\*\[hidden\]\{display:none!important\}/);
+});
+
+test("Proyección is a first-class Event Hub activity type", async () => {
+  const repository = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "repository.js"), "utf8");
+  const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.html"), "utf8");
+  const publicProgram = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  const styles = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.css"), "utf8");
+  assert.match(repository, /"PROJECTION"/);
+  assert.match(admin, /PROJECTION: "Proyección"/);
+  assert.match(page, /value="PROJECTION">Proyección/);
+  assert.match(publicProgram, /PROJECTION: "Proyección"/);
+  assert.match(styles, /\.type-PROJECTION/);
 });

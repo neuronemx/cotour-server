@@ -51,7 +51,7 @@ let accountSpeakers = null;
 let activeActivityTool = "";
 let eventPollRefreshTimer = null;
 let eventOverviewRefreshTimer = null;
-const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
+const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", PROJECTION: "Proyección", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
 async function loadEventOverview() {
