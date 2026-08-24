@@ -3,6 +3,7 @@
   if (!context?.publicId) return;
   const base = `/api/event/public/${encodeURIComponent(context.publicId)}`;
   const key = `immersa-event-participant:${context.publicId}`;
+  const participantNameKey = `immersa-event-participant-name:${context.publicId}`;
   const eventSocket = window.io?.();
   const title = document.querySelector("#event-title");
   const level = document.querySelector("#event-level");
@@ -270,7 +271,7 @@
     } finally { refreshingActivities = false; }
   };
   const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); startBrandRotation(); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
-  document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
+  document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const participantName = document.querySelector("#registration-key").value.trim(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: participantName }) }); localStorage.setItem(key, result.participantId); localStorage.setItem(participantNameKey, participantName); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
   overlay.onclick = (event) => { if (event.target === overlay) close(); };
