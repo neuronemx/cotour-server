@@ -14,6 +14,18 @@ class EventHubAdminInteractions {
     return { active: { ...current.active, options: current.active.options.map((option) => ({ ...option })) }, response };
   }
 
+  status(workspaceId) {
+    const current = this.events.get(String(workspaceId));
+    if (!current) return { active: null, responsesTotal: 0, results: [] };
+    const totals = new Map(current.active.options.map((option) => [String(option.id), 0]));
+    for (const response of current.responses.values()) totals.set(response.optionId, (totals.get(response.optionId) || 0) + 1);
+    return {
+      active: { ...current.active, options: current.active.options.map((option) => ({ ...option })) },
+      responsesTotal: current.responses.size,
+      results: current.active.options.map((option) => ({ optionId: option.id, label: option.label, responses: totals.get(String(option.id)) || 0 }))
+    };
+  }
+
   async join(socket, { publicId, participantId }) {
     const qr = await this.repository.getPublicQr(publicId);
     const participant = await this.repository.getParticipant({ eventWorkspaceId: qr.eventWorkspaceId, participantId });

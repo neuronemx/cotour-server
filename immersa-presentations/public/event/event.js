@@ -34,16 +34,23 @@
   function renderAdminInteraction() {
     let card = document.querySelector("#event-admin-interaction");
     if (!card) { card = document.createElement("section"); card.id = "event-admin-interaction"; card.className = "event-admin-interaction hidden"; document.body.append(card); }
-    if (!adminInteraction) { card.classList.add("hidden"); card.replaceChildren(); return; }
-    const answered = Boolean(adminResponse);
+    if (!adminInteraction || adminResponse) { card.classList.add("hidden"); card.replaceChildren(); return; }
     card.classList.remove("hidden");
-    card.innerHTML = `<strong>Encuesta del evento</strong><h2></h2><p></p><div></div><button type="button" ${answered ? "disabled" : "disabled"}>${answered ? "Respuesta enviada" : "Elige una opción"}</button>`;
+    card.innerHTML = `<strong>Encuesta del evento</strong><h2></h2><p></p><div></div>`;
     card.querySelector("h2").textContent = adminInteraction.title;
     card.querySelector("p").textContent = adminInteraction.prompt;
-    let selected = "";
-    const submit = card.querySelector("button");
-    for (const option of adminInteraction.options || []) { const button = document.createElement("button"); button.type = "button"; button.textContent = option.label; button.disabled = answered; button.onclick = () => { selected = option.id; card.querySelectorAll("[data-option]").forEach((item) => item.classList.toggle("selected", item === button)); submit.disabled = false; }; button.dataset.option = option.id; card.querySelector("div").append(button); }
-    submit.onclick = () => { if (selected) eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: selected }); };
+    for (const option of adminInteraction.options || []) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = option.label;
+      button.dataset.option = option.id;
+      button.onclick = () => {
+        adminResponse = { optionId: option.id };
+        eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: option.id });
+        renderAdminInteraction();
+      };
+      card.querySelector("div").append(button);
+    }
   }
   function joinEventAdminChannel() { if (participantId()) eventSocket?.emit("event-admin:join", { publicId: context.publicId, participantId: participantId() }); }
   const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };

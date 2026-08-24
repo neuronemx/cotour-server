@@ -20,7 +20,6 @@ const eventPollAddOption = document.getElementById("eventPollAddOption");
 const eventPollOptionList = document.getElementById("eventPollOptionList");
 const eventPollFeedback = document.getElementById("eventPollFeedback");
 const eventPollList = document.getElementById("eventPollList");
-const eventPollClose = document.getElementById("eventPollClose");
 const activitySpeakers = document.getElementById("activitySpeakers");
 const activityDeckCheck = document.getElementById("activityDeckCheck");
 const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
@@ -43,6 +42,7 @@ let currentHub = null;
 let editingActivity = null;
 let accountSpeakers = null;
 let activeActivityTool = "";
+let eventPollRefreshTimer = null;
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
@@ -63,22 +63,35 @@ function resetEventPollForm() {
   addEventPollOption();
   addEventPollOption();
 }
-function renderEventPolls(polls) {
+function renderEventPolls(polls, interaction = {}) {
   eventPollList.replaceChildren();
   if (!polls.length) { eventPollList.textContent = "Aún no hay encuestas propias del evento."; return; }
   for (const poll of polls) {
     const item = document.createElement("article");
     item.className = "event-poll-card";
-    item.innerHTML = "<div><strong></strong><p></p><ol></ol></div><aside><button type='button' data-launch>Lanzar</button><button type='button' data-delete>Eliminar</button></aside>";
+    const active = String(interaction.active?.id || "") === String(poll.id);
+    item.innerHTML = "<div><strong></strong><p></p><ol></ol><p class='event-poll-results' hidden></p></div><aside><button type='button' data-toggle></button><button type='button' data-delete>Eliminar</button></aside>";
     item.querySelector("strong").textContent = poll.title;
     item.querySelector("p").textContent = poll.prompt;
     for (const option of poll.options || []) { const row = document.createElement("li"); row.textContent = option.label; item.querySelector("ol").appendChild(row); }
-    item.querySelector("[data-launch]").addEventListener("click", async () => {
+    const toggle = item.querySelector("[data-toggle]");
+    toggle.textContent = active ? "Cerrar interacción" : "Lanzar";
+    if (active) {
+      const results = item.querySelector(".event-poll-results");
+      const rows = interaction.results || [];
+      results.hidden = false;
+      results.textContent = `${interaction.responsesTotal || 0} respuesta${Number(interaction.responsesTotal) === 1 ? "" : "s"} · ${rows.map((row) => `${row.label}: ${row.responses}`).join(" · ")}`;
+    }
+    toggle.addEventListener("click", async () => {
       try {
-        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/${encodeURIComponent(poll.id)}/launch`, { method: "POST" });
+        const url = active
+          ? `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/close`
+          : `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/${encodeURIComponent(poll.id)}/launch`;
+        const response = await fetch(url, { method: "POST" });
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "No se pudo lanzar la encuesta");
-        eventPollFeedback.className = "success"; eventPollFeedback.textContent = "Encuesta activa en el Programa del evento.";
+        if (!response.ok) throw new Error(body.error || "No se pudo actualizar la interacción");
+        eventPollFeedback.className = "success"; eventPollFeedback.textContent = active ? "Interacción cerrada." : "Encuesta activa en el Programa del evento.";
+        await loadEventPolls();
       } catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
     });
     item.querySelector("[data-delete]").addEventListener("click", async () => {
@@ -95,10 +108,14 @@ function renderEventPolls(polls) {
 }
 async function loadEventPolls() {
   if (!currentHub) return;
-  const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls`, { cache: "no-store" });
-  const body = await response.json();
+  const [response, interactionResponse] = await Promise.all([
+    fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls`, { cache: "no-store" }),
+    fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/interaction`, { cache: "no-store" })
+  ]);
+  const [body, interaction] = await Promise.all([response.json(), interactionResponse.json()]);
   if (!response.ok) throw new Error(body.error || "No se pudieron cargar las encuestas del evento");
-  renderEventPolls(body.polls || []);
+  if (!interactionResponse.ok) throw new Error(interaction.error || "No se pudo cargar la interacción activa");
+  renderEventPolls(body.polls || [], interaction);
 }
 function activityDate(value) {
   if (!value) return "Horario por definir";
@@ -458,19 +475,14 @@ eventPolls?.addEventListener("click", async () => {
   if (!eventPollsPanel.hidden) {
     try { await loadEventPolls(); }
     catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+    window.clearInterval(eventPollRefreshTimer);
+    eventPollRefreshTimer = window.setInterval(() => { loadEventPolls().catch(() => {}); }, 2000);
+  } else {
+    window.clearInterval(eventPollRefreshTimer);
+    eventPollRefreshTimer = null;
   }
 });
 eventPollAddOption?.addEventListener("click", () => addEventPollOption());
-eventPollClose?.addEventListener("click", async () => {
-  if (!currentHub) return;
-  try {
-    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/close`, { method: "POST" });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || "No se pudo cerrar la interacción");
-    eventPollFeedback.className = "success"; eventPollFeedback.textContent = "Interacción cerrada.";
-  }
-  catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
-});
 eventPollForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentHub) return;
@@ -491,7 +503,7 @@ eventPollForm?.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(body.error || "No se pudo guardar la encuesta");
     resetEventPollForm();
     eventPollFeedback.className = "success";
-    eventPollFeedback.textContent = "Encuesta lista para Event Stage.";
+    eventPollFeedback.textContent = "Encuesta lista para lanzar en el Programa.";
     await loadEventPolls();
   } catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
   finally { submit.disabled = false; }

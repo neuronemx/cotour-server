@@ -1314,6 +1314,11 @@ app.post("/api/admin/event-hubs/:workspaceId/polls/:pollId/launch", requireAccou
   try { return res.json(await eventHubAdminInteractions.launch({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
   catch (error) { return sendEventHubError(res, error); }
 });
+app.get("/api/admin/event-hubs/:workspaceId/polls/interaction", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(eventHubAdminInteractions.status(req.params.workspaceId)); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-hubs/:workspaceId/polls/close", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubAdminInteractions) return eventHubUnavailable(res);
   try { return res.json(eventHubAdminInteractions.close(req.params.workspaceId)); }
