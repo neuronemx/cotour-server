@@ -1,6 +1,6 @@
 .brand-mention-host {
   position: fixed;
-  z-index: 9;
+  z-index: 50;
   top: max(4px, env(safe-area-inset-top));
   left: 50%;
   width: min(96vw, 620px);
@@ -65,7 +65,7 @@
   place-items: center;
   overflow: hidden;
   border-radius: 21px 0 0 21px;
-  background: #fff;
+  background: var(--brand-logo-surface, #fff);
   border: 0;
   box-shadow: none;
 }
