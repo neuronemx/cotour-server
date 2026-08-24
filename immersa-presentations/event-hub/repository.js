@@ -276,6 +276,40 @@ class EventHubRepository {
     return { deleted: true };
   }
 
+  async startEventPollExecution({ eventWorkspaceId, pollId }) {
+    const executionId = this.createId();
+    const [result] = await this.pool.execute(
+      `INSERT INTO event_hub_poll_executions (id, event_workspace_id, event_hub_poll_id)
+       SELECT ?, ?, id
+       FROM event_hub_polls
+       WHERE id = ? AND event_workspace_id = ? AND active = 1`,
+      [executionId, required(eventWorkspaceId, "event workspace id"), required(pollId, "poll id"), eventWorkspaceId]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_POLL_NOT_FOUND", "Encuesta del evento no encontrada", 404);
+    return executionId;
+  }
+
+  async recordEventPollResponse({ executionId, participantId, optionId }) {
+    const [result] = await this.pool.execute(
+      `INSERT IGNORE INTO event_hub_poll_responses
+         (event_hub_poll_execution_id, event_participant_id, event_hub_poll_option_id)
+       SELECT execution.id, ?, option_row.id
+       FROM event_hub_poll_executions execution
+       INNER JOIN event_hub_poll_options option_row
+         ON option_row.event_hub_poll_id = execution.event_hub_poll_id
+       WHERE execution.id = ? AND option_row.id = ?`,
+      [required(participantId, "event participant id"), required(executionId, "poll execution id"), required(optionId, "poll option id")]
+    );
+    return Boolean(result?.affectedRows);
+  }
+
+  async closeEventPollExecution(executionId) {
+    await this.pool.execute(
+      "UPDATE event_hub_poll_executions SET closed_at = COALESCE(closed_at, CURRENT_TIMESTAMP(3)) WHERE id = ?",
+      [required(executionId, "poll execution id")]
+    );
+  }
+
   async getEventInteractionSummary(eventWorkspaceId) {
     const [[row]] = await this.pool.execute(
       `SELECT COUNT(DISTINCT execution.id) AS interactions,
