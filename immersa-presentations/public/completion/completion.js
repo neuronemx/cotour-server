@@ -13,6 +13,7 @@
   const values = { duration: minutes ? `${minutes} min${seconds ? ` ${seconds} s` : ""}` : `${seconds} s`, attendance: number(summary.attendance), activity: number(summary.activityCount) };
   document.querySelectorAll("[data-value]").forEach((node) => { if (values[node.dataset.value] !== undefined) node.textContent = values[node.dataset.value]; });
   if (record.role === "audience" && eventReturn?.returnPath) {
+    try { sessionStorage.removeItem(eventReturnKey); } catch (_error) {}
     const eyebrow = document.querySelector(".eyebrow");
     const heading = document.querySelector("h1");
     const lead = document.querySelector(".lead");
