@@ -4,7 +4,9 @@
   try { record = JSON.parse(sessionStorage.getItem(key) || "{}"); } catch (_error) {}
   const eventReturnKey = "immersa:event-live-return";
   let eventReturn = null;
-  try { eventReturn = JSON.parse(sessionStorage.getItem(eventReturnKey) || "null"); } catch (_error) {}
+  try {
+    eventReturn = JSON.parse(sessionStorage.getItem(eventReturnKey) || localStorage.getItem("immersa:event-completion") || "null");
+  } catch (_error) {}
   const summary = record.summary || {};
   const number = (value) => Math.max(0, Number(value) || 0);
   const duration = number(summary.durationSeconds);
@@ -12,8 +14,8 @@
   const seconds = duration % 60;
   const values = { duration: minutes ? `${minutes} min${seconds ? ` ${seconds} s` : ""}` : `${seconds} s`, attendance: number(summary.attendance), activity: number(summary.activityCount) };
   document.querySelectorAll("[data-value]").forEach((node) => { if (values[node.dataset.value] !== undefined) node.textContent = values[node.dataset.value]; });
-  if (record.role === "audience" && eventReturn?.returnPath) {
-    try { sessionStorage.removeItem(eventReturnKey); } catch (_error) {}
+  if (eventReturn?.returnPath) {
+    try { sessionStorage.removeItem(eventReturnKey); localStorage.removeItem("immersa:event-completion"); } catch (_error) {}
     const eyebrow = document.querySelector(".eyebrow");
     const heading = document.querySelector("h1");
     const lead = document.querySelector(".lead");
