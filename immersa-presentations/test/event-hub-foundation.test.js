@@ -185,6 +185,7 @@ test("Event Stage uses its access token when loading Event Hub controls", async 
 test("Event Stage has one conference action and keeps Deck rehearsal separate", async () => {
   const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  const lifecycle = await fs.promises.readFile(path.join(__dirname, "..", "presentation-lifecycle.js"), "utf8");
   assert.match(stage, /Iniciar conferencia/);
   assert.match(stage, /Finalizar conferencia/);
   assert.match(stage, /Probar Deck/);
@@ -192,6 +193,7 @@ test("Event Stage has one conference action and keeps Deck rehearsal separate", 
   assert.match(server, /stage-control\/:deckId\/conference\/:action/);
   assert.match(server, /presentationLifecycleRuntime\.start\(lifecycleContext\)/);
   assert.match(server, /presentationLifecycleRuntime\.finish\(lifecycleContext\)/);
+  assert.match(lifecycle, /return \{ attach, start, finish, sendCurrentState/);
 });
 
 test("Event Hub migration keeps Base, Event Hub and LiveSession in separate tables", async () => {
