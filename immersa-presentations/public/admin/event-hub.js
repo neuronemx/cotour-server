@@ -13,6 +13,13 @@ const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
 const activityNew = document.getElementById("activityNew");
 const eventBrands = document.getElementById("eventBrands");
+const eventOverview = document.getElementById("eventOverview");
+const eventOverviewPanel = document.getElementById("eventOverviewPanel");
+const overviewRegistered = document.getElementById("overviewRegistered");
+const overviewAttendance = document.getElementById("overviewAttendance");
+const overviewLiveStages = document.getElementById("overviewLiveStages");
+const overviewEngagement = document.getElementById("overviewEngagement");
+const overviewStages = document.getElementById("overviewStages");
 const eventPolls = document.getElementById("eventPolls");
 const eventPollsPanel = document.getElementById("eventPollsPanel");
 const eventPollForm = document.getElementById("eventPollForm");
@@ -43,9 +50,31 @@ let editingActivity = null;
 let accountSpeakers = null;
 let activeActivityTool = "";
 let eventPollRefreshTimer = null;
+let eventOverviewRefreshTimer = null;
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
+async function loadEventOverview() {
+  if (!currentHub) return;
+  const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/overview`, { cache: "no-store" });
+  const overview = await response.json();
+  if (!response.ok) throw new Error(overview.error || "No se pudo cargar la operación del evento");
+  overviewRegistered.textContent = overview.registered || 0;
+  overviewAttendance.textContent = overview.attendance || 0;
+  overviewLiveStages.textContent = overview.liveStages || 0;
+  overviewEngagement.textContent = overview.eventInteraction?.responsesTotal || 0;
+  overviewStages.replaceChildren();
+  for (const stage of overview.stages || []) {
+    const item = document.createElement("article");
+    item.className = stage.live ? "stage-live" : "stage-idle";
+    item.innerHTML = "<strong></strong><span></span>";
+    item.querySelector("strong").textContent = stage.name;
+    item.querySelector("span").textContent = stage.live
+      ? `${stage.activityTitle || "Actividad en vivo"} · ${stage.attendance} asistentes · pico ${stage.peakConnections}`
+      : "Disponible";
+    overviewStages.appendChild(item);
+  }
+}
 function addEventPollOption(value = "") {
   const field = document.createElement("label");
   field.className = "event-poll-option";
@@ -468,6 +497,16 @@ eventBrands?.addEventListener("click", () => {
     ownerLabel: "Event Hub",
     apiBase: `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/brand-mentions`
   });
+});
+eventOverview?.addEventListener("click", async () => {
+  if (!currentHub) return;
+  eventOverviewPanel.hidden = !eventOverviewPanel.hidden;
+  window.clearInterval(eventOverviewRefreshTimer);
+  if (!eventOverviewPanel.hidden) {
+    try { await loadEventOverview(); }
+    catch (error) { overviewStages.textContent = error.message; }
+    eventOverviewRefreshTimer = window.setInterval(() => { loadEventOverview().catch(() => {}); }, 5000);
+  } else eventOverviewRefreshTimer = null;
 });
 eventPolls?.addEventListener("click", async () => {
   if (!currentHub) return;

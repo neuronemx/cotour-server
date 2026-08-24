@@ -158,6 +158,59 @@ class EventHubRepository {
     return rows || [];
   }
 
+  async getAdminOverview(eventWorkspaceId) {
+    const workspaceId = required(eventWorkspaceId, "event workspace id");
+    await this.getHub(workspaceId);
+    const [[registered]] = await this.pool.execute(
+      "SELECT COUNT(*) AS total FROM event_participants WHERE event_workspace_id = ?", [workspaceId]
+    );
+    const [[attendance]] = await this.pool.execute(
+      `SELECT COUNT(*) AS total, COUNT(DISTINCT attendance.event_participant_id) AS unique_total
+       FROM event_live_attendance attendance
+       INNER JOIN event_live_sessions live ON live.id = attendance.event_live_session_id
+       WHERE live.event_workspace_id = ?`, [workspaceId]
+    );
+    const [stages] = await this.pool.execute(
+      `SELECT stage.id, stage.name, stage.active,
+              live.id AS live_session_id, live.started_at,
+              activity.title AS activity_title,
+              COUNT(DISTINCT attendance.event_participant_id) AS attendance_count,
+              COALESCE((
+                SELECT MAX(metrics.audience_peak_count)
+                FROM presentation_sessions metrics
+                WHERE metrics.deck_id = live.deck_id
+                  AND metrics.recording_started_at IS NOT NULL
+                  AND metrics.recording_started_at >= live.started_at
+                  AND (live.ended_at IS NULL OR metrics.recording_started_at <= live.ended_at)
+              ), 0) AS peak_connections
+       FROM event_stages stage
+       LEFT JOIN event_live_sessions live ON live.event_stage_id = stage.id AND live.status = 'LIVE'
+       LEFT JOIN event_activities activity ON activity.id = live.event_activity_id
+       LEFT JOIN event_live_attendance attendance ON attendance.event_live_session_id = live.id
+       WHERE stage.event_workspace_id = ?
+       GROUP BY stage.id, stage.name, stage.active, live.id, live.started_at, live.ended_at, live.deck_id, activity.title
+       ORDER BY stage.sort_order, stage.name`, [workspaceId]
+    );
+    const normalizedStages = (stages || []).map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      active: Boolean(stage.active),
+      live: Boolean(stage.live_session_id),
+      liveSessionId: stage.live_session_id || null,
+      activityTitle: stage.activity_title || null,
+      startedAt: stage.started_at || null,
+      attendance: Number(stage.attendance_count || 0),
+      peakConnections: Number(stage.peak_connections || 0)
+    }));
+    return {
+      registered: Number(registered?.total || 0),
+      attendance: Number(attendance?.total || 0),
+      uniqueAttendees: Number(attendance?.unique_total || 0),
+      liveStages: normalizedStages.filter((stage) => stage.live).length,
+      stages: normalizedStages
+    };
+  }
+
   async listEventPolls(eventWorkspaceId, { activeOnly = false } = {}) {
     const workspaceId = required(eventWorkspaceId, "event workspace id");
     const [polls] = await this.pool.execute(

@@ -321,12 +321,15 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   assert.match(server, /polls\/:pollId\/launch/);
   assert.match(server, /polls\/close/);
   assert.match(server, /polls\/interaction/);
+  assert.match(server, /event-hubs\/:workspaceId\/overview/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hub_polls/);
   assert.match(repository, /listEventPolls/);
   assert.match(repository, /isParticipantInLiveSession/);
+  assert.match(repository, /getAdminOverview/);
   assert.match(admin, /polls\/\$\{encodeURIComponent\(poll\.id\)\}\/launch/);
   assert.match(admin, /Cerrar interacción/);
   assert.match(admin, /responsesTotal/);
+  assert.match(admin, /loadEventOverview/);
   assert.match(publicProgram, /event-admin:join/);
   assert.match(publicProgram, /event-admin:interaction:state/);
   assert.match(publicProgram, /adminThankYou/);
