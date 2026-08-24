@@ -330,6 +330,7 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   assert.match(admin, /Cerrar interacción/);
   assert.match(admin, /responsesTotal/);
   assert.match(admin, /loadEventOverview/);
+  assert.match(admin, /overviewEngagement/);
   assert.match(publicProgram, /event-admin:join/);
   assert.match(publicProgram, /event-admin:interaction:state/);
   assert.match(publicProgram, /adminThankYou/);
