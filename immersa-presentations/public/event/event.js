@@ -48,7 +48,7 @@
     if (!card) { card = document.createElement("section"); card.id = "event-admin-interaction"; card.className = "event-admin-interaction hidden"; document.body.append(card); }
     if (adminThankYou) {
       card.classList.remove("hidden");
-      card.innerHTML = '<div class="event-admin-dialog event-admin-thanks" role="status"><strong>Gracias</strong><p>Tu respuesta fue registrada.</p></div>';
+      card.innerHTML = '<div class="event-admin-dialog event-admin-thanks" role="status"><strong></strong><p>Tu respuesta fue registrada.</p></div>';\n      const participantName = String(localStorage.getItem(participantNameKey) || "").trim();\n      card.querySelector("strong").textContent = participantName ? `Gracias ${participantName}` : "Gracias";
       return;
     }
     if (!adminInteraction || adminResponse) { card.classList.add("hidden"); card.replaceChildren(); return; }
