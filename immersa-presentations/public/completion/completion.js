@@ -22,8 +22,9 @@
     const publicId = String(eventReturn.returnPath).replace(/^\//, "");
     const setEventCopy = (eventName) => {
       const title = String(eventName || "este evento").trim() || "este evento";
-      if (eyebrow) eyebrow.textContent = "Gracias por participar";
-      if (heading) heading.innerHTML = "Las mejores ideas <span>se viven</span>";
+      const participantName = String(localStorage.getItem(`immersa-event-participant-name:${publicId}`) || "").trim();
+      if (eyebrow) eyebrow.textContent = participantName ? `Gracias ${participantName} !` : "Gracias por participar";
+      if (heading) heading.innerHTML = "Tu participación es <span>muy valiosa</span>";
       if (lead) lead.textContent = `La presentación terminó pero ${title} tiene mucho más para ti.`;
       if (button) { button.textContent = "Regresar al Programa"; button.href = eventReturn.returnPath; }
       if (hint) hint.textContent = "";
