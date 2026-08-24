@@ -57,6 +57,7 @@ class BrandMentionRuntime {
         roomKey,
         sessionId: String(context.sessionId || ""),
         deckId: String(context.deckId || ""),
+        brandSourceId: String(context.brandSourceId || context.deckId || ""),
         running: false,
         blocked: false,
         lastBrandId: "",
@@ -104,8 +105,9 @@ class BrandMentionRuntime {
     if (!state) return false;
     state.sessionId = String(context.sessionId || state.sessionId);
     state.deckId = String(context.deckId || state.deckId);
+    state.brandSourceId = String(context.brandSourceId || state.brandSourceId || state.deckId);
     if (state.running) {
-      if (!state.blocked && !state.nextTimer && !state.mention && await this.hasActiveBrands(state.deckId)) this.schedule(state);
+      if (!state.blocked && !state.nextTimer && !state.mention && await this.hasActiveBrands(state.brandSourceId)) this.schedule(state);
       return true;
     }
     state.running = true;
@@ -113,7 +115,7 @@ class BrandMentionRuntime {
     const generation = state.generation;
     state.blocked = Boolean(this.coordinator?.hasAnyActive?.(state.sessionId));
     if (state.blocked) return true;
-    await this.hasActiveBrands(state.deckId);
+    await this.hasActiveBrands(state.brandSourceId);
     if (!state.running || state.generation !== generation) return false;
     return this.schedule(state);
   }
@@ -145,7 +147,7 @@ class BrandMentionRuntime {
     }
     let brands;
     try {
-      brands = this.activeBrands(await this.store.read(state.deckId));
+      brands = this.activeBrands(await this.store.read(state.brandSourceId));
     } catch (error) {
       console.warn("Unable to load brand mentions", error.message);
       this.schedule(state);
@@ -177,7 +179,7 @@ class BrandMentionRuntime {
         continue;
       }
       state.blocked = false;
-      if (await this.hasActiveBrands(state.deckId)) this.schedule(state);
+      if (await this.hasActiveBrands(state.brandSourceId)) this.schedule(state);
     }
   }
 

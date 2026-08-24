@@ -186,8 +186,8 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   const linkIcon = path.join(__dirname, "..", "public/audience/external-link.png");
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
 
-  assert.match(audienceHtml, /brand-mention\.css\?v=5/);
-  assert.match(audienceHtml, /brand-mention\.js\?v=4/);
+  assert.match(audienceHtml, /brand-mention\.css\?v=6/);
+  assert.match(audienceHtml, /brand-mention\.js\?v=5/);
   assert.doesNotMatch(screenHtml, /brand-mention/i);
   assert.match(client, /target = "_blank"/);
   assert.match(client, /rel = "noopener noreferrer"/);
@@ -200,6 +200,8 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   assert.match(client, /arrow\.src = "\/audience\/external-link\.png"/);
   assert.match(client, /document\.getElementById\("viewer"\)/);
   assert.match(client, /container\.getBoundingClientRect\?\.\(\)/);
+  assert.match(client, /function matchLogoSurface/);
+  assert.match(client, /--brand-logo-surface/);
   assert.equal(fs.existsSync(linkIcon), true);
   assert.match(css, /transform 1\.25s/);
   assert.match(css, /translate3d\(-50%, calc\(-100% - 24px\), 0\)/);
@@ -207,6 +209,8 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   assert.match(css, /transition: opacity \.72s ease-in-out/);
   assert.match(css, /-webkit-line-clamp: 2/);
   assert.match(css, /\.brand-mention-card-logo \{[\s\S]*?align-self: stretch/);
+  assert.match(css, /z-index: 50/);
+  assert.match(css, /background: var\(--brand-logo-surface, #fff\)/);
   assert.match(css, /\.brand-mention-card-link/);
   assert.match(css, /justify-self: center/);
   assert.match(css, /color: #19b9f2/);

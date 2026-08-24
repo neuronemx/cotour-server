@@ -1,5 +1,6 @@
 const params = new URLSearchParams(location.search);
 const publicOpenContext = window.IMMERSA_PUBLIC_OPEN || {};
+const eventLiveReturnKey = "immersa:event-live-return";
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
@@ -50,6 +51,29 @@ const qnaSubmit = document.getElementById("qnaSubmit");
 const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
 let audienceQrReady = false;
+let eventLiveReturnChecking = false;
+function eventLiveReturn() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(eventLiveReturnKey) || "null");
+    if (!value || !/^[a-z0-9-]+$/i.test(String(value.liveSessionId || "")) || !/^[a-z0-9-]+$/i.test(String(value.participantId || "")) || !/^\/p_[a-z0-9_]+$/.test(String(value.returnPath || ""))) return null;
+    return value;
+  } catch (_error) { return null; }
+}
+async function returnToEventProgramIfClosed() {
+  if (eventLiveReturnChecking) return;
+  const state = eventLiveReturn();
+  if (!state) return;
+  eventLiveReturnChecking = true;
+  try {
+    const response = await fetch(`/api/event/live-sessions/${encodeURIComponent(state.liveSessionId)}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: state.participantId }) });
+    const result = await response.json();
+    if (!response.ok || result.live) return;
+    sessionStorage.removeItem(eventLiveReturnKey);
+    socket.disconnect?.();
+    window.location.replace(state.returnPath);
+  } catch (_error) {}
+  finally { eventLiveReturnChecking = false; }
+}
 function audiencePublicUrl() {
   return publicOpenContext.public_url || window.location.href;
 }
@@ -234,7 +258,10 @@ socket.on("disconnect", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience(); });
 socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect_failed", () => setConnectionNotice(true));
-socket.on("presentation_state", (state) => { if (manifest) render(state); });
+returnToEventProgramIfClosed();
+window.setInterval(returnToEventProgramIfClosed, 3000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) returnToEventProgramIfClosed(); });
+socket.on("presentation_state", (state) => { returnToEventProgramIfClosed(); if (manifest) render(state); });
 socket.on("overlay_update", applyLiveMessage);
 socket.on("clear_overlays", () => applyLiveMessage({ messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });

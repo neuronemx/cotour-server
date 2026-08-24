@@ -131,6 +131,16 @@ function billingEmailCopy(kind, name, url, billing = {}) {
   };
 }
 
+function eventSpeakerInvitationEmailCopy(name, url, invitation = {}) {
+  const greeting = escapeHtml(String(name || "").trim());
+  const eventTitle = escapeHtml(String(invitation.eventTitle || "un evento IMMERSA").trim());
+  const activityTitle = escapeHtml(String(invitation.activityTitle || "una actividad").trim());
+  return {
+    subject: `Te invitaron a presentar en ${eventTitle}`,
+    html: `<!doctype html><html><body style="margin:0;padding:0;background:#f3f4fb;font-family:Arial,sans-serif;color:#0a0d28"><table role="presentation" width="100%"><tr><td align="center" style="padding:42px 18px"><table role="presentation" width="100%" style="max-width:580px;background:#fff;border-radius:22px;overflow:hidden"><tr><td height="7" style="background:linear-gradient(90deg,#06cfe0,#7057ff 52%,#b20de9)"></td></tr><tr><td style="padding:34px 42px"><h1 style="margin:0 0 18px;font-size:27px">Tienes una invitación para presentar</h1><p style="font-size:16px;line-height:1.6">Hola${greeting ? ` ${greeting}` : ""},</p><p style="font-size:16px;line-height:1.65;color:#555b72">Te invitaron como ponente de <strong>${activityTitle}</strong> en <strong>${eventTitle}</strong>.</p><p style="font-size:16px;line-height:1.65;color:#555b72">Acepta para vincular tu cuenta IMMERSA con esta actividad. Elegirás tu Deck más adelante durante Deck Check.</p><a href="${escapeHtml(url)}" style="display:inline-block;margin-top:12px;padding:14px 24px;border-radius:999px;background:#7057ff;color:#fff;text-decoration:none;font-weight:bold">Aceptar invitación</a></td></tr><tr><td style="padding:19px 42px;background:#f7f7fb;color:#8b90a3;font-size:11px">IMMERSA · Presenta e interactúa.</td></tr></table></td></tr></table></body></html>`
+  };
+}
+
 function createResendEmailSender(options = {}) {
   const env = options.env || process.env;
   const apiKey = setting(env, "RESEND_API_KEY");
@@ -139,17 +149,18 @@ function createResendEmailSender(options = {}) {
   if (!apiKey || !from) return null;
   if (typeof fetchImpl !== "function") throw new Error("fetch is required for Resend email delivery");
 
-  return async ({ kind, to, name, url, user, activatedAt, downgrade, billing }) => {
+  return async ({ kind, to, name, url, user, activatedAt, downgrade, billing, eventInvitation }) => {
     const recipients = (Array.isArray(to) ? to : [to]).map((value) => String(value || "").trim()).filter(Boolean);
     const accountActivation = kind === "account-activation";
     const planDowngrade = String(kind || "").startsWith("downgrade-");
     const billingTransaction = String(kind || "").startsWith("billing-");
     if (!recipients.length || (!accountActivation && !url)) throw new Error("Email recipient and action URL are required");
+    const eventSpeakerInvitation = kind === "event-speaker-invitation";
     const copy = accountActivation
       ? accountActivationEmailCopy(user, activatedAt)
       : (planDowngrade
         ? downgradeEmailCopy(kind, name, url, downgrade)
-        : (billingTransaction ? billingEmailCopy(kind, name, url, billing) : emailCopy(kind, name, url)));
+        : (billingTransaction ? billingEmailCopy(kind, name, url, billing) : (eventSpeakerInvitation ? eventSpeakerInvitationEmailCopy(name, url, eventInvitation) : emailCopy(kind, name, url))));
     const response = await fetchImpl(RESEND_EMAILS_URL, {
       method: "POST",
       headers: {
@@ -166,4 +177,4 @@ function createResendEmailSender(options = {}) {
   };
 }
 
-module.exports = { createResendEmailSender, emailCopy, accountActivationEmailCopy, downgradeEmailCopy, billingEmailCopy, RESEND_EMAILS_URL };
+module.exports = { createResendEmailSender, emailCopy, accountActivationEmailCopy, downgradeEmailCopy, billingEmailCopy, eventSpeakerInvitationEmailCopy, RESEND_EMAILS_URL };

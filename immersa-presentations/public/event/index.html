@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IMMERSA Event Hub</title>
+  <link rel="stylesheet" href="/event/event.css?v=8">
+  <link rel="stylesheet" href="/event/event-brands.css?v=8">
+  <style>
+    .sheet-detail .sheet-badge-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}.sheet-detail .sheet-time{color:var(--muted);font-size:12.5px;font-weight:600}.sheet-detail .sheet-location{display:flex;align-items:center;gap:6px;margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:13px;font-weight:500}.sheet-detail .sheet-location svg{width:15px;height:15px;flex:0 0 15px;fill:none;stroke:var(--muted2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.sheet-detail.type-CONFERENCE .type{background:rgba(139,92,246,.16);color:#c4b0fb}.sheet-detail.type-MASTER_CLASS .type{background:rgba(59,130,246,.16);color:#a9c8fe}.sheet-detail.type-ROUND_TABLE .type{background:rgba(34,211,238,.16);color:#8feefb}.sheet-detail.type-WORKSHOP .type{background:rgba(236,72,153,.16);color:#f6a9ce}.sheet-detail.type-PANEL .type{background:rgba(245,158,11,.16);color:#fcd58d}.sheet-detail.type-OTHER .type{background:rgba(148,163,184,.16);color:#cbd5e1}
+    .daytab{appearance:none;-webkit-appearance:none;overflow:hidden}.daytab.active{border:0;padding:10px 17px;background:linear-gradient(90deg,var(--violet),var(--blue),var(--cyan));background-clip:padding-box;box-shadow:none}
+    .daytab.is-activating{border:0;padding:10px 17px;background:linear-gradient(90deg,var(--violet),var(--blue),var(--cyan));background-clip:padding-box;color:#08070d;-webkit-tap-highlight-color:transparent}
+    .program:not(.event-program-ready){visibility:hidden}
+    .event-title-row{display:flex;align-items:center;gap:12px}.event-title-row h1{margin:0 0 10px}.event-title-logo{width:62px;height:48px;flex:0 0 62px;object-fit:contain;object-position:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.24))}
+    .event-content:not(.event-content-ready),.event-nav:not(.event-nav-ready){visibility:hidden}.event-header-meta{display:flex;align-items:center;justify-content:space-between;gap:12px}.event-header-meta .brandrow{margin-bottom:10px}.event-header-meta .access-pill{align-self:flex-start;margin-top:1px}.event-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 0;padding:5px;border:1px solid var(--border);border-radius:14px;background:var(--glass)}.event-tab{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:13px;font-weight:800;appearance:none;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}.event-tab.active,.event-tab.is-activating{background:var(--grad);color:#08070d}.live-now{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border-radius:99px;background:rgba(8,7,13,.28);color:#fff;font-size:9px;font-weight:900;letter-spacing:.03em;text-transform:uppercase}.live-now::before{content:"";width:5px;height:5px;border-radius:50%;background:#ff4d5b;animation:live-pulse 1.15s ease-in-out infinite}@keyframes live-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,91,.9);opacity:1}50%{box-shadow:0 0 0 4px rgba(255,77,91,0);opacity:.72}}.live-filter-note{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 16px -2px;padding:10px 12px;border:1px solid rgba(34,211,238,.22);border-radius:12px;background:rgba(34,211,238,.08);color:#aaf4fc;font-size:12px;font-weight:700}.live-filter-note button{padding:0;background:transparent;color:#aaf4fc;font-size:12px;font-weight:800;text-decoration:underline}.expo-section,.program{display:none}.expo-section{margin:18px 16px 0;padding:22px;border:1px solid var(--border);border-radius:18px;background:var(--glass)}.expo-section.active,.program.active{display:block}.expo-section h2{margin:0 0 16px;font-size:21px}.expo-details{display:grid;gap:9px;margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.5}.expo-details p{margin:0}.expo-details strong{color:var(--text)}.expo-map{display:block;width:100%;height:min(62vh,650px);min-height:440px;border:1px solid var(--border);border-radius:13px;background:#12101d}
+  </style>
+</head>
+<body>
+  <header class="event-top">
+    <div class="event-header-meta"><div class="brandrow"><img class="brand-logo" src="/audience/immersa-mark.png" alt="IMMERSA"></div><p id="event-level" class="access-pill"></p></div>
+    <div class="event-title-row"><h1 id="event-title">Cargando evento…</h1><img class="event-title-logo" src="/event/logo-amc-blanco.png" alt="AMC"></div>
+    <nav id="event-nav" class="event-nav" aria-label="Contenido del evento">
+      <button class="event-tab" type="button" data-section="exposition">Exposición</button>
+      <button class="event-tab" type="button" data-section="program">Programa</button>
+    </nav>
+  </header>
+  <main class="event-shell">
+    <section id="registration" class="registration-card">
+      <h2>Registro</h2>
+      <p>Regístrate para acceder al contenido disponible durante el evento.</p>
+      <form id="registration-form">
+        <label>¿Cómo quieres que te llamemos?<input id="registration-key" required autocomplete="name" maxlength="120" placeholder="Tu nombre"></label>
+        <button type="submit">Continuar</button>
+      </form>
+    </section>
+    <section id="event-content" class="event-content">
+      <section id="exposition" class="expo-section">
+        <h2>Feria de expositores</h2>
+        <div class="expo-details">
+          <p><strong>Fechas:</strong> 4 y 5 de Septiembre de 2026</p>
+          <p><strong>Horarios:</strong> 12 am a 7pm</p>
+          <p><strong>Entrada gratuita con el pase Feria de Expositores o con la Acreditación General de la SEMANA AMC</strong></p>
+        </div>
+        <iframe class="expo-map" src="https://semanaamc.expofp.com/" title="Mapa de la Feria de expositores" loading="eager"></iframe>
+      </section>
+      <section id="program" class="program">
+        <div id="live-filter-note" class="live-filter-note hidden"><span>Mostrando actividades en vivo</span><button id="show-full-program" type="button">Ver programa completo</button></div>
+        <nav id="day-tabs" class="daytabs" aria-label="Días del programa"></nav>
+        <div id="legend" class="legend"></div>
+        <div id="day-panels"></div>
+      </section>
+    </section>
+  </main>
+  <section id="event-brands" class="event-brands" aria-label="Con el apoyo de" hidden>
+    <span class="event-brands-label">Con el apoyo de</span>
+    <div id="event-brand-rail" class="event-brand-rail" role="list"></div>
+  </section>
+  <div id="speaker-overlay" class="overlay" aria-hidden="true">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <button id="sheet-close" class="sheet-close" type="button" aria-label="Cerrar">×</button>
+      <div class="sheet-handle"></div>
+      <div id="sheet-content"></div>
+    </section>
+  </div>
+  <script>window.IMMERSA_EVENT_PUBLIC = null;</script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/event/event.js?v=19"></script>
+</body>
+</html>

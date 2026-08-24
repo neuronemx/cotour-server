@@ -173,6 +173,11 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     return runtime.workspaces.listDeckIds(req.accountContext.user.id);
   }
 
+  async function listDeckIdsForUser(userId) {
+    const runtime = await initialize();
+    return runtime.workspaces.listDeckIds(String(userId));
+  }
+
   async function getPlanUsage(req) {
     const runtime = await initialize();
     const usage = await runtime.workspaces.getPlanUsage({
@@ -358,6 +363,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     requireDeckOwnership,
     requireOwnedSession,
     listDeckIds,
+    listDeckIdsForUser,
     getPlanUsage,
     listAdminAccounts,
     changeWorkspacePlan,

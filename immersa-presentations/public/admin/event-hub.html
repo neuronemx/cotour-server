@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Hub · IMMERSA</title>
+  <link rel="stylesheet" href="/admin/event-hub.css?v=8">
+  <link rel="stylesheet" href="/admin/event-hub-brands.css?v=1">
+  <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
+</head>
+<body>
+  <header class="admin-header">
+    <a href="/home" class="brand">IMMERSA</a>
+    <div><p>Administración</p><h1>Event Hub</h1></div>
+    <nav><a href="/admin/accounts">Cuentas</a><a href="/home">Volver a mis presentaciones</a></nav>
+  </header>
+  <main>
+    <section class="intro">
+      <h2>Crear Event Hub</h2>
+      <p>Crea un workspace de evento independiente. Incluye los accesos públicos del evento.</p>
+      <form id="createHub">
+        <label><span>Nombre del evento</span><input name="title" maxlength="160" required placeholder="Semana AMC"></label>
+        <label><span>Identificador</span><input name="slug" maxlength="80" required pattern="[a-z0-9-]+" placeholder="semana-amc"></label>
+        <button type="submit">Crear Event Hub</button>
+      </form>
+      <p id="feedback" role="status"></p>
+    </section>
+    <section class="existing-hubs" aria-live="polite">
+      <h2>Event Hubs existentes</h2>
+      <p id="existingHubsFeedback">Cargando…</p>
+      <div id="existingHubs" class="existing-hubs-list"></div>
+    </section>
+    <section id="hub" hidden aria-live="polite">
+      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><div class="hub-header-actions"><button id="eventOverview" class="event-polls-button" type="button">Operación</button><button id="eventPolls" class="event-polls-button" type="button">Encuestas</button><button id="eventBrands" class="event-brands-button" type="button">Marcas</button><span id="hubSlug"></span></div></header>
+      <section id="eventOverviewPanel" class="event-overview" hidden><div class="event-overview-metrics"><article><span>Asistencia</span><strong id="overviewRegistered">0</strong></article><article><span>Participación escenarios</span><strong id="overviewAttendance">0</strong></article><article><span>Escenarios en vivo</span><strong id="overviewLiveStages">0</strong></article><article><span>Interacción global</span><strong id="overviewEngagement">0</strong></article></div><div id="overviewStages" class="event-overview-stages"></div></section>
+      <section class="public-access"><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section>
+      <section id="eventPollsPanel" class="event-polls-admin" hidden>
+        <div><h3>Encuestas del evento</h3><p>Son globales del Evento. Las lanza Event Admin en el Programa; no pertenecen a un Deck ni distraen a quien está en una LiveSession.</p></div>
+        <form id="eventPollForm">
+          <label><span>Nombre de encuesta</span><input name="title" maxlength="191" required placeholder="Opinión de la audiencia"></label>
+          <label><span>Pregunta</span><input name="prompt" maxlength="500" required placeholder="¿Qué tema te interesó más?"></label>
+          <div class="event-poll-options"><div class="event-poll-options-head"><span>Opciones</span><button id="eventPollAddOption" type="button">Agregar opción</button></div><div id="eventPollOptionList"></div></div>
+          <button type="submit">Guardar encuesta</button>
+        </form>
+        <p id="eventPollFeedback" role="status"></p>
+        <div id="eventPollList" class="event-poll-list"></div>
+      </section>
+      <section class="activities-admin">
+        <div class="program-head"><div><h3>Programa</h3><p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p></div><button id="activityNew" type="button">Nueva actividad</button></div>
+        <form id="activityForm">
+          <label><span>Actividad</span><input name="title" maxlength="160" required placeholder="Conferencia inaugural"></label>
+          <label><span>Tipo</span><select name="activityType"><option value="CONFERENCE">Conferencia</option><option value="ROUND_TABLE">Mesa redonda</option><option value="WORKSHOP">Taller</option><option value="MASTER_CLASS">Master Class</option><option value="PANEL">Panel</option><option value="OTHER">Otra</option></select></label>
+          <label><span>Event Stage</span><select id="activityStage" name="eventStageId" required></select></label>
+          <label><span>Acceso</span><select name="accessLevel"><option value="PAID">Público Paid</option><option value="FREE">Público Free</option></select></label>
+          <label><span>Inicio programado (CDMX)</span><input name="scheduledStartsAt" type="datetime-local"></label>
+          <label><span>Duración (min)</span><input name="durationMinutes" type="number" min="5" max="480" value="60" required></label>
+          <button id="activitySubmit" type="submit">Agregar al programa</button>
+          <button id="activityCancel" type="button" hidden>Cancelar</button>
+        </form>
+        <p id="activityFeedback" role="status"></p>
+        <div id="activityAdminList" class="activity-list"></div>
+        <section id="activitySpeakers" class="activity-speakers" hidden>
+          <h4>Ponentes</h4>
+          <p>Vincula una cuenta IMMERSA para usar su foto y semblanza, o registra un invitado manualmente.</p>
+          <div id="activitySpeakerList" class="speaker-admin-list"></div>
+          <form id="activitySpeakerForm">
+            <label><span>Origen</span><select name="source"><option value="ACCOUNT">Cuenta IMMERSA</option><option value="MANUAL">Registro manual</option></select></label>
+            <label class="speaker-account-field"><span>Buscar cuenta</span><input id="speakerAccountSearch" type="search" placeholder="Nombre o correo"></label>
+            <label class="speaker-account-field"><span>Cuenta</span><select id="speakerAccount" name="accountUserId"></select></label>
+            <label class="speaker-manual-field" hidden><span>Nombre</span><input name="name" maxlength="120"></label>
+            <label class="speaker-manual-field" hidden><span>Cargo / especialidad</span><input name="roleTitle" maxlength="120"></label>
+            <label class="speaker-manual-field wide" hidden><span>Semblanza</span><textarea name="bio" maxlength="600"></textarea></label>
+            <label class="speaker-manual-field wide" hidden><span>Foto (URL HTTPS opcional)</span><input name="photoUrl" type="url" maxlength="500"></label>
+            <button id="speakerSubmit" type="submit">Invitar ponente</button>
+          </form>
+          <p id="activitySpeakerFeedback" role="status"></p>
+        </section>
+        <section id="activityDeckCheck" class="activity-deck-check" hidden>
+          <h4>Deck Check</h4>
+          <p id="activityDeckCheckStatus" role="status"></p>
+          <div id="activityDeckCheckActions" class="deck-check-actions"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/home/brand-mentions-editor.js?v=5"></script>
+  <script src="/admin/event-hub.js?v=16"></script>
+</body>
+</html>

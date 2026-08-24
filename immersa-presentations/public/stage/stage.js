@@ -23,9 +23,8 @@ function syncPresentationLifecycleFeature(enabled) {
     }) || null;
   }
 }
-syncPresentationLifecycleFeature(planAllows("metrics.basic"));
 socket.on("plan:features", (access = {}) => {
-  syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
+  if (!eventStageSession) syncPresentationLifecycleFeature(access.capabilities?.["metrics.basic"] === true || access.features?.["metrics.basic"] === true);
 });
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
 
@@ -81,6 +80,11 @@ const reactionsToggle = document.getElementById("reactionsToggle");
 const qrToggle = document.getElementById("qrToggle");
 const messageInput = document.getElementById("messageInput");
 const stageDeckLabel = document.getElementById("stageDeckLabel");
+const eventStageControl = document.getElementById("eventStageControl");
+const eventStageName = document.getElementById("eventStageName");
+const eventActivityName = document.getElementById("eventActivityName");
+const eventStageMode = document.getElementById("eventStageMode");
+const eventStageAction = document.getElementById("eventStageAction");
 const prevSlide = document.getElementById("prevSlide");
 const nextSlide = document.getElementById("nextSlide");
 const liveTextButton = document.getElementById("liveTextButton");
@@ -100,6 +104,7 @@ const stageThumbs = document.getElementById("stageThumbs");
 const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 700px)") : null;
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
+let eventStageSession = null;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
@@ -134,6 +139,49 @@ async function loadDeck() {
   await loadInteractions();
   renderStageThumbs();
 }
+
+async function loadEventStageControl() {
+  if (!roleOpenContext.access_token || !eventStageControl) return false;
+  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`, {
+    headers: { "x-immersa-access-token": roleOpenContext.access_token }
+  });
+  if (response.status === 404) return false;
+  const control = await response.json();
+  if (!response.ok) throw new Error(control.error || "No se pudo cargar Event Stage");
+  eventStageSession = control;
+  eventStageName.textContent = control.stageName;
+  eventActivityName.textContent = control.title;
+  eventStageAction.textContent = control.liveSessionId ? "Finalizar conferencia" : "Iniciar conferencia";
+  eventStageAction.classList.toggle("is-live", Boolean(control.liveSessionId));
+  eventStageMode.textContent = control.liveSessionId ? (control.deckCheckStatus === "DECK_CHECK" ? "EN VIVO" : "EN VIVO · sin Deck Check") : (control.deckCheckStatus === "DECK_CHECK" ? "Probar Deck" : "Probar Deck · sin Deck Check");
+  eventStageMode.classList.toggle("is-live", Boolean(control.liveSessionId));
+  eventStageControl.hidden = false;
+  syncPresentationLifecycleFeature(false);
+  return true;
+}
+
+eventStageAction?.addEventListener("click", async () => {
+  if (!eventStageSession) return;
+  const live = Boolean(eventStageSession.liveSessionId);
+  if (!live && !window.confirm(`¿Iniciar conferencia: ${eventStageSession.title}?\n\nSe habilitarán Speaker y Público, y comenzarán las métricas.`)) return;
+  if (live && !window.confirm(`¿Finalizar conferencia: ${eventStageSession.title}?\n\nSe cerrará el acceso en vivo y las métricas.`)) return;
+  eventStageAction.disabled = true;
+  try {
+    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-immersa-access-token": roleOpenContext.access_token }
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "No se pudo actualizar la sesión en vivo");
+    eventStageSession.liveSessionId = live ? null : result.liveSessionId;
+    eventStageAction.textContent = live ? "Iniciar conferencia" : "Finalizar conferencia";
+    eventStageAction.classList.toggle("is-live", !live);
+    eventStageMode.textContent = live ? (eventStageSession.deckCheckStatus === "DECK_CHECK" ? "Probar Deck" : "Probar Deck · sin Deck Check") : (eventStageSession.deckCheckStatus === "DECK_CHECK" ? "EN VIVO" : "EN VIVO · sin Deck Check");
+    eventStageMode.classList.toggle("is-live", !live);
+  } catch (error) { window.alert(error.message); }
+  finally { eventStageAction.disabled = false; }
+});
 
 function publicUrl() {
   return roleOpenContext.public_url || "";
@@ -689,7 +737,9 @@ socket.on("interaction:hide_results", () => { interactionResultsVisible = false;
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderStageActionsPanel(); returnInteractionsHome(); });
 
 syncStageThumbsMode();
-loadDeck().then(() => {
+loadDeck().then(async () => {
+  const managedByEventHub = await loadEventStageControl();
+  if (!managedByEventHub) syncPresentationLifecycleFeature(planAllows("metrics.basic"));
   initDrawingOverlay();
   updateDrawingMode();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "stage" });

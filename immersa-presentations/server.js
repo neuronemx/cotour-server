@@ -23,6 +23,7 @@ const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
+const { EventHubAdminInteractions } = require("./event-hub/admin-interactions");
 const { createKnowledgeActivityHistoryHandlers } = require("./knowledge-activity-export");
 const {
   PresentationLifecycleRepository,
@@ -35,6 +36,8 @@ const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-brid
 const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
+const { EventHubRepository, EventHubError } = require("./event-hub/repository");
+const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
   CAPABILITIES,
   featureAccessForPlan,
@@ -72,6 +75,7 @@ const DATA_DIR = process.env.IMMERSA_DATA_DIR
 const DATA_DECKS_DIR = path.join(DATA_DIR, "decks");
 const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
+const DATA_EVENT_HUBS_DIR = path.join(DATA_DIR, "event-hubs");
 const sessions = new Map();
 const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
@@ -84,6 +88,7 @@ const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interact
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 let presentationMetricsRepository = null;
+let eventHubRepository = null;
 const gameQueueSockets = createGameQueueSocketHandlers({
   io,
   store: gameQueueStore,
@@ -143,6 +148,9 @@ const billingRuntime = createBillingRuntime({
   isWorkspaceActive: workspaceHasActivePresentation,
   emailSender: createResendEmailSender({ env: process.env })
 });
+const eventHubEmailSender = createResendEmailSender({ env: process.env });
+eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
+const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
@@ -255,9 +263,22 @@ const brandMentionHandlers = createBrandMentionHandlers({
   dataDecksDir: DATA_DECKS_DIR,
   staticDecksDir: STATIC_DECKS_DIR
 });
+const eventBrandMentionStore = new EventBrandMentionStore({ dataEventHubsDir: DATA_EVENT_HUBS_DIR });
+const eventBrandMentionHandlers = createBrandMentionHandlers({
+  dataDecksDir: DATA_EVENT_HUBS_DIR,
+  staticDecksDir: DATA_EVENT_HUBS_DIR,
+  store: eventBrandMentionStore
+});
 const brandMentionRuntime = new BrandMentionRuntime({
   io,
-  store: brandMentionHandlers.store,
+  store: {
+    read: (sourceId) => {
+      const source = String(sourceId || "");
+      return source.startsWith("event:")
+        ? eventBrandMentionStore.read(source.slice("event:".length))
+        : brandMentionHandlers.store.read(source);
+    }
+  },
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
@@ -332,15 +353,19 @@ async function loadInteractionsForDeck(deckId) {
     path.join(STATIC_DECKS_DIR, deckId, "interactions.json")
   ];
 
+  let deckInteractions = [];
   for (const interactionPath of candidates) {
     try {
       const interactions = await readInteractionsFile(interactionPath);
-      if (interactions.length) return interactions;
+      if (interactions.length) {
+        deckInteractions = interactions;
+        break;
+      }
     } catch (error) {
       if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
     }
   }
-  return [];
+  return deckInteractions;
 }
 
 function dateInfo(value) {
@@ -982,12 +1007,472 @@ function requireOwnedDeck(req, res, next) {
 }
 const requireDeckAccount = [requireAccount, requireOwnedDeck];
 const requireControllerDeck = accessLinkHandlers.guardDeckRoles(["speaker", "stage"]);
+const requireStageDeck = accessLinkHandlers.guardDeckRoles(["stage"]);
 function requireImmersaAdmin(req, res, next) {
   if (!isImmersaAdmin(req.accountContext)) return res.status(403).json({ error: "Administración de IMMERSA requerida" });
   return next();
 }
+function eventHubUnavailable(res) {
+  return res.status(503).json({ error: "Event Hub requiere la base de datos de IMMERSA" });
+}
+function sendEventHubError(res, error) {
+  if (error instanceof EventHubError) {
+    return res.status(error.statusCode).json({ error: error.message, code: error.code });
+  }
+  console.error("Event Hub request failed", error);
+  return res.status(500).json({ error: "No se pudo completar la operación de Event Hub" });
+}
+app.post("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const hub = await eventHubRepository.createHub({
+      slug: req.body?.slug,
+      title: req.body?.title,
+      createdByUserId: req.accountContext.user.id,
+      stages: req.body?.stages || ["CCC Sala THX", "CHURUBUSCO Foro NELA", "CHURUBUSCO Foro A", "CHURUBUSCO Foro 2", "CHURUBUSCO Lobby"]
+    });
+    return res.status(201).json(hub);
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json({ hubs: await eventHubRepository.listHubs() });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.getHub(req.params.workspaceId));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+function eventBrandRequest(handler) {
+  return async (req, res, next) => {
+    try {
+      if (!eventHubRepository) return eventHubUnavailable(res);
+      await eventHubRepository.getHub(req.params.workspaceId);
+      req.params.deckId = req.params.workspaceId;
+      return handler(req, res, next);
+    } catch (error) { return sendEventHubError(res, error); }
+  };
+}
+app.get("/api/admin/event-hubs/:workspaceId/brand-mentions", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.getConfig));
+app.post("/api/admin/event-hubs/:workspaceId/brand-mentions", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.createBrand));
+app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/order", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.reorderBrands));
+app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.updateBrand));
+app.delete("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.deleteBrand));
+app.get("/api/admin/event-hubs/:workspaceId/polls", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json({ polls: await eventHubRepository.listEventPolls(req.params.workspaceId) }); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/polls", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json(await eventHubRepository.createEventPoll({
+      eventWorkspaceId: req.params.workspaceId,
+      title: req.body?.title,
+      prompt: req.body?.prompt,
+      options: req.body?.options
+    }));
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.delete("/api/admin/event-hubs/:workspaceId/polls/:pollId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.deleteEventPoll({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/admin/event-hubs/:workspaceId/overview", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const overview = await eventHubRepository.getAdminOverview(req.params.workspaceId);
+    const interactionSummary = await eventHubRepository.getEventInteractionSummary(req.params.workspaceId);
+    return res.json({ ...overview, eventInteraction: { ...interactionSummary, active: eventHubAdminInteractions?.status(req.params.workspaceId).active || null } });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json({ activities: await eventHubRepository.listActivities(req.params.workspaceId) });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const activity = await eventHubRepository.createActivity({
+      eventWorkspaceId: req.params.workspaceId,
+      eventStageId: req.body?.eventStageId,
+      title: req.body?.title,
+      activityType: req.body?.activityType,
+      accessLevel: req.body?.accessLevel,
+      deckId: req.body?.deckId,
+      scheduledStartsAt: req.body?.scheduledStartsAt,
+      durationMinutes: req.body?.durationMinutes
+    });
+    return res.status(201).json(activity);
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.put("/api/admin/event-hubs/:workspaceId/activities/:activityId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.updateActivity({
+      activityId: req.params.activityId,
+      eventWorkspaceId: req.params.workspaceId,
+      eventStageId: req.body?.eventStageId,
+      title: req.body?.title,
+      activityType: req.body?.activityType,
+      accessLevel: req.body?.accessLevel,
+      scheduledStartsAt: req.body?.scheduledStartsAt,
+      durationMinutes: req.body?.durationMinutes
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json({ speakers: await eventHubRepository.addActivitySpeaker({
+      eventWorkspaceId: req.params.workspaceId,
+      activityId: req.params.activityId,
+      accountUserId: req.body?.accountUserId,
+      name: req.body?.name,
+      roleTitle: req.body?.roleTitle,
+      bio: req.body?.bio,
+      photoUrl: req.body?.photoUrl
+    }) });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.removeActivitySpeaker({
+      eventWorkspaceId: req.params.workspaceId,
+      activityId: req.params.activityId,
+      eventSpeakerId: req.params.speakerId
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/admin/event-hubs/:workspaceId/decks", requireAccount, requireImmersaAdmin, async (_req, res) => {
+  try { return res.json({ decks: await listDecks() }); }
+  catch (error) { console.error("Unable to list Event Hub decks", error); return res.status(500).json({ error: "No se pudieron cargar los Decks" }); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const speaker = await eventHubRepository.getLinkedSpeakerForActivity({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.body?.speakerId });
+    const deckId = String(req.body?.deckId || "").trim();
+    const speakerDeckIds = await betterAuthCompatibilityBridge.listDeckIdsForUser(speaker.userId);
+    if (!speakerDeckIds.map(String).includes(deckId)) return res.status(404).json({ error: "Deck not found for this speaker" });
+    return res.json(await eventHubRepository.requestDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, deckId }));
+  }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/decks", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const speaker = await eventHubRepository.getLinkedSpeakerForActivity({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
+    return res.json({ decks: await listDecks(await betterAuthCompatibilityBridge.listDeckIdsForUser(speaker.userId)) });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/speakers/:speakerId/invite-link", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const invitation = await eventHubRepository.inviteSpeakerToLinkAccount({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId, eventSpeakerId: req.params.speakerId });
+    // Event Hub invitations must return to the exact environment that created them.
+    // BETTER_AUTH_URL may point to production while this Event Hub runs on its isolated DB.
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
+    let email = { status: "not_configured" };
+    if (eventHubEmailSender && invitation.speakerEmail) {
+      try {
+        await eventHubEmailSender({
+          kind: "event-speaker-invitation",
+          to: invitation.speakerEmail,
+          name: invitation.speakerName,
+          url: `${baseUrl}/home#invitaciones`,
+          eventInvitation: invitation
+        });
+        email = { status: "sent" };
+      } catch (error) {
+        console.error("Unable to send Event Hub speaker invitation", error);
+        email = { status: "failed", detail: String(error?.message || error).slice(0, 300) };
+      }
+    }
+    return res.status(201).json({ ...invitation, email });
+  }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/event-hub/speaker-invitations", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json({ invitations: await eventHubRepository.listSpeakerInvitations(req.accountContext.user.id) }); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.declineSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/event-hub/speaker-invitations/:assignmentId/speaker-access", requireAccount, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const access = await eventHubRepository.getSpeakerPresentationAccess({
+      assignmentId: req.params.assignmentId,
+      userId: req.accountContext.user.id
+    });
+    const ownedDeckIds = await betterAuthCompatibilityBridge.listDeckIdsForUser(req.accountContext.user.id);
+    if (!ownedDeckIds.map(String).includes(String(access.deckId))) {
+      throw new EventHubError("SPEAKER_DECK_ACCESS_DENIED", "No tienes acceso a este Deck", 403);
+    }
+    const speakerLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: access.deckId, role: "speaker" });
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
+    return res.status(201).json({
+      activityId: access.activityId,
+      url: `${baseUrl}/speaker/${speakerLink.access_token}`
+    });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/stage-access", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const activity = await eventHubRepository.getActivity(req.params.activityId);
+    if (activity.event_workspace_id !== req.params.workspaceId) throw new EventHubError("ACTIVITY_WORKSPACE_MISMATCH", "This activity does not belong to this Event Hub", 403);
+    const eventDeckId = activity.deck_id || activity.pending_deck_id;
+    if (!eventDeckId) throw new EventHubError("EVENT_DECK_REQUIRED", "Selecciona un Deck antes de abrir Event Stage", 409);
+    const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: eventDeckId, role: "stage" });
+    await eventHubRepository.grantStageOperatorAccess({ eventStageId: activity.event_stage_id, accessSecret: stageLink.access_token });
+    const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
+    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}`, activityId: activity.id, stageId: activity.event_stage_id });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json(await eventHubRepository.grantStageOperatorAccess({
+      eventStageId: req.params.stageId,
+      accessSecret: req.body?.accessSecret,
+      expiresAt: req.body?.expiresAt || null
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.put("/api/admin/event-stages/:stageId/capacity", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.setStageCapacity({
+      eventStageId: req.params.stageId,
+      audienceCapacity: req.body?.audienceCapacity
+    }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/stages/:stageId/live-sessions", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: req.params.stageId,
+      accessSecret: req.headers["x-immersa-event-stage-access"]
+    });
+    const activity = await eventHubRepository.getActivity(req.body?.eventActivityId);
+    if (activity.event_stage_id !== req.params.stageId) {
+      throw new EventHubError("ACTIVITY_STAGE_MISMATCH", "This activity does not belong to this Event Stage", 403);
+    }
+    return res.status(201).json(await eventHubRepository.startLiveSession({ eventActivityId: activity.id }));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    if (!control) return res.status(404).json({ error: "Esta presentación no tiene una actividad Event Hub operable" });
+    return res.json(control);
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/polls/:pollId/launch", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(await eventHubAdminInteractions.launch({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/admin/event-hubs/:workspaceId/polls/interaction", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(eventHubAdminInteractions.status(req.params.workspaceId)); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/polls/close", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(eventHubAdminInteractions.close(req.params.workspaceId)); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const action = String(req.params.action || "");
+    if (!new Set(["start", "finish"]).has(action)) {
+      throw new EventHubError("INVALID_CONFERENCE_ACTION", "La operación de conferencia no es válida", 400);
+    }
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    if (!control) throw new EventHubError("EVENT_STAGE_CONTROL_NOT_FOUND", "Esta presentación no tiene una actividad Event Hub operable", 404);
+    const accessLink = req.immersaAccess?.accessLink;
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: control.stageId,
+      accessSecret: accessLink?.access_token
+    });
+    const lifecycleContext = {
+      roomKey: getRoomKey(accessLink.session_id, req.params.deckId),
+      role: "stage",
+      sessionId: accessLink.session_id,
+      deckId: req.params.deckId
+    };
+    if (action === "start") {
+      if (control.liveSessionId) {
+        return res.json({ liveSessionId: control.liveSessionId, status: "LIVE" });
+      }
+      const liveSession = await eventHubRepository.startLiveSession({ eventActivityId: control.activityId });
+      try {
+        await presentationLifecycleRuntime.start(lifecycleContext);
+      } catch (error) {
+        await eventHubRepository.finishLiveSession(liveSession.id).catch(() => {});
+        throw error;
+      }
+      return res.status(201).json({ liveSessionId: liveSession.id, status: "LIVE" });
+    }
+    if (!control.liveSessionId) throw new EventHubError("LIVE_SESSION_NOT_FOUND", "No hay una conferencia en vivo para finalizar", 404);
+    try {
+      await presentationLifecycleRuntime.finish(lifecycleContext);
+    } catch (error) {
+      if (error?.code !== "NOT_LIVE") throw error;
+    }
+    await eventHubRepository.finishLiveSession(control.liveSessionId);
+    return res.json({ liveSessionId: null, status: "FINISHED" });
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/event/stages/:stageId/live-sessions/:liveSessionId/finish", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    await eventHubRepository.authorizeStageOperation({
+      eventStageId: req.params.stageId,
+      accessSecret: req.headers["x-immersa-event-stage-access"]
+    });
+    const liveSession = await eventHubRepository.getLiveSession(req.params.liveSessionId);
+    if (liveSession.event_stage_id !== req.params.stageId) {
+      throw new EventHubError("LIVE_SESSION_STAGE_MISMATCH", "This LiveSession does not belong to this Event Stage", 403);
+    }
+    return res.json(await eventHubRepository.finishLiveSession(liveSession.id));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/event/public/:publicId", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.json(await eventHubRepository.getPublicQr(req.params.publicId));
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/api/event/public/:publicId/brand-mentions", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json(await eventBrandMentionStore.read(qr.eventWorkspaceId));
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/event/public/:publicId/activities", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    return res.json({
+      event: { title: qr.title, slug: qr.slug },
+      audienceLevel: qr.audienceLevel,
+      activities: await eventHubRepository.listPublicActivities({
+        eventWorkspaceId: qr.eventWorkspaceId,
+        audienceLevel: qr.audienceLevel
+      })
+    });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/public/:publicId/registration", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const qr = await eventHubRepository.getPublicQr(req.params.publicId);
+    const participant = await eventHubRepository.registerParticipant({
+      eventWorkspaceId: qr.eventWorkspaceId,
+      registrationKey: req.body?.registrationKey,
+      audienceLevel: qr.audienceLevel
+    });
+    return res.status(201).json({ participantId: participant.id, audienceLevel: participant.audienceLevel, event: { title: qr.title, slug: qr.slug } });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/live-sessions/:liveSessionId/enter", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const admission = await eventHubRepository.admitParticipant({
+      eventLiveSessionId: req.params.liveSessionId,
+      eventParticipantId: req.body?.participantId
+    });
+    const liveSession = await eventHubRepository.getLiveSession(req.params.liveSessionId);
+    const audiencePath = await accessLinkHandlers.publicAudiencePathForDeck(liveSession.deck_id);
+    if (!audiencePath) throw new EventHubError("EVENT_DECK_AUDIENCE_LINK_MISSING", "La presentación aún no tiene acceso Público", 409);
+    const publicId = await eventHubRepository.getPublicQrForAudience({
+      eventWorkspaceId: liveSession.event_workspace_id,
+      audienceLevel: admission.audienceLevel || "PAID"
+    });
+    return res.json({ ...admission, audiencePath, returnPath: publicId ? `/${publicId}` : null });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
+app.post("/api/event/live-sessions/:liveSessionId/status", async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const live = await eventHubRepository.isParticipantLiveSessionActive({
+      eventLiveSessionId: req.params.liveSessionId,
+      eventParticipantId: req.body?.participantId
+    });
+    return res.json({ live });
+  } catch (error) {
+    return sendEventHubError(res, error);
+  }
+});
 app.get("/admin/accounts", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "admin", "accounts.html"));
+});
+app.get("/admin/event-hub", betterAuthCompatibilityBridge.requirePageAuth(), requireImmersaAdmin, (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "admin", "event-hub.html"));
 });
 async function requireOwnedOrPublishedSession(req, res, next) {
   const requestedSessionId = String(req.body?.session_id || "").trim();
@@ -1345,11 +1830,34 @@ app.get("/assets/games/breakout/intro.mp4", (_req, res) => {
   res.type("video/mp4");
   res.sendFile(path.join(PUBLIC_DIR, "assets", "games", "breakout", "intro.mp4"));
 });
+app.get("/p_evt_:eventPublicId", async (req, res, next) => {
+  if (!eventHubRepository) return next();
+  const publicId = `p_evt_${String(req.params.eventPublicId || "")}`;
+  try {
+    await eventHubRepository.getPublicQr(publicId);
+    const html = await fs.promises.readFile(path.join(PUBLIC_DIR, "event", "index.html"), "utf8");
+    const context = JSON.stringify({ publicId }).replace(/</g, "\\u003c");
+    return res.type("html").send(html.replace("window.IMMERSA_EVENT_PUBLIC = null;", `window.IMMERSA_EVENT_PUBLIC = ${context};`));
+  } catch (error) {
+    if (error instanceof EventHubError && error.code === "EVENT_QR_NOT_FOUND") return next();
+    return sendEventHubError(res, error);
+  }
+});
+app.get("/event-hubs/:workspaceId/brand-assets/:fileName", async (req, res) => {
+  if (!eventHubRepository) return res.sendStatus(404);
+  try {
+    await eventHubRepository.getHub(req.params.workspaceId);
+    const asset = eventBrandMentionStore.assetPath(req.params.workspaceId, req.params.fileName);
+    if (!asset) return res.sendStatus(404);
+    return res.sendFile(asset, (error) => { if (error && !res.headersSent) res.sendStatus(error.code === "ENOENT" ? 404 : 500); });
+  } catch (error) { return sendEventHubError(res, error); }
+});
 app.get("/:public_id", accessLinkHandlers.openPublicAudience);
 app.use(express.static(PUBLIC_DIR));
 
 io.use(betterAuthCompatibilityBridge.socketMiddleware);
 io.on("connection", (socket) => {
+  eventHubAdminInteractions?.attach(socket);
   let currentRoomKey = null;
   let currentRole = null;
   let currentSessionId = null;
@@ -1477,12 +1985,19 @@ io.on("connection", (socket) => {
     if (role === "stage") session.stageConnected = true;
     if (role === "audience") {
       const requestedAudienceId = String(audienceId || socket.id);
-      const audienceLimit = getPlanLimits(currentFeatureAccess.plan).audience;
+      let eventStageCapacity = null;
+      try {
+        eventStageCapacity = await eventHubRepository?.getLiveStageCapacityForDeck(joinedDeckId);
+      } catch (error) {
+        console.error("Unable to resolve Event Stage capacity", error);
+      }
+      const audienceLimit = eventStageCapacity?.audienceCapacity || getPlanLimits(currentFeatureAccess.plan).audience;
       if (!canRegisterAudience(session, requestedAudienceId, audienceLimit)) {
         socket.emit("plan:audience_limit", {
           code: "AUDIENCE_LIMIT_REACHED",
           limit: audienceLimit,
-          plan: currentFeatureAccess.plan,
+          plan: eventStageCapacity ? null : currentFeatureAccess.plan,
+          eventStageId: eventStageCapacity?.eventStageId || null,
           message: "Esta presentación alcanzó el límite de Público simultáneo."
         });
         return socket.disconnect(true);
@@ -1502,6 +2017,12 @@ io.on("connection", (socket) => {
       deckId: currentDeckId,
       audienceId: currentAudienceId
     };
+    if (role === "audience") {
+      try {
+        const liveEvent = await eventHubRepository?.getLiveEventForDeck(currentDeckId);
+        if (liveEvent?.event_workspace_id) joinedContext.brandSourceId = `event:${liveEvent.event_workspace_id}`;
+      } catch (error) { console.error("Unable to resolve Event Hub brands", error); }
+    }
     emitState(currentRoomKey, session);
     if (
       role === "audience"

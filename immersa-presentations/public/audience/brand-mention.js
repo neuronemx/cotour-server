@@ -34,6 +34,41 @@
       concealTimer = null;
     }
 
+    function matchLogoSurface(image, surface) {
+      const sample = () => {
+        try {
+          const width = Math.min(64, image.naturalWidth || 0);
+          const height = Math.min(64, image.naturalHeight || 0);
+          if (!width || !height) return;
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          context.drawImage(image, 0, 0, width, height);
+          const pixels = context.getImageData(0, 0, width, height).data;
+          const colors = new Map();
+          for (let y = 0; y < height; y += 1) {
+            for (let x = 0; x < width; x += 1) {
+              if (x > 2 && x < width - 3 && y > 2 && y < height - 3) continue;
+              const offset = (y * width + x) * 4;
+              if (pixels[offset + 3] < 220) continue;
+              const red = Math.round(pixels[offset] / 16) * 16;
+              const green = Math.round(pixels[offset + 1] / 16) * 16;
+              const blue = Math.round(pixels[offset + 2] / 16) * 16;
+              const key = `${red},${green},${blue}`;
+              colors.set(key, (colors.get(key) || 0) + 1);
+            }
+          }
+          const background = [...colors.entries()].sort((left, right) => right[1] - left[1])[0]?.[0];
+          if (background) surface.style.setProperty("--brand-logo-surface", `rgb(${background})`);
+        } catch (_error) {
+          // A logo from another origin simply keeps the neutral fallback surface.
+        }
+      };
+      if (image.complete) sample();
+      else image.addEventListener("load", sample, { once: true });
+    }
+
     function hide() {
       generation += 1;
       clearTimers();
@@ -81,6 +116,7 @@
       image.src = String(mention.logo_src || "");
       image.alt = "Logo de " + mention.name;
       logo.appendChild(image);
+      matchLogoSurface(image, logo);
 
       const copy = document.createElement("span");
       copy.className = "brand-mention-card-copy";

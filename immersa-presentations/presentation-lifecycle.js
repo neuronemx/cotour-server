@@ -309,7 +309,9 @@ function createPresentationLifecycleRuntime({
     }
   }
 
-  return { attach, sendCurrentState, startAutomatically, finishInactive, emitState, emitClosed };
+  // Event Stage also invokes the lifecycle through its authenticated HTTP control,
+  // so expose the same guarded operations used by the socket controls.
+  return { attach, start, finish, sendCurrentState, startAutomatically, finishInactive, emitState, emitClosed };
 }
 
 module.exports = {
