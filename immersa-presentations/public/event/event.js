@@ -32,6 +32,7 @@
   let adminResponse = null;
   let adminThankYou = false;
   let adminThankYouTimer = null;
+  let brandRotationTimer = null;
   const participantId = () => localStorage.getItem(key);
   function closeAdminInteractionAfterThanks() {
     window.clearTimeout(adminThankYouTimer);
@@ -114,6 +115,18 @@
       } catch (_error) { /* A remote logo keeps the neutral fallback. */ }
     };
     if (image.complete) sample(); else image.addEventListener("load", sample, { once: true });
+  }
+  function rotateBrandRail() {
+    const items = [...(eventBrandRail?.children || [])];
+    for (let index = items.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+    }
+    eventBrandRail?.append(...items);
+  }
+  function startBrandRotation() {
+    window.clearInterval(brandRotationTimer);
+    brandRotationTimer = window.setInterval(rotateBrandRail, 300000);
   }
   async function refreshBrands() {
     if (!eventBrands || !eventBrandRail) return;
@@ -255,7 +268,7 @@
       }
     } finally { refreshingActivities = false; }
   };
-  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
+  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); startBrandRotation(); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
