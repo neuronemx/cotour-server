@@ -284,11 +284,16 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
   const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
   const script = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  const styles = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event-brands.css"), "utf8");
   const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
   const runtime = await fs.promises.readFile(path.join(__dirname, "..", "brand-mention-runtime.js"), "utf8");
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
   assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
   assert.match(page, /Con el apoyo de/);
+  assert.match(page, /event-brands\.css\?v=2/);
+  assert.match(styles, /\.event-brands\{position:fixed/);
+  assert.match(styles, /bottom:0/);
+  assert.match(styles, /width:92px;height:46px/);
   assert.match(script, /refreshBrands/);
   assert.match(script, /eventBrands\.hidden = brands\.length === 0/);
   assert.match(admin, /eventBrands/);
