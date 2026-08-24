@@ -276,6 +276,19 @@ class EventHubRepository {
     return { deleted: true };
   }
 
+  async getEventInteractionSummary(eventWorkspaceId) {
+    const [[row]] = await this.pool.execute(
+      `SELECT COUNT(DISTINCT execution.id) AS interactions,
+              COUNT(response.event_participant_id) AS responses
+       FROM event_hub_poll_executions execution
+       LEFT JOIN event_hub_poll_responses response
+         ON response.event_hub_poll_execution_id = execution.id
+       WHERE execution.event_workspace_id = ?`,
+      [required(eventWorkspaceId, "event workspace id")]
+    );
+    return { interactions: Number(row?.interactions || 0), responsesTotal: Number(row?.responses || 0) };
+  }
+
   async setStageCapacity({ eventStageId, audienceCapacity }) {
     const capacity = Number(audienceCapacity);
     if (!Number.isInteger(capacity) || capacity < 1) {
