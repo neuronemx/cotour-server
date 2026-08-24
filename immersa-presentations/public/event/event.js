@@ -22,7 +22,7 @@
   const sheet = document.querySelector("#sheet-content");
   const liveFilterNote = document.querySelector("#live-filter-note");
   const showFullProgram = document.querySelector("#show-full-program");
-  const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", OTHER: "Otra" };
+  const labels = { CONFERENCE: "Conferencia", MASTER_CLASS: "Master Class", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", PANEL: "Panel", PROJECTION: "Proyección", OTHER: "Otra" };
   let activeSection = null;
   let activeDayId = null;
   let activitiesSnapshot = "";
