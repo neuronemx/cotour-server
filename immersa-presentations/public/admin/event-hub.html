@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Event Hub · IMMERSA</title>
-  <link rel="stylesheet" href="/admin/event-hub.css?v=6">
+  <link rel="stylesheet" href="/admin/event-hub.css?v=7">
   <link rel="stylesheet" href="/admin/event-hub-brands.css?v=1">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
 </head>
@@ -31,8 +31,19 @@
       <div id="existingHubs" class="existing-hubs-list"></div>
     </section>
     <section id="hub" hidden aria-live="polite">
-      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><div class="hub-header-actions"><button id="eventBrands" class="event-brands-button" type="button">Marcas</button><span id="hubSlug"></span></div></header>
+      <header><div><p class="eyebrow">Event Hub creado</p><h2 id="hubTitle"></h2></div><div class="hub-header-actions"><button id="eventPolls" class="event-polls-button" type="button">Encuestas</button><button id="eventBrands" class="event-brands-button" type="button">Marcas</button><span id="hubSlug"></span></div></header>
       <div class="stages"><section><h3>Event Stages</h3><ul id="stageList"></ul></section><section><h3>Accesos de público</h3><div id="qrList" class="qrs"></div></section></div>
+      <section id="eventPollsPanel" class="event-polls-admin" hidden>
+        <div><h3>Encuestas del evento</h3><p>Son propias del Event Hub. Event Stage las podrá lanzar durante una conferencia; no pertenecen al Deck de un ponente.</p></div>
+        <form id="eventPollForm">
+          <label><span>Nombre de encuesta</span><input name="title" maxlength="191" required placeholder="Opinión de la audiencia"></label>
+          <label><span>Pregunta</span><input name="prompt" maxlength="500" required placeholder="¿Qué tema te interesó más?"></label>
+          <div class="event-poll-options"><div class="event-poll-options-head"><span>Opciones</span><button id="eventPollAddOption" type="button">Agregar opción</button></div><div id="eventPollOptionList"></div></div>
+          <button type="submit">Guardar encuesta</button>
+        </form>
+        <p id="eventPollFeedback" role="status"></p>
+        <div id="eventPollList" class="event-poll-list"></div>
+      </section>
       <section class="activities-admin">
         <div class="program-head"><div><h3>Programa</h3><p>Agenda actividades por Stage y nivel de acceso. El Deck se asignará en el corte de Deck Check.</p></div><button id="activityNew" type="button">Nueva actividad</button></div>
         <form id="activityForm">
@@ -73,6 +84,6 @@
   </main>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/home/brand-mentions-editor.js?v=5"></script>
-  <script src="/admin/event-hub.js?v=12"></script>
+  <script src="/admin/event-hub.js?v=13"></script>
 </body>
 </html>

@@ -214,16 +214,21 @@ function normalizeInteractionList(data) {
 function clearSelectedInteraction() { selectedInteractionId = ""; }
 
 async function loadInteractions() {
+  let deckInteractions = [];
   try {
     const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" });
     if (!res.ok) throw new Error("No interactions");
     const data = await res.json();
-    interactions = normalizeInteractionList(data);
+    deckInteractions = normalizeInteractionList(data);
     videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
   } catch (_error) {
-    interactions = [];
     videoSlideIds = new Set();
   }
+  try {
+    const res = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}/polls`, { cache: "no-store" });
+    const data = res.ok ? await res.json() : { polls: [] };
+    interactions = [...deckInteractions, ...normalizeInteractionList(data.polls || [])];
+  } catch (_error) { interactions = deckInteractions; }
   clearSelectedInteraction();
   renderStageActionsPanel();
   syncInteractionShellState();

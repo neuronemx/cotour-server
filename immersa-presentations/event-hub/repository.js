@@ -45,6 +45,17 @@ function optionalText(value, name, limit) {
   return normalized;
 }
 
+function pollOptions(value) {
+  const normalized = (Array.isArray(value) ? value : [])
+    .map((option) => optionalText(typeof option === "string" ? option : option?.label, "poll option", 300))
+    .filter(Boolean);
+  if (normalized.length < 2) throw new EventHubError("INVALID_POLL_OPTIONS", "Una encuesta necesita al menos dos opciones");
+  if (new Set(normalized.map((option) => option.toLocaleLowerCase("es-MX"))).size !== normalized.length) {
+    throw new EventHubError("INVALID_POLL_OPTIONS", "Las opciones de la encuesta deben ser distintas");
+  }
+  return normalized;
+}
+
 function publicSpeakerPhotoUrl({ photoKey, authImage, manualPhotoUrl }) {
   const key = String(photoKey || "").trim();
   if (/^profile-[a-f0-9-]+\.(?:png|jpg|webp)$/i.test(key)) return `/profile-images/${encodeURIComponent(key)}`;
@@ -145,6 +156,71 @@ class EventHubRepository {
       "SELECT workspace_id, slug, title, timezone, status FROM event_hubs ORDER BY created_at DESC, title"
     );
     return rows || [];
+  }
+
+  async listEventPolls(eventWorkspaceId, { activeOnly = false } = {}) {
+    const workspaceId = required(eventWorkspaceId, "event workspace id");
+    const [polls] = await this.pool.execute(
+      `SELECT id, title, prompt, active, created_at, updated_at
+       FROM event_hub_polls
+       WHERE event_workspace_id = ?${activeOnly ? " AND active = 1" : ""}
+       ORDER BY created_at, id`,
+      [workspaceId]
+    );
+    const items = polls || [];
+    if (!items.length) return [];
+    const placeholders = items.map(() => "?").join(", ");
+    const [options] = await this.pool.execute(
+      `SELECT id, event_hub_poll_id, label, sort_order
+       FROM event_hub_poll_options
+       WHERE event_hub_poll_id IN (${placeholders})
+       ORDER BY event_hub_poll_id, sort_order, id`,
+      items.map((poll) => poll.id)
+    );
+    const byPoll = new Map(items.map((poll) => [poll.id, []]));
+    for (const option of options || []) byPoll.get(option.event_hub_poll_id)?.push({ id: option.id, label: option.label });
+    return items.map((poll) => ({
+      id: poll.id,
+      title: poll.title,
+      prompt: poll.prompt,
+      active: Boolean(poll.active),
+      createdAt: poll.created_at,
+      updatedAt: poll.updated_at,
+      type: "poll",
+      source: "event",
+      options: byPoll.get(poll.id) || []
+    }));
+  }
+
+  async createEventPoll({ eventWorkspaceId, title, prompt, options }) {
+    const workspaceId = required(eventWorkspaceId, "event workspace id");
+    await this.getHub(workspaceId);
+    const pollId = this.createId();
+    const normalizedTitle = required(title, "poll title");
+    const normalizedPrompt = optionalText(prompt, "poll prompt", 500) || normalizedTitle;
+    const normalizedOptions = pollOptions(options);
+    await transaction(this.pool, async (connection) => {
+      await connection.execute(
+        "INSERT INTO event_hub_polls (id, event_workspace_id, title, prompt) VALUES (?, ?, ?, ?)",
+        [pollId, workspaceId, optionalText(normalizedTitle, "poll title", 191), normalizedPrompt]
+      );
+      for (const [sortOrder, label] of normalizedOptions.entries()) {
+        await connection.execute(
+          "INSERT INTO event_hub_poll_options (id, event_hub_poll_id, label, sort_order) VALUES (?, ?, ?, ?)",
+          [this.createId(), pollId, label, sortOrder]
+        );
+      }
+    });
+    return (await this.listEventPolls(workspaceId)).find((poll) => poll.id === pollId);
+  }
+
+  async deleteEventPoll({ eventWorkspaceId, pollId }) {
+    const [result] = await this.pool.execute(
+      "DELETE FROM event_hub_polls WHERE id = ? AND event_workspace_id = ?",
+      [required(pollId, "poll id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_POLL_NOT_FOUND", "Encuesta del evento no encontrada", 404);
+    return { deleted: true };
   }
 
   async setStageCapacity({ eventStageId, audienceCapacity }) {
@@ -586,7 +662,7 @@ class EventHubRepository {
 
   async getStageControlForDeck(deckId) {
     const [rows] = await this.pool.execute(
-      `SELECT a.id AS activity_id, a.title AS activity_title, a.event_stage_id, a.status AS activity_status, a.deck_check_status,
+      `SELECT a.id AS activity_id, a.title AS activity_title, a.event_workspace_id, a.event_stage_id, a.status AS activity_status, a.deck_check_status,
               s.name AS stage_name, l.id AS live_session_id
        FROM event_activities a
        INNER JOIN event_stages s ON s.id = a.event_stage_id
@@ -600,6 +676,7 @@ class EventHubRepository {
     if (!row) return null;
     return {
       activityId: row.activity_id,
+      ...(row.event_workspace_id ? { eventWorkspaceId: row.event_workspace_id } : {}),
       title: row.activity_title,
       stageId: row.event_stage_id,
       stageName: row.stage_name,
@@ -723,4 +800,4 @@ class EventHubRepository {
   }
 }
 
-module.exports = { EventHubRepository, EventHubError, AUDIENCE_LEVELS, ACTIVITY_ACCESS_LEVELS, canEnterActivity, registrationKeyHash, secretHash };
+module.exports = { EventHubRepository, EventHubError, AUDIENCE_LEVELS, ACTIVITY_ACCESS_LEVELS, canEnterActivity, registrationKeyHash, secretHash, pollOptions };

@@ -351,15 +351,26 @@ async function loadInteractionsForDeck(deckId) {
     path.join(STATIC_DECKS_DIR, deckId, "interactions.json")
   ];
 
+  let deckInteractions = [];
   for (const interactionPath of candidates) {
     try {
       const interactions = await readInteractionsFile(interactionPath);
-      if (interactions.length) return interactions;
+      if (interactions.length) {
+        deckInteractions = interactions;
+        break;
+      }
     } catch (error) {
       if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
     }
   }
-  return [];
+  try {
+    const control = await eventHubRepository?.getStageControlForDeck(deckId);
+    if (!control?.eventWorkspaceId) return deckInteractions;
+    return [...deckInteractions, ...await eventHubRepository.listEventPolls(control.eventWorkspaceId, { activeOnly: true })];
+  } catch (error) {
+    console.error("Unable to load Event Hub polls", error);
+    return deckInteractions;
+  }
 }
 
 function dateInfo(value) {
@@ -1061,6 +1072,27 @@ app.post("/api/admin/event-hubs/:workspaceId/brand-mentions", requireAccount, re
 app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/order", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.reorderBrands));
 app.put("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.updateBrand));
 app.delete("/api/admin/event-hubs/:workspaceId/brand-mentions/:brandId", requireAccount, requireImmersaAdmin, eventBrandRequest(eventBrandMentionHandlers.deleteBrand));
+app.get("/api/admin/event-hubs/:workspaceId/polls", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json({ polls: await eventHubRepository.listEventPolls(req.params.workspaceId) }); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/polls", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    return res.status(201).json(await eventHubRepository.createEventPoll({
+      eventWorkspaceId: req.params.workspaceId,
+      title: req.body?.title,
+      prompt: req.body?.prompt,
+      options: req.body?.options
+    }));
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.delete("/api/admin/event-hubs/:workspaceId/polls/:pollId", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.deleteEventPoll({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.get("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
@@ -1280,6 +1312,14 @@ app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) =
     const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
     if (!control) return res.status(404).json({ error: "Esta presentación no tiene una actividad Event Hub operable" });
     return res.json(control);
+  } catch (error) { return sendEventHubError(res, error); }
+});
+app.get("/api/event/stage-control/:deckId/polls", requireStageDeck, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try {
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    if (!control?.eventWorkspaceId) return res.json({ polls: [] });
+    return res.json({ polls: await eventHubRepository.listEventPolls(control.eventWorkspaceId, { activeOnly: true }) });
   } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck, async (req, res) => {

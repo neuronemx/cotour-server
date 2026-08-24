@@ -8,6 +8,7 @@ const {
   canEnterActivity,
   registrationKeyHash
   ,secretHash
+  ,pollOptions
 } = require("../event-hub/repository");
 
 function fakePool(results = []) {
@@ -37,6 +38,12 @@ test("Paid participant enters Paid and Free activities; Free only enters Free", 
 test("registration identity is persisted as a hash, not as public data", () => {
   assert.match(registrationKeyHash("private-event-registration"), /^[a-f0-9]{64}$/);
   assert.notEqual(registrationKeyHash("private-event-registration"), registrationKeyHash("other-registration"));
+});
+
+test("Event Hub polls have no artificial option limit and require distinct choices", () => {
+  assert.equal(pollOptions(["Sí", "No", "Tal vez", "Después"]).length, 4);
+  assert.throws(() => pollOptions(["Sí", "sí"]), /distintas/);
+  assert.throws(() => pollOptions(["Solo una"]), /al menos dos/);
 });
 
 test("a public QR resolves its event and the only level it grants", async () => {
@@ -300,6 +307,22 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(script, /eventBrands\.hidden = brands\.length === 0/);
   assert.match(admin, /eventBrands/);
   assert.match(runtime, /brandSourceId/);
+});
+
+test("Event Admin can prepare unlimited Event Hub polls and only Event Stage can launch them", async () => {
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  const repository = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "repository.js"), "utf8");
+  const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "033_event_hub_polls.sql"), "utf8");
+  const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  const interactions = await fs.promises.readFile(path.join(__dirname, "..", "interaction-store.js"), "utf8");
+  assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/polls/);
+  assert.match(server, /api\/event\/stage-control\/:deckId\/polls/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hub_polls/);
+  assert.match(repository, /listEventPolls/);
+  assert.match(admin, /Encuesta lista para Event Stage/);
+  assert.match(stage, /stage-control\/\$\{encodeURIComponent\(deckId\)\}\/polls/);
+  assert.match(interactions, /interaction\.source === "event" && context\.role !== "stage"/);
 });
 
 test("an Event Hub attendee can return to the public Program when their LiveSession closes", async () => {

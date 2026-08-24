@@ -13,6 +13,13 @@ const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
 const activityNew = document.getElementById("activityNew");
 const eventBrands = document.getElementById("eventBrands");
+const eventPolls = document.getElementById("eventPolls");
+const eventPollsPanel = document.getElementById("eventPollsPanel");
+const eventPollForm = document.getElementById("eventPollForm");
+const eventPollAddOption = document.getElementById("eventPollAddOption");
+const eventPollOptionList = document.getElementById("eventPollOptionList");
+const eventPollFeedback = document.getElementById("eventPollFeedback");
+const eventPollList = document.getElementById("eventPollList");
 const activitySpeakers = document.getElementById("activitySpeakers");
 const activityDeckCheck = document.getElementById("activityDeckCheck");
 const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
@@ -38,6 +45,52 @@ let activeActivityTool = "";
 const activityTypeLabels = { CONFERENCE: "Conferencia", ROUND_TABLE: "Mesa redonda", WORKSHOP: "Taller", MASTER_CLASS: "Master Class", PANEL: "Panel", OTHER: "Otra" };
 
 function eventUrl(publicId) { return new URL("/" + publicId, window.location.origin).toString(); }
+function addEventPollOption(value = "") {
+  const field = document.createElement("label");
+  field.className = "event-poll-option";
+  field.innerHTML = "<input maxlength='300' required placeholder='Opción'><button type='button' aria-label='Quitar opción'>×</button>";
+  field.querySelector("input").value = value;
+  field.querySelector("button").addEventListener("click", () => {
+    if (eventPollOptionList.children.length <= 2) return;
+    field.remove();
+  });
+  eventPollOptionList.appendChild(field);
+}
+function resetEventPollForm() {
+  eventPollForm.reset();
+  eventPollOptionList.replaceChildren();
+  addEventPollOption();
+  addEventPollOption();
+}
+function renderEventPolls(polls) {
+  eventPollList.replaceChildren();
+  if (!polls.length) { eventPollList.textContent = "Aún no hay encuestas propias del evento."; return; }
+  for (const poll of polls) {
+    const item = document.createElement("article");
+    item.className = "event-poll-card";
+    item.innerHTML = "<div><strong></strong><p></p><ol></ol></div><button type='button'>Eliminar</button>";
+    item.querySelector("strong").textContent = poll.title;
+    item.querySelector("p").textContent = poll.prompt;
+    for (const option of poll.options || []) { const row = document.createElement("li"); row.textContent = option.label; item.querySelector("ol").appendChild(row); }
+    item.querySelector("button").addEventListener("click", async () => {
+      if (!window.confirm(`¿Eliminar la encuesta “${poll.title}”?`)) return;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/${encodeURIComponent(poll.id)}`, { method: "DELETE" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo eliminar la encuesta");
+        await loadEventPolls();
+      } catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+    });
+    eventPollList.appendChild(item);
+  }
+}
+async function loadEventPolls() {
+  if (!currentHub) return;
+  const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls`, { cache: "no-store" });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "No se pudieron cargar las encuestas del evento");
+  renderEventPolls(body.polls || []);
+}
 function activityDate(value) {
   if (!value) return "Horario por definir";
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -390,6 +443,40 @@ eventBrands?.addEventListener("click", () => {
     apiBase: `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/brand-mentions`
   });
 });
+eventPolls?.addEventListener("click", async () => {
+  if (!currentHub) return;
+  eventPollsPanel.hidden = !eventPollsPanel.hidden;
+  if (!eventPollsPanel.hidden) {
+    try { await loadEventPolls(); }
+    catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+  }
+});
+eventPollAddOption?.addEventListener("click", () => addEventPollOption());
+eventPollForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentHub) return;
+  const submit = eventPollForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  eventPollFeedback.className = "";
+  eventPollFeedback.textContent = "Guardando encuesta…";
+  try {
+    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: eventPollForm.elements.title.value.trim(),
+        prompt: eventPollForm.elements.prompt.value.trim(),
+        options: [...eventPollOptionList.querySelectorAll("input")].map((input) => input.value.trim())
+      })
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "No se pudo guardar la encuesta");
+    resetEventPollForm();
+    eventPollFeedback.className = "success";
+    eventPollFeedback.textContent = "Encuesta lista para Event Stage.";
+    await loadEventPolls();
+  } catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+  finally { submit.disabled = false; }
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -497,6 +584,7 @@ activitySpeakerForm.addEventListener("submit", async (event) => {
   finally { button.disabled = false; }
 });
 showSpeakerSource();
+resetEventPollForm();
 
 (async () => {
   try {
