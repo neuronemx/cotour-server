@@ -147,6 +147,7 @@
       matchLogoSurface(logo, link);
       return link;
     }));
+    rotateBrandRail();
     eventBrands.hidden = brands.length === 0;
   }
   function updateLiveIndicator() {
