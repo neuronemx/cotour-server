@@ -214,21 +214,16 @@ function normalizeInteractionList(data) {
 function clearSelectedInteraction() { selectedInteractionId = ""; }
 
 async function loadInteractions() {
-  let deckInteractions = [];
   try {
     const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" });
     if (!res.ok) throw new Error("No interactions");
     const data = await res.json();
-    deckInteractions = normalizeInteractionList(data);
+    interactions = normalizeInteractionList(data);
     videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean));
   } catch (_error) {
+    interactions = [];
     videoSlideIds = new Set();
   }
-  try {
-    const res = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}/polls`, { cache: "no-store" });
-    const data = res.ok ? await res.json() : { polls: [] };
-    interactions = [...deckInteractions, ...normalizeInteractionList(data.polls || [])];
-  } catch (_error) { interactions = deckInteractions; }
   clearSelectedInteraction();
   renderStageActionsPanel();
   syncInteractionShellState();
@@ -601,8 +596,7 @@ function interactionListMarkup() {
   if (!interactions.length) return "";
   return '<div class="interaction-picker" role="listbox" aria-label="Interacciones disponibles">' + interactions.map((item) => {
     const selected = String(item.id) === String(selectedInteractionId);
-    const source = item.source === "event" ? "Evento · " : "";
-    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + source + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
+    return '<button type="button" class="interaction-choice ' + (selected ? 'is-selected' : '') + '" data-interaction-select="' + escapeHtml(item.id) + '" aria-selected="' + selected + '" role="option"><span class="interaction-choice-title">' + escapeHtml(item.title || item.prompt || 'Interacción') + '</span><span class="interaction-choice-prompt">' + escapeHtml(item.prompt || item.title || 'Elige una opción') + '</span></button>';
   }).join("") + '</div>';
 }
 

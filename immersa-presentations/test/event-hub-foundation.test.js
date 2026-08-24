@@ -297,7 +297,7 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/brand-mentions/);
   assert.match(server, /api\/event\/public\/:publicId\/brand-mentions/);
   assert.match(page, /Con el apoyo de/);
-  assert.match(page, /event-brands\.css\?v=5/);
+  assert.match(page, /event-brands\.css\?v=6/);
   assert.match(page, /<\/main>\s*<section id="event-brands"/);
   assert.match(styles, /\.event-brands\{position:fixed/);
   assert.match(styles, /bottom:0/);
@@ -309,21 +309,27 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(runtime, /brandSourceId/);
 });
 
-test("Event Admin can prepare unlimited Event Hub polls and only Event Stage can launch them", async () => {
+test("Event Admin polls run in the public Program and exclude LiveSession attendees", async () => {
   const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
   const repository = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "repository.js"), "utf8");
   const migration = await fs.promises.readFile(path.join(__dirname, "..", "db", "migrations", "033_event_hub_polls.sql"), "utf8");
   const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
   const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
-  const interactions = await fs.promises.readFile(path.join(__dirname, "..", "interaction-store.js"), "utf8");
+  const publicProgram = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  const runtime = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "admin-interactions.js"), "utf8");
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/polls/);
-  assert.match(server, /api\/event\/stage-control\/:deckId\/polls/);
+  assert.match(server, /polls\/:pollId\/launch/);
+  assert.match(server, /polls\/close/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_hub_polls/);
   assert.match(repository, /listEventPolls/);
-  assert.match(admin, /Encuesta lista para Event Stage/);
-  assert.match(stage, /stage-control\/\$\{encodeURIComponent\(deckId\)\}\/polls/);
-  assert.match(stage, /item\.source === "event" \? "Evento · " : ""/);
-  assert.match(interactions, /interaction\.source === "event" && context\.role !== "stage"/);
+  assert.match(repository, /isParticipantInLiveSession/);
+  assert.match(admin, /polls\/\$\{encodeURIComponent\(poll\.id\)\}\/launch/);
+  assert.match(publicProgram, /event-admin:join/);
+  assert.match(publicProgram, /event-admin:interaction:state/);
+  assert.match(runtime, /event-hub:\$\{workspaceId\}:program/);
+  assert.match(runtime, /isParticipantInLiveSession/);
+  assert.match(runtime, /event-admin:interaction:submit/);
+  assert.doesNotMatch(stage, /stage-control\/\$\{encodeURIComponent\(deckId\)\}\/polls/);
 });
 
 test("an Event Hub attendee can return to the public Program when their LiveSession closes", async () => {

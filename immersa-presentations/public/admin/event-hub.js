@@ -20,6 +20,7 @@ const eventPollAddOption = document.getElementById("eventPollAddOption");
 const eventPollOptionList = document.getElementById("eventPollOptionList");
 const eventPollFeedback = document.getElementById("eventPollFeedback");
 const eventPollList = document.getElementById("eventPollList");
+const eventPollClose = document.getElementById("eventPollClose");
 const activitySpeakers = document.getElementById("activitySpeakers");
 const activityDeckCheck = document.getElementById("activityDeckCheck");
 const activityDeckCheckStatus = document.getElementById("activityDeckCheckStatus");
@@ -68,11 +69,19 @@ function renderEventPolls(polls) {
   for (const poll of polls) {
     const item = document.createElement("article");
     item.className = "event-poll-card";
-    item.innerHTML = "<div><strong></strong><p></p><ol></ol></div><button type='button'>Eliminar</button>";
+    item.innerHTML = "<div><strong></strong><p></p><ol></ol></div><aside><button type='button' data-launch>Lanzar</button><button type='button' data-delete>Eliminar</button></aside>";
     item.querySelector("strong").textContent = poll.title;
     item.querySelector("p").textContent = poll.prompt;
     for (const option of poll.options || []) { const row = document.createElement("li"); row.textContent = option.label; item.querySelector("ol").appendChild(row); }
-    item.querySelector("button").addEventListener("click", async () => {
+    item.querySelector("[data-launch]").addEventListener("click", async () => {
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/${encodeURIComponent(poll.id)}/launch`, { method: "POST" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo lanzar la encuesta");
+        eventPollFeedback.className = "success"; eventPollFeedback.textContent = "Encuesta activa en el Programa del evento.";
+      } catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+    });
+    item.querySelector("[data-delete]").addEventListener("click", async () => {
       if (!window.confirm(`¿Eliminar la encuesta “${poll.title}”?`)) return;
       try {
         const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/${encodeURIComponent(poll.id)}`, { method: "DELETE" });
@@ -452,6 +461,16 @@ eventPolls?.addEventListener("click", async () => {
   }
 });
 eventPollAddOption?.addEventListener("click", () => addEventPollOption());
+eventPollClose?.addEventListener("click", async () => {
+  if (!currentHub) return;
+  try {
+    const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/polls/close`, { method: "POST" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "No se pudo cerrar la interacción");
+    eventPollFeedback.className = "success"; eventPollFeedback.textContent = "Interacción cerrada.";
+  }
+  catch (error) { eventPollFeedback.className = "error"; eventPollFeedback.textContent = error.message; }
+});
 eventPollForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentHub) return;

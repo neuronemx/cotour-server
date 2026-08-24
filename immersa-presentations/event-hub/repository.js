@@ -798,6 +798,25 @@ class EventHubRepository {
     if (!rows?.[0]) throw new EventHubError("LIVE_SESSION_ACCESS_DENIED", "LiveSession access denied", 403);
     return rows[0].status === "LIVE";
   }
+
+  async getParticipant({ eventWorkspaceId, participantId }) {
+    const [rows] = await this.pool.execute(
+      "SELECT id, event_workspace_id, audience_level FROM event_participants WHERE id = ? AND event_workspace_id = ? LIMIT 1",
+      [required(participantId, "event participant id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!rows?.[0]) throw new EventHubError("EVENT_PARTICIPANT_NOT_FOUND", "Participante del evento no encontrado", 404);
+    return rows[0];
+  }
+
+  async isParticipantInLiveSession({ eventWorkspaceId, participantId }) {
+    const [rows] = await this.pool.execute(
+      `SELECT 1 FROM event_live_attendance attendance
+       INNER JOIN event_live_sessions live ON live.id = attendance.event_live_session_id AND live.status = 'LIVE'
+       WHERE attendance.event_participant_id = ? AND live.event_workspace_id = ? LIMIT 1`,
+      [required(participantId, "event participant id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    return Boolean(rows?.[0]);
+  }
 }
 
 module.exports = { EventHubRepository, EventHubError, AUDIENCE_LEVELS, ACTIVITY_ACCESS_LEVELS, canEnterActivity, registrationKeyHash, secretHash, pollOptions };

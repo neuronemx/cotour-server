@@ -3,6 +3,7 @@
   if (!context?.publicId) return;
   const base = `/api/event/public/${encodeURIComponent(context.publicId)}`;
   const key = `immersa-event-participant:${context.publicId}`;
+  const eventSocket = window.io?.();
   const title = document.querySelector("#event-title");
   const level = document.querySelector("#event-level");
   const registration = document.querySelector("#registration");
@@ -27,7 +28,24 @@
   let refreshingActivities = false;
   let allActivities = [];
   let liveOnly = false;
+  let adminInteraction = null;
+  let adminResponse = null;
   const participantId = () => localStorage.getItem(key);
+  function renderAdminInteraction() {
+    let card = document.querySelector("#event-admin-interaction");
+    if (!card) { card = document.createElement("section"); card.id = "event-admin-interaction"; card.className = "event-admin-interaction hidden"; document.body.append(card); }
+    if (!adminInteraction) { card.classList.add("hidden"); card.replaceChildren(); return; }
+    const answered = Boolean(adminResponse);
+    card.classList.remove("hidden");
+    card.innerHTML = `<strong>Encuesta del evento</strong><h2></h2><p></p><div></div><button type="button" ${answered ? "disabled" : "disabled"}>${answered ? "Respuesta enviada" : "Elige una opción"}</button>`;
+    card.querySelector("h2").textContent = adminInteraction.title;
+    card.querySelector("p").textContent = adminInteraction.prompt;
+    let selected = "";
+    const submit = card.querySelector("button");
+    for (const option of adminInteraction.options || []) { const button = document.createElement("button"); button.type = "button"; button.textContent = option.label; button.disabled = answered; button.onclick = () => { selected = option.id; card.querySelectorAll("[data-option]").forEach((item) => item.classList.toggle("selected", item === button)); submit.disabled = false; }; button.dataset.option = option.id; card.querySelector("div").append(button); }
+    submit.onclick = () => { if (selected) eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: selected }); };
+  }
+  function joinEventAdminChannel() { if (participantId()) eventSocket?.emit("event-admin:join", { publicId: context.publicId, participantId: participantId() }); }
   const request = async (url, options) => { const response = await fetch(url, options); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo completar la operación"); return body; };
   const rawDate = (value) => String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   const time = (value) => { const match = rawDate(value); if (!match) return "Por definir"; const hour = Number(match[4]); return `${hour % 12 || 12}:${match[5]} ${hour >= 12 ? "PM" : "AM"}`; };
@@ -212,7 +230,7 @@
       }
     } finally { refreshingActivities = false; }
   };
-  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); revealContent(); };
+  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: document.querySelector("#registration-key").value.trim() }) }); localStorage.setItem(key, result.participantId); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
@@ -232,6 +250,8 @@
   });
   showFullProgram?.addEventListener("click", () => { liveOnly = false; renderCurrentActivities(); });
   registration.classList.toggle("hidden", Boolean(participantId()));
+  eventSocket?.on("connect", joinEventAdminChannel);
+  eventSocket?.on("event-admin:interaction:state", (state) => { adminInteraction = state?.active || null; adminResponse = state?.response || null; renderAdminInteraction(); });
   load().catch((error) => { title.textContent = error.message; });
   window.setInterval(() => { refreshActivities().catch(() => {}); }, 5000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshActivities().catch(() => {}); });

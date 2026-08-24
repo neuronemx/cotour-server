@@ -23,6 +23,7 @@ const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
+const { EventHubAdminInteractions } = require("./event-hub/admin-interactions");
 const { createKnowledgeActivityHistoryHandlers } = require("./knowledge-activity-export");
 const {
   PresentationLifecycleRepository,
@@ -149,6 +150,7 @@ const billingRuntime = createBillingRuntime({
 });
 const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
+const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
@@ -363,14 +365,7 @@ async function loadInteractionsForDeck(deckId) {
       if (error.code !== "ENOENT") console.warn("Unable to load deck interactions", deckId, error.message);
     }
   }
-  try {
-    const control = await eventHubRepository?.getStageControlForDeck(deckId);
-    if (!control?.eventWorkspaceId) return deckInteractions;
-    return [...deckInteractions, ...await eventHubRepository.listEventPolls(control.eventWorkspaceId, { activeOnly: true })];
-  } catch (error) {
-    console.error("Unable to load Event Hub polls", error);
-    return deckInteractions;
-  }
+  return deckInteractions;
 }
 
 function dateInfo(value) {
@@ -1314,13 +1309,15 @@ app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) =
     return res.json(control);
   } catch (error) { return sendEventHubError(res, error); }
 });
-app.get("/api/event/stage-control/:deckId/polls", requireStageDeck, async (req, res) => {
-  if (!eventHubRepository) return eventHubUnavailable(res);
-  try {
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
-    if (!control?.eventWorkspaceId) return res.json({ polls: [] });
-    return res.json({ polls: await eventHubRepository.listEventPolls(control.eventWorkspaceId, { activeOnly: true }) });
-  } catch (error) { return sendEventHubError(res, error); }
+app.post("/api/admin/event-hubs/:workspaceId/polls/:pollId/launch", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(await eventHubAdminInteractions.launch({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/polls/close", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubAdminInteractions) return eventHubUnavailable(res);
+  try { return res.json(eventHubAdminInteractions.close(req.params.workspaceId)); }
+  catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
@@ -1847,6 +1844,7 @@ app.use(express.static(PUBLIC_DIR));
 
 io.use(betterAuthCompatibilityBridge.socketMiddleware);
 io.on("connection", (socket) => {
+  eventHubAdminInteractions?.attach(socket);
   let currentRoomKey = null;
   let currentRole = null;
   let currentSessionId = null;

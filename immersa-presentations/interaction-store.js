@@ -295,7 +295,6 @@ function createInteractionSocketHandlers({
       const interactions = Array.isArray(loaded) ? loaded : [];
       const interaction = interactions.find((item) => String(item.id) === String(interactionId));
       if (!interaction) return { ok: false, reason: "interaction_not_found" };
-      if (interaction.source === "event" && context.role !== "stage") return { ok: false, reason: "event_poll_requires_stage" };
       const active = store.launch({ sessionId: context.sessionId, interaction });
       if (!active) return { ok: false, reason: "invalid_interaction" };
       return { ok: true, active };
