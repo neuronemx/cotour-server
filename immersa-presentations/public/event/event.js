@@ -30,14 +30,28 @@
   let liveOnly = false;
   let adminInteraction = null;
   let adminResponse = null;
+  let adminThankYou = false;
+  let adminThankYouTimer = null;
   const participantId = () => localStorage.getItem(key);
+  function closeAdminInteractionAfterThanks() {
+    window.clearTimeout(adminThankYouTimer);
+    adminThankYouTimer = window.setTimeout(() => {
+      adminThankYou = false;
+      adminInteraction = null;
+      renderAdminInteraction();
+    }, 3000);
+  }
   function renderAdminInteraction() {
     let card = document.querySelector("#event-admin-interaction");
     if (!card) { card = document.createElement("section"); card.id = "event-admin-interaction"; card.className = "event-admin-interaction hidden"; document.body.append(card); }
+    if (adminThankYou) {
+      card.classList.remove("hidden");
+      card.innerHTML = '<div class="event-admin-dialog event-admin-thanks" role="status"><strong>Gracias</strong><p>Tu respuesta fue registrada.</p></div>';
+      return;
+    }
     if (!adminInteraction || adminResponse) { card.classList.add("hidden"); card.replaceChildren(); return; }
     card.classList.remove("hidden");
-    card.innerHTML = `<strong>Encuesta del evento</strong><h2></h2><p></p><div></div>`;
-    card.querySelector("h2").textContent = adminInteraction.title;
+    card.innerHTML = '<div class="event-admin-dialog" role="dialog" aria-modal="true"><p></p><div></div></div>';
     card.querySelector("p").textContent = adminInteraction.prompt;
     for (const option of adminInteraction.options || []) {
       const button = document.createElement("button");
@@ -46,8 +60,10 @@
       button.dataset.option = option.id;
       button.onclick = () => {
         adminResponse = { optionId: option.id };
+        adminThankYou = true;
         eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: option.id });
         renderAdminInteraction();
+        closeAdminInteractionAfterThanks();
       };
       card.querySelector("div").append(button);
     }
@@ -258,7 +274,13 @@
   showFullProgram?.addEventListener("click", () => { liveOnly = false; renderCurrentActivities(); });
   registration.classList.toggle("hidden", Boolean(participantId()));
   eventSocket?.on("connect", joinEventAdminChannel);
-  eventSocket?.on("event-admin:interaction:state", (state) => { adminInteraction = state?.active || null; adminResponse = state?.response || null; renderAdminInteraction(); });
+  eventSocket?.on("event-admin:interaction:state", (state) => {
+    if (adminThankYou) return;
+    adminInteraction = state?.active || null;
+    adminResponse = state?.response || null;
+    if (adminResponse) { adminThankYou = true; renderAdminInteraction(); closeAdminInteractionAfterThanks(); return; }
+    renderAdminInteraction();
+  });
   load().catch((error) => { title.textContent = error.message; });
   window.setInterval(() => { refreshActivities().catch(() => {}); }, 5000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshActivities().catch(() => {}); });
