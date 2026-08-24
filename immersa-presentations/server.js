@@ -1092,7 +1092,8 @@ app.get("/api/admin/event-hubs/:workspaceId/overview", requireAccount, requireIm
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
     const overview = await eventHubRepository.getAdminOverview(req.params.workspaceId);
-    return res.json({ ...overview, eventInteraction: eventHubAdminInteractions?.status(req.params.workspaceId) || null });
+    const interactionSummary = await eventHubRepository.getEventInteractionSummary(req.params.workspaceId);
+    return res.json({ ...overview, eventInteraction: { ...interactionSummary, active: eventHubAdminInteractions?.status(req.params.workspaceId).active || null } });
   } catch (error) { return sendEventHubError(res, error); }
 });
 app.get("/api/admin/event-hubs/:workspaceId/activities", requireAccount, requireImmersaAdmin, async (req, res) => {
