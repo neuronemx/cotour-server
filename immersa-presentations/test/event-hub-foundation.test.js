@@ -336,6 +336,7 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   assert.match(publicProgram, /adminThankYou/);
   assert.match(publicProgram, /participantNameKey/);
   assert.match(publicProgram, /Gracias \$\{participantName\}/);
+  assert.match(publicProgram, /: "Gracias";/);
   assert.match(publicProgram, /Ayúdanos a mejorar para la siguiente edición de/);
   assert.match(publicProgram, /3000/);
   assert.match(publicProgram, /aria-modal="true"/);
