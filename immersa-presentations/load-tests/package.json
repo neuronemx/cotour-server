@@ -1,0 +1,7 @@
+{
+  "name": "immersa-event-hub-load-runner",
+  "private": true,
+  "dependencies": {
+    "socket.io-client": "^4.7.5"
+  }
+}
