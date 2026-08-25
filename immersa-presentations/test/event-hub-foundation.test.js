@@ -316,6 +316,7 @@ test("Event Admin polls run in the public Program and exclude LiveSession attend
   const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
   const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
   const publicProgram = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "event.js"), "utf8");
+  const page = await fs.promises.readFile(path.join(__dirname, "..", "public", "event", "index.html"), "utf8");
   const runtime = await fs.promises.readFile(path.join(__dirname, "..", "event-hub", "admin-interactions.js"), "utf8");
   assert.match(server, /api\/admin\/event-hubs\/:workspaceId\/polls/);
   assert.match(server, /polls\/:pollId\/launch/);
