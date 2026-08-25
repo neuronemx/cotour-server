@@ -146,7 +146,7 @@
   }
   function startBrandRotation() {
     window.clearInterval(brandRotationTimer);
-    brandRotationTimer = window.setInterval(rotateBrandRail, 300000);
+    brandRotationTimer = window.setInterval(rotateBrandRail, 120000);
   }
   async function refreshBrands() {
     if (!eventBrands || !eventBrandRail) return;
