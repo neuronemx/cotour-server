@@ -81,7 +81,8 @@
       button.textContent = option.label;
       button.dataset.option = option.id;
       button.onclick = () => {
-        adminResponse = { optionId: option.id };\n        rememberAnsweredInteraction(adminInteraction.id);
+        adminResponse = { optionId: option.id };
+        rememberAnsweredInteraction(adminInteraction.id);
         adminThankYou = true;
         eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: option.id });
         renderAdminInteraction();
