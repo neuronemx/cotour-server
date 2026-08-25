@@ -1,0 +1,70 @@
+name: Event Hub Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Railway temporal URL (https://...)
+        required: true
+        default: https://immersa-presentations-profile-v1.up.railway.app
+        type: string
+      event_public_id:
+        description: PAID Event Hub public ID (p_evt_...)
+        required: true
+        type: string
+      live_session_id:
+        description: Active LiveSession UUID
+        required: true
+        type: string
+      users:
+        description: Concurrent users (25–2500)
+        required: true
+        default: "300"
+        type: string
+      ramp_ms:
+        description: Milliseconds between users
+        required: true
+        default: "1000"
+        type: string
+      hold_ms:
+        description: Connection hold time per user
+        required: true
+        default: "60000"
+        type: string
+
+jobs:
+  load:
+    name: Event Hub temporary load test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: immersa-presentations/load-tests
+
+    steps:
+      - name: Checkout Event Hub test runner
+        uses: actions/checkout@v4
+        with:
+          ref: agent/event-hub-v1-foundation
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install load runner
+        run: npm install --no-audit --no-fund
+
+      - name: Run against Railway temporary
+        env:
+          IMMERSA_TEMP_URL: ${{ inputs.target_url }}
+          IMMERSA_EVENT_PUBLIC_ID: ${{ inputs.event_public_id }}
+          IMMERSA_LIVE_SESSION_ID: ${{ inputs.live_session_id }}
+          IMMERSA_TEST_REGISTRATION_KEY: github-load-${{ github.run_id }}
+          USERS: ${{ inputs.users }}
+          RAMP_MS: ${{ inputs.ramp_ms }}
+          HOLD_MS: ${{ inputs.hold_ms }}
+        run: node event-hub-stage-load.js | tee results.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: event-hub-load-results
+          path: immersa-presentations/load-tests/results.json
