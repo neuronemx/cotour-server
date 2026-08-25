@@ -304,6 +304,7 @@ test("Event Admin owns one brand configuration that is visible in both public vi
   assert.match(styles, /width:54px;height:54px/);
   assert.match(script, /matchLogoSurface\(logo, link\)/);
   assert.match(script, /refreshBrands/);
+  assert.match(script, /setInterval\(rotateBrandRail, 120000\)/);
   assert.match(script, /eventBrands\.hidden = brands\.length === 0/);
   assert.match(admin, /eventBrands/);
   assert.match(runtime, /brandSourceId/);
