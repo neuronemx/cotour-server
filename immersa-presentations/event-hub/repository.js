@@ -92,6 +92,24 @@ async function transaction(pool, operation) {
   }
 }
 
+function isDeadlock(error) {
+  return error?.code === "ER_LOCK_DEADLOCK" || Number(error?.errno) === 1213;
+}
+
+async function retryDeadlock(operation, { attempts = 3, delayMs = 20 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isDeadlock(error) || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 class EventHubRepository {
   constructor(pool, options = {}) {
     if (!pool?.getConnection || !pool?.execute) throw new Error("A MySQL pool is required");
@@ -843,22 +861,23 @@ class EventHubRepository {
     const hubId = required(eventWorkspaceId, "event workspace id");
     const requestedLevel = level(audienceLevel);
     const hash = registrationKeyHash(registrationKey);
-    return transaction(this.pool, async (connection) => {
-      const [existing] = await connection.execute(
-        "SELECT id, audience_level FROM event_participants WHERE event_workspace_id = ? AND registration_key_hash = ? LIMIT 1 FOR UPDATE",
+    return retryDeadlock(async () => {
+      const participantId = this.createId();
+      await this.pool.execute(
+        `INSERT INTO event_participants (id, event_workspace_id, registration_key_hash, audience_level)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE audience_level = CASE
+           WHEN audience_level = 'FREE' AND VALUES(audience_level) = 'PAID' THEN 'PAID'
+           ELSE audience_level
+         END`,
+        [participantId, hubId, hash, requestedLevel]
+      );
+      const [rows] = await this.pool.execute(
+        "SELECT id, audience_level FROM event_participants WHERE event_workspace_id = ? AND registration_key_hash = ? LIMIT 1",
         [hubId, hash]
       );
-      let participant = existing?.[0];
-      if (!participant) {
-        participant = { id: this.createId(), audience_level: requestedLevel };
-        await connection.execute(
-          "INSERT INTO event_participants (id, event_workspace_id, registration_key_hash, audience_level) VALUES (?, ?, ?, ?)",
-          [participant.id, hubId, hash, requestedLevel]
-        );
-      } else if (participant.audience_level === "FREE" && requestedLevel === "PAID") {
-        participant.audience_level = "PAID";
-        await connection.execute("UPDATE event_participants SET audience_level = 'PAID' WHERE id = ?", [participant.id]);
-      }
+      const participant = rows?.[0];
+      if (!participant) throw new EventHubError("EVENT_PARTICIPANT_NOT_FOUND", "Event participant could not be registered", 500);
       return { id: participant.id, eventWorkspaceId: hubId, audienceLevel: participant.audience_level };
     });
   }
