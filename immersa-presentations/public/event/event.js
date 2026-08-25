@@ -4,6 +4,7 @@
   const base = `/api/event/public/${encodeURIComponent(context.publicId)}`;
   const key = `immersa-event-participant:${context.publicId}`;
   const participantNameKey = `immersa-event-participant-name:${context.publicId}`;
+  const answeredInteractionsKey = `immersa-event-admin-answered:${context.publicId}`;
   const eventSocket = window.io?.();
   const title = document.querySelector("#event-title");
   const level = document.querySelector("#event-level");
@@ -36,6 +37,20 @@
   let adminThankYouTimer = null;
   let brandRotationTimer = null;
   const participantId = () => localStorage.getItem(key);
+  const answeredInteractions = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(answeredInteractionsKey) || "[]");
+      return new Set(Array.isArray(stored) ? stored : []);
+    } catch (_error) {
+      return new Set();
+    }
+  };
+  const rememberAnsweredInteraction = (interactionId) => {
+    if (!interactionId) return;
+    const answered = answeredInteractions();
+    answered.add(interactionId);
+    localStorage.setItem(answeredInteractionsKey, JSON.stringify([...answered].slice(-100)));
+  };
   function closeAdminInteractionAfterThanks() {
     window.clearTimeout(adminThankYouTimer);
     adminThankYouTimer = window.setTimeout(() => {
@@ -66,7 +81,7 @@
       button.textContent = option.label;
       button.dataset.option = option.id;
       button.onclick = () => {
-        adminResponse = { optionId: option.id };
+        adminResponse = { optionId: option.id };\n        rememberAnsweredInteraction(adminInteraction.id);
         adminThankYou = true;
         eventSocket?.emit("event-admin:interaction:submit", { interactionId: adminInteraction.id, optionId: option.id });
         renderAdminInteraction();
@@ -298,6 +313,13 @@
     if (adminThankYou) return;
     adminInteraction = state?.active || null;
     adminResponse = state?.response || null;
+    const interactionId = adminInteraction?.id;
+    if (!adminResponse && interactionId && answeredInteractions().has(interactionId)) {
+      adminResponse = { local: true };
+      adminThankYou = false;
+      renderAdminInteraction();
+      return;
+    }
     if (adminResponse) { adminThankYou = true; renderAdminInteraction(); closeAdminInteractionAfterThanks(); return; }
     renderAdminInteraction();
   });
