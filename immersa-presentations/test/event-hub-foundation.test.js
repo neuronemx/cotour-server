@@ -40,6 +40,19 @@ test("registration identity is persisted as a hash, not as public data", () => {
   assert.notEqual(registrationKeyHash("private-event-registration"), registrationKeyHash("other-registration"));
 });
 
+test("participant registration uses an atomic upsert and preserves Paid access", async () => {
+  const pool = fakePool([
+    [{ affectedRows: 1 }, []],
+    [[{ id: "participant-1", audience_level: "PAID" }], []]
+  ]);
+  const repository = new EventHubRepository(pool, { createId: () => "new-participant" });
+  const participant = await repository.registerParticipant({ eventWorkspaceId: "hub-1", registrationKey: "same-person", audienceLevel: "PAID" });
+  assert.deepEqual(participant, { id: "participant-1", eventWorkspaceId: "hub-1", audienceLevel: "PAID" });
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /ON DUPLICATE KEY UPDATE/);
+  assert.doesNotMatch(statements, /FOR UPDATE/);
+});
+
 test("Event Hub polls have no artificial option limit and require distinct choices", () => {
   assert.equal(pollOptions(["Sí", "No", "Tal vez", "Después"]).length, 4);
   assert.throws(() => pollOptions(["Sí", "sí"]), /distintas/);
