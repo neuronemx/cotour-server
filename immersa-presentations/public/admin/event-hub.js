@@ -465,30 +465,9 @@ function renderHub(hub) {
   activityStage.replaceChildren();
   for (const stage of hub.stages || []) {
     const item = document.createElement("li");
-    item.innerHTML = "<strong></strong><span></span><label class='stage-capacity'><span>Capacidad</span><input type='number' min='1' step='1'><button type='button'>Guardar</button></label>";
+    item.innerHTML = "<strong></strong><span></span>";
     item.querySelector("strong").textContent = stage.name;
-    const capacityLabel = item.querySelector(":scope > span");
-    const capacityInput = item.querySelector("input");
-    const capacityButton = item.querySelector("button");
-    const updateCapacityLabel = (value) => { capacityLabel.textContent = `${value} participantes`; };
-    capacityInput.value = String(stage.audience_capacity || 300);
-    updateCapacityLabel(capacityInput.value);
-    capacityButton.addEventListener("click", async () => {
-      const audienceCapacity = Number(capacityInput.value);
-      if (!Number.isInteger(audienceCapacity) || audienceCapacity < 1) { capacityInput.focus(); return; }
-      capacityButton.disabled = true;
-      try {
-        const response = await fetch(`/api/admin/event-stages/${encodeURIComponent(stage.id)}/capacity`, {
-          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audienceCapacity })
-        });
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "No se pudo actualizar la capacidad");
-        stage.audience_capacity = body.audienceCapacity;
-        updateCapacityLabel(body.audienceCapacity);
-      } catch (error) {
-        window.alert(error.message);
-      } finally { capacityButton.disabled = false; }
-    });
+    item.querySelector("span").textContent = `${stage.audience_capacity || 300} participantes`;
     stageList?.appendChild(item);
     const option = document.createElement("option");
     option.value = stage.id;
