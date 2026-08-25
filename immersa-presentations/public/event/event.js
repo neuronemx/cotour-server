@@ -8,6 +8,7 @@
   const title = document.querySelector("#event-title");
   const level = document.querySelector("#event-level");
   const registration = document.querySelector("#registration");
+  const registrationEventTitle = document.querySelector("#registration-event-title");
   const eventContent = document.querySelector("#event-content");
   const program = document.querySelector(".program");
   const exposition = document.querySelector("#exposition");
@@ -48,7 +49,9 @@
     if (!card) { card = document.createElement("section"); card.id = "event-admin-interaction"; card.className = "event-admin-interaction hidden"; document.body.append(card); }
     if (adminThankYou) {
       card.classList.remove("hidden");
-      card.innerHTML = '<div class="event-admin-dialog event-admin-thanks" role="status"><strong></strong><p>Tu respuesta fue registrada.</p></div>';\n      const participantName = String(localStorage.getItem(participantNameKey) || "").trim();\n      card.querySelector("strong").textContent = participantName ? `Gracias ${participantName}` : "Gracias";
+      card.innerHTML = '<div class="event-admin-dialog event-admin-thanks" role="status"><strong></strong><p>Tu respuesta fue registrada.</p></div>';
+      const participantName = String(localStorage.getItem(participantNameKey) || "").trim();
+      card.querySelector("strong").textContent = participantName ? `Gracias ${participantName}` : "Gracias";
       return;
     }
     if (!adminInteraction || adminResponse) { card.classList.add("hidden"); card.replaceChildren(); return; }
@@ -270,7 +273,7 @@
       }
     } finally { refreshingActivities = false; }
   };
-  const load = async () => { const event = await request(base); title.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); startBrandRotation(); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
+  const load = async () => { const event = await request(base); title.textContent = event.title; if (registrationEventTitle) registrationEventTitle.textContent = event.title; level.textContent = event.audienceLevel === "PAID" ? "Acceso preferente" : "Acceso libre"; registration.classList.toggle("hidden", Boolean(participantId())); await Promise.all([refreshActivities({ force: true }), refreshBrands()]); startBrandRotation(); if (!activeSection) selectSection(event.audienceLevel === "PAID" ? "program" : "exposition"); joinEventAdminChannel(); revealContent(); };
   document.querySelector("#registration-form").onsubmit = async (event) => { event.preventDefault(); const participantName = document.querySelector("#registration-key").value.trim(); const result = await request(`${base}/registration`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationKey: participantName }) }); localStorage.setItem(key, result.participantId); localStorage.setItem(participantNameKey, participantName); await load(); };
   const close = () => { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); };
   document.querySelector("#sheet-close").onclick = close;
