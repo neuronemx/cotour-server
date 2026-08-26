@@ -1,0 +1,15 @@
+name: Event Hub Trivia Load Test
+on: {workflow_dispatch: {inputs: {target_url: {required: true, default: 'https://immersa-presentations-profile-v1.up.railway.app'}, event_public_id: {required: true}, live_session_id: {required: true}, users: {required: true, default: '1000'}, ramp_ms: {required: true, default: '100'}, hold_ms: {required: true, default: '300000'}}}}
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: immersa-presentations/load-tests}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: npm install --no-audit --no-fund
+      - run: node event-hub-trivia-load.js | tee results.json
+        env: {IMMERSA_TEMP_URL: '${{ inputs.target_url }}', IMMERSA_EVENT_PUBLIC_ID: '${{ inputs.event_public_id }}', IMMERSA_LIVE_SESSION_ID: '${{ inputs.live_session_id }}', USERS: '${{ inputs.users }}', RAMP_MS: '${{ inputs.ramp_ms }}', HOLD_MS: '${{ inputs.hold_ms }}', GITHUB_RUN_ID: '${{ github.run_id }}'}
+      - uses: actions/upload-artifact@v4
+        with: {name: event-hub-trivia-results, path: immersa-presentations/load-tests/results.json}
