@@ -129,6 +129,22 @@ test("save is optimistic and persists participant order without exposing recover
   assert.deepEqual(JSON.parse(order.values[2]), ["q1"]);
 });
 
+test("admission persists only the newly admitted participant", async () => {
+  const pool = fakePool();
+  const item = execution();
+  joinParticipant(item, { participantId: "participant-1", tabId: "tab-1", nowMs: 2000, random: () => 0.999 });
+  joinParticipant(item, { participantId: "participant-2", tabId: "tab-2", nowMs: 3000, random: () => 0.999 });
+  await new KnowledgeActivityRepository(pool).saveExecution(item, {
+    expectedRevision: 1,
+    participants: [item.participants[1]]
+  });
+  const participantWrites = pool.calls.filter((call) => /INSERT INTO knowledge_activity_participants/.test(call.sql || ""));
+  const orderWrites = pool.calls.filter((call) => /INSERT INTO knowledge_activity_participant_orders/.test(call.sql || ""));
+  assert.equal(participantWrites.length, 1);
+  assert.equal(orderWrites.length, 1);
+  assert.equal(participantWrites[0].values[1], "participant-2");
+});
+
 test("a definitive result is insert-only so a late calculation cannot overwrite it", () => {
   const source = fs.readFileSync(path.join(__dirname, "..", "db", "knowledge-activity-repository.js"), "utf8");
   assert.match(source, /INSERT IGNORE INTO knowledge_activity_results/);

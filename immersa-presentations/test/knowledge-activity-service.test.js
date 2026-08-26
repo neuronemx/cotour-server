@@ -105,6 +105,22 @@ test("service persists every accepted mutation with optimistic revision", async 
   assert.equal(repo.saves[0].execution.participants.length, 1);
 });
 
+test("a disconnected participant is discarded after waiting for the session lock", async () => {
+  const { service, repo } = setup();
+  const execution = await service.open({
+    sourceSessionId: "session-1",
+    deckId: "deck-1",
+    definitionId: "contest-1",
+    category: "contest"
+  });
+  await assert.rejects(
+    service.join(execution, { participantId: "participant-1", tabId: "tab-1", isConnected: () => false }),
+    { code: "PARTICIPANT_DISCONNECTED" }
+  );
+  assert.equal(repo.saves.length, 0);
+  assert.equal(execution.participants.length, 0);
+});
+
 test("server restart reconstructs and advances an expired countdown", async () => {
   const nowRef = { value: 1000 };
   const initial = setup(nowRef);
