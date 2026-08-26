@@ -75,7 +75,7 @@ button:disabled { cursor: wait; opacity: .65; }
 
 .stage-inner {
   position: relative;
-  z-index: 1000;
+  z-index: 1;
   width: min(1240px, calc(100% - 40px));
   margin: 0 auto;
   padding-top: 86px;
@@ -420,7 +420,8 @@ button:disabled { cursor: wait; opacity: .65; }
   background: rgba(10, 11, 38, .55);
   backdrop-filter: blur(6px);
 }
-#nameModal { z-index: 70; }
+#deckDetailModal { z-index: 110; }
+#nameModal { z-index: 120; }
 .modal-backdrop[hidden] { display: none !important; }
 .name-modal {
   width: min(420px, 100%);
@@ -464,7 +465,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .secondary-action:hover { background: var(--line); }
 .primary-action { color: #fff; background: var(--grad); box-shadow: 0 12px 24px -10px rgba(67,104,246,.45); }
 .primary-action:hover { filter: brightness(1.04); }
-body.modal-open { overflow: hidden; }
+html:has(body.modal-open), body.modal-open { overflow: hidden; }
 
 /* =========================================================
    RESPONSIVE
