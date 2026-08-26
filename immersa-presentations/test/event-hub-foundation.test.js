@@ -183,8 +183,10 @@ test("Event Stage resolves only its scheduled or live activity from the approved
   });
 });
 
-test("Event Stage uses its access token when loading Event Hub controls", async () => {
+test("Event Stage sends the selected activity to its control and conference requests", async () => {
   const stage = await fs.promises.readFile(path.join(__dirname, "..", "public", "stage", "stage.js"), "utf8");
+  assert.match(stage, /const eventActivityId = params\.get\("eventActivityId"\) \|\| ""/);
+  assert.match(stage, /\?eventActivityId=\$\{encodeURIComponent\(eventActivityId\)\}/);
   assert.match(stage, /\/api\/event\/stage-control\//);
   assert.match(stage, /"x-immersa-access-token": roleOpenContext\.access_token/);
 });
