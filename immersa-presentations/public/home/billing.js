@@ -129,8 +129,8 @@
 
   function planFeatures(plan) {
     return plan === "SPEAKER"
-      ? ["5 Decks · 200 MB", "Hasta 100 personas", "Encuestas, Q&A y métricas básicas"]
-      : ["15 Decks · 500 MB", "Hasta 300 personas", "Todo Speaker más:", "Evaluaciones, sorteos, trivias, historial y métricas detalladas"];
+      ? ["5 Decks · 200 MB", "Hasta 100 personas simultáneas", "Hasta 6,000 entradas al año", "Encuestas, Q&A y métricas básicas"]
+      : ["15 Decks · 500 MB", "Hasta 300 personas simultáneas", "Hasta 18,000 entradas al año", "Todo Speaker más: evaluaciones, sorteos, trivias, historial y métricas detalladas"];
   }
 
   function updatePassCountdown() {
