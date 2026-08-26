@@ -105,6 +105,7 @@ const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-widt
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
 let eventStageSession = null;
+const eventActivityId = new URLSearchParams(window.location.search).get("eventActivityId") || "";
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
@@ -142,7 +143,8 @@ async function loadDeck() {
 
 async function loadEventStageControl() {
   if (!roleOpenContext.access_token || !eventStageControl) return false;
-  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`, {
+  const activityQuery = eventActivityId ? `?eventActivityId=${encodeURIComponent(eventActivityId)}` : "";
+  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}${activityQuery}`, {
     headers: { "x-immersa-access-token": roleOpenContext.access_token }
   });
   if (response.status === 404) return false;
@@ -167,7 +169,8 @@ eventStageAction?.addEventListener("click", async () => {
   if (live && !window.confirm(`¿Finalizar conferencia: ${eventStageSession.title}?\n\nSe cerrará el acceso en vivo y las métricas.`)) return;
   eventStageAction.disabled = true;
   try {
-    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}`;
+    const activityQuery = eventActivityId ? `?eventActivityId=${encodeURIComponent(eventActivityId)}` : "";
+    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}${activityQuery}`;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-immersa-access-token": roleOpenContext.access_token }

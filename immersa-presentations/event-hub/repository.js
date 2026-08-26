@@ -280,9 +280,7 @@ class EventHubRepository {
     const executionId = this.createId();
     const [result] = await this.pool.execute(
       `INSERT INTO event_hub_poll_executions (id, event_workspace_id, event_hub_poll_id)
-       SELECT ?, ?, id
-       FROM event_hub_polls
-       WHERE id = ? AND event_workspace_id = ? AND active = 1`,
+       SELECT ?, ?, id FROM event_hub_polls WHERE id = ? AND event_workspace_id = ? AND active = 1`,
       [executionId, required(eventWorkspaceId, "event workspace id"), required(pollId, "poll id"), eventWorkspaceId]
     );
     if (!Number(result?.affectedRows)) throw new EventHubError("EVENT_POLL_NOT_FOUND", "Encuesta del evento no encontrada", 404);
@@ -295,8 +293,7 @@ class EventHubRepository {
          (event_hub_poll_execution_id, event_participant_id, event_hub_poll_option_id)
        SELECT execution.id, ?, option_row.id
        FROM event_hub_poll_executions execution
-       INNER JOIN event_hub_poll_options option_row
-         ON option_row.event_hub_poll_id = execution.event_hub_poll_id
+       INNER JOIN event_hub_poll_options option_row ON option_row.event_hub_poll_id = execution.event_hub_poll_id
        WHERE execution.id = ? AND option_row.id = ?`,
       [required(participantId, "event participant id"), required(executionId, "poll execution id"), required(optionId, "poll option id")]
     );
@@ -312,11 +309,9 @@ class EventHubRepository {
 
   async getEventInteractionSummary(eventWorkspaceId) {
     const [[row]] = await this.pool.execute(
-      `SELECT COUNT(DISTINCT execution.id) AS interactions,
-              COUNT(response.event_participant_id) AS responses
+      `SELECT COUNT(DISTINCT execution.id) AS interactions, COUNT(response.event_participant_id) AS responses
        FROM event_hub_poll_executions execution
-       LEFT JOIN event_hub_poll_responses response
-         ON response.event_hub_poll_execution_id = execution.id
+       LEFT JOIN event_hub_poll_responses response ON response.event_hub_poll_execution_id = execution.id
        WHERE execution.event_workspace_id = ?`,
       [required(eventWorkspaceId, "event workspace id")]
     );
@@ -377,7 +372,7 @@ class EventHubRepository {
         sourceKind: row.source_kind,
         accountUserId: row.account_user_id || null,
         name: row.source_kind === "ACCOUNT" ? String(row.display_name || row.auth_name || "").trim() : String(row.manual_name || "").trim(),
-        roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" · ") : String(row.manual_role_title || "").trim(),
+        roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" Â· ") : String(row.manual_role_title || "").trim(),
         bio: row.source_kind === "ACCOUNT" ? String(row.bio || "").trim() : String(row.manual_bio || "").trim(),
         photoUrl: publicSpeakerPhotoUrl({ photoKey: row.photo_key, authImage: row.auth_image, manualPhotoUrl: row.manual_photo_url }),
         invitation: row.assignment_id ? { id: row.assignment_id, status: row.assignment_status, selectedDeckId: row.selected_deck_id || null } : null
@@ -692,9 +687,9 @@ class EventHubRepository {
       [required(userId, "speaker user id"), required(assignmentId, "invitation id")]
     );
     const assignment = rows?.[0];
-    if (!assignment) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "Esta invitación no está disponible", 404);
+    if (!assignment) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "Esta invitaciÃ³n no estÃ¡ disponible", 404);
     const deckId = assignment.deck_id || assignment.pending_deck_id;
-    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estará disponible cuando Event Stage asigne tu Deck", 409);
+    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estarÃ¡ disponible cuando Event Stage asigne tu Deck", 409);
     return { assignmentId: assignment.id, activityId: assignment.activity_id, deckId, deckCheckStatus: assignment.deck_check_status };
   }
 
@@ -760,7 +755,8 @@ class EventHubRepository {
     return rows[0];
   }
 
-  async getStageControlForDeck(deckId) {
+  async getStageControlForDeck(deckId, activityId = "") {
+    const selectedActivityId = String(activityId || "").trim();
     const [rows] = await this.pool.execute(
       `SELECT a.id AS activity_id, a.title AS activity_title, a.event_workspace_id, a.event_stage_id, a.status AS activity_status, a.deck_check_status,
               s.name AS stage_name, l.id AS live_session_id
@@ -768,9 +764,10 @@ class EventHubRepository {
        INNER JOIN event_stages s ON s.id = a.event_stage_id
        LEFT JOIN event_live_sessions l ON l.event_activity_id = a.id AND l.status = 'LIVE'
        WHERE COALESCE(a.deck_id, a.pending_deck_id) = ? AND a.status IN ('SCHEDULED', 'LIVE')
+         AND (? = '' OR a.id = ?)
        ORDER BY a.status = 'LIVE' DESC, a.scheduled_starts_at ASC
        LIMIT 1`,
-      [required(deckId, "deck id")]
+      [required(deckId, "deck id"), selectedActivityId, selectedActivityId]
     );
     const row = rows?.[0];
     if (!row) return null;
