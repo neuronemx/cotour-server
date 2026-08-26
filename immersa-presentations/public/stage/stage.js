@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const eventActivityId = params.get("eventActivityId") || "";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
 const planAllows = (capability) => planCapabilities[capability] === true;
