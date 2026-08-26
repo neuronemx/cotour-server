@@ -765,6 +765,7 @@ class EventHubRepository {
        LEFT JOIN event_live_sessions l ON l.event_activity_id = a.id AND l.status = 'LIVE'
        WHERE COALESCE(a.deck_id, a.pending_deck_id) = ? AND a.status IN ('SCHEDULED', 'LIVE')
          AND (? = '' OR a.id = ?)
+         AND (? = '' OR a.id = ?)
        ORDER BY a.status = 'LIVE' DESC, a.scheduled_starts_at ASC
        LIMIT 1`,
       [required(deckId, "deck id"), selectedActivityId, selectedActivityId]
@@ -831,7 +832,7 @@ class EventHubRepository {
     const [rows] = await this.pool.execute(
       `SELECT event_workspace_id FROM event_live_sessions
        WHERE deck_id = ? AND status = 'LIVE' ORDER BY started_at DESC LIMIT 1`,
-      [required(deckId, "deck id")]
+      [required(deckId, "deck id"), selectedActivityId, selectedActivityId]
     );
     return rows?.[0] || null;
   }
