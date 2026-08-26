@@ -3,6 +3,8 @@
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
   const plansRoot = document.getElementById("billingPlans");
+  const eventPassRoot = document.getElementById("billingEventPass");
+  const eventPassPlansRoot = document.getElementById("billingEventPassPlans");
   const founderPolicy = document.getElementById("billingFounderPolicy");
   const notice = document.getElementById("billingNotice");
   let portalButton = document.getElementById("billingPortal");
@@ -26,10 +28,12 @@
   const cancelSubmitButton = document.getElementById("billingCancelSubmit");
   const secondaryLinks = document.querySelector(".billing-secondary-links");
 
+  const offerWrap = document.getElementById("billingOfferWrap");
+  const offerSelect = document.getElementById("billingOffer");
+  const offerButtons = [...document.querySelectorAll("[data-billing-offer]")];
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
   let state = null;
   let interval = "annual";
-  const isEventPass = () => interval === "week";
   let invoices = [];
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
@@ -72,7 +76,7 @@
   }
 
   function selectedOffer() {
-    return state?.foundersAvailable && interval === "annual" ? "founders" : "official";
+    return state?.foundersAvailable && interval === "annual" && offerSelect.value === "founders" ? "founders" : "official";
   }
 
   function closePlanChangeConfirmation() {
@@ -99,7 +103,7 @@
   function openPlanChangeConfirmation(plan, button) {
     if (!state?.subscription || !changeConfirm) return;
     const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
-    const period = interval === "annual" ? "Anual" : "Mensual";
+    const period = interval === "annual" ? "Anual · paga 10 meses" : "Mensual";
     const timing = planChangeTiming(plan);
     pendingPlanChange = { plan, button };
     changeConfirmTitle.textContent = "Cambiar a " + label(plan);
@@ -117,32 +121,10 @@
     showNotice("");
   }
 
-  function freePlanFeatures() {
-    return [
-      "2 Decks · 50 MB",
-      "Hasta 25 personas",
-      "Compartir pantalla",
-      "Trazo y reacciones en vivo",
-      "Semblanza del Speaker"
-    ];
-  }
-
   function planFeatures(plan) {
     return plan === "SPEAKER"
-      ? ["5 Decks · 200 MB", "Hasta 100 personas", "Encuestas, Q&A y métricas básicas"]
-      : ["15 Decks · 500 MB", "Hasta 300 personas", "Todo Speaker más:", "Evaluaciones, sorteos, trivias, historial y métricas detalladas"];
-  }
-
-  function updatePassCountdown() {
-    document.querySelectorAll(".billing-pass-remaining").forEach((element) => {
-      const end = new Date(element.dataset.passEndsAt || "").getTime();
-      if (!Number.isFinite(end)) return;
-      const remainingMs = Math.max(0, end - Date.now());
-      const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
-      element.textContent = remainingDays > 0
-        ? `Acceso por 7 días · quedan ${remainingDays} ${remainingDays === 1 ? "día" : "días"}`
-        : "Acceso por 7 días · finaliza hoy";
-    });
+      ? ["5 Decks · 200 MB", "Hasta 100 personas simultáneas", "Hasta 6,000 entradas al año", "Encuestas, Q&A y métricas básicas"]
+      : ["15 Decks · 500 MB", "Hasta 300 personas simultáneas", "Hasta 18,000 entradas al año", "Todo Speaker más: evaluaciones, sorteos, trivias, historial y métricas detalladas"];
   }
 
   function render() {
@@ -173,74 +155,63 @@
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;
     }
-    intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !state.eventPass?.available; });
+    offerWrap.hidden = !state.foundersAvailable;
+    if (!state.foundersAvailable || interval !== "annual") offerSelect.value = "official";
     if (founderPolicy) {
-      const founderVisible = Boolean(state.foundersAvailable && interval === "annual");
-      founderPolicy.hidden = !founderVisible;
-      founderPolicy.classList.toggle("is-visible", founderVisible);
+      founderPolicy.hidden = false;
+      founderPolicy.classList.toggle("is-visible", state.foundersAvailable && interval === "annual" && selectedOffer() === "founders");
     }
+    offerButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.billingOffer === selectedOffer()));
     plansRoot.replaceChildren();
-    const currentPlan = subscription?.plan || state.effectivePlan || "FREE";
-    const freeActive = currentPlan === "FREE";
-    const freeCard = document.createElement("article");
-    freeCard.className = "billing-plan is-free";
-    const freeFeatureMarkup = freePlanFeatures().map((item) => `<li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>${item}</li>`).join("");
-    freeCard.innerHTML = `<div class="billing-plan-description">Para conocer Immersa</div><h3 class="billing-plan-name"><span class="billing-tier-dot free"></span>FREE</h3><div class="billing-price-block"><div class="billing-hero-price"><span class="billing-price-amount">Gratis</span></div><div class="billing-price-secondary">Sin tarjeta requerida</div></div><ul class="billing-features">${freeFeatureMarkup}</ul><button type="button" disabled>${freeActive ? "Plan actual" : "Plan gratuito"}</button>`;
-    const freeButton = freeCard.querySelector("button");
-    freeButton.classList.toggle("is-current", freeActive);
-    freeButton.classList.toggle("is-free-reference", !freeActive);
-    plansRoot.appendChild(freeCard);
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
-      const amount = isEventPass() ? state.eventPass?.plans?.[plan] : state.plans?.[plan]?.[interval]?.[selectedOffer()];
-      const annualAmount = state.plans?.[plan]?.annual?.[selectedOffer()];
-      const annualOfficialAmount = state.plans?.[plan]?.annual?.official;
-      const monthlyAmount = state.plans?.[plan]?.monthly?.official;
-      const activeGrant = isEventPass() ? state.grants?.find((grant) => grant.origin === "event_pass" && grant.plan === plan) : null;
-      const passActive = Boolean(activeGrant);
-      const active = !isEventPass() && subscription && subscription.plan === plan && subscription.interval === interval;
+      const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+      const officialAmount = state.plans?.[plan]?.[interval]?.official;
+      const period = interval === "annual" ? "al año" : "al mes";
+      const monthlyEquivalent = interval === "annual"
+        ? `<small class="billing-price-monthly-equivalent">${moneyMonthly(amount)} al mes</small>`
+        : "";
+      const active = subscription && subscription.plan === plan && subscription.interval === interval;
+      const limitedNote = `<small class="billing-price-limited${selectedOffer() === "founders" ? " is-visible" : ""}">Por tiempo limitado</small>`;
+      const priceMarkup = selectedOffer() === "founders"
+        ? `<span class="billing-price-official">${money(officialAmount)}</span><span class="billing-price-founders">${money(amount)}</span> <small>${period}</small>${monthlyEquivalent}${limitedNote}`
+        : `${money(amount)} <small>${period}</small>${monthlyEquivalent}`;
       const badgeMarkup = plan === "SPEAKER_PRO"
         ? `<span class="billing-plan-badge billing-plan-badge-pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2L12 16.4 5.7 21l2.3-7.2-6-4.6h7.6z"/></svg>Todo incluido</span>`
         : "";
       const description = plan === "SPEAKER_PRO"
         ? "Funciones avanzadas y audiencia máxima"
         : "Mayor audiencia con participaciones interactivas";
-      let priceMarkup = "";
-      let savingsMarkup = "";
-      if (isEventPass()) {
-        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">por 7 días</span></div><div class="billing-price-secondary">Acceso completo durante 7 días</div>`;
-      } else if (interval === "annual") {
-        const savings = Math.max(0, (Number(monthlyAmount) || 0) * 12 - (Number(annualAmount) || 0));
-        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${moneyMonthly(annualAmount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary"><span class="billing-price-official">${money(annualOfficialAmount)}</span><span>${money(annualAmount)} al año</span></div>`;
-        if (savings) {
-          const savingsIcon = plan === "SPEAKER_PRO"
-            ? `<svg class="billing-founder-sparkle" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg>`
-            : `<svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>`;
-          savingsMarkup = `<div class="billing-savings-chip">${savingsIcon}Ahorras ${money(savings)} al año</div>`;
-        }
-      } else {
-        priceMarkup = `<div class="billing-hero-price"><span class="billing-price-amount">${money(amount)}</span><span class="billing-price-suffix">/mes</span></div><div class="billing-price-secondary">Sin compromiso anual</div>`;
-      }
       const statusMarkup = active && subscriptionStatus
         ? `<small class="billing-plan-status">${subscriptionStatus}${subscription.currentPeriodEnd ? " · " + date(subscription.currentPeriodEnd) : ""}</small>${state.pendingChange ? `<small class="billing-plan-status billing-plan-scheduled">Cambio programado al finalizar tu periodo actual.</small>` : ""}`
         : "";
-      const actionLabel = passActive ? "Pase activo" : (isEventPass() ? "Comprar 7 Day Pass" : (active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")));
-      const featureMarkup = planFeatures(plan).map((item) => `<li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="20 6 9 17 4 12"/></svg>${item}</li>`).join("");
-      const passTimingMarkup = passActive ? `<small class="billing-pass-remaining" data-pass-ends-at="${activeGrant.ends_at || activeGrant.endsAt || ""}">Acceso por 7 días · calculando tiempo restante…</small>` : "";
-      card.innerHTML = `${badgeMarkup}<div class="billing-plan-description">${description}</div><h3 class="billing-plan-name"><span class="billing-tier-dot ${plan === "SPEAKER_PRO" ? "pro" : "speaker"}"></span>${label(plan)}</h3><div class="billing-price-block">${priceMarkup}${savingsMarkup}</div><ul class="billing-features">${featureMarkup}</ul><button type="button">${actionLabel}</button>${passTimingMarkup}${statusMarkup}`;
+      card.innerHTML = `${badgeMarkup}<p class="billing-plan-description">${description}</p><h3>${label(plan)}</h3><strong>${priceMarkup}</strong><ul>${planFeatures(plan).map((item) => "<li>" + item + "</li>").join("")}</ul><button type="button">${active ? "Plan actual" : (subscription ? "Administrar cambio" : "Continuar al pago")}</button>${statusMarkup}`;
       const button = card.querySelector("button");
-      button.disabled = passActive || active || (!active && !state.checkoutEnabled);
+      button.disabled = active || (!active && !state.checkoutEnabled);
       button.classList.toggle("is-current", Boolean(active));
-      button.classList.toggle("is-pass-active", passActive);
       button.addEventListener("click", () => {
         if (active) return;
-        if (isEventPass()) eventPassCheckout(plan, button);
-        else subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
+        subscription ? openPlanChangeConfirmation(plan, button) : checkout(plan, button);
       });
       plansRoot.appendChild(card);
     }
-    updatePassCountdown();
+    if (eventPassRoot && eventPassPlansRoot) {
+      const pass = state.eventPass;
+      eventPassRoot.hidden = !pass?.available;
+      eventPassPlansRoot.replaceChildren();
+      if (pass?.available) {
+        for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
+          const card = document.createElement("article");
+          card.className = "billing-event-pass-card" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
+          card.innerHTML = `<div><strong>${label(plan)}</strong><small>Acceso durante 7 días</small></div><b>${money(pass.plans[plan])}</b><button type="button">Comprar pase</button>`;
+          const button = card.querySelector("button");
+          button.disabled = !state.checkoutEnabled;
+          button.addEventListener("click", () => eventPassCheckout(plan, button));
+          eventPassPlansRoot.appendChild(card);
+        }
+      }
+    }
     if (!state.enabled) {
       showNotice("Los cobros aún no están habilitados en este ambiente.", "pending");
     } else if (subscription?.status === "past_due") {
@@ -293,12 +264,14 @@
     }
   }
 
-
   async function eventPassCheckout(plan, button) {
     button.disabled = true;
     showNotice("Preparando tu 7 Day Pass…", "pending");
     try {
-      const response = await fetch("/api/billing/event-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan }) });
+      const response = await fetch("/api/billing/event-pass", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan })
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pase");
       window.location.assign(data.url);
@@ -307,6 +280,7 @@
       button.disabled = false;
     }
   }
+
 
   async function changePlan(plan, button) {
     button.disabled = true;
@@ -529,15 +503,25 @@
     clearBillingReturnQuery();
   }
 
-  window.setInterval(updatePassCountdown, 60 * 1000);
-
   openButton?.addEventListener("click", open);
   closeButton?.addEventListener("click", close);
   modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
+    offerSelect.value = interval === "annual" && state?.foundersAvailable ? "founders" : "official";
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    render();
+  }));
+  offerSelect?.addEventListener("change", () => { closePlanChangeConfirmation(); render(); });
+  offerButtons.forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.billingOffer === "founders" && interval === "monthly") {
+      interval = "annual";
+      intervalButtons.forEach((item) => item.classList.toggle("is-active", item.dataset.billingInterval === interval));
+    }
+    offerSelect.value = button.dataset.billingOffer;
+    offerButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    closePlanChangeConfirmation();
     render();
   }));
   portalButton?.addEventListener("click", openPortal);
