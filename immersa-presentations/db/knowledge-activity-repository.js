@@ -112,7 +112,7 @@ class KnowledgeActivityRepository {
     }
   }
 
-  async saveExecution(execution, { expectedRevision }) {
+  async saveExecution(execution, { expectedRevision, participants: participantsToSave } = {}) {
     return inTransaction(this.pool, async (connection) => {
       const values = executionValues(execution);
       const [updated] = await connection.execute(
@@ -132,7 +132,10 @@ class KnowledgeActivityRepository {
         throw new KnowledgeActivityError("STALE_REVISION", "The persisted execution revision changed");
       }
 
-      for (const participant of execution.participants) {
+      const participants = Array.isArray(participantsToSave)
+        ? participantsToSave
+        : execution.participants;
+      for (const participant of participants) {
         await connection.execute(
           `INSERT INTO knowledge_activity_participants
              (execution_id, participant_id, recovery_token_hash, user_number, display_name, public_label,
