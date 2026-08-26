@@ -25,7 +25,13 @@ function waitFor(socket, event, timeoutMs = 30000) {
 async function request(path, options = {}) {
   const started = performance.now();
   stats.http++;
-  const response = await fetch(`${TARGET}${path}`, options);
+  let response;
+  try {
+    response = await fetch(`${TARGET}${path}`, options);
+  } catch (error) {
+    stats.httpErrors++;
+    throw new Error(`Request failed ${path}: ${error.message}`);
+  }
   stats.latencies.push(performance.now() - started);
   if (!response.ok) {
     stats.httpErrors++;
@@ -35,6 +41,7 @@ async function request(path, options = {}) {
 }
 
 async function user(index) {
+  let socket = null;
   try {
     const registration = await request(`/api/event/public/${encodeURIComponent(PUBLIC_ID)}/registration`, {
       method: "POST", headers: { "content-type": "application/json" },
@@ -50,12 +57,10 @@ async function user(index) {
     const deck = bootstrap.match(/deck":"([^"]+)/)?.[1];
     if (!session || !deck) throw new Error("Audience bootstrap did not expose session/deck");
 
-    const socket = io(TARGET, { transports: ["websocket", "polling"], reconnection: true, timeout: 30000 });
-    let connectedOnce = false;
+    socket = io(TARGET, { transports: ["websocket", "polling"], reconnection: false, timeout: 30000 });
     socket.on("connect", () => {
       stats.connected++;
-      if (connectedOnce) stats.reconnects++;
-      else { connectedOnce = true; stats.uniqueConnectedUsers.push(index); }
+      stats.uniqueConnectedUsers.push(index);
       socket.emit("join_presentation", { session, deck, role: "audience", audienceId: registration.participantId, audienceName: `load-${index}`, label: "github-load" });
     });
     socket.on("connect_error", () => { stats.socketErrors++; });
@@ -63,10 +68,11 @@ async function user(index) {
     socket.on("disconnect", () => { stats.disconnected++; });
     await waitFor(socket, "connect");
     await sleep(HOLD_MS);
-    socket.disconnect();
   } catch (error) {
     stats.userErrors++;
     console.error(`[user ${index}] ${error.message}`);
+  } finally {
+    socket?.disconnect();
   }
 }
 
