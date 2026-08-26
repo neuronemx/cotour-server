@@ -1,3 +1,4 @@
+name: Event Hub Load Test
 
 on:
   workflow_dispatch:
