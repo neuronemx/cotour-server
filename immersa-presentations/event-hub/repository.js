@@ -2,7 +2,7 @@ const { createHash, randomUUID } = require("node:crypto");
 
 const AUDIENCE_LEVELS = new Set(["FREE", "PAID"]);
 const ACTIVITY_ACCESS_LEVELS = new Set(["FREE", "PAID"]);
-const ACTIVITY_TYPES = new Set(["CONFERENCE", "ROUND_TABLE", "WORKSHOP", "MASTER_CLASS", "PANEL", "OTHER"]);
+const ACTIVITY_TYPES = new Set(["CONFERENCE", "ROUND_TABLE", "WORKSHOP", "MASTER_CLASS", "PANEL", "PROJECTION", "OTHER"]);
 
 class EventHubError extends Error {
   constructor(code, message, statusCode = 400) {
