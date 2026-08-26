@@ -3,6 +3,14 @@ name: Event Hub Load Test
 on:
   workflow_dispatch:
     inputs:
+      scenario:
+        description: Stage only, or audience journey with deck/Q&A
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - audience_journey
       target_url:
         description: Railway temporal URL (https://...)
         required: true
@@ -31,6 +39,21 @@ on:
         required: true
         default: "60000"
         type: string
+      slides_per_user:
+        description: Audience journey only: slides each user downloads (0 disables)
+        required: true
+        default: "0"
+        type: string
+      slide_interval_ms:
+        description: Audience journey only: milliseconds between slide downloads
+        required: true
+        default: "1000"
+        type: string
+      qna_burst_after_ms:
+        description: Audience journey only: milliseconds after test start for one Q&A burst (0 disables)
+        required: true
+        default: "0"
+        type: string
 
 jobs:
   load:
@@ -55,6 +78,7 @@ jobs:
 
       - name: Run against Railway temporary
         env:
+          SCENARIO: ${{ inputs.scenario }}
           IMMERSA_TEMP_URL: ${{ inputs.target_url }}
           IMMERSA_EVENT_PUBLIC_ID: ${{ inputs.event_public_id }}
           IMMERSA_LIVE_SESSION_ID: ${{ inputs.live_session_id }}
@@ -62,7 +86,15 @@ jobs:
           USERS: ${{ inputs.users }}
           RAMP_MS: ${{ inputs.ramp_ms }}
           HOLD_MS: ${{ inputs.hold_ms }}
-        run: node event-hub-stage-load.js | tee results.json
+          SLIDES_PER_USER: ${{ inputs.slides_per_user }}
+          SLIDE_INTERVAL_MS: ${{ inputs.slide_interval_ms }}
+          QNA_BURST_AFTER_MS: ${{ inputs.qna_burst_after_ms }}
+        run: |
+          if [ "$SCENARIO" = "audience_journey" ]; then
+            node event-hub-audience-journey-load.js | tee results.json
+          else
+            node event-hub-stage-load.js | tee results.json
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
