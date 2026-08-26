@@ -778,7 +778,8 @@ class EventHubRepository {
     return rows[0];
   }
 
-  async getStageControlForDeck(deckId) {
+  async getStageControlForDeck(deckId, activityId = "") {
+    const selectedActivityId = String(activityId || "").trim();
     const [rows] = await this.pool.execute(
       `SELECT a.id AS activity_id, a.title AS activity_title, a.event_workspace_id, a.event_stage_id, a.status AS activity_status, a.deck_check_status,
               s.name AS stage_name, l.id AS live_session_id
@@ -786,9 +787,10 @@ class EventHubRepository {
        INNER JOIN event_stages s ON s.id = a.event_stage_id
        LEFT JOIN event_live_sessions l ON l.event_activity_id = a.id AND l.status = 'LIVE'
        WHERE COALESCE(a.deck_id, a.pending_deck_id) = ? AND a.status IN ('SCHEDULED', 'LIVE')
+         AND (? = '' OR a.id = ?)
        ORDER BY a.status = 'LIVE' DESC, a.scheduled_starts_at ASC
        LIMIT 1`,
-      [required(deckId, "deck id")]
+      [required(deckId, "deck id"), selectedActivityId, selectedActivityId]
     );
     const row = rows?.[0];
     if (!row) return null;

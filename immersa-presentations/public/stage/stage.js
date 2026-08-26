@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "auto";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+const eventActivityId = params.get("eventActivityId") || "";
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
 const planAllows = (capability) => planCapabilities[capability] === true;
@@ -142,7 +143,7 @@ async function loadDeck() {
 
 async function loadEventStageControl() {
   if (!roleOpenContext.access_token || !eventStageControl) return false;
-  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}`, {
+  const response = await fetch(`/api/event/stage-control/${encodeURIComponent(deckId)}${eventActivityId ? `?eventActivityId=${encodeURIComponent(eventActivityId)}` : ""}`, {
     headers: { "x-immersa-access-token": roleOpenContext.access_token }
   });
   if (response.status === 404) return false;
@@ -167,7 +168,7 @@ eventStageAction?.addEventListener("click", async () => {
   if (live && !window.confirm(`¿Finalizar conferencia: ${eventStageSession.title}?\n\nSe cerrará el acceso en vivo y las métricas.`)) return;
   eventStageAction.disabled = true;
   try {
-    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}`;
+    const endpoint = `/api/event/stage-control/${encodeURIComponent(deckId)}/conference/${live ? "finish" : "start"}${eventActivityId ? `?eventActivityId=${encodeURIComponent(eventActivityId)}` : ""}`;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-immersa-access-token": roleOpenContext.access_token }
