@@ -215,7 +215,7 @@ test("Home puts presentations beside creation and uses the approved concise copy
 test("Rename opens above Deck detail and owns Escape while active", () => {
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
-  assert.match(css, /#nameModal\s*\{[^}]*z-index:\s*70/s);
+  assert.match(css, /#nameModal\s*\{[^}]*z-index:\s*120/s);
   assert.match(source, /deckDetailModal\.setAttribute\("aria-hidden", "true"\)/);
   assert.match(source, /if \(nameModal && !nameModal\.hidden\) return closeNameModal\(false\);[\s\S]*if \(deckDetailModal/);
 });
