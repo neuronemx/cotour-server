@@ -1,0 +1,83 @@
+name: Event Hub Audience Journey Load Test
+
+"on":
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Railway temporary URL (https://...)
+        required: true
+        default: https://immersa-presentations-profile-v1.up.railway.app
+        type: string
+      event_public_id:
+        description: PAID Event Hub public ID (p_evt_...)
+        required: true
+        type: string
+      live_session_id:
+        description: Active LiveSession UUID
+        required: true
+        type: string
+      users:
+        description: Concurrent users (25-2500)
+        required: true
+        default: "500"
+        type: string
+      ramp_ms:
+        description: Milliseconds between users
+        required: true
+        default: "100"
+        type: string
+      hold_ms:
+        description: Connection hold time per user
+        required: true
+        default: "180000"
+        type: string
+      slides_per_user:
+        description: Slides each attendee downloads (0 disables)
+        required: true
+        default: "10"
+        type: string
+      slide_interval_ms:
+        description: Milliseconds between slide downloads
+        required: true
+        default: "3000"
+        type: string
+      qna_burst_after_ms:
+        description: Milliseconds after test start for one Q&A burst (0 disables)
+        required: true
+        default: "0"
+        type: string
+
+jobs:
+  load:
+    name: Event Hub temporary audience journey
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: immersa-presentations/load-tests
+    steps:
+      - name: Checkout Event Hub test runner
+        uses: actions/checkout@v4
+        with:
+          ref: agent/event-hub-v1-foundation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install load runner
+        run: npm install --no-audit --no-fund
+      - name: Run against Railway temporary
+        env:
+          IMMERSA_TEMP_URL: ${{ inputs.target_url }}
+          IMMERSA_EVENT_PUBLIC_ID: ${{ inputs.event_public_id }}
+          IMMERSA_LIVE_SESSION_ID: ${{ inputs.live_session_id }}
+          IMMERSA_TEST_REGISTRATION_KEY: github-audience-load-${{ github.run_id }}
+          USERS: ${{ inputs.users }}
+          RAMP_MS: ${{ inputs.ramp_ms }}
+          HOLD_MS: ${{ inputs.hold_ms }}
+          SLIDES_PER_USER: ${{ inputs.slides_per_user }}
+          SLIDE_INTERVAL_MS: ${{ inputs.slide_interval_ms }}
+          QNA_BURST_AFTER_MS: ${{ inputs.qna_burst_after_ms }}
+        run: node event-hub-audience-journey-load.js | tee results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: event-hub-audience-journey-results
+          path: immersa-presentations/load-tests/results.json
