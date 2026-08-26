@@ -1267,7 +1267,7 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/stage-access
     const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: eventDeckId, role: "stage" });
     await eventHubRepository.grantStageOperatorAccess({ eventStageId: activity.event_stage_id, accessSecret: stageLink.access_token });
     const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
-    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}`, activityId: activity.id, stageId: activity.event_stage_id });
+    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}?eventActivityId=${encodeURIComponent(activity.id)}`, activityId: activity.id, stageId: activity.event_stage_id });
   } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
@@ -1312,7 +1312,7 @@ app.post("/api/event/stages/:stageId/live-sessions", async (req, res) => {
 app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId, req.query?.eventActivityId);
     if (!control) return res.status(404).json({ error: "Esta presentación no tiene una actividad Event Hub operable" });
     return res.json(control);
   } catch (error) { return sendEventHubError(res, error); }
@@ -1339,7 +1339,7 @@ app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck
     if (!new Set(["start", "finish"]).has(action)) {
       throw new EventHubError("INVALID_CONFERENCE_ACTION", "La operación de conferencia no es válida", 400);
     }
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId, req.query?.eventActivityId);
     if (!control) throw new EventHubError("EVENT_STAGE_CONTROL_NOT_FOUND", "Esta presentación no tiene una actividad Event Hub operable", 404);
     const accessLink = req.immersaAccess?.accessLink;
     await eventHubRepository.authorizeStageOperation({
