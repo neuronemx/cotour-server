@@ -78,8 +78,21 @@ function createKnowledgeActivitySocketHandlers({
     }
   }
 
+  function emitControllers(execution) {
+    if (!execution) return;
+    const roomKey = getRoomKey(execution.sourceSessionId, execution.deckId);
+    const activeExecution = service.isExecutionActive(execution) ? execution : null;
+    for (const role of ["presenter", "stage"]) {
+      io.to(getRoleRoomKey(roomKey, role)).emit(
+        "interaction:execution:state",
+        roleState(activeExecution, role)
+      );
+    }
+  }
+
   const unsubscribe = service.subscribe(({ execution, eventName }) => {
-    emitAll(execution);
+    if (eventName === "participant_joined") emitControllers(execution);
+    else emitAll(execution);
     if (eventName === "answer_accepted") {
       const roomKey = getRoomKey(execution.sourceSessionId, execution.deckId);
       io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:execution:progress", roleState(execution, "presenter"));
@@ -155,7 +168,8 @@ function createKnowledgeActivitySocketHandlers({
           participantId,
           name,
           tabId: tabId || tab_id,
-          recoveryTokenHash: recoveryTokenHashFor(execution.id, context.audienceId)
+          recoveryTokenHash: recoveryTokenHashFor(execution.id, context.audienceId),
+          isConnected: () => socket.connected !== false
         });
         socket.emit("interaction:participant:joined", {
           participantId: participant.id,
