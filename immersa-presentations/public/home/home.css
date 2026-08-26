@@ -75,7 +75,7 @@ button:disabled { cursor: wait; opacity: .65; }
 
 .stage-inner {
   position: relative;
-  z-index: 1000;
+  z-index: 1;
   width: min(1240px, calc(100% - 40px));
   margin: 0 auto;
   padding-top: 86px;
@@ -414,13 +414,14 @@ button:disabled { cursor: wait; opacity: .65; }
    MODAL
 ========================================================= */
 .modal-backdrop {
-  position: fixed; inset: 0; z-index: 3000;
+  position: fixed; inset: 0; z-index: 50;
   display: grid; place-items: center;
   padding: 20px;
   background: rgba(10, 11, 38, .55);
   backdrop-filter: blur(6px);
 }
-#nameModal { z-index: 70; }
+#deckDetailModal { z-index: 110; }
+#nameModal { z-index: 120; }
 .modal-backdrop[hidden] { display: none !important; }
 .name-modal {
   width: min(420px, 100%);
@@ -464,7 +465,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .secondary-action:hover { background: var(--line); }
 .primary-action { color: #fff; background: var(--grad); box-shadow: 0 12px 24px -10px rgba(67,104,246,.45); }
 .primary-action:hover { filter: brightness(1.04); }
-body.modal-open { overflow: hidden; }
+html:has(body.modal-open), body.modal-open { overflow: hidden; }
 
 /* =========================================================
    RESPONSIVE
@@ -930,15 +931,3 @@ body.modal-open { overflow: hidden; }
 .stage-header .account-plan-badge.is-free::before { background:#9ca3af; }
 .stage-header .account-plan-badge.is-speaker::before { background:#3b82f6; }
 .stage-header .account-plan-badge.is-pro::before { background:linear-gradient(135deg,#8b5cf6,#6d3bef,#b66cff); }
-
-.home-content-tabs { display:flex; gap:18px; align-items:center; margin-top:34px; border-bottom:1px solid rgba(18,21,51,.12); }.home-content-tabs button { padding:0 0 12px; border:0; border-bottom:2px solid transparent; color:#737992; background:transparent; font:inherit; font-weight:700; cursor:pointer; }.home-content-tabs button.is-active { color:#17132f; border-bottom-color:#7057ff; }
-.event-invitation-backdrop { background:rgba(10,11,38,.58); backdrop-filter:blur(8px); }.event-invitation-modal { position:relative; width:min(560px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto; padding:34px; border-radius:22px; background:#fff; box-shadow:0 28px 80px rgba(4,6,25,.36); }.event-invitation-modal h2 { margin:8px 36px 10px 0; color:#17132f; font-size:26px; line-height:1.18; }.event-invitation-modal>p { margin:0; color:#67708b; line-height:1.55; }.event-invitation-modal-eyebrow { color:#7057ff; font-size:11px; font-weight:800; letter-spacing:.11em; }.event-invitation-close { position:absolute; top:16px; right:16px; width:34px; height:34px; border:0; border-radius:50%; color:#59617c; background:#f0f1f7; font-size:23px; cursor:pointer; }.event-invitation-modal-list { display:grid; gap:12px; margin-top:24px; }.event-invitation-modal-card { padding:18px; border:1px solid #e2e4ee; border-radius:14px; }.event-invitation-modal-card h3 { margin:6px 0 5px; color:#17132f; font-size:17px; }.event-invitation-modal-card p { margin:0; color:#69708a; font-size:13px; }.event-invitation-modal-actions { display:flex; gap:8px; margin-top:18px; }.event-invitation-modal-actions button { padding:10px 14px; border:0; border-radius:9px; background:#7057ff; color:#fff; font:inherit; font-weight:700; cursor:pointer; }.event-invitation-modal-actions button:last-child { color:#59617c; background:#eef0f6; }
-.event-invitation-confirmation { padding:20px; border-radius:14px; background:linear-gradient(135deg,rgba(112,87,255,.1),rgba(6,207,224,.08)); color:#4f5873; line-height:1.55; }.event-invitation-confirmation p { margin:0 0 12px; }.event-invitation-confirmation button { margin-top:6px; padding:11px 16px; border:0; border-radius:9px; background:#7057ff; color:#fff; font:inherit; font-weight:700; cursor:pointer; }
-
-.event-invitations-panel { margin:22px 0; padding:26px; border:1px solid rgba(112,87,255,.2); border-radius:20px; background:linear-gradient(135deg,rgba(112,87,255,.08),rgba(6,207,224,.05)); }
-.event-invitations-list { display:grid; gap:12px; margin-top:18px; }
-.event-invitation-card { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px; border-radius:14px; background:#fff; }
-.event-invitation-card h3 { margin:4px 0; font-size:17px; }.event-invitation-card p { margin:0; color:#69708a; font-size:13px; }
-.event-invitation-eyebrow { color:#6b48dc; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-.event-invitation-action { display:grid; grid-template-columns:minmax(180px,260px) auto; gap:8px; align-items:center; }.event-invitation-action select { min-width:0; padding:10px; border:1px solid #d9dceb; border-radius:9px; background:#fff; font:inherit; }.event-invitation-action button { padding:10px 13px; border:0; border-radius:9px; background:#7057ff; color:#fff; font:inherit; font-weight:700; cursor:pointer; }.event-invitation-action small { grid-column:1 / -1; color:#69708a; }
-@media (max-width:700px) { .event-invitation-card { align-items:stretch; flex-direction:column; }.event-invitation-action { grid-template-columns:1fr; } }
