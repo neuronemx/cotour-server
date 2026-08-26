@@ -372,7 +372,7 @@ class EventHubRepository {
         sourceKind: row.source_kind,
         accountUserId: row.account_user_id || null,
         name: row.source_kind === "ACCOUNT" ? String(row.display_name || row.auth_name || "").trim() : String(row.manual_name || "").trim(),
-        roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" Â· ") : String(row.manual_role_title || "").trim(),
+        roleTitle: row.source_kind === "ACCOUNT" ? [row.role_title, row.company].filter(Boolean).join(" · ") : String(row.manual_role_title || "").trim(),
         bio: row.source_kind === "ACCOUNT" ? String(row.bio || "").trim() : String(row.manual_bio || "").trim(),
         photoUrl: publicSpeakerPhotoUrl({ photoKey: row.photo_key, authImage: row.auth_image, manualPhotoUrl: row.manual_photo_url }),
         invitation: row.assignment_id ? { id: row.assignment_id, status: row.assignment_status, selectedDeckId: row.selected_deck_id || null } : null
@@ -687,9 +687,9 @@ class EventHubRepository {
       [required(userId, "speaker user id"), required(assignmentId, "invitation id")]
     );
     const assignment = rows?.[0];
-    if (!assignment) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "Esta invitaciÃ³n no estÃ¡ disponible", 404);
+    if (!assignment) throw new EventHubError("SPEAKER_INVITATION_NOT_FOUND", "Esta invitación no está disponible", 404);
     const deckId = assignment.deck_id || assignment.pending_deck_id;
-    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estarÃ¡ disponible cuando Event Stage asigne tu Deck", 409);
+    if (!deckId) throw new EventHubError("SPEAKER_DECK_NOT_READY", "Tu acceso como Speaker estará disponible cuando Event Stage asigne tu Deck", 409);
     return { assignmentId: assignment.id, activityId: assignment.activity_id, deckId, deckCheckStatus: assignment.deck_check_status };
   }
 
