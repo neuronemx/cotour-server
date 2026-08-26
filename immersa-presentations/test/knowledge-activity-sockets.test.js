@@ -162,6 +162,23 @@ test("state broadcasts are role-specific and audience payloads use private rooms
   assert.equal(audience.payload.participantId, participantIdFor("execution-1", "audience-1"));
 });
 
+test("a participant admission updates controllers without broadcasting every audience state", () => {
+  const io = fakeIo();
+  const runtimeService = service();
+  createKnowledgeActivitySocketHandlers({
+    io,
+    service: runtimeService,
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getRoomKey: (session, deck) => `${session}::${deck}`,
+    getConnectedAudience: () => [{ audienceId: "audience-1" }, { audienceId: "audience-2" }]
+  });
+  runtimeService.notify("participant_joined");
+  assert.deepEqual(io.events.map((event) => event.room), [
+    "session-1::deck-1::presenter",
+    "session-1::deck-1::stage"
+  ]);
+});
+
 test("terminal cancellation clears the active execution for every role", () => {
   const io = fakeIo();
   const runtimeService = service();
