@@ -120,13 +120,16 @@ class KnowledgeActivityService {
       : execute();
   }
 
-  async mutate(execution, operation, eventName) {
+  async mutate(execution, operation, eventName, persistence = {}) {
     const execute = async () => {
       const original = clone(execution);
       const expectedRevision = execution.revision;
       try {
         const result = await operation(execution);
-        await this.repository.saveExecution(execution, { expectedRevision });
+        await this.repository.saveExecution(execution, {
+          expectedRevision,
+          ...(typeof persistence.forResult === "function" ? persistence.forResult(result) : {})
+        });
         this.executions.set(this.key(execution.sourceSessionId), execution);
         this.schedule(execution);
         this.notify(execution, eventName);
@@ -150,11 +153,19 @@ class KnowledgeActivityService {
     );
   }
 
-  async join(execution, payload) {
+  async join(execution, { isConnected, ...payload }) {
     return this.mutate(
       execution,
-      (current) => joinParticipant(current, { ...payload, nowMs: this.now(), random: this.random }),
-      "participant_joined"
+      (current) => {
+        if (typeof isConnected === "function" && !isConnected()) {
+          const error = new Error("Participant disconnected before admission");
+          error.code = "PARTICIPANT_DISCONNECTED";
+          throw error;
+        }
+        return joinParticipant(current, { ...payload, nowMs: this.now(), random: this.random });
+      },
+      "participant_joined",
+      { forResult: (participant) => ({ participants: [participant] }) }
     );
   }
 
