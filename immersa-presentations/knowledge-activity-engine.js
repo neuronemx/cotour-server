@@ -553,13 +553,13 @@ function tickExecution(execution, nowMs = Date.now()) {
   while (guard < 128) {
     guard += 1;
     if (execution.state === "COUNTDOWN" && nowMs >= epoch(execution.countdownDeadlineAt)) {
-      beginActive(execution, epoch(execution.countdownDeadlineAt) || nowMs);
+      beginActive(execution, nowMs);
       changed = true;
       continue;
     }
     if (execution.category === "contest" && execution.state === "ACTIVE"
       && execution.substate === "QUESTION_ACTIVE" && nowMs >= epoch(execution.questionDeadlineAt)) {
-      const closedAt = epoch(execution.questionDeadlineAt) || nowMs;
+      const closedAt = nowMs;
       execution.substate = "REVEAL";
       execution.questionDeadlineAt = null;
       execution.revealDeadlineAt = iso(closedAt + REVEAL_MS);
@@ -569,7 +569,7 @@ function tickExecution(execution, nowMs = Date.now()) {
     }
     if (execution.category === "contest" && execution.state === "ACTIVE"
       && execution.substate === "REVEAL" && nowMs >= epoch(execution.revealDeadlineAt)) {
-      const nextAt = epoch(execution.revealDeadlineAt) || nowMs;
+      const nextAt = nowMs;
       if (execution.questionIndex + 1 >= execution.questionOrder.length) {
         beginProcessing(execution, nextAt);
       } else {
