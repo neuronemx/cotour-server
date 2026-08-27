@@ -65,7 +65,22 @@ test("database schema preserves Q&A and Speaker metrics storage contracts", asyn
     "017_billing_cleanup_requirements.sql",
     "017_billing_event_pass.sql",
     "018_billing_invoice_requests.sql",
-    "019_billing_email_notifications.sql"
+    "019_billing_email_notifications.sql",
+    "020_event_hub_foundation.sql",
+    "021_event_stage_operator_access.sql",
+    "022_event_stage_capacity.sql",
+    "023_event_activity_duration.sql",
+    "024_event_activity_type.sql",
+    "025_event_activity_speakers.sql",
+    "026_event_activity_deck_check.sql",
+    "027_event_speaker_assignments.sql",
+    "028_event_speaker_linking.sql",
+    "029_remove_orphaned_event_speaker_assignments.sql",
+    "030_event_stage_default_capacity.sql",
+    "031_semana_amc_official_stages.sql",
+    "032_event_activity_reopen_after_live_session.sql",
+    "033_event_hub_polls.sql",
+    "034_event_global_interaction_metrics.sql"
   ]);
   const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
   assert.match(schema, /ENGINE=InnoDB/g);
@@ -121,7 +136,22 @@ test("migration runner serializes and records pending SQL files", async () => {
     "017_billing_cleanup_requirements.sql",
     "017_billing_event_pass.sql",
     "018_billing_invoice_requests.sql",
-    "019_billing_email_notifications.sql"
+    "019_billing_email_notifications.sql",
+    "020_event_hub_foundation.sql",
+    "021_event_stage_operator_access.sql",
+    "022_event_stage_capacity.sql",
+    "023_event_activity_duration.sql",
+    "024_event_activity_type.sql",
+    "025_event_activity_speakers.sql",
+    "026_event_activity_deck_check.sql",
+    "027_event_speaker_assignments.sql",
+    "028_event_speaker_linking.sql",
+    "029_remove_orphaned_event_speaker_assignments.sql",
+    "030_event_stage_default_capacity.sql",
+    "031_semana_amc_official_stages.sql",
+    "032_event_activity_reopen_after_live_session.sql",
+    "033_event_hub_polls.sql",
+    "034_event_global_interaction_metrics.sql"
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);
