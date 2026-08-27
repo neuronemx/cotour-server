@@ -260,6 +260,23 @@ function renderDeckCheck(activity) {
       } finally { openStage.disabled = false; }
     });
     activityDeckCheckActions.appendChild(openStage);
+    const removeDeck = document.createElement("button");
+    removeDeck.type = "button";
+    removeDeck.textContent = "Quitar Deck";
+    removeDeck.addEventListener("click", async () => {
+      if (!window.confirm("¿Quitar el Deck de esta actividad? El Deck no se borrará de la cuenta del ponente.")) return;
+      removeDeck.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/activities/${encodeURIComponent(activity.id)}/deck-check`, { method: "DELETE" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo quitar el Deck");
+        editingActivity = { ...editingActivity, ...body };
+        renderDeckCheck(editingActivity);
+        await loadActivities();
+      } catch (error) { activityDeckCheckStatus.textContent = error.message; }
+      finally { removeDeck.disabled = false; }
+    });
+    activityDeckCheckActions.appendChild(removeDeck);
     return;
   }
   if (status === "READY_FOR_TEST") {
