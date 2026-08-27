@@ -191,6 +191,24 @@ test("answer persistence does not rewrite the complete audience into snapshot JS
   assert.equal("answers" in storedSnapshot, false);
 });
 
+test("answer batch writes one execution revision and bulk participant and answer rows", async () => {
+  const pool = fakePool();
+  const item = execution();
+  const participants = [];
+  const answers = [];
+  for (let number = 1; number <= 1000; number += 1) {
+    const participant = joinParticipant(item, { participantId: `participant-${number}`, tabId: `tab-${number}`, nowMs: number + 1000, random: () => 0.999 });
+    participant.state = "ACTIVE";
+    participants.push(participant);
+    answers.push({ participantId: participant.id, questionId: "q1", optionId: "a", correct: true, elapsedMs: 25, receivedAt: "1970-01-01T00:00:03.000Z" });
+  }
+  await new KnowledgeActivityRepository(pool).saveAnswerBatch(item, { expectedRevision: 1, participants, answers });
+  const statements = pool.calls.filter((call) => call.type === "execute");
+  assert.equal(statements.length, 3);
+  assert.match(statements[1].sql, /VALUES \(\?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?\)/);
+  assert.match(statements[2].sql, /VALUES \(\?, \?, \?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?, \?, \?\)/);
+});
+
 test("a definitive result is insert-only so a late calculation cannot overwrite it", () => {
   const source = fs.readFileSync(path.join(__dirname, "..", "db", "knowledge-activity-repository.js"), "utf8");
   assert.match(source, /INSERT IGNORE INTO knowledge_activity_results/);
