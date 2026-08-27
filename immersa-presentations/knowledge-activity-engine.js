@@ -745,14 +745,25 @@ function baseRoleState(execution, nowMs) {
   };
 }
 
-function stateForRole(execution, { role, participantId = "", tabId = "", nowMs = Date.now() }) {
+function stateForRole(execution, { role, participantId = "", tabId = "", nowMs = Date.now(), compact = false }) {
   const base = baseRoleState(execution, nowMs);
   if (CONTROL_ROLES.has(role)) {
+    const effectiveParticipantCount = new Set(execution.answers.map((answer) => answer.participantId)).size;
+    if (compact) {
+      return {
+        ...base,
+        participantCount: execution.participants.length,
+        effectiveParticipantCount,
+        questionIndex: execution.questionIndex,
+        questionCount: execution.definition.questions.length,
+        currentQuestion: currentQuestion(execution)
+      };
+    }
     return {
       ...base,
       definitionsSnapshot: clone(execution.definition),
       participantCount: execution.participants.length,
-      effectiveParticipantCount: execution.participants.filter((participant) => participantAnswers(execution, participant.id).length).length,
+      effectiveParticipantCount,
       submittedCount: execution.participants.filter((participant) => participant.submittedAt).length,
       participants: execution.participants.map((participant) => ({
         id: participant.id,
