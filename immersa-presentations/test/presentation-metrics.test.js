@@ -108,6 +108,12 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
   assert.deepEqual(session.qna, { received: 7, projected: 3 });
 });
 
+test("session metrics count attendance per session without grouping the full audience join", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "presentation-metrics.js"), "utf8");
+  assert.match(source, /SELECT COUNT\(\*\)[\s\S]*presentation_session_attendance/);
+  assert.doesNotMatch(source, /LEFT JOIN presentation_session_attendance psa ON psa\.presentation_session_id = ps\.id/);
+});
+
 test("server exposes Speaker basic metrics only through deck ownership and plan capability", () => {
   const root = path.join(__dirname, "..");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
