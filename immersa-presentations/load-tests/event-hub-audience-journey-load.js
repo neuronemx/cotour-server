@@ -18,7 +18,11 @@ if (!TARGET || !PUBLIC_ID || !LIVE_SESSION_ID) {
 const stats = {
   http: 0, httpErrors: 0, userErrors: 0, socketErrors: 0, audienceLimitHits: 0,
   connected: 0, reconnects: 0, disconnected: 0, uniqueConnectedUsers: [], latencies: [],
-  manifestsFetched: 0, slidesFetched: 0, qnaSubmitted: 0, qnaRejected: 0, qnaTimeouts: 0
+  registrationsCreated: 0, liveSessionEntries: 0,
+  manifestsFetched: 0, slidesFetched: 0,
+  manifestBodyBytes: 0, manifestContentLengthBytes: 0,
+  slideBodyBytes: 0, slideContentLengthBytes: 0,
+  qnaSubmitted: 0, qnaRejected: 0, qnaTimeouts: 0
 };
 const startedAt = Date.now();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,6 +70,35 @@ async function request(path, options = {}, parse = "json") {
   return response.json();
 }
 
+async function requestDeckAsset(path) {
+  const requestStartedAt = performance.now();
+  stats.http++;
+  let response;
+  try {
+    response = await fetch(`${TARGET}${path}`);
+  } catch (error) {
+    stats.httpErrors++;
+    throw new Error(`Request failed ${path}: ${error.message}`);
+  }
+  stats.latencies.push(performance.now() - requestStartedAt);
+  if (!response.ok) {
+    stats.httpErrors++;
+    throw new Error(`HTTP ${response.status} ${path}: ${(await response.text()).slice(0, 240)}`);
+  }
+  const body = await response.arrayBuffer();
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  return {
+    body,
+    bodyBytes: body.byteLength,
+    contentLengthBytes: Number.isFinite(contentLength) && contentLength > 0 ? contentLength : 0
+  };
+}
+
+function recordDeckTransfer(kind, transfer) {
+  stats[`${kind}BodyBytes`] += transfer.bodyBytes;
+  stats[`${kind}ContentLengthBytes`] += transfer.contentLengthBytes;
+}
+
 async function waitUntil(timestamp) {
   const delay = timestamp - Date.now();
   if (delay > 0) await sleep(delay);
@@ -76,7 +109,8 @@ async function fetchSlides(deck, manifest) {
   for (const slide of slides) {
     const source = String(slide?.src || "");
     if (!source) continue;
-    await request(`/decks/${encodeURIComponent(deck)}/${source.split("/").map(encodeURIComponent).join("/")}`, {}, "buffer");
+    const transfer = await requestDeckAsset(`/decks/${encodeURIComponent(deck)}/${source.split("/").map(encodeURIComponent).join("/")}`);
+    recordDeckTransfer("slide", transfer);
     stats.slidesFetched++;
     if (SLIDE_INTERVAL_MS) await sleep(SLIDE_INTERVAL_MS);
   }
@@ -107,11 +141,13 @@ async function user(index) {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ registrationKey: `${REGISTRATION_KEY}-${index}` })
     });
+    stats.registrationsCreated++;
     await request(`/api/event/public/${encodeURIComponent(PUBLIC_ID)}/activities`);
     const entry = await request(`/api/event/live-sessions/${encodeURIComponent(LIVE_SESSION_ID)}/enter`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ participantId: registration.participantId })
     });
+    stats.liveSessionEntries++;
     const bootstrap = await request(entry.audiencePath, {}, "text");
     const session = bootstrap.match(/session":"([^"]+)/)?.[1];
     const deck = bootstrap.match(/deck":"([^"]+)/)?.[1];
@@ -128,8 +164,12 @@ async function user(index) {
     socket.on("disconnect", () => { stats.disconnected++; });
     await waitFor(socket, "connect");
     const slideJourney = SLIDES_PER_USER
-      ? request(`/decks/${encodeURIComponent(deck)}/manifest.json`)
-        .then((manifest) => { stats.manifestsFetched++; return fetchSlides(deck, manifest); })
+      ? requestDeckAsset(`/decks/${encodeURIComponent(deck)}/manifest.json`)
+        .then((transfer) => {
+          recordDeckTransfer("manifest", transfer);
+          stats.manifestsFetched++;
+          return fetchSlides(deck, JSON.parse(Buffer.from(transfer.body).toString("utf8")));
+        })
       : Promise.resolve();
     const qnaJourney = submitQnaBurst(socket, index);
     const remainingHoldMs = Math.max(0, startedAt + (index - 1) * RAMP_MS + HOLD_MS - Date.now());
@@ -148,5 +188,17 @@ async function user(index) {
   stats.uniqueConnectedUsers.sort((a, b) => a - b);
   const latencies = stats.latencies.sort((a, b) => a - b);
   const percentile = (p) => latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * p))] || 0;
-  console.log(JSON.stringify({ ...stats, uniqueConnectedCount: stats.uniqueConnectedUsers.length, p50Ms: percentile(.5), p95Ms: percentile(.95), p99Ms: percentile(.99), finishedAt: new Date().toISOString() }, null, 2));
+  const estimatedDeckTransferBytes =
+    (stats.manifestContentLengthBytes || stats.manifestBodyBytes)
+    + (stats.slideContentLengthBytes || stats.slideBodyBytes);
+  console.log(JSON.stringify({
+    ...stats,
+    estimatedDeckTransferBytes,
+    estimatedDeckTransferMiB: Number((estimatedDeckTransferBytes / 1024 / 1024).toFixed(3)),
+    uniqueConnectedCount: stats.uniqueConnectedUsers.length,
+    p50Ms: percentile(.5),
+    p95Ms: percentile(.95),
+    p99Ms: percentile(.99),
+    finishedAt: new Date().toISOString()
+  }, null, 2));
 })();
