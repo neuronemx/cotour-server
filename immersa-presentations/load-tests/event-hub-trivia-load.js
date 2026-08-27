@@ -44,6 +44,7 @@ function wait(socket, events, timeout = 300000) {
   });
 }
 
+// Prepared Trivia has no currentQuestion; wait specifically for the operator's start event.
 function waitForActiveQuestion(socket, timeout) {
   return new Promise((resolve, reject) => {
     const onState = (state) => {
