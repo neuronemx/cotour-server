@@ -291,6 +291,44 @@ class KnowledgeActivityRepository {
     });
   }
 
+  async saveAnswerBatch(execution, { expectedRevision, participants = [], answers = [] } = {}) {
+    if (!answers.length) return execution;
+    return inTransaction(this.pool, async (connection) => {
+      const values = executionValues(execution);
+      const [updated] = await connection.execute(
+        `UPDATE knowledge_activity_executions
+         SET state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
+             deadline_at = ?, processing_started_at = ?, results_ready_at = ?,
+             results_visible_at = ?, cancelled_at = ?, closed_at = ?
+         WHERE id = ? AND revision = ?`,
+        [values[6], values[7], values[8], values[9], values[13], values[14], values[15], values[16], values[17], execution.id, Number(expectedRevision)]
+      );
+      if (!updated.affectedRows) throw new KnowledgeActivityError("STALE_REVISION", "The persisted execution revision changed");
+      const uniqueParticipants = [...new Map((participants || []).map((participant) => [participant.id, participant])).values()];
+      if (uniqueParticipants.length) {
+        const participantValues = uniqueParticipants.flatMap((participant) => [execution.id, participant.id, participant.state, participant.activeTabId || null, mysqlDateTime(participant.submittedAt), mysqlDateTime(participant.completedAt)]);
+        await connection.execute(
+          `INSERT INTO knowledge_activity_participants
+             (execution_id, participant_id, state, active_tab_id, submitted_at, completed_at)
+           VALUES ${uniqueParticipants.map(() => "(?, ?, ?, ?, ?, ?)").join(", ")}
+           ON DUPLICATE KEY UPDATE
+             state = VALUES(state), active_tab_id = VALUES(active_tab_id), submitted_at = VALUES(submitted_at), completed_at = VALUES(completed_at)`,
+          participantValues
+        );
+      }
+      const answerValues = answers.flatMap((answer) => [execution.id, answer.participantId, answer.questionId, answer.optionId, answer.clientAttemptId || null, answer.correct ? 1 : 0, Number.isFinite(answer.elapsedMs) ? answer.elapsedMs : null, mysqlDateTime(answer.receivedAt)]);
+      await connection.execute(
+        `INSERT INTO knowledge_activity_answers
+           (execution_id, participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at)
+         VALUES ${answers.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}
+         ON DUPLICATE KEY UPDATE
+           option_id = VALUES(option_id), client_attempt_id = VALUES(client_attempt_id), correct = VALUES(correct), elapsed_ms = VALUES(elapsed_ms), received_at = VALUES(received_at)`,
+        answerValues
+      );
+      return execution;
+    });
+  }
+
   async hydrate(row, executor = this.pool) {
     if (!row?.snapshot_json) return null;
     const snapshot = parseJson(row.snapshot_json);
