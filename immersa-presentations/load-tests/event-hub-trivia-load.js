@@ -7,7 +7,7 @@ const users = Math.min(Math.max(+process.env.USERS || 1, 1), 2500);
 const ramp = Math.max(+process.env.RAMP_MS || 0, 0);
 const hold = Math.max(+process.env.HOLD_MS || 300000, 1000);
 const triviaStartWait = Math.max(+process.env.TRIVIA_START_WAIT_MS || hold, 1000);
-const stats = { http: 0, httpErrors: 0, userErrors: 0, socketErrors: 0, connected: 0, joinedAudience: 0, triviaJoined: 0, answers: 0, rejected: 0, disconnected: 0 };
+const stats = { http: 0, httpErrors: 0, userErrors: 0, socketErrors: 0, connected: 0, joinedAudience: 0, triviaJoined: 0, answers: 0, rejected: 0, advancedToNextQuestion: 0, disconnected: 0 };
 
 if (!target || !publicId || !liveId) throw Error('Required: IMMERSA_TEMP_URL, IMMERSA_EVENT_PUBLIC_ID, IMMERSA_LIVE_SESSION_ID');
 
@@ -96,6 +96,12 @@ async function user(number) {
     stats.triviaJoined++;
 
     const question = await waitForActiveQuestion(socket, triviaStartWait);
+    let advancedToNextQuestion = false;
+    const observeQuestionAdvance = (state) => {
+      const currentQuestionId = state?.category === 'contest' ? state.currentQuestion?.id : '';
+      if (currentQuestionId && currentQuestionId !== question.id) advancedToNextQuestion = true;
+    };
+    socket.on('interaction:execution:state', observeQuestionAdvance);
     const reply = wait(socket, ['interaction:answer:accepted', 'interaction:knowledge:rejected'], 30000);
     socket.emit('interaction:participant:submit_answer', { questionId: question.id, optionId: question.options[number % question.options.length].id, tabId, clientAttemptId: 'load-' + number });
     const [event] = await reply;
@@ -103,6 +109,8 @@ async function user(number) {
     else stats.rejected++;
 
     await sleep(Math.max(0, connectedAt + hold - Date.now()));
+    socket.off('interaction:execution:state', observeQuestionAdvance);
+    if (advancedToNextQuestion) stats.advancedToNextQuestion++;
   } catch (error) {
     stats.userErrors++;
     console.error('[user ' + number + '] ' + error.message);
