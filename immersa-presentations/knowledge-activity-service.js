@@ -89,10 +89,14 @@ class KnowledgeActivityService {
         loaded = true;
       }
     }
-    // The deadline timer reconciles executions already resident in memory. Doing
-    // it on every audience socket event flushes an in-flight answer batch before
-    // the other attendees can join it.
-    if (execution && loaded) await this.reconcile(execution);
+    // The deadline timer reconciles executions already resident in memory. Only
+    // reconcile a cached execution if a deadline has elapsed; doing it on every
+    // audience socket event flushes an in-flight answer batch before the other
+    // attendees can join it.
+    const deadline = execution ? this.nextDeadline(execution) : null;
+    if (execution && (loaded || (Number.isFinite(deadline) && this.now() >= deadline))) {
+      await this.reconcile(execution);
+    }
     return this.isExecutionActive(execution) ? execution : null;
   }
 
