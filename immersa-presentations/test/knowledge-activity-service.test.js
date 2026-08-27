@@ -35,11 +35,16 @@ function repository() {
       }
       active.set(execution.sourceSessionId, JSON.parse(JSON.stringify(execution)));
     },
-    async saveExecution(execution, { expectedRevision }) {
+    async saveExecution(execution, { expectedRevision, participants, answers } = {}) {
       const stored = active.get(execution.sourceSessionId);
       assert.equal(stored.revision, expectedRevision);
       active.set(execution.sourceSessionId, JSON.parse(JSON.stringify(execution)));
-      saves.push({ execution: JSON.parse(JSON.stringify(execution)), expectedRevision });
+      saves.push({
+        execution: JSON.parse(JSON.stringify(execution)),
+        expectedRevision,
+        participants: participants ? JSON.parse(JSON.stringify(participants)) : null,
+        answers: answers ? JSON.parse(JSON.stringify(answers)) : null
+      });
     },
     async loadActiveExecution({ sourceSessionId }) {
       const item = active.get(sourceSessionId);
@@ -103,6 +108,37 @@ test("service persists every accepted mutation with optimistic revision", async 
   await service.join(execution, { participantId: "participant-1", tabId: "tab-1" });
   assert.equal(repo.saves[0].expectedRevision, revision);
   assert.equal(repo.saves[0].execution.participants.length, 1);
+});
+
+test("an accepted contest answer persists only its participant and answer", async () => {
+  const nowRef = { value: 1000 };
+  const { service, repo } = setup(nowRef);
+  const execution = await service.open({
+    sourceSessionId: "session-1",
+    deckId: "deck-1",
+    definitionId: "contest-1",
+    category: "contest"
+  });
+  await service.join(execution, { participantId: "participant-1", tabId: "tab-1" });
+  await service.join(execution, { participantId: "participant-2", tabId: "tab-2" });
+  await service.command(execution, {
+    commandId: "start",
+    expectedRevision: execution.revision,
+    actorRole: "stage",
+    intent: "start"
+  });
+  nowRef.value = 6000;
+  await service.reconcile(execution);
+  const answer = await service.answer(execution, {
+    participantId: "participant-1",
+    questionId: "q1",
+    optionId: "a",
+    tabId: "tab-1",
+    receivedAtMs: nowRef.value
+  });
+  const persisted = repo.saves.at(-1);
+  assert.deepEqual(persisted.participants.map((participant) => participant.id), ["participant-1"]);
+  assert.deepEqual(persisted.answers, [answer]);
 });
 
 test("a disconnected participant is discarded after waiting for the session lock", async () => {
