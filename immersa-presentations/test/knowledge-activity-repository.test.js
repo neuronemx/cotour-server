@@ -222,7 +222,12 @@ test("answer batch writes one execution revision and bulk participant and answer
   const statements = pool.calls.filter((call) => call.type === "execute");
   assert.equal(statements.length, 3);
   assert.equal(statements[0].values.length, 12);
-  assert.match(statements[1].sql, /VALUES \(\?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?\)/);
+  assert.match(statements[1].sql, /recovery_token_hash, user_number, display_name, public_label/);
+  assert.match(statements[1].sql, /VALUES \(\?, \?, \?, \?, \?, \?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?, \?, \?, \?, \?, \?\)/);
+  assert.deepEqual(statements[1].values.slice(0, 11), [
+    item.id, "participant-1", null, 1, null, "Usuario 001", "tab-1", "ACTIVE",
+    "1970-01-01 00:00:01.001", null, null
+  ]);
   assert.match(statements[2].sql, /VALUES \(\?, \?, \?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?, \?, \?\)/);
 });
 
