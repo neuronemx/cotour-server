@@ -181,7 +181,13 @@ class KnowledgeActivityService {
     return this.mutate(
       execution,
       (current) => submitAnswer(current, { ...payload, nowMs: Number.isFinite(payload.receivedAtMs) ? payload.receivedAtMs : this.now() }),
-      "answer_accepted"
+      "answer_accepted",
+      {
+        forResult: (answer) => ({
+          participants: execution.participants.filter((participant) => participant.id === answer.participantId),
+          answers: [answer]
+        })
+      }
     );
   }
 
