@@ -491,3 +491,25 @@ test("submitted assessments withhold the receipt grade until Speaker releases re
   });
   assert.equal(released.submissionReceipt.grade, 50);
 });
+
+
+test("controller progress state omits the participant roster while keeping contest progress", () => {
+  const item = execution("contest");
+  const first = joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+  joinParticipant(item, { participantId: "p2", tabId: "tab-2", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-compact-progress",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 7000);
+  submitAnswer(item, { participantId: first.id, questionId: "q1", optionId: "a", tabId: "tab-1", nowMs: 7100 });
+  const progress = stateForRole(item, { role: "presenter", compact: true, nowMs: 7200 });
+  assert.equal(progress.participantCount, 2);
+  assert.equal(progress.effectiveParticipantCount, 1);
+  assert.equal(progress.currentQuestion.id, "q1");
+  assert.equal("participants" in progress, false);
+  assert.equal("definitionsSnapshot" in progress, false);
+});

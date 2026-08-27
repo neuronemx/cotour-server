@@ -91,12 +91,12 @@ function createKnowledgeActivitySocketHandlers({
   }
 
   const unsubscribe = service.subscribe(({ execution, eventName }) => {
-    if (eventName === "participant_joined" || eventName === "answer_accepted") emitControllers(execution);
-    else emitAll(execution);
+    if (eventName === "participant_joined") emitControllers(execution);
+    else if (eventName !== "answer_accepted") emitAll(execution);
     if (eventName === "answer_accepted") {
       const roomKey = getRoomKey(execution.sourceSessionId, execution.deckId);
-      io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:execution:progress", roleState(execution, "presenter"));
-      io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:execution:progress", roleState(execution, "stage"));
+      io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:execution:progress", roleState(execution, "presenter", { compact: true }));
+      io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:execution:progress", roleState(execution, "stage", { compact: true }));
     }
   });
 
