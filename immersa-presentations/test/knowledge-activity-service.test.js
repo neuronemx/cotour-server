@@ -166,6 +166,21 @@ test("a thousand answers acknowledge before one persistence batch", async () => 
   assert.equal(batches[0].participants.length, 1000);
 });
 
+test("cached audience lookups do not flush an in-flight Trivia answer batch", async () => {
+  const nowRef = { value: 1000 };
+  const { service, repo } = setup(nowRef);
+  const execution = await service.open({ sourceSessionId: "session-1", deckId: "deck-1", definitionId: "contest-1", category: "contest" });
+  await service.join(execution, { participantId: "participant-1", tabId: "tab-1" });
+  await service.command(execution, { commandId: "start", expectedRevision: execution.revision, actorRole: "stage", intent: "start" });
+  nowRef.value = 6000;
+  await service.reconcile(execution);
+  await service.answer(execution, { participantId: "participant-1", questionId: "q1", optionId: "a", tabId: "tab-1", receivedAtMs: nowRef.value });
+  await service.getActive({ sourceSessionId: "session-1", deckId: "deck-1" });
+  assert.equal(repo.saves.filter((item) => item.batched).length, 0);
+  await service.flushAnswers(execution);
+  assert.equal(repo.saves.filter((item) => item.batched).length, 1);
+});
+
 test("a disconnected participant is discarded after waiting for the session lock", async () => {
   const { service, repo } = setup();
   const execution = await service.open({

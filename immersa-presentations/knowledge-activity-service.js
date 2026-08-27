@@ -81,11 +81,22 @@ class KnowledgeActivityService {
   async getActive({ sourceSessionId, deckId }) {
     const key = this.key(sourceSessionId);
     let execution = this.executions.get(key) || null;
+    let loaded = false;
     if (!execution) {
       execution = await this.repository.loadActiveExecution({ deckId, sourceSessionId });
-      if (execution) this.executions.set(key, execution);
+      if (execution) {
+        this.executions.set(key, execution);
+        loaded = true;
+      }
     }
-    if (execution) await this.reconcile(execution);
+    // The deadline timer reconciles executions already resident in memory. Only
+    // reconcile a cached execution if a deadline has elapsed; doing it on every
+    // audience socket event flushes an in-flight answer batch before the other
+    // attendees can join it.
+    const deadline = execution ? this.nextDeadline(execution) : null;
+    if (execution && (loaded || (Number.isFinite(deadline) && this.now() >= deadline))) {
+      await this.reconcile(execution);
+    }
     return this.isExecutionActive(execution) ? execution : null;
   }
 
