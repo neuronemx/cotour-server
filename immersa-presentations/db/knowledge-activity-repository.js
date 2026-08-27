@@ -35,6 +35,16 @@ function activeSessionKey(execution) {
   return TERMINAL_STATES.has(execution.state) ? null : execution.presentationSessionId;
 }
 
+// Participant and answer rows are authoritative for the high-cardinality part
+// of an execution. Keeping them out of snapshot_json keeps an answer write
+// bounded even when a Trivia has thousands of people ready.
+function snapshotForStorage(execution) {
+  const snapshot = { ...execution };
+  delete snapshot.participants;
+  delete snapshot.answers;
+  return snapshot;
+}
+
 function executionValues(execution) {
   return [
     execution.id,
@@ -46,7 +56,7 @@ function executionValues(execution) {
     execution.state,
     execution.revision,
     activeSessionKey(execution),
-    JSON.stringify(execution),
+    JSON.stringify(snapshotForStorage(execution)),
     mysqlDateTime(execution.openedAt),
     mysqlDateTime(execution.startedAt),
     mysqlDateTime(execution.deadlineAt || execution.questionDeadlineAt),
@@ -56,6 +66,38 @@ function executionValues(execution) {
     mysqlDateTime(execution.cancelledAt),
     mysqlDateTime(execution.closedAt)
   ];
+}
+
+function hydrateExecution(snapshot, participantRows = [], answerRows = []) {
+  if (!snapshot) return null;
+  const participants = participantRows.map((row) => ({
+    id: String(row.participant_id),
+    name: row.display_name || "",
+    label: row.public_label,
+    userNumber: Number(row.user_number),
+    state: row.state,
+    connected: false,
+    activeTabId: row.active_tab_id || "",
+    recoveryTokenHash: row.recovery_token_hash || null,
+    questionOrder: parseJson(row.question_order_json) || [],
+    optionOrders: parseJson(row.option_orders_json) || {},
+    currentQuestionIndex: Number(row.current_question_index || 0),
+    joinedAt: row.joined_at,
+    lastSeenAt: row.submitted_at || row.joined_at,
+    submittedAt: row.submitted_at,
+    completedAt: row.completed_at,
+    completionMode: null
+  }));
+  const answers = answerRows.map((row) => ({
+    participantId: String(row.participant_id),
+    questionId: String(row.question_id),
+    optionId: String(row.option_id),
+    clientAttemptId: row.client_attempt_id || "",
+    correct: Boolean(row.correct),
+    elapsedMs: row.elapsed_ms === null || row.elapsed_ms === undefined ? null : Number(row.elapsed_ms),
+    receivedAt: row.received_at
+  }));
+  return { ...snapshot, participants, answers };
 }
 
 class KnowledgeActivityRepository {
@@ -249,20 +291,44 @@ class KnowledgeActivityRepository {
     });
   }
 
+  async hydrate(row, executor = this.pool) {
+    if (!row?.snapshot_json) return null;
+    const snapshot = parseJson(row.snapshot_json);
+    const [participants] = await executor.execute(
+      `SELECT p.participant_id, p.recovery_token_hash, p.user_number, p.display_name, p.public_label,
+              p.active_tab_id, p.state, p.joined_at, p.submitted_at, p.completed_at,
+              o.question_order_json, o.option_orders_json, o.current_question_index
+       FROM knowledge_activity_participants p
+       LEFT JOIN knowledge_activity_participant_orders o
+         ON o.execution_id = p.execution_id AND o.participant_id = p.participant_id
+       WHERE p.execution_id = ?
+       ORDER BY p.user_number`,
+      [String(row.id || snapshot.id || "")]
+    );
+    const [answers] = await executor.execute(
+      `SELECT participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at
+       FROM knowledge_activity_answers
+       WHERE execution_id = ?
+       ORDER BY received_at, participant_id, question_id`,
+      [String(row.id || snapshot.id || "")]
+    );
+    return hydrateExecution(snapshot, participants || [], answers || []);
+  }
+
   async loadExecution(executionId) {
     const [rows] = await this.pool.execute(
-      `SELECT snapshot_json
+      `SELECT id, snapshot_json
        FROM knowledge_activity_executions
        WHERE id = ?
        LIMIT 1`,
       [String(executionId || "")]
     );
-    return rows[0] ? parseJson(rows[0].snapshot_json) : null;
+    return rows[0] ? this.hydrate(rows[0]) : null;
   }
 
   async loadActiveExecution({ deckId, sourceSessionId }) {
     const [rows] = await this.pool.execute(
-      `SELECT e.snapshot_json
+      `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
        WHERE ps.deck_id = ? AND ps.source_session_id = ?
@@ -271,30 +337,30 @@ class KnowledgeActivityRepository {
        LIMIT 1`,
       [String(deckId || ""), String(sourceSessionId || "")]
     );
-    return rows[0] ? parseJson(rows[0].snapshot_json) : null;
+    return rows[0] ? this.hydrate(rows[0]) : null;
   }
 
   async listActiveExecutions() {
     const [rows] = await this.pool.execute(
-      `SELECT snapshot_json
+      `SELECT id, snapshot_json
        FROM knowledge_activity_executions
        WHERE active_session_key IS NOT NULL
        ORDER BY opened_at`
     );
-    return rows.map((row) => parseJson(row.snapshot_json));
+    return Promise.all(rows.map((row) => this.hydrate(row)));
   }
 
   async listHistory(deckId) {
     const [rows] = await this.pool.execute(
-      `SELECT e.snapshot_json
+      `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
        WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
        ORDER BY e.opened_at DESC, e.id DESC`,
       [String(deckId || "")]
     );
-    return rows.map((row) => parseJson(row.snapshot_json));
+    return Promise.all(rows.map((row) => this.hydrate(row)));
   }
 }
 
-module.exports = { KnowledgeActivityRepository, parseJson, inTransaction, mysqlDateTime };
+module.exports = { KnowledgeActivityRepository, parseJson, inTransaction, mysqlDateTime, snapshotForStorage, hydrateExecution };
