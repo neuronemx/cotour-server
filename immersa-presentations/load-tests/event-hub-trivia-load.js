@@ -114,7 +114,7 @@ async function user(number) {
       stats.answersQuestion1++;
     } else {
       stats.rejected++;
-      const code = firstPayload?.code || firstPayload?.error?.code || 'unknown';
+      const code = firstPayload?.reason || firstPayload?.code || firstPayload?.error?.code || 'unknown';
       stats.rejectedByCode[code] = (stats.rejectedByCode[code] || 0) + 1;
     }
 
@@ -126,7 +126,7 @@ async function user(number) {
       stats.answersQuestion2++;
     } else {
       stats.rejected++;
-      const code = secondPayload?.code || secondPayload?.error?.code || 'unknown';
+      const code = secondPayload?.reason || secondPayload?.code || secondPayload?.error?.code || 'unknown';
       stats.rejectedByCode[code] = (stats.rejectedByCode[code] || 0) + 1;
     }
 
