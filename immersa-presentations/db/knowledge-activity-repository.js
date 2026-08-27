@@ -112,7 +112,11 @@ class KnowledgeActivityRepository {
     }
   }
 
-  async saveExecution(execution, { expectedRevision, participants: participantsToSave } = {}) {
+  async saveExecution(execution, {
+    expectedRevision,
+    participants: participantsToSave,
+    answers: answersToSave
+  } = {}) {
     return inTransaction(this.pool, async (connection) => {
       const values = executionValues(execution);
       const [updated] = await connection.execute(
@@ -181,7 +185,10 @@ class KnowledgeActivityRepository {
         );
       }
 
-      for (const answer of execution.answers) {
+      const answers = Array.isArray(answersToSave)
+        ? answersToSave
+        : execution.answers;
+      for (const answer of answers) {
         await connection.execute(
           `INSERT INTO knowledge_activity_answers
              (execution_id, participant_id, question_id, option_id, client_attempt_id,
