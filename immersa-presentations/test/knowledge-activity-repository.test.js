@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { createExecution, joinParticipant } = require("../knowledge-activity-engine");
-const { KnowledgeActivityRepository, mysqlDateTime } = require("../db/knowledge-activity-repository");
+const { KnowledgeActivityRepository, mysqlDateTime, snapshotForStorage, hydrateExecution } = require("../db/knowledge-activity-repository");
 
 function fakePool(responses = []) {
   const queue = responses.slice();
@@ -102,6 +102,35 @@ test("ISO activity dates are converted to MySQL DATETIME(3) values", () => {
   assert.throws(() => mysqlDateTime("not-a-date"), { code: "INVALID_DATE" });
 });
 
+test("execution snapshots exclude high-cardinality participant and answer arrays", () => {
+  const item = execution();
+  joinParticipant(item, { participantId: "participant-1", tabId: "tab-1", nowMs: 2000, random: () => 0.999 });
+  item.answers.push({ participantId: "participant-1", questionId: "q1", optionId: "a", receivedAt: "1970-01-01T00:00:03.000Z" });
+  const snapshot = snapshotForStorage(item);
+  assert.equal("participants" in snapshot, false);
+  assert.equal("answers" in snapshot, false);
+  assert.equal(snapshot.definitionId, item.definitionId);
+});
+
+test("hydration restores participants and answers from normalized rows", () => {
+  const item = execution();
+  const snapshot = snapshotForStorage(item);
+  const restored = hydrateExecution(snapshot, [{
+    participant_id: "participant-1", recovery_token_hash: "a".repeat(64), user_number: 1,
+    display_name: "Ada", public_label: "Ada", active_tab_id: "tab-1", state: "ACTIVE",
+    joined_at: "1970-01-01 00:00:02.000", submitted_at: null, completed_at: null,
+    question_order_json: JSON.stringify(["q1"]), option_orders_json: JSON.stringify({ q1: ["a", "b"] }),
+    current_question_index: 0
+  }], [{
+    participant_id: "participant-1", question_id: "q1", option_id: "a", client_attempt_id: "attempt-1",
+    correct: 1, elapsed_ms: 35, received_at: "1970-01-01 00:00:03.000"
+  }]);
+  assert.equal(restored.participants[0].label, "Ada");
+  assert.deepEqual(restored.participants[0].questionOrder, ["q1"]);
+  assert.equal(restored.answers[0].correct, true);
+  assert.equal(restored.answers[0].elapsedMs, 35);
+});
+
 test("save is optimistic and persists participant order without exposing recovery data", async () => {
   const pool = fakePool([
     [{ affectedRows: 1 }, []],
@@ -143,6 +172,23 @@ test("admission persists only the newly admitted participant", async () => {
   assert.equal(participantWrites.length, 1);
   assert.equal(orderWrites.length, 1);
   assert.equal(participantWrites[0].values[1], "participant-2");
+});
+
+test("answer persistence does not rewrite the complete audience into snapshot JSON", async () => {
+  const pool = fakePool();
+  const item = execution();
+  for (let number = 1; number <= 1000; number += 1) {
+    joinParticipant(item, { participantId: `participant-${number}`, tabId: `tab-${number}`, nowMs: number + 1000, random: () => 0.999 });
+  }
+  await new KnowledgeActivityRepository(pool).saveExecution(item, {
+    expectedRevision: 1,
+    participants: [item.participants[999]],
+    answers: []
+  });
+  const update = pool.calls.find((call) => /UPDATE knowledge_activity_executions/.test(call.sql || ""));
+  const storedSnapshot = JSON.parse(update.values[7]);
+  assert.equal("participants" in storedSnapshot, false);
+  assert.equal("answers" in storedSnapshot, false);
 });
 
 test("a definitive result is insert-only so a late calculation cannot overwrite it", () => {
