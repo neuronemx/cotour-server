@@ -382,8 +382,7 @@ class KnowledgeActivityRepository {
     const [rows] = await this.pool.execute(
       `SELECT id, snapshot_json
        FROM knowledge_activity_executions
-       WHERE active_session_key IS NOT NULL
-       ORDER BY opened_at`
+       WHERE active_session_key IS NOT NULL`
     );
     return Promise.all(rows.map((row) => this.hydrate(row)));
   }
