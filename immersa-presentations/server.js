@@ -1227,6 +1227,11 @@ app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccoun
     return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/reset-live-session", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.resetLiveActivity({ eventWorkspaceId: req.params.workspaceId, activityId: req.params.activityId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccount, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
