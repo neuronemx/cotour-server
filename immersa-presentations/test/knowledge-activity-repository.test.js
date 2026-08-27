@@ -112,6 +112,14 @@ test("execution snapshots exclude high-cardinality participant and answer arrays
   assert.equal(snapshot.definitionId, item.definitionId);
 });
 
+test("active execution recovery does not sort every historical live row", async () => {
+  const pool = fakePool([[[], []]]);
+  await new KnowledgeActivityRepository(pool).listActiveExecutions();
+  const query = pool.calls.find((call) => /FROM knowledge_activity_executions/.test(call.sql || ""));
+  assert.match(query.sql, /WHERE active_session_key IS NOT NULL/);
+  assert.doesNotMatch(query.sql, /ORDER BY/);
+});
+
 test("hydration restores participants and answers from normalized rows", () => {
   const item = execution();
   const snapshot = snapshotForStorage(item);
