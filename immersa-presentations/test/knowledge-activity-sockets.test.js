@@ -114,6 +114,7 @@ test("socket handlers trust server context for participant identity and controll
   });
   const answer = runtimeService.calls.find((call) => call.action === "answer");
   assert.equal(answer.payload.participantId, participantIdFor("execution-1", "audience-1"));
+  assert.equal(Number.isFinite(answer.payload.receivedAtMs), true);
 });
 
 test("Speaker and Stage commands use the authoritative context role", async () => {
@@ -177,6 +178,22 @@ test("a participant admission updates controllers without broadcasting every aud
     "session-1::deck-1::presenter",
     "session-1::deck-1::stage"
   ]);
+});
+
+
+test("accepted answers update controllers without broadcasting every audience state", () => {
+  const io = fakeIo();
+  const runtimeService = service();
+  createKnowledgeActivitySocketHandlers({
+    io,
+    service: runtimeService,
+    getRoleRoomKey: (room, role) => `${room}::${role}`,
+    getRoomKey: (session, deck) => `${session}::${deck}`,
+    getConnectedAudience: () => [{ audienceId: "audience-1" }]
+  });
+  runtimeService.notify("answer_accepted");
+  assert.equal(io.events.some((event) => event.room.endsWith("::audience:audience-1")), false);
+  assert.equal(io.events.filter((event) => event.event === "interaction:execution:progress").length, 2);
 });
 
 test("terminal cancellation clears the active execution for every role", () => {
