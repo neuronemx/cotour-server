@@ -627,6 +627,17 @@ class EventHubRepository {
     return { userId: String(userId) };
   }
 
+  async clearActivityDeck({ activityId, eventWorkspaceId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activities
+       SET deck_id = NULL, pending_deck_id = NULL, deck_check_status = 'PENDING', deck_check_updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND event_workspace_id = ? AND status = 'SCHEDULED'`,
+      [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_NOT_EDITABLE", "Sólo se puede quitar el Deck de una actividad programada", 409);
+    return this.getActivity(activityId);
+  }
+
   async approveDeckCheck({ activityId, eventWorkspaceId }) {
     const [result] = await this.pool.execute(
       `UPDATE event_activities SET deck_id = pending_deck_id, pending_deck_id = NULL, deck_check_status = 'DECK_CHECK', deck_check_updated_at = CURRENT_TIMESTAMP(3)
