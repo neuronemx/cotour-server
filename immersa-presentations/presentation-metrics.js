@@ -123,11 +123,11 @@ class PresentationMetricsRepository {
       `SELECT ps.id, ps.source_session_id, ps.recording_started_at, ps.ended_at,
               TIMESTAMPDIFF(SECOND, ps.recording_started_at, COALESCE(ps.ended_at, CURRENT_TIMESTAMP(3))) AS duration_seconds,
               ps.audience_peak_count,
-              COUNT(DISTINCT psa.audience_id) AS participant_count
+              (SELECT COUNT(*)
+               FROM presentation_session_attendance psa
+               WHERE psa.presentation_session_id = ps.id) AS participant_count
        FROM presentation_sessions ps
-       LEFT JOIN presentation_session_attendance psa ON psa.presentation_session_id = ps.id
        WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
-       GROUP BY ps.id, ps.source_session_id, ps.recording_started_at, ps.ended_at, ps.audience_peak_count
        ORDER BY ps.recording_started_at DESC, ps.id DESC
        LIMIT 100`,
       [text(deckId)]
