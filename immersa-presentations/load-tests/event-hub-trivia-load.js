@@ -7,7 +7,7 @@ const users = Math.min(Math.max(+process.env.USERS || 1, 1), 2500);
 const ramp = Math.max(+process.env.RAMP_MS || 0, 0);
 const hold = Math.max(+process.env.HOLD_MS || 300000, 1000);
 const triviaStartWait = Math.max(+process.env.TRIVIA_START_WAIT_MS || hold, 1000);
-const stats = { http: 0, httpErrors: 0, userErrors: 0, socketErrors: 0, connected: 0, joinedAudience: 0, triviaJoined: 0, answers: 0, answersQuestion1: 0, answersQuestion2: 0, rejected: 0, advancedToNextQuestion: 0, disconnected: 0 };
+const stats = { http: 0, httpErrors: 0, userErrors: 0, socketErrors: 0, connected: 0, joinedAudience: 0, triviaJoined: 0, answers: 0, answersQuestion1: 0, answersQuestion2: 0, rejected: 0, rejectedByCode: {}, advancedToNextQuestion: 0, disconnected: 0 };
 
 if (!target || !publicId || !liveId) throw Error('Required: IMMERSA_TEMP_URL, IMMERSA_EVENT_PUBLIC_ID, IMMERSA_LIVE_SESSION_ID');
 
@@ -49,6 +49,7 @@ function waitForQuestion(socket, { afterQuestionId = "", timeout } = {}) {
   return new Promise((resolve, reject) => {
     const onState = (state) => {
       const question = state?.category === 'contest' ? state.currentQuestion : null;
+      if (state?.category !== 'contest' || state?.substate !== 'QUESTION_ACTIVE') return;
       if (!question?.id || !question.options?.[0]?.id || question.id === afterQuestionId) return;
       clearTimeout(timer);
       socket.off('interaction:execution:state', onState);
@@ -107,22 +108,26 @@ async function user(number) {
     stats.triviaJoined++;
 
     const question1 = await waitForQuestion(socket, { timeout: triviaStartWait });
-    const [firstEvent] = await submitAnswer(socket, question1, { number, tabId, attempt: 'q1' });
+    const [firstEvent, firstPayload] = await submitAnswer(socket, question1, { number, tabId, attempt: 'q1' });
     if (firstEvent === 'interaction:answer:accepted') {
       stats.answers++;
       stats.answersQuestion1++;
     } else {
       stats.rejected++;
+      const code = firstPayload?.code || firstPayload?.error?.code || 'unknown';
+      stats.rejectedByCode[code] = (stats.rejectedByCode[code] || 0) + 1;
     }
 
     const question2 = await waitForQuestion(socket, { afterQuestionId: question1.id, timeout: triviaStartWait });
     stats.advancedToNextQuestion++;
-    const [secondEvent] = await submitAnswer(socket, question2, { number, tabId, attempt: 'q2' });
+    const [secondEvent, secondPayload] = await submitAnswer(socket, question2, { number, tabId, attempt: 'q2' });
     if (secondEvent === 'interaction:answer:accepted') {
       stats.answers++;
       stats.answersQuestion2++;
     } else {
       stats.rejected++;
+      const code = secondPayload?.code || secondPayload?.error?.code || 'unknown';
+      stats.rejectedByCode[code] = (stats.rejectedByCode[code] || 0) + 1;
     }
 
     await sleep(Math.max(0, connectedAt + hold - Date.now()));
