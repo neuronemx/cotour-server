@@ -120,6 +120,14 @@ test("active execution recovery does not sort every historical live row", async 
   assert.doesNotMatch(query.sql, /ORDER BY/);
 });
 
+test("active execution lookup does not sort historical sessions", async () => {
+  const pool = fakePool([[[], []]]);
+  await new KnowledgeActivityRepository(pool).loadActiveExecution({ deckId: "deck-1", sourceSessionId: "session-1" });
+  const query = pool.calls.find((call) => /INNER JOIN presentation_sessions/.test(call.sql || ""));
+  assert.match(query.sql, /active_session_key IS NOT NULL/);
+  assert.doesNotMatch(query.sql, /ORDER BY/);
+});
+
 test("hydration restores participants and answers from normalized rows", () => {
   const item = execution();
   const snapshot = snapshotForStorage(item);

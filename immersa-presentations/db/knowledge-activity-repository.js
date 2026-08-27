@@ -371,7 +371,6 @@ class KnowledgeActivityRepository {
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
        WHERE ps.deck_id = ? AND ps.source_session_id = ?
          AND e.active_session_key IS NOT NULL
-       ORDER BY e.opened_at DESC, e.id DESC
        LIMIT 1`,
       [String(deckId || ""), String(sourceSessionId || "")]
     );
