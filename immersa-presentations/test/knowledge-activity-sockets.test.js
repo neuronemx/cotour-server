@@ -50,7 +50,7 @@ function service() {
     isExecutionActive(value) { return Boolean(value && !["CANCELLED", "CLOSED"].includes(value.state)); },
     state(value, options) {
       return value
-        ? { executionId: value.id, role: options.role, participantId: options.participantId || "" }
+        ? { executionId: value.id, role: options.role, participantId: options.participantId || "", compact: Boolean(options.compact) }
         : { available: true, execution: null };
     },
     async open(payload) { calls.push({ action: "open", payload }); return item; },
@@ -194,6 +194,8 @@ test("accepted answers update controllers without broadcasting every audience st
   runtimeService.notify("answer_accepted");
   assert.equal(io.events.some((event) => event.room.endsWith("::audience:audience-1")), false);
   assert.equal(io.events.filter((event) => event.event === "interaction:execution:progress").length, 2);
+  assert.equal(io.events.filter((event) => event.event === "interaction:execution:state").length, 0);
+  assert.equal(io.events.filter((event) => event.event === "interaction:execution:progress").every((event) => event.payload.compact), true);
 });
 
 test("terminal cancellation clears the active execution for every role", () => {
