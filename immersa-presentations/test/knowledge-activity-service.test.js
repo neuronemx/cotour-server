@@ -46,6 +46,12 @@ function repository() {
         answers: answers ? JSON.parse(JSON.stringify(answers)) : null
       });
     },
+    async saveAnswerBatch(execution, { expectedRevision, participants, answers } = {}) {
+      const stored = active.get(execution.sourceSessionId);
+      assert.equal(stored.revision, expectedRevision);
+      active.set(execution.sourceSessionId, JSON.parse(JSON.stringify(execution)));
+      saves.push({ execution: JSON.parse(JSON.stringify(execution)), expectedRevision, participants: participants ? JSON.parse(JSON.stringify(participants)) : null, answers: answers ? JSON.parse(JSON.stringify(answers)) : null, batched: true });
+    },
     async loadActiveExecution({ sourceSessionId }) {
       const item = active.get(sourceSessionId);
       return item ? JSON.parse(JSON.stringify(item)) : null;
@@ -136,9 +142,28 @@ test("an accepted contest answer persists only its participant and answer", asyn
     tabId: "tab-1",
     receivedAtMs: nowRef.value
   });
+  await service.flushAnswers(execution);
   const persisted = repo.saves.at(-1);
   assert.deepEqual(persisted.participants.map((participant) => participant.id), ["participant-1"]);
   assert.deepEqual(persisted.answers, [answer]);
+  assert.equal(persisted.batched, true);
+});
+
+test("a thousand answers acknowledge before one persistence batch", async () => {
+  const nowRef = { value: 1000 };
+  const { service, repo } = setup(nowRef);
+  const execution = await service.open({ sourceSessionId: "session-1", deckId: "deck-1", definitionId: "contest-1", category: "contest" });
+  for (let number = 1; number <= 1000; number += 1) await service.join(execution, { participantId: `participant-${number}`, tabId: `tab-${number}` });
+  await service.command(execution, { commandId: "start", expectedRevision: execution.revision, actorRole: "stage", intent: "start" });
+  nowRef.value = 6000;
+  await service.reconcile(execution);
+  for (let number = 1; number <= 1000; number += 1) await service.answer(execution, { participantId: `participant-${number}`, questionId: "q1", optionId: "a", tabId: `tab-${number}`, receivedAtMs: nowRef.value });
+  assert.equal(repo.saves.filter((item) => item.batched).length, 0);
+  await service.flushAnswers(execution);
+  const batches = repo.saves.filter((item) => item.batched);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].answers.length, 1000);
+  assert.equal(batches[0].participants.length, 1000);
 });
 
 test("a disconnected participant is discarded after waiting for the session lock", async () => {
