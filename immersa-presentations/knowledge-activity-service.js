@@ -180,7 +180,7 @@ class KnowledgeActivityService {
   async answer(execution, payload) {
     return this.mutate(
       execution,
-      (current) => submitAnswer(current, { ...payload, nowMs: this.now() }),
+      (current) => submitAnswer(current, { ...payload, nowMs: Number.isFinite(payload.receivedAtMs) ? payload.receivedAtMs : this.now() }),
       "answer_accepted"
     );
   }
