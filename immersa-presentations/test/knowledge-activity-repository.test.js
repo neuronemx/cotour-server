@@ -205,6 +205,7 @@ test("answer batch writes one execution revision and bulk participant and answer
   await new KnowledgeActivityRepository(pool).saveAnswerBatch(item, { expectedRevision: 1, participants, answers });
   const statements = pool.calls.filter((call) => call.type === "execute");
   assert.equal(statements.length, 3);
+  assert.equal(statements[0].values.length, 12);
   assert.match(statements[1].sql, /VALUES \(\?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?\)/);
   assert.match(statements[2].sql, /VALUES \(\?, \?, \?, \?, \?, \?, \?, \?\), \(\?, \?, \?, \?, \?, \?, \?, \?\)/);
 });

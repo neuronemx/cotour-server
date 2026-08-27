@@ -301,7 +301,7 @@ class KnowledgeActivityRepository {
              deadline_at = ?, processing_started_at = ?, results_ready_at = ?,
              results_visible_at = ?, cancelled_at = ?, closed_at = ?
          WHERE id = ? AND revision = ?`,
-        [values[6], values[7], values[8], values[9], values[13], values[14], values[15], values[16], values[17], execution.id, Number(expectedRevision)]
+        [values[6], values[7], values[8], values[9], values[12], values[13], values[14], values[15], values[16], values[17], execution.id, Number(expectedRevision)]
       );
       if (!updated.affectedRows) throw new KnowledgeActivityError("STALE_REVISION", "The persisted execution revision changed");
       const uniqueParticipants = [...new Map((participants || []).map((participant) => [participant.id, participant])).values()];
