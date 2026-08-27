@@ -306,13 +306,29 @@ class KnowledgeActivityRepository {
       if (!updated.affectedRows) throw new KnowledgeActivityError("STALE_REVISION", "The persisted execution revision changed");
       const uniqueParticipants = [...new Map((participants || []).map((participant) => [participant.id, participant])).values()];
       if (uniqueParticipants.length) {
-        const participantValues = uniqueParticipants.flatMap((participant) => [execution.id, participant.id, participant.state, participant.activeTabId || null, mysqlDateTime(participant.submittedAt), mysqlDateTime(participant.completedAt)]);
+        const participantValues = uniqueParticipants.flatMap((participant) => [
+          execution.id,
+          participant.id,
+          participant.recoveryTokenHash || null,
+          participant.userNumber,
+          participant.name || null,
+          participant.label,
+          participant.activeTabId || null,
+          participant.state,
+          mysqlDateTime(participant.joinedAt),
+          mysqlDateTime(participant.submittedAt),
+          mysqlDateTime(participant.completedAt)
+        ]);
         await connection.execute(
           `INSERT INTO knowledge_activity_participants
-             (execution_id, participant_id, state, active_tab_id, submitted_at, completed_at)
-           VALUES ${uniqueParticipants.map(() => "(?, ?, ?, ?, ?, ?)").join(", ")}
+             (execution_id, participant_id, recovery_token_hash, user_number, display_name, public_label,
+              active_tab_id, state, joined_at, submitted_at, completed_at)
+           VALUES ${uniqueParticipants.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}
            ON DUPLICATE KEY UPDATE
-             state = VALUES(state), active_tab_id = VALUES(active_tab_id), submitted_at = VALUES(submitted_at), completed_at = VALUES(completed_at)`,
+             recovery_token_hash = COALESCE(recovery_token_hash, VALUES(recovery_token_hash)),
+             display_name = VALUES(display_name), public_label = VALUES(public_label),
+             state = VALUES(state), active_tab_id = VALUES(active_tab_id),
+             submitted_at = VALUES(submitted_at), completed_at = VALUES(completed_at)`,
           participantValues
         );
       }
