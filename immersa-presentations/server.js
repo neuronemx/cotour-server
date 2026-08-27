@@ -1339,7 +1339,7 @@ app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck
     if (!new Set(["start", "finish"]).has(action)) {
       throw new EventHubError("INVALID_CONFERENCE_ACTION", "La operación de conferencia no es válida", 400);
     }
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId, req.query?.eventActivityId);
     if (!control) throw new EventHubError("EVENT_STAGE_CONTROL_NOT_FOUND", "Esta presentación no tiene una actividad Event Hub operable", 404);
     const accessLink = req.immersaAccess?.accessLink;
     await eventHubRepository.authorizeStageOperation({
