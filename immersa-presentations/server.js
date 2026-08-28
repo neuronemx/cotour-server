@@ -247,15 +247,26 @@ const presentationLifecycleRuntime = lifecyclePool
         socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
       }
     };
+async function getStageFeatureAccess(deckId) {
+  const access = isSystemDemoDeckId(deckId)
+    ? featureAccessForPlan("SPEAKER_PRO")
+    : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+  const stageControl = await eventHubRepository?.getStageControlForDeck(deckId);
+  if (!stageControl) return access;
+  return {
+    ...access,
+    capabilities: { ...access.capabilities, [CAPABILITIES.ACCESS_BACKSTAGE]: true },
+    eventHubStage: stageControl
+  };
+}
+
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: (deckId) => isSystemDemoDeckId(deckId)
-    ? featureAccessForPlan("SPEAKER_PRO")
-    : betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
+  resolveDeckFeatureAccess: getStageFeatureAccess
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
@@ -1532,9 +1543,7 @@ async function requireRequestedRoleFeature(req, res, next) {
   if (role !== "stage") return next();
   try {
     const deckId = req.ownedDeckId;
-    const access = isSystemDemoDeckId(deckId)
-      ? featureAccessForPlan("SPEAKER_PRO")
-      : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    const access = await getStageFeatureAccess(deckId);
     if (canUseFeature(access, CAPABILITIES.ACCESS_BACKSTAGE)) return next();
     return res.status(403).json({
       error: "BACKSTAGE está disponible desde SPEAKER",
@@ -1968,9 +1977,7 @@ io.on("connection", (socket) => {
     session = getSession(joinedSessionId, joinedDeckId);
     touchSession(currentRoomKey);
     try {
-      currentFeatureAccess = isSystemDemoDeckId(joinedDeckId)
-        ? featureAccessForPlan("SPEAKER_PRO")
-        : await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
+      currentFeatureAccess = await getStageFeatureAccess(joinedDeckId);
     } catch (error) {
       currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);
