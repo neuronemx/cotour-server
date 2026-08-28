@@ -42,19 +42,25 @@ class EventHubLoadTestFootprint {
           WHERE execution.event_workspace_id = ?) AS pollResponses,
          (SELECT COUNT(*)
           FROM presentation_sessions presentation
-          INNER JOIN event_live_sessions live ON live.id = presentation.source_session_id
-          WHERE live.event_workspace_id = ?) AS qnaPresentationSessions,
+          WHERE EXISTS (
+            SELECT 1 FROM event_live_sessions live
+            WHERE live.event_workspace_id = ? AND live.deck_id = presentation.deck_id
+          )) AS qnaPresentationSessions,
          (SELECT COUNT(*)
           FROM qna_rounds round
           INNER JOIN presentation_sessions presentation ON presentation.id = round.presentation_session_id
-          INNER JOIN event_live_sessions live ON live.id = presentation.source_session_id
-          WHERE live.event_workspace_id = ?) AS qnaRounds,
+          WHERE EXISTS (
+            SELECT 1 FROM event_live_sessions live
+            WHERE live.event_workspace_id = ? AND live.deck_id = presentation.deck_id
+          )) AS qnaRounds,
          (SELECT COUNT(*)
           FROM qna_questions question
           INNER JOIN qna_rounds round ON round.id = question.qna_round_id
           INNER JOIN presentation_sessions presentation ON presentation.id = round.presentation_session_id
-          INNER JOIN event_live_sessions live ON live.id = presentation.source_session_id
-          WHERE live.event_workspace_id = ?) AS qnaQuestions`,
+          WHERE EXISTS (
+            SELECT 1 FROM event_live_sessions live
+            WHERE live.event_workspace_id = ? AND live.deck_id = presentation.deck_id
+          )) AS qnaQuestions`,
       [
         eventWorkspaceId,
         eventWorkspaceId,
