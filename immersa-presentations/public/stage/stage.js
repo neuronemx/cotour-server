@@ -106,7 +106,6 @@ const compactStageThumbsQuery = window.matchMedia ? window.matchMedia("(max-widt
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
 let eventStageSession = null;
-const eventActivityId = new URLSearchParams(window.location.search).get("eventActivityId") || "";
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "stage",
