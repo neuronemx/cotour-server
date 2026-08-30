@@ -37,7 +37,6 @@ const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
-const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
   CAPABILITIES,
@@ -151,7 +150,6 @@ const billingRuntime = createBillingRuntime({
 });
 const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
-const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
@@ -1101,13 +1099,6 @@ app.delete("/api/admin/event-hubs/:workspaceId/polls/:pollId", requireAccount, r
   try { return res.json(await eventHubRepository.deleteEventPoll({ eventWorkspaceId: req.params.workspaceId, pollId: req.params.pollId })); }
   catch (error) { return sendEventHubError(res, error); }
 });
-app.get("/api/admin/event-hubs/:workspaceId/load-test-footprint", requireAccount, requireImmersaAdmin, async (req, res) => {
-  if (!eventHubRepository || !eventHubLoadTestFootprint) return eventHubUnavailable(res);
-  try {
-    await eventHubRepository.getHub(req.params.workspaceId);
-    return res.json(await eventHubLoadTestFootprint.snapshot(req.params.workspaceId));
-  } catch (error) { return sendEventHubError(res, error); }
-});
 app.get("/api/admin/event-hubs/:workspaceId/overview", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
@@ -1247,11 +1238,6 @@ app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccoun
     return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
 });
-app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/reset-live-session", requireAccount, requireImmersaAdmin, async (req, res) => {
-  if (!eventHubRepository) return eventHubUnavailable(res);
-  try { return res.json(await eventHubRepository.resetLiveActivity({ eventWorkspaceId: req.params.workspaceId, activityId: req.params.activityId })); }
-  catch (error) { return sendEventHubError(res, error); }
-});
 app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccount, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
@@ -1277,11 +1263,6 @@ app.post("/api/event-hub/speaker-invitations/:assignmentId/speaker-access", requ
     });
   } catch (error) { return sendEventHubError(res, error); }
 });
-app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
-  if (!eventHubRepository) return eventHubUnavailable(res);
-  try { return res.json(await eventHubRepository.clearActivityDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
-  catch (error) { return sendEventHubError(res, error); }
-});
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
@@ -1297,7 +1278,7 @@ app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/stage-access
     const stageLink = await accessLinkHandlers.createAccessLinkForDeck({ deckId: eventDeckId, role: "stage" });
     await eventHubRepository.grantStageOperatorAccess({ eventStageId: activity.event_stage_id, accessSecret: stageLink.access_token });
     const baseUrl = `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
-    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}?eventActivityId=${encodeURIComponent(activity.id)}`, activityId: activity.id, stageId: activity.event_stage_id });
+    return res.status(201).json({ url: `${baseUrl}/stage/${stageLink.access_token}`, activityId: activity.id, stageId: activity.event_stage_id });
   } catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-stages/:stageId/operator-access", requireAccount, requireImmersaAdmin, async (req, res) => {
@@ -1342,7 +1323,7 @@ app.post("/api/event/stages/:stageId/live-sessions", async (req, res) => {
 app.get("/api/event/stage-control/:deckId", requireStageDeck, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId, req.query?.eventActivityId);
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
     if (!control) return res.status(404).json({ error: "Esta presentación no tiene una actividad Event Hub operable" });
     return res.json(control);
   } catch (error) { return sendEventHubError(res, error); }
@@ -1359,7 +1340,7 @@ app.get("/api/admin/event-hubs/:workspaceId/polls/interaction", requireAccount, 
 });
 app.post("/api/admin/event-hubs/:workspaceId/polls/close", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubAdminInteractions) return eventHubUnavailable(res);
-  try { return res.json(eventHubAdminInteractions.close(req.params.workspaceId)); }
+  try { return res.json(await eventHubAdminInteractions.close(req.params.workspaceId)); }
   catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck, async (req, res) => {
@@ -1369,7 +1350,7 @@ app.post("/api/event/stage-control/:deckId/conference/:action", requireStageDeck
     if (!new Set(["start", "finish"]).has(action)) {
       throw new EventHubError("INVALID_CONFERENCE_ACTION", "La operación de conferencia no es válida", 400);
     }
-    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId, req.query?.eventActivityId);
+    const control = await eventHubRepository.getStageControlForDeck(req.params.deckId);
     if (!control) throw new EventHubError("EVENT_STAGE_CONTROL_NOT_FOUND", "Esta presentación no tiene una actividad Event Hub operable", 404);
     const accessLink = req.immersaAccess?.accessLink;
     await eventHubRepository.authorizeStageOperation({
