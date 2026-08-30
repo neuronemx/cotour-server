@@ -412,3 +412,17 @@ test("el acceso FREE de un ponente invitado se limita al Event Stage de su Deck 
   assert.match(admin, /Quitar Deck/);
   assert.match(admin, /El Deck no se borrará de la cuenta del ponente/);
 });
+
+
+test("Event Hub registra al participante de forma atómica sin degradar acceso Paid", async () => {
+  const pool = fakePool([
+    [{ affectedRows: 1 }, []],
+    [[{ id: "participant-1", audience_level: "PAID" }], []]
+  ]);
+  const repository = new EventHubRepository(pool, { createId: () => "new-participant" });
+  const participant = await repository.registerParticipant({ eventWorkspaceId: "hub-1", registrationKey: "same-person", audienceLevel: "PAID" });
+  assert.deepEqual(participant, { id: "participant-1", eventWorkspaceId: "hub-1", audienceLevel: "PAID" });
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /ON DUPLICATE KEY UPDATE/);
+  assert.doesNotMatch(statements, /FOR UPDATE/);
+});
