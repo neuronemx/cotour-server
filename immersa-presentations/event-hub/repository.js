@@ -847,7 +847,22 @@ class EventHubRepository {
     });
   }
 
-  async resetLiveActivity({ eventWorkspaceId, activityId }
+  async resetLiveActivity({ eventWorkspaceId, activityId }) {
+    return transaction(this.pool, async (connection) => {
+      const [rows] = await connection.execute(
+        `SELECT l.id FROM event_live_sessions l
+         INNER JOIN event_activities a ON a.id = l.event_activity_id
+         WHERE a.id = ? AND a.event_workspace_id = ? AND l.status = 'LIVE'
+         LIMIT 1 FOR UPDATE`,
+        [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+      );
+      const live = rows?.[0];
+      if (!live) throw new EventHubError("LIVE_SESSION_NOT_FOUND", "La actividad no tiene una conferencia activa para restablecer", 404);
+      await connection.execute("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = CURRENT_TIMESTAMP(3) WHERE id = ?", [live.id]);
+      await connection.execute("UPDATE event_activities SET status = 'SCHEDULED' WHERE id = ?", [required(activityId, "activity id")]);
+      return { liveSessionId: live.id, status: "SCHEDULED" };
+    });
+  }
 
   async getLiveSession(liveSessionId, executor = this.pool) {
     const [rows] = await executor.execute(
