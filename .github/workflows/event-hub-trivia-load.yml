@@ -1,5 +1,5 @@
 name: Event Hub Trivia Load Test
-on: {workflow_dispatch: {inputs: {target_url: {required: true, default: 'https://immersa-presentations-profile-v1.up.railway.app'}, event_public_id: {required: true}, live_session_id: {required: true}, users: {required: true, default: '1000'}, ramp_ms: {required: true, default: '100'}, hold_ms: {required: true, default: '300000'}}}}
+on: {workflow_dispatch: {inputs: {target_url: {required: true, default: 'https://immersa-presentations-profile-v1.up.railway.app'}, event_public_id: {required: true}, live_session_id: {required: true}, users: {required: true, default: '1000'}, ramp_ms: {required: true, default: '100'}, hold_ms: {required: true, default: '300000'}, trivia_start_wait_ms: {required: true, default: '300000'}}}}
 jobs:
   load:
     runs-on: ubuntu-latest
@@ -10,6 +10,6 @@ jobs:
         with: {node-version: 22}
       - run: npm install --no-audit --no-fund
       - run: node event-hub-trivia-load.js | tee results.json
-        env: {IMMERSA_TEMP_URL: '${{ inputs.target_url }}', IMMERSA_EVENT_PUBLIC_ID: '${{ inputs.event_public_id }}', IMMERSA_LIVE_SESSION_ID: '${{ inputs.live_session_id }}', USERS: '${{ inputs.users }}', RAMP_MS: '${{ inputs.ramp_ms }}', HOLD_MS: '${{ inputs.hold_ms }}', GITHUB_RUN_ID: '${{ github.run_id }}'}
+        env: {IMMERSA_TEMP_URL: '${{ inputs.target_url }}', IMMERSA_EVENT_PUBLIC_ID: '${{ inputs.event_public_id }}', IMMERSA_LIVE_SESSION_ID: '${{ inputs.live_session_id }}', USERS: '${{ inputs.users }}', RAMP_MS: '${{ inputs.ramp_ms }}', HOLD_MS: '${{ inputs.hold_ms }}', TRIVIA_START_WAIT_MS: '${{ inputs.trivia_start_wait_ms }}', GITHUB_RUN_ID: '${{ github.run_id }}'}
       - uses: actions/upload-artifact@v4
         with: {name: event-hub-trivia-results, path: immersa-presentations/load-tests/results.json}
