@@ -392,7 +392,10 @@ test("Proyección is a first-class Event Hub activity type", async () => {
 
 
 test("Quitar Deck desvincula sólo una actividad programada y nunca borra el Deck del ponente", async () => {
-  const pool = fakePool([[{ affectedRows: 1 }, []]]);
+  const pool = fakePool([
+    [{ affectedRows: 1 }, []],
+    [[{ id: "activity-1", event_workspace_id: "hub-1", status: "SCHEDULED" }], []]
+  ]);
   const repository = new EventHubRepository(pool);
   await repository.clearActivityDeck({ activityId: "activity-1", eventWorkspaceId: "hub-1" });
   const statement = pool.calls.find((call) => /UPDATE event_activities/.test(call.sql || ""));
@@ -416,13 +419,14 @@ test("el acceso FREE de un ponente invitado se limita al Event Stage de su Deck 
 
 test("Event Hub registra al participante de forma atómica sin degradar acceso Paid", async () => {
   const pool = fakePool([
-    [{ affectedRows: 1 }, []],
-    [[{ id: "participant-1", audience_level: "PAID" }], []]
+    [[], []],
+    [{ affectedRows: 1 }, []]
   ]);
   const repository = new EventHubRepository(pool, { createId: () => "new-participant" });
   const participant = await repository.registerParticipant({ eventWorkspaceId: "hub-1", registrationKey: "same-person", audienceLevel: "PAID" });
-  assert.deepEqual(participant, { id: "participant-1", eventWorkspaceId: "hub-1", audienceLevel: "PAID" });
+  assert.deepEqual(participant, { id: "new-participant", eventWorkspaceId: "hub-1", audienceLevel: "PAID" });
   const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
-  assert.match(statements, /ON DUPLICATE KEY UPDATE/);
-  assert.doesNotMatch(statements, /FOR UPDATE/);
+  assert.match(statements, /SELECT id, audience_level FROM event_participants/);
+  assert.match(statements, /FOR UPDATE/);
+  assert.match(statements, /INSERT INTO event_participants/);
 });
