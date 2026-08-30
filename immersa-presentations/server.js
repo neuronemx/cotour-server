@@ -1263,6 +1263,11 @@ app.post("/api/event-hub/speaker-invitations/:assignmentId/speaker-access", requ
     });
   } catch (error) { return sendEventHubError(res, error); }
 });
+app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.clearActivityDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try { return res.json(await eventHubRepository.approveDeckCheck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
