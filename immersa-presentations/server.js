@@ -37,6 +37,7 @@ const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
+const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
   CAPABILITIES,
@@ -150,6 +151,7 @@ const billingRuntime = createBillingRuntime({
 });
 const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
+const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
@@ -1237,6 +1239,11 @@ app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccoun
   try {
     return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/reset-live-session", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.resetLiveActivity({ eventWorkspaceId: req.params.workspaceId, activityId: req.params.activityId })); }
+  catch (error) { return sendEventHubError(res, error); }
 });
 app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccount, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
