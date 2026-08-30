@@ -92,6 +92,24 @@ async function transaction(pool, operation) {
   }
 }
 
+
+function isDeadlock(error) {
+  return error?.code === "ER_LOCK_DEADLOCK" || Number(error?.errno) === 1213;
+}
+
+async function retryDeadlock(operation, { attempts = 3, delayMs = 20 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { return await operation(); }
+    catch (error) {
+      lastError = error;
+      if (!isDeadlock(error) || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 class EventHubRepository {
   constructor(pool, options = {}) {
     if (!pool?.getConnection || !pool?.execute) throw new Error("A MySQL pool is required");
@@ -828,6 +846,8 @@ class EventHubRepository {
       return { id: liveSession.id, status: "FINISHED" };
     });
   }
+
+  async resetLiveActivity({ eventWorkspaceId, activityId }
 
   async getLiveSession(liveSessionId, executor = this.pool) {
     const [rows] = await executor.execute(
