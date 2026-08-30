@@ -35,6 +35,16 @@ function activeSessionKey(execution) {
   return TERMINAL_STATES.has(execution.state) ? null : execution.presentationSessionId;
 }
 
+// Participant and answer rows are authoritative for the high-cardinality part
+// of an execution. Keeping them out of snapshot_json keeps an answer write
+// bounded even when a Trivia has thousands of people ready.
+function snapshotForStorage(execution) {
+  const snapshot = { ...execution };
+  delete snapshot.participants;
+  delete snapshot.answers;
+  return snapshot;
+}
+
 function executionValues(execution) {
   return [
     execution.id,
@@ -46,7 +56,7 @@ function executionValues(execution) {
     execution.state,
     execution.revision,
     activeSessionKey(execution),
-    JSON.stringify(execution),
+    JSON.stringify(snapshotForStorage(execution)),
     mysqlDateTime(execution.openedAt),
     mysqlDateTime(execution.startedAt),
     mysqlDateTime(execution.deadlineAt || execution.questionDeadlineAt),
@@ -56,6 +66,38 @@ function executionValues(execution) {
     mysqlDateTime(execution.cancelledAt),
     mysqlDateTime(execution.closedAt)
   ];
+}
+
+function hydrateExecution(snapshot, participantRows = [], answerRows = []) {
+  if (!snapshot) return null;
+  const participants = participantRows.map((row) => ({
+    id: String(row.participant_id),
+    name: row.display_name || "",
+    label: row.public_label,
+    userNumber: Number(row.user_number),
+    state: row.state,
+    connected: false,
+    activeTabId: row.active_tab_id || "",
+    recoveryTokenHash: row.recovery_token_hash || null,
+    questionOrder: parseJson(row.question_order_json) || [],
+    optionOrders: parseJson(row.option_orders_json) || {},
+    currentQuestionIndex: Number(row.current_question_index || 0),
+    joinedAt: row.joined_at,
+    lastSeenAt: row.submitted_at || row.joined_at,
+    submittedAt: row.submitted_at,
+    completedAt: row.completed_at,
+    completionMode: null
+  }));
+  const answers = answerRows.map((row) => ({
+    participantId: String(row.participant_id),
+    questionId: String(row.question_id),
+    optionId: String(row.option_id),
+    clientAttemptId: row.client_attempt_id || "",
+    correct: Boolean(row.correct),
+    elapsedMs: row.elapsed_ms === null || row.elapsed_ms === undefined ? null : Number(row.elapsed_ms),
+    receivedAt: row.received_at
+  }));
+  return { ...snapshot, participants, answers };
 }
 
 class KnowledgeActivityRepository {
@@ -112,7 +154,11 @@ class KnowledgeActivityRepository {
     }
   }
 
-  async saveExecution(execution, { expectedRevision, participants: participantsToSave } = {}) {
+  async saveExecution(execution, {
+    expectedRevision,
+    participants: participantsToSave,
+    answers: answersToSave
+  } = {}) {
     return inTransaction(this.pool, async (connection) => {
       const values = executionValues(execution);
       const [updated] = await connection.execute(
@@ -181,7 +227,10 @@ class KnowledgeActivityRepository {
         );
       }
 
-      for (const answer of execution.answers) {
+      const answers = Array.isArray(answersToSave)
+        ? answersToSave
+        : execution.answers;
+      for (const answer of answers) {
         await connection.execute(
           `INSERT INTO knowledge_activity_answers
              (execution_id, participant_id, question_id, option_id, client_attempt_id,
@@ -242,52 +291,128 @@ class KnowledgeActivityRepository {
     });
   }
 
+  async saveAnswerBatch(execution, { expectedRevision, participants = [], answers = [] } = {}) {
+    if (!answers.length) return execution;
+    return inTransaction(this.pool, async (connection) => {
+      const values = executionValues(execution);
+      const [updated] = await connection.execute(
+        `UPDATE knowledge_activity_executions
+         SET state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
+             deadline_at = ?, processing_started_at = ?, results_ready_at = ?,
+             results_visible_at = ?, cancelled_at = ?, closed_at = ?
+         WHERE id = ? AND revision = ?`,
+        [values[6], values[7], values[8], values[9], values[12], values[13], values[14], values[15], values[16], values[17], execution.id, Number(expectedRevision)]
+      );
+      if (!updated.affectedRows) throw new KnowledgeActivityError("STALE_REVISION", "The persisted execution revision changed");
+      const uniqueParticipants = [...new Map((participants || []).map((participant) => [participant.id, participant])).values()];
+      if (uniqueParticipants.length) {
+        const participantValues = uniqueParticipants.flatMap((participant) => [
+          execution.id,
+          participant.id,
+          participant.recoveryTokenHash || null,
+          participant.userNumber,
+          participant.name || null,
+          participant.label,
+          participant.activeTabId || null,
+          participant.state,
+          mysqlDateTime(participant.joinedAt),
+          mysqlDateTime(participant.submittedAt),
+          mysqlDateTime(participant.completedAt)
+        ]);
+        await connection.execute(
+          `INSERT INTO knowledge_activity_participants
+             (execution_id, participant_id, recovery_token_hash, user_number, display_name, public_label,
+              active_tab_id, state, joined_at, submitted_at, completed_at)
+           VALUES ${uniqueParticipants.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}
+           ON DUPLICATE KEY UPDATE
+             recovery_token_hash = COALESCE(recovery_token_hash, VALUES(recovery_token_hash)),
+             display_name = VALUES(display_name), public_label = VALUES(public_label),
+             state = VALUES(state), active_tab_id = VALUES(active_tab_id),
+             submitted_at = VALUES(submitted_at), completed_at = VALUES(completed_at)`,
+          participantValues
+        );
+      }
+      const answerValues = answers.flatMap((answer) => [execution.id, answer.participantId, answer.questionId, answer.optionId, answer.clientAttemptId || null, answer.correct ? 1 : 0, Number.isFinite(answer.elapsedMs) ? answer.elapsedMs : null, mysqlDateTime(answer.receivedAt)]);
+      await connection.execute(
+        `INSERT INTO knowledge_activity_answers
+           (execution_id, participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at)
+         VALUES ${answers.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}
+         ON DUPLICATE KEY UPDATE
+           option_id = VALUES(option_id), client_attempt_id = VALUES(client_attempt_id), correct = VALUES(correct), elapsed_ms = VALUES(elapsed_ms), received_at = VALUES(received_at)`,
+        answerValues
+      );
+      return execution;
+    });
+  }
+
+  async hydrate(row, executor = this.pool) {
+    if (!row?.snapshot_json) return null;
+    const snapshot = parseJson(row.snapshot_json);
+    const [participants] = await executor.execute(
+      `SELECT p.participant_id, p.recovery_token_hash, p.user_number, p.display_name, p.public_label,
+              p.active_tab_id, p.state, p.joined_at, p.submitted_at, p.completed_at,
+              o.question_order_json, o.option_orders_json, o.current_question_index
+       FROM knowledge_activity_participants p
+       LEFT JOIN knowledge_activity_participant_orders o
+         ON o.execution_id = p.execution_id AND o.participant_id = p.participant_id
+       WHERE p.execution_id = ?
+       ORDER BY p.user_number`,
+      [String(row.id || snapshot.id || "")]
+    );
+    const [answers] = await executor.execute(
+      `SELECT participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at
+       FROM knowledge_activity_answers
+       WHERE execution_id = ?
+       ORDER BY received_at, participant_id, question_id`,
+      [String(row.id || snapshot.id || "")]
+    );
+    return hydrateExecution(snapshot, participants || [], answers || []);
+  }
+
   async loadExecution(executionId) {
     const [rows] = await this.pool.execute(
-      `SELECT snapshot_json
+      `SELECT id, snapshot_json
        FROM knowledge_activity_executions
        WHERE id = ?
        LIMIT 1`,
       [String(executionId || "")]
     );
-    return rows[0] ? parseJson(rows[0].snapshot_json) : null;
+    return rows[0] ? this.hydrate(rows[0]) : null;
   }
 
   async loadActiveExecution({ deckId, sourceSessionId }) {
     const [rows] = await this.pool.execute(
-      `SELECT e.snapshot_json
+      `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
        WHERE ps.deck_id = ? AND ps.source_session_id = ?
          AND e.active_session_key IS NOT NULL
-       ORDER BY e.opened_at DESC, e.id DESC
        LIMIT 1`,
       [String(deckId || ""), String(sourceSessionId || "")]
     );
-    return rows[0] ? parseJson(rows[0].snapshot_json) : null;
+    return rows[0] ? this.hydrate(rows[0]) : null;
   }
 
   async listActiveExecutions() {
     const [rows] = await this.pool.execute(
-      `SELECT snapshot_json
+      `SELECT id, snapshot_json
        FROM knowledge_activity_executions
-       WHERE active_session_key IS NOT NULL
-       ORDER BY opened_at`
+       WHERE active_session_key IS NOT NULL`
     );
-    return rows.map((row) => parseJson(row.snapshot_json));
+    return Promise.all(rows.map((row) => this.hydrate(row)));
   }
 
   async listHistory(deckId) {
     const [rows] = await this.pool.execute(
-      `SELECT e.snapshot_json
+      `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
        WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
        ORDER BY e.opened_at DESC, e.id DESC`,
       [String(deckId || "")]
     );
-    return rows.map((row) => parseJson(row.snapshot_json));
+    return Promise.all(rows.map((row) => this.hydrate(row)));
   }
 }
 
-module.exports = { KnowledgeActivityRepository, parseJson, inTransaction, mysqlDateTime };
+module.exports = { KnowledgeActivityRepository, parseJson, inTransaction, mysqlDateTime, snapshotForStorage, hydrateExecution };

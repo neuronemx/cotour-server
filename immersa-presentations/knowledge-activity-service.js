@@ -39,6 +39,9 @@ class KnowledgeActivityService {
     this.random = random;
     this.executions = new Map();
     this.timers = new Map();
+    this.answerBatches = new Map();
+    this.answerBatchTimers = new Map();
+    this.persistedRevisions = new Map();
     this.listeners = new Set();
     coordinator?.registerActivity?.("knowledge", this);
   }
@@ -69,6 +72,7 @@ class KnowledgeActivityService {
     const active = await this.repository.listActiveExecutions();
     for (const execution of active) {
       this.executions.set(this.key(execution.sourceSessionId), execution);
+      this.persistedRevisions.set(execution.id, execution.revision);
       await this.reconcile(execution);
     }
     return active.length;
@@ -77,11 +81,22 @@ class KnowledgeActivityService {
   async getActive({ sourceSessionId, deckId }) {
     const key = this.key(sourceSessionId);
     let execution = this.executions.get(key) || null;
+    let loaded = false;
     if (!execution) {
       execution = await this.repository.loadActiveExecution({ deckId, sourceSessionId });
-      if (execution) this.executions.set(key, execution);
+      if (execution) {
+        this.executions.set(key, execution);
+        loaded = true;
+      }
     }
-    if (execution) await this.reconcile(execution);
+    // The deadline timer reconciles executions already resident in memory. Only
+    // reconcile a cached execution if a deadline has elapsed; doing it on every
+    // audience socket event flushes an in-flight answer batch before the other
+    // attendees can join it.
+    const deadline = execution ? this.nextDeadline(execution) : null;
+    if (execution && (loaded || (Number.isFinite(deadline) && this.now() >= deadline))) {
+      await this.reconcile(execution);
+    }
     return this.isExecutionActive(execution) ? execution : null;
   }
 
@@ -111,6 +126,7 @@ class KnowledgeActivityService {
       });
       await this.repository.createExecution(execution);
       this.executions.set(this.key(sourceSessionId), execution);
+      this.persistedRevisions.set(execution.id, execution.revision);
       this.schedule(execution);
       this.notify(execution, "opened");
       return execution;
@@ -130,6 +146,7 @@ class KnowledgeActivityService {
           expectedRevision,
           ...(typeof persistence.forResult === "function" ? persistence.forResult(result) : {})
         });
+        this.persistedRevisions.set(execution.id, execution.revision);
         this.executions.set(this.key(execution.sourceSessionId), execution);
         this.schedule(execution);
         this.notify(execution, eventName);
@@ -146,6 +163,7 @@ class KnowledgeActivityService {
   }
 
   async command(execution, command) {
+    await this.flushAnswers(execution);
     return this.mutate(
       execution,
       (current) => controllerCommand(current, { ...command, nowMs: this.now() }),
@@ -178,11 +196,56 @@ class KnowledgeActivityService {
   }
 
   async answer(execution, payload) {
-    return this.mutate(
-      execution,
-      (current) => submitAnswer(current, { ...payload, nowMs: this.now() }),
-      "answer_accepted"
-    );
+    const execute = async () => {
+      const answer = submitAnswer(execution, { ...payload, nowMs: Number.isFinite(payload.receivedAtMs) ? payload.receivedAtMs : this.now() });
+      const participant = execution.participants.find((item) => item.id === answer.participantId);
+      const key = execution.id;
+      const batch = this.answerBatches.get(key) || [];
+      batch.push({ answer, participant });
+      this.answerBatches.set(key, batch);
+      this.scheduleAnswerFlush(execution);
+      this.executions.set(this.key(execution.sourceSessionId), execution);
+      this.schedule(execution);
+      this.notify(execution, "answer_accepted");
+      return answer;
+    };
+    return this.coordinator?.withSessionLock ? this.coordinator.withSessionLock(execution.sourceSessionId, execute) : execute();
+  }
+
+  scheduleAnswerFlush(execution) {
+    const key = execution.id;
+    if (this.answerBatchTimers.has(key)) return;
+    const handle = this.setTimeoutFn(() => {
+      this.answerBatchTimers.delete(key);
+      this.flushAnswers(execution).catch((error) => this.notify(execution, error.code || "answer_persist_failed"));
+    }, 25);
+    handle?.unref?.();
+    this.answerBatchTimers.set(key, handle);
+  }
+
+  async flushAnswers(execution, { skipLock = false } = {}) {
+    const key = execution?.id;
+    if (!key || !(this.answerBatches.get(key) || []).length) return execution;
+    const execute = async () => {
+      const batch = this.answerBatches.get(key) || [];
+      if (!batch.length) return execution;
+      const handle = this.answerBatchTimers.get(key);
+      if (handle) this.clearTimeoutFn(handle);
+      this.answerBatchTimers.delete(key);
+      const expectedRevision = this.persistedRevisions.get(key);
+      const persistence = {
+        expectedRevision: Number.isFinite(expectedRevision) ? expectedRevision : Math.max(0, execution.revision - batch.length),
+        participants: batch.map((item) => item.participant),
+        answers: batch.map((item) => item.answer)
+      };
+      if (typeof this.repository.saveAnswerBatch === "function") await this.repository.saveAnswerBatch(execution, persistence);
+      else await this.repository.saveExecution(execution, persistence);
+      this.answerBatches.delete(key);
+      this.persistedRevisions.set(key, execution.revision);
+      return execution;
+    };
+    if (skipLock || !this.coordinator?.withSessionLock) return execute();
+    return this.coordinator.withSessionLock(execution.sourceSessionId, execute);
   }
 
   async submit(execution, payload) {
@@ -223,6 +286,7 @@ class KnowledgeActivityService {
   }
 
   async reconcile(execution) {
+    await this.flushAnswers(execution);
     const preview = clone(execution);
     const ticked = tickExecution(preview, this.now());
     if (!ticked.changed) {
@@ -248,12 +312,24 @@ class KnowledgeActivityService {
     const handle = this.timers.get(key);
     if (handle) this.clearTimeoutFn(handle);
     this.timers.delete(key);
+    const execution = this.executions.get(key);
+    if (execution?.id) {
+      const answerTimer = this.answerBatchTimers.get(execution.id);
+      if (answerTimer) this.clearTimeoutFn(answerTimer);
+      this.answerBatchTimers.delete(execution.id);
+      this.answerBatches.delete(execution.id);
+      this.persistedRevisions.delete(execution.id);
+    }
     return this.executions.delete(key);
   }
 
   async close() {
     for (const handle of this.timers.values()) this.clearTimeoutFn(handle);
     this.timers.clear();
+    for (const handle of this.answerBatchTimers.values()) this.clearTimeoutFn(handle);
+    this.answerBatchTimers.clear();
+    this.answerBatches.clear();
+    this.persistedRevisions.clear();
   }
 }
 
