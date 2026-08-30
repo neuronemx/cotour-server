@@ -389,3 +389,44 @@ test("Proyección is a first-class Event Hub activity type", async () => {
   assert.match(publicProgram, /PROJECTION: "Proyección"/);
   assert.match(styles, /\.type-PROJECTION/);
 });
+
+
+test("Quitar Deck desvincula sólo una actividad programada y nunca borra el Deck del ponente", async () => {
+  const pool = fakePool([
+    [{ affectedRows: 1 }, []],
+    [[{ id: "activity-1", event_workspace_id: "hub-1", status: "SCHEDULED" }], []]
+  ]);
+  const repository = new EventHubRepository(pool);
+  await repository.clearActivityDeck({ activityId: "activity-1", eventWorkspaceId: "hub-1" });
+  const statement = pool.calls.find((call) => /UPDATE event_activities/.test(call.sql || ""));
+  assert.match(statement.sql, /SET deck_id = NULL, pending_deck_id = NULL/);
+  assert.match(statement.sql, /status = 'SCHEDULED'/);
+  assert.deepEqual(statement.values, ["activity-1", "hub-1"]);
+});
+
+test("el acceso FREE de un ponente invitado se limita al Event Stage de su Deck asignado", async () => {
+  const server = await fs.promises.readFile(path.join(__dirname, "..", "server.js"), "utf8");
+  const admin = await fs.promises.readFile(path.join(__dirname, "..", "public", "admin", "event-hub.js"), "utf8");
+  assert.match(server, /async function getStageFeatureAccess\(deckId\)/);
+  assert.match(server, /eventHubRepository\?\.getStageControlForDeck\(deckId\)/);
+  assert.match(server, /\[CAPABILITIES\.ACCESS_BACKSTAGE\]: true/);
+  assert.match(server, /resolveDeckFeatureAccess: getStageFeatureAccess/);
+  assert.match(server, /currentFeatureAccess = await getStageFeatureAccess\(joinedDeckId\)/);
+  assert.match(admin, /Quitar Deck/);
+  assert.match(admin, /El Deck no se borrará de la cuenta del ponente/);
+});
+
+
+test("Event Hub registra al participante de forma atómica sin degradar acceso Paid", async () => {
+  const pool = fakePool([
+    [[], []],
+    [{ affectedRows: 1 }, []]
+  ]);
+  const repository = new EventHubRepository(pool, { createId: () => "new-participant" });
+  const participant = await repository.registerParticipant({ eventWorkspaceId: "hub-1", registrationKey: "same-person", audienceLevel: "PAID" });
+  assert.deepEqual(participant, { id: "new-participant", eventWorkspaceId: "hub-1", audienceLevel: "PAID" });
+  const statements = pool.calls.filter((call) => call.kind === "execute").map((call) => call.sql).join("\n");
+  assert.match(statements, /SELECT id, audience_level FROM event_participants/);
+  assert.match(statements, /FOR UPDATE/);
+  assert.match(statements, /INSERT INTO event_participants/);
+});

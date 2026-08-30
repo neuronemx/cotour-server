@@ -120,3 +120,10 @@ test("server exposes Speaker basic metrics only through deck ownership and plan 
   assert.match(migration, /presentation_poll_executions/);
   assert.match(migration, /presentation_poll_responses/);
 });
+
+
+test("session metrics count attendance per session without grouping the full audience join", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "presentation-metrics.js"), "utf8");
+  assert.match(source, /SELECT COUNT\(\*\)[\s\S]*presentation_session_attendance/);
+  assert.doesNotMatch(source, /LEFT JOIN presentation_session_attendance psa ON psa\.presentation_session_id = ps\.id/);
+});

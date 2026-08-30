@@ -92,11 +92,11 @@ function createKnowledgeActivitySocketHandlers({
 
   const unsubscribe = service.subscribe(({ execution, eventName }) => {
     if (eventName === "participant_joined") emitControllers(execution);
-    else emitAll(execution);
+    else if (eventName !== "answer_accepted") emitAll(execution);
     if (eventName === "answer_accepted") {
       const roomKey = getRoomKey(execution.sourceSessionId, execution.deckId);
-      io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:execution:progress", roleState(execution, "presenter"));
-      io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:execution:progress", roleState(execution, "stage"));
+      io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:execution:progress", roleState(execution, "presenter", { compact: true }));
+      io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:execution:progress", roleState(execution, "stage", { compact: true }));
     }
   });
 
@@ -200,6 +200,7 @@ function createKnowledgeActivitySocketHandlers({
     });
 
     socket.on("interaction:participant:submit_answer", async (payload = {}) => {
+      const receivedAtMs = Date.now();
       const context = getContext();
       try {
         const execution = await activeFor(context);
@@ -214,7 +215,8 @@ function createKnowledgeActivitySocketHandlers({
           questionId: payload.question_id || payload.questionId,
           optionId: payload.option_id || payload.optionId,
           tabId: payload.tab_id || payload.tabId,
-          clientAttemptId: payload.client_attempt_id || payload.clientAttemptId
+          clientAttemptId: payload.client_attempt_id || payload.clientAttemptId,
+          receivedAtMs
         });
         socket.emit("interaction:answer:accepted", {
           executionId: execution.id,

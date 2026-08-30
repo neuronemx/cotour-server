@@ -37,6 +37,7 @@ const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
+const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
   CAPABILITIES,
@@ -150,6 +151,7 @@ const billingRuntime = createBillingRuntime({
 });
 const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
+const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
@@ -245,15 +247,26 @@ const presentationLifecycleRuntime = lifecyclePool
         socket.emit("presentation:lifecycle:state", { available: false, mode: "test" });
       }
     };
+async function getStageFeatureAccess(deckId) {
+  const access = isSystemDemoDeckId(deckId)
+    ? featureAccessForPlan("SPEAKER_PRO")
+    : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+  const stageControl = await eventHubRepository?.getStageControlForDeck(deckId);
+  if (!stageControl) return access;
+  return {
+    ...access,
+    capabilities: { ...access.capabilities, [CAPABILITIES.ACCESS_BACKSTAGE]: true },
+    eventHubStage: stageControl
+  };
+}
+
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: (deckId) => isSystemDemoDeckId(deckId)
-    ? featureAccessForPlan("SPEAKER_PRO")
-    : betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId)
+  resolveDeckFeatureAccess: getStageFeatureAccess
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
@@ -1227,6 +1240,11 @@ app.put("/api/event-hub/speaker-invitations/:assignmentId/accept", requireAccoun
     return res.json(await eventHubRepository.acceptSpeakerInvitation({ assignmentId: req.params.assignmentId, userId: req.accountContext.user.id }));
   } catch (error) { return sendEventHubError(res, error); }
 });
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/reset-live-session", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.resetLiveActivity({ eventWorkspaceId: req.params.workspaceId, activityId: req.params.activityId })); }
+  catch (error) { return sendEventHubError(res, error); }
+});
 app.put("/api/event-hub/speaker-invitations/:assignmentId/decline", requireAccount, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
@@ -1251,6 +1269,11 @@ app.post("/api/event-hub/speaker-invitations/:assignmentId/speaker-access", requ
       url: `${baseUrl}/speaker/${speakerLink.access_token}`
     });
   } catch (error) { return sendEventHubError(res, error); }
+});
+app.delete("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  try { return res.json(await eventHubRepository.clearActivityDeck({ activityId: req.params.activityId, eventWorkspaceId: req.params.workspaceId })); }
+  catch (error) { return sendEventHubError(res, error); }
 });
 app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/deck-check/approve", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
@@ -1513,9 +1536,7 @@ async function requireRequestedRoleFeature(req, res, next) {
   if (role !== "stage") return next();
   try {
     const deckId = req.ownedDeckId;
-    const access = isSystemDemoDeckId(deckId)
-      ? featureAccessForPlan("SPEAKER_PRO")
-      : await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    const access = await getStageFeatureAccess(deckId);
     if (canUseFeature(access, CAPABILITIES.ACCESS_BACKSTAGE)) return next();
     return res.status(403).json({
       error: "BACKSTAGE está disponible desde SPEAKER",
@@ -1949,9 +1970,7 @@ io.on("connection", (socket) => {
     session = getSession(joinedSessionId, joinedDeckId);
     touchSession(currentRoomKey);
     try {
-      currentFeatureAccess = isSystemDemoDeckId(joinedDeckId)
-        ? featureAccessForPlan("SPEAKER_PRO")
-        : await betterAuthCompatibilityBridge.getDeckFeatureAccess(joinedDeckId);
+      currentFeatureAccess = await getStageFeatureAccess(joinedDeckId);
     } catch (error) {
       currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);

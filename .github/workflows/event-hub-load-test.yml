@@ -64,10 +64,8 @@ jobs:
         working-directory: immersa-presentations/load-tests
 
     steps:
-      - name: Checkout Event Hub test runner
+      - name: Checkout selected workflow revision
         uses: actions/checkout@v4
-        with:
-          ref: agent/event-hub-v1-foundation
 
       - uses: actions/setup-node@v4
         with:

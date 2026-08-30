@@ -92,6 +92,24 @@ async function transaction(pool, operation) {
   }
 }
 
+
+function isDeadlock(error) {
+  return error?.code === "ER_LOCK_DEADLOCK" || Number(error?.errno) === 1213;
+}
+
+async function retryDeadlock(operation, { attempts = 3, delayMs = 20 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { return await operation(); }
+    catch (error) {
+      lastError = error;
+      if (!isDeadlock(error) || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 class EventHubRepository {
   constructor(pool, options = {}) {
     if (!pool?.getConnection || !pool?.execute) throw new Error("A MySQL pool is required");
@@ -604,6 +622,17 @@ class EventHubRepository {
     return { userId: String(userId) };
   }
 
+  async clearActivityDeck({ activityId, eventWorkspaceId }) {
+    const [result] = await this.pool.execute(
+      `UPDATE event_activities
+       SET deck_id = NULL, pending_deck_id = NULL, deck_check_status = 'PENDING', deck_check_updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND event_workspace_id = ? AND status = 'SCHEDULED'`,
+      [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+    );
+    if (!Number(result?.affectedRows)) throw new EventHubError("ACTIVITY_NOT_EDITABLE", "Sólo se puede quitar el Deck de una actividad programada", 409);
+    return this.getActivity(activityId);
+  }
+
   async approveDeckCheck({ activityId, eventWorkspaceId }) {
     const [result] = await this.pool.execute(
       `UPDATE event_activities SET deck_id = pending_deck_id, pending_deck_id = NULL, deck_check_status = 'DECK_CHECK', deck_check_updated_at = CURRENT_TIMESTAMP(3)
@@ -815,6 +844,23 @@ class EventHubRepository {
       // Closing a LiveSession preserves its metrics and keeps the scheduled Activity operable.
       await connection.execute("UPDATE event_activities SET status = 'SCHEDULED' WHERE id = ?", [liveSession.event_activity_id]);
       return { id: liveSession.id, status: "FINISHED" };
+    });
+  }
+
+  async resetLiveActivity({ eventWorkspaceId, activityId }) {
+    return transaction(this.pool, async (connection) => {
+      const [rows] = await connection.execute(
+        `SELECT l.id FROM event_live_sessions l
+         INNER JOIN event_activities a ON a.id = l.event_activity_id
+         WHERE a.id = ? AND a.event_workspace_id = ? AND l.status = 'LIVE'
+         LIMIT 1 FOR UPDATE`,
+        [required(activityId, "activity id"), required(eventWorkspaceId, "event workspace id")]
+      );
+      const live = rows?.[0];
+      if (!live) throw new EventHubError("LIVE_SESSION_NOT_FOUND", "La actividad no tiene una conferencia activa para restablecer", 404);
+      await connection.execute("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = CURRENT_TIMESTAMP(3) WHERE id = ?", [live.id]);
+      await connection.execute("UPDATE event_activities SET status = 'SCHEDULED' WHERE id = ?", [required(activityId, "activity id")]);
+      return { liveSessionId: live.id, status: "SCHEDULED" };
     });
   }
 

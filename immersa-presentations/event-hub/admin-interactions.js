@@ -27,15 +27,19 @@ class EventHubAdminInteractions {
   }
 
   async join(socket, { publicId, participantId }) {
+    const startedAt = Date.now();
     const qr = await this.repository.getPublicQr(publicId);
     const participant = await this.repository.getParticipant({ eventWorkspaceId: qr.eventWorkspaceId, participantId });
     if (await this.repository.isParticipantInLiveSession({ eventWorkspaceId: qr.eventWorkspaceId, participantId: participant.id })) {
       socket.emit("event-admin:interaction:state", { active: null, response: null });
+      console.info("[event-hub] interaction join skipped for live attendee", { elapsedMs: Date.now() - startedAt });
       return { joined: false, eventWorkspaceId: qr.eventWorkspaceId };
     }
     socket.join(this.room(qr.eventWorkspaceId));
     socket.data.eventHubParticipant = { eventWorkspaceId: qr.eventWorkspaceId, participantId: participant.id };
-    socket.emit("event-admin:interaction:state", this.state(qr.eventWorkspaceId, participant.id));
+    const state = this.state(qr.eventWorkspaceId, participant.id);
+    socket.emit("event-admin:interaction:state", state);
+    console.info("[event-hub] interaction join synchronized", { active: Boolean(state.active), elapsedMs: Date.now() - startedAt });
     return { joined: true, eventWorkspaceId: qr.eventWorkspaceId };
   }
 
@@ -75,7 +79,10 @@ class EventHubAdminInteractions {
   attach(socket) {
     socket.on("event-admin:join", async (payload = {}) => {
       try { await this.join(socket, payload); }
-      catch (_error) { socket.emit("event-admin:interaction:state", { active: null, response: null }); }
+      catch (error) {
+        console.error("[event-hub] interaction join failed", { code: error?.code || null, message: error?.message || "unknown" });
+        socket.emit("event-admin:interaction:state", { active: null, response: null });
+      }
     });
     socket.on("event-admin:interaction:submit", async (payload = {}) => {
       const result = await this.submit(socket, payload);

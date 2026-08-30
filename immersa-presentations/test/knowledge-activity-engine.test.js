@@ -255,6 +255,28 @@ test("contest locks one answer and advances through reveal automatically", () =>
   assert.equal(item.questionIndex, 1);
 });
 
+test("a delayed timer gives the next contest question a fresh answer window", () => {
+  const item = execution("contest");
+  joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-delayed-next-question",
+    expectedRevision: item.revision,
+    actorRole: "stage",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 7000);
+  tickExecution(item, 40000);
+  assert.equal(item.substate, "REVEAL");
+  assert.equal(item.questionIndex, 0);
+  assert.equal(item.revealDeadlineAt, "1970-01-01T00:00:45.000Z");
+  tickExecution(item, 45000);
+  assert.equal(item.substate, "QUESTION_ACTIVE");
+  assert.equal(item.questionIndex, 1);
+  assert.equal(item.questionOpenedAt, "1970-01-01T00:00:45.000Z");
+  assert.equal(item.questionDeadlineAt, "1970-01-01T00:00:55.000Z");
+});
+
 test("ranking uses correct answers, correct-answer time, real ties, and competitive positions", () => {
   const item = execution("contest");
   for (const id of ["p1", "p2", "p3", "p4"]) joinParticipant(item, { participantId: id, tabId: `tab-${id}`, random: () => 0.999 });
@@ -272,16 +294,18 @@ test("ranking uses correct answers, correct-answer time, real ties, and competit
   submitAnswer(item, { participantId: "p3", questionId: first.id, optionId: first.correctOptionId, tabId: "tab-p3", nowMs: 9000 });
   submitAnswer(item, { participantId: "p4", questionId: first.id, optionId: first.options.find((option) => option.id !== first.correctOptionId).id, tabId: "tab-p4", nowMs: 7500 });
   tickExecution(item, 22000);
+  tickExecution(item, 27000);
   const second = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[1]);
-  submitAnswer(item, { participantId: "p1", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p1", nowMs: 23000 });
-  submitAnswer(item, { participantId: "p2", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p2", nowMs: 23000 });
-  submitAnswer(item, { participantId: "p3", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p3", nowMs: 23000 });
-  tickExecution(item, 32000);
-  tickExecution(item, 40000);
+  submitAnswer(item, { participantId: "p1", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p1", nowMs: 28000 });
+  submitAnswer(item, { participantId: "p2", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p2", nowMs: 28000 });
+  submitAnswer(item, { participantId: "p3", questionId: second.id, optionId: second.correctOptionId, tabId: "tab-p3", nowMs: 28000 });
+  tickExecution(item, 38000);
+  tickExecution(item, 43000);
+  tickExecution(item, 46000);
   assert.equal(item.state, "RESULTS_VISIBLE");
   assert.deepEqual(item.result.rows.map((row) => row.position), [1, 2, 2, 4]);
   assert.equal(item.result.rows[0].participantId, "p1");
-  const screenRows = stateForRole(item, { role: "screen", nowMs: 40000 }).top10;
+  const screenRows = stateForRole(item, { role: "screen", nowMs: 46000 }).top10;
   assert.equal(screenRows.length, 3);
   assert.equal(screenRows.some((row) => row.correctCount === 0), false);
 });
@@ -490,4 +514,26 @@ test("submitted assessments withhold the receipt grade until Speaker releases re
     nowMs: 10100
   });
   assert.equal(released.submissionReceipt.grade, 50);
+});
+
+
+test("controller progress state omits the participant roster while keeping contest progress", () => {
+  const item = execution("contest");
+  const first = joinParticipant(item, { participantId: "p1", tabId: "tab-1", random: () => 0.999 });
+  joinParticipant(item, { participantId: "p2", tabId: "tab-2", random: () => 0.999 });
+  controllerCommand(item, {
+    commandId: "start-compact-progress",
+    expectedRevision: item.revision,
+    actorRole: "presenter",
+    intent: "start",
+    nowMs: 2000
+  });
+  tickExecution(item, 7000);
+  submitAnswer(item, { participantId: first.id, questionId: "q1", optionId: "a", tabId: "tab-1", nowMs: 7100 });
+  const progress = stateForRole(item, { role: "presenter", compact: true, nowMs: 7200 });
+  assert.equal(progress.participantCount, 2);
+  assert.equal(progress.effectiveParticipantCount, 1);
+  assert.equal(progress.currentQuestion.id, "q1");
+  assert.equal("participants" in progress, false);
+  assert.equal("definitionsSnapshot" in progress, false);
 });
