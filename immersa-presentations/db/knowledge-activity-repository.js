@@ -142,7 +142,7 @@ class KnowledgeActivityRepository {
             title, state, revision, active_session_key, snapshot_json, opened_at, started_at,
             deadline_at, processing_started_at, results_ready_at, results_visible_at,
             cancelled_at, closed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         executionValues(execution)
       );
       return execution;
@@ -164,7 +164,7 @@ class KnowledgeActivityRepository {
       const [updated] = await connection.execute(
         `UPDATE knowledge_activity_executions
          SET source_definition_id = ?, category = ?, contract_version = ?, title = ?,
-             state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
+             state = ?, revision = ?, active_session_key = ?, snapshot_json = ?,
              started_at = ?, deadline_at = ?, processing_started_at = ?,
              results_ready_at = ?, results_visible_at = ?, cancelled_at = ?, closed_at = ?
          WHERE id = ? AND revision = ?`,
@@ -212,7 +212,7 @@ class KnowledgeActivityRepository {
         await connection.execute(
           `INSERT INTO knowledge_activity_participant_orders
              (execution_id, participant_id, question_order_json, option_orders_json, current_question_index)
-           VALUES (?, ?, CAST(? AS JSON), CAST(? AS JSON), ?)
+           VALUES (?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE
              question_order_json = VALUES(question_order_json),
              option_orders_json = VALUES(option_orders_json),
@@ -259,7 +259,7 @@ class KnowledgeActivityRepository {
         await connection.execute(
           `INSERT IGNORE INTO knowledge_activity_commands
              (execution_id, command_id, actor_role, intent, applied_revision, result_json, applied_at)
-           VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             execution.id,
             command.commandId,
@@ -276,7 +276,7 @@ class KnowledgeActivityRepository {
         await connection.execute(
           `INSERT IGNORE INTO knowledge_activity_results
              (execution_id, mode, revision, excluded_response_count, result_json, created_at)
-           VALUES (?, ?, ?, ?, CAST(? AS JSON), ?)`,
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             execution.id,
             execution.result.mode,
@@ -297,7 +297,7 @@ class KnowledgeActivityRepository {
       const values = executionValues(execution);
       const [updated] = await connection.execute(
         `UPDATE knowledge_activity_executions
-         SET state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
+         SET state = ?, revision = ?, active_session_key = ?, snapshot_json = ?,
              deadline_at = ?, processing_started_at = ?, results_ready_at = ?,
              results_visible_at = ?, cancelled_at = ?, closed_at = ?
          WHERE id = ? AND revision = ?`,
