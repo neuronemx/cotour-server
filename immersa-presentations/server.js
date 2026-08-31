@@ -65,6 +65,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const LOCAL_DEMO_MODE = String(process.env.IMMERSA_MODE || '').trim().toLowerCase() === 'local-demo';
 const AUTO_START_AUDIENCE_THRESHOLD = 5;
 const SESSION_INACTIVITY_MS = resolveSessionInactivityMs();
 const SESSION_INACTIVITY_SWEEP_MS = Math.min(60_000, Math.max(5_000, Math.round(SESSION_INACTIVITY_MS / 12)));
@@ -982,6 +983,54 @@ app.get("/presentacion-completada", (_req, res) => res.sendFile(path.join(PUBLIC
 app.get("/gracias-por-participar", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "audience.html")));
 app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "screen.html")));
 app.get("/operacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "backstage.html")));
+
+
+function localDemoUrl(req, pathName) {
+  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  return protocol + '://' + req.get('host') + pathName;
+}
+
+function localDemoEscape(value) {
+  return String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+async function localDemoLinks(req) {
+  await ensureDataDirs();
+  const result = await accessLinkHandlers.ensureLocalDemoLinks(DEMO_PUBLISHED_DECK_ID);
+  const links = {
+    speaker: localDemoUrl(req, '/speaker/' + result.links.speaker.access_token),
+    screen: localDemoUrl(req, '/screen/' + result.links.screen.access_token),
+    audience: localDemoUrl(req, '/' + result.links.audience.public_id)
+  };
+  return { title: result.deck.title, links };
+}
+
+if (LOCAL_DEMO_MODE) {
+  app.get('/api/local-demo/links', async (req, res) => {
+    try {
+      return res.json(await localDemoLinks(req));
+    } catch (error) {
+      console.error('Unable to prepare local Demo links', error);
+      return res.status(500).json({ error: 'No se pudo preparar la Demo local' });
+    }
+  });
+  app.get('/local-demo', async (req, res) => {
+    try {
+      const demo = await localDemoLinks(req);
+      const items = [
+        ['Speaker', demo.links.speaker],
+        ['Pantalla', demo.links.screen],
+        ['Público', demo.links.audience]
+      ].map(([label, url]) => `<li><strong>${label}</strong><a href="${localDemoEscape(url)}">${localDemoEscape(url)}</a></li>`).join('');
+      return res.type('html').send(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IMMERSA Local Demo</title><style>body{margin:0;background:#0a0d28;color:#fff;font:16px/1.5 system-ui,sans-serif}main{max-width:720px;margin:9vh auto;padding:32px}h1{margin:0 0 8px}p{color:#c9c9dc}ul{padding:0;list-style:none}li{display:grid;gap:5px;margin:18px 0;padding:18px;border:1px solid #3e3f68;border-radius:14px;background:#12163a}a{color:#71e5f4;word-break:break-all}</style><main><h1>IMMERSA Local Demo</h1><p>${localDemoEscape(demo.title)} · servidor local activo</p><ul>${items}</ul></main></html>`);
+    } catch (error) {
+      console.error('Unable to render local Demo console', error);
+      return res.status(500).send('No se pudo preparar la Demo local');
+    }
+  });
+}
 
 const requireAccount = betterAuthCompatibilityBridge.requireApiAuth();
 app.get("/api/billing/catalog", requireAccount, billingHandlers.catalog);
