@@ -676,7 +676,51 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck };
+  async function ensureLocalDemoLinks(deckId) {
+    const deckResult = await findDeckManifestByDeckId(deckId, deckDirs);
+    const deck = deckResult?.deck;
+    if (!deck?.session_id) throw new Error('Local Demo deck is not available');
+
+    const accessLinks = await loadAccessLinks(storePath);
+    const links = {};
+    let changed = false;
+    for (const role of ['speaker', 'screen', 'audience']) {
+      let accessLink = accessLinks.find((item) => (
+        item.role === role
+        && item.active !== false
+        && item.session_id === deck.session_id
+        && item.deck_id === deck.deckId
+      )) || null;
+
+      if (!accessLink && role === 'audience') {
+        const audienceResult = ensureAudienceAccessLink(accessLinks, deck.session_id);
+        accessLink = audienceResult.accessLink;
+        accessLink.deck_id = deck.deckId;
+        accessLink.local_demo = true;
+        changed = true;
+      }
+
+      if (!accessLink) {
+        accessLink = {
+          access_token: nextUniqueAccessToken(accessLinks),
+          session_id: deck.session_id,
+          deck_id: deck.deckId,
+          role,
+          created_at: new Date().toISOString(),
+          active: true,
+          local_demo: true
+        };
+        accessLinks.push(accessLink);
+        changed = true;
+      }
+      links[role] = publicAccessLink(accessLink, deck);
+    }
+
+    if (changed) await saveAccessLinks(storePath, accessLinks);
+    return { deck, links };
+  }
+
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, ensureLocalDemoLinks };
 }
 
 module.exports = {
