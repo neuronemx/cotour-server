@@ -9,6 +9,15 @@ const VALID_ROLES = new Set(['speaker', 'stage', 'audience', 'screen', 'viewer']
 const ROLE_ACCESS_COOKIE_PREFIX = 'immersa_role_access_';
 const ROLE_ACCESS_TTL_SECONDS = 120;
 const ROLE_GUARD_SECRET = process.env.IMMERSA_ROUTE_GUARD_SECRET || process.env.SESSION_SECRET || process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
+const LOCAL_DEMO_MODE = String(process.env.IMMERSA_MODE || '').trim().toLowerCase() === 'local-demo';
+
+function prepareLocalDemoHtml(html) {
+  if (!LOCAL_DEMO_MODE) return html;
+  return String(html || '')
+    .replace(/<link\\b[^>]*href=["']https:\\/\\/fonts\\.googleapis\\.com[^>]*>\\s*/gi, '')
+    .replace(/<link\\b[^>]*href=["']https:\\/\\/fonts\\.gstatic\\.com[^>]*>\\s*/gi, '')
+    .replace(/<script\\b[^>]*\\bsrc=(["'])https:\\/\\/cdn\\.jsdelivr\\.net\\/npm\\/qrcodejs@1\\.0\\.0\\/qrcode\\.min\\.js\\1[^>]*><\\/script>/gi, '<script src="/vendor/qrcode.js"></script>');
+}
 
 function randomTokenSuffix(length) {
   const bytes = crypto.randomBytes(length);
@@ -253,7 +262,7 @@ function roleIndexPath(publicDir, route) {
 
 function injectRoleContext(html, context) {
   const safeContext = JSON.stringify(context).replace(/</g, '\\u003c');
-  const script = '<script>window.IMMERSA_ROLE_OPEN = ' + safeContext + ';</script>';
+  const script = (LOCAL_DEMO_MODE ? '<script>window.IMMERSA_LOCAL_MODE = true;</script>' : '') + '<script>window.IMMERSA_ROLE_OPEN = ' + safeContext + ';</script>';
   if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
   return script + '\n' + html;
 }
@@ -340,7 +349,7 @@ function injectPublicAudienceContext(html, accessLink, deck, presentationSession
     deck: deck.deckId,
     presentation_session_id: presentationSessionId
   }).replace(/</g, '\\u003c');
-  const script = '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
+  const script = (LOCAL_DEMO_MODE ? '<script>window.IMMERSA_LOCAL_MODE = true;</script>' : '') + '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
   if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
   return script + '\n' + html;
 }
@@ -542,7 +551,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks, featureAccess);
 
         res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: activeAccessLink, deck, route }), req));
-        return res.type('html').send(injectRoleContext(html, context));
+        return res.type('html').send(injectRoleContext(prepareLocalDemoHtml(html), context));
       } catch (error) {
         console.error('Unable to open role experience', error);
         return res.status(500).json({ error: 'Unable to open role experience' });
@@ -566,7 +575,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const presentationSessionId = latestPresentationSessionId(accessLinks, result.accessLink.session_id);
       const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
       res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName('audience'), createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
-      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId));
+      return res.type('html').send(injectPublicAudienceContext(prepareLocalDemoHtml(html), result.accessLink, deck, presentationSessionId));
     } catch (error) {
       console.error('Unable to open public audience link', error);
       return res.status(500).json({ error: 'Unable to open public audience link' });
