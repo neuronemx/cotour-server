@@ -979,10 +979,25 @@ app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "inde
 app.get("/api/account/capabilities", betterAuthCompatibilityBridge.capabilitiesHandler);
 app.get("/", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
 app.get("/home", betterAuthCompatibilityBridge.requirePageAuth(), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "home", "index.html")));
-app.get("/presentacion-completada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "speaker.html")));
-app.get("/gracias-por-participar", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "audience.html")));
-app.get("/presentacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "screen.html")));
-app.get("/operacion-finalizada", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "completion", "backstage.html")));
+function sendCompletionPage(pageName) {
+  return async (_req, res, next) => {
+    const pagePath = path.join(PUBLIC_DIR, "completion", pageName);
+    if (!LOCAL_DEMO_MODE) return res.sendFile(pagePath);
+    try {
+      const html = await fs.promises.readFile(pagePath, "utf8");
+      return res.type("html").send(html
+        .replace(/<link\b[^>]*href=["']https:\/\/fonts\.googleapis\.com[^>]*>\s*/gi, "")
+        .replace(/<link\b[^>]*href=["']https:\/\/fonts\.gstatic\.com[^>]*>\s*/gi, ""));
+    } catch (error) {
+      return next(error);
+    }
+  };
+}
+
+app.get("/presentacion-completada", sendCompletionPage("speaker.html"));
+app.get("/gracias-por-participar", sendCompletionPage("audience.html"));
+app.get("/presentacion-finalizada", sendCompletionPage("screen.html"));
+app.get("/operacion-finalizada", sendCompletionPage("backstage.html"));
 
 
 function localDemoUrl(req, pathName) {
