@@ -14,9 +14,9 @@ const LOCAL_DEMO_MODE = String(process.env.IMMERSA_MODE || '').trim().toLowerCas
 function prepareLocalDemoHtml(html) {
   if (!LOCAL_DEMO_MODE) return html;
   return String(html || '')
-    .replace(/<link\\b[^>]*href=["']https:\\/\\/fonts\\.googleapis\\.com[^>]*>\\s*/gi, '')
-    .replace(/<link\\b[^>]*href=["']https:\\/\\/fonts\\.gstatic\\.com[^>]*>\\s*/gi, '')
-    .replace(/<script\\b[^>]*\\bsrc=(["'])https:\\/\\/cdn\\.jsdelivr\\.net\\/npm\\/qrcodejs@1\\.0\\.0\\/qrcode\\.min\\.js\\1[^>]*><\\/script>/gi, '<script src="/vendor/qrcode.js"></script>');
+    .replace(/<link\b[^>]*href=["']https:\/\/fonts\.googleapis\.com[^>]*>\s*/gi, '')
+    .replace(/<link\b[^>]*href=["']https:\/\/fonts\.gstatic\.com[^>]*>\s*/gi, '')
+    .replace(/<script\b[^>]*\bsrc=(["'])https:\/\/cdn\.jsdelivr\.net\/npm\/qrcodejs@1\.0\.0\/qrcode\.min\.js\1[^>]*><\/script>/gi, '<script src="/vendor/qrcode.js"></script>');
 }
 
 function randomTokenSuffix(length) {
