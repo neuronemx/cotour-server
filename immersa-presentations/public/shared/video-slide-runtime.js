@@ -35,6 +35,7 @@
   }
 
   function loadYouTubeApi(document) {
+    if (root.IMMERSA_LOCAL_MODE) return Promise.reject(new Error('YouTube is disabled in local demo mode'));
     if (root.YT?.Player) return Promise.resolve(root.YT);
     if (root.__immersaYouTubeApiPromise) return root.__immersaYouTubeApiPromise;
     root.__immersaYouTubeApiPromise = new Promise((resolve, reject) => {
