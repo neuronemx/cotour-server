@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   PUBLIC_PRICES_MXN,
+  PUBLIC_PRICES_USD,
   foundersOfferAvailable,
   resolveCatalogEntry,
   billingFlags,
@@ -22,7 +23,17 @@ const env = {
   STRIPE_SPEAKER_PRO_MONTHLY_PRICE_ID: "price_pro_month",
   STRIPE_SPEAKER_PRO_ANNUAL_PRICE_ID: "price_pro_year",
   STRIPE_FOUNDERS_SPEAKER_ANNUAL_COUPON_ID: "coupon_speaker_year",
-  STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_pro_year"
+  STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_pro_year",
+  STRIPE_SPEAKER_USD_MONTHLY_PRICE_ID: "price_speaker_usd_month",
+  STRIPE_SPEAKER_USD_ANNUAL_PRICE_ID: "price_speaker_usd_year",
+  STRIPE_SPEAKER_PRO_USD_MONTHLY_PRICE_ID: "price_pro_usd_month",
+  STRIPE_SPEAKER_PRO_USD_ANNUAL_PRICE_ID: "price_pro_usd_year",
+  STRIPE_FOUNDERS_SPEAKER_USD_ANNUAL_COUPON_ID: "coupon_speaker_usd_year",
+  STRIPE_FOUNDERS_SPEAKER_PRO_USD_ANNUAL_COUPON_ID: "coupon_pro_usd_year",
+  STRIPE_SPEAKER_7_DAY_PASS_PRICE_ID: "price_speaker_pass_mxn",
+  STRIPE_SPEAKER_PRO_7_DAY_PASS_PRICE_ID: "price_pro_pass_mxn",
+  STRIPE_SPEAKER_USD_7_DAY_PASS_PRICE_ID: "price_speaker_pass_usd",
+  STRIPE_SPEAKER_PRO_USD_7_DAY_PASS_PRICE_ID: "price_pro_pass_usd"
 };
 
 test("billing catalog freezes approved MXN tax-inclusive prices", () => {
@@ -32,6 +43,17 @@ test("billing catalog freezes approved MXN tax-inclusive prices", () => {
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 2499000, founders: 1999000 });
   assert.equal(PLAN_LIMITS.SPEAKER_PRO.audience, 300);
   assert.equal(publicCatalog(env, Date.parse("2026-09-01T12:00:00Z")).taxIncluded, true);
+});
+
+test("USD is a fixed Stripe catalogue, including the approved 7 Day Pass prices", () => {
+  assert.deepEqual(PUBLIC_PRICES_USD.SPEAKER.monthly, { official: 5900 });
+  assert.deepEqual(PUBLIC_PRICES_USD.SPEAKER_PRO.monthly, { official: 14900 });
+  assert.equal(publicCatalog(env).eventPass.plans.usd.SPEAKER, 4500);
+  assert.equal(publicCatalog(env).eventPass.plans.usd.SPEAKER_PRO, 11500);
+  assert.deepEqual(resolveCatalogEntry({ plan: "SPEAKER", interval: "monthly", currency: "usd", env }), {
+    plan: "SPEAKER", interval: "monthly", offer: "official", currency: "usd", unitAmount: 5900,
+    priceId: "price_speaker_usd_month", couponId: null
+  });
 });
 
 test("founders offer has an explicit deadline and exact coupon per plan and interval", () => {

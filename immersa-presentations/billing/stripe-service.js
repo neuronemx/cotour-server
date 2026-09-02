@@ -6,7 +6,7 @@ const {
   publicCatalog,
   resolveCatalogEntry,
   EVENT_PASS_DAYS,
-  EVENT_PASS_PRICES_MXN,
+  EVENT_PASS_PRICES,
   EVENT_PASS_PRICE_ENV_KEYS,
   PLAN_RANK,
   publicError
@@ -300,9 +300,11 @@ class StripeBillingService {
     const workspaceId = String(accountContext?.workspace?.id || "");
     if (!workspaceId) throw publicError("BILLING_ACCOUNT_REQUIRED", "Inicia sesión para contratar", 401);
     const plan = String(payload.plan || "").trim().toUpperCase();
-    if (!Object.prototype.hasOwnProperty.call(EVENT_PASS_PRICES_MXN, plan)) throw publicError("INVALID_EVENT_PASS_PLAN", "Selecciona SPEAKER o SPEAKER PRO");
-    const priceId = String(this.env[EVENT_PASS_PRICE_ENV_KEYS[plan]] || "").trim();
-    if (!priceId) throw new Error(`Missing Stripe event pass price for ${plan}`);
+    const currency = String(payload.currency || "mxn").trim().toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(EVENT_PASS_PRICES, currency)) throw publicError("INVALID_BILLING_CURRENCY", "Selecciona MXN o USD");
+    if (!Object.prototype.hasOwnProperty.call(EVENT_PASS_PRICES[currency], plan)) throw publicError("INVALID_EVENT_PASS_PLAN", "Selecciona SPEAKER o SPEAKER PRO");
+    const priceId = String(this.env[EVENT_PASS_PRICE_ENV_KEYS[currency][plan]] || "").trim();
+    if (!priceId) throw publicError("BILLING_CURRENCY_UNAVAILABLE", "Los precios en esta moneda todavía no están disponibles", 409);
     let customerId = await this.repository.getCustomer(workspaceId);
     if (!customerId) {
       const customer = await this.stripe.customers.create({
@@ -326,6 +328,7 @@ class StripeBillingService {
         immersa_checkout_attempt_id: attempt.id,
         immersa_event_pass: "7_day",
         immersa_pass_plan: plan,
+        immersa_currency: currency,
         immersa_price_id: priceId
       }
     }, { idempotencyKey: attempt.idempotencyKey });
@@ -422,6 +425,7 @@ class StripeBillingService {
   founderOfferForDiscount(discountId) {
     const current = String(discountId || "");
     return Object.values(FOUNDERS_COUPON_ENV_KEYS)
+      .flatMap((plans) => Object.values(plans))
       .flatMap((intervals) => Object.values(intervals))
       .some((key) => String(this.env[key] || "") === current)
       ? "founders"
@@ -538,8 +542,10 @@ class StripeBillingService {
     const offer = currentOffer === "founders" && requestedInterval === "monthly"
       ? "official"
       : currentOffer;
+    const currentCatalog = this.catalogForPrice(stripeId(subscription.items?.data?.[0]?.price));
     const target = resolveCatalogEntry({
       ...payload,
+      currency: currentCatalog?.currency || payload.currency || "mxn",
       offer,
       env: this.env,
       now: this.now(),
@@ -721,14 +727,17 @@ class StripeBillingService {
   }
 
   catalogForPrice(priceId) {
-    for (const [plan, intervals] of Object.entries(PRICE_ENV_KEYS)) {
-      for (const [interval, key] of Object.entries(intervals)) {
-        if (String(this.env[key] || "") === String(priceId)) {
-          return {
-            plan,
-            interval,
-            foundersCouponIds: Object.values(FOUNDERS_COUPON_ENV_KEYS[plan]).map((couponKey) => String(this.env[couponKey] || "")).filter(Boolean)
-          };
+    for (const [currency, plans] of Object.entries(PRICE_ENV_KEYS)) {
+      for (const [plan, intervals] of Object.entries(plans)) {
+        for (const [interval, key] of Object.entries(intervals)) {
+          if (String(this.env[key] || "") === String(priceId)) {
+            return {
+              plan,
+              interval,
+              currency,
+              foundersCouponIds: Object.values(FOUNDERS_COUPON_ENV_KEYS[currency][plan]).map((couponKey) => String(this.env[couponKey] || "")).filter(Boolean)
+            };
+          }
         }
       }
     }
