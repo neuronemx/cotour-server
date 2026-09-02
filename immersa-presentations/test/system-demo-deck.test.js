@@ -194,13 +194,12 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(badge, /manifest\?\.systemDemo\?\.role === "published"/);
   assert.match(badge, /Plan Gratis/);
   assert.match(badge, /Plan Speaker Pro/);
-  assert.match(badgeCss, /\.stream-area > \.immersa-demo-plan-badge \{ top: 56px; \}/);
-  assert.match(badgeCss, /left: 14px/);
+  assert.match(badgeCss, /\.stream-area > \.immersa-demo-plan-badge \{ top: 43px; left: 82px; transform: translateY\(-50%\); \}/);
   assert.match(badgeCss, /\.slide-viewport > \.immersa-demo-plan-badge/);
   assert.match(badgeCss, /safe-area-inset-top/);
   for (const target of ["presenter/index.html", "stage/index.html", "screen/index.html", "audience/index.html"]) {
     const source = fs.readFileSync(path.join(appDir, "public", target), "utf8");
-    assert.match(source, /demo-plan-badge\.css\?v=3/);
+    assert.match(source, /demo-plan-badge\.css\?v=4/);
     assert.match(source, /demo-plan-badge\.js\?v=2/);
   }
   assert.match(homeShell, /deck\?\.demoRole === "master" && !deck\?\.missing/);
@@ -211,6 +210,9 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   const publishRoute = server.slice(server.indexOf('app.post("\/api\/admin\/demo\/publish"'), server.indexOf('app.post("\/api\/access-links"'));
   assert.doesNotMatch(publishRoute, /assertDeckCanBeReplaced/);
   assert.match(presenter, /isPublishedDemo = roleOpenContext\.demo_role === "published" \|\| deckId === "immersa-demo"/);
+  assert.match(presenter, /deckHomeLink\.href = "\/home\?deck=" \+ encodeURIComponent\(deckId\)/);
+  assert.match(home, /window\.location\.assign\(url\)/);
+  assert.doesNotMatch(home, /window\.open\("about:blank", "_blank"\)/);
   assert.match(presenter, /games: !isPublishedDemo && planAllows\("games\.run"\)/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
