@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=65&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=66&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=8">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -51,26 +51,26 @@
   <link rel="stylesheet" href="/home/deck-management-shell.css?v=14">
 </head>
 <body>
+  <header class="stage-header">
+    <div class="stage-header-inner">
+      <a class="brand" href="/home" aria-label="Immersa Home"><picture><source media="(max-width: 700px) and (orientation: portrait)" srcset="/presenter/immersa-mark.png"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></picture></a>
+      <div class="stage-header-actions">
+        <button id="billingOpen" class="header-pill header-plans-button" type="button">Ver planes</button>
+        <div class="account-pill header-pill" id="planBadge" role="button" tabindex="0" aria-label="Mi cuenta" title="Mi cuenta" aria-expanded="false" aria-controls="planUsage">
+          <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true">M</span><span id="accountName" class="account-name">Mi cuenta</span></div>
+          <span class="header-divider" aria-hidden="true"></span>
+          <span id="accountPlanBadge" class="account-plan-badge" aria-hidden="true">FREE</span>
+          <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><div><span id="planUsageTitle">Uso de tu plan FREE</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><p id="planAccountIdentity" class="plan-account-identity">Mi cuenta</p><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><strong id="planAudienceLimit">Hasta 25</strong></div></div><p id="planPassStatus" class="plan-usage-pass" hidden></p></section>
+        </div>
+        <a id="adminAccountsLink" class="header-pill account-profile-button" href="/admin/accounts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"></path></svg><span>Administración</span></a>
+        <button id="profileButton" class="header-pill account-profile-button" type="button" title="Mi perfil" aria-label="Mi perfil"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"></path></svg><span>Mi perfil</span></button>
+        <button id="logoutButton" class="header-pill header-logout" type="button" title="Salir" aria-label="Salir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7M18 15l4-3-4-3M22 12H10"></path></svg><span>Salir</span></button>
+      </div>
+    </div>
+  </header>
   <section class="stage-canvas" id="inicio" aria-label="Inicio Immersa">
     <span class="orbit-ring r1" aria-hidden="true"></span><span class="orbit-ring r2" aria-hidden="true"></span><span class="orbit-ring r3" aria-hidden="true"></span>
     <div class="stage-inner">
-      <header class="stage-header">
-        <div class="stage-header-inner">
-          <a class="brand" href="/home" aria-label="Immersa Home"><picture><source media="(max-width: 700px) and (orientation: portrait)" srcset="/presenter/immersa-mark.png"><img class="brand-logo brand-logo-full" src="/home/Logo-Immersa.png?v=2" alt="IMMERSA"></picture></a>
-          <div class="stage-header-actions">
-            <button id="billingOpen" class="header-pill header-plans-button" type="button">Ver planes</button>
-            <div class="account-pill header-pill" id="planBadge" role="button" tabindex="0" aria-label="Mi cuenta" title="Mi cuenta" aria-expanded="false" aria-controls="planUsage">
-              <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true">M</span><span id="accountName" class="account-name">Mi cuenta</span></div>
-              <span class="header-divider" aria-hidden="true"></span>
-              <span id="accountPlanBadge" class="account-plan-badge" aria-hidden="true">FREE</span>
-              <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><div><span id="planUsageTitle">Uso de tu plan FREE</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><p id="planAccountIdentity" class="plan-account-identity">Mi cuenta</p><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><strong id="planAudienceLimit">Hasta 25</strong></div></div><p id="planPassStatus" class="plan-usage-pass" hidden></p></section>
-            </div>
-            <a id="adminAccountsLink" class="header-pill account-profile-button" href="/admin/accounts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"></path></svg><span>Administración</span></a>
-            <button id="profileButton" class="header-pill account-profile-button" type="button" title="Mi perfil" aria-label="Mi perfil"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"></path></svg><span>Mi perfil</span></button>
-            <button id="logoutButton" class="header-pill header-logout" type="button" title="Salir" aria-label="Salir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7M18 15l4-3-4-3M22 12H10"></path></svg><span>Salir</span></button>
-          </div>
-        </div>
-      </header>
       <div class="stage-copy">
         <p class="eyebrow">Bienvenido a Immersa</p>
         <h1 class="hero-title">Haz que tus presentaciones<br><span class="gradient-text">se vivan.</span></h1>
@@ -255,7 +255,7 @@
   <script src="/home/event-invitations.js?v=6"></script>
   <script src="/home/billing.js?v=13"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=70&ui=3"></script>
+  <script src="/home/home.js?v=71&ui=3"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
