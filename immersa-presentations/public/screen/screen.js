@@ -70,7 +70,7 @@ async function toggleFullscreen() {
   }
 }
 
-function makeQrPattern(text) { const grid = document.getElementById("qrPattern"); grid.innerHTML = ""; grid.classList.remove("qr-fallback"); document.getElementById("audienceUrl").textContent = text; if (!text) return; if (window.QRCode) { new window.QRCode(grid, { text, width: 188, height: 188, colorDark: "#111111", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M }); return; } grid.textContent = text; grid.classList.add("qr-fallback"); }
+function makeQrPattern(text) { const grid = document.getElementById("qrPattern"); grid.innerHTML = ""; grid.classList.remove("qr-fallback"); document.getElementById("audienceUrl").textContent = text; if (!text) return; if (window.QRCode) { new window.QRCode(grid, { text, width: 376, height: 376, colorDark: "#111111", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M }); return; } grid.textContent = text; grid.classList.add("qr-fallback"); }
 async function loadDeck() {
   const res = await fetch("/decks/" + encodeURIComponent(deckId) + "/manifest.json", { cache: "no-store" });
   if (!res.ok) throw new Error("Screen manifest unavailable (" + res.status + ")");
