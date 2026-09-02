@@ -39,7 +39,7 @@ function replacementPool({ currentBytes = 12, totalBytes = 20, nextBytes = 15 } 
   return { calls, nextBytes, pool: { async getConnection() { return connection; } } };
 }
 
-test("Replacing a Deck keeps its slot and atomically exchanges only original bytes", async () => {
+test("Replacing a Deck keeps its slot and atomically exchanges final storage bytes", async () => {
   const { pool, calls, nextBytes } = replacementPool();
   const repository = new WorkspaceRepository(pool);
   const result = await repository.replaceDeckSource({
@@ -129,6 +129,8 @@ test("Successful replacement preserves Deck configuration and flags structural c
   const manifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
   assert.equal(manifest.session_id, "s_abcdefghij");
   assert.equal(manifest.source.sizeBytes, 12);
+  assert.equal(manifest.source.filename, null);
+  await assert.rejects(fs.promises.stat(path.join(deckDir, "original.pdf")), { code: "ENOENT" });
   assert.match(manifest.slides[0].src, /^slides\/slide-1\.jpg\?v=[0-9a-f-]+$/);
   assert.match(manifest.slides[0].thumb, /^thumbs\/slide-1\.jpg\?v=[0-9a-f-]+$/);
 });
