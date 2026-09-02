@@ -85,6 +85,7 @@
 /* Cobros: compact commercial controls, centered as one visual row. */
 .billing-header p { display:none; }
 .billing-controls { justify-content:center; align-items:center; gap:12px; margin:24px 0 18px; }
+.billing-currency-segment button{min-width:58px}
 .billing-segment { align-items:center; padding:4px; border:1px solid #ecebf4; background:#f7f7fb; }
 .billing-segment button { min-height:34px; padding:0 14px; }
 .billing-segment button.is-active { color:#fff; background:linear-gradient(90deg,#8B5CF6,#3B82F6 55%,#22D3EE); box-shadow:0 6px 14px rgba(67,104,246,.18); }
