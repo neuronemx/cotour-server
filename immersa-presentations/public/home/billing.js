@@ -40,7 +40,7 @@
     style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100);
   const moneyMonthly = (centavos) => new Intl.NumberFormat(currency === "usd" ? "en-US" : "es-MX", {
-    style: "currency", currency: currency.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2
+    style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100 / 12);
   const date = (value) => value ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(value)) : "";
   const label = (plan) => String(plan || "FREE").replace(/_/g, " ");
