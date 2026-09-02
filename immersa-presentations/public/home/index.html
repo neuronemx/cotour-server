@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=63&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=64&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=8">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -63,7 +63,7 @@
               <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true">M</span><span id="accountName" class="account-name">Mi cuenta</span></div>
               <span class="header-divider" aria-hidden="true"></span>
               <span id="accountPlanBadge" class="account-plan-badge" aria-hidden="true">FREE</span>
-              <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><div><span id="planUsageTitle">Uso de tu plan FREE</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><strong id="planAudienceLimit">Hasta 25</strong></div></div></section>
+              <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><div class="plan-usage-head"><div><span id="planUsageTitle">Uso de tu plan FREE</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><strong id="planAudienceLimit">Hasta 25</strong></div></div><p id="planPassStatus" class="plan-usage-pass" hidden></p></section>
             </div>
             <a id="adminAccountsLink" class="header-pill account-profile-button" href="/admin/accounts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"></path></svg><span>Administración</span></a>
             <button id="profileButton" class="header-pill account-profile-button" type="button" title="Mi perfil" aria-label="Mi perfil"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"></path></svg><span>Mi perfil</span></button>
@@ -233,6 +233,7 @@
       </form>
       <div class="billing-controls">
         <div class="billing-segment" role="group" aria-label="Duración"><button type="button" data-billing-interval="week">7 días</button><button type="button" data-billing-interval="monthly">Mensual</button><button type="button" data-billing-interval="annual" class="is-active">Anual</button></div>
+        <div class="billing-segment billing-currency-segment" role="group" aria-label="Moneda"><button type="button" data-billing-currency="mxn" class="is-active">MXN</button><button type="button" data-billing-currency="usd">USD</button></div>
       </div>
       <div id="billingFounderPolicy" class="billing-founder-policy" hidden><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" aria-hidden="true"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg><span>Para quienes nos ayudan a despegar, los recompensamos con un beneficio especial Founders: <strong>20% de descuento en la membresía anual, para siempre.</strong> Contrata antes del 1 de noviembre y conserva este beneficio mientras mantengas activa tu suscripción.</span></div>
       <div id="billingPlans" class="billing-plans"></div>
@@ -252,9 +253,9 @@
   </div>
   <script src="/home/home-account.js?v=2"></script>
   <script src="/home/event-invitations.js?v=6"></script>
-  <script src="/home/billing.js?v=12"></script>
+  <script src="/home/billing.js?v=13"></script>
   <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=69&ui=3"></script>
+  <script src="/home/home.js?v=70&ui=3"></script>
   <script src="/home/basic-metrics.js?v=1"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
