@@ -26,7 +26,7 @@
 .immersa-demo-plan-badge[data-plan="SPEAKER"] { border-color: rgba(82, 143, 255, .66); }
 .immersa-demo-plan-badge[data-plan="SPEAKER_PRO"] { border-color: rgba(215, 84, 255, .7); }
 
-.stream-area > .immersa-demo-plan-badge { top: 56px; }
+.stream-area > .immersa-demo-plan-badge { top: 43px; left: 82px; transform: translateY(-50%); }
 .slide-viewport > .immersa-demo-plan-badge {
   top: max(64px, calc(env(safe-area-inset-top) + 50px));
   left: max(14px, env(safe-area-inset-left));
@@ -34,7 +34,7 @@
 
 @media (max-width: 700px) {
   .immersa-demo-plan-badge { top: 9px; left: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
-  .stream-area > .immersa-demo-plan-badge { top: 48px; left: 10px; }
+  .stream-area > .immersa-demo-plan-badge { top: 33px; left: 64px; }
   .slide-viewport > .immersa-demo-plan-badge {
     top: max(58px, calc(env(safe-area-inset-top) + 48px));
     left: max(10px, env(safe-area-inset-left));
@@ -46,4 +46,8 @@
     top: max(53px, calc(env(safe-area-inset-top) + 44px));
     left: max(9px, env(safe-area-inset-left));
   }
+}
+
+@media (orientation: landscape) and (max-height: 640px) {
+  .stream-area > .immersa-demo-plan-badge { top: 30px; left: 58px; }
 }
