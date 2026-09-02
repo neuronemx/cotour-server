@@ -46,7 +46,7 @@ async function withServer(app, operation) {
   }
 }
 
-test("FREE plan is frozen at 2 Decks and 50 MB of original uploads", () => {
+test("FREE plan is frozen at 2 Decks and 50 MB of final Deck storage", () => {
   assert.deepEqual(PLAN_LIMITS.FREE, { decks: 2, audience: 25, storageBytes: 50 * BYTES_PER_MEGABYTE });
   assert.deepEqual(summarizePlanUsage("free", { decks: "1", storageBytes: String(25 * BYTES_PER_MEGABYTE) }), {
     plan: "FREE",
@@ -63,7 +63,7 @@ test("SPEAKER and SPEAKER PRO use the approved Deck and storage limits", () => {
   assert.equal(summarizePlanUsage("speaker-pro", { decks: 14, storageBytes: 499 * BYTES_PER_MEGABYTE }).canCreateDeck, true);
 });
 
-test("Deck reservation locks the workspace and records original bytes atomically", async () => {
+test("Deck reservation locks the workspace before its final storage is known", async () => {
   const { pool, calls } = reservationPool({ deckCount: 1, storageBytes: 35 * BYTES_PER_MEGABYTE });
   const repository = new WorkspaceRepository(pool);
   const result = await repository.reserveDeck({
@@ -71,23 +71,22 @@ test("Deck reservation locks the workspace and records original bytes atomically
     workspaceId: "workspace-a",
     deckId: "deck-new",
     sessionId: "session-new",
-    sourceSizeBytes: 12 * BYTES_PER_MEGABYTE
+    sourceSizeBytes: 0
   });
 
   assert.equal(result.usage.decks, 2);
-  assert.equal(result.usage.storageBytes, 47 * BYTES_PER_MEGABYTE);
+  assert.equal(result.usage.storageBytes, 35 * BYTES_PER_MEGABYTE);
   const workspaceLock = calls.find((call) => /SELECT w\.id, w\.plan/.test(call.sql || ""));
   assert.match(workspaceLock.sql, /FOR UPDATE/);
   const insert = calls.find((call) => /INSERT INTO decks/.test(call.sql || ""));
-  assert.deepEqual(insert.params, ["deck-new", "workspace-a", "session-new", "user-a", 12 * BYTES_PER_MEGABYTE]);
+  assert.deepEqual(insert.params, ["deck-new", "workspace-a", "session-new", "user-a", 0]);
   assert.equal(calls.some((call) => call.kind === "commit"), true);
   assert.equal(calls.some((call) => call.kind === "rollback"), false);
 });
 
-test("Deck and storage limits reject reservations before the INSERT", async () => {
+test("Deck limits reject reservations before the conversion begins", async () => {
   for (const scenario of [
-    { deckCount: 2, storageBytes: 20, sourceSizeBytes: 1, code: "DECK_LIMIT_REACHED" },
-    { deckCount: 1, storageBytes: 49 * BYTES_PER_MEGABYTE, sourceSizeBytes: 2 * BYTES_PER_MEGABYTE, code: "STORAGE_LIMIT_REACHED" }
+    { deckCount: 2, storageBytes: 20, sourceSizeBytes: 0, code: "DECK_LIMIT_REACHED" }
   ]) {
     const { pool, calls } = reservationPool(scenario);
     const repository = new WorkspaceRepository(pool);
@@ -106,7 +105,7 @@ test("Deck and storage limits reject reservations before the INSERT", async () =
   }
 });
 
-test("Plan usage reads Deck count and original storage from the authenticated workspace", async () => {
+test("Plan usage reads Deck count and final storage from the authenticated workspace", async () => {
   const calls = [];
   const repository = new WorkspaceRepository({
     async execute(sql, params) {
@@ -122,7 +121,7 @@ test("Plan usage reads Deck count and original storage from the authenticated wo
   assert.match(calls[0].sql, /SUM\(d\.source_size_bytes\)/);
 });
 
-test("Legacy Decks can be backfilled exactly once from their original file size", async () => {
+test("Existing Decks can be recalculated from their final stored assets", async () => {
   const calls = [];
   const repository = new WorkspaceRepository({
     async execute(sql, params) {
@@ -132,16 +131,16 @@ test("Legacy Decks can be backfilled exactly once from their original file size"
     }
   });
 
-  assert.deepEqual(await repository.listUnmeteredDeckIds({ userId: "user-a", workspaceId: "workspace-a" }), ["legacy-a", "legacy-b"]);
+  assert.deepEqual(await repository.listDeckIdsForStorageSync({ userId: "user-a", workspaceId: "workspace-a" }), ["legacy-a", "legacy-b"]);
   assert.equal(await repository.setDeckSourceSize({
     userId: "user-a",
     workspaceId: "workspace-a",
     deckId: "legacy-a",
     sourceSizeBytes: 4096
   }), true);
-  assert.match(calls[0].sql, /source_size_bytes IS NULL/);
+  assert.doesNotMatch(calls[0].sql, /source_size_bytes IS NULL/);
   assert.match(calls[1].sql, /SET d\.source_size_bytes = \?/);
-  assert.match(calls[1].sql, /source_size_bytes IS NULL/);
+  assert.doesNotMatch(calls[1].sql, /source_size_bytes IS NULL/);
   assert.deepEqual(calls[1].params, [4096, "workspace-a", "legacy-a", "user-a"]);
 });
 
@@ -180,7 +179,7 @@ test("Upload returns the plan conflict before writing or converting a Deck", asy
   assert.deepEqual(await fs.promises.readdir(deckRoot), []);
 });
 
-test("Home exposes plan, Deck, and storage usage and blocks oversized uploads client-side", () => {
+test("Home exposes plan, Deck, and storage usage while the server validates converted assets", () => {
   const html = fs.readFileSync(path.join(appDir, "public", "home", "index.html"), "utf8");
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
@@ -194,7 +193,7 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(html, /id="planBadge"[^>]*aria-controls="planUsage"/);
   assert.ok(html.indexOf('id="uploadStatus"') < html.indexOf('id="planLimitMessage"'));
   assert.match(source, /fetch\("\/api\/account\/plan"/);
-  assert.match(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
+  assert.doesNotMatch(source, /file\.size[^\n]+planUsage\.remaining\?\.storageBytes/);
   assert.match(source, /fileInput\.disabled = Boolean\(blockedMessage\)/);
   assert.match(source, /planAudienceLimit\.textContent = "Hasta " \+ Math\.max/);
   assert.match(source, /classList\.toggle\("is-limit", atLimit\)/);
@@ -202,8 +201,9 @@ test("Home exposes plan, Deck, and storage usage and blocks oversized uploads cl
   assert.match(css, /\.drop-zone\.is-disabled/);
   assert.match(css, /\.stage-header \{[\s\S]*position:\s*fixed/);
   assert.match(server, /app\.get\("\/api\/account\/plan", requireAccount/);
-  assert.match(server, /synchronizeWorkspaceSourceSizes/);
+  assert.match(server, /synchronizeWorkspaceStorageSizes/);
   assert.match(server, /onDeckCreateStart:[^\n]+reserveUploadedDeck/);
+  assert.match(server, /onDeckCreateFinalized:[^\n]+replaceDeckSource/);
   assert.match(server, /canRegisterAudience\(session, requestedAudienceId, audienceLimit\)/);
   assert.match(server, /AUDIENCE_LIMIT_REACHED/);
 });
