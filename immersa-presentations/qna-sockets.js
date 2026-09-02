@@ -182,8 +182,10 @@ function createQnaSocketHandlers({
     });
 
     action("qna:panel_close", canControl, async (context) => {
-      const screen = screenRecord(context.presentationSessionId);
-      screen.visible = false;
+      // Closing Q&A is an explicit instruction to clear Screen. The persisted
+      // projection remains part of the Q&A history, but must never reopen
+      // itself when the controller returns to look for new questions.
+      screenState.set(String(context.presentationSessionId), { questionId: null, visible: false });
       const state = await repository.getActiveState(context.presentationSessionId);
       emitControllerState(context, state);
       emitScreenState(context, state);
@@ -191,12 +193,6 @@ function createQnaSocketHandlers({
 
     action("qna:panel_open", canControl, async (context) => {
       const state = await repository.getActiveState(context.presentationSessionId);
-      const screen = screenRecord(context.presentationSessionId);
-      if (!screen.questionId) {
-        const selected = state.questions.find((question) => question.id === state.selectedQuestionId);
-        if (selected?.answered) screen.questionId = selected.id;
-      }
-      screen.visible = Boolean(screen.questionId);
       emitControllerState(context, state);
       emitScreenState(context, state);
     });
