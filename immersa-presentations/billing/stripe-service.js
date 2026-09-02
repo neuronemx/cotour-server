@@ -319,7 +319,6 @@ class StripeBillingService {
       mode: "payment",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      custom_fields: CHECKOUT_CONTACT_FIELDS,
       phone_number_collection: { enabled: true },
       success_url: `${this.baseUrl}/home?billing=pass-success&checkout_session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.baseUrl}/home?billing=cancelled`,
