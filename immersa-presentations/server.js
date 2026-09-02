@@ -631,33 +631,49 @@ async function listDecks(allowedDeckIds = null) {
     .sort((a, b) => (b.sortTimestamp || 0) - (a.sortTimestamp || 0) || a.title.localeCompare(b.title));
 }
 
-async function sourceSizeForDeck(deckId) {
+async function directorySizeBytes(directory) {
+  let total = 0;
+  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) total += await directorySizeBytes(target);
+    else if (entry.isFile()) total += Number((await fs.promises.stat(target)).size || 0);
+  }
+  return total;
+}
+
+async function meteredStorageForDeck(deckId) {
   try {
     const deckDir = await findDeckDir(deckId);
-    const manifest = JSON.parse(await fs.promises.readFile(path.join(deckDir, "manifest.json"), "utf8"));
+    const manifestPath = path.join(deckDir, "manifest.json");
+    const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
     const sourceFilename = String(manifest.source?.filename || "").trim();
-    if (!sourceFilename || path.basename(sourceFilename) !== sourceFilename) return 0;
-    const stats = await fs.promises.stat(path.join(deckDir, sourceFilename));
-    return stats.isFile() ? Number(stats.size || 0) : 0;
+    const conversionCompleted = manifest.conversion?.status === "completed";
+    if (conversionCompleted && /^original\.(pdf|pptx)$/i.test(sourceFilename)) {
+      await fs.promises.rm(path.join(deckDir, sourceFilename), { force: true });
+      manifest.source = { ...(manifest.source || {}), filename: null };
+      await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    }
+    return directorySizeBytes(deckDir);
   } catch (error) {
     if (error.code === "ENOENT") return 0;
-    console.warn("Unable to measure original Deck file", deckId, error.message);
+    console.warn("Unable to measure Deck storage", deckId, error.message);
     return null;
   }
 }
 
-async function synchronizeWorkspaceSourceSizes(req) {
-  const deckIds = await betterAuthCompatibilityBridge.listUnmeteredDeckIds(req);
+async function synchronizeWorkspaceStorageSizes(req) {
+  const deckIds = await betterAuthCompatibilityBridge.listDeckIdsForStorageSync(req);
   await Promise.all(deckIds.map(async (deckId) => {
-    const sourceSizeBytes = await sourceSizeForDeck(deckId);
+    const sourceSizeBytes = await meteredStorageForDeck(deckId);
     if (sourceSizeBytes === null) return;
     await betterAuthCompatibilityBridge.setDeckSourceSize(req, deckId, sourceSizeBytes);
   }));
 }
 
 async function reserveUploadedDeck(req, deck) {
-  await synchronizeWorkspaceSourceSizes(req);
-  return betterAuthCompatibilityBridge.reserveDeck(req, deck);
+  await synchronizeWorkspaceStorageSizes(req);
+  return betterAuthCompatibilityBridge.reserveDeck(req, { ...deck, sourceSizeBytes: 0 });
 }
 
 function execFileAsync(command, args, options = {}) {
@@ -1646,7 +1662,7 @@ app.get("/api/decks", requireAccount, async (req, res) => {
 });
 app.get("/api/account/plan", requireAccount, async (req, res) => {
   try {
-    await synchronizeWorkspaceSourceSizes(req);
+    await synchronizeWorkspaceStorageSizes(req);
     res.json({
       ...await betterAuthCompatibilityBridge.getPlanUsage(req),
       admin: isImmersaAdmin(req.accountContext)
@@ -1839,6 +1855,7 @@ app.get("/api/conversion-health", async (_req, res) => {
 });
 app.post("/api/upload-pptx", requireAccount, requireAccountAdjustmentCleared, createUploadHandler({
   onDeckCreateStart: ({ req, deck }) => reserveUploadedDeck(req, deck),
+  onDeckCreateFinalized: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck),
   onDeckCreateFailed: ({ req, deck }) => betterAuthCompatibilityBridge.unregisterDeck(req, deck.deckId)
 }));
 app.get("/presenter", accessLinkHandlers.guardLegacyRoute("speaker", "presenter"), (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "presenter", "index.html")));
