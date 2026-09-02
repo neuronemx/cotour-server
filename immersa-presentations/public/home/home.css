@@ -943,3 +943,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .event-invitation-eyebrow { color:#6b48dc; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .event-invitation-action { display:grid; grid-template-columns:minmax(180px,260px) auto; gap:8px; align-items:center; }.event-invitation-action select { min-width:0; padding:10px; border:1px solid #d9dceb; border-radius:9px; background:#fff; font:inherit; }.event-invitation-action button { padding:10px 13px; border:0; border-radius:9px; background:#7057ff; color:#fff; font:inherit; font-weight:700; cursor:pointer; }.event-invitation-action small { grid-column:1 / -1; color:#69708a; }
 @media (max-width:700px) { .event-invitation-card { align-items:stretch; flex-direction:column; }.event-invitation-action { grid-template-columns:1fr; } }
+
+/* Temporary event-pass entitlement displayed in the account limits popover. */
+.plan-usage-pass { margin:14px 0 0; padding:9px 11px; border:1px solid rgba(59,130,246,.22); border-radius:10px; background:linear-gradient(90deg,rgba(139,92,246,.10),rgba(59,130,246,.10)); color:#35305a; font-size:12px; font-weight:700; line-height:1.35; }
+.plan-usage-pass[hidden] { display:none; }
