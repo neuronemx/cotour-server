@@ -30,11 +30,11 @@
   stroke: none;
 }
 .message { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(82vw, 980px); padding: 34px 42px; border-radius: 8px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.18); color: #f8f4ea; text-align: center; font-size: clamp(34px, 5vw, 72px); font-weight: 800; line-height: 1.08; backdrop-filter: blur(14px); box-shadow: 0 22px 90px rgba(0,0,0,.5); }
-.qr { position: fixed; z-index: 3; right: 32px; bottom: 32px; width: 220px; padding: 14px; display: grid; gap: 10px; border-radius: 8px; background: rgba(248,244,234,.94); color: #111; box-shadow: 0 18px 70px rgba(0,0,0,.38); }
+.qr { position: fixed; z-index: 3; right: 32px; bottom: 32px; width: min(440px, 50vw); padding: 20px; display: grid; gap: 12px; border-radius: 8px; background: rgba(248,244,234,.94); color: #111; box-shadow: 0 18px 70px rgba(0,0,0,.38); }
 .qr-pattern { width: 100%; aspect-ratio: 1; background: #fff; display: grid; place-items: center; overflow: hidden; }
 .qr-pattern canvas, .qr-pattern img { display: block; width: 100%; height: auto; }
 .qr-fallback { padding: 10px; color: #111; font-size: 11px; line-height: 1.25; text-align: center; word-break: break-all; }
-.qr strong { font-size: 18px; } .qr span { font-size: 11px; line-height: 1.35; word-break: break-all; color: #333; }
+.qr strong { font-size: 28px; } .qr span { font-size: 16px; line-height: 1.35; word-break: break-all; color: #333; }
 .reactions { pointer-events: none; position: fixed; z-index: 4; inset: 0; overflow: hidden; }
 .reaction { position: absolute; bottom: 42px; left: 50%; font-size: 54px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); animation: rise 3s ease-out forwards; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 0) scale(.8); } 12% { opacity: 1; } to { opacity: 0; transform: translate(calc(-50% + var(--x)), -62vh) scale(1.45); } }
@@ -71,4 +71,4 @@
 @keyframes raffleWinnerIn { from { transform: scale(.96); opacity: .72; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card { animation: none; } }
 @media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }
-@media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(210px, 44vw); } .qna-screen-overlay { padding: 5vw; } .qna-screen-card { width: 90vw; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; border-radius: 20px; } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
+@media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(360px, 52vw); padding:14px; } .qr strong { font-size:20px; } .qr span { font-size:12px; } .qna-screen-overlay { padding: 5vw; } .qna-screen-card { width: 90vw; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; border-radius: 20px; } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
