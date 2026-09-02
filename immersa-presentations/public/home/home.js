@@ -27,6 +27,7 @@ const planStorageUsage = document.getElementById("planStorageUsage");
 const planAudienceLimit = document.getElementById("planAudienceLimit");
 const planDeckBar = document.getElementById("planDeckBar");
 const planStorageBar = document.getElementById("planStorageBar");
+const planPassStatus = document.getElementById("planPassStatus");
 const planLimitMessage = document.getElementById("planLimitMessage");
 const deckTabParticipation = document.getElementById("deckTabParticipation");
 const deckTabMetrics = document.getElementById("deckTabMetrics");
@@ -222,7 +223,8 @@ function renderPlanUsage() {
   if (!planUsage) return;
   const plan = String(planUsage.plan || "FREE");
   if (accountPlanBadge) {
-    accountPlanBadge.textContent = planLabel(plan);
+    const passActive = Boolean(planUsage.eventPass?.endsAt && new Date(planUsage.eventPass.endsAt).getTime() > Date.now());
+    accountPlanBadge.textContent = planLabel(plan) + (passActive ? " · 7 DÍAS" : "");
     accountPlanBadge.classList.toggle("is-free", plan === "FREE");
     accountPlanBadge.classList.toggle("is-speaker", plan === "SPEAKER");
     accountPlanBadge.classList.toggle("is-pro", plan === "SPEAKER_PRO");
@@ -233,6 +235,12 @@ function renderPlanUsage() {
   if (planDeckUsage) planDeckUsage.textContent = planUsage.usage.decks + " de " + planUsage.limits.decks;
   if (planStorageUsage) planStorageUsage.textContent = storageLabel(planUsage.usage.storageBytes) + " de " + storageLabel(planUsage.limits.storageBytes);
   if (planAudienceLimit) planAudienceLimit.textContent = "Hasta " + Math.max(0, Number(planUsage.limits.audience) || 0) + " participantes simultáneos";
+  if (planPassStatus) {
+    const end = new Date(planUsage.eventPass?.endsAt || "").getTime();
+    const remaining = Number.isFinite(end) ? Math.max(0, Math.ceil((end - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
+    planPassStatus.hidden = remaining < 1;
+    planPassStatus.textContent = remaining === 1 ? "Acceso por 7 días · queda 1 día" : `Acceso por 7 días · quedan ${remaining} días`;
+  }
   if (planDeckBar) planDeckBar.style.width = percentage(planUsage.usage.decks, planUsage.limits.decks) + "%";
   if (planStorageBar) planStorageBar.style.width = percentage(planUsage.usage.storageBytes, planUsage.limits.storageBytes) + "%";
 
@@ -269,6 +277,8 @@ async function loadPlanUsage() {
       if (billingResponse.ok) {
         const billing = await billingResponse.json();
         planUsage.billingStatus = String(billing?.subscription?.status || "");
+        const pass = (billing?.grants || []).find((grant) => grant.origin === "event_pass" && (grant.ends_at || grant.endsAt));
+        planUsage.eventPass = pass ? { endsAt: pass.ends_at || pass.endsAt } : null;
       }
     } catch (_error) {
       planUsage.billingStatus = "";
