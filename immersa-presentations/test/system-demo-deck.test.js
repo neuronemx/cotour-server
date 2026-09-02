@@ -195,7 +195,8 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(badge, /Plan Gratis/);
   assert.match(badge, /Plan Speaker Pro/);
   assert.match(badgeCss, /\.stream-area > \.immersa-demo-plan-badge \{ top: 43px; left: 82px; transform: translateY\(-50%\); \}/);
-  assert.match(badgeCss, /\.slide-viewport > \.immersa-demo-plan-badge/);
+  assert.match(badgeCss, /\.audience \.slide-viewport > \.immersa-demo-plan-badge/);
+  assert.match(badgeCss, /left: max\(82px, calc\(env\(safe-area-inset-left\) \+ 68px\)\)/);
   assert.match(badgeCss, /safe-area-inset-top/);
   for (const target of ["presenter/index.html", "stage/index.html", "screen/index.html", "audience/index.html"]) {
     const source = fs.readFileSync(path.join(appDir, "public", target), "utf8");
