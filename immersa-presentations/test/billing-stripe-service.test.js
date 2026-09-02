@@ -116,6 +116,14 @@ function setup(overrides = {}) {
     STRIPE_FOUNDERS_SPEAKER_PRO_ANNUAL_COUPON_ID: "coupon_py",
     STRIPE_SPEAKER_7_DAY_PASS_PRICE_ID: "price_speaker_pass",
     STRIPE_SPEAKER_PRO_7_DAY_PASS_PRICE_ID: "price_pro_pass",
+    STRIPE_SPEAKER_USD_MONTHLY_PRICE_ID: "price_speaker_usd_month",
+    STRIPE_SPEAKER_USD_ANNUAL_PRICE_ID: "price_speaker_usd_year",
+    STRIPE_SPEAKER_PRO_USD_MONTHLY_PRICE_ID: "price_pro_usd_month",
+    STRIPE_SPEAKER_PRO_USD_ANNUAL_PRICE_ID: "price_pro_usd_year",
+    STRIPE_FOUNDERS_SPEAKER_USD_ANNUAL_COUPON_ID: "coupon_speaker_usd_year",
+    STRIPE_FOUNDERS_SPEAKER_PRO_USD_ANNUAL_COUPON_ID: "coupon_pro_usd_year",
+    STRIPE_SPEAKER_USD_7_DAY_PASS_PRICE_ID: "price_speaker_pass_usd",
+    STRIPE_SPEAKER_PRO_USD_7_DAY_PASS_PRICE_ID: "price_pro_pass_usd",
     BETTER_AUTH_URL: "https://app.immersalive.com"
   };
   const service = new StripeBillingService({
@@ -155,6 +163,23 @@ test("Checkout resolves price and discount only from server configuration", asyn
   assert.deepEqual(checkout.phone_number_collection, { enabled: true });
   assert.equal(checkout.metadata.immersa_workspace_id, "workspace-1");
   assert.equal(JSON.stringify(checkout).includes("evil"), false);
+});
+
+test("USD Checkout uses only the configured USD Stripe price", async () => {
+  const { service, calls } = setup();
+  await service.createCheckout({ workspace: { id: "workspace-1" }, user: {} }, {
+    plan: "SPEAKER", interval: "monthly", currency: "usd", offer: "official"
+  });
+  assert.equal(calls.find(([name]) => name === "checkout")[1].line_items[0].price, "price_speaker_usd_month");
+});
+
+test("USD 7 Day Pass charges its own fixed USD price", async () => {
+  const { service, calls } = setup();
+  await service.createEventPassCheckout({ workspace: { id: "workspace-1" }, user: {} }, { plan: "SPEAKER_PRO", currency: "usd" });
+  const checkout = calls.find(([name]) => name === "checkout")[1];
+  assert.equal(checkout.line_items[0].price, "price_pro_pass_usd");
+  assert.equal(checkout.metadata.immersa_currency, "usd");
+  assert.equal(Object.hasOwn(checkout, "custom_fields"), false);
 });
 
 test("Checkout replaces a stored Stripe customer that was deleted from the test environment", async () => {
