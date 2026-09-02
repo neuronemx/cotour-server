@@ -192,11 +192,16 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(home, /\/api\/admin\/demo\/slides\//);
   assert.match(home, /\/api\/admin\/demo\/publish/);
   assert.match(badge, /manifest\?\.systemDemo\?\.role === "published"/);
+  assert.match(badge, /Plan Gratis/);
+  assert.match(badge, /Plan Speaker Pro/);
   assert.match(badgeCss, /\.stream-area > \.immersa-demo-plan-badge \{ top: 56px; \}/);
+  assert.match(badgeCss, /left: 14px/);
   assert.match(badgeCss, /\.slide-viewport > \.immersa-demo-plan-badge/);
   assert.match(badgeCss, /safe-area-inset-top/);
   for (const target of ["presenter/index.html", "stage/index.html", "screen/index.html", "audience/index.html"]) {
-    assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /demo-plan-badge\.css\?v=2/);
+    const source = fs.readFileSync(path.join(appDir, "public", target), "utf8");
+    assert.match(source, /demo-plan-badge\.css\?v=3/);
+    assert.match(source, /demo-plan-badge\.js\?v=2/);
   }
   assert.match(homeShell, /deck\?\.demoRole === "master" && !deck\?\.missing/);
   assert.match(homeShell, /participationTab\.disabled = !enabled/);
