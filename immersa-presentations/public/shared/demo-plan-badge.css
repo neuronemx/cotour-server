@@ -1,7 +1,7 @@
 .immersa-demo-plan-badge {
   position: absolute;
   top: 14px;
-  right: 14px;
+  left: 14px;
   z-index: 18;
   display: inline-flex;
   align-items: center;
@@ -29,21 +29,21 @@
 .stream-area > .immersa-demo-plan-badge { top: 56px; }
 .slide-viewport > .immersa-demo-plan-badge {
   top: max(64px, calc(env(safe-area-inset-top) + 50px));
-  right: max(14px, env(safe-area-inset-right));
+  left: max(14px, env(safe-area-inset-left));
 }
 
 @media (max-width: 700px) {
-  .immersa-demo-plan-badge { top: 9px; right: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
-  .stream-area > .immersa-demo-plan-badge { top: 48px; right: 10px; }
+  .immersa-demo-plan-badge { top: 9px; left: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
+  .stream-area > .immersa-demo-plan-badge { top: 48px; left: 10px; }
   .slide-viewport > .immersa-demo-plan-badge {
     top: max(58px, calc(env(safe-area-inset-top) + 48px));
-    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
   }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .slide-viewport > .immersa-demo-plan-badge {
     top: max(53px, calc(env(safe-area-inset-top) + 44px));
-    right: max(9px, env(safe-area-inset-right));
+    left: max(9px, env(safe-area-inset-left));
   }
 }
