@@ -327,6 +327,23 @@ async function convertDeckPdf({ deckDir, pdfPath, manifest }) {
   return convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType: 'pdf', sourceFilename: 'original.pdf', titlePrefix: 'Pagina', ratio: 'mixed' });
 }
 
+async function directorySizeBytes(directory) {
+  let total = 0;
+  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) total += await directorySizeBytes(target);
+    else if (entry.isFile()) total += Number((await fs.promises.stat(target)).size || 0);
+  }
+  return total;
+}
+
+async function discardConvertedSource(deckDir, sourceFilename) {
+  const filename = String(sourceFilename || "");
+  if (!/^original\.(pdf|pptx)$/i.test(filename)) return;
+  await fs.promises.rm(path.join(deckDir, filename), { force: true });
+}
+
 function createUploadHandler(options = {}) {
   const multer = require('multer');
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -387,7 +404,8 @@ function createUploadHandler(options = {}) {
           manifest = sourceType === 'pdf'
             ? await convertDeckPdf({ deckDir, pdfPath: originalPath, manifest })
             : await convertDeckPptx({ deckDir, pptxPath: originalPath, manifest });
-          manifest.source = { ...(manifest.source || {}), type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes };
+          await discardConvertedSource(deckDir, sourceFilename);
+          manifest.source = { ...(manifest.source || {}), type: sourceType, filename: null, sizeBytes: sourceSizeBytes };
         } catch (conversionError) {
           await fs.promises.rm(path.join(DATA_TMP_DIR, deckId), { recursive: true, force: true });
           manifest.status = 'conversion_failed';
@@ -399,6 +417,10 @@ function createUploadHandler(options = {}) {
         }
 
         manifest = await writeManifest(deckDir, manifest, session_id);
+        const meteredStorageBytes = await directorySizeBytes(deckDir);
+        if (options.onDeckCreateFinalized) {
+          await options.onDeckCreateFinalized({ req, manifest, deck: { deckId, session_id, sourceSizeBytes: meteredStorageBytes } });
+        }
         const summary = manifestSummary(manifest);
         if (!options.onDeckCreateStart && options.onDeckCreated) {
           try {
@@ -469,8 +491,6 @@ async function buildReplacementDirectory({ deckDir, stageDir, nextDir, manifest 
   }
   await fs.promises.cp(path.join(stageDir, 'slides'), path.join(nextDir, 'slides'), { recursive: true });
   await fs.promises.cp(path.join(stageDir, 'thumbs'), path.join(nextDir, 'thumbs'), { recursive: true });
-  const sourceFilename = manifest.source.filename;
-  await fs.promises.copyFile(path.join(stageDir, sourceFilename), path.join(nextDir, sourceFilename));
   await writeManifest(nextDir, manifest, manifestSessionId(manifest));
 }
 
@@ -540,7 +560,8 @@ function createDeckReplacementHandler(options = {}) {
           nextManifest = sourceType === 'pdf'
             ? await convertPdf({ deckDir: stageDir, pdfPath: originalPath, manifest: nextManifest })
             : await convertPptx({ deckDir: stageDir, pptxPath: originalPath, manifest: nextManifest });
-          nextManifest.source = { ...(nextManifest.source || {}), type: sourceType, filename: sourceFilename, sizeBytes: sourceSizeBytes };
+          await discardConvertedSource(stageDir, sourceFilename);
+          nextManifest.source = { ...(nextManifest.source || {}), type: sourceType, filename: null, sizeBytes: sourceSizeBytes };
         } catch (conversionError) {
           throw replacementError(422, conversionError.message || 'La conversión no pudo completarse', 'CONVERSION_FAILED');
         }
@@ -556,14 +577,15 @@ function createDeckReplacementHandler(options = {}) {
           reviewedAt: associationsReviewRequired ? null : new Date().toISOString()
         };
 
-        if (options.beforeDeckSwap) await options.beforeDeckSwap({ req, deck: { deckId, sourceSizeBytes }, manifest: nextManifest });
         await buildReplacementDirectory({ deckDir, stageDir, nextDir, manifest: nextManifest });
+        const meteredStorageBytes = await directorySizeBytes(nextDir);
+        if (options.beforeDeckSwap) await options.beforeDeckSwap({ req, deck: { deckId, sourceSizeBytes: meteredStorageBytes }, manifest: nextManifest });
         await moveReplacementIntoPlace({ deckDir, nextDir, backupDir });
         swapped = true;
 
         let plan = null;
         if (options.onDeckReplaced) {
-          const result = await options.onDeckReplaced({ req, deck: { deckId, sourceSizeBytes }, manifest: nextManifest });
+          const result = await options.onDeckReplaced({ req, deck: { deckId, sourceSizeBytes: meteredStorageBytes }, manifest: nextManifest });
           plan = result?.plan || result || null;
         }
 
@@ -609,5 +631,6 @@ module.exports = {
   createDeckReplacementHandler,
   convertDeckPdf,
   convertDeckPptx,
-  convertPdfToSlides
+  convertPdfToSlides,
+  directorySizeBytes
 };
