@@ -27,18 +27,20 @@
   const secondaryLinks = document.querySelector(".billing-secondary-links");
 
   const intervalButtons = [...document.querySelectorAll("[data-billing-interval]")];
+  const currencyButtons = [...document.querySelectorAll("[data-billing-currency]")];
   let state = null;
   let interval = "annual";
+  let currency = "mxn";
   const isEventPass = () => interval === "week";
   let invoices = [];
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
 
-  const money = (centavos) => new Intl.NumberFormat("es-MX", {
-    style: "currency", currency: "MXN", maximumFractionDigits: 0
+  const money = (centavos) => new Intl.NumberFormat(currency === "usd" ? "en-US" : "es-MX", {
+    style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100);
-  const moneyMonthly = (centavos) => new Intl.NumberFormat("es-MX", {
-    style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2
+  const moneyMonthly = (centavos) => new Intl.NumberFormat(currency === "usd" ? "en-US" : "es-MX", {
+    style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100 / 12);
   const date = (value) => value ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(value)) : "";
   const label = (plan) => String(plan || "FREE").replace(/_/g, " ");
@@ -75,6 +77,10 @@
     return state?.foundersAvailable && interval === "annual" ? "founders" : "official";
   }
 
+  function currencyAvailable(code = currency) {
+    return Boolean(state?.currencies?.find((entry) => String(entry.code).toLowerCase() === code)?.available);
+  }
+
   function closePlanChangeConfirmation() {
     pendingPlanChange = null;
     if (changeConfirm) changeConfirm.hidden = true;
@@ -98,7 +104,7 @@
 
   function openPlanChangeConfirmation(plan, button) {
     if (!state?.subscription || !changeConfirm) return;
-    const amount = state.plans?.[plan]?.[interval]?.[selectedOffer()];
+    const amount = state.plans?.[currency]?.[plan]?.[interval]?.[selectedOffer()];
     const period = interval === "annual" ? "Anual" : "Mensual";
     const timing = planChangeTiming(plan);
     pendingPlanChange = { plan, button };
@@ -173,7 +179,13 @@
       invoiceForm.hidden = true;
       cancelOpenButton.hidden = true;
     }
-    intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !state.eventPass?.available; });
+    intervalButtons.forEach((button) => { button.disabled = button.dataset.billingInterval === "week" && !currencyAvailable(); });
+    currencyButtons.forEach((button) => {
+      const available = currencyAvailable(button.dataset.billingCurrency);
+      button.disabled = !available;
+      button.hidden = !available && button.dataset.billingCurrency !== "mxn";
+      button.classList.toggle("is-active", button.dataset.billingCurrency === currency);
+    });
     if (founderPolicy) {
       const founderVisible = Boolean(state.foundersAvailable && interval === "annual");
       founderPolicy.hidden = !founderVisible;
@@ -193,10 +205,11 @@
     for (const plan of ["SPEAKER", "SPEAKER_PRO"]) {
       const card = document.createElement("article");
       card.className = "billing-plan" + (plan === "SPEAKER_PRO" ? " is-pro" : "");
-      const amount = isEventPass() ? state.eventPass?.plans?.[plan] : state.plans?.[plan]?.[interval]?.[selectedOffer()];
-      const annualAmount = state.plans?.[plan]?.annual?.[selectedOffer()];
-      const annualOfficialAmount = state.plans?.[plan]?.annual?.official;
-      const monthlyAmount = state.plans?.[plan]?.monthly?.official;
+      const prices = state.plans?.[currency]?.[plan];
+      const amount = isEventPass() ? state.eventPass?.plans?.[currency]?.[plan] : prices?.[interval]?.[selectedOffer()];
+      const annualAmount = prices?.annual?.[selectedOffer()];
+      const annualOfficialAmount = prices?.annual?.official;
+      const monthlyAmount = prices?.monthly?.official;
       const activeGrant = isEventPass() ? state.grants?.find((grant) => grant.origin === "event_pass" && grant.plan === plan) : null;
       const passActive = Boolean(activeGrant);
       const active = !isEventPass() && subscription && subscription.plan === plan && subscription.interval === interval;
@@ -230,7 +243,7 @@
       const passTimingMarkup = passActive ? `<small class="billing-pass-remaining" data-pass-ends-at="${activeGrant.ends_at || activeGrant.endsAt || ""}">Acceso por 7 días · calculando tiempo restante…</small>` : "";
       card.innerHTML = `${badgeMarkup}<div class="billing-plan-description">${description}</div><h3 class="billing-plan-name"><span class="billing-tier-dot ${plan === "SPEAKER_PRO" ? "pro" : "speaker"}"></span>${label(plan)}</h3><div class="billing-price-block">${priceMarkup}${savingsMarkup}</div><ul class="billing-features">${featureMarkup}</ul><button type="button">${actionLabel}</button>${passTimingMarkup}${statusMarkup}`;
       const button = card.querySelector("button");
-      button.disabled = passActive || active || (!active && !state.checkoutEnabled);
+      button.disabled = passActive || active || (!active && (!state.checkoutEnabled || !currencyAvailable()));
       button.classList.toggle("is-current", Boolean(active));
       button.classList.toggle("is-pass-active", passActive);
       button.addEventListener("click", () => {
@@ -282,7 +295,7 @@
     try {
       const response = await fetch("/api/billing/checkout", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval, offer: selectedOffer() })
+        body: JSON.stringify({ plan, interval, currency, offer: selectedOffer() })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pago");
@@ -298,7 +311,7 @@
     button.disabled = true;
     showNotice("Preparando tu 7 Day Pass…", "pending");
     try {
-      const response = await fetch("/api/billing/event-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan }) });
+      const response = await fetch("/api/billing/event-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, currency }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pase");
       window.location.assign(data.url);
@@ -538,6 +551,11 @@
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;
     intervalButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    render();
+  }));
+  currencyButtons.forEach((button) => button.addEventListener("click", () => {
+    if (button.disabled) return;
+    currency = button.dataset.billingCurrency;
     render();
   }));
   portalButton?.addEventListener("click", openPortal);
