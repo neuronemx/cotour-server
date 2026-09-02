@@ -111,6 +111,14 @@ test("Home uses the compact IMMERSA mark in portrait mobile", () => {
   assert.match(css, /\.account-pill \{ max-width: calc\(100% - 56px\); \}/);
 });
 
+test("Home header remains outside the overlapping upload shell and Speaker stays in the same tab", () => {
+  const html = read("public/home/index.html");
+  const source = read("public/home/home.js");
+  assert.match(html, /<body>\s*<header class="stage-header">[\s\S]*?<section class="stage-canvas"/);
+  assert.match(source, /window\.location\.assign\(url\)/);
+  assert.doesNotMatch(source, /window\.open\("about:blank", "_blank"\)/);
+});
+
 test("Deck detail provides visual slide navigation and direct video editing without changing the show", () => {
   const html = read("public/home/index.html");
   const source = read("public/home/home.js");
@@ -166,15 +174,13 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(html, /video-editor\.js\?v=113/);
 });
 
-test("Deck access actions keep iPhone Speaker tabs and provide a clipboard fallback", () => {
+test("Deck access actions open Speaker in the current tab and provide a clipboard fallback", () => {
   const source = read("public/home/home.js");
 
-  assert.match(source, /speakerWindow = window\.open\("about:blank", "_blank"\)/);
-  assert.match(source, /speakerWindow\.location\.replace\(url\)/);
-  assert.match(source, /speakerWindow\.opener = null/);
+  assert.match(source, /window\.location\.assign\(url\)/);
   assert.match(source, /document\.execCommand\("copy"\)/);
   assert.match(source, /window\.prompt\("Copia este link:", value\)/);
-  assert.doesNotMatch(source, /window\.open\(url, "_blank"/);
+  assert.doesNotMatch(source, /window\.open\("about:blank", "_blank"\)/);
   assert.doesNotMatch(source, /setUploadStatus\("Error: " \+ \(error\.message \|\| "No se pudo generar el link/);
 });
 
