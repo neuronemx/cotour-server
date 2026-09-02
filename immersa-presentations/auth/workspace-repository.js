@@ -328,7 +328,7 @@ class WorkspaceRepository {
        FROM decks d
        INNER JOIN workspace_members wm ON wm.workspace_id = d.workspace_id
        WHERE d.workspace_id = ?
-         AND wm.user_id = ?
+         AND wm.user_id = ?`,
       [String(workspaceId), String(userId)]
     );
     return (rows || []).map((row) => String(row.deck_id));
@@ -342,7 +342,7 @@ class WorkspaceRepository {
        SET d.source_size_bytes = ?
        WHERE d.workspace_id = ?
          AND d.deck_id = ?
-         AND wm.user_id = ?
+         AND wm.user_id = ?`,
       [bytes, String(workspaceId), String(deckId), String(userId)]
     );
     return Number(result?.affectedRows || 0) > 0;
