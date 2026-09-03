@@ -91,7 +91,7 @@
     return defaultMediaState(item, slideIndex);
   }
 
-  function playbackForcedMuted(playback, slideIndex) {
+  // Audio activation is a Screen-level user permission. When Speaker jumps\n  // directly to another video, keep that permission instead of returning to\n  // the slide's authored muted default.\n  function shouldKeepAudioUnlocked(playback) {\n    return Boolean(playback)\n      && playback.forced_muted !== true\n      && playback.muted === false;\n  }\n\n  function initialMediaMuted(item, previousPlayback) {\n    return Boolean(item?.muted) && !shouldKeepAudioUnlocked(previousPlayback);\n  }\n\n  function playbackForcedMuted(playback, slideIndex) {
     return Boolean(playback?.forced_muted)
       && Number(playback?.slide_index) === Number(slideIndex);
   }
@@ -761,7 +761,7 @@
       emitMedia({
         command: 'restart',
         playing: item.autoplay !== false,
-        muted: Boolean(item.muted)
+        muted: initialMediaMuted(item, screenPlayback)
       });
     }
 
@@ -870,6 +870,8 @@
     loadYouTubeApi,
     defaultMediaState,
     effectiveMediaState,
+    shouldKeepAudioUnlocked,
+    initialMediaMuted,
     playbackForcedMuted,
     mediaControlMuted,
     muteControlPatch,
