@@ -21,6 +21,17 @@
   }
 
   avatarImage?.addEventListener("error", () => showAvatar(label?.textContent || "M"));
+
+  async function uploadedProfilePhoto() {
+    try {
+      const response = await fetch("/api/account/profile", { cache: "no-store" });
+      const profile = response.ok ? await response.json() : null;
+      return profile?.hasUploadedPhoto ? String(profile.photoUrl || "").trim() : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
   try {
     const response = await fetch("/api/auth/get-session");
     const session = response.ok ? await response.json() : null;
@@ -30,7 +41,8 @@
     }
     const display = String(session.user.name || session.user.email || "Mi cuenta").trim();
     if (label) label.textContent = display;
-    showAvatar(display, String(session.user.image || "").trim());
+    const googleImage = String(session.user.image || "").trim();
+    showAvatar(display, googleImage || await uploadedProfilePhoto());
     if (identity) identity.textContent = session.user.name && session.user.email
       ? `${session.user.name} · ${session.user.email}`
       : display;
