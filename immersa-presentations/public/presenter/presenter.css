@@ -373,6 +373,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   object-fit: cover;
   filter: drop-shadow(0 0 11px rgba(104,216,204,.24));
 }
+.brand-lockup:focus-visible { outline: 2px solid rgba(126,240,255,.9); outline-offset: 3px; }
 .thumbs {
   grid-auto-columns: minmax(82px, 116px);
   gap: 10px;
