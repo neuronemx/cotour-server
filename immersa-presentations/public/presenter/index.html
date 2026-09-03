@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/presenter/presenter.css">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
-  <link rel="stylesheet" href="/shared/demo-plan-badge.css?v=2">
+  <link rel="stylesheet" href="/shared/demo-plan-badge.css?v=4">
   <link rel="stylesheet" href="/shared/live-text-control.css?v=2">
   <link rel="stylesheet" href="/presenter/mobile-controls-tuning.css">
   <link rel="stylesheet" href="/shared/interactions.css?v=4">
@@ -28,9 +28,9 @@
     <p id="deckNotice" class="deck-notice" hidden>Esta presentación aún no ha sido convertida. Verás una pantalla provisional.</p>
 
     <section class="stream-area">
-      <div class="brand-lockup" aria-label="Immersa">
+      <a id="deckHomeLink" class="brand-lockup" href="/home" aria-label="Ir al Home de esta presentación" title="Ir al Home de esta presentación">
         <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
-      </div>
+      </a>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
@@ -127,7 +127,7 @@
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js?v=3"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>
-  <script src="/shared/demo-plan-badge.js?v=1"></script>
-  <script src="/presenter/presenter.js?v=14"></script>
+  <script src="/shared/demo-plan-badge.js?v=2"></script>
+  <script src="/presenter/presenter.js?v=15"></script>
 </body>
 </html>
