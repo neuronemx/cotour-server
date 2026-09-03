@@ -1,7 +1,7 @@
 .immersa-demo-plan-badge {
   position: absolute;
   top: 14px;
-  right: 14px;
+  left: 14px;
   z-index: 18;
   display: inline-flex;
   align-items: center;
@@ -26,24 +26,32 @@
 .immersa-demo-plan-badge[data-plan="SPEAKER"] { border-color: rgba(82, 143, 255, .66); }
 .immersa-demo-plan-badge[data-plan="SPEAKER_PRO"] { border-color: rgba(215, 84, 255, .7); }
 
-.stream-area > .immersa-demo-plan-badge { top: 56px; }
-.slide-viewport > .immersa-demo-plan-badge {
-  top: max(64px, calc(env(safe-area-inset-top) + 50px));
-  right: max(14px, env(safe-area-inset-right));
+.stream-area > .immersa-demo-plan-badge { top: 43px; left: 82px; transform: translateY(-50%); }
+.audience .slide-viewport > .immersa-demo-plan-badge {
+  top: max(43px, calc(env(safe-area-inset-top) + 29px));
+  left: max(82px, calc(env(safe-area-inset-left) + 68px));
+  transform: translateY(-50%);
 }
 
 @media (max-width: 700px) {
-  .immersa-demo-plan-badge { top: 9px; right: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
-  .stream-area > .immersa-demo-plan-badge { top: 48px; right: 10px; }
-  .slide-viewport > .immersa-demo-plan-badge {
-    top: max(58px, calc(env(safe-area-inset-top) + 48px));
-    right: max(10px, env(safe-area-inset-right));
+  .immersa-demo-plan-badge { top: 9px; left: 9px; min-height: 24px; padding: 0 9px; font-size: 8px; }
+  .stream-area > .immersa-demo-plan-badge { top: 33px; left: 64px; }
+}
+
+@media (max-width: 520px) {
+  .audience .slide-viewport > .immersa-demo-plan-badge {
+    top: max(30px, calc(env(safe-area-inset-top) + 20px));
+    left: max(58px, calc(env(safe-area-inset-left) + 48px));
   }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .slide-viewport > .immersa-demo-plan-badge {
-    top: max(53px, calc(env(safe-area-inset-top) + 44px));
-    right: max(9px, env(safe-area-inset-right));
+  .audience .slide-viewport > .immersa-demo-plan-badge {
+    top: max(27px, calc(env(safe-area-inset-top) + 18px));
+    left: max(52px, calc(env(safe-area-inset-left) + 43px));
   }
+}
+
+@media (orientation: landscape) and (max-height: 640px) {
+  .stream-area > .immersa-demo-plan-badge { top: 30px; left: 58px; }
 }

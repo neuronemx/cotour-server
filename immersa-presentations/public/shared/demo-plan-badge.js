@@ -1,5 +1,5 @@
 (function installDemoPlanBadge(global) {
-  const labels = { FREE: "FREE", SPEAKER: "SPEAKER", SPEAKER_PRO: "SPEAKER PRO" };
+  const labels = { FREE: "Plan Gratis", SPEAKER: "Plan Speaker", SPEAKER_PRO: "Plan Speaker Pro" };
 
   function update(root, slide, manifest) {
     if (!root) return;

@@ -111,7 +111,7 @@
       card.dataset.questionId = question.id;
 
       const meta = element("div", "qna-question-meta");
-      meta.appendChild(element("span", question.answered ? "is-answered" : "is-pending", question.answered ? "Respondida" : "Nueva"));
+      meta.appendChild(element("span", question.answered ? "is-answered" : "is-pending", question.answered ? "Proyectada" : "Nueva"));
       if (selected) meta.appendChild(element("span", "is-selected", "Seleccionada"));
 
       const questionText = element("p", "qna-question-text", question.text);

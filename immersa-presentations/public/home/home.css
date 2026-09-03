@@ -875,7 +875,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .stage-header .account-pill.is-billing-alert { border-color:rgba(255,116,140,.95); box-shadow:0 0 0 1px rgba(255,116,140,.55), 0 0 18px rgba(255,75,110,.28); }
 
 /* Header y carga: el header y su panel de uso siempre quedan por encima del Upload. */
-.stage-header { isolation:isolate; z-index:1000; }
+.stage-header { isolation:isolate; z-index:2147483000; }
 .stage-header .account-pill { position:relative; z-index:1001; background:rgba(10,11,38,.88); }
 .stage-header .account-pill:hover { background:rgba(10,11,38,.96); }
 .stage-header .account-zone { display:flex; align-items:center; justify-content:center; height:100%; }
@@ -897,6 +897,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .stage-header #planUsage .plan-usage-metric span { color:rgba(23,19,47,.68); }
 .stage-header #planUsage .plan-usage-head strong,
 .stage-header #planUsage .plan-usage-metric strong { color:#17132f; }
+.stage-header #planUsage .plan-account-identity { margin:9px 0 0; overflow:hidden; color:#35305a; font-size:12px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
 .stage-header #planUsage .plan-usage-metric i { background:rgba(23,19,47,.12); }
 .home-shell { position:relative; z-index:1; }
 .create-panel { position:relative; z-index:0; }

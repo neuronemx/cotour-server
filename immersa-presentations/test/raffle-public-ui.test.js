@@ -190,6 +190,13 @@ test("Audience winner is private and non-winner stays positive without identity"
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);
 });
 
+test("Audience GANASTE heading stays inside the winner card", () => {
+  const css = readProjectFile("public/audience/audience.css");
+  assert.match(css, /\.raffle-public-winner-private h2 \{[^}]*max-width:\s*100%/);
+  assert.match(css, /\.raffle-public-winner-private h2 \{[^}]*font-size:\s*clamp\(34px,\s*10vw,\s*60px\)/);
+  assert.match(css, /\.raffle-public-winner-private h2 \{[^}]*white-space:\s*nowrap/);
+});
+
 test("Audience free bystander stays on closed tombola through drawing and winner", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });

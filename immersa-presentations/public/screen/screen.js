@@ -70,7 +70,7 @@ async function toggleFullscreen() {
   }
 }
 
-function makeQrPattern(text) { const grid = document.getElementById("qrPattern"); grid.innerHTML = ""; grid.classList.remove("qr-fallback"); document.getElementById("audienceUrl").textContent = text; if (!text) return; if (window.QRCode) { new window.QRCode(grid, { text, width: 188, height: 188, colorDark: "#111111", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M }); return; } grid.textContent = text; grid.classList.add("qr-fallback"); }
+function makeQrPattern(text) { const grid = document.getElementById("qrPattern"); grid.innerHTML = ""; grid.classList.remove("qr-fallback"); document.getElementById("audienceUrl").textContent = text; if (!text) return; if (window.QRCode) { new window.QRCode(grid, { text, width: 376, height: 376, colorDark: "#111111", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.M }); return; } grid.textContent = text; grid.classList.add("qr-fallback"); }
 async function loadDeck() {
   const res = await fetch("/decks/" + encodeURIComponent(deckId) + "/manifest.json", { cache: "no-store" });
   if (!res.ok) throw new Error("Screen manifest unavailable (" + res.status + ")");
@@ -93,7 +93,12 @@ function loadDeckWithRetry(attempt = 0) {
   });
 }
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; screenRoot.classList.toggle("portrait-slide", portrait); if (portrait) screenRoot.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else screenRoot.style.removeProperty("--slide-bg"); }
-function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); message.textContent = overlays.messageText || ""; message.classList.toggle("hidden", !overlays.messageVisible || !overlays.messageText); }
+function syncScreenFocus() {
+  const messageVisible = Boolean(overlays.messageVisible && overlays.messageText);
+  const resultsVisible = Boolean(interactionOverlay && !interactionOverlay.classList.contains("interaction-hidden"));
+  screenRoot.classList.toggle("has-focus-overlay", messageVisible || resultsVisible);
+}
+function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); message.textContent = overlays.messageText || ""; message.classList.toggle("hidden", !overlays.messageVisible || !overlays.messageText); syncScreenFocus(); }
 function render(state) {
   pendingPresentationState = state;
   applyOverlays(state?.overlays || {});
@@ -116,8 +121,8 @@ function popReaction(emoji) { if (!overlays.showReactions) return; const node = 
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenRoot, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionOverlay() { if (interactionOverlay) return interactionOverlay; interactionOverlay = document.createElement("section"); interactionOverlay.className = "interaction-results-overlay interaction-hidden"; interactionOverlay.setAttribute("aria-label", "Resultados de interacción"); screenRoot.appendChild(interactionOverlay); return interactionOverlay; }
 function renderResultRows(results) { return '<div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>'; }
-function showInteractionResults(results) { if (!results) return; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (results.title || 'Resultados') + '</h2><p>' + (results.prompt || '') + '</p>' + renderResultRows(results); }
-function hideInteractionResults() { ensureInteractionOverlay().classList.add("interaction-hidden"); }
+function showInteractionResults(results) { if (!results) return; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (results.title || 'Resultados') + '</h2><p>' + (results.prompt || '') + '</p>' + renderResultRows(results); syncScreenFocus(); }
+function hideInteractionResults() { ensureInteractionOverlay().classList.add("interaction-hidden"); syncScreenFocus(); }
 function renderQnaScreen(payload = {}) {
   const question = payload.visible ? payload.question : null;
   const text = String(question?.text || "").trim();

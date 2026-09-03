@@ -461,7 +461,8 @@
 
     function submitAnswer(questionId, optionId) {
       savePending(questionId, optionId);
-      if (!socket.connected) return render();
+      render();
+      if (!socket.connected) return;
       emitNow("interaction:participant:submit_answer", {
         questionId,
         optionId,
@@ -803,7 +804,19 @@
         }
       }
     });
-    socket.on("interaction:answer:accepted", () => clearPending());
+    socket.on("interaction:answer:accepted", () => {
+      const pending = readPending();
+      if (!pending || pending.executionId !== state?.executionId) return;
+      state = {
+        ...state,
+        answers: [
+          ...(state.answers || []).filter((answer) => answer.questionId !== pending.questionId),
+          { questionId: pending.questionId, optionId: pending.optionId }
+        ]
+      };
+      clearPending();
+      render();
+    });
     socket.on("interaction:knowledge:rejected", (payload = {}) => {
       if (["DEADLINE_PASSED", "INVALID_STATE"].includes(payload.reason)) clearPending();
     });
