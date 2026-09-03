@@ -85,6 +85,10 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /data-immersa-media-unlock/);
   assert.match(runtime, /root\.__immersaMediaUnlocked = true/);
+  assert.match(runtime, /function ensureUnlock\(force = false\)/);
+  assert.match(runtime, /return ensureUnlock\(true\)/);
+  assert.doesNotMatch(runtime, /function requestUnlockAgain\(\) \{\s*root\.__immersaMediaUnlocked = false/);
+  assert.match(runtime, /function hidePlayers\(\)[\s\S]*?removeUnlock\(true\)/);
   assert.match(runtime, /immersa:media-unlocked/);
   assert.match(runtime, /media:playback_update/);
   assert.match(runtime, /media:playback/);

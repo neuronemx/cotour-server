@@ -458,9 +458,9 @@
       button.addEventListener('click', unlockActiveMedia);
     }
 
-    function ensureUnlock() {
+    function ensureUnlock(force = false) {
       if (role !== 'screen') return null;
-      if (root.__immersaMediaUnlocked) {
+      if (root.__immersaMediaUnlocked && !force) {
         removeUnlock(true);
         return null;
       }
@@ -489,8 +489,7 @@
     }
 
     function requestUnlockAgain() {
-      root.__immersaMediaUnlocked = false;
-      return ensureUnlock();
+      return ensureUnlock(true);
     }
 
     function showYouTubeError() {
@@ -564,7 +563,7 @@
           playYouTubeWithAutoplayFallback(player, item, index, media);
         } else {
           player.pauseVideo();
-          removeUnlock();
+          removeUnlock(true);
         }
       });
     }
@@ -608,10 +607,13 @@
 
       if (media.playing) {
         const promise = player.play();
-        if (promise?.catch) promise.then(removeUnlock).catch(requestUnlockAgain);
+        if (promise?.catch) promise.then(() => {
+          markMediaUnlocked();
+          removeUnlock(true);
+        }).catch(requestUnlockAgain);
       } else {
         player.pause();
-        removeUnlock();
+        removeUnlock(true);
       }
     }
 
@@ -634,7 +636,7 @@
       hideYouTube();
       const image = slideElement();
       if (image) image.style.visibility = '';
-      removeUnlock();
+      removeUnlock(true);
     }
 
     function ensureControls() {
