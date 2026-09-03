@@ -18,6 +18,8 @@ test("all live roles load the shared contest and assessment runtime", () => {
 test("Público preserves one offline answer and uses the active-tab transfer contract", () => {
   const source = read("public/shared/knowledge-activities.js");
   assert.match(source, /immersaKnowledgePendingAnswer/);
+  assert.match(source, /savePending\(questionId, optionId\);\s*render\(\);\s*if \(!socket\.connected\) return;/);
+  assert.match(source, /socket\.on\("interaction:answer:accepted", \(\) => \{[\s\S]*?answers: \[[\s\S]*?questionId: pending\.questionId, optionId: pending\.optionId[\s\S]*?clearPending\(\);\s*render\(\);/);
   assert.match(source, /Respuesta guardada\. Esperando conexión/);
   assert.match(source, /La actividad está abierta en otra pestaña/);
   assert.match(source, /interaction:participant:claim_tab/);
