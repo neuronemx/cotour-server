@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=67&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=68&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=8">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -57,7 +57,7 @@
       <div class="stage-header-actions">
         <button id="billingOpen" class="header-pill header-plans-button" type="button">Ver planes</button>
         <div class="account-pill header-pill" id="planBadge" role="button" tabindex="0" aria-label="Mi cuenta" title="Mi cuenta" aria-expanded="false" aria-controls="planUsage">
-          <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true">M</span><span id="accountName" class="account-name">Mi cuenta</span></div>
+          <div class="account-zone"><span id="accountAvatar" class="account-avatar" aria-hidden="true"><img id="accountAvatarImage" alt="" referrerpolicy="no-referrer" hidden><span id="accountAvatarFallback">M</span></span><span id="accountName" class="account-name">Mi cuenta</span></div>
           <span class="header-divider" aria-hidden="true"></span>
           <span id="accountPlanBadge" class="account-plan-badge" aria-hidden="true">FREE</span>
           <section id="planUsage" class="account-plan-popover" aria-label="Uso del plan FREE" hidden><p id="planAccountIdentity" class="plan-account-identity">Mi cuenta</p><div class="plan-usage-head"><div><span id="planUsageTitle">Uso de tu plan FREE</span><strong id="planName">FREE</strong></div><button id="planUpgradeLink" type="button">Ver planes</button></div><div class="plan-usage-metrics"><div class="plan-usage-metric"><span>Presentaciones</span><strong id="planDeckUsage">0 de 2</strong><i aria-hidden="true"><b id="planDeckBar"></b></i></div><div class="plan-usage-metric"><span>Almacenamiento</span><strong id="planStorageUsage">0 MB de 50 MB</strong><i aria-hidden="true"><b id="planStorageBar"></b></i></div><div class="plan-usage-metric plan-usage-metric-limit"><strong id="planAudienceLimit">Hasta 25</strong></div></div><p id="planPassStatus" class="plan-usage-pass" hidden></p></section>
@@ -251,7 +251,7 @@
   <div id="conversionOverlay" class="conversion-overlay" hidden aria-hidden="true">
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
-  <script src="/home/home-account.js?v=2"></script>
+  <script src="/home/home-account.js?v=3"></script>
   <script src="/home/event-invitations.js?v=6"></script>
   <script src="/home/billing.js?v=13"></script>
   <script src="/home/profile-editor.js?v=6"></script>
