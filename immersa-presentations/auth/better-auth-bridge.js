@@ -231,9 +231,9 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     return { ...access, plan: state?.plan || access.plan, adjustmentRequired: Boolean(state?.adjustmentRequired) };
   }
 
-  async function listUnmeteredDeckIds(req) {
+  async function listDeckIdsForStorageSync(req) {
     const runtime = await initialize();
-    return runtime.workspaces.listUnmeteredDeckIds({
+    return runtime.workspaces.listDeckIdsForStorageSync({
       userId: req.accountContext.user.id,
       workspaceId: req.accountContext.workspace.id
     });
@@ -370,7 +370,7 @@ function createBetterAuthCompatibilityBridge(options = {}) {
     resendWorkspaceDowngradeEmail,
     listWorkspaceDeckIds,
     getDeckFeatureAccess,
-    listUnmeteredDeckIds,
+    listDeckIdsForStorageSync,
     setDeckSourceSize,
     reserveDeck,
     registerDeck,

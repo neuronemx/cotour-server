@@ -202,20 +202,12 @@ function currentPlanBlockMessage() {
 function uploadIssue(file) {
   const blocked = currentPlanBlockMessage();
   if (blocked) return blocked;
-  if (file && planUsage && Number(file.size || 0) > Number(planUsage.remaining?.storageBytes || 0)) {
-    return "Este archivo pesa " + storageLabel(file.size) + " y tienes " + storageLabel(planUsage.remaining.storageBytes) + " disponibles en tu plan " + planUsage.plan + ".";
-  }
   return "";
 }
 
 function replacementIssue(file, deck) {
   if (!file || !deck || !planUsage) return "";
   if (deck.systemDemo) return "";
-  const currentBytes = Math.max(0, Number(deck.sourceSizeBytes) || 0);
-  const availableBytes = Math.max(0, Number(planUsage.remaining?.storageBytes) || 0) + currentBytes;
-  if (Number(file.size || 0) > availableBytes) {
-    return "Este archivo pesa " + storageLabel(file.size) + " y tienes " + storageLabel(availableBytes) + " disponibles al sustituirla en tu plan " + planUsage.plan + ".";
-  }
   return "";
 }
 

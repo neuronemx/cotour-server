@@ -150,7 +150,8 @@ test("Deck Speaker access follows the public title selected in Profile without c
   assert.match(source, /addEventListener\("immersa:profile-public-title"/);
   assert.match(source, /applyProfilePublicTitle\(event\.detail\?\.publicTitle\)/);
   assert.match(source, /button\.textContent = label/);
-  assert.match(source, /"Abrir como " \+ label \+ " en nueva pestaña"/);
+  assert.match(source, /"Abrir como " \+ label/);
+  assert.match(source, /window\.location\.assign\(url\)/);
   assert.match(source, /body: JSON\.stringify\(\{ session_id: sessionIdValue, role \}\)/);
   assert.match(source, /role === "speaker" \? "speaker" : role/);
 });
