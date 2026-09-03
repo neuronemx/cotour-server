@@ -91,7 +91,20 @@
     return defaultMediaState(item, slideIndex);
   }
 
-  // Audio activation is a Screen-level user permission. When Speaker jumps\n  // directly to another video, keep that permission instead of returning to\n  // the slide's authored muted default.\n  function shouldKeepAudioUnlocked(playback) {\n    return Boolean(playback)\n      && playback.forced_muted !== true\n      && playback.muted === false;\n  }\n\n  function initialMediaMuted(item, previousPlayback) {\n    return Boolean(item?.muted) && !shouldKeepAudioUnlocked(previousPlayback);\n  }\n\n  function playbackForcedMuted(playback, slideIndex) {
+  // Audio activation is a Screen-level user permission. When Speaker jumps
+  // directly to another video, keep that permission instead of returning to
+  // the slide's authored muted default.
+  function shouldKeepAudioUnlocked(playback) {
+    return Boolean(playback)
+      && playback.forced_muted !== true
+      && playback.muted === false;
+  }
+
+  function initialMediaMuted(item, previousPlayback) {
+    return Boolean(item?.muted) && !shouldKeepAudioUnlocked(previousPlayback);
+  }
+
+  function playbackForcedMuted(playback, slideIndex) {
     return Boolean(playback?.forced_muted)
       && Number(playback?.slide_index) === Number(slideIndex);
   }
