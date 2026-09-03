@@ -153,7 +153,7 @@ test("projecting a new question replaces the Screen overlay and filters name con
   assert.equal(JSON.stringify(screen).includes("Pregunta del público"), false);
 });
 
-test("closing the modal hides Screen and reopening restores the exact projected question", async () => {
+test("closing the modal hides Screen without reopening the projected question", async () => {
   const { socket, io, repository } = setup("presenter");
   await socket.trigger("qna:project", { questionId: "q-1" });
   const snapshot = structuredClone(repository.state);
@@ -164,10 +164,7 @@ test("closing the modal hides Screen and reopening restores the exact projected 
 
   await socket.trigger("qna:panel_open");
   screen = io.emissions.filter((item) => item.room === "room-a::screen" && item.event === "qna:screen").at(-1).payload;
-  assert.deepEqual(screen, {
-    visible: true,
-    question: { id: "q-1", text: "¿Primera?", name: "Ana" }
-  });
+  assert.deepEqual(screen, { visible: false, question: null });
   assert.deepEqual(repository.state, snapshot);
 });
 
