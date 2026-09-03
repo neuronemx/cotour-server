@@ -151,7 +151,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=110';
+    link.href = '/shared/video-slide-runtime.css?v=111';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }
@@ -237,6 +237,7 @@
         return {
           slide_index: Number(index),
           provider: 'youtube',
+          title: String(youtubePlayer?.getVideoData?.()?.title || item.videoTitle || item.title || 'Video de YouTube'),
           forced_muted: Boolean(screenForcedMuted),
           current_time_seconds: finiteMediaTime(youtubePlayer?.getCurrentTime?.()),
           duration_seconds: finiteMediaTime(youtubePlayer?.getDuration?.()),
@@ -247,6 +248,7 @@
       return {
         slide_index: Number(index),
         provider: 'local',
+        title: String(item.videoTitle || item.expectedFile?.name || item.title || 'Video'),
         forced_muted: false,
         current_time_seconds: finiteMediaTime(video?.currentTime),
         duration_seconds: finiteMediaTime(video?.duration),
@@ -262,6 +264,7 @@
       const key = [
         payload.slide_index,
         payload.provider,
+        payload.title,
         payload.forced_muted,
         payload.playing,
         payload.muted,
@@ -643,6 +646,7 @@
       controls.dataset.videoMediaControls = '1';
       controls.hidden = true;
       controls.innerHTML = [
+        '<div class="video-media-title" data-video-title></div>',
         '<div class="video-media-progress-row">',
           '<span class="video-media-time" data-video-current-time>0:00</span>',
           '<div class="video-media-progress-track" data-video-seek-track role="slider" tabindex="0" aria-label="Posición del video" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">',
@@ -727,6 +731,10 @@
       const remainingTimeNode = bar.querySelector('[data-video-remaining-time]');
       const progressFill = bar.querySelector('[data-video-progress-fill]');
       const progressTrack = bar.querySelector('[data-video-seek-track]');
+      const titleNode = bar.querySelector('[data-video-title]');
+      const videoTitle = String(screenPlayback?.title || item.videoTitle || item.expectedFile?.name || item.title || (isYouTubeSlide(item) ? 'Video de YouTube' : 'Video'));
+      titleNode.textContent = videoTitle;
+      titleNode.title = videoTitle;
       playIcon.innerHTML = playing
         ? '<path d="M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/><path d="M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/>'
         : '<path d="M7 4v16l13 -8l-13 -8"/>';

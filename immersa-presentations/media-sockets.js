@@ -39,6 +39,7 @@ function normalizePlayback(payload = {}, context = {}) {
     deck_id: String(context.deckId || ""),
     slide_index: slideIndex,
     provider,
+    title: String(payload.title || "").trim().slice(0, 240),
     forced_muted: Boolean(payload.forced_muted ?? payload.forcedMuted),
     current_time_seconds: Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0,
     duration_seconds: Number.isFinite(duration) && duration >= 0 ? duration : 0,

@@ -47,6 +47,16 @@
   display: none !important;
 }
 
+.video-media-title {
+  margin: 0 4px 13px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .94);
+  font: 700 13px/1.25 Inter, sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .video-media-progress-row {
   display: flex;
   align-items: center;

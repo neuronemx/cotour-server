@@ -69,12 +69,12 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=115/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=115/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=115/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=116/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=116/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=116/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=117/);
-  assert.match(runtime, /video-slide-runtime\.css\?v=110/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=118/);
+  assert.match(runtime, /video-slide-runtime\.css\?v=111/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /const controlSocket = options\.controlSocket \|\| mainSocket/);
@@ -83,6 +83,9 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.doesNotMatch(runtime, /join_presentation[^\n]+role: 'stage'/);
   assert.match(runtime, /position_seconds/);
   assert.match(runtime, /data-video-seek-track/);
+  assert.match(runtime, /data-video-title/);
+  assert.match(runtime, /getVideoData/);
+  assert.match(bridge, /videoTitle/);
   assert.match(runtime, /Retroceder 10 segundos/);
   assert.match(runtime, /Avanzar 10 segundos/);
   assert.match(runtime, /Activar sonido/);
@@ -109,6 +112,8 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(css, /\.immersa-video-slide/);
   assert.match(css, /\.immersa-youtube-slide/);
   assert.match(css, /\.video-media-controls/);
+  assert.match(css, /\.video-media-title/);
+  assert.match(css, /text-overflow:\s*ellipsis/);
   assert.match(css, /top:\s*50%/);
   assert.match(css, /\.video-media-controls-row\s*\{[\s\S]*justify-content:\s*center/);
   assert.match(css, /\.video-media-primary-controls\s*\{[\s\S]*justify-content:\s*center;[\s\S]*width:\s*100%/);
