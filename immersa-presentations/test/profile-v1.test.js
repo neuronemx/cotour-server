@@ -151,6 +151,8 @@ test("Deck Speaker access follows the public title selected in Profile without c
   assert.match(home, /home-account\.js\?v=3/);
   assert.match(read("public/home/home-account.js"), /session\.user\.image/);
   assert.match(read("public/home/home-account.js"), /avatarImage\?\.addEventListener\("error"/);
+  assert.match(read("public/home/home-account.js"), /profile\?\.hasUploadedPhoto/);
+  assert.match(read("public/home/home-account.js"), /googleImage \|\| await uploadedProfilePhoto\(\)/);
   assert.match(read("public/home/home-account.js"), /session\.user\.name && session\.user\.email/);
   assert.match(source, /role === "speaker" \? profilePublicTitle/);
   assert.match(source, /addEventListener\("immersa:profile-public-title"/);
