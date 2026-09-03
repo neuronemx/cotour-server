@@ -47,6 +47,16 @@ test('video media state follows the active role slide index', () => {
     command: 'mute',
     muted: true
   });
+  assert.equal(
+    videoSlides.initialMediaMuted({ muted: true }, { slide_index: 5, muted: false, forced_muted: false }),
+    false,
+    'a direct Speaker thumbnail jump retains audio that Screen already unlocked'
+  );
+  assert.equal(
+    videoSlides.initialMediaMuted({ muted: true }, { slide_index: 5, muted: true, forced_muted: true }),
+    true,
+    'a browser-forced mute still starts the next video muted'
+  );
   const playback = {
     slide_index: 6,
     current_time_seconds: 94.8,
@@ -69,11 +79,11 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=116/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=116/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=116/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=117/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=117/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=117/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=118/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=119/);
   assert.match(runtime, /video-slide-runtime\.css\?v=111/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
@@ -92,6 +102,7 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.doesNotMatch(runtime, /Activar sonido y multimedia/);
   assert.match(runtime, /data-immersa-media-unlock/);
   assert.match(runtime, /root\.__immersaMediaUnlocked = true/);
+  assert.match(runtime, /function initialMediaMuted/);
   assert.match(runtime, /function ensureUnlock\(force = false\)/);
   assert.match(runtime, /return ensureUnlock\(true\)/);
   assert.doesNotMatch(runtime, /function requestUnlockAgain\(\) \{\s*root\.__immersaMediaUnlocked = false/);
