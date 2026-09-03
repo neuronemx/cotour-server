@@ -69,14 +69,18 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=113/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=113/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=113/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=114/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=114/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=114/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=115/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=116/);
   assert.match(runtime, /video-slide-runtime\.css\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
+  assert.match(runtime, /const controlSocket = options\.controlSocket \|\| mainSocket/);
+  assert.match(runtime, /role: 'presenter'/);
+  assert.doesNotMatch(runtime, /typeof overlaySocket/);
+  assert.doesNotMatch(runtime, /join_presentation[^\n]+role: 'stage'/);
   assert.match(runtime, /position_seconds/);
   assert.match(runtime, /data-video-seek-track/);
   assert.match(runtime, /Retroceder 10 segundos/);

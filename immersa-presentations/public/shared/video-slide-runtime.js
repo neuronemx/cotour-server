@@ -194,9 +194,7 @@
     let lastInitializedIndex = -1;
     let presenterControlJoined = false;
 
-    const controlSocket = role === 'presenter'
-      ? (options.controlSocket || (typeof overlaySocket !== 'undefined' ? overlaySocket : (root.io ? root.io() : mainSocket)))
-      : mainSocket;
+    const controlSocket = options.controlSocket || mainSocket;
 
     loadStyle(document);
 
@@ -213,7 +211,7 @@
 
     function ensurePresenterControlJoin() {
       if (role !== 'presenter' || presenterControlJoined || !controlSocket) return;
-      controlSocket.emit('join_presentation', { session: sessionId, deck: deckId, role: 'stage' });
+      controlSocket.emit('join_presentation', { session: sessionId, deck: deckId, role: 'presenter' });
       presenterControlJoined = true;
     }
 
