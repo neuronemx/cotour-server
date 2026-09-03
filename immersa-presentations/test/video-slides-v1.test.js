@@ -90,8 +90,7 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(runtime, /const controlSocket = options\.controlSocket \|\| mainSocket/);
   assert.match(runtime, /role: 'presenter'/);
   assert.doesNotMatch(runtime, /typeof overlaySocket/);
-  assert.doesNotMatch(runtime, /join_presentation[^
-]+role: 'stage'/);
+  assert.doesNotMatch(runtime, /join_presentation[^\n]+role: 'stage'/);
   assert.match(runtime, /position_seconds/);
   assert.match(runtime, /data-video-seek-track/);
   assert.match(runtime, /data-video-title/);
