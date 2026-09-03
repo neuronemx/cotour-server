@@ -3,6 +3,8 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const isPublishedDemo = roleOpenContext.demo_role === "published" || deckId === "immersa-demo";
+const deckHomeLink = document.getElementById("deckHomeLink");
+if (deckHomeLink) deckHomeLink.href = "/home?deck=" + encodeURIComponent(deckId);
 const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== false;
 const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
 const planAllows = (capability) => planCapabilities[capability] === true;

@@ -79,7 +79,7 @@ function applyProfilePublicTitle(value) {
   profilePublicTitle = String(value || labels.speaker).trim() || labels.speaker;
   document.querySelectorAll(".detail-role-action.role-speaker").forEach((button) => {
     if (!button.disabled) button.textContent = profilePublicTitle;
-    button.title = "Abrir como " + profilePublicTitle + " en nueva pestaña";
+    button.title = "Abrir como " + profilePublicTitle;
   });
 }
 
@@ -538,22 +538,13 @@ async function copyText(value) {
 async function copyRoleLink(role, deck, button) {
   const label = roleLabel(role);
   const original = button.textContent;
-  let speakerWindow = null;
-
-  if (role === "speaker") {
-    // Open synchronously from the tap. Safari/iOS blocks window.open after an await.
-    speakerWindow = window.open("about:blank", "_blank");
-    if (speakerWindow) speakerWindow.opener = null;
-  }
-
   button.disabled = true;
   button.textContent = role === "speaker" ? "Abriendo" : "Generando";
 
   try {
-    if (role === "speaker" && !speakerWindow) throw new Error("El navegador bloqueó la nueva pestaña.");
     const url = await createAccessLink(role, deck);
     if (role === "speaker") {
-      speakerWindow.location.replace(url);
+      window.location.assign(url);
       button.textContent = "Acceso abierto";
     } else {
       const copied = await copyText(url);
@@ -561,7 +552,6 @@ async function copyRoleLink(role, deck, button) {
       button.classList.add("copied");
     }
   } catch (error) {
-    if (speakerWindow && !speakerWindow.closed) speakerWindow.close();
     button.textContent = role === "speaker" ? "No se pudo abrir" : "No se pudo copiar";
     console.error("No se pudo preparar el acceso " + label + ":", error);
   } finally {
@@ -1015,7 +1005,7 @@ function renderDetailActions(deck) {
     button.className = "detail-role-action role-" + role;
     const label = roleLabel(role);
     button.textContent = label;
-    button.title = role === "speaker" ? "Abrir como " + label + " en nueva pestaña" : "Copiar link de " + label;
+    button.title = role === "speaker" ? "Abrir como " + label : "Copiar link de " + label;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       copyRoleLink(role, deck, event.currentTarget);

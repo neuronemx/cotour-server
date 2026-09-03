@@ -1,6 +1,7 @@
 (async function initializeAccount() {
   const label = document.getElementById("accountName");
   const avatar = document.getElementById("accountAvatar");
+  const identity = document.getElementById("planAccountIdentity");
   const logout = document.getElementById("logoutButton");
   try {
     const response = await fetch("/api/auth/get-session");
@@ -12,9 +13,13 @@
     const display = String(session.user.name || session.user.email || "Mi cuenta").trim();
     if (label) label.textContent = display;
     if (avatar) avatar.textContent = display.charAt(0).toUpperCase() || "M";
+    if (identity) identity.textContent = session.user.name && session.user.email
+      ? `${session.user.name} · ${session.user.email}`
+      : display;
   } catch (_error) {
     if (label) label.textContent = "Mi cuenta";
     if (avatar) avatar.textContent = "M";
+    if (identity) identity.textContent = "Mi cuenta";
   }
 
   logout?.addEventListener("click", async () => {

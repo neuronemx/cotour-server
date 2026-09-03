@@ -144,6 +144,8 @@ test("Deck Speaker access follows the public title selected in Profile without c
 
   assert.match(home, /profile-editor\.js\?v=6/);
   assert.match(home, /home\.js\?v=\d+/);
+  assert.match(home, /id="planAccountIdentity"/);
+  assert.match(read("public/home/home-account.js"), /session\.user\.name && session\.user\.email/);
   assert.match(source, /role === "speaker" \? profilePublicTitle/);
   assert.match(source, /addEventListener\("immersa:profile-public-title"/);
   assert.match(source, /applyProfilePublicTitle\(event\.detail\?\.publicTitle\)/);
