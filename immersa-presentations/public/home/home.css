@@ -897,7 +897,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .stage-header #planUsage .plan-usage-metric span { color:rgba(23,19,47,.68); }
 .stage-header #planUsage .plan-usage-head strong,
 .stage-header #planUsage .plan-usage-metric strong { color:#17132f; }
-.stage-header #planUsage .plan-account-identity { margin:9px 0 0; overflow:hidden; color:#35305a; font-size:12px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+.stage-header #planUsage .plan-account-identity { margin:0 0 9px; overflow:hidden; color:#35305a; font-size:12px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
 .stage-header #planUsage .plan-usage-metric i { background:rgba(23,19,47,.12); }
 .home-shell { position:relative; z-index:1; }
 .create-panel { position:relative; z-index:0; }
