@@ -69,11 +69,11 @@ test('all roles load the configured video bridge and shared runtime', () => {
   const bridge = read('public/shared/video-deck-config-bridge.js');
   const css = read('public/shared/video-slide-runtime.css');
 
-  assert.match(screen, /video-deck-config-bridge\.js\?v=114/);
-  assert.match(audience, /video-deck-config-bridge\.js\?v=114/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=114/);
+  assert.match(screen, /video-deck-config-bridge\.js\?v=115/);
+  assert.match(audience, /video-deck-config-bridge\.js\?v=115/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=115/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=116/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=117/);
   assert.match(runtime, /video-slide-runtime\.css\?v=110/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
@@ -101,6 +101,8 @@ test('all roles load the configured video bridge and shared runtime', () => {
   assert.match(runtime, /role === 'screen'/);
   assert.match(runtime, /youtube\.com\/iframe_api/);
   assert.match(runtime, /cueVideoById/);
+  assert.match(runtime, /media\.playing && typeof player\.loadVideoById === 'function'/);
+  assert.doesNotMatch(runtime, /if \(youtubePendingState\) \{[\s\S]*?applyYouTubeState\(pending\.item/);
   assert.match(runtime, /playVideo/);
   assert.match(runtime, /pauseVideo/);
   assert.match(runtime, /seekTo/);

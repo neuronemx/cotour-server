@@ -386,14 +386,7 @@
               onError: showYouTubeError
             }
           });
-        })).then((player) => {
-          if (youtubePendingState) {
-            const pending = youtubePendingState;
-            youtubePendingState = null;
-            applyYouTubeState(pending.item, pending.state, pending.index);
-          }
-          return player;
-        }).catch((error) => {
+        })).catch((error) => {
           console.warn('Unable to initialize YouTube video', error.message);
           showYouTubeError();
           return null;
@@ -541,16 +534,20 @@
         if (!player || activeIndex !== index || !isYouTubeSlide(activeItem)) return;
         youtubePendingState = null;
         if (youtubeHost) youtubeHost.hidden = false;
-        if (youtubeLoadedIndex !== index) {
+        const loadingNewVideo = youtubeLoadedIndex !== index;
+        if (loadingNewVideo) {
           youtubeLoadedIndex = index;
           lastAppliedRevision = null;
-          player.cueVideoById({
-            videoId: String(item.youtubeVideoId),
-            startSeconds: Math.max(0, Number(item.youtubeStartSeconds) || 0)
-          });
+          const initialSeconds = media.command === 'seek'
+            ? finiteMediaTime(media.position_seconds)
+            : Math.max(0, Number(item.youtubeStartSeconds) || 0);
+          const load = media.playing && typeof player.loadVideoById === 'function'
+            ? player.loadVideoById
+            : player.cueVideoById;
+          load.call(player, { videoId: String(item.youtubeVideoId), startSeconds: initialSeconds });
         }
         const revision = String(media.revision ?? '0');
-        if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
+        if (!loadingNewVideo && revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
           const targetSeconds = media.command === 'seek'
             ? finiteMediaTime(media.position_seconds)
             : Math.max(0, Number(item.youtubeStartSeconds) || 0);
