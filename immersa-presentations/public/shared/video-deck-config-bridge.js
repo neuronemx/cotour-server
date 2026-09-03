@@ -55,6 +55,7 @@
           loop: playback.end_behavior === 'loop',
           endBehavior: playback.end_behavior || 'stay',
           expectedFile: video.file || null,
+          videoTitle: String(video.title || video.source?.title || video.file?.name || slide.title || (youtube ? 'Video de YouTube' : 'Video')),
           localOnly: !youtube && !originalIsVideo && !video.remote_src,
           videoProvider: youtube ? 'youtube' : 'local',
           youtubeVideoId: youtube ? String(video.source.video_id) : '',
@@ -119,7 +120,7 @@
     if (!document || root.ImmersaVideoSlides || root.__immersaVideoSlidesLoading) return;
     root.__immersaVideoSlidesLoading = true;
     const script = document.createElement('script');
-    script.src = '/shared/video-slide-runtime.js?v=114';
+    script.src = '/shared/video-slide-runtime.js?v=118';
     script.defer = true;
     script.onerror = () => { root.__immersaVideoSlidesLoading = false; };
     document.head.appendChild(script);

@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=14/);
+  assert.match(html, /deck-management-shell\.css\?v=15/);
   assert.match(html, /deck-management-shell\.js\?v=10/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
@@ -25,6 +25,14 @@ test("Deck detail exposes the approved management sections", () => {
   assert.doesNotMatch(html, /id="detailStatus"/);
   assert.match(html, /data-deck-tab="participation"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Participación<\/span>/);
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
+});
+
+test("Deck detail scrolls as one surface when viewport height is constrained", () => {
+  const css = read("public/home/deck-management-shell.css");
+
+  assert.match(css, /\.deck-detail-modal\s*\{[^}]*display:\s*block;[^}]*overflow-y:\s*auto;/s);
+  assert.match(css, /\.deck-detail-modal \.deck-detail-content\s*\{[^}]*overflow:\s*visible;/s);
+  assert.doesNotMatch(css, /\.deck-detail-modal\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/s);
 });
 
 test("Deck management shell reuses existing actions without parallel state", () => {
@@ -154,7 +162,7 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=14/);
+  assert.match(html, /deck-management-shell\.css\?v=15/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {

@@ -151,7 +151,7 @@
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-slide-runtime.css?v=110';
+    link.href = '/shared/video-slide-runtime.css?v=111';
     link.dataset.videoSlideRuntime = '1';
     document.head.appendChild(link);
   }
@@ -194,9 +194,7 @@
     let lastInitializedIndex = -1;
     let presenterControlJoined = false;
 
-    const controlSocket = role === 'presenter'
-      ? (options.controlSocket || (typeof overlaySocket !== 'undefined' ? overlaySocket : (root.io ? root.io() : mainSocket)))
-      : mainSocket;
+    const controlSocket = options.controlSocket || mainSocket;
 
     loadStyle(document);
 
@@ -213,7 +211,7 @@
 
     function ensurePresenterControlJoin() {
       if (role !== 'presenter' || presenterControlJoined || !controlSocket) return;
-      controlSocket.emit('join_presentation', { session: sessionId, deck: deckId, role: 'stage' });
+      controlSocket.emit('join_presentation', { session: sessionId, deck: deckId, role: 'presenter' });
       presenterControlJoined = true;
     }
 
@@ -239,6 +237,7 @@
         return {
           slide_index: Number(index),
           provider: 'youtube',
+          title: String(youtubePlayer?.getVideoData?.()?.title || item.videoTitle || item.title || 'Video de YouTube'),
           forced_muted: Boolean(screenForcedMuted),
           current_time_seconds: finiteMediaTime(youtubePlayer?.getCurrentTime?.()),
           duration_seconds: finiteMediaTime(youtubePlayer?.getDuration?.()),
@@ -249,6 +248,7 @@
       return {
         slide_index: Number(index),
         provider: 'local',
+        title: String(item.videoTitle || item.expectedFile?.name || item.title || 'Video'),
         forced_muted: false,
         current_time_seconds: finiteMediaTime(video?.currentTime),
         duration_seconds: finiteMediaTime(video?.duration),
@@ -264,6 +264,7 @@
       const key = [
         payload.slide_index,
         payload.provider,
+        payload.title,
         payload.forced_muted,
         payload.playing,
         payload.muted,
@@ -388,14 +389,7 @@
               onError: showYouTubeError
             }
           });
-        })).then((player) => {
-          if (youtubePendingState) {
-            const pending = youtubePendingState;
-            youtubePendingState = null;
-            applyYouTubeState(pending.item, pending.state, pending.index);
-          }
-          return player;
-        }).catch((error) => {
+        })).catch((error) => {
           console.warn('Unable to initialize YouTube video', error.message);
           showYouTubeError();
           return null;
@@ -458,9 +452,9 @@
       button.addEventListener('click', unlockActiveMedia);
     }
 
-    function ensureUnlock() {
+    function ensureUnlock(force = false) {
       if (role !== 'screen') return null;
-      if (root.__immersaMediaUnlocked) {
+      if (root.__immersaMediaUnlocked && !force) {
         removeUnlock(true);
         return null;
       }
@@ -489,8 +483,7 @@
     }
 
     function requestUnlockAgain() {
-      root.__immersaMediaUnlocked = false;
-      return ensureUnlock();
+      return ensureUnlock(true);
     }
 
     function showYouTubeError() {
@@ -544,16 +537,20 @@
         if (!player || activeIndex !== index || !isYouTubeSlide(activeItem)) return;
         youtubePendingState = null;
         if (youtubeHost) youtubeHost.hidden = false;
-        if (youtubeLoadedIndex !== index) {
+        const loadingNewVideo = youtubeLoadedIndex !== index;
+        if (loadingNewVideo) {
           youtubeLoadedIndex = index;
           lastAppliedRevision = null;
-          player.cueVideoById({
-            videoId: String(item.youtubeVideoId),
-            startSeconds: Math.max(0, Number(item.youtubeStartSeconds) || 0)
-          });
+          const initialSeconds = media.command === 'seek'
+            ? finiteMediaTime(media.position_seconds)
+            : Math.max(0, Number(item.youtubeStartSeconds) || 0);
+          const load = media.playing && typeof player.loadVideoById === 'function'
+            ? player.loadVideoById
+            : player.cueVideoById;
+          load.call(player, { videoId: String(item.youtubeVideoId), startSeconds: initialSeconds });
         }
         const revision = String(media.revision ?? '0');
-        if (revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
+        if (!loadingNewVideo && revision !== lastAppliedRevision && (media.command === 'restart' || media.command === 'enter' || media.command === 'seek')) {
           const targetSeconds = media.command === 'seek'
             ? finiteMediaTime(media.position_seconds)
             : Math.max(0, Number(item.youtubeStartSeconds) || 0);
@@ -564,7 +561,7 @@
           playYouTubeWithAutoplayFallback(player, item, index, media);
         } else {
           player.pauseVideo();
-          removeUnlock();
+          removeUnlock(true);
         }
       });
     }
@@ -608,10 +605,13 @@
 
       if (media.playing) {
         const promise = player.play();
-        if (promise?.catch) promise.then(removeUnlock).catch(requestUnlockAgain);
+        if (promise?.catch) promise.then(() => {
+          markMediaUnlocked();
+          removeUnlock(true);
+        }).catch(requestUnlockAgain);
       } else {
         player.pause();
-        removeUnlock();
+        removeUnlock(true);
       }
     }
 
@@ -634,7 +634,7 @@
       hideYouTube();
       const image = slideElement();
       if (image) image.style.visibility = '';
-      removeUnlock();
+      removeUnlock(true);
     }
 
     function ensureControls() {
@@ -646,6 +646,7 @@
       controls.dataset.videoMediaControls = '1';
       controls.hidden = true;
       controls.innerHTML = [
+        '<div class="video-media-title" data-video-title></div>',
         '<div class="video-media-progress-row">',
           '<span class="video-media-time" data-video-current-time>0:00</span>',
           '<div class="video-media-progress-track" data-video-seek-track role="slider" tabindex="0" aria-label="Posición del video" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">',
@@ -730,6 +731,10 @@
       const remainingTimeNode = bar.querySelector('[data-video-remaining-time]');
       const progressFill = bar.querySelector('[data-video-progress-fill]');
       const progressTrack = bar.querySelector('[data-video-seek-track]');
+      const titleNode = bar.querySelector('[data-video-title]');
+      const videoTitle = String(screenPlayback?.title || item.videoTitle || item.expectedFile?.name || item.title || (isYouTubeSlide(item) ? 'Video de YouTube' : 'Video'));
+      titleNode.textContent = videoTitle;
+      titleNode.title = videoTitle;
       playIcon.innerHTML = playing
         ? '<path d="M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/><path d="M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12"/>'
         : '<path d="M7 4v16l13 -8l-13 -8"/>';

@@ -1,7 +1,11 @@
 .deck-detail-modal {
   width: min(640px, calc(100vw - 28px));
   max-height: min(92vh, 900px);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border-radius: 26px;
 }
 
@@ -434,7 +438,9 @@
 
 .deck-detail-modal .deck-detail-content {
   display: block;
+  min-height: auto;
   padding: 22px 24px 24px;
+  overflow: visible;
 }
 
 .deck-detail-panel {

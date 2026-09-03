@@ -804,6 +804,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .account-pill { position:relative; display:flex; align-items:center; gap:0; max-width:min(46vw,520px); padding:0 6px 0 8px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(255,255,255,.035); color:#F5F4FA; backdrop-filter:none; }
 .account-zone { display:flex; align-items:center; gap:9px; height:100%; min-width:0; }
 .account-avatar { display:flex; align-items:center; justify-content:center; width:24px; height:24px; flex:none; border-radius:50%; background:linear-gradient(135deg,#8B5CF6,#3B82F6 55%,#22D3EE); color:#0A0812; font:700 11px/1 Poppins,Arial,sans-serif; }
+.account-avatar img { width:100%; height:100%; border-radius:inherit; object-fit:cover; }
 .account-name { display:block; max-width:180px; min-width:0; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#F5F4FA; font:600 13.5px/1 Inter,Arial,sans-serif; }
 .header-divider { width:1px; height:16px; margin:0 12px; flex:none; background:rgba(255,255,255,.18); }
 .account-plan-badge { position:relative; display:inline-flex; align-items:center; gap:7px; height:100%; padding:0 23px 0 15px; border:0; background:transparent; color:#F5F4FA; font:700 12.5px/1 Inter,Arial,sans-serif; letter-spacing:.02em; cursor:pointer; white-space:nowrap; }
@@ -897,7 +898,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 .stage-header #planUsage .plan-usage-metric span { color:rgba(23,19,47,.68); }
 .stage-header #planUsage .plan-usage-head strong,
 .stage-header #planUsage .plan-usage-metric strong { color:#17132f; }
-.stage-header #planUsage .plan-account-identity { margin:9px 0 0; overflow:hidden; color:#35305a; font-size:12px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+.stage-header #planUsage .plan-account-identity { margin:0 0 9px; overflow:hidden; color:#35305a; font-size:12px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
 .stage-header #planUsage .plan-usage-metric i { background:rgba(23,19,47,.12); }
 .home-shell { position:relative; z-index:1; }
 .create-panel { position:relative; z-index:0; }
