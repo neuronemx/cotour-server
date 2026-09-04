@@ -13,6 +13,7 @@ const activitySubmit = document.getElementById("activitySubmit");
 const activityCancel = document.getElementById("activityCancel");
 const activityNew = document.getElementById("activityNew");
 const eventBrands = document.getElementById("eventBrands");
+const eventLocalPackage = document.getElementById("eventLocalPackage");
 const eventOverview = document.getElementById("eventOverview");
 const eventOverviewPanel = document.getElementById("eventOverviewPanel");
 const overviewRegistered = document.getElementById("overviewRegistered");
@@ -514,6 +515,10 @@ eventBrands?.addEventListener("click", () => {
     ownerLabel: "Event Hub",
     apiBase: `/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/brand-mentions`
   });
+});
+eventLocalPackage?.addEventListener("click", () => {
+  if (!currentHub) return;
+  window.location.assign(`/api/admin/event-hubs/${encodeURIComponent(currentHub.workspace_id)}/local-package`);
 });
 eventOverview?.addEventListener("click", async () => {
   if (!currentHub) return;
