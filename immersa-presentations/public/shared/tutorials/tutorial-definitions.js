@@ -1,6 +1,12 @@
 (() => {
   "use strict";
   const find = (selector) => () => document.querySelector(selector);
+  const accountBounds = () => {
+    const plan = document.getElementById("planBadge")?.getBoundingClientRect();
+    const profile = document.getElementById("profileButton")?.getBoundingClientRect();
+    if (!plan || !profile) return null;
+    return { left: plan.left, top: Math.min(plan.top, profile.top), right: profile.right, bottom: Math.max(plan.bottom, profile.bottom), width: profile.right - plan.left, height: Math.max(plan.bottom, profile.bottom) - Math.min(plan.top, profile.top) };
+  };
   const openDemo = () => {
     const rows = [...document.querySelectorAll("#deckList .deck-row")];
     const demo = rows.find((row) => /DEMO|MAESTRO/i.test(row.textContent || "")) || rows[0];
@@ -12,7 +18,7 @@
     context: "home",
     steps: [
       { id: "welcome", target: find("#inicio"), intro: true, title: "Bienvenido a IMMERSA", copy: "En pocos pasos conocerás cómo preparar tu primera experiencia.", type: "informative" },
-      { id: "account", target: find("#planBadge"), title: "Tu plan y perfil", copy: "Aquí consultas tus límites y administras tu perfil.", type: "informative" },
+      { id: "account", target: find("#planBadge"), bounds: accountBounds, title: "Tu plan y perfil", copy: "Aquí consultas tus límites y administras tu perfil.", type: "informative" },
       { id: "upload", target: find("#fileDrop"), title: "Sube tu contenido", copy: "Este es el punto de partida para crear un nuevo Deck.", type: "informative" },
       { id: "home-decks", target: find("#deckList"), title: "HOME y Deck Demo", copy: "Aquí están tus Decks. El Deck Demo te permite conocer IMMERSA sin modificar tu contenido.", type: "informative" },
       { id: "deck", target: find("#deckDetailModal:not([hidden])"), prepare: openDemo, cleanup: () => document.getElementById("closeDeckDetail")?.click(), title: "Este es un Deck", copy: "Cada Deck conserva su contenido y toda la configuración asociada.", type: "informative" },
