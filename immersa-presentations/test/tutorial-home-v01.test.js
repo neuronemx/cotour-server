@@ -17,9 +17,11 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(engine, /get\("tutorial"\) === "1"/);
   assert.match(engine, /localStorage/);
   assert.match(engine, /step\.prepare\?\.\(\)/);
+  assert.match(engine, /closeDeckDetail\)\?\.click\(\)/);
+  assert.match(engine, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
   assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
   assert.match(definitions, /openDemo/);
-  assert.match(definitions, /#detailSlideStrip/);
+  assert.match(definitions, /#detailSlideStrip[\s\S]*?Aquí recorres los slides de tu Deck de forma visual y compruebas que están completos/);
   assert.match(definitions, /#deckTabVideo[\s\S]*?#deckTabParticipation/);
   assert.match(definitions, /Asistente te apoya mientras presentas/);
   assert.doesNotMatch(definitions, /advanceWhen|nextContext/);
