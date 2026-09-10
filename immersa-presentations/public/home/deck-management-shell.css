@@ -642,3 +642,22 @@
   .deck-detail-slide-arrow,
   .deck-detail-modal .detail-role-action { transition: none !important; }
 }
+
+
+/* Compact Deck transition row: the detail remains a card, not a long page. */
+.deck-detail-modal { width: min(580px, calc(100vw - 28px)); max-height: calc(100vh - 106px); }
+.deck-detail-modal .deck-transition-settings { display:flex; align-items:center; gap:16px; margin-top:10px; padding:11px 14px; border-radius:13px; }
+.deck-detail-modal .deck-transition-copy { flex:0 0 auto; display:block; }
+.deck-detail-modal .deck-transition-copy strong { display:block; font-size:13px; }
+.deck-detail-modal .deck-transition-copy span { display:none; }
+.deck-detail-modal .deck-transition-options { flex:1 1 auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.deck-detail-modal .deck-transition-options button { min-height:36px; padding:5px 7px; flex-direction:row; gap:4px; font-size:10px; }
+.deck-detail-modal .deck-transition-options button svg { width:15px; height:15px; }
+@media (max-width: 700px) {
+  .deck-detail-modal { width:calc(100vw - 24px); max-height:calc(100vh - 84px); }
+  .deck-detail-modal .deck-transition-settings { align-items:stretch; flex-direction:column; gap:8px; }
+  .deck-detail-modal .deck-transition-options { width:100%; }
+}
+.deck-detail-modal .deck-transition-settings { margin-top:5px; }
+.deck-detail-modal .deck-transition-options button { min-height:40px; padding:6px 9px; white-space:nowrap; }
+.deck-detail-modal .deck-transition-options button[data-deck-transition="none"] svg { display:none; }

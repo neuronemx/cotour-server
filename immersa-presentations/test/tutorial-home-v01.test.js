@@ -1,0 +1,42 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = path.join(__dirname, "..");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () => {
+  const engine = read("public/shared/tutorials/tutorial-engine.js");
+  const definitions = read("public/shared/tutorials/tutorial-definitions.js");
+  const css = read("public/shared/tutorials/tutorial-engine.css");
+  const home = read("public/home/index.html");
+  const homeScript = read("public/home/home.js");
+  const shell = read("public/home/deck-management-shell.js");
+  const homeCss = read("public/home/home.css");
+
+  assert.match(engine, /get\("tutorial"\) === "1"/);
+  assert.match(engine, /localStorage/);
+  assert.match(engine, /step\.prepare\?\.\(\)/);
+  assert.match(engine, /getElementById\("closeDeckDetail"\)\?\.click\(\)/);
+  assert.match(engine, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+  assert.match(engine, /scrollIntoView\?\.\(\{ block: "center", inline: "nearest", behavior: "auto" \}\)/);
+  assert.match(engine, /window\.setTimeout\(\(\) => this\.position\(\), 160\)/);
+  assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
+  assert.match(definitions, /openDemo/);
+  assert.match(definitions, /#detailSlideStrip[\s\S]*?Aquí recorres los slides de tu Deck de forma visual y compruebas que están completos/);
+  assert.match(definitions, /#deckTabVideo[\s\S]*?#deckTabParticipation/);
+  assert.match(definitions, /Asistente te apoya mientras presentas/);
+  assert.doesNotMatch(definitions, /advanceWhen|nextContext/);
+  assert.match(css, /backdrop-filter:blur\(7px\)/);
+  assert.match(css, /pointer-events:auto/);
+  assert.match(css, /immersa-tutorial-exit/);
+  assert.match(css, /immersa-tutorial-exit[^}]*display:grid[^}]*place-items:center[^}]*-webkit-appearance:none/);
+  assert.match(css, /immersa-tutorial-restart[^}]*display:grid[^}]*place-items:center[^}]*-webkit-appearance:none/);
+  assert.doesNotMatch(css, /overflow:hidden!important/);
+  assert.match(home, /data-tutorial-context="home"/);
+  assert.match(homeScript, /const roles = \["screen", "speaker", "audience", "stage"\]/);
+  assert.match(homeScript, /stage: "Asistente"/);
+  assert.match(shell, /name === "video" \|\| name === "participation" \|\| name === "metrics"/);
+  assert.match(shell, /activateTab\("links", true\)/);
+  assert.match(homeCss, /#deckDetailModal \{ align-items: start; padding-top: 86px/);
+});
