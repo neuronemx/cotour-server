@@ -102,12 +102,18 @@
 
       if (step.type === "action-required") {
         const handler = (event) => {
-          const matches = typeof step.advanceWhen === "function"
-            ? step.advanceWhen(event, target)
-            : event.type === (step.advanceWhen?.event || "click") && event.target.closest?.(step.advanceWhen?.selector || step.target);
-          if (!matches) return;
-          if (step.nextContext) this.persist(step.nextContext);
-          this.next();
+          window.setTimeout(() => {
+            const matches = typeof step.advanceWhen === "function"
+              ? step.advanceWhen(event, target)
+              : event.type === (step.advanceWhen?.event || "click") && event.target.closest?.(step.advanceWhen?.selector || step.target);
+            if (!matches) return;
+            if (step.nextContext) {
+              this.persist(step.nextContext);
+              this.exit();
+              return;
+            }
+            this.next();
+          }, 0);
         };
         document.addEventListener(step.advanceWhen?.event || "click", handler, true);
         this.cleanup.push(() => document.removeEventListener(step.advanceWhen?.event || "click", handler, true));
