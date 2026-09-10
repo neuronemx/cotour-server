@@ -20,7 +20,11 @@
       overlay.querySelector(".immersa-tutorial-exit").addEventListener("click", () => this.exit());
       window.addEventListener("resize", () => this.position());
       const definition = this.definitions.find((item) => item.context === document.body.dataset.tutorialContext);
-      if (!definition || read()[definition.id]?.completed) return;
+      if (!definition) return;
+      // ?tutorial=1 is the explicit Temporal preview: always begin a fresh walkthrough.
+      const saved = read();
+      delete saved[definition.id];
+      write(saved);
       this.active = definition;
       this.render();
     }
