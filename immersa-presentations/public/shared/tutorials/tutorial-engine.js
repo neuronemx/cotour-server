@@ -41,7 +41,9 @@
       if (!target) { this.nodes.card.style.visibility = "hidden"; window.setTimeout(() => this.render(), 80); return; }
       const { card, spotlight } = this.nodes;
       card.style.visibility = "visible";
-      card.querySelector(".immersa-tutorial-kicker").textContent = `${this.index + 1} de ${this.active.steps.length}`;
+      const kicker = card.querySelector(".immersa-tutorial-kicker");
+      kicker.hidden = step.intro === true;
+      kicker.textContent = `${this.index} de ${this.active.steps.length - 1}`;
       card.querySelector("h2").textContent = step.title;
       card.querySelector(".immersa-tutorial-copy").textContent = step.copy;
       card.querySelector("[data-back]").hidden = this.index === 0;
@@ -49,19 +51,20 @@
       if (step.intro) { Object.assign(card.style, { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }); spotlight.hidden = true; return; }
       card.style.transform = "";
       spotlight.hidden = false;
-      target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      const targetRect = step.bounds?.() || target.getBoundingClientRect();
+      window.scrollTo({ top: Math.max(0, window.scrollY + targetRect.top - 88), behavior: "auto" });
       requestAnimationFrame(() => this.position());
     }
     position() {
       const step = this.active?.steps[this.index], target = step && this.target(step);
       if (!target || this.nodes.overlay.hidden) return;
-      const rect = target.getBoundingClientRect(), gap = 8, { spotlight, card } = this.nodes;
+      const rect = step.bounds?.() || target.getBoundingClientRect(), gap = 8, { spotlight, card } = this.nodes;
       const left = Math.max(4, rect.left - gap), right = Math.min(innerWidth - 4, rect.right + gap), topEdge = Math.max(4, rect.top - gap), bottom = Math.min(innerHeight - 4, rect.bottom + gap), width = Math.max(0, right - left), height = Math.max(0, bottom - topEdge);
       Object.assign(spotlight.style, { left: `${left}px`, top: `${topEdge}px`, width: `${width}px`, height: `${height}px` });
       const top = rect.bottom + 16 + card.offsetHeight > innerHeight ? Math.max(12, rect.top - card.offsetHeight - 16) : Math.min(innerHeight - card.offsetHeight - 12, rect.bottom + 16);
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
-    go(direction) { if (direction < 0) this.active?.steps[this.index]?.cleanup?.(); this.index = Math.max(0, this.index + direction); this.render(); }
+    go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
     exit() { this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
     complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); }
   }
