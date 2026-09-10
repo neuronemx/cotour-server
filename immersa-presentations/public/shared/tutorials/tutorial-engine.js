@@ -65,7 +65,7 @@
       const rect = step.bounds?.() || target.getBoundingClientRect(), gap = 8, { spotlight, card } = this.nodes;
       const left = Math.max(4, rect.left - gap), right = Math.min(innerWidth - 4, rect.right + gap), topEdge = Math.max(4, rect.top - gap), bottom = Math.min(innerHeight - 4, rect.bottom + gap), width = Math.max(0, right - left), height = Math.max(0, bottom - topEdge);
       Object.assign(spotlight.style, { left: `${left}px`, top: `${topEdge}px`, width: `${width}px`, height: `${height}px` });
-      const top = rect.bottom + 16 + card.offsetHeight > innerHeight ? Math.max(12, rect.top - card.offsetHeight - 16) : Math.min(innerHeight - card.offsetHeight - 12, rect.bottom + 16);
+      const top = rect.bottom + 28 + card.offsetHeight > innerHeight ? Math.max(12, rect.top - card.offsetHeight - 28) : Math.min(innerHeight - card.offsetHeight - 12, rect.bottom + 28);
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
     go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
