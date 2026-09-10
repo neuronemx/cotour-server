@@ -954,3 +954,7 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 /* Deck detail begins below the persistent Home header. */
 #deckDetailModal { align-items: start; padding-top: 86px; padding-bottom: 20px; }
 @media (max-width: 700px) { #deckDetailModal { padding-top: 68px; padding-inline: 12px; } }
+
+/* Center the Deck card in the space below the persistent header. */
+#deckDetailModal { align-items:center; padding:70px 20px 0; }
+@media (max-width: 700px) { #deckDetailModal { padding:58px 12px 0; } }
