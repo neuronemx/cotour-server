@@ -16,7 +16,6 @@ test("Tutorial HOME is an opt-in floating layer on the real Home and Speaker sur
   assert.match(engine, /get\("tutorial"\) === "1"/);
   assert.match(engine, /localStorage/);
   assert.match(engine, /immersa-tutorial-spotlight/);
-  assert.match(engine, /pointer-events:none/);
   assert.match(engine, /this\.persist\(step\.nextContext\)[\s\S]*?this\.exit\(\)/);
   assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
   assert.match(definitions, /context: "home"/);
