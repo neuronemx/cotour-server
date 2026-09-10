@@ -7,10 +7,12 @@
     if (!plan || !profile) return null;
     return { left: plan.left, top: Math.min(plan.top, profile.top), right: profile.right, bottom: Math.max(plan.bottom, profile.bottom), width: profile.right - plan.left, height: Math.max(plan.bottom, profile.bottom) - Math.min(plan.top, profile.top) };
   };
-  const openDemo = () => {
+  const demoRow = () => {
     const rows = [...document.querySelectorAll("#deckList .deck-row")];
-    const demo = rows.find((row) => /DEMO|MAESTRO/i.test(row.textContent || "")) || rows[0];
-    demo?.click();
+    return rows.find((row) => /DEMO|MAESTRO/i.test(row.textContent || "")) || rows[0] || null;
+  };
+  const openDemo = () => {
+    demoRow()?.click();
   };
   window.ImmersaTutorials?.boot([{
     id: "home-first-steps",
@@ -19,8 +21,8 @@
     steps: [
       { id: "welcome", target: find("#inicio"), intro: true, title: "Bienvenido a IMMERSA", copy: "En pocos pasos conocerás cómo preparar tu primera experiencia.", type: "informative" },
       { id: "account", target: find("#planBadge"), bounds: accountBounds, title: "Tu plan y perfil", copy: "Aquí consultas tus límites y administras tu perfil.", type: "informative" },
-      { id: "upload", target: find("#fileDrop"), title: "Sube tu contenido", copy: "Este es el punto de partida para crear un nuevo Deck.", type: "informative" },
-      { id: "home-decks", target: find("#deckList"), title: "HOME y Deck Demo", copy: "Aquí están tus Decks. El Deck Demo te permite conocer IMMERSA sin modificar tu contenido.", type: "informative" },
+      { id: "upload", target: find(".create-panel"), title: "Sube tu contenido", copy: "Este es el punto de partida para crear un nuevo Deck.", type: "informative" },
+      { id: "home-decks", target: demoRow, title: "HOME y Deck Demo", copy: "Aquí están tus Decks. El Deck Demo te permite conocer IMMERSA sin modificar tu contenido.", type: "informative" },
       { id: "deck", target: find("#deckDetailModal:not([hidden])"), prepare: openDemo, cleanup: () => document.getElementById("closeDeckDetail")?.click(), title: "Este es un Deck", copy: "Cada Deck conserva su contenido y toda la configuración asociada.", type: "informative" },
       { id: "slides", target: find("#detailSlideStrip"), title: "Slides y miniaturas", copy: "Aquí recorres las slides de tu Deck de forma visual.", type: "informative" },
       { id: "videos", target: find("#deckTabVideo"), title: "Videos", copy: "Aquí agregas video a slides específicos del Deck.", type: "informative" },
