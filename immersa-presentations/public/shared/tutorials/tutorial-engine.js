@@ -55,9 +55,9 @@
       if (step.intro || step.outro) { Object.assign(card.style, { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }); spotlight.hidden = true; return; }
       card.style.transform = "";
       spotlight.hidden = false;
-      const targetRect = step.bounds?.() || target.getBoundingClientRect();
-      window.scrollTo({ top: Math.max(0, window.scrollY + targetRect.top - 88), behavior: "auto" });
-      requestAnimationFrame(() => this.position());
+      target.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "auto" });
+      requestAnimationFrame(() => requestAnimationFrame(() => this.position()));
+      window.setTimeout(() => this.position(), 160);
     }
     position() {
       const step = this.active?.steps[this.index], target = step && this.target(step);
