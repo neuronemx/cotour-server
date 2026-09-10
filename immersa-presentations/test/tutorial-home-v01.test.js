@@ -19,6 +19,8 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(engine, /step\.prepare\?\.\(\)/);
   assert.match(engine, /closeDeckDetail\)\?\.click\(\)/);
   assert.match(engine, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+  assert.match(engine, /scrollIntoView\?\.\(\{ block: "center", inline: "nearest", behavior: "auto" \}\)/);
+  assert.match(engine, /window\.setTimeout\(\(\) => this\.position\(\), 160\)/);
   assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
   assert.match(definitions, /openDemo/);
   assert.match(definitions, /#detailSlideStrip[\s\S]*?Aquí recorres los slides de tu Deck de forma visual y compruebas que están completos/);
@@ -28,6 +30,9 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(css, /backdrop-filter:blur\(7px\)/);
   assert.match(css, /pointer-events:auto/);
   assert.match(css, /immersa-tutorial-exit/);
+  assert.match(css, /immersa-tutorial-exit[^}]*display:grid[^}]*place-items:center[^}]*-webkit-appearance:none/);
+  assert.match(css, /immersa-tutorial-restart[^}]*display:grid[^}]*place-items:center[^}]*-webkit-appearance:none/);
+  assert.doesNotMatch(css, /overflow:hidden!important/);
   assert.match(home, /data-tutorial-context="home"/);
   assert.match(homeScript, /const roles = \["screen", "speaker", "audience", "stage"\]/);
   assert.match(homeScript, /stage: "Asistente"/);
