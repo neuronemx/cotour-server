@@ -10,6 +10,8 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   const definitions = read("public/shared/tutorials/tutorial-definitions.js");
   const css = read("public/shared/tutorials/tutorial-engine.css");
   const home = read("public/home/index.html");
+  const homeScript = read("public/home/home.js");
+  const shell = read("public/home/deck-management-shell.js");
   const homeCss = read("public/home/home.css");
 
   assert.match(engine, /get\("tutorial"\) === "1"/);
@@ -19,11 +21,15 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(definitions, /openDemo/);
   assert.match(definitions, /#detailSlideStrip/);
   assert.match(definitions, /#deckTabVideo[\s\S]*?#deckTabParticipation/);
-  assert.match(definitions, /Asistente te apoya desde Backstage/);
+  assert.match(definitions, /Asistente te apoya mientras presentas/);
   assert.doesNotMatch(definitions, /advanceWhen|nextContext/);
   assert.match(css, /backdrop-filter:blur\(7px\)/);
   assert.match(css, /pointer-events:auto/);
   assert.match(css, /immersa-tutorial-exit/);
   assert.match(home, /data-tutorial-context="home"/);
+  assert.match(homeScript, /const roles = \["screen", "speaker", "audience", "stage"\]/);
+  assert.match(homeScript, /stage: "Asistente"/);
+  assert.match(shell, /name === "video" \|\| name === "participation"/);
+  assert.match(shell, /activateTab\("links", true\)/);
   assert.match(homeCss, /#deckDetailModal \{ align-items: start; padding-top: 86px/);
 });
