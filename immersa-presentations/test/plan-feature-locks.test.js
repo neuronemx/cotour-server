@@ -212,7 +212,7 @@ test("Speaker Pro activity history cannot be read with basic Speaker Metrics", (
   );
 });
 
-test("Home keeps the plan sections visible and filters Backstage on FREE", () => {
+test("Home keeps the plan sections visible and filters Asistente on FREE", () => {
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");
   const shell = read("public/home/deck-management-shell.js");
@@ -222,7 +222,7 @@ test("Home keeps the plan sections visible and filters Backstage on FREE", () =>
   assert.match(shell, /planEnabled = participationTab\.dataset\.planEnabled === "true"/);
   assert.match(shell, /enabled = planEnabled \|\| demoMasterEnabled/);
   assert.match(source, /access\.backstage/);
-  assert.match(source, /Backstage/);
+  assert.match(source, /Asistente/);
 });
 
 test("Participation locks Speaker Pro editors before their forms can open", () => {
