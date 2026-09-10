@@ -1,6 +1,6 @@
 const PUBLIC_ORIGIN = "https://immersa.mx";
-const roles = ["speaker", "audience", "screen", "stage"];
-const labels = { speaker: "Speaker", audience: "Público", screen: "Pantalla", stage: "Backstage" };
+const roles = ["screen", "speaker", "audience", "stage"];
+const labels = { speaker: "Speaker", audience: "Público", screen: "Pantalla", stage: "Asistente" };
 let profilePublicTitle = String(window.IMMERSA_PROFILE_PUBLIC_TITLE || labels.speaker).trim() || labels.speaker;
 let decks = [];
 let activeDeck = null;
