@@ -17,7 +17,7 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(engine, /get\("tutorial"\) === "1"/);
   assert.match(engine, /localStorage/);
   assert.match(engine, /step\.prepare\?\.\(\)/);
-  assert.match(engine, /closeDeckDetail\)\?\.click\(\)/);
+  assert.match(engine, /getElementById\("closeDeckDetail"\)\?\.click\(\)/);
   assert.match(engine, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
   assert.match(engine, /scrollIntoView\?\.\(\{ block: "center", inline: "nearest", behavior: "auto" \}\)/);
   assert.match(engine, /window\.setTimeout\(\(\) => this\.position\(\), 160\)/);
