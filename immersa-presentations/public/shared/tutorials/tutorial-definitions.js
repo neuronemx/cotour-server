@@ -30,7 +30,8 @@
       { id: "transitions", target: find("#deckTransitionSettings"), title: "Transiciones", copy: "Puedes elegir Flash, Disolvencia, Wipe o Ninguna.", type: "informative" },
       { id: "accesses", target: find("#detailActions"), title: "La experiencia conectada", copy: "Speaker controla. Pantalla proyecta. Público participa desde su dispositivo. Si cuentas con acceso, Asistente te apoya desde Backstage.", type: "informative" },
       { id: "screen", target: find(".role-screen"), title: "Prepara Pantalla", copy: "Al terminar el tutorial, copia este enlace y ábrelo en otra pestaña, navegador o computadora. Después regresa a HOME.", type: "informative" },
-      { id: "finish", target: find(".role-speaker"), title: "Listo para presentar", copy: "Termina este tutorial y abre Speaker para controlar la experiencia. Desde ahí podrás mostrar el QR para que el Público entre.", type: "informative" }
+      { id: "speaker", target: find(".role-speaker"), title: "Listo para presentar", copy: "Al terminar, abre Speaker para controlar la experiencia. Desde ahí podrás mostrar el QR para que el Público entre.", type: "informative" },
+      { id: "finish", target: find("#inicio"), outro: true, title: "¡Listo para crear!", copy: "Ya conoces el flujo esencial de IMMERSA. Puedes repetir este recorrido en cualquier momento seleccionando el botón ? de la esquina inferior derecha.", type: "informative" }
     ]
   }]);
 })();
