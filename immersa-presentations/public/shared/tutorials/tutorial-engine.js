@@ -65,7 +65,7 @@
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
     go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
-    exit() { this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
+    exit() { document.getElementById("closeDeckDetail")?.click(); this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
     complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); }
   }
   window.ImmersaTutorials = { boot(definitions) { window.addEventListener("DOMContentLoaded", () => new TutorialEngine(definitions).mount(), { once: true }); } };
