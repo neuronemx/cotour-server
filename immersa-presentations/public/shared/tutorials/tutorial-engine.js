@@ -33,6 +33,7 @@
       const step = this.active?.steps[this.index];
       if (!step) return this.complete();
       this.nodes.overlay.hidden = false;
+      this.nodes.overlay.classList.toggle("is-intro", step.intro === true);
       document.documentElement.classList.add("immersa-tutorial-lock");
       document.body.classList.add("immersa-tutorial-lock");
       if (!this.prepared.has(step.id)) { this.prepared.add(step.id); step.prepare?.(); }
@@ -44,7 +45,10 @@
       card.querySelector("h2").textContent = step.title;
       card.querySelector(".immersa-tutorial-copy").textContent = step.copy;
       card.querySelector("[data-back]").hidden = this.index === 0;
-      card.querySelector("[data-next]").textContent = this.index === this.active.steps.length - 1 ? "Terminar" : "Siguiente";
+      card.querySelector("[data-next]").textContent = step.intro ? "Empezar recorrido" : (this.index === this.active.steps.length - 1 ? "Terminar" : "Siguiente");
+      if (step.intro) { Object.assign(card.style, { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }); spotlight.hidden = true; return; }
+      card.style.transform = "";
+      spotlight.hidden = false;
       target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
       requestAnimationFrame(() => this.position());
     }
@@ -57,7 +61,7 @@
       const top = rect.bottom + 16 + card.offsetHeight > innerHeight ? Math.max(12, rect.top - card.offsetHeight - 16) : Math.min(innerHeight - card.offsetHeight - 12, rect.bottom + 16);
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
-    go(direction) { this.index = Math.max(0, this.index + direction); this.render(); }
+    go(direction) { if (direction < 0) this.active?.steps[this.index]?.cleanup?.(); this.index = Math.max(0, this.index + direction); this.render(); }
     exit() { this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
     complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); }
   }
