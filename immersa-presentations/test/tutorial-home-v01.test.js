@@ -2,32 +2,28 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Tutorial HOME is an opt-in floating layer on the real Home and Speaker surfaces", () => {
+test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () => {
   const engine = read("public/shared/tutorials/tutorial-engine.js");
   const definitions = read("public/shared/tutorials/tutorial-definitions.js");
   const css = read("public/shared/tutorials/tutorial-engine.css");
   const home = read("public/home/index.html");
-  const speaker = read("public/presenter/index.html");
+  const homeCss = read("public/home/home.css");
 
   assert.match(engine, /get\("tutorial"\) === "1"/);
   assert.match(engine, /localStorage/);
-  assert.match(engine, /immersa-tutorial-spotlight/);
-  assert.match(engine, /this\.persist\(step\.nextContext\)[\s\S]*?this\.exit\(\)/);
+  assert.match(engine, /step\.prepare\?\.\(\)/);
   assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
-  assert.match(definitions, /context: "home"/);
-  assert.match(definitions, /context: "speaker"/);
-  assert.match(definitions, /#fileDrop/);
-  assert.match(definitions, /#deckTransitionSettings/);
-  assert.match(definitions, /\.role-speaker/);
-  assert.match(definitions, /#next/);
-  assert.match(css, /pointer-events:none/);
+  assert.match(definitions, /openDemo/);
+  assert.match(definitions, /#detailSlideStrip/);
+  assert.match(definitions, /#deckTabVideo[\s\S]*?#deckTabParticipation/);
+  assert.match(definitions, /Asistente te apoya desde Backstage/);
+  assert.doesNotMatch(definitions, /advanceWhen|nextContext/);
+  assert.match(css, /backdrop-filter:blur\(7px\)/);
   assert.match(css, /pointer-events:auto/);
+  assert.match(css, /immersa-tutorial-exit/);
   assert.match(home, /data-tutorial-context="home"/);
-  assert.match(home, /\/shared\/tutorials\/tutorial-engine\.js/);
-  assert.match(speaker, /data-tutorial-context="speaker"/);
-  assert.match(speaker, /\/shared\/tutorials\/tutorial-definitions\.js/);
+  assert.match(homeCss, /#deckDetailModal \{ align-items: start; padding-top: 86px/);
 });
