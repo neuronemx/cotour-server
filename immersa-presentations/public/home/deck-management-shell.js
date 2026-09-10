@@ -2,6 +2,7 @@
   const modal = document.getElementById("deckDetailModal");
   const actionSource = document.getElementById("detailActions");
   const launchers = document.getElementById("deckEditorLaunchers");
+  const thumbnail = document.getElementById("detailThumb");
   const shell = modal?.querySelector(".deck-detail-modal");
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
@@ -29,11 +30,28 @@
     }
   };
 
+  function syncDeckHomeLink(name) {
+    const enabled = name === "video" || name === "participation";
+    if (!thumbnail) return;
+    thumbnail.classList.toggle("is-deck-home-link", enabled);
+    thumbnail.style.cursor = enabled ? "pointer" : "";
+    if (enabled) {
+      thumbnail.setAttribute("role", "link");
+      thumbnail.tabIndex = 0;
+      thumbnail.setAttribute("aria-label", "Regresar a Enlaces del Deck");
+    } else {
+      thumbnail.removeAttribute("role");
+      thumbnail.removeAttribute("tabindex");
+      thumbnail.removeAttribute("aria-label");
+    }
+  }
+
   function activateTab(name, focus = false) {
     const targetTab = tabs.find((tab) => tab.dataset.deckTab === name);
     if (!targetTab || targetTab.disabled) return;
     shell.classList.toggle("is-compact-header", name !== "links");
     modal.dataset.activeDeckTab = name;
+    syncDeckHomeLink(name);
     tabs.forEach((tab) => {
       const selected = tab.dataset.deckTab === name;
       tab.classList.toggle("is-active", selected);
@@ -119,6 +137,15 @@
     };
     window.renderDetailActions.__deckManagementShellPatched = true;
   }
+
+  thumbnail?.addEventListener("click", () => {
+    if (thumbnail.classList.contains("is-deck-home-link")) activateTab("links", true);
+  });
+  thumbnail?.addEventListener("keydown", (event) => {
+    if (!thumbnail.classList.contains("is-deck-home-link") || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    activateTab("links", true);
+  });
 
   tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => {
