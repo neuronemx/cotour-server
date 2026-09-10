@@ -14,7 +14,11 @@
       overlay.hidden = true;
       overlay.innerHTML = '<div class="immersa-tutorial-spotlight"></div><section class="immersa-tutorial-card" role="dialog" aria-modal="true" aria-live="polite"><button class="immersa-tutorial-exit" type="button" aria-label="Salir del tutorial">×</button><p class="immersa-tutorial-kicker"></p><h2></h2><p class="immersa-tutorial-copy"></p><div class="immersa-tutorial-actions"><button type="button" data-back>Atrás</button><button type="button" data-next>Siguiente</button></div></section>';
       document.body.appendChild(overlay);
-      this.nodes = { overlay, card: overlay.querySelector(".immersa-tutorial-card"), spotlight: overlay.querySelector(".immersa-tutorial-spotlight") };
+      const restart = document.createElement("button");
+      restart.type = "button"; restart.className = "immersa-tutorial-restart"; restart.textContent = "?"; restart.title = "Reiniciar tutorial"; restart.setAttribute("aria-label", "Reiniciar tutorial");
+      document.body.appendChild(restart);
+      this.nodes = { overlay, card: overlay.querySelector(".immersa-tutorial-card"), spotlight: overlay.querySelector(".immersa-tutorial-spotlight"), restart };
+      restart.addEventListener("click", () => this.restart());
       overlay.querySelector("[data-back]").addEventListener("click", () => this.go(-1));
       overlay.querySelector("[data-next]").addEventListener("click", () => this.go(1));
       overlay.querySelector(".immersa-tutorial-exit").addEventListener("click", () => this.exit());
@@ -33,7 +37,7 @@
       const step = this.active?.steps[this.index];
       if (!step) return this.complete();
       this.nodes.overlay.hidden = false;
-      this.nodes.overlay.classList.toggle("is-intro", step.intro === true);
+      this.nodes.overlay.classList.toggle("is-intro", step.intro === true || step.outro === true);
       document.documentElement.classList.add("immersa-tutorial-lock");
       document.body.classList.add("immersa-tutorial-lock");
       if (!this.prepared.has(step.id)) { this.prepared.add(step.id); step.prepare?.(); }
@@ -42,13 +46,13 @@
       const { card, spotlight } = this.nodes;
       card.style.visibility = "visible";
       const kicker = card.querySelector(".immersa-tutorial-kicker");
-      kicker.hidden = step.intro === true;
+      kicker.hidden = step.intro === true || step.outro === true;
       kicker.textContent = `${this.index} de ${this.active.steps.length - 1}`;
       card.querySelector("h2").textContent = step.title;
       card.querySelector(".immersa-tutorial-copy").textContent = step.copy;
       card.querySelector("[data-back]").hidden = this.index === 0;
-      card.querySelector("[data-next]").textContent = step.intro ? "Empezar recorrido" : (this.index === this.active.steps.length - 1 ? "Terminar" : "Siguiente");
-      if (step.intro) { Object.assign(card.style, { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }); spotlight.hidden = true; return; }
+      card.querySelector("[data-next]").textContent = step.intro ? "Empezar recorrido" : (step.outro || this.index === this.active.steps.length - 1 ? "Terminar" : "Siguiente");
+      if (step.intro || step.outro) { Object.assign(card.style, { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }); spotlight.hidden = true; return; }
       card.style.transform = "";
       spotlight.hidden = false;
       const targetRect = step.bounds?.() || target.getBoundingClientRect();
@@ -65,6 +69,7 @@
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
     go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
+    restart() { const all = read(); delete all[this.active.id]; write(all); this.index = 0; this.prepared.clear(); this.render(); }
     exit() { document.getElementById("closeDeckDetail")?.click(); this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
     complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); window.scrollTo({ top: 0, behavior: "auto" }); }
   }
