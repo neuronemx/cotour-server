@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=15/);
+  assert.match(html, /deck-management-shell\.css\?v=17/);
   assert.match(html, /deck-management-shell\.js\?v=10/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
@@ -122,7 +122,7 @@ test("Home uses the compact IMMERSA mark in portrait mobile", () => {
 test("Home header remains outside the overlapping upload shell and Speaker stays in the same tab", () => {
   const html = read("public/home/index.html");
   const source = read("public/home/home.js");
-  assert.match(html, /<body>\s*<header class="stage-header">[\s\S]*?<section class="stage-canvas"/);
+  assert.match(html, /<body(?:\s+[^>]*)?>\s*<header class="stage-header">[\s\S]*?<section class="stage-canvas"/);
   assert.match(source, /window\.location\.assign\(url\)/);
   assert.doesNotMatch(source, /window\.open\("about:blank", "_blank"\)/);
 });
@@ -162,7 +162,7 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=15/);
+  assert.match(html, /deck-management-shell\.css\?v=17/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {
