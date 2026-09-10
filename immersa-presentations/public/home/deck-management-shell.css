@@ -658,3 +658,6 @@
   .deck-detail-modal .deck-transition-settings { align-items:stretch; flex-direction:column; gap:8px; }
   .deck-detail-modal .deck-transition-options { width:100%; }
 }
+.deck-detail-modal .deck-transition-settings { margin-top:5px; }
+.deck-detail-modal .deck-transition-options button { min-height:40px; padding:6px 9px; white-space:nowrap; }
+.deck-detail-modal .deck-transition-options button[data-deck-transition="none"] svg { display:none; }
