@@ -31,7 +31,7 @@
   };
 
   function syncDeckHomeLink(name) {
-    const enabled = name === "video" || name === "participation";
+    const enabled = name === "video" || name === "participation" || name === "metrics";
     if (!thumbnail) return;
     thumbnail.classList.toggle("is-deck-home-link", enabled);
     thumbnail.style.cursor = enabled ? "pointer" : "";
