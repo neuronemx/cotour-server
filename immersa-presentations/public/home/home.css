@@ -949,3 +949,8 @@ html:has(body.modal-open), body.modal-open { overflow: hidden; }
 /* Temporary event-pass entitlement displayed in the account limits popover. */
 .plan-usage-pass { margin:14px 0 0; padding:9px 11px; border:1px solid rgba(59,130,246,.22); border-radius:10px; background:linear-gradient(90deg,rgba(139,92,246,.10),rgba(59,130,246,.10)); color:#35305a; font-size:12px; font-weight:700; line-height:1.35; }
 .plan-usage-pass[hidden] { display:none; }
+
+
+/* Deck detail begins below the persistent Home header. */
+#deckDetailModal { align-items: start; padding-top: 86px; padding-bottom: 20px; }
+@media (max-width: 700px) { #deckDetailModal { padding-top: 68px; padding-inline: 12px; } }
