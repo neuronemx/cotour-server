@@ -66,7 +66,7 @@
     }
     go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
     exit() { document.getElementById("closeDeckDetail")?.click(); this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
-    complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); }
+    complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); window.scrollTo({ top: 0, behavior: "auto" }); }
   }
   window.ImmersaTutorials = { boot(definitions) { window.addEventListener("DOMContentLoaded", () => new TutorialEngine(definitions).mount(), { once: true }); } };
 })();
