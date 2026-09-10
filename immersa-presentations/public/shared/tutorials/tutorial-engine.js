@@ -12,9 +12,9 @@
       const overlay = document.createElement("div");
       overlay.className = "immersa-tutorial-overlay";
       overlay.hidden = true;
-      overlay.innerHTML = '<div class="immersa-tutorial-shade" data-shade="top"></div><div class="immersa-tutorial-shade" data-shade="left"></div><div class="immersa-tutorial-shade" data-shade="right"></div><div class="immersa-tutorial-shade" data-shade="bottom"></div><div class="immersa-tutorial-spotlight"></div><section class="immersa-tutorial-card" role="dialog" aria-modal="true" aria-live="polite"><button class="immersa-tutorial-exit" type="button" aria-label="Salir del tutorial">×</button><p class="immersa-tutorial-kicker"></p><h2></h2><p class="immersa-tutorial-copy"></p><div class="immersa-tutorial-actions"><button type="button" data-back>Atrás</button><button type="button" data-next>Siguiente</button></div></section>';
+      overlay.innerHTML = '<div class="immersa-tutorial-spotlight"></div><section class="immersa-tutorial-card" role="dialog" aria-modal="true" aria-live="polite"><button class="immersa-tutorial-exit" type="button" aria-label="Salir del tutorial">×</button><p class="immersa-tutorial-kicker"></p><h2></h2><p class="immersa-tutorial-copy"></p><div class="immersa-tutorial-actions"><button type="button" data-back>Atrás</button><button type="button" data-next>Siguiente</button></div></section>';
       document.body.appendChild(overlay);
-      this.nodes = { overlay, card: overlay.querySelector(".immersa-tutorial-card"), spotlight: overlay.querySelector(".immersa-tutorial-spotlight"), shades: [...overlay.querySelectorAll(".immersa-tutorial-shade")] };
+      this.nodes = { overlay, card: overlay.querySelector(".immersa-tutorial-card"), spotlight: overlay.querySelector(".immersa-tutorial-spotlight") };
       overlay.querySelector("[data-back]").addEventListener("click", () => this.go(-1));
       overlay.querySelector("[data-next]").addEventListener("click", () => this.go(1));
       overlay.querySelector(".immersa-tutorial-exit").addEventListener("click", () => this.exit());
@@ -50,11 +50,6 @@
       const rect = target.getBoundingClientRect(), gap = 8, { spotlight, card } = this.nodes;
       const left = Math.max(4, rect.left - gap), topEdge = Math.max(4, rect.top - gap), width = rect.width + gap * 2, height = rect.height + gap * 2;
       Object.assign(spotlight.style, { left: `${left}px`, top: `${topEdge}px`, width: `${width}px`, height: `${height}px` });
-      const [topShade, leftShade, rightShade, bottomShade] = this.nodes.shades;
-      Object.assign(topShade.style, { left: "0", top: "0", width: "100%", height: `${topEdge}px` });
-      Object.assign(leftShade.style, { left: "0", top: `${topEdge}px`, width: `${left}px`, height: `${height}px` });
-      Object.assign(rightShade.style, { left: `${left + width}px`, top: `${topEdge}px`, right: "0", height: `${height}px` });
-      Object.assign(bottomShade.style, { left: "0", top: `${topEdge + height}px`, width: "100%", bottom: "0" });
       const top = rect.bottom + 16 + card.offsetHeight > innerHeight ? Math.max(12, rect.top - card.offsetHeight - 16) : Math.min(innerHeight - card.offsetHeight - 12, rect.bottom + 16);
       Object.assign(card.style, { left: `${Math.max(12, Math.min(innerWidth - card.offsetWidth - 12, rect.left))}px`, top: `${top}px` });
     }
