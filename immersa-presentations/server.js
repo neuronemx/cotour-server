@@ -20,6 +20,7 @@ const {
   isSessionInactive
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { listAudiovisualResources } = require("./audiovisual-library");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
@@ -1728,6 +1729,7 @@ app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDec
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireAccountAdjustmentCleared, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
+app.get("/api/audiovisual-library", requireAccountOrControllerDeck, (_req, res) => res.json({ resources: listAudiovisualResources() }));
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireAccountAdjustmentCleared, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.createBrand);
