@@ -328,7 +328,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       assessments: Array.isArray(parsed?.assessments) ? parsed.assessments : [],
       hidden_slide_ids: migrateHiddenIds(parsed || {}, slideIds),
       hidden_slide_indexes: normalizeIndexes(parsed?.hidden_slide_indexes),
-      videos: Array.isArray(parsed?.videos) ? parsed.videos : []
+      videos: Array.isArray(parsed?.videos) ? parsed.videos : [],
+      audiovisual: Array.isArray(parsed?.audiovisual) ? parsed.audiovisual : []
     };
   }
 
@@ -342,7 +343,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       return { ...payloadFromParsed(parsed, deckId, slideIds), slides: manifest.slides || [] };
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], slides: manifest.slides || [] };
+      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], audiovisual: [], slides: manifest.slides || [] };
     }
   }
 
@@ -411,7 +412,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       assessments,
       hidden_slide_ids: hiddenIds,
       hidden_slide_indexes: hiddenIds.map((slideId) => slideIds.indexOf(slideId)).filter((index) => index >= 0),
-      videos
+      videos,
+      audiovisual: body.audiovisual === undefined ? current.audiovisual : [...new Set((Array.isArray(body.audiovisual) ? body.audiovisual : []).map((item) => String(item || '').trim()).filter((id) => /^[a-z0-9_-]{1,96}$/i.test(id)))]
     };
   }
 
