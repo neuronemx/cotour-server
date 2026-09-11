@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=1">
   <link rel="stylesheet" href="/home/video-editor.css?v=109">
+  <link rel="stylesheet" href="/home/audiovisual-editor.css?v=1">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
   <link rel="stylesheet" href="/home/profile-editor.css?v=5">
   <style>
@@ -124,6 +125,7 @@
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
+        <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Audiovisual</span></button>
         <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
@@ -148,6 +150,7 @@
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
+        <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
           <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
           <section id="basicMetrics" class="basic-metrics" aria-labelledby="basicMetricsTitle" hidden>
@@ -262,6 +265,7 @@
   <script src="/home/knowledge-activity-history.js?v=1"></script>
   <script src="/home/interactions-editor.js?v=8"></script>
   <script src="/home/video-editor.js?v=113"></script>
+  <script src="/home/audiovisual-editor.js?v=1"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
   <script src="/home/deck-management-shell.js?v=10"></script>
