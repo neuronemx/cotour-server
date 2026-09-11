@@ -110,9 +110,13 @@
     video.src = resource.media_url;
     video.setAttribute('aria-hidden', 'true');
     figure.appendChild(video);
-    image.hidden = true;
-    card.classList.add('av-video-previewing');
     preview = video;
+    video.addEventListener('loadeddata', () => {
+      if (preview !== video) return;
+      image.hidden = true;
+      card.classList.add('av-video-previewing');
+    }, { once: true });
+    video.addEventListener('error', stopPreview, { once: true });
     video.play().catch(stopPreview);
   }
 
