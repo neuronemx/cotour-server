@@ -666,3 +666,23 @@
 @media (min-width: 760px){.deck-detail-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.deck-detail-tab{justify-content:center;min-width:0}}
 
 @media (min-width:701px){#deckDetailModal .deck-detail-tabs{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;width:100%}.deck-detail-tabs .deck-detail-tab{min-width:0!important;justify-content:center!important;padding-left:6px!important;padding-right:6px!important}}
+
+
+/* Deck sections use the full width of the modal on desktop. */
+@media (min-width:701px){
+  .deck-detail-modal .deck-detail-tabs,
+  #deckDetailModal .deck-detail-tabs{
+    display:grid !important;
+    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+    width:100% !important;
+    justify-content:stretch !important;
+    gap:0 !important;
+  }
+  .deck-detail-modal .deck-detail-tabs .deck-detail-tab,
+  #deckDetailModal .deck-detail-tabs .deck-detail-tab{
+    width:100% !important;
+    min-width:0 !important;
+    justify-content:center !important;
+    padding-inline:4px !important;
+  }
+}
