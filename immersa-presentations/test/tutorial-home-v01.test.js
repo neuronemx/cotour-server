@@ -14,8 +14,11 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   const shell = read("public/home/deck-management-shell.js");
   const homeCss = read("public/home/home.css");
 
-  assert.match(engine, /get\("tutorial"\) === "1"/);
+  assert.match(engine, /const preview = new URLSearchParams\(window\.location\.search\)\.get\("tutorial"\) === "1"/);
+  assert.match(engine, /if \(!saved\[definition\.id\]\?\.completed\) this\.render\(\)/);
+  assert.match(engine, /if \(preview\) \{[\s\S]*?delete saved\[definition\.id\]/);
   assert.match(engine, /localStorage/);
+  assert.match(engine, /exit\(remember = true\)/);
   assert.match(engine, /step\.prepare\?\.\(\)/);
   assert.match(engine, /getElementById\("closeDeckDetail"\)\?\.click\(\)/);
   assert.match(engine, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
