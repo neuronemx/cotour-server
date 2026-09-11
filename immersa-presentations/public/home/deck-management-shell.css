@@ -661,3 +661,6 @@
 .deck-detail-modal .deck-transition-settings { margin-top:5px; }
 .deck-detail-modal .deck-transition-options button { min-height:40px; padding:6px 9px; white-space:nowrap; }
 .deck-detail-modal .deck-transition-options button[data-deck-transition="none"] svg { display:none; }
+
+/* Keep the five deck sections evenly distributed without changing mobile overflow. */
+@media (min-width: 760px){.deck-detail-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.deck-detail-tab{justify-content:center;min-width:0}}
