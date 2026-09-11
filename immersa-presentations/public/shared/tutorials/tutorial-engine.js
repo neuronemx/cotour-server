@@ -1,14 +1,13 @@
 (() => {
   "use strict";
   const KEY = "immersa:tutorials:v2";
-  const enabled = new URLSearchParams(window.location.search).get("tutorial") === "1";
+  const preview = new URLSearchParams(window.location.search).get("tutorial") === "1";
   const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) { return {}; } };
   const write = (value) => localStorage.setItem(KEY, JSON.stringify(value));
 
   class TutorialEngine {
     constructor(definitions) { this.definitions = definitions; this.index = 0; this.active = null; this.prepared = new Set(); }
     mount() {
-      if (!enabled) return;
       const overlay = document.createElement("div");
       overlay.className = "immersa-tutorial-overlay";
       overlay.hidden = true;
@@ -25,12 +24,16 @@
       window.addEventListener("resize", () => this.position());
       const definition = this.definitions.find((item) => item.context === document.body.dataset.tutorialContext);
       if (!definition) return;
-      // ?tutorial=1 is the explicit Temporal preview: always begin a fresh walkthrough.
       const saved = read();
-      delete saved[definition.id];
-      write(saved);
       this.active = definition;
-      this.render();
+      // ?tutorial=1 remains an explicit preview; ordinary visitors see the tutorial once.
+      if (preview) {
+        delete saved[definition.id];
+        write(saved);
+        this.render();
+        return;
+      }
+      if (!saved[definition.id]?.completed) this.render();
     }
     target(step) { try { return typeof step.target === "function" ? step.target() : document.querySelector(step.target); } catch (_) { return null; } }
     render() {
@@ -70,8 +73,8 @@
     }
     go(direction) { if (direction < 0) { const step = this.active?.steps[this.index]; step?.cleanup?.(); this.prepared.delete(step?.id); } this.index = Math.max(0, this.index + direction); this.render(); }
     restart() { const all = read(); delete all[this.active.id]; write(all); document.getElementById("closeDeckDetail")?.click(); window.scrollTo({ top: 0, behavior: "auto" }); this.index = 0; this.prepared.clear(); requestAnimationFrame(() => this.render()); }
-    exit() { document.getElementById("closeDeckDetail")?.click(); this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
-    complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(); window.scrollTo({ top: 0, behavior: "auto" }); }
+    exit(remember = true) { if (remember && this.active) { const all = read(); all[this.active.id] = { completed: true }; write(all); } document.getElementById("closeDeckDetail")?.click(); this.nodes.overlay.hidden = true; document.documentElement.classList.remove("immersa-tutorial-lock"); document.body.classList.remove("immersa-tutorial-lock"); }
+    complete() { const all = read(); all[this.active.id] = { completed: true }; write(all); this.exit(false); window.scrollTo({ top: 0, behavior: "auto" }); }
   }
   window.ImmersaTutorials = { boot(definitions) { window.addEventListener("DOMContentLoaded", () => new TutorialEngine(definitions).mount(), { once: true }); } };
 })();
