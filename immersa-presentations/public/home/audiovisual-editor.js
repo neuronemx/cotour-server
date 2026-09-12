@@ -240,6 +240,14 @@
     window.setTimeout(syncCategorySelector, 180);
   }
 
+  function resetSaveState() {
+    const button = host.querySelector('[data-save]');
+    if (!button) return;
+    saving = false;
+    button.disabled = false;
+    button.textContent = 'Guardar selección';
+  }
+
   async function save() {
     if (saving || !deck) return;
     saving = true;
@@ -297,6 +305,9 @@
     stopPreview();
     deck = null;
   });
-  document.addEventListener('immersa:audiovisual-library-visible', queueCategorySelectorSync);
+  document.addEventListener('immersa:audiovisual-library-visible', () => {
+    resetSaveState();
+    queueCategorySelectorSync();
+  });
   window.addEventListener('resize', queueCategorySelectorSync);
 })();
