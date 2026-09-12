@@ -748,3 +748,20 @@
     padding:12px 14px 14px;
   }
 }
+
+/* Library selector is intentionally anchored below its parent tab. */
+.deck-detail-modal.has-audiovisual-library > .deck-detail-content{
+  padding:5px 24px 24px;
+}
+@media (min-width:701px){
+  .deck-detail-modal.has-audiovisual-library .av-library-tools{
+    justify-content:flex-start;
+    box-sizing:border-box;
+    padding-left:65%;
+  }
+}
+@media (max-width:700px){
+  .deck-detail-modal.has-audiovisual-library > .deck-detail-content{
+    padding:5px 14px 14px;
+  }
+}
