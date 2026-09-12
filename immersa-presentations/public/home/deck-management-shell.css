@@ -757,7 +757,7 @@
   .deck-detail-modal.has-audiovisual-library .av-library-tools{
     justify-content:flex-start;
     box-sizing:border-box;
-    padding-left:65%;
+    padding-left:70.5%;
   }
 }
 @media (max-width:700px){
