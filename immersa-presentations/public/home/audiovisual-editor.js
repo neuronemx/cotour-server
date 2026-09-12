@@ -145,8 +145,8 @@
 
     host.innerHTML =
       '<section class="av2">' +
-        '<header class="av-library-header"><p>Elige los recursos que estarán disponibles durante tu presentación.</p></header>' +
-        '<div class="av-library-tools"><label class="av2-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5"></circle><path d="m15 15 4 4"></path></svg><input data-search value="' + escapeHtml(query) + '" placeholder="Buscar" autocomplete="off"></label><div class="av2-tabs" role="tablist">' +
+        '<header class="av-library-header"><p>Elige los recursos que estarán disponibles durante tu presentación.</p><label class="av2-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5"></circle><path d="m15 15 4 4"></path></svg><input data-search value="' + escapeHtml(query) + '" placeholder="Buscar en la librería" autocomplete="off"></label></header>' +
+        '<div class="av-library-tools"><div class="av2-tabs" role="tablist">' +
           '<button data-tab="audio" class="' + (type === 'audio' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'audio') + '">Audio</button>' +
           '<button data-tab="video" class="' + (type === 'video' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'video') + '">Video</button>' +
         '</div></div>' +
