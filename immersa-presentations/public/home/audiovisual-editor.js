@@ -11,6 +11,19 @@
   let activeAudioButton = null;
   let saving = false;
 
+  function syncCategorySelector() {
+    const tools = host.querySelector('.av-library-tools');
+    const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
+    if (!tools || !libraryTab) return;
+    const toolsRect = tools.getBoundingClientRect();
+    const tabRect = libraryTab.getBoundingClientRect();
+    tools.style.setProperty('--library-tab-center', Math.round(tabRect.left + (tabRect.width / 2) - toolsRect.left) + 'px');
+  }
+
+  function queueCategorySelectorSync() {
+    requestAnimationFrame(() => requestAnimationFrame(syncCategorySelector));
+  }
+
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[character]));
@@ -201,6 +214,7 @@
       });
     });
     host.querySelector('[data-save]').addEventListener('click', save);
+    queueCategorySelectorSync();
   }
 
   async function save() {
@@ -260,4 +274,5 @@
     stopPreview();
     deck = null;
   });
+  window.addEventListener('resize', queueCategorySelectorSync);
 })();
