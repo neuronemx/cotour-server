@@ -11,6 +11,7 @@
   let activeAudioButton = null;
   let saving = false;
   let selectorObserver = null;
+  let categorySelectorOffset = 0;
 
   function syncCategorySelector() {
     const selector = host.querySelector('.av-library-tools .av2-tabs');
@@ -25,7 +26,8 @@
       (tabRect.left + (tabRect.width / 2)) -
       (selectorRect.left + (selectorRect.width / 2))
     );
-    selector.style.transform = 'translateX(' + Math.max(-80, Math.min(80, delta)) + 'px)';
+    categorySelectorOffset = Math.max(-80, Math.min(80, delta));
+    selector.style.transform = 'translateX(' + categorySelectorOffset + 'px)';
   }
 
   function queueCategorySelectorSync() {
@@ -177,7 +179,7 @@
 
     host.innerHTML =
       '<section class="av2">' +
-        '<div class="av-library-tools"><div class="av2-tabs" role="tablist">' +
+        '<div class="av-library-tools"><div class="av2-tabs" role="tablist" style="transform:translateX(' + categorySelectorOffset + 'px)">' +
           '<button data-tab="audio" class="' + (type === 'audio' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'audio') + '">Audio</button>' +
           '<button data-tab="video" class="' + (type === 'video' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'video') + '">Video</button>' +
         '</div></div>' +
