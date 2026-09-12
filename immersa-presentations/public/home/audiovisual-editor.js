@@ -12,12 +12,17 @@
   let saving = false;
 
   function syncCategorySelector() {
-    const tools = host.querySelector('.av-library-tools');
+    const selector = host.querySelector('.av-library-tools .av2-tabs');
     const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
-    if (!tools || !libraryTab) return;
-    const toolsRect = tools.getBoundingClientRect();
+    if (!selector || !libraryTab) return;
+    const selectorRect = selector.getBoundingClientRect();
     const tabRect = libraryTab.getBoundingClientRect();
-    tools.style.setProperty('--library-tab-center', Math.round(tabRect.left + (tabRect.width / 2) - toolsRect.left) + 'px');
+    if (!selectorRect.width || !tabRect.width) return;
+    const delta = Math.round(
+      (tabRect.left + (tabRect.width / 2)) -
+      (selectorRect.left + (selectorRect.width / 2))
+    );
+    selector.style.transform = 'translateX(' + Math.max(-80, Math.min(80, delta)) + 'px)';
   }
 
   function queueCategorySelectorSync() {
