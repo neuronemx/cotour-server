@@ -295,5 +295,6 @@
     stopPreview();
     deck = null;
   });
+  document.addEventListener('immersa:audiovisual-library-visible', queueCategorySelectorSync);
   window.addEventListener('resize', queueCategorySelectorSync);
 })();
