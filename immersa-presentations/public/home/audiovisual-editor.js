@@ -151,7 +151,7 @@
         '</div></div>' +
         '<header class="av-library-header"><p>Elige los recursos que estarán disponibles durante tu presentación.</p><label class="av2-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5"></circle><path d="m15 15 4 4"></path></svg><input data-search value="' + escapeHtml(query) + '" placeholder="Buscar en la librería" autocomplete="off"></label></header>' +
         '<main class="av2-list ' + type + '">' + (cards || '<p class="av-empty">No encontramos recursos.</p>') + '</main>' +
-        '<footer><span data-selection-count></span><button data-save>Guardar cambios</button></footer>' +
+        '<footer><span data-selection-count></span><button data-save>Guardar selección</button></footer>' +
       '</section>';
 
     counter();
@@ -209,7 +209,7 @@
     stopPreview();
     const button = host.querySelector('[data-save]');
     button.disabled = true;
-    button.textContent = 'Guardando…';
+    button.textContent = 'Guardando selección…';
     try {
       const response = await fetch('/api/decks/' + encodeURIComponent(deck.deckId) + '/interactions');
       if (!response.ok) throw new Error('No se pudo leer la configuración');
@@ -220,11 +220,11 @@
         body: JSON.stringify({ ...current, audiovisual: selected })
       });
       if (!update.ok) throw new Error('No se pudo guardar');
-      button.textContent = 'Guardado ✓';
+      button.textContent = 'Selección guardada ✓';
       window.setTimeout(() => document.querySelector('[data-deck-tab="links"]')?.click(), 250);
     } catch (error) {
       button.disabled = false;
-      button.textContent = 'Intentar de nuevo';
+      button.textContent = 'Intentar guardar de nuevo';
       saving = false;
     }
   }
