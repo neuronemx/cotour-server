@@ -182,8 +182,23 @@
     }));
     host.querySelectorAll('[data-preview]').forEach((button) => button.addEventListener('click', () => startAudio(button)));
     host.querySelectorAll('.av-video-card').forEach((card) => {
-      card.addEventListener('pointerenter', () => startVideoPreview(card));
-      card.addEventListener('pointerleave', stopPreview);
+      card.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'mouse') startVideoPreview(card);
+      });
+      card.addEventListener('pointerleave', (event) => {
+        if (event.pointerType === 'mouse') stopPreview();
+      });
+      card.addEventListener('pointerdown', (event) => {
+        card.dataset.lastPointerType = event.pointerType;
+      });
+      card.addEventListener('click', (event) => {
+        if (card.dataset.lastPointerType === 'mouse' || event.target.closest('[data-select]')) return;
+        startVideoPreview(card);
+        const touchPreview = preview;
+        window.setTimeout(() => {
+          if (preview === touchPreview) stopPreview();
+        }, 5000);
+      });
     });
     host.querySelector('[data-save]').addEventListener('click', save);
   }
