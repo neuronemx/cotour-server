@@ -706,3 +706,6 @@
     padding-inline:2px !important;
   }
 }
+
+/* Librería begins nearer to its tab without overlapping the navigation. */
+#deckPanelAudiovisual{margin-top:-16px;}
