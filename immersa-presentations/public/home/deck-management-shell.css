@@ -709,3 +709,42 @@
 
 /* Librería begins nearer to its tab without overlapping the navigation. */
 #deckPanelAudiovisual{margin-top:-16px;}
+
+
+/* Keep the Deck chrome visible while Librería itself scrolls. */
+.deck-detail-modal.has-audiovisual-library{
+  display:flex;
+  flex-direction:column;
+  height:min(92vh,900px);
+  overflow:hidden;
+}
+.deck-detail-modal.has-audiovisual-library > .deck-detail-content{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  overflow:hidden;
+}
+.deck-detail-modal.has-audiovisual-library #deckPanelAudiovisual{
+  flex:1 1 auto;
+  min-height:0;
+  margin-top:0;
+}
+.deck-detail-modal.has-audiovisual-library #audiovisualDeckEditor{
+  height:100%;
+  min-height:0;
+}
+@media (min-width:701px){
+  .deck-detail-modal nav.deck-detail-tabs,
+  #deckDetailModal nav.deck-detail-tabs{
+    padding-inline:0 !important;
+  }
+}
+@media (max-width:700px){
+  .deck-detail-modal.has-audiovisual-library{
+    height:calc(100dvh - 38px);
+    max-height:none;
+  }
+  .deck-detail-modal.has-audiovisual-library > .deck-detail-content{
+    padding:12px 14px 14px;
+  }
+}
