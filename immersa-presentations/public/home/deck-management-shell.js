@@ -31,7 +31,7 @@
   };
 
   function syncDeckHomeLink(name) {
-    const enabled = name === "video" || name === "participation" || name === "metrics";
+    const enabled = name !== "links";
     if (!thumbnail) return;
     thumbnail.classList.toggle("is-deck-home-link", enabled);
     thumbnail.style.cursor = enabled ? "pointer" : "";
@@ -50,6 +50,7 @@
     const targetTab = tabs.find((tab) => tab.dataset.deckTab === name);
     if (!targetTab || targetTab.disabled) return;
     shell.classList.toggle("is-compact-header", name !== "links");
+    shell.classList.toggle("has-audiovisual-library", name === "audiovisual");
     modal.dataset.activeDeckTab = name;
     syncDeckHomeLink(name);
     tabs.forEach((tab) => {
