@@ -10,6 +10,7 @@
   let preview = null;
   let activeAudioButton = null;
   let saving = false;
+  let selectorObserver = null;
 
   function syncCategorySelector() {
     const selector = host.querySelector('.av-library-tools .av2-tabs');
@@ -29,6 +30,17 @@
 
   function queueCategorySelectorSync() {
     requestAnimationFrame(() => requestAnimationFrame(syncCategorySelector));
+  }
+
+  function watchCategorySelectorLayout() {
+    if (!('ResizeObserver' in window)) return;
+    const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
+    const deckModal = document.querySelector('#deckDetailModal .deck-detail-modal');
+    if (!libraryTab || !deckModal) return;
+    if (!selectorObserver) selectorObserver = new ResizeObserver(queueCategorySelectorSync);
+    selectorObserver.disconnect();
+    selectorObserver.observe(libraryTab);
+    selectorObserver.observe(deckModal);
   }
 
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
@@ -222,6 +234,8 @@
     });
     host.querySelector('[data-save]').addEventListener('click', save);
     queueCategorySelectorSync();
+    watchCategorySelectorLayout();
+    window.setTimeout(syncCategorySelector, 180);
   }
 
   async function save() {
