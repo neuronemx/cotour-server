@@ -686,3 +686,23 @@
     padding-inline:4px !important;
   }
 }
+
+/* Five deck tabs share the navigation width equally on desktop. */
+@media (min-width:701px){
+  .deck-detail-modal nav.deck-detail-tabs,
+  #deckDetailModal nav.deck-detail-tabs{
+    display:flex !important;
+    width:100% !important;
+    max-width:none !important;
+    justify-content:stretch !important;
+    gap:0 !important;
+  }
+  .deck-detail-modal nav.deck-detail-tabs > .deck-detail-tab,
+  #deckDetailModal nav.deck-detail-tabs > .deck-detail-tab{
+    flex:1 1 20% !important;
+    width:20% !important;
+    min-width:0 !important;
+    justify-content:center !important;
+    padding-inline:2px !important;
+  }
+}
