@@ -45,6 +45,14 @@ function optionalText(value, name, limit) {
   return normalized;
 }
 
+function mysqlDateTime(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new EventHubError("INVALID_ACTIVITY_TIME", "Activity start time is invalid");
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+}
+
 function pollOptions(value) {
   const normalized = (Array.isArray(value) ? value : [])
     .map((option) => optionalText(typeof option === "string" ? option : option?.label, "poll option", 300))
@@ -174,6 +182,40 @@ class EventHubRepository {
       "SELECT workspace_id, slug, title, timezone, status FROM event_hubs ORDER BY created_at DESC, title"
     );
     return rows || [];
+  }
+
+  async importLocalSnapshot(snapshot) {
+    const hub = snapshot?.eventHub || {};
+    const workspaceId = required(hub.workspaceId, "eventHub.workspaceId");
+    const stages = Array.isArray(snapshot?.stages) ? snapshot.stages : [];
+    const activities = Array.isArray(snapshot?.activities) ? snapshot.activities : [];
+    const publicQrs = Array.isArray(snapshot?.publicQrs) ? snapshot.publicQrs : [];
+    return transaction(this.pool, async (connection) => {
+      await connection.execute("INSERT INTO workspaces (id, kind, personal_owner_user_id, plan) VALUES (?, 'event', NULL, 'FREE') ON DUPLICATE KEY UPDATE kind = 'event'", [workspaceId]);
+      await connection.execute(
+        "INSERT INTO event_hubs (workspace_id, slug, title, created_by_user_id) VALUES (?, ?, ?, 'local-import') ON DUPLICATE KEY UPDATE slug = VALUES(slug), title = VALUES(title)",
+        [workspaceId, required(hub.slug, "eventHub.slug"), required(hub.title, "eventHub.title")]
+      );
+      for (const [index, stage] of stages.entries()) {
+        await connection.execute(
+          "INSERT INTO event_stages (id, event_workspace_id, name, sort_order, audience_capacity) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), sort_order = VALUES(sort_order), audience_capacity = VALUES(audience_capacity)",
+          [required(stage.id, "stage.id"), workspaceId, required(stage.name, "stage.name"), index, Number(stage.capacity || 300)]
+        );
+      }
+      for (const qr of publicQrs) {
+        await connection.execute(
+          "INSERT INTO event_public_qrs (id, event_workspace_id, public_id, audience_level, active) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE audience_level = VALUES(audience_level), active = VALUES(active)",
+          [this.createId(), workspaceId, required(qr.publicId, "publicQr.publicId"), String(qr.audienceLevel || "FREE"), qr.active === false ? 0 : 1]
+        );
+      }
+      for (const activity of activities) {
+        await connection.execute(
+          "INSERT INTO event_activities (id, event_workspace_id, event_stage_id, title, activity_type, access_level, scheduled_starts_at, duration_minutes, deck_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE event_stage_id = VALUES(event_stage_id), title = VALUES(title), activity_type = VALUES(activity_type), access_level = VALUES(access_level), scheduled_starts_at = VALUES(scheduled_starts_at), duration_minutes = VALUES(duration_minutes), deck_id = VALUES(deck_id), status = VALUES(status)",
+          [required(activity.id, "activity.id"), workspaceId, required(activity.stageId, "activity.stageId"), required(activity.title, "activity.title"), String(activity.activityType || "CONFERENCE"), String(activity.accessLevel || "FREE"), mysqlDateTime(activity.startsAt), Number(activity.durationMinutes || 60), activity.deckId || null, String(activity.status || "SCHEDULED")]
+        );
+      }
+      return this.getHub(workspaceId, connection);
+    });
   }
 
   async getAdminOverview(eventWorkspaceId) {
@@ -962,4 +1004,4 @@ class EventHubRepository {
   }
 }
 
-module.exports = { EventHubRepository, EventHubError, AUDIENCE_LEVELS, ACTIVITY_ACCESS_LEVELS, canEnterActivity, registrationKeyHash, secretHash, pollOptions };
+module.exports = { EventHubRepository, EventHubError, AUDIENCE_LEVELS, ACTIVITY_ACCESS_LEVELS, canEnterActivity, registrationKeyHash, secretHash, pollOptions, mysqlDateTime };

@@ -8,6 +8,8 @@ RUN apt-get update \
     ca-certificates \
     libreoffice \
     poppler-utils \
+    zip \
+    unzip \
     fonts-dejavu \
     fonts-liberation \
   && rm -rf /var/lib/apt/lists/*

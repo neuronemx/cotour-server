@@ -39,6 +39,9 @@ const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
+const { readEventHubForLocalExport } = require("./local-event-package-export");
+const { exportPackage } = require("./local-event-package-storage");
+const { createArchive } = require("./local-event-package-archive");
 const {
   CAPABILITIES,
   featureAccessForPlan,
@@ -1044,6 +1047,23 @@ function requireImmersaAdmin(req, res, next) {
 function eventHubUnavailable(res) {
   return res.status(503).json({ error: "Event Hub requiere la base de datos de IMMERSA" });
 }
+async function collectLocalPackageAssets(root, relative = "") {
+  const directory = path.join(root, relative);
+  let entries;
+  try {
+    entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  const files = [];
+  for (const entry of entries) {
+    const child = path.join(relative, entry.name);
+    if (entry.isDirectory()) files.push(...await collectLocalPackageAssets(root, child));
+    else if (entry.isFile()) files.push(child.replace(/\\/g, "/"));
+  }
+  return files;
+}
 function sendEventHubError(res, error) {
   if (error instanceof EventHubError) {
     return res.status(error.statusCode).json({ error: error.message, code: error.code });
@@ -1080,6 +1100,45 @@ app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmi
   } catch (error) {
     return sendEventHubError(res, error);
   }
+});
+app.get("/api/admin/event-hubs/:workspaceId/local-package", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!eventHubRepository) return eventHubUnavailable(res);
+  const staging = path.join(DATA_TMP_DIR, `local-package-${req.params.workspaceId}-${Date.now()}`);
+  try {
+    const snapshot = await readEventHubForLocalExport({
+      repository: eventHubRepository,
+      eventWorkspaceId: req.params.workspaceId,
+      listBrands: async (workspaceId) => (await eventBrandMentionStore.read(workspaceId)).brands || []
+    });
+    const deckIds = [...new Set(snapshot.activities.map((activity) => activity.deckId).filter(Boolean))];
+    const activitiesByDeck = new Map(snapshot.activities.filter((activity) => activity.deckId).map((activity) => [activity.deckId, activity]));
+    const decks = await Promise.all(deckIds.map(async (id) => {
+      let deckDir;
+      try {
+        deckDir = await findDeckDir(id);
+      } catch (error) {
+        const activity = activitiesByDeck.get(id);
+        throw new EventHubError(
+          "LOCAL_PACKAGE_DECK_MISSING",
+          `La actividad “${activity?.title || id}” usa el Deck ${id}, pero ese Deck no existe en este entorno Temporal.`,
+          409
+        );
+      }
+      const files = await collectLocalPackageAssets(deckDir);
+      return {
+        id,
+        manifest: `decks/${id}/manifest.json`,
+        assets: files.map((file) => ({ path: `decks/${id}/${file}`, source: path.join(deckDir, file) }))
+      };
+    }));
+    const eventAssets = await collectLocalPackageAssets(DATA_EVENT_HUBS_DIR, req.params.workspaceId).then((files) => files.map((file) => `event-hubs/${file}`));
+    await exportPackage({ destination: staging, sourceRoot: DATA_DIR, eventHub: snapshot.eventHub, stages: snapshot.stages, activities: snapshot.activities, publicQrs: snapshot.publicQrs, brands: snapshot.brands, decks, assets: eventAssets });
+    const archive = await createArchive({ packageRoot: staging, destination: `${staging}.immersa-local.zip` });
+    return res.download(archive, `${snapshot.eventHub.slug}.immersa-local.zip`, () => Promise.all([
+      fs.promises.rm(staging, { recursive: true, force: true }),
+      fs.promises.rm(archive, { force: true })
+    ]).catch(() => {}));
+  } catch (error) { return sendEventHubError(res, error); }
 });
 function eventBrandRequest(handler) {
   return async (req, res, next) => {
