@@ -35,7 +35,7 @@
       activeAudioButton = null;
     }
     host.querySelectorAll('.av-video-previewing').forEach((card) => {
-      card.classList.remove('av-video-previewing');
+      card.classList.remove('av-video-loading', 'av-video-previewing');
       const image = card.querySelector('img');
       if (image) image.hidden = false;
     });
@@ -110,10 +110,12 @@
     video.src = resource.media_url;
     video.setAttribute('aria-hidden', 'true');
     figure.appendChild(video);
+    card.classList.add('av-video-loading');
     preview = video;
     video.addEventListener('loadeddata', () => {
       if (preview !== video) return;
       image.hidden = true;
+      card.classList.remove('av-video-loading');
       card.classList.add('av-video-previewing');
     }, { once: true });
     video.addEventListener('error', stopPreview, { once: true });
@@ -143,11 +145,11 @@
 
     host.innerHTML =
       '<section class="av2">' +
-        '<header class="av-library-header"><h2>Librería</h2><div class="av2-tabs" role="tablist">' +
+        '<header class="av-library-header"><p>Elige los recursos que estarán disponibles durante tu presentación.</p></header>' +
+        '<div class="av-library-tools"><label class="av2-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5"></circle><path d="m15 15 4 4"></path></svg><input data-search value="' + escapeHtml(query) + '" placeholder="Buscar" autocomplete="off"></label><div class="av2-tabs" role="tablist">' +
           '<button data-tab="audio" class="' + (type === 'audio' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'audio') + '">Audio</button>' +
           '<button data-tab="video" class="' + (type === 'video' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'video') + '">Video</button>' +
-        '</div></header>' +
-        '<label class="av2-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5"></circle><path d="m15 15 4 4"></path></svg><input data-search value="' + escapeHtml(query) + '" placeholder="Buscar en la librería" autocomplete="off"></label>' +
+        '</div></div>' +
         '<main class="av2-list ' + type + '">' + (cards || '<p class="av-empty">No encontramos recursos.</p>') + '</main>' +
         '<footer><span data-selection-count></span><button data-save>Guardar cambios</button></footer>' +
       '</section>';
