@@ -65,6 +65,11 @@
       panel.hidden = !selected;
       panel.classList.toggle("is-active", selected);
     });
+    if (name === "audiovisual") {
+      requestAnimationFrame(() => {
+        document.dispatchEvent(new CustomEvent("immersa:audiovisual-library-visible"));
+      });
+    }
     if (moduleDetails[name]) mountEditor(name);
   }
 
