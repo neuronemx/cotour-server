@@ -15,6 +15,8 @@
     const selector = host.querySelector('.av-library-tools .av2-tabs');
     const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
     if (!selector || !libraryTab) return;
+    // Always measure from the grid position, never from a previous correction.
+    selector.style.transform = 'none';
     const selectorRect = selector.getBoundingClientRect();
     const tabRect = libraryTab.getBoundingClientRect();
     if (!selectorRect.width || !tabRect.width) return;
