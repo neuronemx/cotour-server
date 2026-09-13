@@ -2133,7 +2133,7 @@ io.on("connection", (socket) => {
         loop: action === "loop" ? Boolean(payload.loop) : current.loop,
         volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
         position: nextPosition,
-        startedAt: nextStatus === "playing" ? now : null,
+        startedAt: action === "volume" ? current.startedAt : (nextStatus === "playing" ? now : null),
         updatedAt: now
       };
     } else return;
