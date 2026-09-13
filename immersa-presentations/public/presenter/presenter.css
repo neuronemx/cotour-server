@@ -603,3 +603,5 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 .av-volume-control{transform:translateY(-5px)!important}.av-volume-control i:nth-child(5){transform:none!important}.av-volume-control i{pointer-events:auto!important}
 
 .av-volume-control{position:relative!important;top:-5px!important;transform:none!important}
+
+.audiovisual-inline-controls button.is-active .av-control-icon{filter:invert(78%) sepia(22%) saturate(808%) hue-rotate(125deg) brightness(89%) drop-shadow(0 0 5px #66cccc)!important}.av-volume-control{gap:0!important}.av-volume-control i{width:8px!important;background:transparent!important;position:relative}.av-volume-control i::after{content:"";position:absolute;bottom:0;left:2px;width:4px;height:100%;border-radius:2px;background:#666}.av-volume-control i.is-on::after{background:#66cccc;box-shadow:0 0 6px rgba(102,204,204,.95),0 0 11px rgba(102,204,204,.42)}
