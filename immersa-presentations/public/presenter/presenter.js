@@ -23,6 +23,12 @@ let currentState = null;
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let drawingMode = false;
+let audiovisualResources = [];
+let audiovisualSelection = [];
+let audiovisualState = { resource: null, status: "stopped", loop: false, volume: 1, position: 0 };
+let audiovisualPanel = null;
+let audiovisualLayer = null;
+let audiovisualMedia = null;
 const slide = document.getElementById("slide");
 const presenterShell = document.querySelector(".presenter-shell");
 const streamArea = document.querySelector(".stream-area");
@@ -37,6 +43,7 @@ const audienceQr = document.getElementById("audienceQr");
 const drawToggle = document.getElementById("drawToggle");
 const liveTextToggle = document.getElementById("liveTextToggle");
 const interactionToggle = document.getElementById("interactionToggle");
+const audiovisualToggle = document.getElementById("audiovisualToggle");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
@@ -159,7 +166,21 @@ document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; await loadInteractions(); renderThumbs(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); audiovisualSelection = Array.isArray(data?.audiovisual) ? data.audiovisual.map(String) : []; videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); audiovisualSelection = []; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
+async function loadAudiovisualResources() { try { const response = await fetch("/api/audiovisual-library", { cache: "no-store" }); const catalog = response.ok ? await response.json() : { resources: [] }; audiovisualResources = (catalog.resources || []).filter((item) => audiovisualSelection.includes(String(item.id))); } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
+function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
+function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualLayer = document.createElement("div"); audiovisualLayer.className = "audiovisual-layer"; audiovisualLayer.innerHTML = '<video playsinline preload="auto"></video><audio preload="auto"></audio>'; audiovisualMedia = { video: audiovisualLayer.querySelector("video"), audio: audiovisualLayer.querySelector("audio") }; streamArea.appendChild(audiovisualLayer); audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Audiovisual"); presenterShell.appendChild(audiovisualPanel); }
+function renderAudiovisualPanel() { ensureAudiovisualUi(); const resource = audiovisualState.resource; const hasResource = Boolean(resource); audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Audiovisual</h2><span>' + audiovisualResources.length + ' recursos disponibles</span></div><div class="audiovisual-resource-list">' + (audiovisualResources.length ? audiovisualResources.map((item) => '<button type="button" class="audiovisual-resource ' + (resource?.id === item.id ? 'is-active' : '') + '" data-av-resource="' + item.id + '">' + (item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>') + '<span><strong>' + avEscape(item.name) + '</strong><small>' + (item.type === 'video' ? 'Video · Pantalla completa' : 'Audio · Persistente') + '</small></span><span class="av-play">▶</span></button>').join('') : '<p>No hay recursos seleccionados en Librería.</p>') + '</div><div class="audiovisual-now ' + (hasResource ? 'is-active' : '') + '">' + (hasResource ? '<div class="audiovisual-now-title">' + avEscape(resource.name) + '</div><div class="audiovisual-transport"><button data-av-toggle title="Reproducir o pausar">' + (audiovisualState.status === 'playing' ? 'Ⅱ' : '▶') + '</button><button data-av-stop title="Detener">■</button><input class="audiovisual-progress" data-av-seek type="range" min="0" max="100" value="0" aria-label="Progreso"><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">↻</button><input class="audiovisual-volume" data-av-volume type="range" min="0" max="100" value="' + Math.round((audiovisualState.volume ?? 1) * 100) + '" aria-label="Volumen"></div>' : '') + '</div>';
+  audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", () => socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: audiovisualState.loop })));
+  audiovisualPanel.querySelector("[data-av-toggle]")?.addEventListener("click", () => socket.emit("audiovisual:control", { action: audiovisualState.status === "playing" ? "pause" : "play" }));
+  audiovisualPanel.querySelector("[data-av-stop]")?.addEventListener("click", () => socket.emit("audiovisual:control", { action: "stop" }));
+  audiovisualPanel.querySelector("[data-av-loop]")?.addEventListener("click", () => socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }));
+  audiovisualPanel.querySelector("[data-av-seek]")?.addEventListener("change", (event) => { const media = resource ? audiovisualMedia?.[resource.type] : null; if (!media?.duration) return; socket.emit("audiovisual:control", { action: "seek", position: (Number(event.target.value) / 100) * media.duration }); });
+  audiovisualPanel.querySelector("[data-av-volume]")?.addEventListener("input", (event) => socket.emit("audiovisual:control", { action: "volume", volume: Number(event.target.value) / 100 }));
+}
+function applyAudiovisualState(next = {}) { audiovisualState = { ...audiovisualState, ...next }; ensureAudiovisualUi(); const resource = audiovisualState.resource; const media = resource ? audiovisualMedia[resource.type] : null; [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.removeAttribute("src"); item.load(); } }); if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; } audiovisualLayer.classList.remove("is-video"); renderAudiovisualPanel(); return; } if (media.dataset.resourceId !== String(resource.id)) { media.dataset.resourceId = String(resource.id); media.src = resource.media_url; media.currentTime = 0; } media.loop = Boolean(audiovisualState.loop); media.volume = Number(audiovisualState.volume ?? 1); if (Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position); if (resource.type === "video") audiovisualLayer.classList.add("is-video"); else audiovisualLayer.classList.remove("is-video"); if (audiovisualState.status === "playing") media.play().catch(() => {}); else media.pause(); renderAudiovisualPanel(); }
+function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); audiovisualToggle?.classList.toggle("is-active", open); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
+setInterval(() => { const resource = audiovisualState.resource; const media = resource ? audiovisualMedia?.[resource.type] : null; if (!media) return; const slider = audiovisualPanel?.querySelector("[data-av-seek]"); if (slider && Number.isFinite(media.duration) && media.duration > 0) slider.value = String((media.currentTime / media.duration) * 100); if (audiovisualState.status === "playing") socket.emit("audiovisual:control", { action: "seek", position: media.currentTime }); }, 1400);
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
@@ -386,6 +407,7 @@ playPause.addEventListener("click", () => socket.emit(currentState?.transmission
 audienceQr.addEventListener("click", () => publishAudienceQr(!audienceQrVisible(currentState)));
 if (localReactions) localReactions.addEventListener("change", () => publishReactionsEnabled(localReactions.checked));
 if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; updateDrawingMode(); });
+if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovisualPanel);
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 if (thumbsToggle) thumbsToggle.addEventListener("click", toggleThumbsPanel);
 if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListener("change", syncThumbsPanelMode);
@@ -399,6 +421,7 @@ socket.on("overlay_update", (overlays) => {
   liveTextControl?.sync(overlays);
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
+socket.on("audiovisual:state", applyAudiovisualState);
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });

@@ -788,6 +788,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
+    audiovisual: { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() },
     overlays: {
       reactionsOnScreen: true,
       showReactions: true,
@@ -852,6 +853,7 @@ function publicState(session) {
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
     audienceCount: session.audience.size,
+    audiovisual: session.audiovisual,
     overlays: session.overlays
   };
 }
@@ -2062,6 +2064,7 @@ io.on("connection", (socket) => {
       } catch (error) { console.error("Unable to resolve Event Hub brands", error); }
     }
     emitState(currentRoomKey, session);
+    socket.emit("audiovisual:state", session.audiovisual);
     if (
       role === "audience"
       && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)
@@ -2103,6 +2106,34 @@ io.on("connection", (socket) => {
         .then(() => brandMentionRuntime.sendCurrentState(socket, joinedContext))
         .catch((error) => console.error("[join] Unable to start brand mentions", error));
     }
+  });
+
+  socket.on("audiovisual:control", async (payload = {}) => {
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const action = String(payload.action || "");
+    const current = session.audiovisual || {};
+    if (action === "select") {
+      const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
+      const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
+      const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
+      if (!resource || !allowed.has(String(resource.id))) return;
+      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, updatedAt: Date.now() };
+    } else if (action === "stop") {
+      session.audiovisual = { ...current, status: "stopped", position: 0, updatedAt: Date.now() };
+    } else if (current.resource) {
+      session.audiovisual = {
+        ...current,
+        status: action === "play" ? "playing" : action === "pause" ? "paused" : current.status,
+        loop: action === "loop" ? Boolean(payload.loop) : current.loop,
+        volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
+        position: action === "seek" ? Math.max(0, Number(payload.position) || 0) : current.position,
+        updatedAt: Date.now()
+      };
+    } else return;
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_pause", () => {
