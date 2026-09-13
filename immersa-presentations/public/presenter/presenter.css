@@ -624,3 +624,49 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 @media (max-width:720px) and (orientation:portrait) {
   .audiovisual-panel { bottom:111px !important; }
 }
+
+
+/* The 8px volume targets are intentionally invisible; only their 4px cores light up. */
+.av-volume-control i {
+  width: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i::after {
+  left: 2px !important;
+  width: 4px !important;
+  background: #666 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i.is-on::after {
+  width: 4px !important;
+  background: #66cccc !important;
+  box-shadow: 0 0 4px 0 rgba(102, 204, 204, .72) !important;
+}
+
+/* Selection reveals the player; audio fade-stop closes it over that same second. */
+@keyframes av-player-reveal {
+  from { width: 100%; }
+  to { width: 50%; }
+}
+@keyframes av-controls-reveal {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.audiovisual-resource.is-active::before {
+  animation: av-player-reveal 1s cubic-bezier(.16,.86,.2,1) both;
+}
+.audiovisual-resource.is-active .audiovisual-inline-controls {
+  animation: av-controls-reveal 1s cubic-bezier(.16,.86,.2,1) both;
+}
+.audiovisual-resource.is-closing::before {
+  width: 100% !important;
+  transition: width 1s cubic-bezier(.16,.86,.2,1) !important;
+}
+.audiovisual-resource.is-closing .audiovisual-inline-controls {
+  opacity: 0 !important;
+  transform: translateX(16px) !important;
+  transition: opacity .18s ease, transform 1s cubic-bezier(.16,.86,.2,1) !important;
+}
