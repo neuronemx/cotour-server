@@ -2120,8 +2120,21 @@ io.on("connection", (socket) => {
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
       session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now() };
+    } else if (action === "fade-stop" && current.resource?.type === "audio" && current.status === "playing") {
+      const fadedResourceId = String(current.resource.id);
+      session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
+      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+      emitState(currentRoomKey, session);
+      setTimeout(() => {
+        const latest = session.audiovisual;
+        if (!latest || latest.status !== "fading" || String(latest.resource?.id) !== fadedResourceId) return;
+        session.audiovisual = { ...latest, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+        io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+        emitState(currentRoomKey, session);
+      }, 1000);
+      return;
     } else if (action === "stop") {
-      session.audiovisual = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now() };
+      session.audiovisual = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
     } else if (current.resource) {
       const now = Date.now();
       const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
