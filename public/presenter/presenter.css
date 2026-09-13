@@ -573,3 +573,5 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     opacity: .86;
   }
 }
+
+.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px;height:35px;aspect-ratio:16/9}.audiovisual-panel{bottom:16px}.audiovisual-toggle.is-active{border-radius:999px;background-clip:padding-box;overflow:hidden}
