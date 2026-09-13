@@ -170,9 +170,9 @@ async function loadInteractions() { try { const res = await fetch("/decks/" + de
 async function loadAudiovisualResources() { try { const response = await fetch("/api/audiovisual-library", { cache: "no-store" }); const catalog = response.ok ? await response.json() : { resources: [] }; audiovisualResources = (catalog.resources || []).filter((item) => audiovisualSelection.includes(String(item.id))); } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
 function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
 function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Librería Immersa"); presenterShell.appendChild(audiovisualPanel); }
-const avStopIcon = '<svg viewBox="0 0 256 256" aria-hidden="true"><circle cx="128" cy="128" r="108" fill="none" stroke="currentColor" stroke-width="12"/><rect x="88" y="88" width="80" height="80" rx="3"/></svg>';
-const avLoopIcon = '<svg viewBox="0 0 256 256" aria-hidden="true"><path d="M224 76a74 74 0 0 0-52-22H94V39L51 63l43 27V71h78a57 57 0 0 1 55 73l16 5a74 74 0 0 0-19-73ZM32 180a74 74 0 0 0 52 22h84v15l43-27-43-27v22H84a57 57 0 0 1-48-84l-14-9A74 74 0 0 0 32 180Z"/></svg>';
-const avVolumeIcon = '<svg viewBox="0 0 256 256" aria-hidden="true"><path d="M142 104a24 24 0 0 0-20 22H11v4h111a24 24 0 0 0 48 0h76v-4h-76a24 24 0 0 0-28-22Z"/></svg>';
+const avStopIcon = '<img class="av-control-icon" src="/presenter/player-stop.svg" alt="">';
+const avLoopIcon = '<img class="av-control-icon" src="/presenter/player-loop.svg" alt="">';
+const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume.svg" alt="">';
 function renderAudiovisualPanel() {
   ensureAudiovisualUi();
   const resource = audiovisualState.resource;
@@ -186,7 +186,7 @@ function renderAudiovisualPanel() {
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => { if (event.target.closest(".audiovisual-inline-controls")) return; socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false }); }));
   audiovisualPanel.querySelector("[data-av-stop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "stop" }); });
   audiovisualPanel.querySelector("[data-av-loop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); });
-  audiovisualPanel.querySelector("[data-av-volume]")?.addEventListener("input", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "volume", volume: Number(event.target.value) }); });
+  audiovisualPanel.querySelector(".av-volume-control")?.addEventListener("click", (event) => event.stopPropagation()); audiovisualPanel.querySelector("[data-av-volume]")?.addEventListener("change", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "volume", volume: Number(event.target.value) }); });
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 function applyAudiovisualState(next = {}) { audiovisualState = { ...audiovisualState, ...next }; renderAudiovisualPanel(); }
