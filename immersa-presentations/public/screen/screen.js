@@ -31,6 +31,28 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let interactionOverlay = null;
+let audiovisualState = null;
+let audiovisualElement = null;
+function renderAudiovisual(next = {}) {
+  audiovisualState = next;
+  const resource = next.resource;
+  if (!resource) { audiovisualElement?.remove(); audiovisualElement = null; return; }
+  const tag = resource.type === "video" ? "video" : "audio";
+  if (!audiovisualElement || audiovisualElement.dataset.resourceId !== String(resource.id)) {
+    audiovisualElement?.remove();
+    audiovisualElement = document.createElement(tag);
+    audiovisualElement.dataset.resourceId = String(resource.id);
+    audiovisualElement.preload = "auto";
+    audiovisualElement.playsInline = true;
+    audiovisualElement.style.cssText = tag === "video" ? "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:20" : "position:absolute;width:1px;height:1px;opacity:0";
+    audiovisualElement.src = resource.media_url;
+    screenRoot.appendChild(audiovisualElement);
+  }
+  audiovisualElement.loop = Boolean(next.loop);
+  audiovisualElement.volume = Math.max(0, Math.min(1, Number(next.volume ?? 1)));
+  if (Number.isFinite(Number(next.currentTime)) && Math.abs(audiovisualElement.currentTime - Number(next.currentTime)) > 1.5) audiovisualElement.currentTime = Number(next.currentTime);
+  if (next.playing) audiovisualElement.play().catch(() => {}); else audiovisualElement.pause();
+}
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? next.reactionsOnScreen ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 
@@ -160,6 +182,7 @@ document.addEventListener("keydown", (event) => {
 });
 showScreenUi();
 
+socket.on("audiovisual:state", renderAudiovisual);
 socket.on("presentation_state", render);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
