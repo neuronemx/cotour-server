@@ -788,6 +788,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
+    audiovisual: { resource: null, playing: false, loop: false, volume: 1, currentTime: 0, updatedAt: Date.now() },
     overlays: {
       reactionsOnScreen: true,
       showReactions: true,
@@ -852,6 +853,7 @@ function publicState(session) {
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
     audienceCount: session.audience.size,
+    audiovisual: session.audiovisual,
     overlays: session.overlays
   };
 }
@@ -2103,6 +2105,22 @@ io.on("connection", (socket) => {
         .then(() => brandMentionRuntime.sendCurrentState(socket, joinedContext))
         .catch((error) => console.error("[join] Unable to start brand mentions", error));
     }
+  });
+
+  socket.on("audiovisual:control", (payload = {}) => {
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const action = String(payload.action || ""), current = session.audiovisual || {};
+    if (action === "select") {
+      const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
+      if (!resource) return;
+      session.audiovisual = { resource, playing: true, loop: Boolean(payload.loop), volume: Math.max(0, Math.min(1, Number(payload.volume ?? 1))), currentTime: 0, updatedAt: Date.now() };
+    } else if (action === "stop") session.audiovisual = { resource: null, playing: false, loop: false, volume: current.volume ?? 1, currentTime: 0, updatedAt: Date.now() };
+    else if (current.resource) session.audiovisual = { ...current, playing: action === "play" ? true : action === "pause" ? false : current.playing, loop: action === "loop" ? Boolean(payload.loop) : current.loop, volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume, currentTime: action === "seek" ? Math.max(0, Number(payload.currentTime) || 0) : current.currentTime, updatedAt: Date.now() };
+    else return;
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_pause", () => {
