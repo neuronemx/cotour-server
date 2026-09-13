@@ -161,14 +161,14 @@ document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; await loadInteractions(); renderThumbs(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualControls(); }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); audiovisualSelection = Array.isArray(data?.audiovisual) ? data.audiovisual : [];
+videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualControls(); }
 async function loadAudiovisualControls() {
   try {
     const [catalog, config] = await Promise.all([
-      fetch("/api/audiovisual-library").then((r) => r.ok ? r.json() : { resources: [] }),
-      fetch("/api/decks/" + encodeURIComponent(deckId) + "/interactions").then((r) => r.ok ? r.json() : {})
+      fetch("/api/audiovisual-library").then((r) => r.ok ? r.json() : { resources: [] })
     ]);
-    audiovisualResources = (catalog.resources || []).filter((item) => (config.audiovisual || []).includes(item.id));
+    audiovisualResources = (catalog.resources || []).filter((item) => audiovisualSelection.includes(item.id));
   } catch (_error) { audiovisualResources = []; }
   mountAudiovisualControls();
 }
