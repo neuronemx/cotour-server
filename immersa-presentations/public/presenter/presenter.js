@@ -187,7 +187,7 @@ function renderAudiovisualPanel() {
   audiovisualPanel.querySelector("[data-av-stop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "stop" }); });
   audiovisualPanel.querySelector("[data-av-loop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); });
   audiovisualPanel.querySelector("[data-av-volume]")?.addEventListener("input", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "volume", volume: Number(event.target.value) }); });
-  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => audiovisualPanel.classList.remove("is-open"));
+  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 function applyAudiovisualState(next = {}) { audiovisualState = { ...audiovisualState, ...next }; renderAudiovisualPanel(); }
 function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); if (open && audiovisualPanel) audiovisualPanel.style.bottom = "16px"; audiovisualPanel?.classList.toggle("is-open", open); audiovisualToggle?.classList.toggle("is-active", open); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
