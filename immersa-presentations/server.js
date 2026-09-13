@@ -2134,7 +2134,8 @@ io.on("connection", (socket) => {
         volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
         position: action === "volume" ? currentPosition : nextPosition,
         startedAt: action === "volume" ? current.startedAt : (nextStatus === "playing" ? now : null),
-        updatedAt: now
+        updatedAt: now,
+        lastAction: action
       };
     } else return;
     io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
