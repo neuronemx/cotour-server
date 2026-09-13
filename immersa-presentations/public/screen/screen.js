@@ -40,9 +40,23 @@ function applyAudiovisualState(next = {}) {
   const resource = audiovisualState.resource;
   const media = resource ? audiovisualMedia[resource.type] : null;
   [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.currentTime = 0; } });
-  if (!media || audiovisualState.status === "stopped") { if (media && resource?.type === "audio" && media.currentTime > 0 && audiovisualState.lastAction === "stop") { const startVolume = media.volume; const started = performance.now(); const fade = () => { const ratio = Math.max(0, 1 - ((performance.now() - started) / 1000)); media.volume = startVolume * ratio; if (ratio > 0) requestAnimationFrame(fade); else { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } }; requestAnimationFrame(fade); } else if (media) { media.pause(); media.currentTime = 0; } audiovisualLayer.classList.remove("is-video"); return; }
+  if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } audiovisualLayer.classList.remove("is-video"); return; }
   if (media.dataset.resourceId !== String(resource.id)) { media.dataset.resourceId = String(resource.id); media.src = resource.media_url; media.currentTime = 0; }
-  media.loop = Boolean(audiovisualState.loop); media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); if (audiovisualState.lastAction !== "volume" && Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
+  media.loop = Boolean(audiovisualState.loop);
+  if (audiovisualState.status === "fading" && resource.type === "audio") {
+    const startVolume = media.volume;
+    const started = performance.now();
+    const fade = () => {
+      if (audiovisualState.status !== "fading") return;
+      const ratio = Math.max(0, 1 - ((performance.now() - started) / 1000));
+      media.volume = startVolume * ratio;
+      if (ratio > 0) requestAnimationFrame(fade);
+    };
+    requestAnimationFrame(fade);
+    return;
+  }
+  media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1)));
+  if (audiovisualState.lastAction !== "volume" && Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
   audiovisualLayer.classList.toggle("is-video", resource.type === "video");
   if (audiovisualState.status === "playing") media.play().catch(() => {}); else media.pause();
 }
