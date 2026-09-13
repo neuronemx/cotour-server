@@ -177,19 +177,31 @@ function renderAudiovisualPanel() {
   ensureAudiovisualUi();
   const resource = audiovisualState.resource;
   const cards = audiovisualResources.length ? audiovisualResources.map((item) => {
-    const active = resource?.id === item.id && audiovisualState.status !== "stopped";
+    const active = resource?.id === item.id && audiovisualState.status === "playing";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(audiovisualState.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
-    const controls = active ? '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>' : '';
+    const controls = '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     return '<div class="audiovisual-resource ' + (active ? 'is-active' : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => { if (event.target.closest(".audiovisual-inline-controls")) return; socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false }); }));
-  audiovisualPanel.querySelector("[data-av-stop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); });
+  audiovisualPanel.querySelector("[data-av-stop]")?.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); });
   audiovisualPanel.querySelector("[data-av-loop]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); });
   audiovisualPanel.querySelector(".av-volume-control")?.addEventListener("click", (event) => event.stopPropagation()); audiovisualPanel.querySelector("[data-av-volume]")?.addEventListener("click", (event) => { event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return; const level = Number(bar.dataset.avVolumeLevel); socket.emit("audiovisual:control", { action: "volume", volume: level / 5 }); });   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
-function applyAudiovisualState(next = {}) { audiovisualState = { ...audiovisualState, ...next }; renderAudiovisualPanel(); }
+let audiovisualFadeCloseTimer = null;
+function applyAudiovisualState(next = {}) {
+  audiovisualState = { ...audiovisualState, ...next };
+  if (audiovisualState.status === "fading") {
+    clearTimeout(audiovisualFadeCloseTimer);
+    const card = audiovisualPanel?.querySelector(".audiovisual-resource.is-active");
+    if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); }
+    audiovisualFadeCloseTimer = setTimeout(renderAudiovisualPanel, 1000);
+    return;
+  }
+  clearTimeout(audiovisualFadeCloseTimer);
+  renderAudiovisualPanel();
+}
 function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); const keepActive = !open && audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", open || keepActive); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
