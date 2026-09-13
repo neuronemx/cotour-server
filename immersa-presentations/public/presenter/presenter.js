@@ -23,6 +23,8 @@ let currentState = null;
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let drawingMode = false;
+let audiovisualResources = [];
+let audiovisualSelection = [];
 const slide = document.getElementById("slide");
 const presenterShell = document.querySelector(".presenter-shell");
 const streamArea = document.querySelector(".stream-area");
@@ -159,7 +161,28 @@ document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; await loadInteractions(); renderThumbs(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualControls(); }
+async function loadAudiovisualControls() {
+  try {
+    const [catalog, config] = await Promise.all([
+      fetch("/api/audiovisual-library").then((r) => r.ok ? r.json() : { resources: [] }),
+      fetch("/api/decks/" + encodeURIComponent(deckId) + "/interactions").then((r) => r.ok ? r.json() : {})
+    ]);
+    audiovisualResources = (catalog.resources || []).filter((item) => (config.audiovisual || []).includes(item.id));
+  } catch (_error) { audiovisualResources = []; }
+  mountAudiovisualControls();
+}
+function mountAudiovisualControls() {
+  document.getElementById("audiovisualControls")?.remove();
+  if (!audiovisualResources.length) return;
+  const panel = document.createElement("div");
+  panel.id = "audiovisualControls";
+  panel.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:50;display:flex;gap:7px;align-items:center;padding:8px;border-radius:12px;background:#11142c;color:#fff;box-shadow:0 10px 28px #0005";
+  panel.innerHTML = '<select aria-label="Recurso audiovisual">' + audiovisualResources.map((item) => '<option value="' + item.id + '">' + item.name + '</option>').join("") + '</select><button data-av-play>▶</button><button data-av-stop>■</button><button data-av-loop>↻</button>';
+  panel.querySelector("[data-av-play]").onclick = () => socket.emit("audiovisual:control", { action: "select", resourceId: panel.querySelector("select").value, loop: panel.querySelector("[data-av-loop]").classList.contains("is-active") });
+  panel.querySelector("[data-av-stop]").onclick = () => socket.emit("audiovisual:control", { action: "stop" });
+  panel.querySelector("[data-av-loop]").onclick = (event) => { event.currentTarget.classList.toggle("is-active"); socket.emit("audiovisual:control", { action: "loop", loop: event.currentTarget.classList.contains("is-active") }); };
+}
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
