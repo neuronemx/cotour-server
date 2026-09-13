@@ -2119,21 +2119,36 @@ io.on("connection", (socket) => {
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
-      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, updatedAt: Date.now() };
+      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now() };
     } else if (action === "stop") {
-      session.audiovisual = { ...current, status: "stopped", position: 0, updatedAt: Date.now() };
+      session.audiovisual = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now() };
     } else if (current.resource) {
+      const now = Date.now();
+      const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
+      const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
+      const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (action === "pause" ? currentPosition : current.position);
       session.audiovisual = {
         ...current,
-        status: action === "play" ? "playing" : action === "pause" ? "paused" : current.status,
+        status: nextStatus,
         loop: action === "loop" ? Boolean(payload.loop) : current.loop,
         volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
-        position: action === "seek" ? Math.max(0, Number(payload.position) || 0) : current.position,
-        updatedAt: Date.now()
+        position: nextPosition,
+        startedAt: action === "play" || action === "seek" ? now : action === "pause" ? null : current.startedAt,
+        updatedAt: now
       };
     } else return;
     io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
     emitState(currentRoomKey, session);
+  });
+
+  socket.on("audiovisual:metadata", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session?.audiovisual?.resource || String(payload.resourceId) !== String(session.audiovisual.resource.id)) return;
+    const duration = Math.max(0, Number(payload.duration) || 0);
+    if (!duration || session.audiovisual.duration === duration) return;
+    session.audiovisual = { ...session.audiovisual, duration };
+    io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
   });
 
   socket.on("transmission_pause", () => {
