@@ -179,6 +179,7 @@ function mountAudiovisualControls() {
   panel.id = "audiovisualControls";
   panel.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:50;display:flex;gap:7px;align-items:center;padding:8px;border-radius:12px;background:#11142c;color:#fff;box-shadow:0 10px 28px #0005";
   panel.innerHTML = '<select aria-label="Recurso audiovisual">' + audiovisualResources.map((item) => '<option value="' + item.id + '">' + item.name + '</option>').join("") + '</select><button data-av-play>▶</button><button data-av-stop>■</button><button data-av-loop>↻</button>';
+  document.body.appendChild(panel);
   panel.querySelector("[data-av-play]").onclick = () => socket.emit("audiovisual:control", { action: "select", resourceId: panel.querySelector("select").value, loop: panel.querySelector("[data-av-loop]").classList.contains("is-active") });
   panel.querySelector("[data-av-stop]").onclick = () => socket.emit("audiovisual:control", { action: "stop" });
   panel.querySelector("[data-av-loop]").onclick = (event) => { event.currentTarget.classList.toggle("is-active"); socket.emit("audiovisual:control", { action: "loop", loop: event.currentTarget.classList.contains("is-active") }); };
