@@ -675,3 +675,65 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 /* Hidden player controls cannot intercept a resource selection. */
 .audiovisual-inline-controls { pointer-events: none !important; }
 .audiovisual-resource.is-active .audiovisual-inline-controls { pointer-events: auto !important; }
+
+
+/* Stable player: only the card surface reveals; the controls never slide. */
+.audiovisual-inline-controls,
+.audiovisual-resource.is-active .audiovisual-inline-controls {
+  transform: none !important;
+  transition: opacity .16s ease !important;
+  animation: none !important;
+}
+.audiovisual-resource.is-active::before { animation: none !important; width: 60% !important; }
+.audiovisual-resource.is-active.is-revealing::before {
+  animation: av-player-reveal-desktop .5s cubic-bezier(.16,.86,.2,1) both !important;
+}
+@keyframes av-player-reveal-desktop {
+  from { width: 100%; }
+  to { width: 60%; }
+}
+.audiovisual-resource.is-closing::before {
+  width: 100% !important;
+  transition: width .5s cubic-bezier(.16,.86,.2,1) !important;
+}
+.audiovisual-resource.is-audio.is-closing::before {
+  transition-duration: 1s !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active::before { width: 50% !important; }
+  .audiovisual-resource.is-active.is-revealing::before {
+    animation: av-player-reveal-mobile .5s cubic-bezier(.16,.86,.2,1) both !important;
+  }
+  @keyframes av-player-reveal-mobile {
+    from { width: 100%; }
+    to { width: 50%; }
+  }
+}
+
+/* 8px is only a touch target. The visible bar is this isolated 4px ::before. */
+.av-volume-control i,
+.av-volume-control i.is-on {
+  width: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i::after { display: none !important; }
+.av-volume-control i::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 2px !important;
+  bottom: 0 !important;
+  width: 4px !important;
+  height: 100% !important;
+  display: block !important;
+  border-radius: 2px !important;
+  background: #666 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i.is-on::before {
+  width: 4px !important;
+  background: #66cccc !important;
+  box-shadow: 0 0 4px 0 rgba(102,204,204,.72) !important;
+}
