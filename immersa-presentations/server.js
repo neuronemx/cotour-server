@@ -2119,7 +2119,7 @@ io.on("connection", (socket) => {
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
-      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now() };
+      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
     } else if (action === "fade-stop" && current.resource?.type === "audio" && current.status === "playing") {
       const fadedResourceId = String(current.resource.id);
       session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
