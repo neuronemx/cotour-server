@@ -586,3 +586,5 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 
 /* Active player uses the full revealed area. */
 .audiovisual-inline-controls{justify-content:flex-start;gap:10px!important;padding:0 12px!important}.audiovisual-inline-controls .av-volume-control{width:auto!important;min-width:54px;flex:1 1 auto!important}.audiovisual-panel-head{padding-right:42px!important}.audiovisual-panel-head span{margin-left:auto!important;margin-right:8px!important;white-space:nowrap}
+
+.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px!important;height:35px!important;flex-basis:62px!important}.audiovisual-inline-controls button{width:32px!important;height:32px!important;flex-basis:32px!important}.audiovisual-inline-controls .av-control-icon{width:25px!important;height:25px!important}.audiovisual-inline-controls .av-volume-control{width:58px!important;height:28px!important;flex:0 0 58px!important;padding:0!important;border:0!important;background:transparent!important}.av-volume-control img{width:100%;height:100%;object-fit:contain;filter:invert(1) brightness(1.6)}
