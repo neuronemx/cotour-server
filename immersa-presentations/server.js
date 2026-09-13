@@ -2126,14 +2126,14 @@ io.on("connection", (socket) => {
       const now = Date.now();
       const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
       const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
-      const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (action === "pause" ? currentPosition : current.position);
+      const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
       session.audiovisual = {
         ...current,
         status: nextStatus,
         loop: action === "loop" ? Boolean(payload.loop) : current.loop,
         volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
         position: nextPosition,
-        startedAt: action === "play" || action === "seek" ? now : action === "pause" ? null : current.startedAt,
+        startedAt: nextStatus === "playing" ? now : null,
         updatedAt: now
       };
     } else return;
@@ -2149,6 +2149,14 @@ io.on("connection", (socket) => {
     if (!duration || session.audiovisual.duration === duration) return;
     session.audiovisual = { ...session.audiovisual, duration };
     io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
+  });
+
+  socket.on("audiovisual:ended", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session?.audiovisual?.resource || String(payload.resourceId) !== String(session.audiovisual.resource.id) || session.audiovisual.loop) return;
+    session.audiovisual = { ...session.audiovisual, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now() };
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
   });
 
   socket.on("transmission_pause", () => {
