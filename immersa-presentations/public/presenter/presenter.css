@@ -583,3 +583,6 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 /* Keep resource artwork separate from the three player controls. */
 .audiovisual-resource .av-control-icon{width:17px!important;height:17px!important;flex:0 0 17px!important;display:block!important;background:none!important;border-radius:0!important;box-shadow:none!important;padding:0!important;object-fit:contain!important}
 .av-volume-control input[type=range]{position:static!important;opacity:1!important;pointer-events:auto!important;display:block!important}
+
+/* Active player uses the full revealed area. */
+.audiovisual-inline-controls{justify-content:flex-start;gap:10px!important;padding:0 12px!important}.audiovisual-inline-controls .av-volume-control{width:auto!important;min-width:54px;flex:1 1 auto!important}.audiovisual-panel-head{padding-right:42px!important}.audiovisual-panel-head span{margin-left:auto!important;margin-right:8px!important;white-space:nowrap}
