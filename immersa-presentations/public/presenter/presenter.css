@@ -670,3 +670,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   transform: translateX(16px) !important;
   transition: opacity .18s ease, transform 1s cubic-bezier(.16,.86,.2,1) !important;
 }
+
+
+/* Hidden player controls cannot intercept a resource selection. */
+.audiovisual-inline-controls { pointer-events: none !important; }
+.audiovisual-resource.is-active .audiovisual-inline-controls { pointer-events: auto !important; }
