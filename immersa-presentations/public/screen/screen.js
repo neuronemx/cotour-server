@@ -42,7 +42,7 @@ function applyAudiovisualState(next = {}) {
   [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.currentTime = 0; } });
   if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; } audiovisualLayer.classList.remove("is-video"); return; }
   if (media.dataset.resourceId !== String(resource.id)) { media.dataset.resourceId = String(resource.id); media.src = resource.media_url; media.currentTime = 0; }
-  media.loop = Boolean(audiovisualState.loop); media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); if (Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
+  media.loop = Boolean(audiovisualState.loop); media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); if (audiovisualState.lastAction !== "volume" && Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
   audiovisualLayer.classList.toggle("is-video", resource.type === "video");
   if (audiovisualState.status === "playing") media.play().catch(() => {}); else media.pause();
 }
