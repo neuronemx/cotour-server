@@ -573,3 +573,6 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     opacity: .86;
   }
 }
+
+/* Library panel: align its base with the vertical tools and preserve 16:9 art. */
+.audiovisual-panel{bottom:16px!important}.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px!important;height:35px!important;aspect-ratio:16/9}.audiovisual-toggle.is-active{border-radius:999px;background-clip:padding-box;overflow:hidden}
