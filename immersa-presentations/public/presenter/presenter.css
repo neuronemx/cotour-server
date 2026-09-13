@@ -599,3 +599,5 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 .audiovisual-inline-controls{display:grid!important;grid-template-columns:repeat(3,1fr)!important;justify-items:center!important;align-items:center!important;padding:0 8px!important}.audiovisual-inline-controls button,.audiovisual-inline-controls .av-volume-control{justify-self:center!important}.av-volume-control{width:42px!important;height:25px!important;display:flex!important;align-items:flex-end!important;justify-content:center!important;gap:3px!important}.av-volume-control i{align-self:flex-end!important;margin:0!important}.av-volume-control i.is-on{background:#68d8cc!important;box-shadow:0 0 6px rgba(104,216,204,.9),0 0 11px rgba(104,216,204,.42)!important}
 
 .av-volume-control{height:25px!important;align-items:center!important}.av-volume-control i{width:4px!important;align-self:flex-end!important;cursor:pointer}.av-volume-control i:nth-child(5){transform:translateY(-1px)}
+
+.av-volume-control{transform:translateY(-5px)!important}.av-volume-control i:nth-child(5){transform:none!important}.av-volume-control i{pointer-events:auto!important}
