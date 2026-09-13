@@ -190,7 +190,7 @@ function renderAudiovisualPanel() {
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => audiovisualPanel.classList.remove("is-open"));
 }
 function applyAudiovisualState(next = {}) { audiovisualState = { ...audiovisualState, ...next }; renderAudiovisualPanel(); }
-function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); audiovisualToggle?.classList.toggle("is-active", open); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
+function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); if (open && audiovisualPanel) audiovisualPanel.style.bottom = "16px"; audiovisualPanel?.classList.toggle("is-open", open); audiovisualToggle?.classList.toggle("is-active", open); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
