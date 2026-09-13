@@ -576,3 +576,13 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 
 /* Library panel: align its base with the vertical tools and preserve 16:9 art. */
 .audiovisual-panel{bottom:16px!important}.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px!important;height:35px!important;aspect-ratio:16/9}.audiovisual-toggle.is-active{border-radius:999px;background-clip:padding-box;overflow:hidden}
+
+/* Final Speaker library player geometry */
+.audiovisual-resource{min-height:58px}
+.audiovisual-resource img,.audiovisual-resource .av-icon{width:76px!important;height:43px!important;flex:0 0 76px;object-fit:cover}
+.audiovisual-resource::before{transition:width 1.15s cubic-bezier(.16,.86,.2,1),background .28s ease,border-color .28s ease}
+.audiovisual-inline-controls{transition:opacity .36s ease .52s,transform 1.15s cubic-bezier(.16,.86,.2,1)}
+.audiovisual-inline-controls button.is-active{color:#68d8cc!important;filter:drop-shadow(0 0 5px rgba(104,216,204,.9));text-shadow:0 0 9px rgba(104,216,204,.8)}
+.audiovisual-inline-controls .av-volume-control{width:74px;height:26px;flex:0 0 74px;display:grid;grid-template-columns:17px 1fr;gap:6px;align-items:center}
+.av-volume-control svg{width:17px;height:17px;fill:currentColor;stroke:none}.av-volume-control input{position:static!important;opacity:1!important;width:100%!important;height:3px!important;margin:0;accent-color:#eafffb;cursor:pointer}
+.audiovisual-panel-head [data-av-close]{width:28px;height:28px;top:-5px;display:grid;place-items:center;border:1px solid rgba(234,255,251,.15);border-radius:50%;background:rgba(255,255,255,.06);color:#eafffb;font-size:19px;line-height:1}.audiovisual-panel-head [data-av-close]:hover{background:rgba(255,255,255,.14);color:#fff}
