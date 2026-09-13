@@ -179,7 +179,7 @@ function renderAudiovisualPanel() {
   const cards = audiovisualResources.length ? audiovisualResources.map((item) => {
     const active = resource?.id === item.id && audiovisualState.status !== "stopped";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
-    const controls = active ? '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><label class="av-volume-control"><input data-av-volume type="range" min="0" max="1" step="0.05" value="' + audiovisualState.volume + '"></label></span>' : '';
+    const controls = active ? '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen"><img src="/presenter/player-signal.svg" alt=""></button></span>' : '';
     return '<div class="audiovisual-resource ' + (active ? 'is-active' : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
