@@ -737,3 +737,37 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   background: #66cccc !important;
   box-shadow: 0 0 4px 0 rgba(102,204,204,.72) !important;
 }
+
+
+/* Active resource is a player surface, not a selectable card. */
+.audiovisual-resource.is-active {
+  cursor: default !important;
+  user-select: none !important;
+}
+.audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+  min-width: 0 !important;
+  max-width: calc(60% - 98px) !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) strong {
+  display: block !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+    max-width: calc(50% - 82px) !important;
+  }
+}
+
+/* One visible .5 s surface reveal; controls remain static. */
+.audiovisual-resource.is-active.is-revealing::before {
+  animation: av-player-reveal-desktop .5s cubic-bezier(.16,.86,.2,1) both !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active.is-revealing::before {
+    animation: av-player-reveal-mobile .5s cubic-bezier(.16,.86,.2,1) both !important;
+  }
+}
