@@ -2119,8 +2119,7 @@ io.on("connection", (socket) => {
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
-      const savedVolumes = session.audiovisualVolumes || {};
-      const savedVolume = Number(savedVolumes[String(resource.id)]);
+      const savedVolume = Number(session.audiovisualVolume);
       const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
       const shouldFadeCurrentAudio = current.resource?.type === "audio"
         && current.status === "playing"
@@ -2162,7 +2161,7 @@ io.on("connection", (socket) => {
       const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
       const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
       if (action === "volume") {
-        session.audiovisualVolumes = { ...(session.audiovisualVolumes || {}), [String(current.resource.id)]: nextVolume };
+        session.audiovisualVolume = nextVolume;
       }
       session.audiovisual = {
         ...current,
