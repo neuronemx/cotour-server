@@ -200,13 +200,20 @@ function renderAudiovisualPanel(force = false) {
   }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
-    if (button.classList.contains("is-active") || event.target.closest(".audiovisual-inline-controls")) return;
+    const selectedId = String(button.dataset.avResource);
+    if (event.target.closest(".audiovisual-inline-controls")) return;
+    const isCurrentPlayback = button.classList.contains("is-active")
+      && String(audiovisualState.resource?.id || "") === selectedId
+      && audiovisualState.status === "playing";
+    if (isCurrentPlayback) return;
+    // A card may retain its visual state while a prior fade/socket update settles.
+    // It must still be selectable again once that resource is no longer playing.
+    button.classList.remove("is-active", "is-revealing", "is-closing");
     clearTimeout(audiovisualRevealTimer);
     audiovisualPanel.querySelectorAll(".audiovisual-resource.is-active").forEach((card) => {
       card.classList.remove("is-active", "is-revealing");
       card.classList.add("is-closing");
     });
-    const selectedId = String(button.dataset.avResource);
     clearTimeout(audiovisualRevealTimer);
     clearTimeout(audiovisualPendingTimer);
     audiovisualRevealResourceId = selectedId;
