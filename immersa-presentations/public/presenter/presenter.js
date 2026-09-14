@@ -184,7 +184,11 @@ function renderAudiovisualPanel() {
     return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (audiovisualState.lastAction === "select" ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
-  audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => { if (event.target.closest(".audiovisual-inline-controls")) return; socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false }); }));
+  audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
+    if (button.classList.contains("is-active") || event.target.closest(".audiovisual-inline-controls")) return;
+    button.classList.add("is-active", "is-revealing");
+    socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
+  }));
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
   audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); }));
   audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => { event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return; const level = Number(bar.dataset.avVolumeLevel); socket.emit("audiovisual:control", { action: "volume", volume: level / 5 }); }));
