@@ -176,6 +176,7 @@ const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume
 let audiovisualRevealResourceId = null;
 let audiovisualRevealUntil = 0;
 let audiovisualRevealTimer = null;
+let audiovisualPendingTimer = null;
 function syncAudiovisualActiveCard() {
   const resourceId = String(audiovisualState.resource?.id || "");
   const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
@@ -204,22 +205,25 @@ function renderAudiovisualPanel() {
       card.classList.remove("is-active", "is-revealing");
       card.classList.add("is-closing");
     });
-    audiovisualRevealResourceId = String(button.dataset.avResource);
+    const selectedId = String(button.dataset.avResource);
+    clearTimeout(audiovisualRevealTimer);
+    clearTimeout(audiovisualPendingTimer);
+    audiovisualRevealResourceId = selectedId;
     audiovisualRevealUntil = Date.now() + 500;
     button.querySelector("[data-av-loop]")?.classList.remove("is-active");
     const localVolumeBars = Math.max(1, Math.round(Number(audiovisualState.volume ?? 1) * 5));
     button.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= localVolumeBars));
     button.classList.add("is-active", "is-revealing");
     audiovisualRevealTimer = setTimeout(() => {
-      const selectedId = String(button.dataset.avResource);
-      if (audiovisualRevealResourceId !== selectedId) return;
-      button.classList.remove("is-revealing");
-      if (String(audiovisualState.resource?.id || "") === selectedId && audiovisualState.status === "playing") {
-        audiovisualRevealResourceId = null;
-        audiovisualRevealUntil = 0;
-      }
+      if (audiovisualRevealResourceId === selectedId) button.classList.remove("is-revealing");
     }, 500);
-    socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
+    audiovisualPendingTimer = setTimeout(() => {
+      if (audiovisualRevealResourceId !== selectedId) return;
+      audiovisualRevealResourceId = null;
+      audiovisualRevealUntil = 0;
+      renderAudiovisualPanel();
+    }, 2500);
+    socket.emit("audiovisual:control", { action: "select", resourceId: selectedId, loop: false });
   }));
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
   audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); }));
@@ -232,9 +236,11 @@ function applyAudiovisualState(next = {}) {
   if (audiovisualRevealResourceId) {
     const selectedArrived = audiovisualRevealResourceId === String(audiovisualState.resource?.id || "")
       && audiovisualState.status === "playing";
-    if (selectedArrived && Date.now() >= audiovisualRevealUntil) {
+    if (selectedArrived) {
+      clearTimeout(audiovisualPendingTimer);
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
+      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel();
     }
     return;
   }
@@ -249,6 +255,11 @@ function applyAudiovisualState(next = {}) {
     return;
   }
   clearTimeout(audiovisualFadeCloseTimer);
+  const visibleActiveCard = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
+  if (audiovisualState.status === "playing" && visibleActiveCard) {
+    syncAudiovisualActiveCard();
+    return;
+  }
   renderAudiovisualPanel();
 }
 function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); const keepActive = !open && audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", open || keepActive); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
