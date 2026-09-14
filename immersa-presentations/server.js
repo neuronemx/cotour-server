@@ -2119,7 +2119,25 @@ io.on("connection", (socket) => {
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
-      session.audiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const shouldFadeCurrentAudio = current.resource?.type === "audio"
+        && current.status === "playing"
+        && String(current.resource.id) !== String(resource.id);
+      if (shouldFadeCurrentAudio) {
+        const fadingResourceId = String(current.resource.id);
+        session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-replace", pendingResource: nextAudiovisual };
+        io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+        emitState(currentRoomKey, session);
+        setTimeout(() => {
+          const latest = session.audiovisual;
+          if (!latest || latest.status !== "fading" || latest.lastAction !== "fade-replace" || String(latest.resource?.id) !== fadingResourceId) return;
+          session.audiovisual = { ...latest.pendingResource, updatedAt: Date.now(), lastAction: "select" };
+          io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+          emitState(currentRoomKey, session);
+        }, 1000);
+        return;
+      }
+      session.audiovisual = nextAudiovisual;
     } else if (action === "fade-stop" && current.resource?.type === "audio" && current.status === "playing") {
       const fadedResourceId = String(current.resource.id);
       session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
