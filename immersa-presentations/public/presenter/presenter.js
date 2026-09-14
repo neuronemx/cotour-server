@@ -186,7 +186,8 @@ function syncAudiovisualActiveCard() {
   card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
   return true;
 }
-function renderAudiovisualPanel() {
+function renderAudiovisualPanel(force = false) {
+  if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
   const resource = audiovisualState.resource;
   const cards = audiovisualResources.length ? audiovisualResources.map((item) => {
@@ -221,7 +222,7 @@ function renderAudiovisualPanel() {
       if (audiovisualRevealResourceId !== selectedId) return;
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
-      renderAudiovisualPanel();
+      renderAudiovisualPanel(true);
     }, 2500);
     socket.emit("audiovisual:control", { action: "select", resourceId: selectedId, loop: false });
   }));
