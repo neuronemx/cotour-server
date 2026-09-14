@@ -176,6 +176,15 @@ const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume
 let audiovisualRevealResourceId = null;
 let audiovisualRevealUntil = 0;
 let audiovisualRevealTimer = null;
+function syncAudiovisualActiveCard() {
+  const resourceId = String(audiovisualState.resource?.id || "");
+  const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
+  if (!card) return false;
+  card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(audiovisualState.loop));
+  const activeBars = Math.max(1, Math.round(Number(audiovisualState.volume ?? 1) * 5));
+  card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
+  return true;
+}
 function renderAudiovisualPanel() {
   ensureAudiovisualUi();
   const resource = audiovisualState.resource;
@@ -207,7 +216,7 @@ function renderAudiovisualPanel() {
       }
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
-      renderAudiovisualPanel();
+      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel();
     }, 500);
     socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
   }));
@@ -225,7 +234,7 @@ function applyAudiovisualState(next = {}) {
     if (selectedArrived && Date.now() >= audiovisualRevealUntil) {
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
-      renderAudiovisualPanel();
+      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel();
     }
     return;
   }
