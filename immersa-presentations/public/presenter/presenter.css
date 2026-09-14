@@ -771,3 +771,22 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     animation: av-player-reveal-mobile .5s cubic-bezier(.16,.86,.2,1) both !important;
   }
 }
+
+
+/* Stop is an action, never a selected control on touch devices. */
+.audiovisual-inline-controls [data-av-stop],
+.audiovisual-inline-controls [data-av-stop]:active,
+.audiovisual-inline-controls [data-av-stop]:focus,
+.audiovisual-inline-controls [data-av-stop]:focus-visible {
+  color: #666 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.audiovisual-inline-controls [data-av-stop]:active .av-control-icon,
+.audiovisual-inline-controls [data-av-stop]:focus .av-control-icon,
+.audiovisual-inline-controls [data-av-stop]:focus-visible .av-control-icon {
+  filter: invert(43%) sepia(0%) saturate(0%) brightness(88%) !important;
+}
