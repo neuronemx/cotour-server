@@ -5,6 +5,8 @@
 .screen.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(34px); transform: scale(1.08); opacity: .62; }
 .screen.portrait-slide::after { background: rgba(0,0,0,.48); opacity: 1; }
 .screen.has-focus-overlay::after { z-index: 2; background: rgba(2, 4, 8, .22); opacity: 1; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+/* Activities stay above a Librería video without dimming or blurring it. */
+.screen.has-focus-overlay.has-audiovisual-video::after { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 #slide { position: relative; z-index: 1; width: 100vw; height: 100vh; object-fit: contain; display: block; }
 .audiovisual-screen-layer { position:absolute; z-index:2; inset:0; display:none; background:#000; }.audiovisual-screen-layer.is-video{display:block}.audiovisual-screen-layer video{display:block;width:100%;height:100%;object-fit:contain}.audiovisual-screen-layer audio{position:absolute;width:1px;height:1px;opacity:0}
 .disconnect { position: fixed; top: 22px; right: 22px; padding: 10px 14px; border-radius: 999px; background: rgba(10,10,10,.62); color: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.14); font-size: 13px; backdrop-filter: blur(12px); }
