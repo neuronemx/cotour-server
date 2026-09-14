@@ -40,7 +40,7 @@ function applyAudiovisualState(next = {}) {
   const resource = audiovisualState.resource;
   const media = resource ? audiovisualMedia[resource.type] : null;
   [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.currentTime = 0; } });
-  if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } audiovisualLayer.classList.remove("is-video"); return; }
+  if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } audiovisualLayer.classList.remove("is-video"); screenRoot.classList.remove("has-audiovisual-video"); return; }
   if (media.dataset.resourceId !== String(resource.id)) { media.dataset.resourceId = String(resource.id); media.src = resource.media_url; media.currentTime = 0; }
   media.loop = Boolean(audiovisualState.loop);
   if (audiovisualState.status === "fading" && resource.type === "audio") {
@@ -57,7 +57,9 @@ function applyAudiovisualState(next = {}) {
   }
   media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1)));
   if (audiovisualState.lastAction !== "volume" && Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
+  const isPlayingVideo = resource.type === "video" && audiovisualState.status === "playing";
   audiovisualLayer.classList.toggle("is-video", resource.type === "video");
+  screenRoot.classList.toggle("has-audiovisual-video", isPlayingVideo);
   if (audiovisualState.status === "playing") media.play().catch(() => {}); else media.pause();
 }
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
