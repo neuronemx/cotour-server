@@ -2119,7 +2119,9 @@ io.on("connection", (socket) => {
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
       if (!resource || !allowed.has(String(resource.id))) return;
-      const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const savedVolumes = session.audiovisualVolumes || {};
+      const savedVolume = Number(savedVolumes[String(resource.id)]);
+      const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
       const shouldFadeCurrentAudio = current.resource?.type === "audio"
         && current.status === "playing"
         && String(current.resource.id) !== String(resource.id);
@@ -2158,11 +2160,15 @@ io.on("connection", (socket) => {
       const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
       const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
       const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
+      const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
+      if (action === "volume") {
+        session.audiovisualVolumes = { ...(session.audiovisualVolumes || {}), [String(current.resource.id)]: nextVolume };
+      }
       session.audiovisual = {
         ...current,
         status: nextStatus,
         loop: action === "loop" ? Boolean(payload.loop) : current.loop,
-        volume: action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume,
+        volume: nextVolume,
         position: action === "volume" ? current.position : nextPosition,
         startedAt: action === "volume" ? current.startedAt : (nextStatus === "playing" ? now : null),
         updatedAt: now,
