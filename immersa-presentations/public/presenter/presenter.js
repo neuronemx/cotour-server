@@ -173,6 +173,9 @@ function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel 
 const avStopIcon = '<img class="av-control-icon" src="/presenter/player-stop.svg" alt="">';
 const avLoopIcon = '<img class="av-control-icon" src="/presenter/player-loop.svg" alt="">';
 const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume.svg" alt="">';
+let audiovisualRevealResourceId = null;
+let audiovisualRevealUntil = 0;
+let audiovisualRevealTimer = null;
 function renderAudiovisualPanel() {
   ensureAudiovisualUi();
   const resource = audiovisualState.resource;
@@ -181,12 +184,26 @@ function renderAudiovisualPanel() {
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(audiovisualState.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
     const controls = '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (audiovisualState.lastAction === "select" ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
+    const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     if (button.classList.contains("is-active") || event.target.closest(".audiovisual-inline-controls")) return;
+    clearTimeout(audiovisualRevealTimer);
+    audiovisualPanel.querySelectorAll(".audiovisual-resource.is-active").forEach((card) => {
+      card.classList.remove("is-active", "is-revealing");
+      card.classList.add("is-closing");
+    });
+    audiovisualRevealResourceId = String(button.dataset.avResource);
+    audiovisualRevealUntil = Date.now() + 500;
     button.classList.add("is-active", "is-revealing");
+    audiovisualRevealTimer = setTimeout(() => {
+      if (audiovisualRevealResourceId !== String(button.dataset.avResource)) return;
+      audiovisualRevealResourceId = null;
+      audiovisualRevealUntil = 0;
+      renderAudiovisualPanel();
+    }, 500);
     socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
   }));
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
@@ -195,16 +212,12 @@ function renderAudiovisualPanel() {
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 let audiovisualFadeCloseTimer = null;
-let audiovisualRevealTimer = null;
 function applyAudiovisualState(next = {}) {
   audiovisualState = { ...audiovisualState, ...next };
-  const locallyRevealing = audiovisualState.lastAction === "select"
-    && audiovisualPanel?.querySelector('.audiovisual-resource.is-revealing[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
-  if (locallyRevealing) {
-    clearTimeout(audiovisualRevealTimer);
-    audiovisualRevealTimer = setTimeout(() => locallyRevealing.classList.remove("is-revealing"), 500);
-    return;
-  }
+  const revealLocked = audiovisualRevealResourceId
+    && audiovisualRevealResourceId === String(audiovisualState.resource?.id || "")
+    && Date.now() < audiovisualRevealUntil;
+  if (revealLocked) return;
   if (audiovisualState.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
     const card = audiovisualPanel?.querySelector(".audiovisual-resource.is-active");
