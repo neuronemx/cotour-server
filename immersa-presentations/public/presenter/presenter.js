@@ -199,9 +199,16 @@ function renderAudiovisualPanel() {
     audiovisualRevealUntil = Date.now() + 500;
     button.classList.add("is-active", "is-revealing");
     audiovisualRevealTimer = setTimeout(() => {
-      if (audiovisualRevealResourceId !== String(button.dataset.avResource)) return;
+      const selectedId = String(button.dataset.avResource);
+      if (audiovisualRevealResourceId !== selectedId) return;
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
+      const waitingForAudioFade = audiovisualState.status === "fading"
+        && String(audiovisualState.pendingResource?.resource?.id || "") === selectedId;
+      if (waitingForAudioFade) {
+        button.classList.remove("is-revealing");
+        return;
+      }
       renderAudiovisualPanel();
     }, 500);
     socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
