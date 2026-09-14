@@ -221,8 +221,11 @@ function applyAudiovisualState(next = {}) {
   if (audiovisualState.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
     const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
-    if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); }
-    audiovisualFadeCloseTimer = setTimeout(renderAudiovisualPanel, 1000);
+    if (card) {
+      card.classList.add("is-closing");
+      card.classList.remove("is-active");
+      audiovisualFadeCloseTimer = setTimeout(renderAudiovisualPanel, 1000);
+    }
     return;
   }
   clearTimeout(audiovisualFadeCloseTimer);
