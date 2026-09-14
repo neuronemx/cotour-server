@@ -201,14 +201,12 @@ function renderAudiovisualPanel() {
     audiovisualRevealTimer = setTimeout(() => {
       const selectedId = String(button.dataset.avResource);
       if (audiovisualRevealResourceId !== selectedId) return;
-      audiovisualRevealResourceId = null;
-      audiovisualRevealUntil = 0;
-      const waitingForAudioFade = audiovisualState.status === "fading"
-        && String(audiovisualState.pendingResource?.resource?.id || "") === selectedId;
-      if (waitingForAudioFade) {
+      if (String(audiovisualState.resource?.id || "") !== selectedId || audiovisualState.status !== "playing") {
         button.classList.remove("is-revealing");
         return;
       }
+      audiovisualRevealResourceId = null;
+      audiovisualRevealUntil = 0;
       renderAudiovisualPanel();
     }, 500);
     socket.emit("audiovisual:control", { action: "select", resourceId: button.dataset.avResource, loop: false });
@@ -221,10 +219,16 @@ function renderAudiovisualPanel() {
 let audiovisualFadeCloseTimer = null;
 function applyAudiovisualState(next = {}) {
   audiovisualState = { ...audiovisualState, ...next };
-  const revealLocked = audiovisualRevealResourceId
-    && audiovisualRevealResourceId === String(audiovisualState.resource?.id || "")
-    && Date.now() < audiovisualRevealUntil;
-  if (revealLocked) return;
+  if (audiovisualRevealResourceId) {
+    const selectedArrived = audiovisualRevealResourceId === String(audiovisualState.resource?.id || "")
+      && audiovisualState.status === "playing";
+    if (selectedArrived && Date.now() >= audiovisualRevealUntil) {
+      audiovisualRevealResourceId = null;
+      audiovisualRevealUntil = 0;
+      renderAudiovisualPanel();
+    }
+    return;
+  }
   if (audiovisualState.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
     const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
