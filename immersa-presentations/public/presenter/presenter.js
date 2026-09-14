@@ -195,8 +195,16 @@ function renderAudiovisualPanel() {
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 let audiovisualFadeCloseTimer = null;
+let audiovisualRevealTimer = null;
 function applyAudiovisualState(next = {}) {
   audiovisualState = { ...audiovisualState, ...next };
+  const locallyRevealing = audiovisualState.lastAction === "select"
+    && audiovisualPanel?.querySelector('.audiovisual-resource.is-revealing[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
+  if (locallyRevealing) {
+    clearTimeout(audiovisualRevealTimer);
+    audiovisualRevealTimer = setTimeout(() => locallyRevealing.classList.remove("is-revealing"), 500);
+    return;
+  }
   if (audiovisualState.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
     const card = audiovisualPanel?.querySelector(".audiovisual-resource.is-active");
