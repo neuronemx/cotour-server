@@ -74,6 +74,12 @@ async function makeLocalVideoThumbnail(file) {
     video.removeAttribute("src"); video.load(); URL.revokeObjectURL(source);
   }
 }
+function localPlaylistId(folder, type) {
+  const key = ["playlist", type, folder].join("|");
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return "local-playlist:" + type + ":" + (hash >>> 0).toString(36);
+}
 async function collectLocalFiles(handle, prefix = "") {
   const entries = [];
   for await (const [name, entry] of handle.entries()) {
@@ -81,7 +87,11 @@ async function collectLocalFiles(handle, prefix = "") {
     else if (entry.kind === "file") {
       const extension = String(name).split(".").pop().toLowerCase();
       const type = localVideoExtensions.has(extension) ? "video" : localAudioExtensions.has(extension) ? "audio" : "";
-      if (type) entries.push({ file: await entry.getFile(), type, relativePath: prefix + name });
+      if (type) {
+        const relativePath = prefix + name;
+        const folder = prefix.replace(/\/$/, "");
+        entries.push({ file: await entry.getFile(), type, relativePath, folder });
+      }
     }
   }
   return entries;
@@ -106,13 +116,22 @@ async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
-    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es") : a.type === "video" ? -1 : 1)).slice(0, 100);
+    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
+    const playlistIndexes = new Map();
     clearLocalObjectUrls(); localLibrary.files.clear();
     const resources = [];
     for (const entry of files) {
       const id = localResourceId(entry.relativePath, entry.file, entry.type);
+      const playlistKey = entry.folder ? entry.type + "|" + entry.folder : "";
+      const playlistIndex = playlistKey ? (playlistIndexes.get(playlistKey) || 0) : 0;
+      if (playlistKey) playlistIndexes.set(playlistKey, playlistIndex + 1);
+      const playlist = entry.folder ? {
+        id: localPlaylistId(entry.folder, entry.type),
+        name: entry.folder.split("/").filter(Boolean).pop() || entry.folder,
+        order: playlistIndex
+      } : null;
       localLibrary.files.set(id, entry.file);
-      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: entry.type === "video" ? await makeLocalVideoThumbnail(entry.file) : "" });
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: entry.type === "video" ? await makeLocalVideoThumbnail(entry.file) : "", playlist });
     }
     localLibrary.resources = resources;
     socket.emit("local-library:publish", { resources });
@@ -168,7 +187,7 @@ function applyChannelState(type, state) {
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
     media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0;
   }
-  media.loop = Boolean(state.loop);
+  media.loop = Boolean(state.loop && !resource?.playlist);
   if (type === "audio" && state.status === "fading") {
     const token = ++audioFadeToken;
     const startVolume = media.volume || Math.max(0, Math.min(1, Number(state.volume ?? 1)));
