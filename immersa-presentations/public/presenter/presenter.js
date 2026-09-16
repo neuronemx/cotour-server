@@ -205,7 +205,7 @@ function renderAudiovisualPanel(force = false) {
   const total = audiovisualResources.length + localAudiovisualResources.length;
   const remoteCards = audiovisualCards(audiovisualResources, localAudiovisualResources.length ? "" : "No hay recursos seleccionados en Librería.");
   const localCards = audiovisualCards(localAudiovisualResources, "");
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3><button data-local-refresh title="Actualizar carpeta local" aria-label="Actualizar carpeta local">↻</button></div><div class="audiovisual-resource-list">' + localCards + '</div></section>' : '');
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3></div><div class="audiovisual-resource-list">' + localCards + '</div></section>' : '');
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
     if (event.target.closest(".audiovisual-inline-controls")) return;
@@ -240,7 +240,6 @@ function renderAudiovisualPanel(force = false) {
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
   audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); }));
   audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => { event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return; const level = Number(bar.dataset.avVolumeLevel); socket.emit("audiovisual:control", { action: "volume", volume: level / 5 }); }));
-  audiovisualPanel.querySelector("[data-local-refresh]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("local-library:refresh"); });
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 let audiovisualFadeCloseTimer = null;
@@ -529,5 +528,4 @@ loadDeck().then(() => {
   initDrawingOverlay();
   updateDrawingMode();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" });
-  setTimeout(() => socket.emit("local-library:refresh"), 350);
 });
