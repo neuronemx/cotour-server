@@ -33,7 +33,7 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let interactionOverlay = null;
-let audiovisualState = { resource: null, status: "stopped" };
+let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
 const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
@@ -131,22 +131,50 @@ async function chooseLocalLibraryFolder() {
     if (error?.name !== "AbortError") { console.error("Unable to choose local media folder", error); setLocalLibraryStatus("No se pudo vincular la carpeta"); }
   }
 }
-function applyAudiovisualState(next = {}) {
-  audiovisualState = { ...audiovisualState, ...next };
-  if (!audiovisualLayer) { audiovisualLayer = document.createElement("div"); audiovisualLayer.className = "audiovisual-screen-layer"; audiovisualLayer.innerHTML = '<video playsinline preload="auto"></video><audio preload="auto"></audio>'; audiovisualMedia = { video: audiovisualLayer.querySelector("video"), audio: audiovisualLayer.querySelector("audio") }; Object.values(audiovisualMedia).forEach((item) => { item.addEventListener("loadedmetadata", () => { if (item.dataset.resourceId && Number.isFinite(item.duration)) socket.emit("audiovisual:metadata", { resourceId: item.dataset.resourceId, duration: item.duration }); }); item.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: item.dataset.resourceId })); }); screenRoot.appendChild(audiovisualLayer); }
-  const resource = audiovisualState.resource;
-  const media = resource ? audiovisualMedia[resource.type] : null;
-  [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.currentTime = 0; } });
-  if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } audiovisualLayer.classList.remove("is-video"); screenRoot.classList.remove("has-audiovisual-video"); return; }
-  if (media.dataset.resourceId !== String(resource.id)) { const mediaUrl = resolveAudiovisualMediaUrl(resource);
+let audioFadeToken = 0;
+function emptyAudiovisualChannel() { return { resource: null, status: "stopped", loop: false, volume: 1, position: 0 }; }
+function normalizeAudiovisualChannels(next = {}) {
+  if (next.audio || next.video) return {
+    audio: { ...audiovisualState.audio, ...(next.audio || {}) },
+    video: { ...audiovisualState.video, ...(next.video || {}) }
+  };
+  const type = next.resource?.type;
+  if (type === "audio" || type === "video") return { ...audiovisualState, [type]: { ...audiovisualState[type], ...next } };
+  return audiovisualState;
+}
+function ensureAudiovisualLayer() {
+  if (audiovisualLayer) return;
+  audiovisualLayer = document.createElement("div");
+  audiovisualLayer.className = "audiovisual-screen-layer";
+  audiovisualLayer.innerHTML = '<video playsinline preload="auto"></video><audio preload="auto"></audio>';
+  audiovisualMedia = { video: audiovisualLayer.querySelector("video"), audio: audiovisualLayer.querySelector("audio") };
+  Object.entries(audiovisualMedia).forEach(([type, item]) => {
+    item.addEventListener("loadedmetadata", () => {
+      if (item.dataset.resourceId && Number.isFinite(item.duration)) socket.emit("audiovisual:metadata", { resourceId: item.dataset.resourceId, type, duration: item.duration });
+    });
+    item.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: item.dataset.resourceId, type }));
+  });
+  screenRoot.appendChild(audiovisualLayer);
+}
+function applyChannelState(type, state) {
+  const media = audiovisualMedia[type];
+  const resource = state?.resource;
+  if (!resource || state.status === "stopped") {
+    if (media) { media.pause(); media.currentTime = 0; }
+    return;
+  }
+  if (media.dataset.resourceId !== String(resource.id)) {
+    const mediaUrl = resolveAudiovisualMediaUrl(resource);
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
-    media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0; }
-  media.loop = Boolean(audiovisualState.loop);
-  if (audiovisualState.status === "fading" && resource.type === "audio") {
-    const startVolume = media.volume;
+    media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0;
+  }
+  media.loop = Boolean(state.loop);
+  if (type === "audio" && state.status === "fading") {
+    const token = ++audioFadeToken;
+    const startVolume = media.volume || Math.max(0, Math.min(1, Number(state.volume ?? 1)));
     const started = performance.now();
     const fade = () => {
-      if (audiovisualState.status !== "fading") return;
+      if (token !== audioFadeToken || audiovisualState.audio.status !== "fading") return;
       const ratio = Math.max(0, 1 - ((performance.now() - started) / 1000));
       media.volume = startVolume * ratio;
       if (ratio > 0) requestAnimationFrame(fade);
@@ -154,12 +182,20 @@ function applyAudiovisualState(next = {}) {
     requestAnimationFrame(fade);
     return;
   }
-  media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1)));
-  if (audiovisualState.lastAction !== "volume" && Number.isFinite(Number(audiovisualState.position)) && Math.abs(media.currentTime - Number(audiovisualState.position)) > 1.2) media.currentTime = Number(audiovisualState.position);
-  const isPlayingVideo = resource.type === "video" && audiovisualState.status === "playing";
-  audiovisualLayer.classList.toggle("is-video", resource.type === "video");
-  screenRoot.classList.toggle("has-audiovisual-video", isPlayingVideo);
-  if (audiovisualState.status === "playing") media.play().catch(() => {}); else media.pause();
+  if (type === "audio") audioFadeToken += 1;
+  media.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  if (state.lastAction !== "volume" && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
+  if (state.status === "playing") media.play().catch(() => {}); else media.pause();
+}
+function applyAudiovisualState(next = {}) {
+  audiovisualState = normalizeAudiovisualChannels(next);
+  ensureAudiovisualLayer();
+  applyChannelState("audio", audiovisualState.audio || emptyAudiovisualChannel());
+  applyChannelState("video", audiovisualState.video || emptyAudiovisualChannel());
+  const videoState = audiovisualState.video || emptyAudiovisualChannel();
+  const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
+  audiovisualLayer.classList.toggle("is-video", hasVideo);
+  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && videoState.status === "playing"));
 }
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? next.reactionsOnScreen ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
