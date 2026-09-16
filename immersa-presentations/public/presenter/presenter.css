@@ -811,3 +811,37 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     max-width: calc(50% - 82px) !important;
   }
 }
+
+
+/* Explicit label scope: audio icons are media, never title containers. */
+.audiovisual-resource > .av-icon {
+  width: 78px !important;
+  height: 44px !important;
+  flex: 0 0 78px !important;
+  min-width: 78px !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label {
+  position: relative !important;
+  z-index: 2 !important;
+  min-width: 0 !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  flex: 0 1 calc(60% - 98px) !important;
+  width: calc(60% - 98px) !important;
+  min-width: 0 !important;
+  max-width: calc(60% - 98px) !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  display: block !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > .av-icon { width: 64px !important; height: 36px !important; flex-basis: 64px !important; min-width: 64px !important; }
+  .audiovisual-resource.is-active > .audiovisual-resource-label { flex-basis: calc(50% - 82px) !important; width: calc(50% - 82px) !important; max-width: calc(50% - 82px) !important; }
+}
