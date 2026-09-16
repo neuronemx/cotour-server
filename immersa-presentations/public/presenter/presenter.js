@@ -26,7 +26,7 @@ let drawingMode = false;
 let audiovisualResources = [];
 let localAudiovisualResources = [];
 let audiovisualSelection = [];
-let audiovisualState = { resource: null, status: "stopped", loop: false, volume: 1, position: 0 };
+let audiovisualState = { audio: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 }, video: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 } };
 let audiovisualPanel = null;
 let audiovisualLayer = null;
 let audiovisualMedia = null;
@@ -178,26 +178,37 @@ let audiovisualRevealResourceId = null;
 let audiovisualRevealUntil = 0;
 let audiovisualRevealTimer = null;
 let audiovisualPendingTimer = null;
+function audiovisualChannel(type) {
+  return audiovisualState[type] || { resource: null, status: "stopped", loop: false, volume: 1, position: 0 };
+}
+function activeAudiovisualChannels() {
+  return ["audio", "video"].filter((type) => audiovisualChannel(type).resource && audiovisualChannel(type).status === "playing");
+}
 function syncAudiovisualActiveCard() {
-  const resourceId = String(audiovisualState.resource?.id || "");
-  const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
-  if (!card) return false;
-  card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(audiovisualState.loop));
-  const activeBars = Math.max(1, Math.round(Number(audiovisualState.volume ?? 1) * 5));
-  card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
-  return true;
+  let matched = false;
+  ["audio", "video"].forEach((type) => {
+    const state = audiovisualChannel(type);
+    const resourceId = String(state.resource?.id || "");
+    const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
+    if (!card) return;
+    matched = true;
+    card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(state.loop));
+    const activeBars = Math.max(1, Math.round(Number(state.volume ?? 1) * 5));
+    card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
+  });
+  return matched;
 }
 function audiovisualCards(resources, emptyMessage) {
-  const resource = audiovisualState.resource;
   if (!resources.length) return emptyMessage ? '<p class="audiovisual-empty">' + emptyMessage + '</p>' : "";
   const orderedResources = [...resources].sort((a, b) => (a.type === b.type ? String(a.name || "").localeCompare(String(b.name || ""), "es") : a.type === "video" ? -1 : 1));
   return orderedResources.map((item) => {
-    const active = resource?.id === item.id && audiovisualState.status === "playing";
+    const state = audiovisualChannel(item.type);
+    const active = state.resource?.id === item.id && state.status === "playing";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
-    const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(audiovisualState.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
-    const controls = '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
+    const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
+    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('');
 }
 function renderAudiovisualPanel(force = false) {
@@ -209,14 +220,14 @@ function renderAudiovisualPanel(force = false) {
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3></div><div class="audiovisual-resource-list">' + localCards + '</div></section>' : '');
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
+    const type = button.dataset.avType;
+    const state = audiovisualChannel(type);
     if (event.target.closest(".audiovisual-inline-controls")) return;
-    const isCurrentPlayback = button.classList.contains("is-active")
-      && String(audiovisualState.resource?.id || "") === selectedId
-      && audiovisualState.status === "playing";
+    const isCurrentPlayback = button.classList.contains("is-active") && String(state.resource?.id || "") === selectedId && state.status === "playing";
     if (isCurrentPlayback) return;
     button.classList.remove("is-active", "is-revealing", "is-closing");
     clearTimeout(audiovisualRevealTimer);
-    audiovisualPanel.querySelectorAll(".audiovisual-resource.is-active").forEach((card) => {
+    audiovisualPanel.querySelectorAll('.audiovisual-resource.is-active[data-av-type="' + type + '"]').forEach((card) => {
       card.classList.remove("is-active", "is-revealing");
       card.classList.add("is-closing");
     });
@@ -224,7 +235,7 @@ function renderAudiovisualPanel(force = false) {
     audiovisualRevealResourceId = selectedId;
     audiovisualRevealUntil = Date.now() + 500;
     button.querySelector("[data-av-loop]")?.classList.remove("is-active");
-    const localVolumeBars = Math.max(1, Math.round(Number(audiovisualState.volume ?? 1) * 5));
+    const localVolumeBars = Math.max(1, Math.round(Number(state.volume ?? 1) * 5));
     button.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= localVolumeBars));
     button.classList.add("is-active", "is-revealing");
     audiovisualRevealTimer = setTimeout(() => {
@@ -236,46 +247,78 @@ function renderAudiovisualPanel(force = false) {
       audiovisualRevealUntil = 0;
       renderAudiovisualPanel(true);
     }, 2500);
-    socket.emit("audiovisual:control", { action: "select", resourceId: selectedId, loop: false });
+    socket.emit("audiovisual:control", { action: "select", resourceId: selectedId, type, loop: false });
   }));
-  audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
-  audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); }));
-  audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => { event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return; const level = Number(bar.dataset.avVolumeLevel); socket.emit("audiovisual:control", { action: "volume", volume: level / 5 }); }));
-  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
+  audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const card = event.currentTarget.closest(".audiovisual-resource");
+    const type = card?.dataset.avType || "audio";
+    if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); }
+    socket.emit("audiovisual:control", { action: type === "audio" ? "fade-stop" : "stop", resourceId: card?.dataset.avResource, type });
+  }));
+  audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const card = event.currentTarget.closest(".audiovisual-resource");
+    const type = card?.dataset.avType || "audio";
+    socket.emit("audiovisual:control", { action: "loop", resourceId: card?.dataset.avResource, type, loop: !audiovisualChannel(type).loop });
+  }));
+  audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const bar = event.target.closest("[data-av-volume-level]");
+    if (!bar) return;
+    const card = event.currentTarget.closest(".audiovisual-resource");
+    socket.emit("audiovisual:control", { action: "volume", resourceId: card?.dataset.avResource, type: card?.dataset.avType, volume: Number(bar.dataset.avVolumeLevel) / 5 });
+  }));
+  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => {
+    audiovisualPanel.classList.remove("is-open");
+    const keepActive = ["audio", "video"].some((type) => audiovisualChannel(type).loop && audiovisualChannel(type).status === "playing");
+    audiovisualToggle?.classList.toggle("is-active", keepActive);
+    audiovisualToggle?.setAttribute("aria-expanded", "false");
+  });
 }
 let audiovisualFadeCloseTimer = null;
 function applyAudiovisualState(next = {}) {
-  audiovisualState = { ...audiovisualState, ...next };
+  if (next.audio || next.video) {
+    audiovisualState = { audio: { ...audiovisualChannel("audio"), ...(next.audio || {}) }, video: { ...audiovisualChannel("video"), ...(next.video || {}) } };
+  } else if (next.resource?.type === "audio" || next.resource?.type === "video") {
+    audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
+  }
   if (audiovisualRevealResourceId) {
-    const selectedArrived = audiovisualRevealResourceId === String(audiovisualState.resource?.id || "")
-      && audiovisualState.status === "playing";
+    const selectedArrived = ["audio", "video"].some((type) => audiovisualRevealResourceId === String(audiovisualChannel(type).resource?.id || "") && audiovisualChannel(type).status === "playing");
     if (selectedArrived) {
       clearTimeout(audiovisualPendingTimer);
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
-      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel();
+      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel(true);
     }
     return;
   }
-  if (audiovisualState.status === "fading") {
+  const fadingAudio = audiovisualChannel("audio");
+  if (fadingAudio.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
-    const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
+    const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(fadingAudio.resource?.id || "") + '"]');
     if (card) {
       card.classList.add("is-closing");
       card.classList.remove("is-active");
-      audiovisualFadeCloseTimer = setTimeout(renderAudiovisualPanel, 1000);
+      audiovisualFadeCloseTimer = setTimeout(() => renderAudiovisualPanel(true), 1000);
     }
     return;
   }
   clearTimeout(audiovisualFadeCloseTimer);
-  const visibleActiveCard = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualState.resource?.id || "") + '"]');
-  if (audiovisualState.status === "playing" && visibleActiveCard) {
-    syncAudiovisualActiveCard();
-    return;
-  }
-  renderAudiovisualPanel();
+  const expected = activeAudiovisualChannels();
+  const allVisible = expected.length && expected.every((type) => audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualChannel(type).resource?.id || "") + '"]'));
+  if (allVisible) { syncAudiovisualActiveCard(); return; }
+  renderAudiovisualPanel(true);
 }
-function toggleAudiovisualPanel() { if (!audiovisualResources.length && !localAudiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); const keepActive = !open && audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", open || keepActive); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
+function toggleAudiovisualPanel() {
+  if (!audiovisualResources.length && !localAudiovisualResources.length) return;
+  const open = !audiovisualPanel?.classList.contains("is-open");
+  audiovisualPanel?.classList.toggle("is-open", open);
+  const keepActive = !open && ["audio", "video"].some((type) => audiovisualChannel(type).loop && audiovisualChannel(type).status === "playing");
+  audiovisualToggle?.classList.toggle("is-active", open || keepActive);
+  audiovisualToggle?.setAttribute("aria-expanded", String(open));
+  if (open && interactionPanelOpen) setInteractionPanelOpen(false);
+}
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
