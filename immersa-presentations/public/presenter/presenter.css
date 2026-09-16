@@ -790,3 +790,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 .audiovisual-inline-controls [data-av-stop]:focus-visible .av-control-icon {
   filter: invert(43%) sepia(0%) saturate(0%) brightness(88%) !important;
 }
+
+/* Local media stays a separate catalog but uses the same live player cards. */
+.audiovisual-local-section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.audiovisual-local-head{display:flex;align-items:center;justify-content:space-between;margin:0 2px 9px}.audiovisual-local-head h3{margin:0;color:rgba(234,255,251,.82);font-size:12px;font-weight:700}.audiovisual-local-head button{width:26px;height:26px;border:0;border-radius:50%;display:grid;place-items:center;background:transparent;color:rgba(234,255,251,.68);font-size:17px;line-height:1;cursor:pointer}.audiovisual-local-head button:hover{background:rgba(104,216,204,.14);color:#68d8cc}.audiovisual-empty{margin:0;padding:12px 4px;color:rgba(234,255,251,.62);font-size:12px}
