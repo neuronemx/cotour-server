@@ -106,7 +106,7 @@ async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
-    const files = (await collectLocalFiles(localLibrary.directoryHandle)).slice(0, 100);
+    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es") : a.type === "video" ? -1 : 1)).slice(0, 100);
     clearLocalObjectUrls(); localLibrary.files.clear();
     const resources = [];
     for (const entry of files) {
