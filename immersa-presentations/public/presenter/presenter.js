@@ -208,7 +208,7 @@ function audiovisualCards(resources, emptyMessage) {
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
     const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('');
 }
 function renderAudiovisualPanel(force = false) {
