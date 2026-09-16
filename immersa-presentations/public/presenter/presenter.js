@@ -313,8 +313,10 @@ function applyAudiovisualState(next = {}) {
   }
   clearTimeout(audiovisualFadeCloseTimer);
   const expected = activeAudiovisualChannels();
-  const allVisible = expected.length && expected.every((type) => audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(audiovisualChannel(type).resource?.id || "") + '"]'));
-  if (allVisible) { syncAudiovisualActiveCard(); return; }
+  const expectedIds = expected.map((type) => String(audiovisualChannel(type).resource?.id || ""));
+  const visibleIds = Array.from(audiovisualPanel?.querySelectorAll(".audiovisual-resource.is-active[data-av-resource]") || []).map((card) => String(card.dataset.avResource));
+  const cardsMatchChannels = expectedIds.length === visibleIds.length && expectedIds.every((id) => visibleIds.includes(id));
+  if (cardsMatchChannels) { syncAudiovisualActiveCard(); return; }
   renderAudiovisualPanel(true);
 }
 function toggleAudiovisualPanel() {
