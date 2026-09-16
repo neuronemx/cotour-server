@@ -1,5 +1,7 @@
 const base = 'https://media.immersalive.com';
-const file = (folder, name) => base + '/' + folder + '/' + encodeURIComponent(name);
+// Increment this when a media file is replaced under the same filename.
+const mediaRevision = '20260916-1';
+const file = (folder, name) => base + '/' + folder + '/' + encodeURIComponent(name) + '?v=' + mediaRevision;
 const raw = [
   ['amc','video','AMC.mp4'],
   ['ia','video','IA.mp4'],
