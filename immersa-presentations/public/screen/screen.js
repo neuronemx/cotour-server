@@ -19,6 +19,7 @@ let manifestRetryTimer = null;
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const localLibraryPicker = document.getElementById("localLibraryPicker");
+const localLibraryRefresh = document.getElementById("localLibraryRefresh");
 const localLibraryStatus = document.getElementById("localLibraryStatus");
 let screenUiTimer = null;
 const slide = document.getElementById("slide");
@@ -48,6 +49,7 @@ function localResourceId(relativePath, file, type) {
 function setLocalLibraryStatus(text) {
   if (localLibraryStatus) localLibraryStatus.textContent = text || "";
   if (localLibraryPicker) localLibraryPicker.classList.toggle("is-linked", Boolean(localLibrary.directoryHandle));
+  if (localLibraryRefresh) localLibraryRefresh.hidden = !localLibrary.directoryHandle;
 }
 async function makeLocalVideoThumbnail(file) {
   const source = URL.createObjectURL(file);
@@ -272,6 +274,7 @@ function renderQnaScreen(payload = {}) {
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 if (localLibraryPicker) localLibraryPicker.addEventListener("click", chooseLocalLibraryFolder);
+if (localLibraryRefresh) localLibraryRefresh.addEventListener("click", scanAndPublishLocalLibrary);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => {
@@ -293,7 +296,6 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("local-library:refresh-request", scanAndPublishLocalLibrary);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });
