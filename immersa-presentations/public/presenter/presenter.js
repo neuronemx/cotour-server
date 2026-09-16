@@ -184,6 +184,14 @@ function audiovisualChannel(type) {
 function activeAudiovisualChannels() {
   return ["audio", "video"].filter((type) => audiovisualChannel(type).resource && audiovisualChannel(type).status === "playing");
 }
+function hasRunningAudiovisual() {
+  return ["audio", "video"].some((type) => audiovisualChannel(type).resource && ["playing", "fading"].includes(audiovisualChannel(type).status));
+}
+function syncAudiovisualToggle() {
+  const open = Boolean(audiovisualPanel?.classList.contains("is-open"));
+  audiovisualToggle?.classList.toggle("is-active", open || hasRunningAudiovisual());
+  audiovisualToggle?.setAttribute("aria-expanded", String(open));
+}
 function syncAudiovisualActiveCard() {
   let matched = false;
   ["audio", "video"].forEach((type) => {
@@ -271,9 +279,7 @@ function renderAudiovisualPanel(force = false) {
   }));
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => {
     audiovisualPanel.classList.remove("is-open");
-    const keepActive = ["audio", "video"].some((type) => audiovisualChannel(type).loop && audiovisualChannel(type).status === "playing");
-    audiovisualToggle?.classList.toggle("is-active", keepActive);
-    audiovisualToggle?.setAttribute("aria-expanded", "false");
+    syncAudiovisualToggle();
   });
 }
 let audiovisualFadeCloseTimer = null;
@@ -283,6 +289,7 @@ function applyAudiovisualState(next = {}) {
   } else if (next.resource?.type === "audio" || next.resource?.type === "video") {
     audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
   }
+  syncAudiovisualToggle();
   if (audiovisualRevealResourceId) {
     const selectedArrived = ["audio", "video"].some((type) => audiovisualRevealResourceId === String(audiovisualChannel(type).resource?.id || "") && audiovisualChannel(type).status === "playing");
     if (selectedArrived) {
@@ -314,9 +321,7 @@ function toggleAudiovisualPanel() {
   if (!audiovisualResources.length && !localAudiovisualResources.length) return;
   const open = !audiovisualPanel?.classList.contains("is-open");
   audiovisualPanel?.classList.toggle("is-open", open);
-  const keepActive = !open && ["audio", "video"].some((type) => audiovisualChannel(type).loop && audiovisualChannel(type).status === "playing");
-  audiovisualToggle?.classList.toggle("is-active", open || keepActive);
-  audiovisualToggle?.setAttribute("aria-expanded", String(open));
+  syncAudiovisualToggle();
   if (open && interactionPanelOpen) setInteractionPanelOpen(false);
 }
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
