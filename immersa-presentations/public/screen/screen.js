@@ -184,7 +184,8 @@ function applyChannelState(type, state) {
   }
   if (type === "audio") audioFadeToken += 1;
   media.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
-  if (state.lastAction !== "volume" && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
+  const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
   if (state.status === "playing") media.play().catch(() => {}); else media.pause();
 }
 function applyAudiovisualState(next = {}) {
