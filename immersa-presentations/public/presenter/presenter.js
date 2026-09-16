@@ -24,6 +24,7 @@ let currentSlideIndex = 0;
 let drawingOverlay = null;
 let drawingMode = false;
 let audiovisualResources = [];
+let localAudiovisualResources = [];
 let audiovisualSelection = [];
 let audiovisualState = { resource: null, status: "stopped", loop: false, volume: 1, position: 0 };
 let audiovisualPanel = null;
@@ -186,19 +187,25 @@ function syncAudiovisualActiveCard() {
   card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
   return true;
 }
-function renderAudiovisualPanel(force = false) {
-  if (!force && audiovisualRevealResourceId) return;
-  ensureAudiovisualUi();
+function audiovisualCards(resources, emptyMessage) {
   const resource = audiovisualState.resource;
-  const cards = audiovisualResources.length ? audiovisualResources.map((item) => {
+  if (!resources.length) return emptyMessage ? '<p class="audiovisual-empty">' + emptyMessage + '</p>' : "";
+  return resources.map((item) => {
     const active = resource?.id === item.id && audiovisualState.status === "playing";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(audiovisualState.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
     const controls = '<span class="audiovisual-inline-controls"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (audiovisualState.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
     return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" role="button" tabindex="0">' + mediaIcon + '<span><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
-  }).join('') : '<p>No hay recursos seleccionados en Librería.</p>';
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + audiovisualResources.length + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + cards + '</div>';
+  }).join('');
+}
+function renderAudiovisualPanel(force = false) {
+  if (!force && audiovisualRevealResourceId) return;
+  ensureAudiovisualUi();
+  const total = audiovisualResources.length + localAudiovisualResources.length;
+  const remoteCards = audiovisualCards(audiovisualResources, localAudiovisualResources.length ? "" : "No hay recursos seleccionados en Librería.");
+  const localCards = audiovisualCards(localAudiovisualResources, "");
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3><button data-local-refresh title="Actualizar carpeta local" aria-label="Actualizar carpeta local">↻</button></div><div class="audiovisual-resource-list">' + localCards + '</div></section>' : '');
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
     if (event.target.closest(".audiovisual-inline-controls")) return;
@@ -206,15 +213,12 @@ function renderAudiovisualPanel(force = false) {
       && String(audiovisualState.resource?.id || "") === selectedId
       && audiovisualState.status === "playing";
     if (isCurrentPlayback) return;
-    // A card may retain its visual state while a prior fade/socket update settles.
-    // It must still be selectable again once that resource is no longer playing.
     button.classList.remove("is-active", "is-revealing", "is-closing");
     clearTimeout(audiovisualRevealTimer);
     audiovisualPanel.querySelectorAll(".audiovisual-resource.is-active").forEach((card) => {
       card.classList.remove("is-active", "is-revealing");
       card.classList.add("is-closing");
     });
-    clearTimeout(audiovisualRevealTimer);
     clearTimeout(audiovisualPendingTimer);
     audiovisualRevealResourceId = selectedId;
     audiovisualRevealUntil = Date.now() + 500;
@@ -236,6 +240,7 @@ function renderAudiovisualPanel(force = false) {
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); if (card) { card.classList.add("is-closing"); card.classList.remove("is-active"); } socket.emit("audiovisual:control", { action: audiovisualState.resource?.type === "audio" ? "fade-stop" : "stop" }); }));
   audiovisualPanel.querySelectorAll("[data-av-loop]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("audiovisual:control", { action: "loop", loop: !audiovisualState.loop }); }));
   audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => { event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return; const level = Number(bar.dataset.avVolumeLevel); socket.emit("audiovisual:control", { action: "volume", volume: level / 5 }); }));
+  audiovisualPanel.querySelector("[data-local-refresh]")?.addEventListener("click", (event) => { event.stopPropagation(); socket.emit("local-library:refresh"); });
   audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); const keepActive = audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", keepActive); audiovisualToggle?.setAttribute("aria-expanded", "false"); });
 }
 let audiovisualFadeCloseTimer = null;
@@ -270,7 +275,7 @@ function applyAudiovisualState(next = {}) {
   }
   renderAudiovisualPanel();
 }
-function toggleAudiovisualPanel() { if (!audiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); const keepActive = !open && audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", open || keepActive); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
+function toggleAudiovisualPanel() { if (!audiovisualResources.length && !localAudiovisualResources.length) return; const open = !audiovisualPanel?.classList.contains("is-open"); audiovisualPanel?.classList.toggle("is-open", open); const keepActive = !open && audiovisualState.loop && audiovisualState.status === "playing"; audiovisualToggle?.classList.toggle("is-active", open || keepActive); audiovisualToggle?.setAttribute("aria-expanded", String(open)); if (open && interactionPanelOpen) setInteractionPanelOpen(false); }
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
@@ -512,6 +517,7 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; renderAudiovisualPanel(); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
@@ -519,4 +525,9 @@ socket.on("interaction:results_updated", (results) => { interactionResults = res
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
 syncThumbsPanelMode();
 ensureInteractionToggle();
-loadDeck().then(() => { initDrawingOverlay(); updateDrawingMode(); socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" }); });
+loadDeck().then(() => {
+  initDrawingOverlay();
+  updateDrawingMode();
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" });
+  setTimeout(() => socket.emit("local-library:refresh"), 350);
+});
