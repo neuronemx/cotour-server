@@ -18,6 +18,8 @@ let pendingPresentationState = null;
 let manifestRetryTimer = null;
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
+const localLibraryPicker = document.getElementById("localLibraryPicker");
+const localLibraryStatus = document.getElementById("localLibraryStatus");
 let screenUiTimer = null;
 const slide = document.getElementById("slide");
 const qr = document.getElementById("qr");
@@ -34,6 +36,101 @@ let interactionOverlay = null;
 let audiovisualState = { resource: null, status: "stopped" };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
+const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
+const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
+const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
+function localResourceId(relativePath, file, type) {
+  const key = [type, relativePath, file.size, file.lastModified].join("|");
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return "local:" + type + ":" + (hash >>> 0).toString(36);
+}
+function setLocalLibraryStatus(text) {
+  if (localLibraryStatus) localLibraryStatus.textContent = text || "";
+  if (localLibraryPicker) localLibraryPicker.classList.toggle("is-linked", Boolean(localLibrary.directoryHandle));
+}
+async function makeLocalVideoThumbnail(file) {
+  const source = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true; video.playsInline = true; video.preload = "metadata";
+  try {
+    await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = () => reject(new Error("No se pudo leer el video")); video.src = source; });
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      video.currentTime = Math.min(Math.max(video.duration * 0.1, 0.12), 2);
+      await new Promise((resolve) => { video.onseeked = resolve; video.onerror = resolve; });
+    }
+    const width = 320, height = 180;
+    const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+    const context = canvas.getContext("2d");
+    const scale = Math.max(width / Math.max(video.videoWidth || width, 1), height / Math.max(video.videoHeight || height, 1));
+    const drawWidth = (video.videoWidth || width) * scale, drawHeight = (video.videoHeight || height) * scale;
+    context.fillStyle = "#111827"; context.fillRect(0, 0, width, height);
+    context.drawImage(video, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+    return canvas.toDataURL("image/webp", 0.72);
+  } catch (error) {
+    console.warn("Unable to generate local video thumbnail", file.name, error);
+    return "";
+  } finally {
+    video.removeAttribute("src"); video.load(); URL.revokeObjectURL(source);
+  }
+}
+async function collectLocalFiles(handle, prefix = "") {
+  const entries = [];
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind === "directory") entries.push(...await collectLocalFiles(entry, prefix + name + "/"));
+    else if (entry.kind === "file") {
+      const extension = String(name).split(".").pop().toLowerCase();
+      const type = localVideoExtensions.has(extension) ? "video" : localAudioExtensions.has(extension) ? "audio" : "";
+      if (type) entries.push({ file: await entry.getFile(), type, relativePath: prefix + name });
+    }
+  }
+  return entries;
+}
+function clearLocalObjectUrls() {
+  localLibrary.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  localLibrary.objectUrls.clear();
+}
+function resolveLocalMediaUrl(resource) {
+  const file = localLibrary.files.get(String(resource?.id || ""));
+  if (!file) return "";
+  const existing = localLibrary.objectUrls.get(String(resource.id));
+  if (existing) return existing;
+  const url = URL.createObjectURL(file);
+  localLibrary.objectUrls.set(String(resource.id), url);
+  return url;
+}
+function resolveAudiovisualMediaUrl(resource) {
+  return resource?.source === "local" ? resolveLocalMediaUrl(resource) : resource?.media_url || "";
+}
+async function scanAndPublishLocalLibrary() {
+  if (!localLibrary.directoryHandle || localLibrary.scanning) return;
+  localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
+  try {
+    const files = (await collectLocalFiles(localLibrary.directoryHandle)).slice(0, 100);
+    clearLocalObjectUrls(); localLibrary.files.clear();
+    const resources = [];
+    for (const entry of files) {
+      const id = localResourceId(entry.relativePath, entry.file, entry.type);
+      localLibrary.files.set(id, entry.file);
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: entry.type === "video" ? await makeLocalVideoThumbnail(entry.file) : "" });
+    }
+    localLibrary.resources = resources;
+    socket.emit("local-library:publish", { resources });
+    setLocalLibraryStatus(resources.length ? "Librería local · " + resources.length + " recursos" : "Librería local vacía");
+  } catch (error) {
+    console.error("Unable to scan local library", error);
+    setLocalLibraryStatus("No se pudo actualizar la carpeta");
+  } finally { localLibrary.scanning = false; }
+}
+async function chooseLocalLibraryFolder() {
+  if (!window.showDirectoryPicker) { setLocalLibraryStatus("Usa Chrome o Edge para vincular una carpeta"); return; }
+  try {
+    localLibrary.directoryHandle = await window.showDirectoryPicker({ mode: "read" });
+    await scanAndPublishLocalLibrary();
+  } catch (error) {
+    if (error?.name !== "AbortError") { console.error("Unable to choose local media folder", error); setLocalLibraryStatus("No se pudo vincular la carpeta"); }
+  }
+}
 function applyAudiovisualState(next = {}) {
   audiovisualState = { ...audiovisualState, ...next };
   if (!audiovisualLayer) { audiovisualLayer = document.createElement("div"); audiovisualLayer.className = "audiovisual-screen-layer"; audiovisualLayer.innerHTML = '<video playsinline preload="auto"></video><audio preload="auto"></audio>'; audiovisualMedia = { video: audiovisualLayer.querySelector("video"), audio: audiovisualLayer.querySelector("audio") }; Object.values(audiovisualMedia).forEach((item) => { item.addEventListener("loadedmetadata", () => { if (item.dataset.resourceId && Number.isFinite(item.duration)) socket.emit("audiovisual:metadata", { resourceId: item.dataset.resourceId, duration: item.duration }); }); item.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: item.dataset.resourceId })); }); screenRoot.appendChild(audiovisualLayer); }
@@ -41,7 +138,9 @@ function applyAudiovisualState(next = {}) {
   const media = resource ? audiovisualMedia[resource.type] : null;
   [audiovisualMedia.video, audiovisualMedia.audio].forEach((item) => { if (item && item !== media) { item.pause(); item.currentTime = 0; } });
   if (!media || audiovisualState.status === "stopped") { if (media) { media.pause(); media.currentTime = 0; media.volume = Math.max(0, Math.min(1, Number(audiovisualState.volume ?? 1))); } audiovisualLayer.classList.remove("is-video"); screenRoot.classList.remove("has-audiovisual-video"); return; }
-  if (media.dataset.resourceId !== String(resource.id)) { media.dataset.resourceId = String(resource.id); media.src = resource.media_url; media.currentTime = 0; }
+  if (media.dataset.resourceId !== String(resource.id)) { const mediaUrl = resolveAudiovisualMediaUrl(resource);
+    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
+    media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0; }
   media.loop = Boolean(audiovisualState.loop);
   if (audiovisualState.status === "fading" && resource.type === "audio") {
     const startVolume = media.volume;
@@ -172,6 +271,7 @@ function renderQnaScreen(payload = {}) {
 }
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
+if (localLibraryPicker) localLibraryPicker.addEventListener("click", chooseLocalLibraryFolder);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => {
@@ -193,6 +293,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("local-library:refresh-request", scanAndPublishLocalLibrary);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });
@@ -204,6 +305,7 @@ socket.on("qna:screen", renderQnaScreen);
 makeQrPattern(activeAudienceUrl);
 socket.on("connect", () => {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });
+  if (localLibrary.resources.length) socket.emit("local-library:publish", { resources: localLibrary.resources });
 });
 if (socket.connected) {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });
