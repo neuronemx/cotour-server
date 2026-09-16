@@ -845,3 +845,56 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .audiovisual-resource > .av-icon { width: 64px !important; height: 36px !important; flex-basis: 64px !important; min-width: 64px !important; }
   .audiovisual-resource.is-active > .audiovisual-resource-label { flex-basis: calc(50% - 82px) !important; width: calc(50% - 82px) !important; max-width: calc(50% - 82px) !important; }
 }
+
+
+/* Active cards are a fixed two-zone layout: neither title nor thumbnail can reflow the player. */
+.audiovisual-resource.is-active { display: block !important; position: relative !important; }
+.audiovisual-resource.is-active > img,
+.audiovisual-resource.is-active > .av-icon {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 7px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 78px !important;
+  height: 44px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  flex: none !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 95px !important;
+  right: 40% !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+.audiovisual-resource.is-active > .audiovisual-inline-controls {
+  position: absolute !important;
+  z-index: 4 !important;
+  left: 60% !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 40% !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active > img,
+  .audiovisual-resource.is-active > .av-icon { width: 64px !important; height: 36px !important; min-width: 64px !important; max-width: 64px !important; left: 6px !important; }
+  .audiovisual-resource.is-active > .audiovisual-resource-label { left: 82px !important; right: 50% !important; }
+  .audiovisual-resource.is-active > .audiovisual-inline-controls { left: 50% !important; width: 50% !important; }
+}
