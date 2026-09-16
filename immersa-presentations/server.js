@@ -789,6 +789,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     inactivityShutdownAt: null,
     audience: new Map(),
     audiovisual: { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() },
+    localAudiovisual: [],
     overlays: {
       reactionsOnScreen: true,
       showReactions: true,
@@ -799,6 +800,24 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
       questionVisible: false
     }
   };
+}
+
+function normalizeLocalAudiovisualResources(payload = {}) {
+  const resources = Array.isArray(payload.resources) ? payload.resources : [];
+  return resources.slice(0, 200).map((item) => {
+    const type = item?.type === "video" ? "video" : item?.type === "audio" ? "audio" : "";
+    const id = String(item?.id || "");
+    const name = String(item?.name || "").trim().slice(0, 120);
+    const thumbnailUrl = String(item?.thumbnail_url || "");
+    if (!type || !id.startsWith("local:") || !name) return null;
+    return {
+      id: id.slice(0, 240),
+      type,
+      name,
+      source: "local",
+      thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : ""
+    };
+  }).filter(Boolean);
 }
 
 function getSession(sessionId, deckId) {
@@ -2065,6 +2084,7 @@ io.on("connection", (socket) => {
     }
     emitState(currentRoomKey, session);
     socket.emit("audiovisual:state", session.audiovisual);
+    if (role === "presenter") socket.emit("local-library:updated", { resources: session.localAudiovisual || [] });
     if (
       role === "audience"
       && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)
@@ -2108,6 +2128,19 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("local-library:publish", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    session.localAudiovisual = normalizeLocalAudiovisualResources(payload);
+    io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("local-library:updated", { resources: session.localAudiovisual });
+  });
+
+  socket.on("local-library:refresh", () => {
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    io.to(getRoleRoomKey(currentRoomKey, "screen")).emit("local-library:refresh-request");
+  });
+
   socket.on("audiovisual:control", async (payload = {}) => {
     if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
@@ -2117,8 +2150,10 @@ io.on("connection", (socket) => {
     if (action === "select") {
       const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
-      const resource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
-      if (!resource || !allowed.has(String(resource.id))) return;
+      const remoteResource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
+      const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === String(payload.resourceId));
+      const resource = localResource || remoteResource;
+      if (!resource || (!localResource && !allowed.has(String(resource.id)))) return;
       const savedVolume = Number(session.audiovisualVolume);
       const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
       const shouldFadeCurrentAudio = current.resource?.type === "audio"
