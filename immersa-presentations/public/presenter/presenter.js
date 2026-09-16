@@ -192,12 +192,18 @@ function syncAudiovisualToggle() {
   audiovisualToggle?.classList.toggle("is-active", open || hasRunningAudiovisual());
   audiovisualToggle?.setAttribute("aria-expanded", String(open));
 }
+function audiovisualCardKey(resource) {
+  return resource?.playlist?.id ? "playlist:" + String(resource.playlist.id) : String(resource?.id || "");
+}
 function syncAudiovisualActiveCard() {
   let matched = false;
   ["audio", "video"].forEach((type) => {
     const state = audiovisualChannel(type);
     const resourceId = String(state.resource?.id || "");
-    const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
+    const playlistId = String(state.resource?.playlist?.id || "");
+    const card = playlistId
+      ? audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-playlist="' + playlistId + '"]')
+      : audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + resourceId + '"]');
     if (!card) return;
     matched = true;
     card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(state.loop));
@@ -206,17 +212,35 @@ function syncAudiovisualActiveCard() {
   });
   return matched;
 }
+function buildLocalPlaylistCards(resources) {
+  const playlists = new Map();
+  resources.filter((item) => item.playlist?.id).forEach((item) => {
+    const id = String(item.playlist.id);
+    if (!playlists.has(id)) playlists.set(id, { id, type: item.type, name: item.playlist.name, items: [] });
+    playlists.get(id).items.push(item);
+  });
+  return [...playlists.values()]
+    .sort((a, b) => (a.type === b.type ? String(a.name || "").localeCompare(String(b.name || ""), "es", { numeric: true }) : a.type === "video" ? -1 : 1))
+    .map((playlist) => {
+      const first = [...playlist.items].sort((a, b) => Number(a.playlist?.order || 0) - Number(b.playlist?.order || 0))[0];
+      return { ...first, id: first.id, name: "Playlist · " + playlist.name + " · " + playlist.items.length + " pistas", playlistCard: true, playlistId: playlist.id };
+    });
+}
 function audiovisualCards(resources, emptyMessage) {
   if (!resources.length) return emptyMessage ? '<p class="audiovisual-empty">' + emptyMessage + '</p>' : "";
-  const orderedResources = [...resources].sort((a, b) => (a.type === b.type ? String(a.name || "").localeCompare(String(b.name || ""), "es") : a.type === "video" ? -1 : 1));
+  const orderedResources = [...resources].sort((a, b) => (a.type === b.type ? String(a.name || "").localeCompare(String(b.name || ""), "es", { numeric: true }) : a.type === "video" ? -1 : 1));
   return orderedResources.map((item) => {
     const state = audiovisualChannel(item.type);
-    const active = state.resource?.id === item.id && state.status === "playing";
+    const isPlaylist = Boolean(item.playlistCard);
+    const active = isPlaylist
+      ? String(state.resource?.playlist?.id || "") === String(item.playlistId || "") && state.status === "playing"
+      : state.resource?.id === item.id && state.status === "playing";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
     const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '" data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
+    const playlistAttribute = isPlaylist ? ' data-av-playlist="' + avEscape(item.playlistId) + '"' : "";
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
   }).join('');
 }
 function renderAudiovisualPanel(force = false) {
@@ -224,14 +248,17 @@ function renderAudiovisualPanel(force = false) {
   ensureAudiovisualUi();
   const total = audiovisualResources.length + localAudiovisualResources.length;
   const remoteCards = audiovisualCards(audiovisualResources, localAudiovisualResources.length ? "" : "No hay recursos seleccionados en Librería.");
-  const localCards = audiovisualCards(localAudiovisualResources, "");
+  const localSingles = localAudiovisualResources.filter((item) => !item.playlist?.id);
+  const localPlaylists = buildLocalPlaylistCards(localAudiovisualResources);
+  const localCards = audiovisualCards(localPlaylists, "") + audiovisualCards(localSingles, "");
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3></div><div class="audiovisual-resource-list">' + localCards + '</div></section>' : '');
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
+    const playlistId = String(button.dataset.avPlaylist || "");
     const type = button.dataset.avType;
     const state = audiovisualChannel(type);
     if (event.target.closest(".audiovisual-inline-controls")) return;
-    const isCurrentPlayback = button.classList.contains("is-active") && String(state.resource?.id || "") === selectedId && state.status === "playing";
+    const isCurrentPlayback = button.classList.contains("is-active") && state.status === "playing" && (playlistId ? String(state.resource?.playlist?.id || "") === playlistId : String(state.resource?.id || "") === selectedId);
     if (isCurrentPlayback) return;
     button.classList.remove("is-active", "is-revealing", "is-closing");
     clearTimeout(audiovisualRevealTimer);
@@ -255,7 +282,9 @@ function renderAudiovisualPanel(force = false) {
       audiovisualRevealUntil = 0;
       renderAudiovisualPanel(true);
     }, 2500);
-    socket.emit("audiovisual:control", { action: "select", resourceId: selectedId, type, loop: false });
+    socket.emit("audiovisual:control", playlistId
+      ? { action: "select-playlist", resourceId: selectedId, playlistId, type, loop: false }
+      : { action: "select", resourceId: selectedId, type, loop: false });
   }));
   audiovisualPanel.querySelectorAll("[data-av-stop]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -303,7 +332,10 @@ function applyAudiovisualState(next = {}) {
   const fadingAudio = audiovisualChannel("audio");
   if (fadingAudio.status === "fading") {
     clearTimeout(audiovisualFadeCloseTimer);
-    const card = audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(fadingAudio.resource?.id || "") + '"]');
+    const fadingPlaylistId = String(fadingAudio.resource?.playlist?.id || "");
+    const card = fadingPlaylistId
+      ? audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-playlist="' + fadingPlaylistId + '"]')
+      : audiovisualPanel?.querySelector('.audiovisual-resource.is-active[data-av-resource="' + String(fadingAudio.resource?.id || "") + '"]');
     if (card) {
       card.classList.add("is-closing");
       card.classList.remove("is-active");
@@ -313,8 +345,8 @@ function applyAudiovisualState(next = {}) {
   }
   clearTimeout(audiovisualFadeCloseTimer);
   const expected = activeAudiovisualChannels();
-  const expectedIds = expected.map((type) => String(audiovisualChannel(type).resource?.id || ""));
-  const visibleIds = Array.from(audiovisualPanel?.querySelectorAll(".audiovisual-resource.is-active[data-av-resource]") || []).map((card) => String(card.dataset.avResource));
+  const expectedIds = expected.map((type) => audiovisualCardKey(audiovisualChannel(type).resource));
+  const visibleIds = Array.from(audiovisualPanel?.querySelectorAll(".audiovisual-resource.is-active[data-av-resource]") || []).map((card) => card.dataset.avPlaylist ? "playlist:" + String(card.dataset.avPlaylist) : String(card.dataset.avResource));
   const cardsMatchChannels = expectedIds.length === visibleIds.length && expectedIds.every((id) => visibleIds.includes(id));
   if (cardsMatchChannels) { syncAudiovisualActiveCard(); return; }
   renderAudiovisualPanel(true);
