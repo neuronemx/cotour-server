@@ -824,15 +824,27 @@ function normalizeLocalAudiovisualResources(payload = {}) {
     const id = String(item?.id || "");
     const name = String(item?.name || "").trim().slice(0, 120);
     const thumbnailUrl = String(item?.thumbnail_url || "");
+    const playlistId = String(item?.playlist?.id || "");
+    const playlistName = String(item?.playlist?.name || "").trim().slice(0, 120);
+    const playlistOrder = Math.max(0, Math.min(999, Number(item?.playlist?.order) || 0));
     if (!type || !id.startsWith("local:") || !name) return null;
+    const playlist = playlistId.startsWith("local-playlist:" + type + ":") && playlistName
+      ? { id: playlistId.slice(0, 240), name: playlistName, order: playlistOrder }
+      : null;
     return {
       id: id.slice(0, 240),
       type,
       name,
       source: "local",
-      thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : ""
+      thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : "",
+      playlist
     };
   }).filter(Boolean);
+}
+function localPlaylistItems(session, playlistId, type) {
+  return (session?.localAudiovisual || [])
+    .filter((item) => item.type === type && String(item.playlist?.id || "") === String(playlistId || ""))
+    .sort((a, b) => Number(a.playlist?.order || 0) - Number(b.playlist?.order || 0) || String(a.name || "").localeCompare(String(b.name || ""), "es", { numeric: true }));
 }
 
 function getSession(sessionId, deckId) {
@@ -2165,13 +2177,14 @@ io.on("connection", (socket) => {
       emitState(currentRoomKey, session);
     };
 
-    if (action === "select") {
+    if (action === "select" || action === "select-playlist") {
       const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const remoteResource = listAudiovisualResources().find((item) => String(item.id) === requestedId);
       const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === requestedId);
-      const resource = localResource || remoteResource;
-      if (!resource || (!localResource && !allowed.has(String(resource.id)))) return;
+      const playlistItems = action === "select-playlist" && requestedType ? localPlaylistItems(session, payload.playlistId, requestedType) : [];
+      const resource = playlistItems[0] || localResource || remoteResource;
+      if (!resource || (!playlistItems.length && !localResource && !allowed.has(String(resource.id)))) return;
       const type = resource.type;
       const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
@@ -2262,8 +2275,22 @@ io.on("connection", (socket) => {
     const channels = getAudiovisualChannels(session);
     const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
     const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
-    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id) || channel.loop) return;
-    channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
+    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
+    const playlistId = String(channel.resource.playlist?.id || "");
+    if (playlistId) {
+      const playlist = localPlaylistItems(session, playlistId, type);
+      const currentIndex = playlist.findIndex((item) => String(item.id) === String(channel.resource.id));
+      const nextIndex = currentIndex + 1;
+      const nextResource = playlist[nextIndex] || (channel.loop ? playlist[0] : null);
+      if (nextResource) {
+        channels[type] = { ...channel, resource: nextResource, status: "playing", position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "playlist-next" };
+      } else {
+        channels[type] = { ...channel, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "ended" };
+      }
+    } else {
+      if (channel.loop) return;
+      channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
+    }
     io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
     emitState(currentRoomKey, session);
   });
