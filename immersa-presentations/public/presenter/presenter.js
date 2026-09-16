@@ -190,7 +190,8 @@ function syncAudiovisualActiveCard() {
 function audiovisualCards(resources, emptyMessage) {
   const resource = audiovisualState.resource;
   if (!resources.length) return emptyMessage ? '<p class="audiovisual-empty">' + emptyMessage + '</p>' : "";
-  return resources.map((item) => {
+  const orderedResources = [...resources].sort((a, b) => (a.type === b.type ? String(a.name || "").localeCompare(String(b.name || ""), "es") : a.type === "video" ? -1 : 1));
+  return orderedResources.map((item) => {
     const active = resource?.id === item.id && audiovisualState.status === "playing";
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">♫</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(audiovisualState.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
