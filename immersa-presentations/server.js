@@ -2136,11 +2136,6 @@ io.on("connection", (socket) => {
     io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("local-library:updated", { resources: session.localAudiovisual });
   });
 
-  socket.on("local-library:refresh", () => {
-    if (!currentRoomKey || currentRole !== "presenter") return;
-    io.to(getRoleRoomKey(currentRoomKey, "screen")).emit("local-library:refresh-request");
-  });
-
   socket.on("audiovisual:control", async (payload = {}) => {
     if (!currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
