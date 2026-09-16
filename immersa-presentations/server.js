@@ -771,6 +771,20 @@ async function getDeckSlideCount(deckId) {
   }
 }
 
+function emptyAudiovisualChannel() {
+  return { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() };
+}
+function createAudiovisualChannels() {
+  return { audio: emptyAudiovisualChannel(), video: emptyAudiovisualChannel() };
+}
+function getAudiovisualChannels(session) {
+  const existing = session?.audiovisual;
+  if (existing?.audio && existing?.video) return existing;
+  const channels = createAudiovisualChannels();
+  if (existing?.resource?.type === "audio" || existing?.resource?.type === "video") channels[existing.resource.type] = existing;
+  if (session) session.audiovisual = channels;
+  return channels;
+}
 function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] || 1) {
   return {
     sessionId,
@@ -788,7 +802,8 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
-    audiovisual: { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() },
+    audiovisual: createAudiovisualChannels(),
+    audiovisualVolume: 1,
     localAudiovisual: [],
     overlays: {
       reactionsOnScreen: true,
@@ -2141,89 +2156,116 @@ io.on("connection", (socket) => {
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     const action = String(payload.action || "");
-    const current = session.audiovisual || {};
+    const channels = getAudiovisualChannels(session);
+    const requestedId = String(payload.resourceId || "");
+    const requestedType = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channelType = requestedType || (channels.audio.resource && String(channels.audio.resource.id) === requestedId ? "audio" : channels.video.resource && String(channels.video.resource.id) === requestedId ? "video" : "");
+    const publish = () => {
+      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+      emitState(currentRoomKey, session);
+    };
+
     if (action === "select") {
       const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
       const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
-      const remoteResource = listAudiovisualResources().find((item) => String(item.id) === String(payload.resourceId));
-      const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === String(payload.resourceId));
+      const remoteResource = listAudiovisualResources().find((item) => String(item.id) === requestedId);
+      const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === requestedId);
       const resource = localResource || remoteResource;
       if (!resource || (!localResource && !allowed.has(String(resource.id)))) return;
+      const type = resource.type;
+      const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
-      const nextAudiovisual = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
-      const shouldFadeCurrentAudio = current.resource?.type === "audio"
-        && current.status === "playing"
-        && String(current.resource.id) !== String(resource.id);
-      if (shouldFadeCurrentAudio) {
+      const next = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const shouldFade = type === "audio" && current.resource && current.status === "playing" && String(current.resource.id) !== String(resource.id);
+      if (shouldFade) {
         const fadingResourceId = String(current.resource.id);
-        session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-replace", pendingResource: nextAudiovisual };
-        io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
-        emitState(currentRoomKey, session);
+        channels.audio = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-replace", pendingResource: next };
+        publish();
         setTimeout(() => {
-          const latest = session.audiovisual;
+          const latest = getAudiovisualChannels(session).audio;
           if (!latest || latest.status !== "fading" || latest.lastAction !== "fade-replace" || String(latest.resource?.id) !== fadingResourceId) return;
-          session.audiovisual = { ...latest.pendingResource, updatedAt: Date.now(), lastAction: "select" };
-          io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
-          emitState(currentRoomKey, session);
+          getAudiovisualChannels(session).audio = { ...latest.pendingResource, updatedAt: Date.now(), lastAction: "select" };
+          publish();
         }, 1000);
         return;
       }
-      session.audiovisual = nextAudiovisual;
-    } else if (action === "fade-stop" && current.resource?.type === "audio" && current.status === "playing") {
+      channels[type] = next;
+      publish();
+      return;
+    }
+
+    const type = channelType || (action === "fade-stop" ? "audio" : "");
+    if (!type) return;
+    const current = channels[type];
+    if (!current?.resource) return;
+
+    if (action === "fade-stop" && type === "audio" && current.status === "playing") {
       const fadedResourceId = String(current.resource.id);
-      session.audiovisual = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
-      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
-      emitState(currentRoomKey, session);
+      channels.audio = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
+      publish();
       setTimeout(() => {
-        const latest = session.audiovisual;
+        const latest = getAudiovisualChannels(session).audio;
         if (!latest || latest.status !== "fading" || String(latest.resource?.id) !== fadedResourceId) return;
-        session.audiovisual = { ...latest, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
-        io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
-        emitState(currentRoomKey, session);
+        getAudiovisualChannels(session).audio = { ...latest, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+        publish();
       }, 1000);
       return;
-    } else if (action === "stop") {
-      session.audiovisual = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
-    } else if (current.resource) {
-      const now = Date.now();
-      const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
-      const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
-      const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
-      const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
-      if (action === "volume") {
-        session.audiovisualVolume = nextVolume;
-      }
-      session.audiovisual = {
+    }
+
+    if (action === "stop") {
+      channels[type] = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+      publish();
+      return;
+    }
+
+    const now = Date.now();
+    const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
+    const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
+    const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
+    const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
+    if (action === "volume") {
+      session.audiovisualVolume = nextVolume;
+      Object.keys(channels).forEach((key) => {
+        channels[key] = { ...channels[key], volume: nextVolume, updatedAt: now, lastAction: "volume" };
+      });
+    } else {
+      channels[type] = {
         ...current,
         status: nextStatus,
         loop: action === "loop" ? Boolean(payload.loop) : current.loop,
         volume: nextVolume,
-        position: action === "volume" ? current.position : nextPosition,
-        startedAt: action === "volume" ? current.startedAt : (nextStatus === "playing" ? now : null),
+        position: nextPosition,
+        startedAt: nextStatus === "playing" ? now : null,
         updatedAt: now,
         lastAction: action
       };
-    } else return;
-    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
-    emitState(currentRoomKey, session);
+    }
+    publish();
   });
 
   socket.on("audiovisual:metadata", (payload = {}) => {
     if (!currentRoomKey || currentRole !== "screen") return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session?.audiovisual?.resource || String(payload.resourceId) !== String(session.audiovisual.resource.id)) return;
+    const channels = getAudiovisualChannels(session);
+    const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
+    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
     const duration = Math.max(0, Number(payload.duration) || 0);
-    if (!duration || session.audiovisual.duration === duration) return;
-    session.audiovisual = { ...session.audiovisual, duration };
+    if (!duration || channel.duration === duration) return;
+    channel.duration = duration;
     io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
   });
 
   socket.on("audiovisual:ended", (payload = {}) => {
     if (!currentRoomKey || currentRole !== "screen") return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session?.audiovisual?.resource || String(payload.resourceId) !== String(session.audiovisual.resource.id) || session.audiovisual.loop) return;
-    session.audiovisual = { ...session.audiovisual, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now() };
+    const channels = getAudiovisualChannels(session);
+    const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
+    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id) || channel.loop) return;
+    channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
     io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_pause", () => {
