@@ -898,3 +898,28 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .audiovisual-resource.is-active > .audiovisual-resource-label { left: 82px !important; right: 50% !important; }
   .audiovisual-resource.is-active > .audiovisual-inline-controls { left: 50% !important; width: 50% !important; }
 }
+
+
+/* Local playlists lead their catalog; keep Speaker thumbnails on a fixed desktop frame. */
+.audiovisual-local-subhead {
+  margin:10px 2px 6px;
+  color:rgba(234,255,251,.58);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.audiovisual-playlist-list { margin-bottom:10px; }
+@media (min-width:721px) {
+  .audiovisual-resource.is-audio > .av-icon,
+  .audiovisual-resource.is-audio.is-active > .av-icon {
+    width:78px !important;
+    height:44px !important;
+    min-width:78px !important;
+    max-width:78px !important;
+    flex:0 0 78px !important;
+    aspect-ratio:16 / 9 !important;
+    object-fit:cover !important;
+    overflow:hidden !important;
+  }
+}
