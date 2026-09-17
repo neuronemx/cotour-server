@@ -1084,7 +1084,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   font-size: 13px;
   font-weight: 850;
   letter-spacing: .13em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 .time-launch-grid { margin-top: 0; }
 .time-countdown-form {
