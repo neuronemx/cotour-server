@@ -36,6 +36,8 @@ let interactionOverlay = null;
 let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
+let activeVideoSlot = 0;
+let videoTransitionToken = 0;
 const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
@@ -161,25 +163,97 @@ function normalizeAudiovisualChannels(next = {}) {
   if (type === "audio" || type === "video") return { ...audiovisualState, [type]: { ...audiovisualState[type], ...next } };
   return audiovisualState;
 }
+function bindAudiovisualMediaEvents(type, media) {
+  media.addEventListener("loadedmetadata", () => {
+    if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
+  });
+  media.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type }));
+}
 function ensureAudiovisualLayer() {
   if (audiovisualLayer) return;
   audiovisualLayer = document.createElement("div");
   audiovisualLayer.className = "audiovisual-screen-layer";
-  audiovisualLayer.innerHTML = '<video playsinline preload="auto"></video><audio preload="auto"></audio>';
-  audiovisualMedia = { video: audiovisualLayer.querySelector("video"), audio: audiovisualLayer.querySelector("audio") };
-  Object.entries(audiovisualMedia).forEach(([type, item]) => {
-    item.addEventListener("loadedmetadata", () => {
-      if (item.dataset.resourceId && Number.isFinite(item.duration)) socket.emit("audiovisual:metadata", { resourceId: item.dataset.resourceId, type, duration: item.duration });
-    });
-    item.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: item.dataset.resourceId, type }));
-  });
+  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto"></audio>';
+  audiovisualMedia = {
+    video: Array.from(audiovisualLayer.querySelectorAll("video")),
+    audio: audiovisualLayer.querySelector("audio")
+  };
+  audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
+  bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
   screenRoot.appendChild(audiovisualLayer);
 }
-function applyChannelState(type, state) {
-  const media = audiovisualMedia[type];
+function stopVideoSlots() {
+  videoTransitionToken += 1;
+  (audiovisualMedia?.video || []).forEach((media) => {
+    media.pause();
+    media.currentTime = 0;
+    media.classList.remove("is-visible");
+  });
+}
+function applyVideoState(state) {
+  const resource = state?.resource;
+  const slots = audiovisualMedia.video;
+  if (!resource || state.status === "stopped") {
+    stopVideoSlots();
+    return;
+  }
+  const current = slots[activeVideoSlot];
+  const currentId = String(current.dataset.resourceId || "");
+  const nextId = String(resource.id || "");
+  const volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  if (currentId !== nextId) {
+    const incomingIndex = 1 - activeVideoSlot;
+    const incoming = slots[incomingIndex];
+    const mediaUrl = resolveAudiovisualMediaUrl(resource);
+    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
+    const token = ++videoTransitionToken;
+    incoming.pause();
+    incoming.dataset.resourceId = nextId;
+    incoming.src = mediaUrl;
+    incoming.currentTime = 0;
+    incoming.loop = Boolean(state.loop && !resource?.playlist);
+    incoming.volume = volume;
+    incoming.classList.remove("is-visible");
+    const begin = () => {
+      if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || audiovisualState.video?.status !== "playing") return;
+      incoming.play().catch(() => {});
+      const hasCurrentVideo = Boolean(currentId && !current.paused);
+      incoming.classList.add("is-visible");
+      if (!hasCurrentVideo) {
+        current.classList.remove("is-visible");
+        activeVideoSlot = incomingIndex;
+        return;
+      }
+      current.classList.remove("is-visible");
+      activeVideoSlot = incomingIndex;
+      window.setTimeout(() => {
+        if (token !== videoTransitionToken) return;
+        current.pause();
+        current.currentTime = 0;
+        current.removeAttribute("src");
+        current.load();
+      }, 500);
+    };
+    incoming.addEventListener("canplay", begin, { once: true });
+    incoming.load();
+    return;
+  }
+  current.loop = Boolean(state.loop && !resource?.playlist);
+  current.volume = volume;
+  const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(current.currentTime - Number(state.position)) > 1.2) current.currentTime = Number(state.position);
+  if (state.status === "playing") {
+    current.classList.add("is-visible");
+    current.play().catch(() => {});
+  } else {
+    current.pause();
+  }
+}
+function applyAudioState(state) {
+  const media = audiovisualMedia.audio;
   const resource = state?.resource;
   if (!resource || state.status === "stopped") {
-    if (media) { media.pause(); media.currentTime = 0; }
+    media.pause(); media.currentTime = 0;
     return;
   }
   if (media.dataset.resourceId !== String(resource.id)) {
@@ -188,7 +262,7 @@ function applyChannelState(type, state) {
     media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0;
   }
   media.loop = Boolean(state.loop && !resource?.playlist);
-  if (type === "audio" && state.status === "fading") {
+  if (state.status === "fading") {
     const token = ++audioFadeToken;
     const startVolume = media.volume || Math.max(0, Math.min(1, Number(state.volume ?? 1)));
     const started = performance.now();
@@ -201,7 +275,7 @@ function applyChannelState(type, state) {
     requestAnimationFrame(fade);
     return;
   }
-  if (type === "audio") audioFadeToken += 1;
+  audioFadeToken += 1;
   media.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
   const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
   if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
@@ -210,8 +284,8 @@ function applyChannelState(type, state) {
 function applyAudiovisualState(next = {}) {
   audiovisualState = normalizeAudiovisualChannels(next);
   ensureAudiovisualLayer();
-  applyChannelState("audio", audiovisualState.audio || emptyAudiovisualChannel());
-  applyChannelState("video", audiovisualState.video || emptyAudiovisualChannel());
+  applyAudioState(audiovisualState.audio || emptyAudiovisualChannel());
+  applyVideoState(audiovisualState.video || emptyAudiovisualChannel());
   const videoState = audiovisualState.video || emptyAudiovisualChannel();
   const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
   audiovisualLayer.classList.toggle("is-video", hasVideo);
