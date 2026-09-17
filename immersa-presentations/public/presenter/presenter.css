@@ -1174,3 +1174,92 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 
 /* Nudge the Time glyph three pixels lower inside its circular control. */
 .time-toggle img { transform: translateY(-7px); }
+
+
+/* Speaker library: fixed cover, independent title lane and independent player lane. */
+.audiovisual-resource {
+  min-height: 70px !important;
+  align-items: center !important;
+}
+.audiovisual-resource > img,
+.audiovisual-resource > .av-icon,
+.audiovisual-resource.is-audio > .av-icon,
+.audiovisual-resource.is-audio.is-active > .av-icon {
+  width: 78px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  height: 44px !important;
+  flex: 0 0 78px !important;
+  aspect-ratio: 16 / 9 !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label {
+  position: relative !important;
+  z-index: 2 !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource > .audiovisual-resource-label strong {
+  display: -webkit-box !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: ellipsis !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 3 !important;
+  line-height: 1.2 !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  position: absolute !important;
+  z-index: 2 !important;
+  left: 96px !important;
+  right: 40% !important;
+  top: 7px !important;
+  bottom: 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  width: auto !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource.is-active > .audiovisual-inline-controls {
+  left: 60% !important;
+  right: 0 !important;
+  width: 40% !important;
+}
+
+/* Five pixels lower than the previous position. */
+.time-toggle img { transform: translateY(-2px); }
+
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > img,
+  .audiovisual-resource > .av-icon,
+  .audiovisual-resource.is-audio > .av-icon,
+  .audiovisual-resource.is-audio.is-active > .av-icon {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    height: 36px !important;
+    flex-basis: 64px !important;
+  }
+  .audiovisual-resource.is-active > .audiovisual-resource-label {
+    left: 82px !important;
+    right: 50% !important;
+  }
+  .audiovisual-resource.is-active > .audiovisual-inline-controls {
+    left: 50% !important;
+    width: 50% !important;
+  }
+}
