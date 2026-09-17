@@ -20,6 +20,10 @@ const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const localLibraryPicker = document.getElementById("localLibraryPicker");
 const localLibraryStatus = document.getElementById("localLibraryStatus");
+const timeOverlay = document.getElementById("timeOverlay");
+const timeDisplay = document.getElementById("timeDisplay");
+let immersaTimeState = null;
+let immersaTimeTick = null;
 let screenUiTimer = null;
 const slide = document.getElementById("slide");
 const qr = document.getElementById("qr");
@@ -317,6 +321,38 @@ function applyAudiovisualState(next = {}) {
   audiovisualLayer.classList.toggle("is-video", hasVideo);
   screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && videoState.status === "playing"));
 }
+function clearImmersaTimeTick() {
+  if (immersaTimeTick) clearTimeout(immersaTimeTick);
+  immersaTimeTick = null;
+}
+function renderImmersaTime() {
+  clearImmersaTimeTick();
+  if (!timeOverlay || !timeDisplay || !immersaTimeState || !window.ImmersaTime) return;
+  const timer = immersaTimeState.screen || {};
+  const visible = Boolean(timer.visible && timer.mode);
+  timeOverlay.classList.toggle("hidden", !visible);
+  if (!visible) return;
+  let value = "";
+  let shouldTick = false;
+  if (timer.mode === "stopwatch") {
+    value = window.ImmersaTime.duration(window.ImmersaTime.elapsed(timer, immersaTimeState));
+    shouldTick = Boolean(timer.running);
+  } else if (timer.mode === "countdown") {
+    const remaining = window.ImmersaTime.remaining(timer, immersaTimeState);
+    value = window.ImmersaTime.duration(remaining);
+    shouldTick = Boolean(timer.running && remaining > 0);
+  } else if (timer.mode === "clock") {
+    value = window.ImmersaTime.clock(immersaTimeState);
+    shouldTick = true;
+  }
+  timeDisplay.textContent = value;
+  if (shouldTick) immersaTimeTick = setTimeout(renderImmersaTime, 200);
+}
+function applyImmersaTime(next = {}) {
+  if (!window.ImmersaTime) return;
+  immersaTimeState = window.ImmersaTime.normalize(next);
+  renderImmersaTime();
+}
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? next.reactionsOnScreen ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 
@@ -449,6 +485,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });

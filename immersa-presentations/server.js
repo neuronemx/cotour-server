@@ -21,6 +21,7 @@ const {
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { listAudiovisualResources } = require("./audiovisual-library");
+const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
@@ -803,6 +804,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     inactivityShutdownAt: null,
     audience: new Map(),
     audiovisual: createAudiovisualChannels(),
+    time: createImmersaTimeState(),
     audiovisualVolume: 1,
     localAudiovisual: [],
     overlays: {
@@ -907,6 +909,11 @@ function publicState(session) {
 function emitState(roomKey, session) {
   io.to(roomKey).emit("presentation_state", publicState(session));
   io.to(roomKey).emit("audience_count", session.audience.size);
+}
+
+function emitImmersaTimeState(roomKey, session) {
+  const state = immersaTimeSnapshot(session.time || (session.time = createImmersaTimeState()));
+  ["presenter", "screen"].forEach((role) => io.to(getRoleRoomKey(roomKey, role)).emit("time:state", state));
 }
 
 function touchSession(roomKey, now = Date.now()) {
@@ -2111,6 +2118,7 @@ io.on("connection", (socket) => {
     }
     emitState(currentRoomKey, session);
     socket.emit("audiovisual:state", session.audiovisual);
+    if (role === "presenter" || role === "screen") socket.emit("time:state", immersaTimeSnapshot(session.time || (session.time = createImmersaTimeState())));
     if (role === "presenter") socket.emit("local-library:updated", { resources: session.localAudiovisual || [] });
     if (
       role === "audience"
@@ -2405,6 +2413,16 @@ io.on("connection", (socket) => {
     io.to(currentRoomKey).emit("clear_overlays");
     io.to(currentRoomKey).emit("overlay_update", session.overlays);
     emitState(currentRoomKey, session);
+  });
+
+  socket.on("time:control", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const result = applyImmersaTimeCommand(session.time || (session.time = createImmersaTimeState()), payload, Date.now());
+    if (!result.changed) return;
+    touchSession(currentRoomKey);
+    emitImmersaTimeState(currentRoomKey, session);
   });
 
   socket.on("disconnect", () => {

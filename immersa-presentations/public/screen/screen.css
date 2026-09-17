@@ -96,3 +96,37 @@
   will-change:opacity;
 }
 .audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
+
+
+/* IMMERSA TIME is the visual layer above every Screen surface. */
+.time-overlay {
+  position: fixed;
+  z-index: 30;
+  top: clamp(30px, 7vh, 108px);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: min(94vw, 1800px);
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.time-overlay span {
+  color: #f8f8f6;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: clamp(56px, 10.6vw, 204px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.075em;
+  line-height: .84;
+  text-shadow: 0 3px 10px rgba(0,0,0,.52), 0 16px 46px rgba(0,0,0,.42);
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .time-overlay { top: 28px; }
+  .time-overlay span { font-size: clamp(42px, 14vw, 82px); }
+}
+
+
+/* Keep the Helvetica TIME glyphs distinct at projection scale. */
+.time-overlay span { letter-spacing: .022em; }

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/presenter/presenter.css?v=68">
+  <link rel="stylesheet" href="/presenter/presenter.css?v=72">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
   <link rel="stylesheet" href="/shared/demo-plan-badge.css?v=4">
   <link rel="stylesheet" href="/shared/live-text-control.css?v=2">
@@ -31,6 +31,13 @@
       <a id="deckHomeLink" class="brand-lockup" href="/home" aria-label="Ir al Home de esta presentación" title="Ir al Home de esta presentación">
         <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
       </a>
+      <div class="speaker-timer-stack">
+        <button id="speakerTimer" class="speaker-timer" type="button" title="Timer Speaker" aria-label="Iniciar Timer Speaker"><img src="/presenter/timer.svg" alt=""><span id="speakerTimerValue">00:00:00</span></button>
+        <div id="speakerTimerActions" class="speaker-timer-actions" hidden>
+          <button id="speakerTimerResume" type="button">Reanudar</button>
+          <button id="speakerTimerReset" type="button">Restablecer</button>
+        </div>
+      </div>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
@@ -72,6 +79,7 @@
           <button id="drawToggle" class="control-button muted-button drawing-button fx-btn" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
             <span class="drawing-icon" aria-hidden="true"></span>
           </button>
+          <button id="timeToggle" class="control-button muted-button fx-btn time-toggle" type="button" aria-pressed="false" aria-expanded="false" title="Tiempo" aria-label="Tiempo"><img src="/presenter/timer.svg" alt=""></button>
           <button id="audiovisualToggle" class="control-button muted-button fx-btn audiovisual-toggle" type="button" aria-pressed="false" aria-expanded="false" title="Librería Immersa" aria-label="Librería Immersa">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 8 6-8 6Z"></path></svg>
           </button>
@@ -131,6 +139,7 @@
   <script src="/shared/qna-controls.js?v=3"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>
   <script src="/shared/demo-plan-badge.js?v=2"></script>
-  <script src="/presenter/presenter.js?v=71"></script>
+  <script src="/shared/immersa-time.js?v=1"></script>
+  <script src="/presenter/presenter.js?v=74"></script>
 </body>
 </html>
