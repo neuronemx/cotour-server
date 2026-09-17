@@ -126,3 +126,7 @@
   .time-overlay { top: 28px; }
   .time-overlay span { font-size: clamp(42px, 14vw, 82px); }
 }
+
+
+/* Keep the Helvetica TIME glyphs distinct at projection scale. */
+.time-overlay span { letter-spacing: .022em; }
