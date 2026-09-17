@@ -33,6 +33,7 @@
       </a>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
+        <button id="speakerTimer" class="speaker-timer" type="button" title="Timer Speaker" aria-label="Abrir Timer Speaker"><img src="/presenter/timer.svg" alt=""><span id="speakerTimerValue">00:00:00</span></button>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
           <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
           <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
@@ -72,6 +73,7 @@
           <button id="drawToggle" class="control-button muted-button drawing-button fx-btn" type="button" aria-pressed="false" title="Trazo vivo" aria-label="Trazo vivo">
             <span class="drawing-icon" aria-hidden="true"></span>
           </button>
+          <button id="timeToggle" class="control-button muted-button fx-btn time-toggle" type="button" aria-pressed="false" aria-expanded="false" title="Tiempo" aria-label="Tiempo"><img src="/presenter/timer.svg" alt=""></button>
           <button id="audiovisualToggle" class="control-button muted-button fx-btn audiovisual-toggle" type="button" aria-pressed="false" aria-expanded="false" title="Librería Immersa" aria-label="Librería Immersa">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 8 6-8 6Z"></path></svg>
           </button>
@@ -131,6 +133,7 @@
   <script src="/shared/qna-controls.js?v=3"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>
   <script src="/shared/demo-plan-badge.js?v=2"></script>
-  <script src="/presenter/presenter.js?v=71"></script>
+  <script src="/shared/immersa-time.js?v=1"></script>
+  <script src="/presenter/presenter.js?v=72"></script>
 </body>
 </html>
