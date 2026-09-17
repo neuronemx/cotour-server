@@ -1144,3 +1144,33 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .speaker-timer { min-height: 38px; }
   .time-panel { width: min(410px, calc(100vw - 24px)); padding: 17px; }
 }
+
+
+/* Library labels always reserve a fixed lane for their playback controls. */
+.audiovisual-resource > .audiovisual-resource-label {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: calc(100% - 98px) !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label strong {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  text-overflow: ellipsis !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > .audiovisual-resource-label {
+    max-width: calc(100% - 82px) !important;
+  }
+}
+
+/* Nudge the Time glyph three pixels lower inside its circular control. */
+.time-toggle img { transform: translateY(-7px); }
