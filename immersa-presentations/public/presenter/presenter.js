@@ -256,15 +256,14 @@ function audiovisualCards(resources, emptyMessage) {
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
-  const total = audiovisualResources.length + localAudiovisualResources.length;
   const remoteCards = audiovisualCards(audiovisualResources, localAudiovisualResources.length ? "" : "No hay recursos seleccionados en Librería.");
   const localSingles = localAudiovisualResources.filter((item) => !item.playlist?.id);
   const localPlaylists = buildLocalPlaylistCards(localAudiovisualResources);
   const localPlaylistCards = audiovisualCards(localPlaylists, "");
   const localCards = audiovisualCards(localSingles, "");
   const localPlaylistBlock = localPlaylistCards ? '<div class="audiovisual-local-subhead">Playlists</div><div class="audiovisual-resource-list audiovisual-playlist-list">' + localPlaylistCards + '</div>' : "";
-  const localResourceBlock = localCards ? '<div class="audiovisual-local-subhead">' + (localPlaylistCards ? 'Recursos individuales' : '') + '</div><div class="audiovisual-resource-list">' + localCards + '</div>' : "";
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Librería Immersa</h2><span>' + total + ' recursos disponibles</span><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería local</h3></div>' + localPlaylistBlock + localResourceBlock + '</section>' : '');
+  const localResourceBlock = localCards ? '<div class="audiovisual-local-subhead">' + (localPlaylistCards ? 'RECURSOS' : '') + '</div><div class="audiovisual-resource-list">' + localCards + '</div>' : "";
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><div class="audiovisual-local-head audiovisual-immersa-head"><h3>Librería Immersa</h3></div><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería Local</h3></div>' + localPlaylistBlock + localResourceBlock + '</section>' : '');
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
     const playlistId = String(button.dataset.avPlaylist || "");
