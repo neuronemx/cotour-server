@@ -45,6 +45,12 @@ const drawToggle = document.getElementById("drawToggle");
 const liveTextToggle = document.getElementById("liveTextToggle");
 const interactionToggle = document.getElementById("interactionToggle");
 const audiovisualToggle = document.getElementById("audiovisualToggle");
+const timeToggle = document.getElementById("timeToggle");
+const speakerTimer = document.getElementById("speakerTimer");
+const speakerTimerValue = document.getElementById("speakerTimerValue");
+let immersaTimeState = null;
+let immersaTimePanel = null;
+let immersaTimeTick = null;
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
@@ -362,6 +368,140 @@ function toggleAudiovisualPanel() {
   syncAudiovisualToggle();
   if (open && interactionPanelOpen) setInteractionPanelOpen(false);
 }
+
+function defaultImmersaTimeState() {
+  return window.ImmersaTime?.normalize({
+    serverNow: Date.now(),
+    speaker: { running: false, elapsedMs: 0 },
+    screen: { mode: null, visible: false, running: false, elapsedMs: 0, remainingMs: 0, durationMs: 0 }
+  }) || null;
+}
+function currentImmersaTimeState() {
+  return immersaTimeState || defaultImmersaTimeState();
+}
+function speakerTimeValue() {
+  const state = currentImmersaTimeState();
+  return state && window.ImmersaTime ? window.ImmersaTime.duration(window.ImmersaTime.elapsed(state.speaker || {}, state)) : "00:00:00";
+}
+function screenTimeValue() {
+  const state = currentImmersaTimeState();
+  const timer = state?.screen || {};
+  if (!state || !window.ImmersaTime || !timer.visible) return "";
+  if (timer.mode === "stopwatch") return window.ImmersaTime.duration(window.ImmersaTime.elapsed(timer, state));
+  if (timer.mode === "countdown") return window.ImmersaTime.duration(window.ImmersaTime.remaining(timer, state));
+  if (timer.mode === "clock") return window.ImmersaTime.clock(state);
+  return "";
+}
+function screenTimeIsRunning() {
+  const state = currentImmersaTimeState();
+  const timer = state?.screen || {};
+  if (timer.mode === "clock" && timer.visible) return true;
+  if (timer.mode === "countdown") return Boolean(timer.running && window.ImmersaTime?.remaining(timer, state) > 0);
+  return Boolean(timer.running);
+}
+function clearImmersaTimeTick() {
+  if (immersaTimeTick) clearTimeout(immersaTimeTick);
+  immersaTimeTick = null;
+}
+function updateImmersaTimeReadouts() {
+  if (speakerTimerValue) speakerTimerValue.textContent = speakerTimeValue();
+  const state = currentImmersaTimeState();
+  const screen = state?.screen || {};
+  document.querySelectorAll("[data-time-speaker-value]").forEach((node) => { node.textContent = speakerTimeValue(); });
+  document.querySelectorAll("[data-time-screen-value]").forEach((node) => { node.textContent = screenTimeValue(); });
+  document.querySelectorAll("[data-time-screen-status]").forEach((node) => {
+    node.textContent = screen.visible ? (screen.mode === "clock" ? "En pantalla" : (screenTimeIsRunning() ? "En curso" : "Pausado")) : "Sin proyectar";
+  });
+}
+function syncImmersaTimeUi() {
+  const state = currentImmersaTimeState();
+  const panelOpen = Boolean(immersaTimePanel?.classList.contains("is-open"));
+  const screen = state?.screen || {};
+  const speaker = state?.speaker || {};
+  timeToggle?.classList.toggle("is-active", panelOpen || Boolean(screen.visible) || Boolean(speaker.running));
+  timeToggle?.setAttribute("aria-expanded", String(panelOpen));
+  speakerTimer?.classList.toggle("is-running", Boolean(speaker.running));
+  updateImmersaTimeReadouts();
+  clearImmersaTimeTick();
+  if (Boolean(speaker.running) || screenTimeIsRunning()) immersaTimeTick = setTimeout(syncImmersaTimeUi, 200);
+}
+function ensureImmersaTimePanel() {
+  if (immersaTimePanel) return immersaTimePanel;
+  immersaTimePanel = document.createElement("section");
+  immersaTimePanel.className = "time-panel";
+  immersaTimePanel.setAttribute("aria-label", "IMMERSA TIME");
+  presenterShell.appendChild(immersaTimePanel);
+  return immersaTimePanel;
+}
+function screenTimeControls(timer) {
+  if (!timer?.visible) return "";
+  if (timer.mode === "clock") {
+    return '<div class="time-screen-actions"><button class="time-secondary" data-time-screen-action="hide" type="button">Cerrar</button></div>';
+  }
+  const atZero = timer.mode === "countdown" && window.ImmersaTime?.remaining(timer, currentImmersaTimeState()) <= 0;
+  const primary = screenTimeIsRunning() ? "Detener" : (atZero ? "Restablecer" : "Reanudar");
+  const primaryAction = screenTimeIsRunning() ? "stop" : (atZero ? "reset" : "resume");
+  return '<div class="time-screen-actions"><button class="time-primary" data-time-screen-action="' + primaryAction + '" type="button">' + primary + '</button><button class="time-secondary" data-time-screen-action="reset" type="button">Restablecer</button><button class="time-close" data-time-screen-action="hide" type="button" aria-label="Cerrar tiempo en Pantalla">×</button></div>';
+}
+function renderImmersaTimePanel() {
+  const panel = ensureImmersaTimePanel();
+  const state = currentImmersaTimeState();
+  const speaker = state?.speaker || {};
+  const screen = state?.screen || {};
+  const mode = screen.visible ? String(screen.mode || "") : "";
+  const screenTitle = mode === "stopwatch" ? "Cronómetro" : mode === "countdown" ? "Temporizador" : mode === "clock" ? "Hora actual" : "En Pantalla";
+  const speakerAction = speaker.running ? "stop" : "start";
+  const speakerLabel = speaker.running ? "Detener" : "Iniciar";
+  const modeSummary = screen.visible
+    ? '<div class="time-screen-live"><span>' + screenTitle + '</span><strong data-time-screen-value>' + screenTimeValue() + '</strong><small data-time-screen-status>' + (screenTimeIsRunning() ? "En curso" : "Pausado") + '</small>' + screenTimeControls(screen) + '</div>'
+    : '<p class="time-screen-empty" data-time-screen-status>Sin proyectar</p>';
+  panel.innerHTML =
+    '<header class="time-panel-head"><div><span>IMMERSA TIME</span><h2>Tiempo</h2></div><button data-time-close type="button" aria-label="Cerrar Tiempo">×</button></header>' +
+    '<section class="time-speaker-section"><div class="time-section-label"><span>Timer Speaker</span><small>Privado</small></div><strong class="time-speaker-value" data-time-speaker-value>' + speakerTimeValue() + '</strong><div class="time-speaker-actions"><button class="time-primary" data-time-speaker-action="' + speakerAction + '" type="button">' + speakerLabel + '</button><button class="time-secondary" data-time-speaker-action="reset" type="button">Restablecer</button></div></section>' +
+    '<section class="time-screen-section"><div class="time-section-label"><span>En Pantalla</span><small>Sobre todo el contenido</small></div>' +
+      '<div class="time-launch-grid">' +
+        '<button class="time-launch-card ' + (mode === "stopwatch" ? "is-active" : "") + '" data-time-start="stopwatch" type="button"><b>Cronómetro</b><span>00:00:00</span></button>' +
+        '<button class="time-launch-card ' + (mode === "clock" ? "is-active" : "") + '" data-time-start="clock" type="button"><b>Hora actual</b><span>12 horas</span></button>' +
+      '</div>' +
+      '<div class="time-countdown-form ' + (mode === "countdown" ? "is-active" : "") + '"><div><b>Temporizador</b><span>Cuenta regresiva</span></div><label><input data-time-hours type="number" min="0" max="99" value="0" aria-label="Horas"><em>H</em></label><label><input data-time-minutes type="number" min="0" max="59" value="15" aria-label="Minutos"><em>M</em></label><label><input data-time-seconds type="number" min="0" max="59" value="0" aria-label="Segundos"><em>S</em></label><button data-time-start-countdown type="button">Iniciar</button></div>' +
+      modeSummary +
+    '</section>';
+  panel.querySelector("[data-time-close]")?.addEventListener("click", closeImmersaTimePanel);
+  panel.querySelectorAll("[data-time-speaker-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "speaker", action: button.dataset.timeSpeakerAction })));
+  panel.querySelectorAll("[data-time-start]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: "start", mode: button.dataset.timeStart })));
+  panel.querySelector("[data-time-start-countdown]")?.addEventListener("click", () => {
+    const hours = panel.querySelector("[data-time-hours]")?.value;
+    const minutes = panel.querySelector("[data-time-minutes]")?.value;
+    const seconds = panel.querySelector("[data-time-seconds]")?.value;
+    socket.emit("time:control", { target: "screen", action: "start", mode: "countdown", hours, minutes, seconds });
+  });
+  panel.querySelectorAll("[data-time-screen-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: button.dataset.timeScreenAction })));
+  updateImmersaTimeReadouts();
+}
+function openImmersaTimePanel() {
+  ensureImmersaTimePanel();
+  renderImmersaTimePanel();
+  immersaTimePanel.classList.add("is-open");
+  audiovisualPanel?.classList.remove("is-open");
+  if (interactionPanelOpen) setInteractionPanelOpen(false);
+  syncAudiovisualToggle();
+  syncImmersaTimeUi();
+}
+function closeImmersaTimePanel() {
+  immersaTimePanel?.classList.remove("is-open");
+  syncImmersaTimeUi();
+}
+function toggleImmersaTimePanel() {
+  if (immersaTimePanel?.classList.contains("is-open")) closeImmersaTimePanel();
+  else openImmersaTimePanel();
+}
+function applyImmersaTime(next = {}) {
+  if (!window.ImmersaTime) return;
+  immersaTimeState = window.ImmersaTime.normalize(next);
+  if (immersaTimePanel?.classList.contains("is-open")) renderImmersaTimePanel();
+  syncImmersaTimeUi();
+}
+
 function selectedInteraction() { return selectedInteractionId ? interactions.find((item) => String(item.id) === String(selectedInteractionId)) || null : null; }
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
@@ -589,6 +729,8 @@ audienceQr.addEventListener("click", () => publishAudienceQr(!audienceQrVisible(
 if (localReactions) localReactions.addEventListener("change", () => publishReactionsEnabled(localReactions.checked));
 if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; updateDrawingMode(); });
 if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovisualPanel);
+if (timeToggle) timeToggle.addEventListener("click", toggleImmersaTimePanel);
+if (speakerTimer) speakerTimer.addEventListener("click", openImmersaTimePanel);
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 if (thumbsToggle) thumbsToggle.addEventListener("click", toggleThumbsPanel);
 if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListener("change", syncThumbsPanelMode);
@@ -603,6 +745,7 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("time:state", applyImmersaTime);
 socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; renderAudiovisualPanel(); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
