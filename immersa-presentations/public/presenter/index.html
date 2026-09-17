@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/presenter/presenter.css?v=69">
+  <link rel="stylesheet" href="/presenter/presenter.css?v=70">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
   <link rel="stylesheet" href="/shared/demo-plan-badge.css?v=4">
   <link rel="stylesheet" href="/shared/live-text-control.css?v=2">
@@ -31,9 +31,15 @@
       <a id="deckHomeLink" class="brand-lockup" href="/home" aria-label="Ir al Home de esta presentación" title="Ir al Home de esta presentación">
         <img class="brand-mark" src="/presenter/immersa-mark.png" alt="Immersa">
       </a>
+      <div class="speaker-timer-stack">
+        <button id="speakerTimer" class="speaker-timer" type="button" title="Timer Speaker" aria-label="Iniciar Timer Speaker"><img src="/presenter/timer.svg" alt=""><span id="speakerTimerValue">00:00:00</span></button>
+        <div id="speakerTimerActions" class="speaker-timer-actions" hidden>
+          <button id="speakerTimerResume" type="button">Reanudar</button>
+          <button id="speakerTimerReset" type="button">Restablecer</button>
+        </div>
+      </div>
       <div class="top-actions" aria-label="Estado y vista">
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> conectados</div>
-        <button id="speakerTimer" class="speaker-timer" type="button" title="Timer Speaker" aria-label="Abrir Timer Speaker"><img src="/presenter/timer.svg" alt=""><span id="speakerTimerValue">00:00:00</span></button>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
           <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
           <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
@@ -134,6 +140,6 @@
   <script src="/shared/knowledge-activities.js?v=27"></script>
   <script src="/shared/demo-plan-badge.js?v=2"></script>
   <script src="/shared/immersa-time.js?v=1"></script>
-  <script src="/presenter/presenter.js?v=72"></script>
+  <script src="/presenter/presenter.js?v=73"></script>
 </body>
 </html>
