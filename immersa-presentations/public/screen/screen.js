@@ -38,6 +38,7 @@ let audiovisualLayer = null;
 let audiovisualMedia = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
+let videoPlaylistAdvanceTimer = null;
 const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
@@ -163,11 +164,30 @@ function normalizeAudiovisualChannels(next = {}) {
   if (type === "audio" || type === "video") return { ...audiovisualState, [type]: { ...audiovisualState[type], ...next } };
   return audiovisualState;
 }
+function clearVideoPlaylistAdvance() {
+  clearTimeout(videoPlaylistAdvanceTimer);
+  videoPlaylistAdvanceTimer = null;
+}
+function scheduleVideoPlaylistAdvance(media) {
+  clearVideoPlaylistAdvance();
+  const state = audiovisualState.video;
+  const resource = state?.resource;
+  if (!resource?.playlist || state.status !== "playing" || !Number.isFinite(media.duration) || media.duration <= .7) return;
+  const resourceId = String(resource.id || "");
+  const delay = Math.max(0, (media.duration - media.currentTime - .5) * 1000);
+  videoPlaylistAdvanceTimer = window.setTimeout(() => {
+    if (audiovisualState.video?.status !== "playing" || String(audiovisualState.video?.resource?.id || "") !== resourceId || media !== audiovisualMedia.video[activeVideoSlot]) return;
+    socket.emit("audiovisual:playlist-advance", { resourceId, type: "video" });
+  }, delay);
+}
 function bindAudiovisualMediaEvents(type, media) {
   media.addEventListener("loadedmetadata", () => {
     if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
   });
-  media.addEventListener("ended", () => socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type }));
+  media.addEventListener("ended", () => {
+    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) clearVideoPlaylistAdvance();
+    socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type });
+  });
 }
 function ensureAudiovisualLayer() {
   if (audiovisualLayer) return;
@@ -184,6 +204,7 @@ function ensureAudiovisualLayer() {
 }
 function stopVideoSlots() {
   videoTransitionToken += 1;
+  clearVideoPlaylistAdvance();
   (audiovisualMedia?.video || []).forEach((media) => {
     media.pause();
     media.currentTime = 0;
@@ -202,6 +223,7 @@ function applyVideoState(state) {
   const nextId = String(resource.id || "");
   const volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
   if (currentId !== nextId) {
+    clearVideoPlaylistAdvance();
     const incomingIndex = 1 - activeVideoSlot;
     const incoming = slots[incomingIndex];
     const mediaUrl = resolveAudiovisualMediaUrl(resource);
@@ -222,10 +244,12 @@ function applyVideoState(state) {
       if (!hasCurrentVideo) {
         current.classList.remove("is-visible");
         activeVideoSlot = incomingIndex;
+        scheduleVideoPlaylistAdvance(incoming);
         return;
       }
       current.classList.remove("is-visible");
       activeVideoSlot = incomingIndex;
+      scheduleVideoPlaylistAdvance(incoming);
       window.setTimeout(() => {
         if (token !== videoTransitionToken) return;
         current.pause();
@@ -245,7 +269,9 @@ function applyVideoState(state) {
   if (state.status === "playing") {
     current.classList.add("is-visible");
     current.play().catch(() => {});
+    scheduleVideoPlaylistAdvance(current);
   } else {
+    clearVideoPlaylistAdvance();
     current.pause();
   }
 }
