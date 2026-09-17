@@ -48,6 +48,9 @@ const audiovisualToggle = document.getElementById("audiovisualToggle");
 const timeToggle = document.getElementById("timeToggle");
 const speakerTimer = document.getElementById("speakerTimer");
 const speakerTimerValue = document.getElementById("speakerTimerValue");
+const speakerTimerActions = document.getElementById("speakerTimerActions");
+const speakerTimerResume = document.getElementById("speakerTimerResume");
+const speakerTimerReset = document.getElementById("speakerTimerReset");
 let immersaTimeState = null;
 let immersaTimePanel = null;
 let immersaTimeTick = null;
@@ -403,27 +406,33 @@ function clearImmersaTimeTick() {
   if (immersaTimeTick) clearTimeout(immersaTimeTick);
   immersaTimeTick = null;
 }
-function updateImmersaTimeReadouts() {
-  if (speakerTimerValue) speakerTimerValue.textContent = speakerTimeValue();
+function speakerTimerCanReset() {
   const state = currentImmersaTimeState();
-  const screen = state?.screen || {};
-  document.querySelectorAll("[data-time-speaker-value]").forEach((node) => { node.textContent = speakerTimeValue(); });
+  return Boolean(!state?.speaker?.running && window.ImmersaTime?.elapsed(state.speaker || {}, state) > 0);
+}
+function updateImmersaTimeReadouts() {
+  const value = speakerTimeValue();
+  if (speakerTimerValue) speakerTimerValue.textContent = value;
+  const state = currentImmersaTimeState();
+  const speaker = state?.speaker || {};
+  const resettable = speakerTimerCanReset();
+  if (speakerTimerActions) speakerTimerActions.hidden = !resettable;
+  if (speakerTimer) {
+    speakerTimer.classList.toggle("is-running", Boolean(speaker.running));
+    speakerTimer.setAttribute("aria-label", speaker.running ? "Detener Timer Speaker" : (resettable ? "Reanudar Timer Speaker" : "Iniciar Timer Speaker"));
+    speakerTimer.title = speaker.running ? "Detener Timer Speaker" : (resettable ? "Reanudar Timer Speaker" : "Iniciar Timer Speaker");
+  }
   document.querySelectorAll("[data-time-screen-value]").forEach((node) => { node.textContent = screenTimeValue(); });
-  document.querySelectorAll("[data-time-screen-status]").forEach((node) => {
-    node.textContent = screen.visible ? (screen.mode === "clock" ? "En pantalla" : (screenTimeIsRunning() ? "En curso" : "Pausado")) : "Sin proyectar";
-  });
 }
 function syncImmersaTimeUi() {
   const state = currentImmersaTimeState();
   const panelOpen = Boolean(immersaTimePanel?.classList.contains("is-open"));
   const screen = state?.screen || {};
-  const speaker = state?.speaker || {};
-  timeToggle?.classList.toggle("is-active", panelOpen || Boolean(screen.visible) || Boolean(speaker.running));
+  timeToggle?.classList.toggle("is-active", panelOpen || Boolean(screen.visible));
   timeToggle?.setAttribute("aria-expanded", String(panelOpen));
-  speakerTimer?.classList.toggle("is-running", Boolean(speaker.running));
   updateImmersaTimeReadouts();
   clearImmersaTimeTick();
-  if (Boolean(speaker.running) || screenTimeIsRunning()) immersaTimeTick = setTimeout(syncImmersaTimeUi, 200);
+  if (Boolean(state?.speaker?.running) || screenTimeIsRunning()) immersaTimeTick = setTimeout(syncImmersaTimeUi, 200);
 }
 function ensureImmersaTimePanel() {
   if (immersaTimePanel) return immersaTimePanel;
@@ -435,39 +444,31 @@ function ensureImmersaTimePanel() {
 }
 function screenTimeControls(timer) {
   if (!timer?.visible) return "";
-  if (timer.mode === "clock") {
-    return '<div class="time-screen-actions"><button class="time-secondary" data-time-screen-action="hide" type="button">Cerrar</button></div>';
+  const close = '<button class="time-close" data-time-screen-action="hide" type="button" aria-label="Cerrar tiempo en Pantalla">×</button>';
+  if (timer.mode === "clock") return '<div class="time-screen-actions time-screen-actions-clock">' + close + '</div>';
+  if (screenTimeIsRunning()) {
+    return '<div class="time-screen-actions"><button class="time-primary" data-time-screen-action="stop" type="button">Detener</button>' + close + '</div>';
   }
-  const atZero = timer.mode === "countdown" && window.ImmersaTime?.remaining(timer, currentImmersaTimeState()) <= 0;
-  const primary = screenTimeIsRunning() ? "Detener" : (atZero ? "Restablecer" : "Reanudar");
-  const primaryAction = screenTimeIsRunning() ? "stop" : (atZero ? "reset" : "resume");
-  return '<div class="time-screen-actions"><button class="time-primary" data-time-screen-action="' + primaryAction + '" type="button">' + primary + '</button><button class="time-secondary" data-time-screen-action="reset" type="button">Restablecer</button><button class="time-close" data-time-screen-action="hide" type="button" aria-label="Cerrar tiempo en Pantalla">×</button></div>';
+  return '<div class="time-screen-actions"><button class="time-primary" data-time-screen-action="resume" type="button">Reanudar</button><button class="time-secondary" data-time-screen-action="reset" type="button">Restablecer</button>' + close + '</div>';
 }
 function renderImmersaTimePanel() {
   const panel = ensureImmersaTimePanel();
   const state = currentImmersaTimeState();
-  const speaker = state?.speaker || {};
   const screen = state?.screen || {};
   const mode = screen.visible ? String(screen.mode || "") : "";
-  const screenTitle = mode === "stopwatch" ? "Cronómetro" : mode === "countdown" ? "Temporizador" : mode === "clock" ? "Hora actual" : "En Pantalla";
-  const speakerAction = speaker.running ? "stop" : "start";
-  const speakerLabel = speaker.running ? "Detener" : "Iniciar";
+  const screenTitle = mode === "stopwatch" ? "Cronómetro" : mode === "countdown" ? "Temporizador" : "Hora actual";
   const modeSummary = screen.visible
-    ? '<div class="time-screen-live"><span>' + screenTitle + '</span><strong data-time-screen-value>' + screenTimeValue() + '</strong><small data-time-screen-status>' + (screenTimeIsRunning() ? "En curso" : "Pausado") + '</small>' + screenTimeControls(screen) + '</div>'
-    : '<p class="time-screen-empty" data-time-screen-status>Sin proyectar</p>';
+    ? '<div class="time-screen-live"><div class="time-screen-preview"><span>' + screenTitle + '</span><strong data-time-screen-value>' + screenTimeValue() + '</strong></div>' + screenTimeControls(screen) + '</div>'
+    : "";
   panel.innerHTML =
-    '<header class="time-panel-head"><div><span>IMMERSA TIME</span><h2>Tiempo</h2></div><button data-time-close type="button" aria-label="Cerrar Tiempo">×</button></header>' +
-    '<section class="time-speaker-section"><div class="time-section-label"><span>Timer Speaker</span><small>Privado</small></div><strong class="time-speaker-value" data-time-speaker-value>' + speakerTimeValue() + '</strong><div class="time-speaker-actions"><button class="time-primary" data-time-speaker-action="' + speakerAction + '" type="button">' + speakerLabel + '</button><button class="time-secondary" data-time-speaker-action="reset" type="button">Restablecer</button></div></section>' +
-    '<section class="time-screen-section"><div class="time-section-label"><span>En Pantalla</span><small>Sobre todo el contenido</small></div>' +
-      '<div class="time-launch-grid">' +
-        '<button class="time-launch-card ' + (mode === "stopwatch" ? "is-active" : "") + '" data-time-start="stopwatch" type="button"><b>Cronómetro</b><span>00:00:00</span></button>' +
-        '<button class="time-launch-card ' + (mode === "clock" ? "is-active" : "") + '" data-time-start="clock" type="button"><b>Hora actual</b><span>12 horas</span></button>' +
-      '</div>' +
-      '<div class="time-countdown-form ' + (mode === "countdown" ? "is-active" : "") + '"><div><b>Temporizador</b><span>Cuenta regresiva</span></div><label><input data-time-hours type="number" min="0" max="99" value="0" aria-label="Horas"><em>H</em></label><label><input data-time-minutes type="number" min="0" max="59" value="15" aria-label="Minutos"><em>M</em></label><label><input data-time-seconds type="number" min="0" max="59" value="0" aria-label="Segundos"><em>S</em></label><button data-time-start-countdown type="button">Iniciar</button></div>' +
-      modeSummary +
-    '</section>';
+    '<header class="time-panel-head"><h2>Tiempo</h2><button data-time-close type="button" aria-label="Cerrar Tiempo">×</button></header>' +
+    '<div class="time-launch-grid">' +
+      '<button class="time-launch-card ' + (mode === "stopwatch" ? "is-active" : "") + '" data-time-start="stopwatch" type="button"><b>Cronómetro</b><span>00:00:00</span></button>' +
+      '<button class="time-launch-card ' + (mode === "clock" ? "is-active" : "") + '" data-time-start="clock" type="button"><b>Hora actual</b><span>12 horas</span></button>' +
+    '</div>' +
+    '<div class="time-countdown-form ' + (mode === "countdown" ? "is-active" : "") + '"><div class="time-countdown-copy"><b>Temporizador</b><span>Cuenta regresiva</span></div><div class="time-countdown-inputs"><label><input data-time-hours type="number" min="0" max="99" value="0" aria-label="Horas"><em>H</em></label><label><input data-time-minutes type="number" min="0" max="59" value="15" aria-label="Minutos"><em>M</em></label><label><input data-time-seconds type="number" min="0" max="59" value="0" aria-label="Segundos"><em>S</em></label></div><button data-time-start-countdown type="button">Iniciar</button></div>' +
+    modeSummary;
   panel.querySelector("[data-time-close]")?.addEventListener("click", closeImmersaTimePanel);
-  panel.querySelectorAll("[data-time-speaker-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "speaker", action: button.dataset.timeSpeakerAction })));
   panel.querySelectorAll("[data-time-start]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: "start", mode: button.dataset.timeStart })));
   panel.querySelector("[data-time-start-countdown]")?.addEventListener("click", () => {
     const hours = panel.querySelector("[data-time-hours]")?.value;
@@ -476,7 +477,16 @@ function renderImmersaTimePanel() {
     socket.emit("time:control", { target: "screen", action: "start", mode: "countdown", hours, minutes, seconds });
   });
   panel.querySelectorAll("[data-time-screen-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: button.dataset.timeScreenAction })));
-  updateImmersaTimeReadouts();
+}
+function toggleSpeakerTimer() {
+  const speaker = currentImmersaTimeState()?.speaker || {};
+  socket.emit("time:control", { target: "speaker", action: speaker.running ? "stop" : "start" });
+}
+function resumeSpeakerTimer() {
+  socket.emit("time:control", { target: "speaker", action: "start" });
+}
+function resetSpeakerTimer() {
+  socket.emit("time:control", { target: "speaker", action: "reset" });
 }
 function openImmersaTimePanel() {
   ensureImmersaTimePanel();
@@ -730,7 +740,9 @@ if (localReactions) localReactions.addEventListener("change", () => publishReact
 if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; updateDrawingMode(); });
 if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovisualPanel);
 if (timeToggle) timeToggle.addEventListener("click", toggleImmersaTimePanel);
-if (speakerTimer) speakerTimer.addEventListener("click", openImmersaTimePanel);
+if (speakerTimer) speakerTimer.addEventListener("click", toggleSpeakerTimer);
+if (speakerTimerResume) speakerTimerResume.addEventListener("click", resumeSpeakerTimer);
+if (speakerTimerReset) speakerTimerReset.addEventListener("click", resetSpeakerTimer);
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 if (thumbsToggle) thumbsToggle.addEventListener("click", toggleThumbsPanel);
 if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListener("change", syncThumbsPanelMode);
