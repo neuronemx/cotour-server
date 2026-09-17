@@ -2269,6 +2269,35 @@ io.on("connection", (socket) => {
     io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
   });
 
+  function advanceLocalPlaylistChannel(session, channels, type, resourceId, finishOnLast) {
+    const channel = channels[type];
+    if (!channel?.resource || String(resourceId) !== String(channel.resource.id)) return false;
+    const playlistId = String(channel.resource.playlist?.id || "");
+    if (!playlistId) return false;
+    const playlist = localPlaylistItems(session, playlistId, type);
+    const currentIndex = playlist.findIndex((item) => String(item.id) === String(channel.resource.id));
+    const nextResource = playlist[currentIndex + 1] || (channel.loop ? playlist[0] : null);
+    if (nextResource) {
+      channels[type] = { ...channel, resource: nextResource, status: "playing", position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "playlist-next" };
+      return true;
+    }
+    if (finishOnLast) {
+      channels[type] = { ...channel, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "ended" };
+      return true;
+    }
+    return false;
+  }
+
+  socket.on("audiovisual:playlist-advance", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen" || payload.type !== "video") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const channels = getAudiovisualChannels(session);
+    if (!advanceLocalPlaylistChannel(session, channels, "video", payload.resourceId, false)) return;
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
+  });
+
   socket.on("audiovisual:ended", (payload = {}) => {
     if (!currentRoomKey || currentRole !== "screen") return;
     const session = getSessionByRoomKey(currentRoomKey);
@@ -2276,21 +2305,13 @@ io.on("connection", (socket) => {
     const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
     const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
     if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
-    const playlistId = String(channel.resource.playlist?.id || "");
-    if (playlistId) {
-      const playlist = localPlaylistItems(session, playlistId, type);
-      const currentIndex = playlist.findIndex((item) => String(item.id) === String(channel.resource.id));
-      const nextIndex = currentIndex + 1;
-      const nextResource = playlist[nextIndex] || (channel.loop ? playlist[0] : null);
-      if (nextResource) {
-        channels[type] = { ...channel, resource: nextResource, status: "playing", position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "playlist-next" };
-      } else {
-        channels[type] = { ...channel, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "ended" };
-      }
-    } else {
-      if (channel.loop) return;
-      channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
+    if (advanceLocalPlaylistChannel(session, channels, type, payload.resourceId, true)) {
+      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+      emitState(currentRoomKey, session);
+      return;
     }
+    if (channel.loop) return;
+    channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
     io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
     emitState(currentRoomKey, session);
   });
