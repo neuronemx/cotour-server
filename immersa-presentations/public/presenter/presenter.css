@@ -47,7 +47,7 @@ body {
 .stream-area::before, .stream-area::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .stream-area.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(30px); transform: scale(1.09); opacity: .58; }
 .stream-area.portrait-slide::after { background: rgba(0,0,0,.44); opacity: 1; }
-.stream-area img#slide { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+.stream-area img#slide { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; touch-action:none; user-select:none; -webkit-user-drag:none; }
 .brand-lockup {
   position: absolute; z-index: 8; top: 14px; left: 14px;
   width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center;
