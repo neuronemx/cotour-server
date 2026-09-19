@@ -9,6 +9,7 @@ const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
 const VIDEO_PREVIEW_HEIGHT = 180;
 const MAX_QUESTION_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_PROMPTER_SCRIPT_WORDS = 80;
 
 function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
   function normalizeDeckId(value) {
@@ -320,6 +321,18 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       .filter(Boolean);
   }
 
+  function normalizePrompter(parsed, slideIds) {
+    const source = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return Object.entries(source).reduce((result, [slideId, value]) => {
+      if (!slideIds.includes(slideId)) return result;
+      const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+      if (!text) return result;
+      if (text.split(/\s+/).filter(Boolean).length > MAX_PROMPTER_SCRIPT_WORDS) { const error = new Error("El Apuntador tiene un máximo de 80 palabras"); error.statusCode = 400; throw error; }
+      result[slideId] = text;
+      return result;
+    }, {});
+  }
+
   function payloadFromParsed(parsed, deckId, slideIds) {
     return {
       deck_id: deckId,
@@ -329,7 +342,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       hidden_slide_ids: migrateHiddenIds(parsed || {}, slideIds),
       hidden_slide_indexes: normalizeIndexes(parsed?.hidden_slide_indexes),
       videos: Array.isArray(parsed?.videos) ? parsed.videos : [],
-      audiovisual: Array.isArray(parsed?.audiovisual) ? parsed.audiovisual : []
+      audiovisual: Array.isArray(parsed?.audiovisual) ? parsed.audiovisual : [],
+      prompter: normalizePrompter(parsed?.prompter, slideIds)
     };
   }
 
@@ -343,7 +357,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       return { ...payloadFromParsed(parsed, deckId, slideIds), slides: manifest.slides || [] };
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], audiovisual: [], slides: manifest.slides || [] };
+      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], audiovisual: [], prompter: {}, slides: manifest.slides || [] };
     }
   }
 
@@ -413,7 +427,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       hidden_slide_ids: hiddenIds,
       hidden_slide_indexes: hiddenIds.map((slideId) => slideIds.indexOf(slideId)).filter((index) => index >= 0),
       videos,
-      audiovisual: body.audiovisual === undefined ? current.audiovisual : [...new Set((Array.isArray(body.audiovisual) ? body.audiovisual : []).map((item) => String(item || '').trim()).filter((id) => /^[a-z0-9_-]{1,96}$/i.test(id)))]
+      audiovisual: body.audiovisual === undefined ? current.audiovisual : [...new Set((Array.isArray(body.audiovisual) ? body.audiovisual : []).map((item) => String(item || '').trim()).filter((id) => /^[a-z0-9_-]{1,96}$/i.test(id)))],
+      prompter: body.prompter === undefined ? current.prompter : normalizePrompter(body.prompter, slideIds)
     };
   }
 

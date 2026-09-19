@@ -745,13 +745,11 @@ function syncDetailVideoControls() {
   const navigation = detailSlideNavigation;
   if (!navigation || navigation.index < 0) return;
   const slideId = detailSlideId(navigation.slides[navigation.index], navigation.index);
-  const hasVideo = navigation.videoSlideIds.has(slideId);
   if (detailVideoAction) {
     detailVideoAction.hidden = false;
-    detailVideoAction.classList.toggle("has-video", hasVideo);
     const label = detailVideoAction.querySelector("span");
-    if (label) label.textContent = hasVideo ? "Editar video" : "Agregar video";
-    detailVideoAction.setAttribute("aria-label", (hasVideo ? "Editar" : "Agregar") + " video en slide " + (navigation.index + 1));
+    if (label) label.textContent = "Apuntador";
+    detailVideoAction.setAttribute("aria-label", "Configurar Apuntador del slide " + (navigation.index + 1));
   }
   navigation.buttons.forEach((button, index) => {
     const marked = navigation.videoSlideIds.has(detailSlideId(navigation.slides[index], index));
@@ -1292,8 +1290,8 @@ detailNextSlide?.addEventListener("click", () => selectDetailSlide((detailSlideN
 detailVideoAction?.addEventListener("click", () => {
   const navigation = detailSlideNavigation;
   if (!navigation || navigation.index < 0) return;
-  document.dispatchEvent(new CustomEvent("immersa:deck-video-slide-request", {
-    detail: { deck: navigation.deck, slideId: detailSlideId(navigation.slides[navigation.index], navigation.index) }
+  document.dispatchEvent(new CustomEvent("immersa:deck-prompter-slide-request", {
+    detail: { deck: navigation.deck, slide: navigation.slides[navigation.index], slideId: detailSlideId(navigation.slides[navigation.index], navigation.index), slideIndex: navigation.index }
   }));
 });
 detailSlideStrip?.addEventListener("wheel", (event) => {

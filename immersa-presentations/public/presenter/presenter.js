@@ -30,6 +30,7 @@ let audiovisualState = { audio: { resource: null, status: "stopped", loop: false
 let audiovisualPanel = null;
 let audiovisualLayer = null;
 let audiovisualMedia = null;
+let prompterScripts = {}, prompterOverlay = null, prompterPointerId = null;
 const slide = document.getElementById("slide");
 const presenterShell = document.querySelector(".presenter-shell");
 const streamArea = document.querySelector(".stream-area");
@@ -176,7 +177,7 @@ document.getElementById("audienceUrl").value = roleUrl("audience");
 async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); renderDeckNotice(); total.textContent = manifest.slides.length; await loadInteractions(); renderThumbs(); }
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
-async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); audiovisualSelection = Array.isArray(data?.audiovisual) ? data.audiovisual.map(String) : []; videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); } catch (_error) { interactions = []; videoSlideIds = new Set(); audiovisualSelection = []; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
+async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); audiovisualSelection = Array.isArray(data?.audiovisual) ? data.audiovisual.map(String) : []; videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); prompterScripts=data?.prompter||{}; } catch (_error) { interactions = []; videoSlideIds = new Set(); audiovisualSelection = []; prompterScripts={}; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
 async function loadAudiovisualResources() { try { const response = await fetch("/api/audiovisual-library", { cache: "no-store" }); const catalog = response.ok ? await response.json() : { resources: [] }; audiovisualResources = (catalog.resources || []).filter((item) => audiovisualSelection.includes(String(item.id))); } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
 function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
 function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Librería Immersa"); presenterShell.appendChild(audiovisualPanel); }
@@ -515,6 +516,7 @@ function selectedInteraction() { return selectedInteractionId ? interactions.fin
 function assetSrc(item, kind = "src") { return "/decks/" + deckId + "/" + (kind === "thumb" && item.thumb ? item.thumb : item.src); }
 function slideSrc(index) { return assetSrc(manifest.slides[index]); }
 function slideIdentity(item, index) { return String(item?.id || "slide-" + String(index + 1).padStart(3, "0")); }
+function prompterText(index=currentSlideIndex){return String(prompterScripts[slideIdentity(manifest?.slides?.[index],index)]||'')}function showPrompter(){if(drawingMode||!prompterText())return false;if(!prompterOverlay){prompterOverlay=document.createElement('section');presenterShell.appendChild(prompterOverlay)}const n=prompterText().split(/\s+/).filter(Boolean).length;prompterOverlay.textContent=prompterText();prompterOverlay.className='prompter-overlay is-visible'+(n>65?' is-tight':n>50?' is-compact':'');return true}function hidePrompter(){prompterOverlay?.classList.remove('is-visible')}function bindPrompterGesture(){slide.addEventListener('pointerdown',e=>{if(showPrompter()){prompterPointerId=e.pointerId;slide.setPointerCapture?.(e.pointerId);e.preventDefault()}});['pointerup','pointercancel','lostpointercapture'].forEach(n=>slide.addEventListener(n,e=>{if(prompterPointerId===null||e.pointerId===prompterPointerId){prompterPointerId=null;hidePrompter()}}))}
 function videoThumbMark(index) { const gradientId = "immersa-video-gradient-" + (index + 1); return '<span class="thumb-video-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><defs><linearGradient id="' + gradientId + '" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#68d8cc"/><stop offset=".52" stop-color="#4368f6"/><stop offset="1" stop-color="#9b4cff"/></linearGradient></defs><path d="M6.5 4.75 19 12 6.5 19.25Z" fill="none" stroke="url(#' + gradientId + ')" stroke-width="3.1" stroke-linejoin="round"/></svg></span>'; }
 function applySlideOrientation(container, item, src) { const portrait = item?.orientation === "portrait"; container.classList.toggle("portrait-slide", portrait); if (portrait) container.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else container.style.removeProperty("--slide-bg"); }
 function presenterNavigationLocked(state = currentState) { return Boolean(state?.transmissionPaused && state?.transmissionPausedBy !== "presenter"); }
@@ -736,7 +738,7 @@ nextSlide.addEventListener("click", () => { if (!presenterNavigationLocked()) so
 playPause.addEventListener("click", () => socket.emit(currentState?.transmissionPaused ? "transmission_play" : "transmission_pause"));
 audienceQr.addEventListener("click", () => publishAudienceQr(!audienceQrVisible(currentState)));
 if (localReactions) localReactions.addEventListener("change", () => publishReactionsEnabled(localReactions.checked));
-if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; updateDrawingMode(); });
+if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; if(drawingMode)hidePrompter(); updateDrawingMode(); });
 if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovisualPanel);
 if (timeToggle) timeToggle.addEventListener("click", toggleImmersaTimePanel);
 if (speakerTimer) speakerTimer.addEventListener("click", toggleSpeakerTimer);
@@ -767,6 +769,7 @@ syncThumbsPanelMode();
 ensureInteractionToggle();
 loadDeck().then(() => {
   initDrawingOverlay();
+  bindPrompterGesture();
   updateDrawingMode();
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" });
 });
