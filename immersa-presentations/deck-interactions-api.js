@@ -9,7 +9,6 @@ const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
 const VIDEO_PREVIEW_HEIGHT = 180;
 const MAX_QUESTION_IMAGE_BYTES = 5 * 1024 * 1024;
-const MAX_PROMPTER_SCRIPT_WORDS = 80;
 
 function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
   function normalizeDeckId(value) {
@@ -327,7 +326,6 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       if (!slideIds.includes(slideId)) return result;
       const text = String(value || "").replace(/\r\n?/g, "\n").trim();
       if (!text) return result;
-      if (text.split(/\s+/).filter(Boolean).length > MAX_PROMPTER_SCRIPT_WORDS) { const error = new Error("El Apuntador tiene un máximo de 80 palabras"); error.statusCode = 400; throw error; }
       result[slideId] = text;
       return result;
     }, {});
