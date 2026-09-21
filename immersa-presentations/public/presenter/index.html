@@ -52,6 +52,11 @@
       <img id="slide" alt="Lámina actual">
       <div class="interaction-slide-scrim" aria-hidden="true"></div>
       <div id="reactions" class="reaction-layer"></div>
+      <div id="presenterQr" class="presenter-qr-overlay" hidden>
+        <div id="presenterQrPattern" class="presenter-qr-pattern" aria-label="QR de Público"></div>
+        <strong>Immersa Live</strong>
+        <span id="presenterQrUrl"></span>
+      </div>
 
       <section class="main-controls" aria-label="Controles principales">
         <div class="nav-cluster">
@@ -141,6 +146,7 @@
   <script src="/shared/knowledge-activities.js?v=27"></script>
   <script src="/shared/demo-plan-badge.js?v=2"></script>
   <script src="/shared/immersa-time.js?v=1"></script>
-  <script src="/presenter/presenter.js?v=75"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/presenter/presenter.js?v=76"></script>
 </body>
 </html>
