@@ -64,6 +64,7 @@ let qnaQuestionsOpen = false;
 const qnaControls = window.ImmersaQnaControls?.create({
   socket,
   role: "presenter",
+  modalMount: presenterShell,
   launcher: false,
   onAvailabilityChange: ({ available, state }) => {
     qnaAvailable = Boolean(available);
@@ -125,6 +126,7 @@ function updateAudienceQrButton(state) { const active = audienceQrVisible(state)
 function publishAudienceQr(visible) {
   const audienceUrl = roleUrl("audience");
   if (visible && !audienceUrl) return;
+  updateAudienceQrButton({ overlays: { showAudienceQr: visible, qrVisible: visible } });
   socket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl } });
 }
 function reactionsEnabled(state) { return Boolean(state?.overlays?.showReactions ?? state?.overlays?.reactionsOnScreen ?? true); }
@@ -753,6 +755,7 @@ document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
 socket.on("presentation_state", (state) => { if (manifest) render(state); });
 socket.on("overlay_update", (overlays) => {
+  updateAudienceQrButton({ overlays });
   updateReactionToggle({ overlays });
   liveTextControl?.sync(overlays);
 });

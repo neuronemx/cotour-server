@@ -14,7 +14,7 @@
     return node;
   }
 
-  function createController({ socket, role, mount, before = null, compact = false, launcher = true, onAvailabilityChange } = {}) {
+  function createController({ socket, role, mount, modalMount, before = null, compact = false, launcher = true, onAvailabilityChange } = {}) {
     if (!socket?.on || !socket?.emit || (launcher && !mount) || !["presenter", "stage"].includes(role)) return null;
 
     let state = null;
@@ -63,7 +63,7 @@
         <p class="qna-control-status" data-qna-status aria-live="polite"></p>
         <div class="qna-question-list" data-qna-list></div>
       </section>`;
-    document.body.appendChild(modal);
+    (modalMount || document.body).appendChild(modal);
 
     const round = modal.querySelector("[data-qna-round]");
     const openToggle = modal.querySelector("[data-qna-open]");
