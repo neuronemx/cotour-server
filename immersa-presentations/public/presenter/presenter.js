@@ -198,6 +198,79 @@ let audiovisualRevealResourceId = null;
 let audiovisualRevealUntil = 0;
 let audiovisualRevealTimer = null;
 let audiovisualPendingTimer = null;
+const audiovisualDurationCache = new Map();
+let audiovisualDurationTick = null;
+function formatAudiovisualDuration(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  return Math.floor(value / 60) + ":" + String(value % 60).padStart(2, "0");
+}
+function durationForAudiovisualResource(resource) {
+  const declared = Number(resource?.duration || 0);
+  return declared > 0 ? declared : Number(audiovisualDurationCache.get(String(resource?.id || "")) || 0);
+}
+function currentAudiovisualPosition(state) {
+  if (!state) return 0;
+  const position = Math.max(0, Number(state.position || 0));
+  return state.status === "playing" && state.startedAt
+    ? position + Math.max(0, (Date.now() - Number(state.startedAt)) / 1000)
+    : position;
+}
+function resourcesForAudiovisualPlaylist(playlistId, type) {
+  return localAudiovisualResources
+    .filter((item) => String(item?.playlist?.id || "") === String(playlistId || "") && item.type === type)
+    .sort((a, b) => Number(a?.playlist?.order || 0) - Number(b?.playlist?.order || 0));
+}
+function audiovisualDurationValue(resourceId, playlistId, type) {
+  const state = audiovisualChannel(type);
+  const isPlaylist = Boolean(playlistId);
+  const active = isPlaylist
+    ? String(state.resource?.playlist?.id || "") === String(playlistId) && state.status === "playing"
+    : String(state.resource?.id || "") === String(resourceId) && state.status === "playing";
+  if (isPlaylist) {
+    const items = resourcesForAudiovisualPlaylist(playlistId, type);
+    if (!items.length || items.some((item) => !durationForAudiovisualResource(item))) return null;
+    const total = items.reduce((sum, item) => sum + durationForAudiovisualResource(item), 0);
+    if (!active) return total;
+    const currentIndex = items.findIndex((item) => String(item.id) === String(state.resource?.id || ""));
+    if (currentIndex < 0) return total;
+    const tail = items.slice(currentIndex + 1).reduce((sum, item) => sum + durationForAudiovisualResource(item), 0);
+    return Math.max(0, durationForAudiovisualResource(items[currentIndex]) - currentAudiovisualPosition(state) + tail);
+  }
+  const resource = [...audiovisualResources, ...localAudiovisualResources].find((item) => String(item.id) === String(resourceId));
+  const total = durationForAudiovisualResource(resource);
+  if (!total) return null;
+  return active ? Math.max(0, total - currentAudiovisualPosition(state)) : total;
+}
+function updateAudiovisualDurationLabels() {
+  audiovisualPanel?.querySelectorAll("[data-av-duration]").forEach((node) => {
+    const value = audiovisualDurationValue(node.dataset.avResourceId, node.dataset.avPlaylist || "", node.dataset.avType || "");
+    node.textContent = value == null ? "" : formatAudiovisualDuration(value);
+  });
+}
+function syncAudiovisualDurationTick() {
+  const needsTick = activeAudiovisualChannels().length > 0;
+  if (!needsTick && audiovisualDurationTick) { clearInterval(audiovisualDurationTick); audiovisualDurationTick = null; }
+  if (needsTick && !audiovisualDurationTick) audiovisualDurationTick = setInterval(updateAudiovisualDurationLabels, 500);
+  updateAudiovisualDurationLabels();
+}
+function warmAudiovisualDurations(resources) {
+  resources.forEach((resource) => {
+    const id = String(resource?.id || "");
+    if (!id || durationForAudiovisualResource(resource) || !resource.media_url) return;
+    const media = document.createElement(resource.type === "video" ? "video" : "audio");
+    media.preload = "metadata";
+    media.src = resource.media_url;
+    const cleanup = () => { media.removeAttribute("src"); media.load?.(); };
+    media.addEventListener("loadedmetadata", () => {
+      if (Number.isFinite(media.duration) && media.duration > 0) {
+        audiovisualDurationCache.set(id, media.duration);
+        updateAudiovisualDurationLabels();
+      }
+      cleanup();
+    }, { once:true });
+    media.addEventListener("error", cleanup, { once:true });
+  });
+}
 function audiovisualChannel(type) {
   return audiovisualState[type] || { resource: null, status: "stopped", loop: false, volume: 1, position: 0 };
 }
@@ -260,7 +333,7 @@ function audiovisualCards(resources, emptyMessage) {
     const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
     const playlistAttribute = isPlaylist ? ' data-av-playlist="' + avEscape(item.playlistId) + '"' : "";
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong></span>' + controls + '</div>';
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong><small data-av-duration data-av-resource-id="' + avEscape(item.id) + '"' + playlistAttribute + ' data-av-type="' + avEscape(item.type || "") + '"></small></span>' + controls + '</div>';
   }).join('');
 }
 function renderAudiovisualPanel(force = false) {
@@ -274,6 +347,8 @@ function renderAudiovisualPanel(force = false) {
   const localPlaylistBlock = localPlaylistCards ? '<div class="audiovisual-local-subhead">Playlists</div><div class="audiovisual-resource-list audiovisual-playlist-list">' + localPlaylistCards + '</div>' : "";
   const localResourceBlock = localCards ? '<div class="audiovisual-local-subhead">' + (localPlaylistCards ? 'RECURSOS' : '') + '</div><div class="audiovisual-resource-list">' + localCards + '</div>' : "";
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><div class="audiovisual-local-head audiovisual-immersa-head"><h3>Librería Immersa</h3></div><button data-av-close aria-label="Cerrar Librería Immersa">×</button></div><div class="audiovisual-resource-list">' + remoteCards + '</div>' + (localAudiovisualResources.length ? '<section class="audiovisual-local-section"><div class="audiovisual-local-head"><h3>Librería Local</h3></div>' + localPlaylistBlock + localResourceBlock + '</section>' : '');
+  warmAudiovisualDurations([...audiovisualResources, ...localAudiovisualResources]);
+  syncAudiovisualDurationTick();
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
     const playlistId = String(button.dataset.avPlaylist || "");
@@ -341,6 +416,7 @@ function applyAudiovisualState(next = {}) {
     audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
   }
   syncAudiovisualToggle();
+  syncAudiovisualDurationTick();
   if (audiovisualRevealResourceId) {
     const selectedArrived = ["audio", "video"].some((type) => audiovisualRevealResourceId === String(audiovisualChannel(type).resource?.id || "") && audiovisualChannel(type).status === "playing");
     if (selectedArrived) {
@@ -771,7 +847,7 @@ socket.on("overlay_update", (overlays) => {
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
 socket.on("time:state", applyImmersaTime);
-socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; renderAudiovisualPanel(); });
+socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; warmAudiovisualDurations(localAudiovisualResources); renderAudiovisualPanel(); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
