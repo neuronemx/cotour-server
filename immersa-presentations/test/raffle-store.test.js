@@ -48,7 +48,7 @@ function connected(...ids) {
 }
 
 function enterFreeParticipants(store, ...ids) {
-  for (const audienceId of ids) assert.equal(store.enter({ sessionId: "s1", audienceId }).ok, true);
+  for (const audienceId of ids) assert.equal(store.enter({ sessionId: "s1", audienceId, name: audienceId }).ok, true);
 }
 
 function createCoordinator(random = () => 0) {
@@ -171,6 +171,21 @@ test("free mode requires explicit entry and does not add connected bystanders on
   assert.equal(state.active.eligibleCount, 1);
   assert.equal(state.active.entries[0].label, "Mesa 1");
   assert.equal(store.getAudienceState("s1", "a2").active.ownEntry, null);
+});
+
+test("free Sorteo requires a name, creates unique tickets, and cannot close empty", () => {
+  const store = new RaffleStore();
+  store.create({ sessionId: "s1", config: freeConfig() });
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).reason, "name_required");
+  assert.equal(store.closeEntries("s1", []).reason, "no_entries");
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana", connectedAudienceCount: 81 }).ok, true);
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a2", name: "Bruno", connectedAudienceCount: 81 }).ok, true);
+  const first = store.getAudienceState("s1", "a1").active.ownEntry;
+  const second = store.getAudienceState("s1", "a2").active.ownEntry;
+  assert.deepEqual([first.ticketNumber, second.ticketNumber], [1, 2]);
+  assert.equal(store.getAudienceState("s1", "a1").active.ticketDigits, 3);
+  store.updateTicketDigits(store.getActive("s1"), 801);
+  assert.equal(store.getAudienceState("s1", "a1").active.ticketDigits, 4);
 });
 
 test("previous winners are excluded from eligibility in the same session", () => {

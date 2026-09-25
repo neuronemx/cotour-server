@@ -10,7 +10,7 @@
   function modeLabel(mode) {
     if (mode === "visual_key") return "Clave visual";
     if (mode === "poll") return "Encuesta";
-    if (mode === "free") return "Sorteo abierto";
+    if (mode === "free") return "Sorteo";
     return "Sorteo";
   }
 
@@ -56,6 +56,17 @@
     return active?.ownSelection?.selectedOptionId || active?.ownEntry?.selectedOptionId || "";
   }
 
+  function ticketNumber(active, entry = active?.ownEntry) {
+    const number = Number(entry?.ticketNumber);
+    if (!Number.isFinite(number) || number < 1) return "";
+    return String(Math.floor(number)).padStart(Math.max(2, Number(active?.ticketDigits) || 2), "0");
+  }
+
+  function renderTicket(active, entry = active?.ownEntry) {
+    const number = ticketNumber(active, entry);
+    return number ? '<div class="raffle-public-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><strong>' + escapeHtml(number) + '</strong></div>' : '<h2>Boleto activo</h2><p>La tómbola está abierta.</p>';
+  }
+
   function screenDisplayOption(active) {
     if (active?.displayOption) return active.displayOption;
     if (!active?.displayOptionId) return null;
@@ -73,8 +84,8 @@
   function renderAudienceCollecting(active) {
     const hasEntry = Boolean(active.ownEntry);
     if (active.mode === "free") {
-      if (hasEntry) return '<h2>Estás participando</h2><p>Tu boleto está dentro de la tómbola.</p>';
-      return '<h2>Sorteo abierto</h2><p>Confirma que estás presente para recibir tu boleto.</p><button type="button" class="raffle-public-enter" data-raffle-enter>Participar</button>';
+      if (hasEntry) return renderTicket(active);
+      return '<h2>Sorteo</h2><p>Ingresa tu nombre y participa.</p><input class="raffle-public-name" data-raffle-name type="text" autocomplete="name" maxlength="80" placeholder="Tu nombre" required><button type="button" class="raffle-public-enter" data-raffle-enter>Participar</button>';
     }
     if (hasEntry) return '<h2>Boleto activo</h2><p>Tu participación quedó registrada.</p>';
     const options = safeOptions(active);
@@ -87,6 +98,7 @@
   }
 
   function renderAudienceEntriesClosed(active) {
+    if (active.ownEntry && active.mode === "free") return renderTicket(active);
     if (active.ownEntry) return '<h2>Boleto activo</h2><p>La tómbola está cerrada. Mantente atento.</p>';
     if (active.mode === "free") return '<h2>La tómbola está cerrada</h2>';
     if (active.mode === "visual_key" && active.ownSelection) return '<h2>Gracias por participar :)</h2>';
@@ -120,7 +132,7 @@
   }
 
   function renderScreenCollecting(active) {
-    if (active.mode === "free") return '<h2>Sorteo abierto</h2><p>Pulsa Participar en tu teléfono</p>';
+    if (active.mode === "free") return '<h2>Sorteo</h2><p>Pulsa Participar en tu teléfono</p>';
     if (active.mode === "visual_key") {
       const option = screenDisplayOption(active);
       const label = visualOptionLabel(option);
@@ -136,8 +148,10 @@
     return '<div class="raffle-screen-motion" aria-hidden="true"><span></span><span></span><span></span></div><h2>Sorteando...</h2><div class="raffle-screen-countdown">' + number + '</div>';
   }
 
-  function renderScreenWinner() {
-    return '<h2>¡TENEMOS GANADOR!</h2>';
+  function renderScreenWinner(active) {
+    const number = ticketNumber(active, active?.winner);
+    const name = String(active?.winner?.name || active?.winner?.label || "").trim();
+    return '<div class="raffle-screen-winner"><h2>Boleto #' + escapeHtml(number) + ' ¡Felicidades!</h2><strong>' + escapeHtml(name) + '</strong><p>Ganaste el sorteo</p></div>';
   }
 
   function renderScreenRaffle(stateOrActive, nowMs = Date.now()) {
@@ -242,11 +256,13 @@
       if (active.mode === "poll") socket.emit("raffle:submit_poll_response", { optionId });
     }
 
-    function submitFreeEntry(button) {
+    function submitFreeEntry(button, input) {
       if (!active || pendingEntry || active.state !== "collecting" || active.mode !== "free" || active.ownEntry) return;
+      const name = String(input?.value || "").trim();
+      if (!name) { input?.classList?.add("is-invalid"); input?.focus?.(); return; }
       pendingEntry = true;
       if (button) { button.disabled = true; button.textContent = "Registrando..."; }
-      socket.emit("raffle:enter");
+      socket.emit("raffle:enter", { name });
     }
 
     function bindOverlay(overlay) {
@@ -255,7 +271,10 @@
         button.addEventListener("click", () => submitOption(button.dataset.raffleOption));
       });
       const enterButton = overlay.querySelector("[data-raffle-enter]");
-      enterButton?.addEventListener("click", () => submitFreeEntry(enterButton));
+      const nameInput = overlay.querySelector("[data-raffle-name]");
+      nameInput?.addEventListener("input", () => nameInput.classList.remove("is-invalid"));
+      nameInput?.addEventListener("keydown", (event) => { if (event.key === "Enter") submitFreeEntry(enterButton, nameInput); });
+      enterButton?.addEventListener("click", () => submitFreeEntry(enterButton, nameInput));
     }
 
     socket.on("raffle:state", applyState);

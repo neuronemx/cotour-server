@@ -77,6 +77,10 @@
 .raffle-screen-motion span:nth-child(3) { left: 45%; bottom: 15%; animation-delay: -1.5s; }
 @keyframes raffleTicketOrbit { 0%, 100% { transform: translate3d(0,0,0) rotate(-8deg); opacity: .35; } 50% { transform: translate3d(18px,-18px,0) rotate(12deg); opacity: .9; } }
 .is-winner .raffle-screen-card { animation: raffleWinnerIn .55s ease-out both; }
+.raffle-screen-winner { display: grid; justify-items: center; gap: 18px; }
+.raffle-screen-winner h2 { font-size: clamp(32px, 5.2vw, 76px); }
+.raffle-screen-winner > strong { font-size: clamp(36px, 5vw, 72px); line-height: 1; font-weight: 900; }
+.raffle-screen-winner p { font-size: clamp(21px, 2.8vw, 38px); }
 @keyframes raffleWinnerIn { from { transform: scale(.96); opacity: .72; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card { animation: none; } }
 @media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }

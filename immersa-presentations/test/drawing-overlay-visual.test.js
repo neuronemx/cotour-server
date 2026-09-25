@@ -124,7 +124,7 @@ test("audience public interactions are centered in the viewport", () => {
 });
 
 
-test("audience reuses the shared interaction slide scrim", () => {
+test("Sorteo leaves the audience slide sharp and unobscured", () => {
   assert.equal((audienceIndex.match(/class="interaction-slide-scrim"/g) || []).length, 1);
   assert.match(audienceIndex, /<section id="slideViewport" class="slide-viewport"[^>]*>[\s\S]*?<\/section>\n    <div class="interaction-slide-scrim" aria-hidden="true"><\/div>\n    <div class="brand-lockup"/);
 
@@ -135,7 +135,8 @@ test("audience reuses the shared interaction slide scrim", () => {
   assert.equal(scrim["-webkit-backdrop-filter"], "blur(4px)");
 
   assert.match(interactionsCss, /\.presenter-shell\.interaction-panel-open \.interaction-slide-scrim,\nbody\.stage-actions-open \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
-  assert.match(interactionsCss, /\.audience:has\(\.interaction-card:not\(\.interaction-hidden\)\) > \.interaction-slide-scrim,\n\.audience:has\(\.raffle-public-overlay\) > \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.match(interactionsCss, /\.audience:has\(\.interaction-card:not\(\.interaction-hidden\)\) > \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.doesNotMatch(interactionsCss, /\.audience:has\(\.raffle-public-overlay\) > \.interaction-slide-scrim/);
   assert.doesNotMatch(interactionsCss, /\.audience:has\(\.interaction-card\) > \.interaction-slide-scrim/);
 
   const raffleOverlay = declarations(cssBlock(audienceCss, ".raffle-public-overlay"));
