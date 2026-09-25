@@ -64,7 +64,7 @@
 
   function renderTicket(active, entry = active?.ownEntry) {
     const number = ticketNumber(active, entry);
-    return number ? '<div class="raffle-public-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><strong>' + escapeHtml(number) + '</strong></div>' : '<h2>Boleto activo</h2><p>La tómbola está abierta.</p>';
+    return number ? '<div class="raffle-public-ticket-state"><p>Estás participando con este boleto</p><div class="raffle-public-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><strong>' + escapeHtml(number) + '</strong></div><p>Mucha suerte</p></div>' : '<h2>Boleto activo</h2><p>La tómbola está abierta.</p>';
   }
 
   function screenDisplayOption(active) {
@@ -112,7 +112,11 @@
   }
 
   function renderAudienceWinner(active) {
-    if (active.isWinner) return '<div class="raffle-public-winner-private"><h2>¡GANASTE!</h2><p>Levanta tu teléfono</p></div>';
+    if (active.isWinner) {
+      const number = ticketNumber(active);
+      const ticket = number ? '<div class="raffle-public-winner-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><span>Boleto</span><strong>' + escapeHtml(number) + '</strong></div>' : "";
+      return '<div class="raffle-public-winner-private">' + ticket + '<h2>¡GANASTE!</h2><p>Levanta tu teléfono</p></div>';
+    }
     return '<h2>Gracias por participar :)</h2>';
   }
 
@@ -128,7 +132,7 @@
       : withWinner.state === "winner" ? renderAudienceWinner(withWinner)
       : "";
     if (!body) return "";
-    const hasTicket = withWinner.mode === "free" && Boolean(ticketNumber(withWinner));
+    const hasTicket = withWinner.mode === "free" && ["collecting", "entries_closed"].includes(withWinner.state) && Boolean(ticketNumber(withWinner));
     return '<section class="raffle-public-overlay raffle-public-audience is-' + escapeHtml(withWinner.state) + ' is-' + escapeHtml(withWinner.mode) + (hasTicket ? ' has-ticket' : '') + '" role="dialog" aria-live="polite" aria-label="Sorteo"><div class="raffle-public-card">' + body + '</div></section>';
   }
 
@@ -152,7 +156,7 @@
   function renderScreenWinner(active) {
     const number = ticketNumber(active, active?.winner);
     const name = String(active?.winner?.name || active?.winner?.label || "").trim();
-    return '<div class="raffle-screen-winner"><div class="raffle-screen-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="raffle-screen-crown" aria-hidden="true"><svg width="46" height="38" viewBox="0 0 46 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14L12 22L23 6L34 22L42 14L38 32H8L4 14Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4" cy="11" r="2.6" fill="currentColor"/><circle cx="23" cy="4" r="2.6" fill="currentColor"/><circle cx="42" cy="11" r="2.6" fill="currentColor"/></svg></div><p class="raffle-screen-winner-ticket">Boleto <b>#' + escapeHtml(number) + '</b></p><h2>¡Felicidades!</h2><strong class="raffle-screen-winner-name">' + escapeHtml(name) + '</strong><p class="raffle-screen-winner-message">Ganaste el sorteo</p></div>';
+    return '<div class="raffle-screen-winner"><div class="raffle-screen-confetti" data-raffle-confetti aria-hidden="true"></div><div class="raffle-screen-crown" aria-hidden="true"><svg width="46" height="38" viewBox="0 0 46 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14L12 22L23 6L34 22L42 14L38 32H8L4 14Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4" cy="11" r="2.6" fill="currentColor"/><circle cx="23" cy="4" r="2.6" fill="currentColor"/><circle cx="42" cy="11" r="2.6" fill="currentColor"/></svg></div><p class="raffle-screen-winner-ticket">Boleto <b>#' + escapeHtml(number) + '</b></p><h2>¡Felicidades!</h2><strong class="raffle-screen-winner-name">' + escapeHtml(name) + '</strong><p class="raffle-screen-winner-message">Ganaste el sorteo</p></div>';
   }
 
   function isAudienceSplitRaffle(active) {
@@ -234,6 +238,36 @@
       host.querySelector("[data-raffle-public-root]")?.remove();
     }
 
+    function populateWinnerConfetti(overlay) {
+      if (role !== "screen") return;
+      const field = overlay.querySelector("[data-raffle-confetti]");
+      if (!field || field.childElementCount) return;
+      const colors = ["#e8c26a", "#f3dfa8", "#8b87d6", "#f6f3ea"];
+      const random = root.Math?.random || Math.random;
+      for (let wave = 0; wave < 3; wave += 1) {
+        for (let index = 0; index < 12; index += 1) {
+          const piece = root.document.createElement("i");
+          const direction = random() > .5 ? 1 : -1;
+          if (random() > .6) piece.classList.add("is-round");
+          piece.style.left = (8 + random() * 84) + "%";
+          piece.style.background = colors[Math.floor(random() * colors.length)];
+          piece.style.setProperty("--peak", (random() * .3 + .6).toFixed(2));
+          piece.style.setProperty("--duration", (random() * .6 + 2.6).toFixed(2) + "s");
+          piece.style.setProperty("--delay", (wave + random() * .35).toFixed(2) + "s");
+          piece.style.setProperty("--x1", (direction * (18 + random() * 22)).toFixed(0) + "px");
+          piece.style.setProperty("--x2", (-direction * (16 + random() * 26)).toFixed(0) + "px");
+          piece.style.setProperty("--x3", (direction * (10 + random() * 18)).toFixed(0) + "px");
+          piece.style.setProperty("--y1", (70 + random() * 30).toFixed(0) + "px");
+          piece.style.setProperty("--y2", (170 + random() * 40).toFixed(0) + "px");
+          piece.style.setProperty("--y3", (230 + random() * 40).toFixed(0) + "px");
+          piece.style.setProperty("--r1", (Math.floor(random() * 200) + 60) + "deg");
+          piece.style.setProperty("--r2", (Math.floor(random() * 260) + 220) + "deg");
+          piece.style.setProperty("--r3", (Math.floor(random() * 300) + 380) + "deg");
+          field.appendChild(piece);
+        }
+      }
+    }
+
     function render() {
       const html = role === "audience" ? renderAudienceRaffle(active, privateWinner) : renderScreenRaffle(active);
       if (!html) return clearOverlay();
@@ -241,6 +275,7 @@
       if (rendered === html) return;
       rendered = html;
       overlay.innerHTML = html;
+      populateWinnerConfetti(overlay);
       bindOverlay(overlay);
     }
 

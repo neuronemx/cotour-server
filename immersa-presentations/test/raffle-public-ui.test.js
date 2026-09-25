@@ -43,6 +43,8 @@ test("Audience free collecting requires an explicit participation ticket", () =>
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana" }).ok, true);
   const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(enteredHtml, /raffle-public-ticket/);
+  assert.match(enteredHtml, /Estás participando con este boleto/);
+  assert.match(enteredHtml, /Mucha suerte/);
   assert.match(enteredHtml, /<strong>01<\/strong>/);
 });
 
@@ -187,11 +189,13 @@ test("Speaker, Audience, and Screen states share the canonical five second revea
 });
 
 test("Audience winner is private and non-winner stays positive without identity", () => {
-  const ownEntry = { enteredAt: new Date(1_000).toISOString() };
+  const ownEntry = { enteredAt: new Date(1_000).toISOString(), ticketNumber: 1 };
   const winnerHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: true, ownEntry } });
   const otherHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: false, ownEntry } });
 
   assert.match(winnerHtml, /¡GANASTE!/);
+  assert.match(winnerHtml, /raffle-public-winner-ticket/);
+  assert.match(winnerHtml, /Boleto<\/span><strong>01<\/strong>/);
   assert.match(winnerHtml, /Levanta tu teléfono/);
   assert.match(otherHtml, /Gracias por participar :\)/);
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);
@@ -326,10 +330,11 @@ test("Audience split styles resize the slide and keep ticket beneath reactions",
 test("Screen winner uses the provided celebratory ticket-card treatment", () => {
   const css = readProjectFile("public/screen/screen.css");
   const winnerHtml = renderScreenRaffle({ active: { mode: "free", state: "winner", ticketDigits: 2, winner: { ticketNumber: 1, name: "Ana" } } });
-  assert.match(winnerHtml, /raffle-screen-confetti/);
+  assert.match(winnerHtml, /data-raffle-confetti/);
   assert.match(winnerHtml, /raffle-screen-crown/);
   assert.match(winnerHtml, /raffle-screen-winner-ticket/);
   assert.match(css, /raffle-screen-confetti/);
+  assert.match(css, /var\(--duration, 2\.6s\)/);
   assert.match(css, /raffle-screen-crown/);
   assert.match(css, /#e8c26a/);
 });
