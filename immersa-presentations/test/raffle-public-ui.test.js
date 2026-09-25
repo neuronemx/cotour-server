@@ -43,6 +43,7 @@ test("Audience free collecting requires an explicit participation ticket", () =>
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana" }).ok, true);
   const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(enteredHtml, /raffle-public-ticket/);
+  assert.match(enteredHtml, /src="\/shared\/raffle-ticket\.svg"/);
   assert.match(enteredHtml, /Estás participando con este boleto/);
   assert.match(enteredHtml, /Mucha suerte/);
   assert.match(enteredHtml, /<strong>01<\/strong>/);
@@ -195,7 +196,8 @@ test("Audience winner is private and non-winner stays positive without identity"
 
   assert.match(winnerHtml, /¡GANASTE!/);
   assert.match(winnerHtml, /raffle-public-winner-ticket/);
-  assert.match(winnerHtml, /Boleto<\/span><strong>01<\/strong>/);
+  assert.match(winnerHtml, /raffle-public-winner-ticket-art/);
+  assert.match(winnerHtml, /src="\/shared\/raffle-ticket\.svg"/);
   assert.match(winnerHtml, /Levanta tu teléfono/);
   assert.match(otherHtml, /Gracias por participar :\)/);
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);

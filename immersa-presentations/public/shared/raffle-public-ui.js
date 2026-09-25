@@ -62,9 +62,13 @@
     return String(Math.floor(number)).padStart(Math.max(2, Number(active?.ticketDigits) || 2), "0");
   }
 
+  function renderTicketGraphic(number, className = "raffle-public-ticket") {
+    return '<div class="' + className + '" aria-label="Boleto ' + escapeHtml(number) + '"><img src="/shared/raffle-ticket.svg" alt="" aria-hidden="true"><strong>' + escapeHtml(number) + '</strong></div>';
+  }
+
   function renderTicket(active, entry = active?.ownEntry) {
     const number = ticketNumber(active, entry);
-    return number ? '<div class="raffle-public-ticket-state"><p>Estás participando con este boleto</p><div class="raffle-public-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><strong>' + escapeHtml(number) + '</strong></div><p>Mucha suerte</p></div>' : '<h2>Boleto activo</h2><p>La tómbola está abierta.</p>';
+    return number ? '<div class="raffle-public-ticket-state"><p>Estás participando con este boleto</p>' + renderTicketGraphic(number) + '<p>Mucha suerte</p></div>' : '<h2>Boleto activo</h2><p>La tómbola está abierta.</p>';
   }
 
   function screenDisplayOption(active) {
@@ -114,7 +118,7 @@
   function renderAudienceWinner(active) {
     if (active.isWinner) {
       const number = ticketNumber(active);
-      const ticket = number ? '<div class="raffle-public-winner-ticket" aria-label="Boleto ' + escapeHtml(number) + '"><span>Boleto</span><strong>' + escapeHtml(number) + '</strong></div>' : "";
+      const ticket = number ? '<div class="raffle-public-winner-ticket">' + renderTicketGraphic(number, "raffle-public-winner-ticket-art") + '</div>' : "";
       return '<div class="raffle-public-winner-private">' + ticket + '<h2>¡GANASTE!</h2><p>Levanta tu teléfono</p></div>';
     }
     return '<h2>Gracias por participar :)</h2>';
