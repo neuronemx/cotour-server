@@ -43,7 +43,7 @@ test("Audience free collecting requires an explicit participation ticket", () =>
   assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana" }).ok, true);
   const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(enteredHtml, /raffle-public-ticket/);
-  assert.match(enteredHtml, /src="\/shared\/raffle-ticket\.svg"/);
+  assert.match(enteredHtml, /src="\/shared\/raffle-ticket\.svg\?v=2"/);
   assert.match(enteredHtml, /Estás participando con este boleto/);
   assert.match(enteredHtml, /Mucha suerte/);
   assert.match(enteredHtml, /<strong>01<\/strong>/);
@@ -197,7 +197,7 @@ test("Audience winner is private and non-winner stays positive without identity"
   assert.match(winnerHtml, /¡GANASTE!/);
   assert.match(winnerHtml, /raffle-public-winner-ticket/);
   assert.match(winnerHtml, /raffle-public-winner-ticket-art/);
-  assert.match(winnerHtml, /src="\/shared\/raffle-ticket\.svg"/);
+  assert.match(winnerHtml, /src="\/shared\/raffle-ticket\.svg\?v=2"/);
   assert.match(winnerHtml, /Levanta tu teléfono/);
   assert.match(otherHtml, /Gracias por participar :\)/);
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);
@@ -327,6 +327,8 @@ test("Audience split styles resize the slide and keep ticket beneath reactions",
   assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 0 50dvh; \}/);
   assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 50vw 0 0; \}/);
   assert.match(css, /\.raffle-public-overlay\.is-free\.has-ticket \{ z-index: 3; \}/);
+  assert.match(css, /aspect-ratio:\s*236\s*\/\s*187/);
+  assert.match(css, /-webkit-text-stroke:\s*3px #061219/);
 });
 
 test("Screen winner uses the provided celebratory ticket-card treatment", () => {

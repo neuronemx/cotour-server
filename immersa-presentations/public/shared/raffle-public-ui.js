@@ -63,7 +63,7 @@
   }
 
   function renderTicketGraphic(number, className = "raffle-public-ticket") {
-    return '<div class="' + className + '" aria-label="Boleto ' + escapeHtml(number) + '"><img src="/shared/raffle-ticket.svg" alt="" aria-hidden="true"><strong>' + escapeHtml(number) + '</strong></div>';
+    return '<div class="' + className + '" aria-label="Boleto ' + escapeHtml(number) + '"><img src="/shared/raffle-ticket.svg?v=2" alt="" aria-hidden="true"><strong>' + escapeHtml(number) + '</strong></div>';
   }
 
   function renderTicket(active, entry = active?.ownEntry) {
