@@ -76,13 +76,28 @@
 .raffle-screen-motion span:nth-child(2) { right: 16%; top: 32%; animation-delay: -.8s; }
 .raffle-screen-motion span:nth-child(3) { left: 45%; bottom: 15%; animation-delay: -1.5s; }
 @keyframes raffleTicketOrbit { 0%, 100% { transform: translate3d(0,0,0) rotate(-8deg); opacity: .35; } 50% { transform: translate3d(18px,-18px,0) rotate(12deg); opacity: .9; } }
-.is-winner .raffle-screen-card { animation: raffleWinnerIn .55s ease-out both; }
-.raffle-screen-winner { display: grid; justify-items: center; gap: 18px; }
-.raffle-screen-winner h2 { font-size: clamp(32px, 5.2vw, 76px); }
-.raffle-screen-winner > strong { font-size: clamp(36px, 5vw, 72px); line-height: 1; font-weight: 900; }
-.raffle-screen-winner p { font-size: clamp(21px, 2.8vw, 38px); }
+.raffle-screen-overlay.is-winner { background: rgba(8,7,26,.72); }
+.is-winner .raffle-screen-card { width: min(520px, 92vw); padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; animation: raffleWinnerIn .55s ease-out both; }
+.raffle-screen-winner { position: relative; isolation: isolate; width: 100%; display: grid; justify-items: center; gap: 0; padding: 3.4rem 2.6rem 2.8rem; overflow: hidden; border-radius: 26px; color: #f6f3ea; text-align: center; background: radial-gradient(60% 55% at 50% 18%, rgba(232,194,106,.16), transparent 65%), linear-gradient(160deg, #2c2a68 0%, #1d1a4a 55%, #16143a 100%); box-shadow: 0 50px 100px -30px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05); }
+.raffle-screen-confetti { position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+.raffle-screen-confetti i { position: absolute; top: -24px; display: block; width: 9px; height: 14px; opacity: 0; background: #e8c26a; animation: raffleConfettiWave 2.8s ease-in infinite; }
+.raffle-screen-confetti i:nth-child(2n) { width: 9px; height: 9px; border-radius: 50%; background: #f3dfa8; animation-delay: .35s; }
+.raffle-screen-confetti i:nth-child(3n) { background: #8b87d6; animation-delay: .7s; }
+.raffle-screen-confetti i:nth-child(4n) { background: #f6f3ea; animation-delay: 1.05s; }
+.raffle-screen-confetti i:nth-child(1) { left: 9%; } .raffle-screen-confetti i:nth-child(2) { left: 17%; } .raffle-screen-confetti i:nth-child(3) { left: 26%; } .raffle-screen-confetti i:nth-child(4) { left: 34%; } .raffle-screen-confetti i:nth-child(5) { left: 42%; } .raffle-screen-confetti i:nth-child(6) { left: 51%; } .raffle-screen-confetti i:nth-child(7) { left: 59%; } .raffle-screen-confetti i:nth-child(8) { left: 67%; } .raffle-screen-confetti i:nth-child(9) { left: 75%; } .raffle-screen-confetti i:nth-child(10) { left: 83%; } .raffle-screen-confetti i:nth-child(11) { left: 89%; } .raffle-screen-confetti i:nth-child(12) { left: 47%; }
+@keyframes raffleConfettiWave { 0% { transform: translateY(0) translateX(0) rotate(0); opacity: 0; } 8%, 56% { opacity: .85; } 28% { transform: translateY(90px) translateX(22px) rotate(140deg); } 56% { transform: translateY(190px) translateX(-18px) rotate(300deg); } 70%, 100% { transform: translateY(250px) translateX(10px) rotate(420deg); opacity: 0; } }
+.raffle-screen-crown { position: relative; z-index: 2; display: flex; justify-content: center; margin-bottom: 1.7rem; color: #e8c26a; filter: drop-shadow(0 6px 14px rgba(232,194,106,.35)); animation: raffleWinnerDrop .55s .1s cubic-bezier(.2,.7,.2,1) both; }
+.raffle-screen-crown svg { display: block; }
+.raffle-screen-winner .raffle-screen-winner-ticket { position: absolute; z-index: 2; top: 1.6rem; right: 1.6rem; display: flex; align-items: baseline; gap: .5rem; margin: 0; color: rgba(246,243,234,.65); font-size: 1.15rem; line-height: 1.2; animation: raffleWinnerRise .5s .12s ease-out both; }
+.raffle-screen-winner-ticket b { padding: .3rem .85rem; border: 1.5px solid rgba(232,194,106,.5); border-radius: 10px; color: #f6f3ea; background: rgba(232,194,106,.1); font-weight: 700; font-size: 1.35rem; }
+.raffle-screen-winner h2 { position: relative; z-index: 2; margin: 0 0 .55rem; color: #f6f3ea; font-family: Georgia, serif; font-size: clamp(2.1rem, 8vw, 2.7rem); font-weight: 700; letter-spacing: -.01em; line-height: 1.08; text-shadow: none; animation: raffleWinnerRise .5s .3s ease-out both; }
+.raffle-screen-winner-name { position: relative; z-index: 2; display: block; margin: 0 0 1.8rem; color: #f3dfa8; font-family: Georgia, serif; font-size: clamp(1.3rem, 5.5vw, 1.7rem); font-style: italic; font-weight: 600; line-height: 1.2; animation: raffleWinnerRise .5s .42s ease-out both; }
+.raffle-screen-winner .raffle-screen-winner-message { position: relative; z-index: 2; display: inline-block; margin: 0; padding: .65rem 1.4rem; border-radius: 999px; color: #241f4d; background: #f6f3ea; font-size: .92rem; font-weight: 600; line-height: 1.2; animation: raffleWinnerRise .5s .56s ease-out both; }
+@keyframes raffleWinnerDrop { from { opacity: 0; transform: translateY(-10px) scale(.8); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes raffleWinnerRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes raffleWinnerIn { from { transform: scale(.96); opacity: .72; } to { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card, .raffle-screen-crown, .raffle-screen-winner-ticket, .raffle-screen-winner h2, .raffle-screen-winner-name, .raffle-screen-winner-message { animation: none; } .raffle-screen-confetti i { animation: none; opacity: 0; } }
+@media (max-width: 380px) { .raffle-screen-winner { padding: 2.8rem 1.7rem 2.3rem; } }
 @media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }
 @media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(360px, 52vw); padding:14px; } .qr strong { font-size:20px; } .qr span { font-size:12px; } .qna-screen-overlay { padding: 5vw; } .qna-screen-card { width: 90vw; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; border-radius: 20px; } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
 

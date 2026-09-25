@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { RaffleStore, RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
-const { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds } = require("../public/shared/raffle-public-ui");
+const { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, isAudienceSplitRaffle } = require("../public/shared/raffle-public-ui");
 const { adjustRaffleHtml } = require("../public/shared/raffle-ux-adjustments");
 
 const visualKeyConfig = {
@@ -44,6 +44,13 @@ test("Audience free collecting requires an explicit participation ticket", () =>
   const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
   assert.match(enteredHtml, /raffle-public-ticket/);
   assert.match(enteredHtml, /<strong>01<\/strong>/);
+});
+
+test("Free raffle reserves half of Audience for the slide until drawing begins", () => {
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "collecting" }), true);
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "entries_closed" }), true);
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "drawing" }), false);
+  assert.equal(isAudienceSplitRaffle({ mode: "poll", state: "collecting" }), false);
 });
 
 test("Audience free entries_closed distinguishes real ownEntry from closed tombola", () => {
@@ -282,7 +289,8 @@ test("Screen drawing and winner show the ticket and winner name", () => {
 
   store.revealWinner("s1", { nowMs: 6000 });
   const winnerHtml = renderScreenRaffle(store.getScreenState("s1"));
-  assert.match(winnerHtml, /Boleto #01 ¡Felicidades!/);
+  assert.match(winnerHtml, /Boleto <b>#01<\/b>/);
+  assert.match(winnerHtml, /<h2>¡Felicidades!<\/h2>/);
   assert.match(winnerHtml, /Mesa 1/);
   assert.match(winnerHtml, /Ganaste el sorteo/);
   assert.doesNotMatch(winnerHtml, /audienceId|Ganador seleccionado/);
@@ -306,4 +314,22 @@ test("Screen styles include visual key display treatment and reduced-motion fall
   assert.match(css, /rgba\(27,61,149/);
   assert.match(css, /rgba\(104,216,204/);
   assert.match(css, /prefers-reduced-motion: reduce/);
+});
+
+test("Audience split styles resize the slide and keep ticket beneath reactions", () => {
+  const css = readProjectFile("public/audience/audience.css");
+  assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 0 50dvh; \}/);
+  assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 50vw 0 0; \}/);
+  assert.match(css, /\.raffle-public-overlay\.is-free\.has-ticket \{ z-index: 3; \}/);
+});
+
+test("Screen winner uses the provided celebratory ticket-card treatment", () => {
+  const css = readProjectFile("public/screen/screen.css");
+  const winnerHtml = renderScreenRaffle({ active: { mode: "free", state: "winner", ticketDigits: 2, winner: { ticketNumber: 1, name: "Ana" } } });
+  assert.match(winnerHtml, /raffle-screen-confetti/);
+  assert.match(winnerHtml, /raffle-screen-crown/);
+  assert.match(winnerHtml, /raffle-screen-winner-ticket/);
+  assert.match(css, /raffle-screen-confetti/);
+  assert.match(css, /raffle-screen-crown/);
+  assert.match(css, /#e8c26a/);
 });

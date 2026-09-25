@@ -128,7 +128,8 @@
       : withWinner.state === "winner" ? renderAudienceWinner(withWinner)
       : "";
     if (!body) return "";
-    return '<section class="raffle-public-overlay raffle-public-audience is-' + escapeHtml(withWinner.state) + ' is-' + escapeHtml(withWinner.mode) + '" role="dialog" aria-live="polite" aria-label="Sorteo"><div class="raffle-public-card">' + body + '</div></section>';
+    const hasTicket = withWinner.mode === "free" && Boolean(ticketNumber(withWinner));
+    return '<section class="raffle-public-overlay raffle-public-audience is-' + escapeHtml(withWinner.state) + ' is-' + escapeHtml(withWinner.mode) + (hasTicket ? ' has-ticket' : '') + '" role="dialog" aria-live="polite" aria-label="Sorteo"><div class="raffle-public-card">' + body + '</div></section>';
   }
 
   function renderScreenCollecting(active) {
@@ -151,7 +152,11 @@
   function renderScreenWinner(active) {
     const number = ticketNumber(active, active?.winner);
     const name = String(active?.winner?.name || active?.winner?.label || "").trim();
-    return '<div class="raffle-screen-winner"><h2>Boleto #' + escapeHtml(number) + ' ¡Felicidades!</h2><strong>' + escapeHtml(name) + '</strong><p>Ganaste el sorteo</p></div>';
+    return '<div class="raffle-screen-winner"><div class="raffle-screen-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="raffle-screen-crown" aria-hidden="true"><svg width="46" height="38" viewBox="0 0 46 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14L12 22L23 6L34 22L42 14L38 32H8L4 14Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4" cy="11" r="2.6" fill="currentColor"/><circle cx="23" cy="4" r="2.6" fill="currentColor"/><circle cx="42" cy="11" r="2.6" fill="currentColor"/></svg></div><p class="raffle-screen-winner-ticket">Boleto <b>#' + escapeHtml(number) + '</b></p><h2>¡Felicidades!</h2><strong class="raffle-screen-winner-name">' + escapeHtml(name) + '</strong><p class="raffle-screen-winner-message">Ganaste el sorteo</p></div>';
+  }
+
+  function isAudienceSplitRaffle(active) {
+    return active?.mode === "free" && ["collecting", "entries_closed"].includes(active?.state);
   }
 
   function renderScreenRaffle(stateOrActive, nowMs = Date.now()) {
@@ -225,6 +230,7 @@
       pendingEntry = false;
       active = null;
       rendered = "";
+      host.classList?.remove("is-raffle-split");
       host.querySelector("[data-raffle-public-root]")?.remove();
     }
 
@@ -241,6 +247,7 @@
     function applyState(payload) {
       active = withLocalCountdown(normalizeRaffleState(payload));
       if (!active) return clearOverlay();
+      if (role === "audience") host.classList?.toggle("is-raffle-split", isAudienceSplitRaffle(active));
       if (active.state !== "winner") privateWinner = false;
       if (active.ownEntry || active.ownSelection) pendingEntry = false;
       syncTimer();
@@ -296,5 +303,5 @@
   }
 
   if (root?.document && root?.io) installRuntime();
-  return { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, normalizeRaffleState };
+  return { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, normalizeRaffleState, isAudienceSplitRaffle };
 });
