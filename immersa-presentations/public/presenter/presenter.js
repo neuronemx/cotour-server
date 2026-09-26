@@ -429,7 +429,9 @@ function applyAudiovisualState(next = {}) {
       clearTimeout(audiovisualPendingTimer);
       audiovisualRevealResourceId = null;
       audiovisualRevealUntil = 0;
-      if (!syncAudiovisualActiveCard()) renderAudiovisualPanel(true);
+      // Rebuild after the server confirms playback so "Medio corriendo" is always first.
+      renderAudiovisualPanel(true);
+      audiovisualPanel.scrollTop = 0;
     }
     return;
   }
