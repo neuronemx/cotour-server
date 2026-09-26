@@ -8,6 +8,7 @@
   let root = null, canvas = null, c = null, logo = null, audioEl = null, analyserEl = null;
   let W = innerWidth, H = innerHeight, mounted = false, raf = 0, analyserUnavailable = false;
   let audioCtx = null, analyser = null, srcNode = null, sourceElement = null, bufferLength = 256;
+  let activationBound = false, boundAudioElement = null;
   let freqData = new Uint8Array(bufferLength).fill(20);
   let timeData = new Uint8Array(bufferLength).fill(128);
 
@@ -51,6 +52,20 @@
     logo.src = url || DEFAULT_LOGO;
   }
 
+  function ensureAudioContext() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!activationBound) {
+      activationBound = true;
+      const unlock = () => {
+        audioCtx?.resume().then(() => {
+          if (state.enabled) attachAnalyser();
+        }).catch(() => {});
+      };
+      ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, unlock, { passive: true }));
+    }
+    return audioCtx;
+  }
+
   function syncAnalyserMedia() {
     if (!audioEl || !analyserEl) return;
     const sourceUrl = audioEl.currentSrc || audioEl.src || "";
@@ -64,6 +79,18 @@
       analyserEl.currentTime = audioEl.currentTime;
     }
     if (!audioEl.paused) analyserEl.play().catch(() => {});
+  }
+
+  function bindAudioElement(element) {
+    if (!element || boundAudioElement === element) return;
+    boundAudioElement = element;
+    element.addEventListener("play", () => {
+      syncAnalyserMedia();
+      const context = ensureAudioContext();
+      if (context.state === "running" && state.enabled) attachAnalyser();
+    }, { passive: true });
+    element.addEventListener("pause", () => analyserEl?.pause(), { passive: true });
+    element.addEventListener("timeupdate", syncAnalyserMedia, { passive: true });
   }
 
   function getAnalyserInput() {
@@ -83,34 +110,26 @@
   function attachAnalyser() {
     if (analyserUnavailable || srcNode || !audioEl) return;
     try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const attach = () => {
-        if (!audioCtx || audioCtx.state !== "running" || srcNode || !audioEl) return;
-        const input = getAnalyserInput();
-        if (!input?.src) return;
-        sourceElement = input;
-        srcNode = audioCtx.createMediaElementSource(input);
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = .8;
-        bufferLength = analyser.frequencyBinCount;
-        freqData = new Uint8Array(bufferLength);
-        timeData = new Uint8Array(bufferLength);
-        srcNode.connect(analyser);
-        if (input === audioEl) srcNode.connect(audioCtx.destination);
-      };
-      const unlock = () => audioCtx?.resume().then(attach).catch(() => {});
-      ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, unlock, { passive: true, once: true }));
-      audioEl.addEventListener("play", unlock, { passive: true });
-      audioEl.addEventListener("play", syncAnalyserMedia, { passive: true });
-      audioEl.addEventListener("pause", () => analyserEl?.pause(), { passive: true });
-      audioEl.addEventListener("timeupdate", syncAnalyserMedia, { passive: true });
-      if (audioCtx.state === "running") attach();
+      const context = ensureAudioContext();
+      if (context.state !== "running") return;
+      const input = getAnalyserInput();
+      if (!input?.src) return;
+      sourceElement = input;
+      srcNode = context.createMediaElementSource(input);
+      analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = .8;
+      bufferLength = analyser.frequencyBinCount;
+      freqData = new Uint8Array(bufferLength);
+      timeData = new Uint8Array(bufferLength);
+      srcNode.connect(analyser);
+      if (input === audioEl) srcNode.connect(context.destination);
     } catch (error) {
       analyserUnavailable = true;
       console.warn("Audio React analyser unavailable; audiovisual playback remains unchanged.", error);
     }
   }
+
   // ---- energy helpers ----
   function bandEnergy(from,to){
     let s=0,n=0;
@@ -371,21 +390,16 @@
 
   const MODES = [drawLines, drawBars, drawRadial, drawCloud, drawGrid, drawSand, drawBurst, drawKaleido, drawBlobs];
 
-  let fallbackPhase = 0;
   function draw() {
     if (!state.enabled || !canvas) { raf = 0; return; }
-    if (analyser) {
-      analyser.getByteFrequencyData(freqData);
-      analyser.getByteTimeDomainData(timeData);
-    } else {
-      // Never hide the visual layer while the browser is waiting for an audio-analysis permission.
-      fallbackPhase += .045;
-      for (let i = 0; i < bufferLength; i += 1) {
-        const pulse = (Math.sin(fallbackPhase + i * .17) + 1) * .5;
-        freqData[i] = 18 + Math.round(pulse * 42);
-        timeData[i] = 128 + Math.round(Math.sin(fallbackPhase * 1.7 + i * .11) * 18);
-      }
+    if (!analyser) {
+      c.clearRect(0, 0, W, H);
+      logo?.classList.remove("is-active");
+      raf = requestAnimationFrame(draw);
+      return;
     }
+    analyser.getByteFrequencyData(freqData);
+    analyser.getByteTimeDomainData(timeData);
     updateEnergies();
     const reaction = Math.max(0, Math.min(REACTION_COUNT - 1, Number(state.reaction) || 0));
     const isLogo = reaction === 9;
@@ -424,10 +438,15 @@
         window.addEventListener("resize", resize, { passive: true });
       }
       ensureLayer();
+      ensureAudioContext();
       initCloud(); initBlobs(); buildSand(); buildKaleidoPts();
       setLogo(DEFAULT_LOGO);
     },
-    setAudioElement(element) { audioEl = element || null; if (state.enabled) attachAnalyser(); },
+    setAudioElement(element) {
+      audioEl = element || null;
+      bindAudioElement(audioEl);
+      if (state.enabled) attachAnalyser();
+    },
     setLocalLogo(url) { setLogo(url || DEFAULT_LOGO); },
     setState(next) {
       const previousReaction = state.reaction;
