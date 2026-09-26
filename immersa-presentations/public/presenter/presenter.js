@@ -354,11 +354,11 @@ function renderAudiovisualPanel(force = false) {
   const playlists = buildLocalPlaylistCards(localAudiovisualResources.filter((item) => item.type === type));
   const localSingles = localAudiovisualResources.filter((item) => item.type === type && !item.playlist?.id);
   const remote = audiovisualResources.filter((item) => item.type === type);
-  const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; const live = !isReact && ["playing", "fading"].includes(audiovisualChannel(tab).status); return '<button class="audiovisual-tab ' + (audiovisualTab === tab ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
+  const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; const live = !isReact && ["playing", "fading"].includes(audiovisualChannel(tab).status); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(9, Number(audioReactState.reaction) || 0));
-    body = audioReactState.enabled ? '<section class="audio-react-control"><div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div></section>' : '<p class="audio-react-off-hint">Activa React desde el menú.</p>';
+    body = '<section class="audio-react-control"><div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div></section>';
   } else {
     const runningBlock = running.length ? '<section class="audiovisual-group audiovisual-running"><h3>Medio corriendo</h3><div class="audiovisual-resource-list">' + audiovisualCards(running, "", { suppressActive: false }) + '</div></section>' : "";
     const playlistsBlock = playlists.length ? '<section class="audiovisual-group"><h3>Playlists</h3><div class="audiovisual-resource-list">' + audiovisualCards(playlists, "", { suppressActive: true }) + '</div></section>' : "";
@@ -372,9 +372,9 @@ function renderAudiovisualPanel(force = false) {
   audiovisualPanel.querySelectorAll("[data-av-tab]").forEach((button) => button.addEventListener("click", () => {
     const tab = button.dataset.avTab;
     if (tab === "react") {
-      const shouldToggle = audiovisualTab === "react";
+      const nextEnabled = audiovisualTab !== "react" ? true : !audioReactState.enabled;
       audiovisualTab = "react";
-      socket.emit("audio-react:control", { enabled: shouldToggle ? false : true, reaction: audioReactState.reaction });
+      socket.emit("audio-react:control", { enabled: nextEnabled, reaction: audioReactState.reaction });
     } else { audiovisualTab = tab; renderAudiovisualPanel(true); }
   }));
   audiovisualPanel.querySelectorAll("[data-react-choice]").forEach((button) => button.addEventListener("click", () => socket.emit("audio-react:control", { enabled: true, reaction: Number(button.dataset.reactChoice) })));
