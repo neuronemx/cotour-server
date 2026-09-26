@@ -344,6 +344,7 @@ function audiovisualTabIcon(type) {
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.1a4.2 4.2 0 1 1-2-3.55V5.2l10-2.1v9.5a4.2 4.2 0 1 1-2-3.55V5.4z"/></svg>';
 }
 const audioReactNames = ["Líneas", "Barras", "Onda circular", "Nube", "Malla", "Arena", "Partículas", "Caleidoscopio", "Blobs", "Logo"];
+const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio-react/react" + String(index + 1).padStart(2, "0") + ".jpg");
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
@@ -357,7 +358,7 @@ function renderAudiovisualPanel(force = false) {
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(9, Number(audioReactState.reaction) || 0));
-    body = '<section class="audio-react-control"><button class="audio-react-power ' + (audioReactState.enabled ? 'is-on' : '') + '" data-react-toggle>' + audiovisualTabIcon("react") + '<span><strong>React</strong><small>' + (audioReactState.enabled ? "Encendido" : "Apagado") + '</small></span><b>' + (audioReactState.enabled ? "On" : "Off") + '</b></button>' + (audioReactState.enabled ? '<div class="audio-react-actions"><select data-react-select aria-label="Reacción activa">' + audioReactNames.map((name, index) => '<option value="' + index + '"' + (index === selected ? " selected" : "") + '>' + (index + 1) + '. ' + name + '</option>').join("") + '</select><button data-react-next title="Siguiente reacción">Siguiente reacción <span>→</span></button></div>' : "") + '</section>';
+    body = '<section class="audio-react-control"><button class="audio-react-power ' + (audioReactState.enabled ? 'is-on' : '') + '" data-react-toggle>' + audiovisualTabIcon("react") + '<span><strong>React</strong><small>' + (audioReactState.enabled ? "Encendido" : "Apagado") + '</small></span><b>' + (audioReactState.enabled ? "On" : "Off") + '</b></button>' + (audioReactState.enabled ? '<div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div><button class="audio-react-next" data-react-next title="Siguiente reacción">Siguiente reacción <span>→</span></button>' : "") + '</section>';
   } else {
     const runningBlock = running.length ? '<section class="audiovisual-group audiovisual-running"><h3>Medio corriendo</h3><div class="audiovisual-resource-list">' + audiovisualCards(running, "", { suppressActive: false }) + '</div></section>' : "";
     const playlistsBlock = playlists.length ? '<section class="audiovisual-group"><h3>Playlists</h3><div class="audiovisual-resource-list">' + audiovisualCards(playlists, "", { suppressActive: true }) + '</div></section>' : "";
@@ -377,7 +378,7 @@ function renderAudiovisualPanel(force = false) {
     } else { audiovisualTab = tab; renderAudiovisualPanel(true); }
   }));
   audiovisualPanel.querySelector("[data-react-toggle]")?.addEventListener("click", () => socket.emit("audio-react:control", { enabled: !audioReactState.enabled, reaction: audioReactState.reaction }));
-  audiovisualPanel.querySelector("[data-react-select]")?.addEventListener("change", (event) => socket.emit("audio-react:control", { enabled: true, reaction: Number(event.currentTarget.value) }));
+  audiovisualPanel.querySelectorAll("[data-react-choice]").forEach((button) => button.addEventListener("click", () => socket.emit("audio-react:control", { enabled: true, reaction: Number(button.dataset.reactChoice) })));
   audiovisualPanel.querySelector("[data-react-next]")?.addEventListener("click", () => socket.emit("audio-react:control", { action: "next", enabled: true }));
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
