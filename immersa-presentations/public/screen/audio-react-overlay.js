@@ -4,234 +4,382 @@
   const DEFAULT_LOGO = "https://media.immersalive.com/logo.png";
   const REACTION_COUNT = 10;
   let state = { enabled: false, reaction: 0 };
-  let root = null, canvas = null, context2d = null, audio = null;
-  let audioContext = null, source = null, analyser = null, frequencyData = null, timeData = null;
-  let raf = 0, failed = false, logoUrl = DEFAULT_LOGO, logoImage = null;
-  let particles = [], cloud = [], hue = 196, mounted = false;
+  let root = null, canvas = null, c = null, logo = null, audioEl = null;
+  let W = innerWidth, H = innerHeight, mounted = false, raf = 0, failed = false;
+  let audioCtx = null, analyser = null, srcNode = null, bufferLength = 256;
+  let freqData = new Uint8Array(bufferLength).fill(20);
+  let timeData = new Uint8Array(bufferLength).fill(128);
 
-  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-  function energy(from, to) {
-    if (!frequencyData) return 0;
-    let total = 0, count = 0;
-    for (let index = from; index < Math.min(to, frequencyData.length); index += 1) { total += frequencyData[index]; count += 1; }
-    return count ? total / count / 255 : 0;
-  }
   function resize() {
-    if (!canvas) return;
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, root?.clientWidth || window.innerWidth);
-    const height = Math.max(1, root?.clientHeight || window.innerHeight);
-    canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
-    canvas.style.width = width + "px"; canvas.style.height = height + "px";
-    context2d.setTransform(ratio, 0, 0, ratio, 0, 0);
-    cloud = Array.from({ length: 96 }, (_, index) => ({ angle: Math.random() * Math.PI * 2, radius: 50 + Math.random() * Math.min(width, height) * .28, speed: (Math.random() - .5) * .015, bin: 2 + (index * 7) % 112, size: .7 + Math.random() * 1.6 }));
-    particles = [];
+    if (!canvas || !root || !c) return;
+    W = Math.max(1, root.clientWidth || innerWidth);
+    H = Math.max(1, root.clientHeight || innerHeight);
+    const ratio = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * ratio); canvas.height = Math.round(H * ratio);
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    c.setTransform(ratio, 0, 0, ratio, 0, 0);
+    buildGrid(); buildKaleidoPts(); buildSand();
   }
-  function ensureCanvas() {
-    if (canvas || !root) return;
-    canvas = document.createElement("canvas");
-    canvas.className = "audio-react-overlay";
-    canvas.setAttribute("aria-hidden", "true");
-    context2d = canvas.getContext("2d", { alpha: true });
-    root.appendChild(canvas);
+
+  function ensureLayer() {
+    if (!root) return;
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.className = "audio-react-overlay";
+      canvas.setAttribute("aria-hidden", "true");
+      c = canvas.getContext("2d", { alpha: true });
+      root.appendChild(canvas);
+    }
+    if (!logo) {
+      logo = document.createElement("img");
+      logo.className = "audio-react-logo";
+      logo.alt = "";
+      logo.setAttribute("aria-hidden", "true");
+      root.appendChild(logo);
+    }
     resize();
   }
-  function loadLogo(url) {
-    logoUrl = url || DEFAULT_LOGO;
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => { logoImage = image; };
-    image.onerror = () => { if (url !== DEFAULT_LOGO) loadLogo(DEFAULT_LOGO); };
-    image.src = logoUrl;
+
+  function setLogo(url) {
+    if (!logo) ensureLayer();
+    if (logo) logo.src = url || DEFAULT_LOGO;
   }
-  function readAudio() {
-    if (!analyser || !frequencyData || !timeData) return;
-    analyser.getByteFrequencyData(frequencyData);
-    analyser.getByteTimeDomainData(timeData);
-  }
+
   function attachAnalyser() {
-    if (failed || source || !audio) return;
-    const sourceUrl = audio.currentSrc || audio.src || "";
-    // Never reroute a remote media element unless its source was explicitly loaded with CORS.
-    // This preserves existing Audiovisual playback when the media host has no CORS header.
-    if (!sourceUrl.startsWith("blob:") && audio.crossOrigin !== "anonymous") return;
+    if (failed || srcNode || !audioEl) return;
+    const sourceUrl = audioEl.currentSrc || audioEl.src || "";
+    if (!sourceUrl.startsWith("blob:") && audioEl.crossOrigin !== "anonymous") return;
     try {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const attach = () => {
-        if (!audioContext || audioContext.state !== "running" || source || !audio) return;
-        source = audioContext.createMediaElementSource(audio);
-        analyser = audioContext.createAnalyser();
+        if (!audioCtx || audioCtx.state !== "running" || srcNode || !audioEl) return;
+        srcNode = audioCtx.createMediaElementSource(audioEl);
+        analyser = audioCtx.createAnalyser();
         analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = .82;
-        frequencyData = new Uint8Array(analyser.frequencyBinCount);
-        timeData = new Uint8Array(analyser.frequencyBinCount);
-        source.connect(analyser);
-        source.connect(audioContext.destination);
+        analyser.smoothingTimeConstant = .8;
+        bufferLength = analyser.frequencyBinCount;
+        freqData = new Uint8Array(bufferLength);
+        timeData = new Uint8Array(bufferLength);
+        srcNode.connect(analyser);
+        srcNode.connect(audioCtx.destination);
       };
-      const unlock = () => {
-        if (!audioContext) return;
-        audioContext.resume().then(attach).catch(() => {});
-      };
+      const unlock = () => audioCtx?.resume().then(attach).catch(() => {});
       ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, unlock, { passive: true, once: true }));
-      audio.addEventListener("play", unlock, { passive: true });
-      if (audioContext.state === "running") attach();
+      audioEl.addEventListener("play", unlock, { passive: true });
+      if (audioCtx.state === "running") attach();
     } catch (error) {
       failed = true;
       console.warn("Audio React unavailable; audiovisual playback remains unchanged.", error);
       stopDrawing();
     }
   }
-  function clear(width, height) { context2d.clearRect(0, 0, width, height); }
-  function stroke(color, width) { context2d.strokeStyle = color; context2d.lineWidth = width; context2d.lineCap = "round"; context2d.lineJoin = "round"; }
-  function drawLines(width, height, bass) {
-    const rows = 4, step = width / Math.max(1, frequencyData.length - 1);
-    for (let row = 0; row < rows; row += 1) {
-      context2d.beginPath();
-      const y = height * (row + 1) / (rows + 1);
-      for (let index = 0; index < frequencyData.length; index += 1) {
-        const value = frequencyData[index] / 255;
-        const pointY = y - value * (35 + row * 12) * (row % 2 ? -.7 : 1);
-        if (!index) context2d.moveTo(index * step, pointY); else context2d.lineTo(index * step, pointY);
+  // ---- energy helpers ----
+  function bandEnergy(from,to){
+    let s=0,n=0;
+    for(let i=from;i<to && i<bufferLength;i++){ s+=freqData[i]; n++; }
+    return n? s/n/255 : 0;
+  }
+  let bass=0, mid=0, treble=0, overall=0;
+  let beatPulse=0, beatCooldown=0, prevBass=0;
+  // detector por "flujo" (subida de graves frame a frame) en vez de nivel absoluto:
+  // así detecta cada ataque/kick aunque el bajo se mantenga alto todo el tiempo
+  const fluxHistory = new Array(30).fill(0.02);
+  let fhIdx=0;
+  function updateEnergies(){
+    bass = bandEnergy(0,10); mid = bandEnergy(10,60); treble = bandEnergy(60,Math.min(180,bufferLength));
+    overall = bandEnergy(0,bufferLength);
+    const flux = Math.max(0, bass - prevBass);
+    prevBass = bass;
+    fluxHistory[fhIdx]=flux; fhIdx=(fhIdx+1)%fluxHistory.length;
+    let s=0; for(let i=0;i<fluxHistory.length;i++) s+=fluxHistory[i];
+    const avgFlux = s/fluxHistory.length;
+    beatPulse *= 0.88;
+    if(beatCooldown>0) beatCooldown--;
+    if(flux > avgFlux*1.8 + 0.02 && bass>0.1 && beatCooldown<=0){ beatPulse=1; beatCooldown=8; }
+  }
+
+  let hue=200;
+  function fade(alpha){ c.save(); c.globalCompositeOperation="destination-out"; c.fillStyle=`rgba(0,0,0,${Math.min(.92, alpha)})`; c.fillRect(0,0,W,H); c.restore(); }
+
+  // ================= MODE 1: líneas =================
+  function drawLines(){
+    fade(0.25);
+    const rows=5, step=W/(bufferLength-1);
+    for(let r=0;r<rows;r++){
+      const y0=H*(r+1)/(rows+1);
+      c.beginPath();
+      for(let i=0;i<bufferLength;i++){
+        const v=freqData[i]/255, x=i*step;
+        const y=y0 - v*(60+r*10)*(r%2===0?1:-0.8);
+        i===0?c.moveTo(x,y):c.lineTo(x,y);
       }
-      stroke("hsla(" + (188 + row * 24) + ",90%,72%," + (.26 + bass * .45) + ")", 1.5);
-      context2d.stroke();
+      c.strokeStyle=`hsla(${190+r*30},90%,70%,${0.55-r*0.07})`;
+      c.lineWidth=2; c.stroke();
     }
   }
-  function drawBars(width, height) {
-    const count = 54, barWidth = width / count;
-    for (let index = 0; index < count; index += 1) {
-      const value = frequencyData[Math.floor(index * frequencyData.length / count * .55)] / 255;
-      const barHeight = value * height * .38;
-      context2d.fillStyle = "hsla(" + (184 + index * 2.2) + ",92%,66%," + (.22 + value * .7) + ")";
-      context2d.fillRect(index * barWidth + 1, height / 2 - barHeight, Math.max(1, barWidth - 2), barHeight * 2);
+
+  // ================= MODE 2: barras =================
+  function drawBars(){
+    fade(0.35);
+    const n=64, bw=W/n;
+    for(let i=0;i<n;i++){
+      const idx=Math.floor(i*bufferLength/n/2);
+      const v=freqData[idx]/255;
+      const bh=v*H*0.45;
+      const hueB=200+i*2;
+      c.fillStyle=`hsla(${hueB},85%,60%,0.85)`;
+      c.fillRect(i*bw+1, H/2-bh, bw-2, bh);
+      c.fillRect(i*bw+1, H/2, bw-2, bh*0.6);
     }
   }
-  function drawRadial(width, height, bass) {
-    const cx = width / 2, cy = height / 2, base = Math.min(width, height) * .16;
-    context2d.beginPath();
-    for (let index = 0; index < timeData.length; index += 1) {
-      const angle = index / timeData.length * Math.PI * 2;
-      const value = (timeData[index] - 128) / 128;
-      const radius = base + value * base * 1.2 + bass * 42;
-      const x = cx + Math.cos(angle) * radius, y = cy + Math.sin(angle) * radius;
-      if (!index) context2d.moveTo(x, y); else context2d.lineTo(x, y);
+
+  // ================= MODE 3: onda circular =================
+  function drawRadial(){
+    fade(0.3);
+    const cx=W/2, cy=H/2, base=Math.min(W,H)*0.18;
+    c.beginPath();
+    for(let i=0;i<bufferLength;i++){
+      const ang=(i/bufferLength)*Math.PI*2;
+      const v=(timeData[i]-128)/128;
+      const r=base + v*base*1.4 + bass*40;
+      const x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r;
+      i===0?c.moveTo(x,y):c.lineTo(x,y);
     }
-    context2d.closePath(); stroke("rgba(113,224,225,.85)", 2); context2d.stroke();
+    c.closePath();
+    c.strokeStyle=`hsla(${200+treble*120},90%,70%,0.8)`;
+    c.lineWidth=2; c.stroke();
+    c.beginPath(); c.arc(cx,cy,base*0.5+bass*30,0,Math.PI*2);
+    c.strokeStyle='rgba(125,211,252,0.4)'; c.stroke();
   }
-  function drawCloud(width, height, bass) {
-    const cx = width / 2, cy = height / 2;
-    cloud.forEach((point) => {
-      point.angle += point.speed + bass * .02;
-      const value = frequencyData[point.bin % frequencyData.length] / 255;
-      const radius = point.radius + value * 118;
-      const x = cx + Math.cos(point.angle) * radius, y = cy + Math.sin(point.angle) * radius;
-      context2d.fillStyle = "hsla(" + (186 + value * 100) + ",96%,72%," + (.14 + value * .7) + ")";
-      context2d.beginPath(); context2d.arc(x, y, point.size + value * 2.8, 0, Math.PI * 2); context2d.fill();
+
+  // ================= MODE 4: nube de puntos =================
+  let cloudPts=[];
+  function initCloud(){
+    cloudPts=[];
+    for(let i=0;i<120;i++){
+      cloudPts.push({angle:Math.random()*Math.PI*2, baseR:Math.random()*Math.min(W,H)*0.32+40,
+        speed:(Math.random()-0.5)*0.002, bin:Math.floor(Math.random()*80)+2, size:Math.random()*1.5+1});
+    }
+  }
+  function drawCloud(){
+    fade(0.28);
+    const cx=W/2, cy=H/2;
+    cloudPts.forEach(p=>{
+      p.angle += p.speed + bass*0.01;
+      const v=freqData[p.bin]/255;
+      const r=p.baseR + v*130;
+      const x=cx+Math.cos(p.angle)*r, y=cy+Math.sin(p.angle)*r;
+      const s=p.size*0.6+v*1.8+bass*1.2;
+      const g=c.createRadialGradient(x,y,0,x,y,s*2.2);
+      g.addColorStop(0,`rgba(125,211,252,${0.6+v*0.4})`); g.addColorStop(1,'rgba(244,114,182,0)');
+      c.fillStyle=g; c.beginPath(); c.arc(x,y,s,0,Math.PI*2); c.fill();
+    });
+    c.beginPath(); c.arc(cx,cy,20+bass*70,0,Math.PI*2);
+    c.strokeStyle=`rgba(125,211,252,${0.3+bass*0.5})`; c.lineWidth=2; c.stroke();
+  }
+
+  // ================= MODE 5: malla / terreno =================
+  let gridCols=28, gridPhase=0;
+  function buildGrid(){ gridCols = Math.max(16, Math.floor(W/40)); }
+  function drawGrid(){
+    fade(0.35);
+    gridPhase += 0.02 + bass*0.03;
+    const rows=6;
+    for(let r=0;r<rows;r++){
+      const depth=r/rows;
+      const y0=H*0.35 + depth*H*0.6;
+      const amp=(1-depth)*70*(0.3+mid);
+      c.beginPath();
+      for(let i=0;i<=gridCols;i++){
+        const x=i*W/gridCols;
+        const bin=Math.floor(i/gridCols*bufferLength*0.5);
+        const v=freqData[bin]/255;
+        const y=y0 - v*amp - Math.sin(gridPhase+i*0.4+r)*8*(1-depth);
+        i===0?c.moveTo(x,y):c.lineTo(x,y);
+      }
+      c.strokeStyle=`hsla(${180+depth*100},80%,65%,${0.7-depth*0.4})`;
+      c.lineWidth=1.5-depth; c.stroke();
+    }
+  }
+
+  // ================= MODE 6: arena en la bocina =================
+  let sand=[];
+  function buildSand(){
+    sand=[];
+    const n = Math.max(120, Math.floor(W/6));
+    for(let i=0;i<n;i++){
+      sand.push({
+        x: (i/n)*W + (Math.random()-0.5)*4,
+        baseX: (i/n)*W,
+        y:0, vy:0,
+        bin: Math.floor((i/n)*bufferLength*0.55)+2,
+        size: 1+Math.random()*1.8, cooldown:0
+      });
+    }
+  }
+  function drawSand(){
+    fade(0.3);
+    const coneY = H*0.72 - bass*18; // el "cono" respira con los graves
+    const ceiling = 0; // techo en el borde real de la pantalla
+    // línea de la bocina
+    c.beginPath(); c.moveTo(0,coneY); c.lineTo(W,coneY);
+    c.strokeStyle=`rgba(80,220,255,${0.35+bass*0.4})`; c.lineWidth=2; c.stroke();
+    sand.forEach(p=>{
+      const v = freqData[p.bin]/255;
+      // cooldown por partícula + sensibilidad más baja (v al cuadrado) para que no se acumule el caos
+      if(p.cooldown>0){ p.cooldown--; }
+      else if(Math.random() < v*v*0.10){
+        p.vy = -(1.6 + v*13 + Math.random()*2.5);
+        p.x = p.baseX + (Math.random()-0.5)*10*v;
+        p.cooldown = 8 + Math.floor(Math.random()*10);
+      }
+      p.vy += 0.95; // gravedad más fuerte: bajan más rápido
+      p.y += p.vy;
+      if(p.y>0){ p.y=0; p.vy=0; }
+      if(coneY+p.y < ceiling){ p.y = ceiling-coneY; p.vy = Math.max(p.vy,0); }
+      const grainY = coneY + p.y;
+      const alpha = 0.55 + v*0.4;
+      c.fillStyle = `rgba(56,${200+Math.floor(v*40)},255,${alpha})`;
+      c.beginPath(); c.arc(p.x, grainY, p.size, 0, Math.PI*2); c.fill();
     });
   }
-  function drawGrid(width, height, mid) {
-    const rows = 7, columns = 32;
-    for (let row = 0; row < rows; row += 1) {
-      context2d.beginPath();
-      for (let column = 0; column <= columns; column += 1) {
-        const value = frequencyData[Math.floor(column / columns * frequencyData.length * .55)] / 255;
-        const x = column * width / columns;
-        const y = height * .32 + row * height * .1 - value * (34 + (rows - row) * 8) - Math.sin(performance.now() / 700 + column * .4) * mid * 9;
-        if (!column) context2d.moveTo(x, y); else context2d.lineTo(x, y);
+
+  // ================= MODE 7: partículas + beat =================
+  let burst=[];
+  function drawBurst(){
+    fade(0.18);
+    const cx=W/2, cy=H/2;
+    if(beatPulse>0.85){
+      for(let i=0;i<14;i++){
+        const a=Math.random()*Math.PI*2, sp=2+Math.random()*5;
+        burst.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1});
       }
-      stroke("hsla(" + (178 + row * 11) + ",88%,68%," + (.18 + (rows - row) * .045) + ")", 1); context2d.stroke();
     }
-  }
-  function drawSand(width, height, bass) {
-    const y = height * .72 - bass * 18;
-    context2d.beginPath(); context2d.moveTo(0, y); context2d.lineTo(width, y); stroke("rgba(80,220,255,.4)", 1.5); context2d.stroke();
-    const count = Math.min(170, Math.floor(width / 7));
-    for (let index = 0; index < count; index += 1) {
-      const value = frequencyData[Math.floor(index / count * frequencyData.length * .52)] / 255;
-      if (Math.random() > value * value * .18) continue;
-      const x = index / count * width + (Math.random() - .5) * 9;
-      const rise = value * (22 + Math.random() * 120);
-      context2d.fillStyle = "rgba(62,215,255," + (.22 + value * .72) + ")";
-      context2d.beginPath(); context2d.arc(x, y - rise, 1 + value * 2.4, 0, Math.PI * 2); context2d.fill();
-    }
-  }
-  function drawBurst(width, height, bass) {
-    const beat = bass > .22 && Math.random() < bass * .22;
-    if (beat) for (let index = 0; index < 12; index += 1) {
-      const angle = Math.random() * Math.PI * 2, speed = 1.5 + Math.random() * 4;
-      particles.push({ x: width / 2, y: height / 2, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1 });
-    }
-    particles = particles.filter((particle) => (particle.life -= .017) > 0).slice(-360);
-    particles.forEach((particle) => {
-      particle.x += particle.vx; particle.y += particle.vy; particle.vx *= .985; particle.vy *= .985;
-      context2d.fillStyle = "rgba(209,120,255," + particle.life * .7 + ")";
-      context2d.beginPath(); context2d.arc(particle.x, particle.y, 1.5 + bass * 3, 0, Math.PI * 2); context2d.fill();
+    burst.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vx*=0.985; p.vy*=0.985; p.life-=0.012;
+      p.vx += (cx-p.x)*0.0005; p.vy += (cy-p.y)*0.0005;
     });
+    burst = burst.filter(p=>p.life>0);
+    burst.forEach(p=>{
+      c.fillStyle=`rgba(244,114,182,${p.life})`;
+      c.beginPath(); c.arc(p.x,p.y,2.5+treble*3,0,Math.PI*2); c.fill();
+    });
+    c.beginPath(); c.arc(cx,cy,15+beatPulse*60,0,Math.PI*2);
+    c.strokeStyle=`rgba(125,211,252,${0.3+beatPulse*0.6})`; c.lineWidth=2; c.stroke();
   }
-  function drawKaleido(width, height, treble) {
-    const cx = width / 2, cy = height / 2, segments = 10; hue = (hue + .7 + treble * 3) % 360;
-    for (let segment = 0; segment < segments; segment += 1) {
-      context2d.save(); context2d.translate(cx, cy); context2d.rotate(segment * Math.PI * 2 / segments);
-      for (let index = 0; index < 10; index += 1) {
-        const value = frequencyData[Math.floor(index * frequencyData.length / 24)] / 255;
-        context2d.beginPath(); context2d.moveTo(0, 0); context2d.lineTo(35 + value * Math.min(width, height) * .3, index * 7);
-        stroke("hsla(" + (hue + index * 11) + ",95%,68%," + (.22 + value * .58) + ")", 1.2 + value * 2); context2d.stroke();
-      }
-      context2d.restore();
+
+  // ================= MODE 8: kaleidoscopio =================
+  let kaleidoPts=[];
+  function buildKaleidoPts(){
+    kaleidoPts=[];
+    for(let i=0;i<18;i++) kaleidoPts.push({bin:Math.floor(i*bufferLength/18/2), a:Math.random()*Math.PI/4});
+  }
+  function drawKaleido(){
+    fade(0.12);
+    const cx=W/2, cy=H/2, segments=10;
+    hue = (hue + 0.6 + treble*3) % 360;
+    for(let s=0;s<segments;s++){
+      c.save();
+      c.translate(cx,cy);
+      c.rotate(s*(Math.PI*2/segments));
+      if(s%2===1) c.scale(1,-1);
+      kaleidoPts.forEach((p,i)=>{
+        const v=freqData[p.bin]/255;
+        const len=40+v*Math.min(W,H)*0.35;
+        const ang=p.a + i*0.05;
+        const x=Math.cos(ang)*len, y=Math.sin(ang)*len;
+        c.beginPath(); c.moveTo(0,0); c.lineTo(x,y);
+        c.strokeStyle=`hsla(${hue+i*8},95%,65%,${0.35+v*0.5})`;
+        c.lineWidth=1.5+v*2; c.stroke();
+        c.beginPath(); c.arc(x,y,2+v*4,0,Math.PI*2);
+        c.fillStyle=`hsla(${hue+i*8},95%,70%,0.8)`; c.fill();
+      });
+      c.restore();
     }
   }
-  function drawBlobs(width, height, bass, treble) {
-    const time = performance.now() / 1000;
-    for (let index = 0; index < 5; index += 1) {
-      const value = frequencyData[(index + 1) * 15] / 255;
-      const x = width / 2 + Math.sin(time * (.24 + index * .06) + index) * width * .28;
-      const y = height / 2 + Math.cos(time * (.21 + index * .07) + index) * height * .28;
-      const radius = 46 + value * 135 + bass * 70;
-      const gradient = context2d.createRadialGradient(x, y, 0, x, y, radius);
-      gradient.addColorStop(0, "hsla(" + (190 + index * 46 + treble * 80) + ",96%,65%," + (.18 + value * .38) + ")");
-      gradient.addColorStop(1, "rgba(0,0,0,0)");
-      context2d.fillStyle = gradient; context2d.beginPath(); context2d.arc(x, y, radius, 0, Math.PI * 2); context2d.fill();
-    }
+
+  // ================= MODE 9: blobs psicodélicos =================
+  let blobs=[];
+  function initBlobs(){
+    blobs=[];
+    for(let i=0;i<6;i++) blobs.push({ox:Math.random()*Math.PI*2, oy:Math.random()*Math.PI*2,
+      fx:0.3+Math.random()*0.4, fy:0.3+Math.random()*0.4, bin:i*15+5});
   }
-  function drawLogo(width, height, bass, mid, treble) {
-    if (!logoImage?.complete || !logoImage.naturalWidth) return;
-    const pulse = 1 + (bass * .7 + mid * .45 + treble * .28) * .22;
-    const size = Math.min(width, height) * .34 * pulse;
-    context2d.save(); context2d.globalAlpha = .86; context2d.translate(width / 2, height / 2); context2d.rotate(Math.sin(performance.now() / 4200) * .04);
-    context2d.drawImage(logoImage, -size / 2, -size / 2, size, size); context2d.restore();
+  function drawBlobs(){
+    fade(0.07);
+    hue = (hue + 1 + bass*4) % 360;
+    const t=performance.now()/1000;
+    c.globalCompositeOperation='lighter';
+    blobs.forEach((b,i)=>{
+      const v=freqData[b.bin]/255;
+      const cx=W/2 + Math.sin(t*b.fx+b.ox)*W*0.28;
+      const cy=H/2 + Math.cos(t*b.fy+b.oy)*H*0.28;
+      const r=60+v*180+bass*60;
+      const g=c.createRadialGradient(cx,cy,0,cx,cy,r);
+      g.addColorStop(0,`hsla(${hue+i*40},95%,65%,0.5)`);
+      g.addColorStop(1,'hsla(0,0%,0%,0)');
+      c.fillStyle=g; c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.fill();
+    });
+    c.globalCompositeOperation='source-over';
   }
+
+
+  function drawLogoPulse() {
+    if (!logo) return;
+    const scale = 1 + (bass * .7 + mid * .5 + treble * .35) * .22 + beatPulse * .12;
+    const rotate = Math.sin(performance.now() / 4200) * 3;
+    logo.style.transform = "translate(-50%, -50%) scale(" + scale + ") rotate(" + rotate + "deg)";
+  }
+
+  const MODES = [drawLines, drawBars, drawRadial, drawCloud, drawGrid, drawSand, drawBurst, drawKaleido, drawBlobs];
+
   function draw() {
     if (!state.enabled || !canvas || failed) { raf = 0; return; }
-    const width = root?.clientWidth || window.innerWidth, height = root?.clientHeight || window.innerHeight;
-    readAudio(); clear(width, height);
-    const bass = energy(0, 10), mid = energy(10, 62), treble = energy(62, 180);
-    switch (clamp(Number(state.reaction) || 0, 0, REACTION_COUNT - 1)) {
-      case 0: drawLines(width, height, bass); break; case 1: drawBars(width, height); break;
-      case 2: drawRadial(width, height, bass); break; case 3: drawCloud(width, height, bass); break;
-      case 4: drawGrid(width, height, mid); break; case 5: drawSand(width, height, bass); break;
-      case 6: drawBurst(width, height, bass); break; case 7: drawKaleido(width, height, treble); break;
-      case 8: drawBlobs(width, height, bass, treble); break; default: drawLogo(width, height, bass, mid, treble);
+    if (analyser) { analyser.getByteFrequencyData(freqData); analyser.getByteTimeDomainData(timeData); }
+    updateEnergies();
+    const reaction = Math.max(0, Math.min(REACTION_COUNT - 1, Number(state.reaction) || 0));
+    const isLogo = reaction === 9;
+    logo?.classList.toggle("is-active", isLogo);
+    if (isLogo) {
+      c.clearRect(0, 0, W, H);
+      drawLogoPulse();
+    } else {
+      logo?.classList.remove("is-active");
+      MODES[reaction]();
     }
     raf = requestAnimationFrame(draw);
   }
+
   function startDrawing() {
-    if (raf || !state.enabled || failed) return;
-    ensureCanvas(); if (!canvas) return;
-    canvas.classList.add("is-active"); attachAnalyser(); raf = requestAnimationFrame(draw);
+    ensureLayer();
+    if (!canvas || raf || !state.enabled || failed) return;
+    canvas.classList.add("is-active");
+    attachAnalyser();
+    raf = requestAnimationFrame(draw);
   }
+
   function stopDrawing() {
-    if (raf) cancelAnimationFrame(raf); raf = 0;
-    if (canvas) { canvas.classList.remove("is-active"); context2d?.clearRect(0, 0, canvas.width, canvas.height); }
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    canvas?.classList.remove("is-active");
+    logo?.classList.remove("is-active");
+    if (c && canvas) c.clearRect(0, 0, canvas.width, canvas.height);
   }
+
   window.ImmersaAudioReact = {
     init(options) {
       root = options?.root || document.body;
-      if (!mounted) { mounted = true; window.addEventListener("resize", resize, { passive: true }); loadLogo(DEFAULT_LOGO); }
+      if (!mounted) {
+        mounted = true;
+        window.addEventListener("resize", resize, { passive: true });
+      }
+      ensureLayer();
+      setLogo(DEFAULT_LOGO);
     },
-    setAudioElement(element) { audio = element || null; if (state.enabled) attachAnalyser(); },
-    setLocalLogo(url) { loadLogo(url || DEFAULT_LOGO); },
+    setAudioElement(element) { audioEl = element || null; if (state.enabled) attachAnalyser(); },
+    setLocalLogo(url) { setLogo(url || DEFAULT_LOGO); },
     setState(next) {
-      state = { ...state, ...(next || {}), reaction: clamp(Number(next?.reaction ?? state.reaction) || 0, 0, REACTION_COUNT - 1) };
+      state = { ...state, ...(next || {}), reaction: Math.max(0, Math.min(REACTION_COUNT - 1, Number(next?.reaction ?? state.reaction) || 0)) };
       if (state.enabled) startDrawing(); else stopDrawing();
     }
   };
