@@ -373,7 +373,14 @@
 
   function draw() {
     if (!state.enabled || !canvas) { raf = 0; return; }
-    if (analyser) { analyser.getByteFrequencyData(freqData); analyser.getByteTimeDomainData(timeData); }
+    if (!analyser) {
+      c.clearRect(0, 0, W, H);
+      logo?.classList.remove("is-active");
+      raf = requestAnimationFrame(draw);
+      return;
+    }
+    analyser.getByteFrequencyData(freqData);
+    analyser.getByteTimeDomainData(timeData);
     updateEnergies();
     const reaction = Math.max(0, Math.min(REACTION_COUNT - 1, Number(state.reaction) || 0));
     const isLogo = reaction === 9;
