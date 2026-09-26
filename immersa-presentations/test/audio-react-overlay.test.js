@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -16,6 +17,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto"><\/audio>/);
   assert.doesNotMatch(screen, /<audio preload="auto" crossorigin="anonymous">/);
+  assert.doesNotThrow(() => new vm.Script(overlay));
   assert.match(overlay, /audio\.crossOrigin !== "anonymous"/);
   assert.match(overlay, /sourceUrl\.startsWith\("blob:"\)/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*pointer-events:none/);
