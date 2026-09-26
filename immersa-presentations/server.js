@@ -2193,12 +2193,11 @@ io.on("connection", (socket) => {
 
     if (action === "select" || action === "select-playlist") {
       const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
-      const allowed = new Set(Array.isArray(config?.audiovisual) ? config.audiovisual.map(String) : []);
       const remoteResource = listAudiovisualResources().find((item) => String(item.id) === requestedId);
       const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === requestedId);
       const playlistItems = action === "select-playlist" && requestedType ? localPlaylistItems(session, payload.playlistId, requestedType) : [];
       const resource = playlistItems[0] || localResource || remoteResource;
-      if (!resource || (!playlistItems.length && !localResource && !allowed.has(String(resource.id)))) return;
+      if (!resource) return;
       const type = resource.type;
       const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
