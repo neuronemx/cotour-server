@@ -25,6 +25,8 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /function drawLines\(\)/);
   assert.match(overlay, /function drawSand\(\)/);
   assert.match(overlay, /function drawLogoPulse\(\)/);
+  assert.match(overlay, /initCloud\(\); initBlobs\(\);/);
+  assert.match(css, /\.audio-react-overlay\{[\s\S]*z-index:2/);
 });
 
 test("Audio React state is independently synchronized and controlled", () => {
@@ -37,6 +39,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(server, /socket\.on\("audio-react:control"/);
   assert.match(server, /reaction: nextReaction/);
   assert.match(server, /emit\("audio-react:state", session\.audioReact\)/);
+  assert.doesNotMatch(server, /allowed\.has\(String\(resource\.id\)\)/);
   assert.match(presenter, /\["audio", "video", "react"\]/);
   assert.doesNotMatch(presenter, /data-react-next/);
   assert.doesNotMatch(presenter, /data-react-toggle/);
@@ -47,6 +50,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /audiovisualResources = Array\.isArray\(catalog\.resources\)/);
   assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
   assert.match(presenter, /audio-react-tab-status/);
+  assert.match(presenter, /is-playing/);
   assert.match(presenter, /audioReactThumbnails/);
   assert.match(presenter, /data-react-choice/);
   assert.match(presenter, /audio-react-grid/);
