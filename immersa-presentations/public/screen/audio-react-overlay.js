@@ -137,7 +137,7 @@
   }
 
   let hue=200;
-  function fade(alpha){ c.fillStyle=`rgba(5,6,10,${alpha})`; c.fillRect(0,0,W,H); }
+  function fade(alpha){ c.save(); c.globalCompositeOperation="destination-out"; c.fillStyle=`rgba(0,0,0,${Math.min(.92, alpha)})`; c.fillRect(0,0,W,H); c.restore(); }
 
   // ================= MODE 1: líneas =================
   function drawLines(){
@@ -371,16 +371,21 @@
 
   const MODES = [drawLines, drawBars, drawRadial, drawCloud, drawGrid, drawSand, drawBurst, drawKaleido, drawBlobs];
 
+  let fallbackPhase = 0;
   function draw() {
     if (!state.enabled || !canvas) { raf = 0; return; }
-    if (!analyser) {
-      c.clearRect(0, 0, W, H);
-      logo?.classList.remove("is-active");
-      raf = requestAnimationFrame(draw);
-      return;
+    if (analyser) {
+      analyser.getByteFrequencyData(freqData);
+      analyser.getByteTimeDomainData(timeData);
+    } else {
+      // Never hide the visual layer while the browser is waiting for an audio-analysis permission.
+      fallbackPhase += .045;
+      for (let i = 0; i < bufferLength; i += 1) {
+        const pulse = (Math.sin(fallbackPhase + i * .17) + 1) * .5;
+        freqData[i] = 18 + Math.round(pulse * 42);
+        timeData[i] = 128 + Math.round(Math.sin(fallbackPhase * 1.7 + i * .11) * 18);
+      }
     }
-    analyser.getByteFrequencyData(freqData);
-    analyser.getByteTimeDomainData(timeData);
     updateEnergies();
     const reaction = Math.max(0, Math.min(REACTION_COUNT - 1, Number(state.reaction) || 0));
     const isLogo = reaction === 9;
