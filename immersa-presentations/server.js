@@ -778,6 +778,9 @@ function emptyAudiovisualChannel() {
 function createAudiovisualChannels() {
   return { audio: emptyAudiovisualChannel(), video: emptyAudiovisualChannel() };
 }
+function createAudioReactState() {
+  return { enabled: false, reaction: 0, updatedAt: Date.now() };
+}
 function getAudiovisualChannels(session) {
   const existing = session?.audiovisual;
   if (existing?.audio && existing?.video) return existing;
@@ -804,6 +807,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     inactivityShutdownAt: null,
     audience: new Map(),
     audiovisual: createAudiovisualChannels(),
+    audioReact: createAudioReactState(),
     time: createImmersaTimeState(),
     audiovisualVolume: 1,
     localAudiovisual: [],
@@ -902,6 +906,7 @@ function publicState(session) {
     stageConnected: session.stageConnected,
     audienceCount: session.audience.size,
     audiovisual: session.audiovisual,
+    audioReact: session.audioReact,
     overlays: session.overlays
   };
 }
@@ -2118,6 +2123,7 @@ io.on("connection", (socket) => {
     }
     emitState(currentRoomKey, session);
     socket.emit("audiovisual:state", session.audiovisual);
+    socket.emit("audio-react:state", session.audioReact || (session.audioReact = createAudioReactState()));
     if (role === "presenter" || role === "screen") socket.emit("time:state", immersaTimeSnapshot(session.time || (session.time = createImmersaTimeState())));
     if (role === "presenter") socket.emit("local-library:updated", { resources: session.localAudiovisual || [] });
     if (
@@ -2262,6 +2268,24 @@ io.on("connection", (socket) => {
       };
     }
     publish();
+  });
+
+  socket.on("audio-react:control", (payload = {}) => {
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const previous = session.audioReact || createAudioReactState();
+    const action = String(payload.action || "");
+    const nextReaction = action === "next"
+      ? (Number(previous.reaction || 0) + 1) % 10
+      : Math.max(0, Math.min(9, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
+    session.audioReact = {
+      enabled: typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true,
+      reaction: nextReaction,
+      updatedAt: Date.now()
+    };
+    io.to(currentRoomKey).emit("audio-react:state", session.audioReact);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("audiovisual:metadata", (payload = {}) => {
