@@ -15,8 +15,8 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
 
   assert.match(html, /\/screen\/audio-react-overlay\.js\?v=1/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
-  assert.match(screen, /<audio preload="auto"><\/audio>/);
-  assert.doesNotMatch(screen, /<audio preload="auto" crossorigin="anonymous">/);
+  assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
+  assert.doesNotMatch(screen, /<audio preload="auto"><\/audio>/);
   assert.doesNotThrow(() => new vm.Script(overlay));
   assert.match(overlay, /audio\.crossOrigin !== "anonymous"/);
   assert.match(overlay, /sourceUrl\.startsWith\("blob:"\)/);
