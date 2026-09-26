@@ -147,3 +147,7 @@
 
 /* Keep the Helvetica TIME glyphs distinct at projection scale. */
 .time-overlay span { letter-spacing: .022em; }
+
+
+/* Audio React is a transparent, non-interactive layer between media and interactions. */
+.audio-react-overlay{position:absolute;inset:0;z-index:16;width:100%;height:100%;display:block;pointer-events:none;opacity:0;transition:opacity .28s ease;mix-blend-mode:screen}.audio-react-overlay.is-active{opacity:1}
