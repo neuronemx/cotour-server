@@ -43,10 +43,9 @@ let audiovisualMedia = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
 let videoPlaylistAdvanceTimer = null;
-const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false, reactLogoFile: null };
+const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
-const localReactLogoExtensions = new Set(["png", "svg"]);
 function localResourceId(relativePath, file, type) {
   const key = [type, relativePath, file.size, file.lastModified].join("|");
   let hash = 2166136261;
@@ -94,12 +93,11 @@ async function collectLocalFiles(handle, prefix = "") {
     if (entry.kind === "directory") entries.push(...await collectLocalFiles(entry, prefix + name + "/"));
     else if (entry.kind === "file") {
       const extension = String(name).split(".").pop().toLowerCase();
-      const relativePath = prefix + name;
       const type = localVideoExtensions.has(extension) ? "video" : localAudioExtensions.has(extension) ? "audio" : "";
-      const isReactLogo = !prefix && /^logo\.(png|svg)$/i.test(name) && localReactLogoExtensions.has(extension);
-      if (type || isReactLogo) {
+      if (type) {
+        const relativePath = prefix + name;
         const folder = prefix.replace(/\/$/, "");
-        entries.push({ file: await entry.getFile(), type: isReactLogo ? "react-logo" : type, relativePath, folder });
+        entries.push({ file: await entry.getFile(), type, relativePath, folder });
       }
     }
   }
@@ -121,24 +119,13 @@ function resolveLocalMediaUrl(resource) {
 function resolveAudiovisualMediaUrl(resource) {
   return resource?.source === "local" ? resolveLocalMediaUrl(resource) : resource?.media_url || "";
 }
-function syncLocalReactLogo(file) {
-  localLibrary.reactLogoFile = file || null;
-  const key = "audio-react-local-logo";
-  if (!file) { window.ImmersaAudioReact?.setLocalLogo(null); return; }
-  const existing = localLibrary.objectUrls.get(key);
-  const url = existing || URL.createObjectURL(file);
-  if (!existing) localLibrary.objectUrls.set(key, url);
-  window.ImmersaAudioReact?.setLocalLogo(url);
-}
 async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
-    const discovered = await collectLocalFiles(localLibrary.directoryHandle);
-    const logoEntry = discovered.find((entry) => entry.type === "react-logo");
-    const files = discovered.filter((entry) => entry.type === "audio" || entry.type === "video").sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
+    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
     const playlistIndexes = new Map();
-    clearLocalObjectUrls(); localLibrary.files.clear(); syncLocalReactLogo(logoEntry?.file || null);
+    clearLocalObjectUrls(); localLibrary.files.clear();
     const resources = [];
     for (const entry of files) {
       const id = localResourceId(entry.relativePath, entry.file, entry.type);
