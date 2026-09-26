@@ -13,7 +13,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const html = read("public/screen/index.html");
   const css = read("public/screen/screen.css");
 
-  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=2/);
+  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=3/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.doesNotMatch(screen, /<audio preload="auto"><\/audio>/);
@@ -27,6 +27,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /function drawLogoPulse\(\)/);
   assert.match(overlay, /initCloud\(\); initBlobs\(\);/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*z-index:2/);
+  assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
 });
 
 test("Audio React state is independently synchronized and controlled", () => {
@@ -51,6 +52,8 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
   assert.match(presenter, /audio-react-tab-status/);
   assert.match(presenter, /is-playing/);
+  assert.match(presenter, /nextEnabled/);
+  assert.match(presenter, /const selected = audiovisualTab === tab && \(!isReact \|\| audioReactState\.enabled\)/);
   assert.match(presenter, /audioReactThumbnails/);
   assert.match(presenter, /data-react-choice/);
   assert.match(presenter, /audio-react-grid/);
