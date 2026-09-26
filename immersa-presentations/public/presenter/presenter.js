@@ -189,7 +189,7 @@ async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manif
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
 async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); audiovisualSelection = Array.isArray(data?.audiovisual) ? data.audiovisual.map(String) : []; videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); prompterScripts=data?.prompter||{}; } catch (_error) { interactions = []; videoSlideIds = new Set(); audiovisualSelection = []; prompterScripts={}; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
-async function loadAudiovisualResources() { try { const response = await fetch("/api/audiovisual-library", { cache: "no-store" }); const catalog = response.ok ? await response.json() : { resources: [] }; audiovisualResources = (catalog.resources || []).filter((item) => audiovisualSelection.includes(String(item.id))); } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
+async function loadAudiovisualResources() { try { const response = await fetch("/api/audiovisual-library", { cache: "no-store" }); const catalog = response.ok ? await response.json() : { resources: [] }; audiovisualResources = Array.isArray(catalog.resources) ? catalog.resources : []; } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
 function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
 function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Librería Immersa"); presenterShell.appendChild(audiovisualPanel); }
 const avStopIcon = '<img class="av-control-icon" src="/presenter/player-stop.svg" alt="">';
@@ -354,11 +354,11 @@ function renderAudiovisualPanel(force = false) {
   const playlists = buildLocalPlaylistCards(localAudiovisualResources.filter((item) => item.type === type));
   const localSingles = localAudiovisualResources.filter((item) => item.type === type && !item.playlist?.id);
   const remote = audiovisualResources.filter((item) => item.type === type);
-  const tabs = ["audio", "video", "react"].map((tab) => '<button class="audiovisual-tab ' + (audiovisualTab === tab ? 'is-selected' : '') + (tab === "react" && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + (tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React") + '">' + audiovisualTabIcon(tab) + '<span>' + (tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React") + '</span></button>').join("");
+  const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; return '<button class="audiovisual-tab ' + (audiovisualTab === tab ? 'is-selected' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(9, Number(audioReactState.reaction) || 0));
-    body = '<section class="audio-react-control"><button class="audio-react-power ' + (audioReactState.enabled ? 'is-on' : '') + '" data-react-toggle>' + audiovisualTabIcon("react") + '<span><strong>React</strong><small>' + (audioReactState.enabled ? "Encendido" : "Apagado") + '</small></span><b>' + (audioReactState.enabled ? "On" : "Off") + '</b></button>' + (audioReactState.enabled ? '<div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div><button class="audio-react-next" data-react-next title="Siguiente reacción">Siguiente reacción <span>→</span></button>' : "") + '</section>';
+    body = audioReactState.enabled ? '<section class="audio-react-control"><div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div></section>' : '<p class="audio-react-off-hint">Activa React desde el menú.</p>';
   } else {
     const runningBlock = running.length ? '<section class="audiovisual-group audiovisual-running"><h3>Medio corriendo</h3><div class="audiovisual-resource-list">' + audiovisualCards(running, "", { suppressActive: false }) + '</div></section>' : "";
     const playlistsBlock = playlists.length ? '<section class="audiovisual-group"><h3>Playlists</h3><div class="audiovisual-resource-list">' + audiovisualCards(playlists, "", { suppressActive: true }) + '</div></section>' : "";
@@ -377,9 +377,7 @@ function renderAudiovisualPanel(force = false) {
       socket.emit("audio-react:control", { enabled: shouldToggle ? false : true, reaction: audioReactState.reaction });
     } else { audiovisualTab = tab; renderAudiovisualPanel(true); }
   }));
-  audiovisualPanel.querySelector("[data-react-toggle]")?.addEventListener("click", () => socket.emit("audio-react:control", { enabled: !audioReactState.enabled, reaction: audioReactState.reaction }));
   audiovisualPanel.querySelectorAll("[data-react-choice]").forEach((button) => button.addEventListener("click", () => socket.emit("audio-react:control", { enabled: true, reaction: Number(button.dataset.reactChoice) })));
-  audiovisualPanel.querySelector("[data-react-next]")?.addEventListener("click", () => socket.emit("audio-react:control", { action: "next", enabled: true }));
   audiovisualPanel.querySelectorAll("[data-av-resource]").forEach((button) => button.addEventListener("click", (event) => {
     const selectedId = String(button.dataset.avResource);
     const playlistId = String(button.dataset.avPlaylist || "");
@@ -388,6 +386,8 @@ function renderAudiovisualPanel(force = false) {
     if (event.target.closest(".audiovisual-inline-controls")) return;
     const isCurrentPlayback = button.classList.contains("is-active") && current.status === "playing" && String(current.resource?.id || "") === selectedId;
     if (isCurrentPlayback) return;
+    audiovisualPanel.scrollTop = 0;
+    audiovisualPanel.scrollTo?.({ top: 0, behavior: "smooth" });
     button.classList.remove("is-active", "is-revealing", "is-closing");
     clearTimeout(audiovisualRevealTimer);
     audiovisualPanel.querySelectorAll('.audiovisual-resource.is-active[data-av-type="' + resourceType + '"]').forEach((card) => { card.classList.remove("is-active", "is-revealing"); card.classList.add("is-closing"); });
