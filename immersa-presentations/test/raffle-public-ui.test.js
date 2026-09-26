@@ -300,10 +300,11 @@ test("Screen drawing and winner show the ticket and winner name", () => {
 
   store.revealWinner("s1", { nowMs: 6000 });
   const winnerHtml = renderScreenRaffle(store.getScreenState("s1"));
-  assert.match(winnerHtml, /Boleto <b>#01<\/b>/);
+  assert.match(winnerHtml, /Boleto <b>01<\/b>/);
   assert.match(winnerHtml, /<h2>¡Felicidades!<\/h2>/);
   assert.match(winnerHtml, /Mesa 1/);
-  assert.match(winnerHtml, /Ganaste el sorteo/);
+  assert.match(winnerHtml, /Ganaste/);
+  assert.doesNotMatch(winnerHtml, /Ganaste el sorteo|#01/);
   assert.doesNotMatch(winnerHtml, /audienceId|Ganador seleccionado/);
 });
 
