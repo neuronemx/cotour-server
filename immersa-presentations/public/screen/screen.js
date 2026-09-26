@@ -205,6 +205,8 @@ function ensureAudiovisualLayer() {
   audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
   bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
   screenRoot.appendChild(audiovisualLayer);
+  window.ImmersaAudioReact?.init({ root: screenRoot });
+  window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
 }
 function stopVideoSlots() {
   videoTransitionToken += 1;
@@ -485,6 +487,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("audio-react:state", (next) => window.ImmersaAudioReact?.setState(next || {}));
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
