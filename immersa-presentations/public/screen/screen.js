@@ -210,7 +210,7 @@ function ensureAudiovisualLayer() {
   if (audiovisualLayer) return;
   audiovisualLayer = document.createElement("div");
   audiovisualLayer.className = "audiovisual-screen-layer";
-  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto"></audio>';
+  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto" crossorigin="anonymous"></audio>';
   audiovisualMedia = {
     video: Array.from(audiovisualLayer.querySelectorAll("video")),
     audio: audiovisualLayer.querySelector("audio")
