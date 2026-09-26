@@ -374,6 +374,7 @@
         window.addEventListener("resize", resize, { passive: true });
       }
       ensureLayer();
+      initCloud(); initBlobs(); buildSand(); buildKaleidoPts();
       setLogo(DEFAULT_LOGO);
     },
     setAudioElement(element) { audioEl = element || null; if (state.enabled) attachAnalyser(); },
