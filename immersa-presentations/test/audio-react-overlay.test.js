@@ -26,6 +26,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
 test("Audio React state is independently synchronized and controlled", () => {
   const server = read("server.js");
   const presenter = read("public/presenter/presenter.js");
+  const presenterCss = read("public/presenter/presenter.css");
 
   assert.match(server, /function createAudioReactState\(\)/);
   assert.match(server, /audioReact: createAudioReactState\(\)/);
@@ -38,4 +39,8 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /Playlists/);
   assert.match(presenter, /Medios Local/);
   assert.match(presenter, /Medios Immersa/);
+  assert.match(presenter, /audioReactThumbnails/);
+  assert.match(presenter, /data-react-choice/);
+  assert.match(presenter, /audio-react-grid/);
+  assert.match(presenterCss, /\.audio-react-grid\{[\s\S]*grid-template-columns:repeat\(2/);
 });
