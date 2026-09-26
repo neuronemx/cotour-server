@@ -13,7 +13,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const html = read("public/screen/index.html");
   const css = read("public/screen/screen.css");
 
-  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=1/);
+  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=2/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.doesNotMatch(screen, /<audio preload="auto"><\/audio>/);
@@ -21,6 +21,10 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /audio\.crossOrigin !== "anonymous"/);
   assert.match(overlay, /sourceUrl\.startsWith\("blob:"\)/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*pointer-events:none/);
+  assert.doesNotMatch(css, /mix-blend-mode:screen/);
+  assert.match(overlay, /function drawLines\(\)/);
+  assert.match(overlay, /function drawSand\(\)/);
+  assert.match(overlay, /function drawLogoPulse\(\)/);
 });
 
 test("Audio React state is independently synchronized and controlled", () => {
@@ -34,11 +38,15 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(server, /reaction: nextReaction/);
   assert.match(server, /emit\("audio-react:state", session\.audioReact\)/);
   assert.match(presenter, /\["audio", "video", "react"\]/);
-  assert.match(presenter, /data-react-next/);
+  assert.doesNotMatch(presenter, /data-react-next/);
+  assert.doesNotMatch(presenter, /data-react-toggle/);
   assert.match(presenter, /Medio corriendo/);
   assert.match(presenter, /Playlists/);
   assert.match(presenter, /Medios Local/);
   assert.match(presenter, /Medios Immersa/);
+  assert.match(presenter, /audiovisualResources = Array\.isArray\(catalog\.resources\)/);
+  assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
+  assert.match(presenter, /audio-react-tab-status/);
   assert.match(presenter, /audioReactThumbnails/);
   assert.match(presenter, /data-react-choice/);
   assert.match(presenter, /audio-react-grid/);
