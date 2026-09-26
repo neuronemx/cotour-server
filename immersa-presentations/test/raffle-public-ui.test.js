@@ -210,6 +210,11 @@ test("Audience GANASTE heading stays inside the winner card", () => {
   assert.match(css, /\.raffle-public-winner-private h2 \{[^}]*white-space:\s*nowrap/);
 });
 
+test("Audience ticket number is centered in the right ticket section", () => {
+  const css = readProjectFile("public/audience/audience.css");
+  assert.match(css, /\.raffle-public-ticket strong, \.raffle-public-winner-ticket-art strong \{[^}]*left:\s*61\.5%;[^}]*color:\s*#999999/);
+});
+
 test("Audience free bystander stays on closed tombola through drawing and winner", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
@@ -328,7 +333,8 @@ test("Audience split styles resize the slide and keep ticket beneath reactions",
   assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 50vw 0 0; \}/);
   assert.match(css, /\.raffle-public-overlay\.is-free\.has-ticket \{ z-index: 3; \}/);
   assert.match(css, /aspect-ratio:\s*400\s*\/\s*224/);
-  assert.match(css, /left:\s*66%/);
+  assert.match(css, /left:\s*61\.5%/);
+  assert.match(css, /color:\s*#999999/);
 });
 
 test("Screen winner uses the provided celebratory ticket-card treatment", () => {

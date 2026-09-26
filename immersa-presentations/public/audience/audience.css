@@ -156,7 +156,7 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .raffle-public-ticket-state p { max-width: none; color: rgba(255,255,255,.82); font-size: clamp(16px, 3.4vw, 22px); font-weight: 700; }
 .raffle-public-ticket, .raffle-public-winner-ticket-art { position: relative; width: min(82vw, 440px); aspect-ratio: 400 / 224; }
 .raffle-public-ticket img, .raffle-public-winner-ticket-art img { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 18px 42px rgba(0,0,0,.24)); }
-.raffle-public-ticket strong, .raffle-public-winner-ticket-art strong { position: absolute; z-index: 1; top: 50%; left: 66%; color: #0a1724; font-size: clamp(78px, 19vw, 142px); line-height: .8; font-weight: 900; letter-spacing: .03em; transform: translate(-50%, -50%); }
+.raffle-public-ticket strong, .raffle-public-winner-ticket-art strong { position: absolute; z-index: 1; top: 50%; left: 61.5%; color: #999999; font-size: clamp(78px, 19vw, 142px); line-height: .8; font-weight: 900; letter-spacing: .03em; transform: translate(-50%, -50%); }
 .raffle-public-overlay.is-free.has-ticket { z-index: 3; }
 .raffle-public-overlay.is-free.has-ticket .raffle-public-card { background: transparent; border: 0; box-shadow: none; backdrop-filter: none; }
 .raffle-public-winner-ticket { display: grid; justify-items: center; margin-bottom: 18px; }
