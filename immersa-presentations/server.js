@@ -2192,7 +2192,6 @@ io.on("connection", (socket) => {
     };
 
     if (action === "select" || action === "select-playlist") {
-      const config = await deckInteractionHandlers.readDeckConfig(currentDeckId).catch(() => ({}));
       const remoteResource = listAudiovisualResources().find((item) => String(item.id) === requestedId);
       const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === requestedId);
       const playlistItems = action === "select-playlist" && requestedType ? localPlaylistItems(session, payload.playlistId, requestedType) : [];
