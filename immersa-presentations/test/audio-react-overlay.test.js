@@ -21,7 +21,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /function getAnalyserInput\(\)/);
   assert.match(overlay, /analyserEl\.crossOrigin = "anonymous"/);
   assert.match(overlay, /sourceUrl\.startsWith\("blob:"\)/);
-  assert.match(overlay, /if \(input === audioEl\) srcNode\.connect\(audioCtx\.destination\)/);
+  assert.match(overlay, /if \(input === audioEl\) srcNode\.connect\(context\.destination\)/);
   assert.match(overlay, /FALLBACK_LOGO/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*pointer-events:none/);
   assert.doesNotMatch(css, /mix-blend-mode:screen/);
