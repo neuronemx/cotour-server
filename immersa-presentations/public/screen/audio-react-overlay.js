@@ -2,11 +2,12 @@
   "use strict";
 
   const DEFAULT_LOGO = "https://media.immersalive.com/logo.png";
+  const FALLBACK_LOGO = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360"><rect width="960" height="360" fill="none"/><text x="480" y="205" fill="#fff" font-family="Helvetica,Arial,sans-serif" font-size="112" font-weight="700" text-anchor="middle" letter-spacing="10">IMMERSA</text></svg>');
   const REACTION_COUNT = 10;
   let state = { enabled: false, reaction: 0 };
-  let root = null, canvas = null, c = null, logo = null, audioEl = null;
-  let W = innerWidth, H = innerHeight, mounted = false, raf = 0, failed = false;
-  let audioCtx = null, analyser = null, srcNode = null, bufferLength = 256;
+  let root = null, canvas = null, c = null, logo = null, audioEl = null, analyserEl = null;
+  let W = innerWidth, H = innerHeight, mounted = false, raf = 0, analyserUnavailable = false;
+  let audioCtx = null, analyser = null, srcNode = null, sourceElement = null, bufferLength = 256;
   let freqData = new Uint8Array(bufferLength).fill(20);
   let timeData = new Uint8Array(bufferLength).fill(128);
 
@@ -42,18 +43,53 @@
 
   function setLogo(url) {
     if (!logo) ensureLayer();
-    if (logo) logo.src = url || DEFAULT_LOGO;
+    if (!logo) return;
+    logo.onerror = () => {
+      logo.onerror = null;
+      logo.src = FALLBACK_LOGO;
+    };
+    logo.src = url || DEFAULT_LOGO;
+  }
+
+  function syncAnalyserMedia() {
+    if (!audioEl || !analyserEl) return;
+    const sourceUrl = audioEl.currentSrc || audioEl.src || "";
+    if (!sourceUrl || analyserEl.dataset.sourceUrl !== sourceUrl) {
+      analyserEl.pause();
+      analyserEl.dataset.sourceUrl = sourceUrl;
+      analyserEl.src = sourceUrl;
+      analyserEl.currentTime = 0;
+    }
+    if (Number.isFinite(audioEl.currentTime) && Math.abs(analyserEl.currentTime - audioEl.currentTime) > 1.2) {
+      analyserEl.currentTime = audioEl.currentTime;
+    }
+    if (!audioEl.paused) analyserEl.play().catch(() => {});
+  }
+
+  function getAnalyserInput() {
+    const sourceUrl = audioEl?.currentSrc || audioEl?.src || "";
+    if (!sourceUrl || sourceUrl.startsWith("blob:")) return audioEl;
+    if (!analyserEl) {
+      analyserEl = document.createElement("audio");
+      analyserEl.preload = "auto";
+      analyserEl.crossOrigin = "anonymous";
+      analyserEl.muted = true;
+      analyserEl.setAttribute("aria-hidden", "true");
+    }
+    syncAnalyserMedia();
+    return analyserEl;
   }
 
   function attachAnalyser() {
-    if (failed || srcNode || !audioEl) return;
-    const sourceUrl = audioEl.currentSrc || audioEl.src || "";
-    if (!sourceUrl.startsWith("blob:") && audioEl.crossOrigin !== "anonymous") return;
+    if (analyserUnavailable || srcNode || !audioEl) return;
     try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const attach = () => {
         if (!audioCtx || audioCtx.state !== "running" || srcNode || !audioEl) return;
-        srcNode = audioCtx.createMediaElementSource(audioEl);
+        const input = getAnalyserInput();
+        if (!input?.src) return;
+        sourceElement = input;
+        srcNode = audioCtx.createMediaElementSource(input);
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 512;
         analyser.smoothingTimeConstant = .8;
@@ -61,16 +97,18 @@
         freqData = new Uint8Array(bufferLength);
         timeData = new Uint8Array(bufferLength);
         srcNode.connect(analyser);
-        srcNode.connect(audioCtx.destination);
+        if (input === audioEl) srcNode.connect(audioCtx.destination);
       };
       const unlock = () => audioCtx?.resume().then(attach).catch(() => {});
       ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, unlock, { passive: true, once: true }));
       audioEl.addEventListener("play", unlock, { passive: true });
+      audioEl.addEventListener("play", syncAnalyserMedia, { passive: true });
+      audioEl.addEventListener("pause", () => analyserEl?.pause(), { passive: true });
+      audioEl.addEventListener("timeupdate", syncAnalyserMedia, { passive: true });
       if (audioCtx.state === "running") attach();
     } catch (error) {
-      failed = true;
-      console.warn("Audio React unavailable; audiovisual playback remains unchanged.", error);
-      stopDrawing();
+      analyserUnavailable = true;
+      console.warn("Audio React analyser unavailable; audiovisual playback remains unchanged.", error);
     }
   }
   // ---- energy helpers ----
@@ -334,7 +372,7 @@
   const MODES = [drawLines, drawBars, drawRadial, drawCloud, drawGrid, drawSand, drawBurst, drawKaleido, drawBlobs];
 
   function draw() {
-    if (!state.enabled || !canvas || failed) { raf = 0; return; }
+    if (!state.enabled || !canvas) { raf = 0; return; }
     if (analyser) { analyser.getByteFrequencyData(freqData); analyser.getByteTimeDomainData(timeData); }
     updateEnergies();
     const reaction = Math.max(0, Math.min(REACTION_COUNT - 1, Number(state.reaction) || 0));
@@ -352,7 +390,7 @@
 
   function startDrawing() {
     ensureLayer();
-    if (!canvas || raf || !state.enabled || failed) return;
+    if (!canvas || raf || !state.enabled) return;
     canvas.classList.add("is-active");
     attachAnalyser();
     raf = requestAnimationFrame(draw);
@@ -380,7 +418,16 @@
     setAudioElement(element) { audioEl = element || null; if (state.enabled) attachAnalyser(); },
     setLocalLogo(url) { setLogo(url || DEFAULT_LOGO); },
     setState(next) {
+      const previousReaction = state.reaction;
       state = { ...state, ...(next || {}), reaction: Math.max(0, Math.min(REACTION_COUNT - 1, Number(next?.reaction ?? state.reaction) || 0)) };
+      if (state.reaction !== previousReaction) {
+        c?.clearRect(0, 0, canvas?.width || 0, canvas?.height || 0);
+        burst = []; hue = 200;
+        if (state.reaction === 3) initCloud();
+        if (state.reaction === 5) buildSand();
+        if (state.reaction === 7) buildKaleidoPts();
+        if (state.reaction === 8) initBlobs();
+      }
       if (state.enabled) startDrawing(); else stopDrawing();
     }
   };
