@@ -51,6 +51,10 @@
   }
   function attachAnalyser() {
     if (failed || source || !audio) return;
+    const sourceUrl = audio.currentSrc || audio.src || "";
+    // Never reroute a remote media element unless its source was explicitly loaded with CORS.
+    // This preserves existing Audiovisual playback when the media host has no CORS header.
+    if (!sourceUrl.startsWith("blob:") && audio.crossOrigin !== "anonymous") return;
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const attach = () => {
