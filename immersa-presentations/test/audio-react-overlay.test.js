@@ -145,7 +145,7 @@ test("Three.js modes retain the supplied shaders and share the audio analyser sa
   assert.match(script, /const boxGeo = new THREE\.BoxGeometry/);
   assert.match(script, /const sphGeo = new THREE\.SphereGeometry/);
   assert.match(script, /particleSystems\.sphere\.ampScale = 0\.45/);
-  assert.match(script, /function curl\(float x,float y,float z\)/);
+  assert.match(script, /vec3 curl\(float x,float y,float z\)/);
   assert.match(script, /particleSystems\.box = makeSystem\(boxGeo/);
   assert.match(script, /particleSystems\.sphere = makeSystem\(sphGeo/);
   assert.match(script, /threeRenderer\.setClearColor\(0x05060a, 0\)/);
