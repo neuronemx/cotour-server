@@ -12,6 +12,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const overlay = read("public/screen/audio-react-overlay.js");
   const html = read("public/screen/index.html");
   const css = read("public/screen/screen.css");
+  const presenterHtml = read("public/presenter/index.html");
 
   assert.match(html, /\/screen\/audio-react-overlay\.js\?v=4/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
@@ -31,6 +32,10 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /initCloud\(\); initBlobs\(\);/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*z-index:2/);
   assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
+  assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
+  assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
+  assert.match(presenterHtml, /presenter\.css\?v=75/);
+  assert.match(presenterHtml, /presenter\.js\?v=78/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
@@ -83,6 +88,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   const server = read("server.js");
   const presenter = read("public/presenter/presenter.js");
   const presenterCss = read("public/presenter/presenter.css");
+  const screen = read("public/screen/screen.js");
 
   assert.match(server, /function createAudioReactState\(\)/);
   assert.match(server, /audioReact: createAudioReactState\(\)/);
@@ -100,6 +106,8 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /audiovisualResources = Array\.isArray\(catalog\.resources\)/);
   assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
   assert.match(presenter, /audio-react-tab-status/);
+  assert.match(presenter, /audiovisual-panel-sticky/);
+  assert.match(presenter, /renderAudiovisualPanel\(true\); \}\);/);
   assert.match(presenter, /is-playing/);
   assert.match(presenter, /nextEnabled/);
   assert.match(presenter, /const selected = audiovisualTab === tab && \(!isReact \|\| audioReactState\.enabled\)/);
@@ -107,4 +115,11 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /data-react-choice/);
   assert.match(presenter, /audio-react-grid/);
   assert.match(presenterCss, /\.audio-react-grid\{[\s\S]*grid-template-columns:repeat\(2/);
+  assert.doesNotMatch(presenterCss, /\\n/);
+  assert.match(presenterCss, /\.audiovisual-panel-sticky\{/);
+  assert.match(presenterCss, /\.audiovisual-tab\.is-reacting img\{/);
+  assert.match(screen, /readLocalAudioDuration/);
+  assert.match(screen, /duration: mediaDetails\.duration/);
+  assert.match(server, /const duration = Math\.max\(0, Math\.min\(86400/);
+  assert.match(server, /duration,\n\s+playlist/);
 });
