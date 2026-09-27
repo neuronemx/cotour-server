@@ -43,7 +43,7 @@ let audiovisualMedia = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
 let videoPlaylistAdvanceTimer = null;
-const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
+const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), logoUrl: "", scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
 function localResourceId(relativePath, file, type) {
@@ -101,6 +101,25 @@ function localPlaylistId(folder, type) {
   for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
   return "local-playlist:" + type + ":" + (hash >>> 0).toString(36);
 }
+async function findLocalReactionLogo(handle) {
+  let selectedEntry = null;
+  let selectedPriority = Number.POSITIVE_INFINITY;
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind !== "file") continue;
+    const normalizedName = String(name).trim().toLowerCase();
+    const priority = normalizedName === "logo.svg" ? 0 : normalizedName === "logo.png" ? 1 : -1;
+    if (priority >= 0 && priority < selectedPriority) {
+      selectedEntry = entry;
+      selectedPriority = priority;
+    }
+  }
+  return selectedEntry ? selectedEntry.getFile() : null;
+}
+function setLocalReactionLogo(file) {
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = file ? URL.createObjectURL(file) : "";
+  window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
+}
 async function collectLocalFiles(handle, prefix = "") {
   const entries = [];
   for await (const [name, entry] of handle.entries()) {
@@ -120,6 +139,8 @@ async function collectLocalFiles(handle, prefix = "") {
 function clearLocalObjectUrls() {
   localLibrary.objectUrls.forEach((url) => URL.revokeObjectURL(url));
   localLibrary.objectUrls.clear();
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = "";
 }
 function resolveLocalMediaUrl(resource) {
   const file = localLibrary.files.get(String(resource?.id || ""));
@@ -137,9 +158,11 @@ async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
+    const logoFile = await findLocalReactionLogo(localLibrary.directoryHandle);
     const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
     const playlistIndexes = new Map();
     clearLocalObjectUrls(); localLibrary.files.clear();
+    setLocalReactionLogo(logoFile);
     const resources = [];
     for (const entry of files) {
       const id = localResourceId(entry.relativePath, entry.file, entry.type);
@@ -240,6 +263,7 @@ function ensureAudiovisualLayer() {
   try {
     window.ImmersaAudioReact?.init({ root: screenRoot });
     window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
+    window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
   } catch (error) {
     console.warn("Audio React could not initialize; media playback continues.", error);
   }
