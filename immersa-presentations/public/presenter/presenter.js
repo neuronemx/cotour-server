@@ -344,7 +344,7 @@ function audiovisualTabIcon(type) {
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.1a4.2 4.2 0 1 1-2-3.55V5.2l10-2.1v9.5a4.2 4.2 0 1 1-2-3.55V5.4z"/></svg>';
 }
 const audioReactNames = ["Líneas", "Barras", "Onda circular", "Nube", "Malla", "Arena", "Partículas", "Caleidoscopio", "Blobs", "Logo", "Caja 3D", "Esfera 3D"];
-const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio-react/react" + String(index + 1).padStart(2, "0") + (index >= 10 ? ".svg" : ".jpg"));
+const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio-react/react" + String(index + 1).padStart(2, "0") + (index >= 10 ? ".svg?rev=2" : ".jpg"));
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
