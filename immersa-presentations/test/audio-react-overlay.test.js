@@ -18,6 +18,10 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.match(screen, /media\.removeAttribute\("crossorigin"\)/);
+  assert.match(html, /\/screen\/screen\.js\?v=20/);
+  assert.match(screen, /function findLocalReactionLogo\(handle\)/);
+  assert.match(screen, /normalizedName === "logo\.svg" \? 0 : normalizedName === "logo\.png" \? 1/);
+  assert.match(screen, /setLocalLogo\(localLibrary\.logoUrl \|\| ""\)/);
   assert.doesNotThrow(() => new vm.Script(overlay));
   assert.match(overlay, /context\.createMediaElementSource\(audioEl\)/);
   assert.match(overlay, /audioEl\.readyState < 2/);
