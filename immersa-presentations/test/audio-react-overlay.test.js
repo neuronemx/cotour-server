@@ -14,7 +14,9 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const css = read("public/screen/screen.css");
   const presenterHtml = read("public/presenter/index.html");
 
-  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=4/);
+  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=5/);
+  assert.match(html, /\/screen\/audio-react-three\.js\?v=1/);
+  assert.match(html, /\/screen\/screen\.css\?v=22/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.match(screen, /media\.removeAttribute\("crossorigin"\)/);
@@ -39,7 +41,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
   assert.match(presenterHtml, /presenter\.css\?v=75/);
-  assert.match(presenterHtml, /presenter\.js\?v=78/);
+  assert.match(presenterHtml, /presenter\.js\?v=79/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
@@ -126,4 +128,68 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(screen, /duration: mediaDetails\.duration/);
   assert.match(server, /const duration = Math\.max\(0, Math\.min\(86400/);
   assert.match(server, /duration,\n\s+playlist/);
+  assert.match(server, /\(Number\(previous\.reaction \|\| 0\) \+ 1\) % 12/);
+  assert.match(server, /Math\.min\(11, Number\.isFinite/);
+  assert.match(presenter, /"Logo", "Caja 3D", "Esfera 3D"/);
+  assert.match(presenter, /index >= 10 \? "\.svg" : "\.jpg"/);
+  assert.match(presenter, /Math\.min\(11, Number\(next\.reaction\) \|\| 0\)/);
+  assert.match(presenterCss, /\.audio-react-grid\{/);
+});
+
+test("Three.js modes retain the supplied shaders and share the audio analyser safely", () => {
+  const script = read("public/screen/audio-react-three.js");
+  const overlay = read("public/screen/audio-react-overlay.js");
+  const css = read("public/screen/screen.css");
+  assert.doesNotThrow(() => new vm.Script(script));
+  assert.match(script, /function drawParticleSystem\(id\)/);
+  assert.match(script, /const boxGeo = new THREE\.BoxGeometry/);
+  assert.match(script, /const sphGeo = new THREE\.SphereGeometry/);
+  assert.match(script, /particleSystems\.sphere\.ampScale = 0\.45/);
+  assert.match(script, /function curl\(float x,float y,float z\)/);
+  assert.match(script, /particleSystems\.box = makeSystem\(boxGeo/);
+  assert.match(script, /particleSystems\.sphere = makeSystem\(sphGeo/);
+  assert.match(script, /threeRenderer\.setClearColor\(0x05060a, 0\)/);
+  assert.doesNotMatch(script, /createMediaElementSource/);
+  assert.match(script, /loadDependency\("THREE", THREE_URL\)/);
+  assert.match(script, /loadDependency\("gsap", GSAP_URL\)/);
+  assert.match(script, /threeRenderer\.forceContextLoss\(\)/);
+  assert.match(overlay, /const REACTION_COUNT = 12/);
+  assert.match(overlay, /reaction === 10 \? "box" : "sphere"/);
+  assert.match(overlay, /ImmersaAudioReactThree\?\.stop\(\)/);
+  assert.match(css, /\.audio-react-three-canvas\{[^}]*pointer-events:none/);
+  assert.match(css, /\.audio-react-logo\{max-width:min\(40\.8vw,504px\);max-height:min\(40\.8vh,504px\)\}/);
+});
+
+test("Three.js modes render box and sphere, then release GPU resources without touching audio", () => {
+  const script = read("public/screen/audio-react-three.js");
+  const calls = { render:0, disposed:0, contextLost:0, elements:[] };
+  class Geometry { dispose(){ calls.disposed++; } }
+  class ShaderMaterial { constructor(options){ this.uniforms=options.uniforms; } dispose(){ calls.disposed++; } }
+  class Object3D { constructor(){ this.position={z:0}; this.rotation={x:0,y:0,z:0}; } add(){} }
+  class Renderer {
+    setClearColor(_color, alpha){ assert.equal(alpha, 0); }
+    setSize(){}
+    render(){ calls.render++; }
+    dispose(){ calls.disposed++; }
+    forceContextLoss(){ calls.contextLost++; }
+  }
+  const THREE = {
+    Scene: class { add(){} }, PerspectiveCamera: class { constructor(){ this.position={z:0}; } updateProjectionMatrix(){} },
+    WebGLRenderer: Renderer, ShaderMaterial, Object3D, Points: class { constructor(geo,mat){ this.geometry=geo; this.material=mat; } },
+    BoxGeometry: Geometry, SphereGeometry: Geometry, Color: class {},
+    MathUtils:{ randInt(min,max){ return (min+max)/2; } }
+  };
+  const gsap = { to(){ return {}; }, fromTo(){}, killTweensOf(){} };
+  const root = { clientWidth:640, clientHeight:360, appendChild(){} };
+  const window = { THREE, gsap };
+  const document = { createElement(tag){ calls.elements.push(tag); return { className:"", setAttribute(){}, remove(){} }; } };
+  vm.runInNewContext(script, { window, document, THREE, gsap, innerWidth:640, innerHeight:360, Math, console });
+  const bins = new Uint8Array(256).fill(150);
+  window.ImmersaAudioReactThree.draw(root, "box", bins);
+  window.ImmersaAudioReactThree.draw(root, "sphere", bins);
+  assert.equal(calls.render, 2);
+  assert.deepEqual(calls.elements, ["canvas"]);
+  window.ImmersaAudioReactThree.stop();
+  assert.equal(calls.contextLost, 1);
+  assert.ok(calls.disposed >= 5);
 });
