@@ -159,7 +159,7 @@
     particleSystems.sphere.material.uniforms.maxDistance.value = 0.6;
     particleSystems.sphere.ampScale = 0.45;
 
-    particleSystems.box.targetZ = THREE.MathUtils.randInt(9,11);
+    particleSystems.box.targetZ = THREE.MathUtils.randInt(10,11);
     particleSystems.sphere.targetZ = THREE.MathUtils.randInt(8.5,9.5);
     Object.values(particleSystems).forEach(sys=>{
       sys.holder.position.z = sys.targetZ;
