@@ -13,15 +13,15 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const html = read("public/screen/index.html");
   const css = read("public/screen/screen.css");
 
-  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=3/);
+  assert.match(html, /\/screen\/audio-react-overlay\.js\?v=4/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
-  assert.match(screen, /<audio preload="auto"><\/audio>/);
-  assert.doesNotMatch(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
+  assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
+  assert.match(screen, /media\.removeAttribute\("crossorigin"\)/);
   assert.doesNotThrow(() => new vm.Script(overlay));
-  assert.match(overlay, /function getAnalyserInput\(\)/);
-  assert.match(overlay, /analyserEl\.crossOrigin = "anonymous"/);
-  assert.match(overlay, /sourceUrl\.startsWith\("blob:"\)/);
-  assert.match(overlay, /if \(input === audioEl\) srcNode\.connect\(context\.destination\)/);
+  assert.match(overlay, /context\.createMediaElementSource\(audioEl\)/);
+  assert.match(overlay, /audioEl\.readyState < 2/);
+  assert.match(overlay, /nextAnalyser\.connect\(context\.destination\)/);
+  assert.doesNotMatch(overlay, /analyserEl/);
   assert.match(overlay, /FALLBACK_LOGO/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*pointer-events:none/);
   assert.doesNotMatch(css, /mix-blend-mode:screen/);
@@ -31,6 +31,52 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(overlay, /initCloud\(\); initBlobs\(\);/);
   assert.match(css, /\.audio-react-overlay\{[\s\S]*z-index:2/);
   assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
+});
+
+test("Audio React connects the real media to the analyser and speaker", () => {
+  const overlay = read("public/screen/audio-react-overlay.js");
+  const connections = [];
+  const elements = [];
+  const media = { src: "https://media.immersalive.com/audio/Champions.mp3", crossOrigin: "anonymous", readyState: 4, addEventListener() {} };
+  const classList = { add() {}, remove() {}, toggle() {} };
+  const context2d = { setTransform() {}, clearRect() {} };
+  const document = {
+    createElement(tag) {
+      elements.push(tag);
+      if (tag === "canvas") return { style: {}, classList, getContext: () => context2d, setAttribute() {} };
+      return { style: {}, classList, setAttribute() {} };
+    },
+    addEventListener() {}
+  };
+  class FakeAudioContext {
+    constructor() { this.state = "running"; this.destination = {}; }
+    resume() { return Promise.resolve(); }
+    createMediaElementSource(element) {
+      assert.equal(element, media);
+      connections.push("source");
+      return { connect: () => connections.push("analyser") };
+    }
+    createAnalyser() {
+      return { frequencyBinCount: 256, connect: (destination) => {
+        assert.equal(destination, this.destination);
+        connections.push("speaker");
+      } };
+    }
+  }
+  const window = { AudioContext: FakeAudioContext, addEventListener() {} };
+  vm.runInNewContext(overlay, {
+    window, document, innerWidth: 100, innerHeight: 100, devicePixelRatio: 1,
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+    performance: { now: () => 0 }, console
+  });
+  window.ImmersaAudioReact.init({ root: { clientWidth: 100, clientHeight: 100, appendChild() {} } });
+  window.ImmersaAudioReact.setAudioElement(media);
+  assert.deepEqual(connections, []);
+  window.ImmersaAudioReact.setState({ enabled: true });
+  assert.deepEqual(connections, ["source", "analyser", "speaker"]);
+  assert.equal(elements.includes("audio"), false);
+  window.ImmersaAudioReact.setState({ enabled: false });
+  assert.deepEqual(connections, ["source", "analyser", "speaker"]);
 });
 
 test("Audio React state is independently synchronized and controlled", () => {
