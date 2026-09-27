@@ -343,8 +343,8 @@ function audiovisualTabIcon(type) {
   if (type === "video") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5v15L19 12z"/></svg>';
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.1a4.2 4.2 0 1 1-2-3.55V5.2l10-2.1v9.5a4.2 4.2 0 1 1-2-3.55V5.4z"/></svg>';
 }
-const audioReactNames = ["Líneas", "Barras", "Onda circular", "Nube", "Malla", "Arena", "Partículas", "Caleidoscopio", "Blobs", "Logo"];
-const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio-react/react" + String(index + 1).padStart(2, "0") + ".jpg");
+const audioReactNames = ["Líneas", "Barras", "Onda circular", "Nube", "Malla", "Arena", "Partículas", "Caleidoscopio", "Blobs", "Logo", "Caja 3D", "Esfera 3D"];
+const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio-react/react" + String(index + 1).padStart(2, "0") + (index >= 10 ? ".svg" : ".jpg"));
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
@@ -357,7 +357,7 @@ function renderAudiovisualPanel(force = false) {
   const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; const live = !isReact && ["playing", "fading"].includes(audiovisualChannel(tab).status); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
-    const selected = Math.max(0, Math.min(9, Number(audioReactState.reaction) || 0));
+    const selected = Math.max(0, Math.min(11, Number(audioReactState.reaction) || 0));
     body = '<section class="audio-react-control"><div class="audio-react-picker"><p>Elige una reacción</p><div class="audio-react-grid" role="listbox" aria-label="Reacciones">' + audioReactNames.map((name, index) => '<button class="audio-react-choice ' + (index === selected ? "is-selected" : "") + '" data-react-choice="' + index + '" role="option" aria-selected="' + String(index === selected) + '"><img src="' + audioReactThumbnails[index] + '" alt=""><span><b>' + (index + 1) + '</b>' + name + '</span></button>').join("") + '</div></div></section>';
   } else {
     const runningBlock = running.length ? '<section class="audiovisual-group audiovisual-running"><h3>Medio corriendo</h3><div class="audiovisual-resource-list">' + audiovisualCards(running, "", { suppressActive: false }) + '</div></section>' : "";
@@ -854,7 +854,7 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(9, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
+socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
 socket.on("time:state", applyImmersaTime);
 socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; warmAudiovisualDurations(localAudiovisualResources); renderAudiovisualPanel(); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
