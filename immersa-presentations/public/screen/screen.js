@@ -197,16 +197,35 @@ function ensureAudiovisualLayer() {
   if (audiovisualLayer) return;
   audiovisualLayer = document.createElement("div");
   audiovisualLayer.className = "audiovisual-screen-layer";
-  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto"></audio>';
+  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto" crossorigin="anonymous"></audio>';
   audiovisualMedia = {
     video: Array.from(audiovisualLayer.querySelectorAll("video")),
     audio: audiovisualLayer.querySelector("audio")
   };
   audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
   bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
+  audiovisualMedia.audio.addEventListener("error", () => {
+    const media = audiovisualMedia.audio;
+    const resource = audiovisualState.audio?.resource;
+    const id = String(resource?.id || "");
+    if (!id || media.dataset.resourceId !== id || resource?.source === "local" || media.crossOrigin !== "anonymous" || media.dataset.corsFallback === id) return;
+    // CORS errors must not prevent a remote MP3 from playing normally.
+    media.dataset.corsFallback = id;
+    media.removeAttribute("crossorigin");
+    const url = resolveAudiovisualMediaUrl(resource);
+    if (url) {
+      media.src = url;
+      media.load();
+      if (audiovisualState.audio.status === "playing") media.play().catch(() => {});
+    }
+  });
   screenRoot.appendChild(audiovisualLayer);
-  window.ImmersaAudioReact?.init({ root: screenRoot });
-  window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
+  try {
+    window.ImmersaAudioReact?.init({ root: screenRoot });
+    window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
+  } catch (error) {
+    console.warn("Audio React could not initialize; media playback continues.", error);
+  }
 }
 function stopVideoSlots() {
   videoTransitionToken += 1;
@@ -291,7 +310,11 @@ function applyAudioState(state) {
   if (media.dataset.resourceId !== String(resource.id)) {
     const mediaUrl = resolveAudiovisualMediaUrl(resource);
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
-    media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0;
+    media.dataset.resourceId = String(resource.id);
+    delete media.dataset.corsFallback;
+    media.crossOrigin = "anonymous";
+    media.src = mediaUrl;
+    media.currentTime = 0;
   }
   media.loop = Boolean(state.loop && !resource?.playlist);
   if (state.status === "fading") {
@@ -487,7 +510,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next) => window.ImmersaAudioReact?.setState(next || {}));
+socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
