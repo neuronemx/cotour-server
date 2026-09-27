@@ -366,7 +366,7 @@ function renderAudiovisualPanel(force = false) {
     const remoteBlock = remote.length ? '<section class="audiovisual-group"><h3>Medios Immersa</h3><div class="audiovisual-resource-list">' + audiovisualCards(remote, "", { suppressActive: true }) + '</div></section>' : '<p class="audiovisual-empty">No hay medios ' + (type === "audio" ? "de audio" : "de video") + ' seleccionados en Librería.</p>';
     body = runningBlock + playlistsBlock + localBlock + remoteBlock;
   }
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-head"><h2>Audiovisual</h2><button data-av-close aria-label="Cerrar Audiovisual">×</button></div><nav class="audiovisual-tabs" aria-label="Audiovisual">' + tabs + '</nav><div class="audiovisual-panel-content">' + body + '</div>';
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual">' + tabs + '</nav></div><div class="audiovisual-panel-content">' + body + '</div>';
   warmAudiovisualDurations([...audiovisualResources, ...localAudiovisualResources]);
   syncAudiovisualDurationTick();
   audiovisualPanel.querySelectorAll("[data-av-tab]").forEach((button) => button.addEventListener("click", () => {
@@ -854,7 +854,7 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(9, Number(next.reaction) || 0)) }; if (audiovisualTab === "react") renderAudiovisualPanel(true); });
+socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(9, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
 socket.on("time:state", applyImmersaTime);
 socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; warmAudiovisualDurations(localAudiovisualResources); renderAudiovisualPanel(); });
 socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
