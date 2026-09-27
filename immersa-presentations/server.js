@@ -830,6 +830,7 @@ function normalizeLocalAudiovisualResources(payload = {}) {
     const id = String(item?.id || "");
     const name = String(item?.name || "").trim().slice(0, 120);
     const thumbnailUrl = String(item?.thumbnail_url || "");
+    const duration = Math.max(0, Math.min(86400, Number(item?.duration) || 0));
     const playlistId = String(item?.playlist?.id || "");
     const playlistName = String(item?.playlist?.name || "").trim().slice(0, 120);
     const playlistOrder = Math.max(0, Math.min(999, Number(item?.playlist?.order) || 0));
@@ -843,6 +844,7 @@ function normalizeLocalAudiovisualResources(payload = {}) {
       name,
       source: "local",
       thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : "",
+      duration,
       playlist
     };
   }).filter(Boolean);
