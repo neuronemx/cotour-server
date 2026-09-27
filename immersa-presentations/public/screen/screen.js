@@ -73,12 +73,26 @@ async function makeLocalVideoThumbnail(file) {
     const drawWidth = (video.videoWidth || width) * scale, drawHeight = (video.videoHeight || height) * scale;
     context.fillStyle = "#111827"; context.fillRect(0, 0, width, height);
     context.drawImage(video, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
-    return canvas.toDataURL("image/webp", 0.72);
+    return { thumbnail: canvas.toDataURL("image/webp", 0.72), duration: Number.isFinite(video.duration) ? video.duration : 0 };
   } catch (error) {
     console.warn("Unable to generate local video thumbnail", file.name, error);
-    return "";
+    return { thumbnail: "", duration: 0 };
   } finally {
     video.removeAttribute("src"); video.load(); URL.revokeObjectURL(source);
+  }
+}
+async function readLocalAudioDuration(file) {
+  const source = URL.createObjectURL(file);
+  const audio = document.createElement("audio");
+  audio.preload = "metadata";
+  try {
+    await new Promise((resolve, reject) => { audio.onloadedmetadata = resolve; audio.onerror = () => reject(new Error("No se pudo leer el audio")); audio.src = source; });
+    return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+  } catch (error) {
+    console.warn("Unable to read local audio duration", file.name, error);
+    return 0;
+  } finally {
+    audio.removeAttribute("src"); audio.load(); URL.revokeObjectURL(source);
   }
 }
 function localPlaylistId(folder, type) {
@@ -138,7 +152,10 @@ async function scanAndPublishLocalLibrary() {
         order: playlistIndex
       } : null;
       localLibrary.files.set(id, entry.file);
-      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: entry.type === "video" ? await makeLocalVideoThumbnail(entry.file) : "", playlist });
+      const mediaDetails = entry.type === "video"
+        ? await makeLocalVideoThumbnail(entry.file)
+        : { thumbnail: "", duration: await readLocalAudioDuration(entry.file) };
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: mediaDetails.thumbnail, duration: mediaDetails.duration, playlist });
     }
     localLibrary.resources = resources;
     socket.emit("local-library:publish", { resources });
