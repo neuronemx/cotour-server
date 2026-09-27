@@ -159,8 +159,8 @@
     particleSystems.sphere.material.uniforms.maxDistance.value = 0.6;
     particleSystems.sphere.ampScale = 0.45;
 
-    particleSystems.box.targetZ = THREE.MathUtils.randInt(10,11);
-    particleSystems.sphere.targetZ = THREE.MathUtils.randInt(8.5,9.5);
+    particleSystems.box.targetZ = 10.25; // mitad entre la profundidad original y el acercamiento anterior
+    particleSystems.sphere.targetZ = THREE.MathUtils.randInt(9,10);
     Object.values(particleSystems).forEach(sys=>{
       sys.holder.position.z = sys.targetZ;
       gsap.to(sys.holder.rotation, {duration:8, y:'+='+(Math.PI*2), ease:'none', repeat:-1});
