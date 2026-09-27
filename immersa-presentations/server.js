@@ -2277,8 +2277,8 @@ io.on("connection", (socket) => {
     const previous = session.audioReact || createAudioReactState();
     const action = String(payload.action || "");
     const nextReaction = action === "next"
-      ? (Number(previous.reaction || 0) + 1) % 10
-      : Math.max(0, Math.min(9, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
+      ? (Number(previous.reaction || 0) + 1) % 12
+      : Math.max(0, Math.min(11, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
     session.audioReact = {
       enabled: typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true,
       reaction: nextReaction,
