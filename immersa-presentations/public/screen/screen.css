@@ -170,3 +170,8 @@
   transform:translate(-50%,-50%) scale(.9);
   transform-origin:50% 50%;
 }
+
+/* The original three.js particle scenes render over Slide/Video, below live text. */
+.audio-react-three-canvas{position:absolute;inset:0;z-index:2;width:100%;height:100%;display:block;pointer-events:none;contain:layout paint}
+/* Increase Reaction 10's natural on-screen dimensions by 20%, retaining its center. */
+.audio-react-logo{max-width:min(40.8vw,504px);max-height:min(40.8vh,504px)}
