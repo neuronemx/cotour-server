@@ -583,6 +583,8 @@
   grid-template-columns: 22px minmax(0, 1fr) 34px;
   align-items: center;
 }
+.knowledge-option-editor.is-bilingual > .interaction-en-extra { grid-column: 2; grid-row: 2; }
+.knowledge-option-editor.is-bilingual > button { grid-column: 3; grid-row: 1; }
 
 .knowledge-option-editor input[type="radio"] {
   width: 18px;
