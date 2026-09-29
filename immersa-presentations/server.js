@@ -4,7 +4,7 @@ const express = require("express");
 const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
-const { createUploadHandler, createDeckReplacementHandler } = require("./pdf-upload-support");
+const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -1051,6 +1051,19 @@ app.post("/api/billing/webhooks/stripe", express.raw({ type: "application/json",
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
+app.use("/decks/:deckId/locales/en", async (req, res, next) => {
+  const deckId = String(req.params.deckId || "");
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(deckId)) return res.sendStatus(404);
+  try {
+    const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    if (!canUseFeature(access, CAPABILITIES.MULTILANGUAGE_MANAGE)) return res.sendStatus(404);
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(DATA_DECKS_DIR, deckId, "manifest.json"), "utf8"));
+    if (manifest.locales?.en?.active !== true) return res.sendStatus(404);
+    return next();
+  } catch (_error) {
+    return res.sendStatus(404);
+  }
+});
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
@@ -1822,6 +1835,24 @@ app.post(
     }
   })
 );
+app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantUploadHandler({
+    onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck)
+  }));
+app.get("/api/decks/:deckId/locales", ...requireDeckAccount,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE), async (req, res) => {
+    try {
+      const manifest = JSON.parse(await fs.promises.readFile(path.join(await findDeckDir(req.params.deckId), "manifest.json"), "utf8"));
+      res.json({ baseLocale: "es", en: manifest.locales?.en || null });
+    } catch (_error) { res.status(404).json({ error: "Deck no encontrado" }); }
+  });
+app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("toggle", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
+app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("delete", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
 app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
   try {
     res.json(await markDeckAssociationsReviewed(req.params.deckId));
