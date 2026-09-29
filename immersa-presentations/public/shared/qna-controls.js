@@ -1,11 +1,13 @@
 (function installImmersaQnaControls(global) {
   const REJECTION_MESSAGES = {
-    QNA_ALREADY_PROJECTED: "Una pregunta respondida ya no se puede eliminar.",
-    QNA_QUESTION_NOT_FOUND: "La pregunta ya no está disponible.",
-    QNA_SESSION_NOT_READY: "La sesión de preguntas todavía no está lista.",
-    QNA_FORBIDDEN: "Este rol no puede realizar esa acción.",
-    QNA_UNAVAILABLE: "Preguntas no está disponible por el momento."
+    QNA_ALREADY_PROJECTED: "qna.alreadyProjected",
+    QNA_QUESTION_NOT_FOUND: "qna.notFound",
+    QNA_SESSION_NOT_READY: "qna.sessionNotReady",
+    QNA_FORBIDDEN: "qna.forbidden",
+    QNA_UNAVAILABLE: "qna.unavailable"
   };
+
+  function tr(key, fallback) { return global.ImmersaI18n?.t(key) || fallback; }
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -26,8 +28,8 @@
     button.hidden = true;
     button.setAttribute("aria-haspopup", "dialog");
     button.setAttribute("aria-expanded", "false");
-    button.setAttribute("aria-label", "Preguntas");
-    button.title = "Preguntas";
+    button.setAttribute("aria-label", tr('qna.title', 'Preguntas'));
+    button.title = tr('qna.title', 'Preguntas');
     if (compact) button.classList.add("control-button", "muted-button", "fx-btn", "is-compact");
     else button.classList.add("toolbar-button");
 
@@ -35,7 +37,7 @@
     icon.src = "/shared/qna-question-icon.svg";
     icon.alt = "";
     icon.setAttribute("aria-hidden", "true");
-    const buttonLabel = element("span", "qna-control-label", "Preguntas");
+    const buttonLabel = element("span", "qna-control-label", tr('qna.title', 'Preguntas'));
     const badge = element("span", "qna-control-badge", "0");
     badge.hidden = true;
     button.append(icon, buttonLabel, badge);
@@ -49,21 +51,22 @@
       <section class="qna-control-card" role="dialog" aria-modal="true" aria-labelledby="qnaControlTitle">
         <header class="qna-control-head">
           <div>
-            <span class="qna-control-eyebrow">Ronda <strong data-qna-round>1</strong></span>
-            <h2 id="qnaControlTitle">Preguntas</h2>
+            <span class="qna-control-eyebrow"><span data-i18n="qna.round">Ronda</span> <strong data-qna-round>1</strong></span>
+            <h2 id="qnaControlTitle" data-i18n="qna.title">Preguntas</h2>
           </div>
-          <button class="qna-control-close" type="button" data-qna-close aria-label="Cerrar preguntas">×</button>
+          <button class="qna-control-close" type="button" data-qna-close data-i18n-label="qna.close" aria-label="Cerrar preguntas">×</button>
         </header>
         <div class="qna-control-toolbar">
           <div class="qna-control-secondary-actions">
             <button class="qna-open-button" type="button" data-qna-open aria-pressed="false">Abrir preguntas</button>
-            <button class="qna-new-round" type="button" data-qna-new-round>Nueva ronda</button>
+            <button class="qna-new-round" type="button" data-qna-new-round data-i18n="qna.newRound">Nueva ronda</button>
           </div>
         </div>
         <p class="qna-control-status" data-qna-status aria-live="polite"></p>
         <div class="qna-question-list" data-qna-list></div>
       </section>`;
     (modalMount || document.body).appendChild(modal);
+    global.ImmersaI18n?.apply(modal);
 
     const round = modal.querySelector("[data-qna-round]");
     const openToggle = modal.querySelector("[data-qna-open]");
@@ -73,7 +76,7 @@
     const newRoundButton = modal.querySelector("[data-qna-new-round]");
 
     function emit(event, payload = {}) {
-      status.textContent = "Actualizando…";
+      status.textContent = tr('qna.updating', 'Actualizando…');
       socket.emit(event, payload);
     }
 
@@ -98,7 +101,7 @@
 
     function syncOpenButton() {
       const questionsOpen = Boolean(state?.questionsOpen);
-      openToggle.textContent = questionsOpen ? "Cerrar preguntas" : "Abrir preguntas";
+      openToggle.textContent = questionsOpen ? tr('qna.close', 'Cerrar preguntas') : tr('qna.open', 'Abrir preguntas');
       openToggle.setAttribute("aria-pressed", String(questionsOpen));
       openToggle.classList.toggle("is-active", questionsOpen);
     }
@@ -111,22 +114,22 @@
       card.dataset.questionId = question.id;
 
       const meta = element("div", "qna-question-meta");
-      meta.appendChild(element("span", question.answered ? "is-answered" : "is-pending", question.answered ? "Proyectada" : "Nueva"));
-      if (selected) meta.appendChild(element("span", "is-selected", "Seleccionada"));
+      meta.appendChild(element("span", question.answered ? "is-answered" : "is-pending", question.answered ? tr('qna.projected', 'Proyectada') : tr('qna.new', 'Nueva')));
+      if (selected) meta.appendChild(element("span", "is-selected", tr('qna.selected', 'Seleccionada')));
 
       const questionText = element("p", "qna-question-text", question.text);
       const name = element("p", "qna-question-name");
       if (question.name) {
         name.textContent = question.name;
-        if (!question.allowNameOnScreen) name.appendChild(element("small", "", " · oculto en Pantalla"));
+        if (!question.allowNameOnScreen) name.appendChild(element("small", "", tr('qna.hidden', ' · oculto en Pantalla')));
       } else {
-        name.textContent = "Anónima";
+        name.textContent = tr('qna.anonymous', 'Anónima');
       }
 
       const actions = element("div", "qna-question-actions");
-      if (!selected) actions.appendChild(actionButton("Seleccionar", "select", question));
-      if (selected) actions.appendChild(actionButton("Proyectar", "project", question, "is-primary"));
-      if (!question.answered) actions.appendChild(actionButton("Eliminar", "delete", question, "is-danger"));
+      if (!selected) actions.appendChild(actionButton(tr('qna.select', 'Seleccionar'), "select", question));
+      if (selected) actions.appendChild(actionButton(tr('qna.project', 'Proyectar'), "project", question, "is-primary"));
+      if (!question.answered) actions.appendChild(actionButton(tr('qna.delete', 'Eliminar'), "delete", question, "is-danger"));
       card.append(meta, questionText, name, actions);
       return card;
     }
@@ -143,8 +146,8 @@
       if (!state.questions.length) {
         const empty = element("div", "qna-question-empty");
         empty.append(
-          element("strong", "", "Aún no hay preguntas"),
-          element("span", "", state.questionsOpen ? "Esperando al público." : "Activa “Abrir preguntas” para comenzar.")
+          element("strong", "", tr('qna.empty', 'Aún no hay preguntas')),
+          element("span", "", state.questionsOpen ? tr('qna.waiting', 'Esperando al público.') : tr('qna.openHint', 'Activa “Abrir preguntas” para comenzar.'))
         );
         list.appendChild(empty);
       } else {
@@ -162,15 +165,15 @@
       button.setAttribute("aria-expanded", "true");
       if (!state) {
         round.textContent = "—";
-        openToggle.textContent = "Abrir preguntas";
+        openToggle.textContent = tr('qna.open', 'Abrir preguntas');
         openToggle.setAttribute("aria-pressed", "false");
         openToggle.classList.remove("is-active");
         openToggle.disabled = true;
         newRoundButton.disabled = true;
-        status.textContent = "Preparando preguntas…";
+        status.textContent = tr('qna.preparing', 'Preparando preguntas…');
         list.replaceChildren();
         const pending = element("div", "qna-question-empty");
-        pending.append(element("strong", "", "Preparando Q&A"), element("span", "", "Espera un momento."));
+        pending.append(element("strong", "", tr('qna.preparingTitle', 'Preparando Q&A')), element("span", "", tr('qna.wait', 'Espera un momento.')));
         list.appendChild(pending);
       }
       updateButton();
@@ -198,12 +201,12 @@
       if (actionNode.dataset.qnaAction === "select") emit("qna:select", { questionId });
       if (actionNode.dataset.qnaAction === "project") emit("qna:project", { questionId });
       if (actionNode.dataset.qnaAction === "delete") {
-        if (global.confirm("¿Eliminar esta pregunta definitivamente?")) emit("qna:delete", { questionId });
+        if (global.confirm(tr('qna.deleteConfirm', '¿Eliminar esta pregunta definitivamente?'))) emit("qna:delete", { questionId });
       }
     });
     openToggle.addEventListener("click", () => emit("qna:set_open", { open: !Boolean(state?.questionsOpen) }));
     newRoundButton.addEventListener("click", () => {
-      if (global.confirm("¿Comenzar una nueva ronda? La ronda actual quedará archivada.")) emit("qna:new_round");
+      if (global.confirm(tr('qna.newRoundConfirm', '¿Comenzar una nueva ronda? La ronda actual quedará archivada.'))) emit("qna:new_round");
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && open) hide();
@@ -212,10 +215,17 @@
     socket.on("qna:state", render);
     socket.on("qna:rejected", ({ event, reason } = {}) => {
       if (!String(event || "").startsWith("qna:")) return;
-      status.textContent = REJECTION_MESSAGES[reason] || "No fue posible completar la acción.";
+      status.textContent = tr(REJECTION_MESSAGES[reason] || 'qna.error', 'No fue posible completar la acción.');
       if (state) syncOpenButton();
     });
 
+    global.addEventListener?.('immersa:locale-change', () => {
+      button.setAttribute('aria-label', tr('qna.title', 'Preguntas'));
+      button.title = tr('qna.title', 'Preguntas');
+      buttonLabel.textContent = tr('qna.title', 'Preguntas');
+      if (state) render(state);
+      else syncOpenButton();
+    });
     return { open: show, close: hide, render, button, modal };
   }
 
