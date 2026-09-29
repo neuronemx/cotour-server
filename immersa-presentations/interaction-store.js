@@ -40,12 +40,15 @@ class InteractionStore {
           .map((option) => ({ id: String(option.id), label: String(option.label) }))
       : [];
     if (!options.length) return null;
+    const en = interaction.en && typeof interaction.en === "object" ? interaction.en : {};
+    const enOptions = en.options && typeof en.options === "object" ? en.options : {};
     return {
       id: String(interaction.id),
       type: String(interaction.type),
       title: String(interaction.title || interaction.prompt || "Interacción"),
       prompt: String(interaction.prompt || interaction.title || "Elige una opción"),
       options,
+      en: { prompt: String(en.prompt || "").trim(), options: Object.fromEntries(options.map((option) => [option.id, String(enOptions[option.id] || "").trim()]).filter(([, label]) => label)) },
       allowMultiple: Boolean(interaction.allowMultiple),
       source: interaction.source ? String(interaction.source) : "deck"
     };
@@ -190,6 +193,7 @@ class InteractionStore {
         title: active.title,
         prompt: active.prompt,
         options: active.options,
+        en: active.en,
         launchedAt: active.launchedAt,
         source: active.source
       },
