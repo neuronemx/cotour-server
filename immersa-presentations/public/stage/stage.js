@@ -376,6 +376,7 @@ function render(state) {
   const nextLocale = state.operationalLocale === 'en' && englishManifest ? 'en' : 'es';
   if (nextLocale !== operationalLocale) {
     operationalLocale = nextLocale;
+    window.ImmersaI18n?.setLocale(operationalLocale);
     manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
     renderStageThumbs();
   }
@@ -385,7 +386,7 @@ function render(state) {
     const paused = Boolean(state.transmissionPaused);
     stageTransmissionToggle.innerHTML = paused ? playIcon : pauseIcon;
     stageTransmissionToggle.classList.toggle("is-paused", paused);
-    stageTransmissionToggle.title = paused ? "Reanudar transmisión" : "Pausar transmisión";
+    stageTransmissionToggle.title = window.ImmersaI18n?.t(paused ? 'live.resume' : 'live.pause') || (paused ? 'Reanudar transmisión' : 'Pausar transmisión');
     stageTransmissionToggle.setAttribute("aria-label", stageTransmissionToggle.title);
   }
 
