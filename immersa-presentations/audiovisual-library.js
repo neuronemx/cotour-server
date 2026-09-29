@@ -3,18 +3,6 @@ const base = 'https://media.immersalive.com';
 const mediaRevision = '20260929-1';
 const file = (folder, name) => base + '/' + folder + '/' + encodeURIComponent(name) + '?v=' + mediaRevision;
 const raw = [
-  ['amc','video','AMC.mp4'],
-  ['ia','video','IA.mp4'],
-  ['nanana','video','NANANA.mp4'],
-  ['one','video','ONE.mp4'],
-  ['sea-palms','video','SEA_PALMS.mp4'],
-  ['evento-1','video','Evento_1.mp4'],
-  ['loop-1','video','Loop1.mp4'],
-  ['loop-2','video','Loop2.mp4'],
-  ['mexico','video','MEXICO.mp4'],
-  ['night-city-skyline','video','Night_City_Skyline.mp4'],
-  ['zen','video','Zen.mp4'],
-
   ['bubbles','video','Bubbles.mp4'],
   ['dark-loop','video','Dark Loop.mp4'],
   ['globo','video','Globo.mp4'],
@@ -33,6 +21,9 @@ const raw = [
   ['loop-tech-1','video','Loop Tech 1.mp4'],
   ['loop-tech-3','video','Loop tech3.mp4'],
   ['loop-tech-1-alt','video','Loop tech_1.mp4'],
+  ['loop-1','video','Loop1.mp4'],
+  ['loop-2','video','Loop2.mp4'],
+  ['night-city-skyline','video','Night_City_Skyline.mp4'],
   ['red-color-flowers','video','Red color flowers.mp4'],
   ['tech-2','video','Tech_2.mp4'],
   ['tech-3','video','Tech_3.mp4'],
@@ -41,12 +32,8 @@ const raw = [
   ['wave','video','Wave.mp4'],
   ['wave-1','video','Wave1.mp4'],
 
-  ['epic-christmas','audio','Epic Christmas.mp3'],
-  ['red-carpet','audio','Red Carpet.mp3'],
-  ['selfie','audio','Selfie.mp3'],
-  ['champions','audio','Champions.mp3'],
-  ['chillout','audio','Chillout.mp3'],
   ['bad-times','audio','Bad Times.mp3'],
+  ['chillout','audio','Chillout.mp3'],
   ['digidi','audio','DIGIDI.mp3'],
   ['loop-a-garnavutka','audio','Loop A GarnaVutka.mp3'],
   ['loop-c-garnavutka','audio','Loop C GarnaVutka.mp3'],
