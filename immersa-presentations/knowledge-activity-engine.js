@@ -802,6 +802,7 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       screen.currentQuestion = {
         id: current.id,
         prompt: current.prompt,
+        promptEn: current.en?.prompt || "",
         image: clone(current.image)
       };
       if (execution.substate === "REVEAL") {
@@ -809,6 +810,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
         const correctOption = current.options.find((option) => option.id === current.correctOptionId);
         screen.reveal = {
           correctLabel: correctOption?.label || "",
+          correctLabelEn: current.en?.prompt && current.options.every((option) => current.en?.options?.[option.id]?.trim())
+            ? current.en.options[correctOption?.id] || "" : "",
           responseCount: answers.length,
           correctCount: answers.filter((answer) => answer.correct).length
         };
