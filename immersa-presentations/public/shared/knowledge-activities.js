@@ -411,7 +411,7 @@
     };
   }
 
-  function createAudience({ socket, root, onSnapshotAvailabilityChange } = {}) {
+  function createAudience({ socket, root, onSnapshotAvailabilityChange, getLocale = () => 'es' } = {}) {
     if (!socket?.on || !root) throw new Error("A socket and root are required");
     const currentTabId = tabId();
     const audienceAudio = createAudienceKnowledgeAudio();
@@ -423,6 +423,13 @@
     let imageViewerGestureCleanup = null;
     let assessmentSwipe = null;
     const pendingKey = "immersaKnowledgePendingAnswer";
+    function localizedQuestion(question) {
+      if (getLocale() !== 'en' || !question?.en?.prompt?.trim()) return question;
+      const labels = question.en.options || {};
+      if (!question.options?.every((option) => String(labels[option.id] || '').trim())) return question;
+      return { ...question, prompt: question.en.prompt, options: question.options.map((option) => ({ ...option, label: labels[option.id] })) };
+    }
+    function localizedTitle() { return getLocale() === 'en' && state?.titleEn?.trim() ? state.titleEn : state?.title; }
 
     function flashQuestion() {
       root.classList.remove("is-question-flash");
@@ -609,11 +616,11 @@
       const categoryLabel = state.category === "contest"
         ? ""
         : "<span>" + LABELS[state.category] + "</span>";
-      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy">' + categoryLabel + "<h2>" + escapeHtml(state.title) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
+      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy">' + categoryLabel + "<h2>" + escapeHtml(localizedTitle()) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
     }
 
     function contestMarkup() {
-      const question = state.currentQuestion;
+      const question = localizedQuestion(state.currentQuestion);
       if (!question) {
         if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
         if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Estamos terminando de preparar los resultados…</strong></div>';
@@ -673,7 +680,7 @@
       const questions = state.questions || [];
       if (!questions.length) return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando el inicio…</span></div>";
       selectedAssessmentIndex = Math.max(0, Math.min(questions.length - 1, selectedAssessmentIndex));
-      const question = questions[selectedAssessmentIndex];
+      const question = localizedQuestion(questions[selectedAssessmentIndex]);
       const confirmed = answerMap().get(question.id);
       const options = question.options.map((option) =>
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
