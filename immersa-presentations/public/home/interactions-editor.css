@@ -666,6 +666,11 @@
   grid-template-columns: 16px 1fr 34px;
   align-items: center;
 }
+.interaction-en-extra { display: grid; gap: 6px; padding: 10px; border: 1px dashed #ac91e4; border-radius: 10px; background: #f3efff; }
+.interaction-en-extra > span { color: #6540aa !important; font-weight: 800; }
+.interaction-en-extra input, .interaction-en-extra textarea { width: 100%; min-width: 0; }
+.interaction-option-field.is-bilingual > .interaction-en-extra { grid-column: 2; grid-row: 2; }
+.interaction-option-field.is-bilingual > button { grid-column: 3; grid-row: 1; }
 
 .interaction-option-dot {
   width: 12px;
