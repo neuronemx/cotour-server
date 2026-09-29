@@ -125,11 +125,19 @@
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
+        <button id="deckTabLocales" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelLocales" data-deck-tab="locales" disabled aria-disabled="true" title="Disponible en planes SPEAKER"><span aria-hidden="true">EN +</span><span>Idiomas</span></button>
         <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
       <div class="deck-detail-content">
+        <section id="deckPanelLocales" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabLocales" data-deck-panel="locales" hidden>
+          <div class="deck-locales"><h3>Idiomas del Deck</h3><p>Español es el idioma base. Agrega la misma presentación en English con igual número y orden de slides.</p>
+            <div class="deck-locale-base"><strong>Español</strong><span>Base · Activo</span></div>
+            <div class="deck-locale-extra"><strong>EN + &nbsp; English</strong><span id="deckLocaleState">No agregado</span><div class="deck-locale-actions"><button id="deckLocaleUpload" type="button">Agregar English</button><button id="deckLocaleToggle" type="button" hidden>Desactivar</button><button id="deckLocaleDelete" type="button" hidden>Eliminar English</button></div><input id="deckLocaleFile" type="file" accept=".pptx,.pdf" hidden></div>
+            <p id="deckLocaleMessage" role="status" aria-live="polite"></p>
+          </div>
+        </section>
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
@@ -272,6 +280,8 @@
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
   <script src="/home/deck-management-shell.js?v=12"></script>
+  <link rel="stylesheet" href="/home/locales-editor.css?v=1">
+  <script src="/home/locales-editor.js?v=1"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
 </body>
