@@ -7,6 +7,11 @@ const socket = io();
 window.ImmersaPresentationCompletion?.create({ socket, role: "audience", context: publicOpenContext });
 let knowledgeActivityAudience = null;
 let manifest = null;
+let baseManifest = null;
+let englishManifest = null;
+let currentLocale = 'es';
+let latestPresentationState = null;
+const localePreferenceKey = 'immersa:locale:' + sessionId;
 let currentSlideIndex = 0;
 let zoom = 1;
 let panX = 0;
@@ -34,6 +39,7 @@ const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
+const audienceLocale = document.getElementById("audienceLocale");
 const audienceQrToggle = document.getElementById("audienceQrToggle");
 const audienceQrPanel = document.getElementById("audienceQrPanel");
 const audienceQrPattern = document.getElementById("audienceQrPattern");
@@ -119,8 +125,34 @@ knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
   onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed
 });
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
-async function loadDeck() { const res = await fetch("/decks/" + deckId + "/manifest.json"); manifest = await res.json(); }
-function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + item.src; }
+async function loadDeck() {
+  const res = await fetch("/decks/" + deckId + "/manifest.json");
+  baseManifest = await res.json();
+  manifest = baseManifest;
+  if (baseManifest.locales?.en?.active) {
+    const en = await fetch("/decks/" + deckId + "/locales/en/manifest.json", { cache: 'no-store' }).catch(() => null);
+    if (en?.ok) {
+      const candidate = await en.json();
+      if (candidate.slides?.length === baseManifest.slides?.length) {
+        englishManifest = candidate;
+        audienceLocale.hidden = false;
+        try { if (localStorage.getItem(localePreferenceKey) === 'en') currentLocale = 'en'; } catch (_error) {}
+        audienceLocale.value = currentLocale;
+        manifest = currentLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+      }
+    }
+  }
+}
+function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + (currentLocale === 'en' ? 'locales/en/' : '') + item.src; }
+audienceLocale?.addEventListener('change', () => {
+  currentLocale = audienceLocale.value === 'en' && englishManifest ? 'en' : 'es';
+  manifest = currentLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+  try { localStorage.setItem(localePreferenceKey, currentLocale); } catch (_error) {}
+  if (latestPresentationState) render(latestPresentationState);
+  else slide.src = slideUrl(currentSlideIndex);
+  renderInteractionCard();
+  joinAudience();
+});
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }
@@ -225,11 +257,17 @@ function submitQna(event) {
 }
 function joinAudience() {
   if (!manifest) return;
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, locale: currentLocale });
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionCard() { if (interactionCard) return interactionCard; interactionCard = document.createElement("section"); interactionCard.className = "interaction-card interaction-hidden"; interactionCard.setAttribute("aria-label", "Interacción activa"); viewer.appendChild(interactionCard); return interactionCard; }
-function renderInteractionCard() { const card = ensureInteractionCard(); if (!activeInteraction) { card.classList.add("interaction-hidden"); card.innerHTML = ""; return; } const answered = Boolean(interactionResponse); const options = activeInteraction.options || []; card.classList.remove("interaction-hidden"); card.innerHTML = '<h2>' + (activeInteraction.title || 'Interacción') + '</h2><p>' + (activeInteraction.prompt || 'Elige una opción') + '</p><div class="interaction-options">' + options.map((option) => '<button class="interaction-option ' + (selectedInteractionOption === option.id || interactionResponse?.optionId === option.id ? 'is-selected' : '') + '" type="button" data-option-id="' + option.id + '" ' + (answered ? 'disabled' : '') + '>' + option.label + '</button>').join("") + '</div><div class="interaction-card-actions"><button class="primary" type="button" data-submit ' + (!selectedInteractionOption || answered ? 'disabled' : '') + '>' + (answered ? 'Respuesta enviada' : 'Enviar respuesta') + '</button></div>' + (answered ? '<div class="interaction-accepted">Respuesta registrada</div>' : ''); card.querySelectorAll("[data-option-id]").forEach((button) => button.addEventListener("click", () => { selectedInteractionOption = button.dataset.optionId; renderInteractionCard(); })); card.querySelector("[data-submit]")?.addEventListener("click", () => { if (!activeInteraction || !selectedInteractionOption || answered) return; socket.emit("interaction:submit_response", { interactionId: activeInteraction.id, audienceId, optionId: selectedInteractionOption }); }); }
+function pollForAudience(interaction) {
+  if (currentLocale !== 'en' || !englishManifest || !interaction?.en?.prompt?.trim()) return interaction;
+  const englishOptions = interaction.en.options || {};
+  if (!interaction.options?.every((option) => String(englishOptions[option.id] || '').trim())) return interaction;
+  return { ...interaction, prompt: interaction.en.prompt, options: interaction.options.map((option) => ({ ...option, label: englishOptions[option.id] })) };
+}
+function renderInteractionCard() { const card = ensureInteractionCard(); if (!activeInteraction) { card.classList.add("interaction-hidden"); card.innerHTML = ""; return; } const answered = Boolean(interactionResponse); const displayInteraction = pollForAudience(activeInteraction); const options = displayInteraction.options || []; card.classList.remove("interaction-hidden"); card.innerHTML = '<h2>' + (currentLocale === 'en' && displayInteraction !== activeInteraction ? 'Poll' : (activeInteraction.title || 'Interacción')) + '</h2><p>' + (displayInteraction.prompt || 'Elige una opción') + '</p><div class="interaction-options">' + options.map((option) => '<button class="interaction-option ' + (selectedInteractionOption === option.id || interactionResponse?.optionId === option.id ? 'is-selected' : '') + '" type="button" data-option-id="' + option.id + '" ' + (answered ? 'disabled' : '') + '>' + option.label + '</button>').join("") + '</div><div class="interaction-card-actions"><button class="primary" type="button" data-submit ' + (!selectedInteractionOption || answered ? 'disabled' : '') + '>' + (answered ? 'Respuesta enviada' : 'Enviar respuesta') + '</button></div>' + (answered ? '<div class="interaction-accepted">Respuesta registrada</div>' : ''); card.querySelectorAll("[data-option-id]").forEach((button) => button.addEventListener("click", () => { selectedInteractionOption = button.dataset.optionId; renderInteractionCard(); })); card.querySelector("[data-submit]")?.addEventListener("click", () => { if (!activeInteraction || !selectedInteractionOption || answered) return; socket.emit("interaction:submit_response", { interactionId: activeInteraction.id, audienceId, optionId: selectedInteractionOption }); }); }
 document.querySelectorAll("[data-emoji]").forEach((button) => button.addEventListener("click", () => socket.emit("reaction", { emoji: button.dataset.emoji })));
 snapshot.addEventListener("click", takeSnapshot);
 fullscreen.addEventListener("click", toggleFullscreen);
@@ -261,7 +299,7 @@ socket.io?.on?.("reconnect_failed", () => setConnectionNotice(true));
 returnToEventProgramIfClosed();
 window.setInterval(returnToEventProgramIfClosed, 3000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) returnToEventProgramIfClosed(); });
-socket.on("presentation_state", (state) => { returnToEventProgramIfClosed(); if (manifest) render(state); });
+socket.on("presentation_state", (state) => { latestPresentationState = state; returnToEventProgramIfClosed(); if (manifest) render(state); });
 socket.on("overlay_update", applyLiveMessage);
 socket.on("clear_overlays", () => applyLiveMessage({ messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "audience") popReaction(emoji); });
