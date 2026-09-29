@@ -20,6 +20,7 @@ const {
   isSessionInactive
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
 const { listAudiovisualResources } = require("./audiovisual-library");
 const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
 const { createQnaRuntime } = require("./qna-runtime");
@@ -797,6 +798,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     slideIndex: 0,
     presenterSlideIndex: 0,
     liveSlideIndex: 0,
+    operationalLocale: "es",
     transmissionPaused: false,
     transmissionPausedBy: null,
     presenterConnected: false,
@@ -874,7 +876,8 @@ function getConnectedAudience(roomKey) {
     audienceId,
     joinedAt: audience.joinedAt,
     name: audience.name || "",
-    label: audience.label || audience.name || ""
+    label: audience.label || audience.name || "",
+    locale: audience.locale || "es"
   }));
 }
 
@@ -900,6 +903,7 @@ function publicState(session) {
     slideIndex: session.slideIndex,
     presenterSlideIndex: session.presenterSlideIndex,
     liveSlideIndex: session.liveSlideIndex,
+    operationalLocale: session.operationalLocale || "es",
     slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
     transmissionPausedBy: session.transmissionPausedBy,
@@ -2057,7 +2061,7 @@ io.on("connection", (socket) => {
     audienceId: currentAudienceId
   }));
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -2087,6 +2091,12 @@ io.on("connection", (socket) => {
     } catch (error) {
       currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);
+    }
+    if (session.operationalLocale === "en") {
+      try {
+        const manifest = await readManifest(joinedDeckId);
+        session.operationalLocale = resolveOperationalLocale(session.operationalLocale, currentFeatureAccess, manifest);
+      } catch (_error) { session.operationalLocale = "es"; }
     }
     socket.emit("plan:features", currentFeatureAccess);
     if (currentFeatureAccess.adjustmentRequired) {
@@ -2138,7 +2148,8 @@ io.on("connection", (socket) => {
         audienceId: requestedAudienceId,
         socketId: socket.id,
         audienceName,
-        label
+        label,
+        locale: locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es"
       });
       socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
@@ -2174,7 +2185,7 @@ io.on("connection", (socket) => {
     } else if (role === "audience" && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)) {
       void presentationMetricsRepository?.recordAudienceConnection(
         joinedContext,
-        { audienceId: currentAudienceId },
+        { audienceId: currentAudienceId, locale: session.audience.get(currentAudienceId)?.locale },
         session.audience.size
       ).catch((error) => console.error("Unable to persist presentation attendance", error));
     }
@@ -2432,6 +2443,33 @@ io.on("connection", (socket) => {
     if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
     emitState(currentRoomKey, session);
+  });
+
+  socket.on("presentation:set_locale", async ({ locale } = {}) => {
+    if (!currentRoomKey || !["presenter", "stage"].includes(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    try {
+      const access = await getStageFeatureAccess(currentDeckId);
+      const manifest = locale === "en" ? await readManifest(currentDeckId) : null;
+      const validation = validateOperationalLocale(locale, access, manifest);
+      if (!validation.ok) return socket.emit("presentation:locale_rejected", { code: validation.code });
+      session.operationalLocale = validation.locale;
+      emitState(currentRoomKey, session);
+    } catch (_error) { socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" }); }
+  });
+
+  socket.on("presentation:set_audience_locale", ({ locale } = {}) => {
+    if (currentRole !== "audience" || !currentRoomKey || !currentAudienceId) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    const audience = session?.audience?.get(currentAudienceId);
+    if (!audience || audience.socketId !== socket.id) return;
+    audience.locale = locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es";
+    void presentationMetricsRepository?.recordAudienceConnection(
+      { deckId: currentDeckId, sessionId: currentSessionId },
+      { audienceId: currentAudienceId, locale: audience.locale },
+      session.audience.size
+    ).catch((error) => console.error("Unable to persist audience locale", error));
   });
 
   socket.on("reaction", ({ emoji }) => {
