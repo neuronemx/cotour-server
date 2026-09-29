@@ -10,7 +10,7 @@ function canRegisterAudience(session, audienceId, limit) {
   return capacity > 0 && session.audience.size < capacity;
 }
 
-function registerAudience(session, { audienceId, socketId, audienceName, label, joinedAt = Date.now() }) {
+function registerAudience(session, { audienceId, socketId, audienceName, label, locale = "es", joinedAt = Date.now() }) {
   if (!session?.audience) return "";
   const normalizedAudienceId = normalizeAudienceId(audienceId, socketId);
   if (!normalizedAudienceId) return "";
@@ -19,6 +19,7 @@ function registerAudience(session, { audienceId, socketId, audienceName, label, 
     joinedAt,
     name: String(audienceName || ""),
     label: String(label || audienceName || ""),
+    locale: locale === "en" ? "en" : "es",
     socketId: String(socketId || "")
   });
   return normalizedAudienceId;
