@@ -38,14 +38,14 @@
       <div id="eventStageControl" class="event-stage-control" hidden><div class="event-stage-copy"><strong id="eventStageName"></strong><span id="eventActivityName"></span><span id="eventStageMode" class="event-stage-mode"></span></div><button id="eventStageAction" type="button"></button></div>
 
       <div class="toolbar-status" aria-label="Estado de sesión">
-        <span class="status-pill"><em>Público</em><strong id="audience">0</strong></span>
+        <span class="status-pill"><em data-i18n="live.audience">Público</em><strong id="audience">0</strong></span>
       </div>
 
       <div class="toolbar-actions" aria-label="Controles de pantalla">
         <label class="mini-switch">
           <input id="reactionsToggle" type="checkbox" checked>
           <span></span>
-          <em>Reacciones</em>
+          <em data-i18n="live.reactions">Reacciones</em>
         </label>
         <label class="mini-switch">
           <input id="qrToggle" type="checkbox">
@@ -56,7 +56,7 @@
     </header>
 
     <section id="stageThumbsPanel" class="stage-thumbs-panel is-open" aria-label="Navegación por slides">
-      <button id="stageThumbsToggle" class="stage-thumbs-toggle" type="button" aria-expanded="true" aria-controls="stageThumbs">
+      <button id="stageThumbsToggle" data-i18n-label="live.thumbnails" class="stage-thumbs-toggle" type="button" aria-expanded="true" aria-controls="stageThumbs">
         <span>Slides</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
       </button>
@@ -75,17 +75,17 @@
         </div>
 
         <div class="stage-slide-tools" aria-label="Herramientas de Backstage">
-          <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false">Acciones<span class="plan-feature-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></button>
-          <button id="liveTextButton" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
+          <button id="stageActionsButton" class="toolbar-button actions-button" type="button" aria-haspopup="dialog" aria-expanded="false"><span data-i18n="live.actions">Acciones</span><span class="plan-feature-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></button>
+          <button id="liveTextButton" data-i18n="live.liveText" class="toolbar-button live-text" type="button" aria-haspopup="dialog">Texto en vivo</button>
         </div>
 
         <section class="main-controls" aria-label="Controles principales">
-          <button id="prevSlide" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
+          <button id="prevSlide" data-i18n-label="live.previous" class="control-button nav-button" type="button" aria-label="Anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6L9 12L15 18"></path></svg></button>
           <div class="slide-status" aria-label="Estado de transmisión">
             <div class="slide-count"><span id="current">1</span><span class="slide-divider">/</span><span id="total">3</span></div>
             <button id="stageTransmissionToggle" class="status-pause-button" type="button" title="Pausar transmisión" aria-label="Pausar transmisión"><svg viewBox="0 0 24 24" aria-hidden="true" class="pause-icon"><path d="M9 6V18"></path><path d="M15 6V18"></path></svg></button>
           </div>
-          <button id="nextSlide" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
+          <button id="nextSlide" data-i18n-label="live.next" class="control-button nav-button" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6L15 12L9 18"></path></svg></button>
         </section>
 
         <div id="stageAudioControls" class="stage-audio-controls-host" aria-label="Control de audio"></div>
@@ -97,20 +97,20 @@
     <div class="modal-backdrop" data-close-live-text></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="textModalTitle">
       <div class="modal-head">
-        <strong id="textModalTitle">Texto en vivo</strong>
+        <strong id="textModalTitle" data-i18n="live.liveText">Texto en vivo</strong>
       </div>
       <form id="messageForm" class="message-form">
         <label for="messageInput">Este mensaje aparecerá en vivo para todos.</label>
-        <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve"></textarea>
+        <textarea id="messageInput" maxlength="90" rows="3" placeholder="Escribe un mensaje breve" data-i18n-placeholder="live.messagePlaceholder"></textarea>
         <div class="modal-actions">
-          <button class="primary-action" type="submit">Mostrar texto</button>
-          <button id="cancelMessage" class="soft-action" type="button">Cancelar</button>
+          <button class="primary-action" type="submit" data-i18n="live.showText">Mostrar texto</button>
+          <button id="cancelMessage" class="soft-action" type="button" data-i18n="live.cancel">Cancelar</button>
         </div>
       </form>
     </section>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared/i18n.js?v=2"></script><script src="/socket.io/socket.io.js"></script>
   <script src="/shared/presentation-completion.js?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="/shared/slide-confirm.js?v=113"></script>
