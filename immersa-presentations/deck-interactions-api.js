@@ -4,6 +4,7 @@ const fs = require("fs");
 const multer = require("multer");
 const { normalizeDefinition, KnowledgeActivityError } = require("./knowledge-activity-engine");
 const { detectLogo } = require("./brand-mentions-api");
+const { listAudiovisualResources } = require("./audiovisual-library");
 
 const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
@@ -331,6 +332,13 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     }, {});
   }
 
+  function validAudiovisualIds(value) {
+    const available = new Set(listAudiovisualResources().map((resource) => resource.id));
+    return Array.from(new Set((Array.isArray(value) ? value : [])
+      .map((item) => String(item || "").trim())
+      .filter((id) => available.has(id))));
+  }
+
   function payloadFromParsed(parsed, deckId, slideIds) {
     return {
       deck_id: deckId,
@@ -340,7 +348,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       hidden_slide_ids: migrateHiddenIds(parsed || {}, slideIds),
       hidden_slide_indexes: normalizeIndexes(parsed?.hidden_slide_indexes),
       videos: Array.isArray(parsed?.videos) ? parsed.videos : [],
-      audiovisual: Array.isArray(parsed?.audiovisual) ? parsed.audiovisual : [],
+      audiovisual: validAudiovisualIds(parsed?.audiovisual),
       prompter: normalizePrompter(parsed?.prompter, slideIds)
     };
   }
@@ -425,7 +433,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       hidden_slide_ids: hiddenIds,
       hidden_slide_indexes: hiddenIds.map((slideId) => slideIds.indexOf(slideId)).filter((index) => index >= 0),
       videos,
-      audiovisual: body.audiovisual === undefined ? current.audiovisual : [...new Set((Array.isArray(body.audiovisual) ? body.audiovisual : []).map((item) => String(item || '').trim()).filter((id) => /^[a-z0-9_-]{1,96}$/i.test(id)))],
+      audiovisual: validAudiovisualIds(body.audiovisual === undefined ? current.audiovisual : body.audiovisual),
       prompter: body.prompter === undefined ? current.prompter : normalizePrompter(body.prompter, slideIds)
     };
   }
