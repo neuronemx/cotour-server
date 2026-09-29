@@ -26,7 +26,7 @@ test("Público preserves one offline answer and uses the active-tab transfer con
   assert.match(source, /savePending\(questionId, optionId\);\s*render\(\);\s*if \(!socket\.connected\) return;/);
   assert.match(source, /socket\.on\("interaction:answer:accepted", \(\) => \{[\s\S]*?answers: \[[\s\S]*?questionId: pending\.questionId, optionId: pending\.optionId[\s\S]*?clearPending\(\);\s*render\(\);/);
   assert.match(source, /tr\('knowledge\.answerOffline'\)/);
-  assert.match(source, /La actividad está abierta en otra pestaña/);
+  assert.match(source, /tr\('knowledge\.otherTab'\)/);
   assert.match(source, /interaction:participant:claim_tab/);
   assert.match(source, /pending\.executionId !== state\?\.executionId/);
 });
@@ -573,7 +573,7 @@ test("Público renders safe contest progress and legible answer options", () => 
   assert.match(source, /tr\('knowledge\.noPosition'\)/);
   assert.match(css, /\.knowledge-result-detail \{[\s\S]*?color: #182133/);
   assert.match(source, /knowledge-result-mark/);
-  assert.match(source, /answer\.selectedLabel \|\| tr\('knowledge\.omitted'\)/);
+  assert.match(source, /answer\.en\.selectedLabel : answer\.selectedLabel\) \|\| tr\('knowledge\.omitted'\)/);
   assert.doesNotMatch(source, /answer\.correctLabel/);
   assert.match(css, /\.knowledge-result-detail\.correct \.knowledge-result-mark/);
   assert.match(css, /\.knowledge-result-detail\.incorrect \.knowledge-result-mark/);
@@ -589,8 +589,8 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(source, /data-knowledge-command="start"[\s\S]*disabled/);
   assert.match(source, /data-knowledge-countdown/);
   assert.match(source, /return "¡Inicia!"/);
-  assert.match(source, /¡Tenemos ganador!/);
-  assert.match(source, /No hubo respuestas correctas/);
+  assert.match(source, /tr\('knowledge\.winner'\)/);
+  assert.match(source, /tr\('knowledge\.noCorrect'\)/);
   assert.match(source, /\/assets\/audio\/contests\/321\.mp3/);
   assert.match(source, /\/assets\/audio\/contests\/tictac\.mp3/);
   assert.match(source, /\/assets\/audio\/contests\/Resultado_pregunta\.mp3/);
@@ -840,6 +840,36 @@ test("Screen contest runtime initializes when NextQuestion audio belongs only to
   assert.match(screenRoot.innerHTML, /<strong>2<\/strong> entregas/);
 });
 
+test("Screen renders the operational English question and answer after reveal", () => {
+  const listeners = new Map();
+  const window = { setInterval() {}, setTimeout() {}, clearTimeout() {} };
+  const rootElement = {
+    innerHTML: "", hidden: true, offsetWidth: 1,
+    classList: { add() {}, remove() {} },
+    querySelectorAll() { return []; }
+  };
+  loadKnowledge(window);
+  window.ImmersaI18n.setLocale("en");
+  window.ImmersaKnowledgeActivities.createScreen({
+    socket: { on(event, handler) { listeners.set(event, handler); } },
+    root: rootElement,
+    getLocale: () => "en"
+  });
+  const state = {
+    available: true, executionId: "run-1", category: "contest", state: "ACTIVE", substate: "QUESTION_ACTIVE",
+    questionIndex: 0, questionCount: 1, currentQuestion: { id: "q1", prompt: "Pregunta española", promptEn: "English question" }
+  };
+  listeners.get("interaction:execution:state")(state);
+  assert.match(rootElement.innerHTML, /Question 1 of 1/);
+  assert.match(rootElement.innerHTML, /English question/);
+  assert.doesNotMatch(rootElement.innerHTML, /Pregunta española/);
+  listeners.get("interaction:execution:state")({
+    ...state, substate: "REVEAL", reveal: { correctLabel: "Español", correctLabelEn: "English answer" }
+  });
+  assert.match(rootElement.innerHTML, /English answer/);
+  assert.doesNotMatch(rootElement.innerHTML, /Español/);
+});
+
 test("Screen shows only the question and optional image, then centers only the correct answer", () => {
   const source = read("public/shared/knowledge-activities.js");
   const css = read("public/shared/knowledge-activities.css");
@@ -861,7 +891,7 @@ test("lobby entrants are synchronized as people ready without counting as partic
   const source = read("public/shared/knowledge-activities.js");
   assert.match(source, /\["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)[\s\S]*state\.participantCount/);
   assert.match(source, /lobbyCount === 1 \? "persona lista" : "personas listas"/);
-  assert.match(source, /count === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /count === 1 \? tr\('knowledge\.readyOne'\) : tr\('knowledge\.readyMany'\)/);
   assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
 });
 
@@ -888,9 +918,9 @@ test("Evaluations reuse the approved Immersa lobby and gain a dedicated Screen p
   assert.match(source, /knowledge-screen-assessment-state/);
   assert.match(source, /knowledge-screen-assessment-progress/);
   assert.match(source, /knowledge-screen-assessment-timer/);
-  assert.match(source, /Evaluación en curso/);
-  assert.match(source, /Calculando resultados…/);
-  assert.match(source, /Evaluación finalizada/);
+  assert.match(source, /tr\('knowledge\.assessmentInProgress'\)/);
+  assert.match(source, /tr\('knowledge\.calculating'\)/);
+  assert.match(source, /tr\('knowledge\.assessmentFinished'\)/);
   assert.match(css, /\.knowledge-screen-assessment-state \{[\s\S]*?min-height: 72vh;/);
   assert.match(css, /\.knowledge-screen-assessment-progress \{[\s\S]*?var\(--immersa-gradient/);
   assert.match(css, /\.knowledge-screen-assessment-timer \{[\s\S]*?clamp\(72px, 10vw, 150px\)/);
