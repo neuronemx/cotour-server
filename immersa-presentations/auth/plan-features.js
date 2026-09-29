@@ -108,10 +108,19 @@ function isPaidMetricsEvent(eventName) {
 }
 
 function changedDeckCapabilities(body = {}, current = {}) {
-  return Object.entries(DECK_FIELD_CAPABILITIES)
+  const changed = Object.entries(DECK_FIELD_CAPABILITIES)
     .filter(([field]) => body[field] !== undefined
       && !isDeepStrictEqual(body[field], Array.isArray(current[field]) ? current[field] : []))
     .map(([, capability]) => capability);
+  if (body.prompter !== undefined) {
+    const englishTexts = (source) => Object.fromEntries(Object.entries(source || {})
+      .map(([slideId, value]) => [slideId, typeof value === 'object' && value ? String(value.en || '').trim() : ''])
+      .filter(([, value]) => value));
+    if (!isDeepStrictEqual(englishTexts(body.prompter), englishTexts(current.prompter))) {
+      changed.push(CAPABILITIES.MULTILANGUAGE_MANAGE);
+    }
+  }
+  return changed;
 }
 
 function changesPaidDeckContent(body = {}, current = {}) {
