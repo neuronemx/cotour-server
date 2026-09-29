@@ -41,7 +41,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
   assert.match(presenterHtml, /presenter\.css\?v=75/);
-  assert.match(presenterHtml, /presenter\.js\?v=80/);
+  assert.match(presenterHtml, /presenter\.js\?v=81/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
@@ -109,7 +109,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /Playlists/);
   assert.match(presenter, /Medios Local/);
   assert.match(presenter, /Medios Immersa/);
-  assert.match(presenter, /audiovisualResources = Array\.isArray\(catalog\.resources\)/);
+  assert.match(presenter, /fetch\("\/api\/decks\/" \+ encodeURIComponent\(deckId\) \+ "\/audiovisual-library"/);
   assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
   assert.match(presenter, /audio-react-tab-status/);
   assert.match(presenter, /audiovisual-panel-sticky/);
