@@ -29,7 +29,7 @@
     <div id="connectionNotice" class="disconnect hidden" role="status">Conexión pausada. Recarga la página para volver a entrar.</div>
     <div id="liveMessage" class="live-message hidden" role="status"></div>
     <div id="reactions" class="reaction-layer"></div>
-    <button id="qnaOpen" class="qna-open hidden" type="button" aria-label="Enviar pregunta" title="Enviar pregunta" aria-haspopup="dialog" aria-controls="qnaComposer"><img src="/shared/qna-question-icon.svg" alt="" aria-hidden="true"><span>Enviar pregunta</span></button>
+    <button id="qnaOpen" class="qna-open hidden" type="button" aria-label="Enviar pregunta" title="Enviar pregunta" aria-haspopup="dialog" aria-controls="qnaComposer"><img src="/shared/qna-question-icon.svg" alt="" aria-hidden="true"><span data-i18n="audience.qna.open">Enviar pregunta</span></button>
     <div class="top-actions">
       <select id="audienceLocale" class="audience-locale" aria-label="Idioma de la presentación" hidden><option value="es">Español</option><option value="en">English</option></select>
       <button id="snapshot" class="icon-action snapshot" type="button" aria-label="Captura pantalla" title="Captura pantalla"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 7.5 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2.5L15 5H9Z"></path><circle cx="12" cy="13" r="3.25"></circle></svg></button>
@@ -47,7 +47,7 @@
     </button>
     <section id="audienceQrPanel" class="audience-qr-panel hidden" aria-label="QR de acceso a la presentación">
       <div id="audienceQrPattern" class="audience-qr-pattern"></div>
-      <strong>Comparte esta presentación</strong>
+      <strong data-i18n="audience.qr.share">Comparte esta presentación</strong>
     </section>
     <aside id="speakerProfileLauncher" class="speaker-profile-launcher" hidden aria-label="Perfil de Speaker">
       <section id="speakerProfilePanel" class="speaker-profile-panel" aria-labelledby="speakerProfileName" aria-hidden="true">
@@ -75,18 +75,18 @@
       <form id="qnaForm" class="qna-card">
         <button id="qnaClose" class="qna-close" type="button" aria-label="Cerrar preguntas">×</button>
         <img class="qna-icon" src="/shared/qna-question-icon.svg" alt="" aria-hidden="true">
-        <h2 id="qnaTitle">Envía tu pregunta</h2>
-        <label for="qnaQuestion">Pregunta</label>
-        <textarea id="qnaQuestion" name="question" maxlength="1000" rows="4" required placeholder="Escribe tu pregunta"></textarea>
-        <label for="qnaName">Nombre <span>(opcional)</span></label>
-        <input id="qnaName" name="name" maxlength="120" autocomplete="name" placeholder="Tu nombre">
-        <label class="qna-consent" for="qnaAllowName"><input id="qnaAllowName" name="allowNameOnScreen" type="checkbox" checked><span>Autorizo que mi nombre aparezca en Pantalla</span></label>
+        <h2 id="qnaTitle" data-i18n="audience.qna.title">Envía tu pregunta</h2>
+        <label for="qnaQuestion" data-i18n="audience.qna.question">Pregunta</label>
+        <textarea id="qnaQuestion" name="question" maxlength="1000" rows="4" required data-i18n-placeholder="audience.qna.placeholder" placeholder="Escribe tu pregunta"></textarea>
+        <label for="qnaName"><span data-i18n="audience.qna.name">Nombre</span> <span data-i18n="audience.qna.optional">(opcional)</span></label>
+        <input id="qnaName" name="name" maxlength="120" autocomplete="name" data-i18n-placeholder="audience.qna.namePlaceholder" placeholder="Tu nombre">
+        <label class="qna-consent" for="qnaAllowName"><input id="qnaAllowName" name="allowNameOnScreen" type="checkbox" checked><span data-i18n="audience.qna.consent">Autorizo que mi nombre aparezca en Pantalla</span></label>
         <p id="qnaFormStatus" class="qna-form-status" role="status"></p>
-        <button id="qnaSubmit" class="qna-submit" type="submit">Enviar pregunta</button>
+        <button id="qnaSubmit" class="qna-submit" type="submit" data-i18n="audience.qna.submit">Enviar pregunta</button>
       </form>
     </section>
     <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
   <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=1"></script><script src="/shared/raffle-public-ui.js?v=7"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/knowledge-activities.js?v=27"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/audience/audience.js?v=14"></script><script src="/audience/speaker-profile.js?v=2"></script><script src="/audience/brand-mention.js?v=5"></script><script src="/shared/video-deck-config-bridge.js?v=117"></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=1"></script><script src="/shared/raffle-public-ui.js?v=7"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/i18n.js?v=1"></script><script src="/shared/knowledge-activities.js?v=27"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/audience/audience.js?v=14"></script><script src="/audience/speaker-profile.js?v=2"></script><script src="/audience/brand-mention.js?v=5"></script><script src="/shared/video-deck-config-bridge.js?v=117"></script>
 </body></html>
