@@ -139,6 +139,7 @@ class InteractionStore {
       type: active.type,
       title: active.title,
       prompt: active.prompt,
+      en: active.en,
       totalResponses,
       options: active.options.map((option) => {
         const count = counts.get(option.id) || 0;
