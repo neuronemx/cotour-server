@@ -155,14 +155,17 @@ test("Screen receives no possible answers and only gets the correct label during
   tickExecution(item, 7000);
   const activeState = stateForRole(item, { role: "screen", nowMs: 7000 });
   assert.equal("options" in activeState.currentQuestion, false);
+  assert.equal("en" in activeState.currentQuestion, false);
   assert.equal(activeState.reveal, null);
 
   const question = item.definition.questions.find((candidate) => candidate.id === item.questionOrder[0]);
   tickExecution(item, 17000);
   const revealState = stateForRole(item, { role: "screen", nowMs: 17000 });
   assert.equal("options" in revealState.currentQuestion, false);
+  assert.equal("en" in revealState.currentQuestion, false);
   assert.deepEqual(revealState.reveal, {
     correctLabel: question.options.find((option) => option.id === question.correctOptionId).label,
+    correctLabelEn: "",
     responseCount: 0,
     correctCount: 0
   });
