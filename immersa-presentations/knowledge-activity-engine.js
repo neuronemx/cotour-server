@@ -102,6 +102,10 @@ function normalizeQuestion(question, index) {
   return {
     id: text(question?.id, 96) || `question-${index + 1}`,
     prompt,
+    en: {
+      prompt: text(question?.en?.prompt, 2000),
+      options: Object.fromEntries(options.map((option) => [option.id, text(question?.en?.options?.[option.id], 500)]).filter(([, label]) => label))
+    },
     image: normalizeQuestionImage(question?.image),
     options: options.map(({ correct, ...option }) => option),
     correctOptionId
@@ -132,6 +136,7 @@ function normalizeDefinition(definition) {
     id: text(definition?.id, 96) || randomUUID(),
     category,
     title,
+    titleEn: text(definition?.titleEn, 240),
     identificationMode,
     questionDurationSeconds: category === "contest"
       ? finiteInteger(definition?.questionDurationSeconds, 15, 5, 300)
@@ -177,7 +182,7 @@ function questionForParticipant(execution, participant, questionId) {
   const options = optionOrderFor(execution, participant, questionId)
     .map((optionId) => question.options.find((option) => option.id === optionId))
     .filter(Boolean);
-  return { id: question.id, prompt: question.prompt, image: clone(question.image), options };
+  return { id: question.id, prompt: question.prompt, en: clone(question.en), image: clone(question.image), options };
 }
 
 function createExecution({
@@ -729,6 +734,7 @@ function baseRoleState(execution, nowMs) {
     executionId: execution.id,
     category: execution.category,
     title: execution.title,
+    titleEn: execution.definition.titleEn || '',
     state: execution.state,
     substate: execution.substate,
     revision: execution.revision,
