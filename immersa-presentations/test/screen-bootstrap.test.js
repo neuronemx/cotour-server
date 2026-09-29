@@ -20,7 +20,7 @@ test("Screen joins independently of manifest loading and recovers a delayed deck
   assert.match(source, /try \{[\s\S]*ImmersaKnowledgeActivities\?\.createScreen/);
   assert.match(source, /Unable to initialize Screen knowledge activities/);
   assert.match(html, /<main id="screen"[\s\S]*id="knowledgeActivityScreen"[\s\S]*<\/main>/);
-  assert.match(html, /\/screen\/screen\.js\?v=11/);
+  assert.match(html, /\/screen\/screen\.js\?v=20/);
   assert.match(html, /\/shared\/knowledge-activities\.js\?v=27/);
   assert.match(source, /width: 376, height: 376/);
   assert.match(source, /function syncScreenFocus\(\)/);

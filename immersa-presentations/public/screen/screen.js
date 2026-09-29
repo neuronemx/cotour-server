@@ -43,7 +43,7 @@ let audiovisualMedia = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
 let videoPlaylistAdvanceTimer = null;
-const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), scanning: false };
+const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), logoUrl: "", scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
 function localResourceId(relativePath, file, type) {
@@ -73,12 +73,26 @@ async function makeLocalVideoThumbnail(file) {
     const drawWidth = (video.videoWidth || width) * scale, drawHeight = (video.videoHeight || height) * scale;
     context.fillStyle = "#111827"; context.fillRect(0, 0, width, height);
     context.drawImage(video, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
-    return canvas.toDataURL("image/webp", 0.72);
+    return { thumbnail: canvas.toDataURL("image/webp", 0.72), duration: Number.isFinite(video.duration) ? video.duration : 0 };
   } catch (error) {
     console.warn("Unable to generate local video thumbnail", file.name, error);
-    return "";
+    return { thumbnail: "", duration: 0 };
   } finally {
     video.removeAttribute("src"); video.load(); URL.revokeObjectURL(source);
+  }
+}
+async function readLocalAudioDuration(file) {
+  const source = URL.createObjectURL(file);
+  const audio = document.createElement("audio");
+  audio.preload = "metadata";
+  try {
+    await new Promise((resolve, reject) => { audio.onloadedmetadata = resolve; audio.onerror = () => reject(new Error("No se pudo leer el audio")); audio.src = source; });
+    return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+  } catch (error) {
+    console.warn("Unable to read local audio duration", file.name, error);
+    return 0;
+  } finally {
+    audio.removeAttribute("src"); audio.load(); URL.revokeObjectURL(source);
   }
 }
 function localPlaylistId(folder, type) {
@@ -86,6 +100,25 @@ function localPlaylistId(folder, type) {
   let hash = 2166136261;
   for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
   return "local-playlist:" + type + ":" + (hash >>> 0).toString(36);
+}
+async function findLocalReactionLogo(handle) {
+  let selectedEntry = null;
+  let selectedPriority = Number.POSITIVE_INFINITY;
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind !== "file") continue;
+    const normalizedName = String(name).trim().toLowerCase();
+    const priority = normalizedName === "logo.svg" ? 0 : normalizedName === "logo.png" ? 1 : -1;
+    if (priority >= 0 && priority < selectedPriority) {
+      selectedEntry = entry;
+      selectedPriority = priority;
+    }
+  }
+  return selectedEntry ? selectedEntry.getFile() : null;
+}
+function setLocalReactionLogo(file) {
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = file ? URL.createObjectURL(file) : "";
+  window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
 }
 async function collectLocalFiles(handle, prefix = "") {
   const entries = [];
@@ -106,6 +139,8 @@ async function collectLocalFiles(handle, prefix = "") {
 function clearLocalObjectUrls() {
   localLibrary.objectUrls.forEach((url) => URL.revokeObjectURL(url));
   localLibrary.objectUrls.clear();
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = "";
 }
 function resolveLocalMediaUrl(resource) {
   const file = localLibrary.files.get(String(resource?.id || ""));
@@ -123,9 +158,11 @@ async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
+    const logoFile = await findLocalReactionLogo(localLibrary.directoryHandle);
     const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
     const playlistIndexes = new Map();
     clearLocalObjectUrls(); localLibrary.files.clear();
+    setLocalReactionLogo(logoFile);
     const resources = [];
     for (const entry of files) {
       const id = localResourceId(entry.relativePath, entry.file, entry.type);
@@ -138,7 +175,10 @@ async function scanAndPublishLocalLibrary() {
         order: playlistIndex
       } : null;
       localLibrary.files.set(id, entry.file);
-      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: entry.type === "video" ? await makeLocalVideoThumbnail(entry.file) : "", playlist });
+      const mediaDetails = entry.type === "video"
+        ? await makeLocalVideoThumbnail(entry.file)
+        : { thumbnail: "", duration: await readLocalAudioDuration(entry.file) };
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: mediaDetails.thumbnail, duration: mediaDetails.duration, playlist });
     }
     localLibrary.resources = resources;
     socket.emit("local-library:publish", { resources });
@@ -197,14 +237,36 @@ function ensureAudiovisualLayer() {
   if (audiovisualLayer) return;
   audiovisualLayer = document.createElement("div");
   audiovisualLayer.className = "audiovisual-screen-layer";
-  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto"></audio>';
+  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto" crossorigin="anonymous"></audio>';
   audiovisualMedia = {
     video: Array.from(audiovisualLayer.querySelectorAll("video")),
     audio: audiovisualLayer.querySelector("audio")
   };
   audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
   bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
+  audiovisualMedia.audio.addEventListener("error", () => {
+    const media = audiovisualMedia.audio;
+    const resource = audiovisualState.audio?.resource;
+    const id = String(resource?.id || "");
+    if (!id || media.dataset.resourceId !== id || resource?.source === "local" || media.crossOrigin !== "anonymous" || media.dataset.corsFallback === id) return;
+    // CORS errors must not prevent a remote MP3 from playing normally.
+    media.dataset.corsFallback = id;
+    media.removeAttribute("crossorigin");
+    const url = resolveAudiovisualMediaUrl(resource);
+    if (url) {
+      media.src = url;
+      media.load();
+      if (audiovisualState.audio.status === "playing") media.play().catch(() => {});
+    }
+  });
   screenRoot.appendChild(audiovisualLayer);
+  try {
+    window.ImmersaAudioReact?.init({ root: screenRoot });
+    window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
+    window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
+  } catch (error) {
+    console.warn("Audio React could not initialize; media playback continues.", error);
+  }
 }
 function stopVideoSlots() {
   videoTransitionToken += 1;
@@ -289,7 +351,11 @@ function applyAudioState(state) {
   if (media.dataset.resourceId !== String(resource.id)) {
     const mediaUrl = resolveAudiovisualMediaUrl(resource);
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
-    media.dataset.resourceId = String(resource.id); media.src = mediaUrl; media.currentTime = 0;
+    media.dataset.resourceId = String(resource.id);
+    delete media.dataset.corsFallback;
+    media.crossOrigin = "anonymous";
+    media.src = mediaUrl;
+    media.currentTime = 0;
   }
   media.loop = Boolean(state.loop && !resource?.playlist);
   if (state.status === "fading") {
@@ -485,6 +551,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));

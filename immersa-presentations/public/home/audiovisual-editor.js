@@ -286,8 +286,10 @@
       if (!catalogResponse.ok || !deckResponse.ok) throw new Error('No se pudo cargar');
       const catalog = await catalogResponse.json();
       const configuration = await deckResponse.json();
-      resources = catalog.resources || [];
-      selected = configuration.audiovisual || [];
+      resources = Array.isArray(catalog.resources) ? catalog.resources : [];
+      const availableIds = new Set(resources.map((resource) => resource.id));
+      selected = [...new Set((Array.isArray(configuration.audiovisual) ? configuration.audiovisual : [])
+        .filter((id) => availableIds.has(id)))];
       type = 'audio';
       query = '';
       saving = false;

@@ -39,7 +39,7 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(home, /data-tutorial-context="home"/);
   assert.match(homeScript, /const roles = \["screen", "speaker", "audience", "stage"\]/);
   assert.match(homeScript, /stage: "Asistente"/);
-  assert.match(shell, /name === "video" \|\| name === "participation" \|\| name === "metrics"/);
+  assert.match(shell, /const enabled = name !== "links"/);
   assert.match(shell, /activateTab\("links", true\)/);
   assert.match(homeCss, /#deckDetailModal \{ align-items: start; padding-top: 86px/);
 });
