@@ -433,7 +433,7 @@ function updateFullscreenButton() {
   if (!fullscreenToggle) return;
   fullscreenToggle.classList.toggle("is-active", active);
   fullscreenToggle.setAttribute("aria-pressed", String(active));
-  fullscreenToggle.title = active ? "Salir de pantalla completa" : "Pantalla completa";
+  fullscreenToggle.title = window.ImmersaI18n?.t(active ? 'audience.fullscreen.exit' : 'live.fullscreen') || (active ? 'Salir de pantalla completa' : 'Pantalla completa');
   fullscreenToggle.setAttribute("aria-label", fullscreenToggle.title);
 }
 function showScreenUi() {
@@ -506,6 +506,8 @@ function render(state) {
   const nextLocale = state?.operationalLocale === 'en' && englishManifest ? 'en' : 'es';
   if (nextLocale !== operationalLocale) {
     operationalLocale = nextLocale;
+    window.ImmersaI18n?.setLocale(operationalLocale);
+    updateFullscreenButton();
     manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
     knowledgeActivityScreen?.render?.();
     if (lastInteractionResults) showInteractionResults(lastInteractionResults);
