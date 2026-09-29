@@ -802,7 +802,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       screen.currentQuestion = {
         id: current.id,
         prompt: current.prompt,
-        promptEn: current.en?.prompt || "",
+        promptEn: current.en?.prompt && current.options.every((option) => current.en?.options?.[option.id]?.trim())
+          ? current.en.prompt : "",
         image: clone(current.image)
       };
       if (execution.substate === "REVEAL") {
@@ -886,11 +887,17 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
           const answer = ownResult.answers.find((item) => item.questionId === questionId);
           const selected = question?.options.find((option) => option.id === answer?.optionId);
           const correct = question?.options.find((option) => option.id === question?.correctOptionId);
+          const englishReady = Boolean(question?.en?.prompt && question.options.every((option) => question.en?.options?.[option.id]?.trim()));
           return {
             questionId,
             prompt: question?.prompt || "",
             selectedLabel: selected?.label || null,
             correctLabel: correct?.label || "",
+            en: englishReady ? {
+              prompt: question.en.prompt,
+              selectedLabel: selected ? question.en.options[selected.id] : null,
+              correctLabel: correct ? question.en.options[correct.id] : ""
+            } : null,
             status: !answer ? "omitted" : answer.correct ? "correct" : "incorrect"
           };
         })
