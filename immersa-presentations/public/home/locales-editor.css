@@ -1,0 +1,12 @@
+.deck-locales { max-width: 760px; margin: 0 auto; display: grid; gap: 16px; padding: 24px; color: #f3f4f8; }
+.deck-locales h3 { margin: 0; font-size: 1.35rem; }
+.deck-locales p { margin: 0; color: #aeb4c8; line-height: 1.5; }
+.deck-locale-base, .deck-locale-extra { display: grid; gap: 8px; padding: 18px; border: 1px solid #42475b; border-radius: 16px; }
+.deck-locale-base span, .deck-locale-extra span { color: #b8bed0; font-size: .9rem; }
+.deck-locale-extra { background: rgba(105, 89, 211, .12); border-color: #8d78e0; }
+.deck-locale-extra strong { color: #d4c9ff; }
+.deck-locale-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 8px; }
+.deck-locale-actions button { border: 1px solid #8d78e0; border-radius: 9px; background: #292347; color: #fff; padding: 10px 14px; cursor: pointer; }
+.deck-locale-actions button:disabled { opacity: .5; cursor: wait; }
+#deckLocaleMessage.is-error { color: #ffb7b7; }
+@media (max-width: 600px) { .deck-locales { padding: 14px; } .deck-locale-actions { flex-direction: column; } }
