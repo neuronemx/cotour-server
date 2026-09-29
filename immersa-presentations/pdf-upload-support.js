@@ -259,53 +259,56 @@ async function renderPdf(pdfPath, outputDir, prefix, width, quality) {
 
 async function convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType, sourceFilename, titlePrefix, ratio }) {
   await assertPdftoppm();
-  const workDir = path.join(DATA_TMP_DIR, manifest.deckId || path.basename(deckDir));
+  // Input PDFs for locale variants live under DATA_TMP_DIR too. A unique
+  // rendering directory must never overlap the staged Deck or its source.
+  const workDir = path.join(DATA_TMP_DIR, 'pdf-render-' + crypto.randomUUID());
   const fullRawDir = path.join(workDir, 'full');
   const thumbRawDir = path.join(workDir, 'thumbs');
   const slidesDir = path.join(deckDir, 'slides');
   const thumbsDir = path.join(deckDir, 'thumbs');
 
-  await fs.promises.rm(fullRawDir, { recursive: true, force: true });
-  await fs.promises.rm(thumbRawDir, { recursive: true, force: true });
-  await fs.promises.rm(slidesDir, { recursive: true, force: true });
-  await fs.promises.rm(thumbsDir, { recursive: true, force: true });
-  await fs.promises.mkdir(slidesDir, { recursive: true });
-  await fs.promises.mkdir(thumbsDir, { recursive: true });
+  try {
+    await fs.promises.rm(slidesDir, { recursive: true, force: true });
+    await fs.promises.rm(thumbsDir, { recursive: true, force: true });
+    await fs.promises.mkdir(slidesDir, { recursive: true });
+    await fs.promises.mkdir(thumbsDir, { recursive: true });
 
-  await renderPdf(pdfPath, fullRawDir, 'slide', 1920, 85);
-  await renderPdf(pdfPath, thumbRawDir, 'slide', 320, 75);
+    await renderPdf(pdfPath, fullRawDir, 'slide', 1920, 85);
+    await renderPdf(pdfPath, thumbRawDir, 'slide', 320, 75);
 
-  const slideFiles = await normalizeRenderedImages(fullRawDir, slidesDir, true);
-  const thumbFiles = await normalizeRenderedImages(thumbRawDir, thumbsDir);
-  if (!slideFiles.length) throw new Error('No se generaron imagenes JPG desde el PDF.');
+    const slideFiles = await normalizeRenderedImages(fullRawDir, slidesDir, true);
+    const thumbFiles = await normalizeRenderedImages(thumbRawDir, thumbsDir);
+    if (!slideFiles.length) throw new Error('No se generaron imagenes JPG desde el PDF.');
 
-  const count = Math.min(slideFiles.length, thumbFiles.length || slideFiles.length);
-  manifest.status = 'converted';
-  manifest.ratio = ratio;
-  manifest.source = { type: sourceType, filename: sourceFilename };
-  manifest.slides = Array.from({ length: count }, (_item, index) => {
-    const slideInfo = slideFiles[index];
-    const fileName = slideInfo.fileName;
-    const slide = {
-      id: fileName.replace(/\.jpg$/i, ''),
-      src: 'slides/' + fileName,
-      thumb: 'thumbs/' + (thumbFiles[index] || fileName),
-      title: titlePrefix + ' ' + (index + 1)
+    const count = Math.min(slideFiles.length, thumbFiles.length || slideFiles.length);
+    manifest.status = 'converted';
+    manifest.ratio = ratio;
+    manifest.source = { type: sourceType, filename: sourceFilename };
+    manifest.slides = Array.from({ length: count }, (_item, index) => {
+      const slideInfo = slideFiles[index];
+      const fileName = slideInfo.fileName;
+      const slide = {
+        id: fileName.replace(/\.jpg$/i, ''),
+        src: 'slides/' + fileName,
+        thumb: 'thumbs/' + (thumbFiles[index] || fileName),
+        title: titlePrefix + ' ' + (index + 1)
+      };
+      if (slideInfo.orientation) slide.orientation = slideInfo.orientation;
+      return slide;
+    });
+    manifest.conversion = {
+      status: 'completed',
+      message: 'Conversion completada',
+      format: 'jpg',
+      sourceType,
+      slideResolution: '1920px ancho',
+      thumbResolution: '320px ancho'
     };
-    if (slideInfo.orientation) slide.orientation = slideInfo.orientation;
-    return slide;
-  });
-  manifest.conversion = {
-    status: 'completed',
-    message: 'Conversion completada',
-    format: 'jpg',
-    sourceType,
-    slideResolution: '1920px ancho',
-    thumbResolution: '320px ancho'
-  };
 
-  await fs.promises.rm(workDir, { recursive: true, force: true });
-  return manifest;
+    return manifest;
+  } finally {
+    await fs.promises.rm(workDir, { recursive: true, force: true });
+  }
 }
 
 async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
@@ -321,9 +324,6 @@ async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
 }
 
 async function convertDeckPdf({ deckDir, pdfPath, manifest }) {
-  const workDir = path.join(DATA_TMP_DIR, manifest.deckId || path.basename(deckDir));
-  await fs.promises.rm(workDir, { recursive: true, force: true });
-  await fs.promises.mkdir(workDir, { recursive: true });
   return convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType: 'pdf', sourceFilename: 'original.pdf', titlePrefix: 'Pagina', ratio: 'mixed' });
 }
 
