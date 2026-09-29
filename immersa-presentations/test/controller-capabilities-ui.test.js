@@ -48,7 +48,7 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
 
   assert.match(html, /id="audienceQrToggle"[\s\S]*?<svg[\s\S]*?<rect x="3" y="3" width="7" height="7"/);
   assert.match(html, /id="audienceQrPanel"[^>]*hidden/);
-  assert.match(html, /<strong>Comparte esta presentación<\/strong>/);
+  assert.match(html, /<strong data-i18n="audience\.qr\.share">Comparte esta presentación<\/strong>/);
   assert.doesNotMatch(html, /id="audienceQrClose"|class="audience-qr-close"/);
   assert.match(html, /qrcodejs@1\.0\.0/);
   assert.match(script, /publicOpenContext\.public_url \|\| window\.location\.href/);
