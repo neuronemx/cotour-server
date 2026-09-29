@@ -448,10 +448,15 @@
   function knowledgeQuestionEditor(question, questionIndex, rerender) {
     const node = document.createElement("fieldset");
     node.className = "knowledge-question-editor";
-    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label><div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
-    const prompt = node.querySelector("textarea");
+    const bilingual = canConfigure('multilanguage.manage');
+    question.en = question.en || { prompt: '', options: {} };
+    question.en.options = question.en.options || {};
+    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta · ES</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label>' + (bilingual ? '<label class="interaction-en-extra"><span>EN + &nbsp; Pregunta English</span><textarea class="knowledge-question-en" rows="2" placeholder="Agregar versión English"></textarea></label>' : '') + '<div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
+    const prompt = node.querySelector("textarea:not(.knowledge-question-en)");
     prompt.value = question.prompt || "";
     prompt.addEventListener("input", () => question.prompt = prompt.value);
+    const promptEn = node.querySelector('.knowledge-question-en');
+    if (promptEn) { promptEn.value = question.en.prompt || ''; promptEn.addEventListener('input', () => { question.en.prompt = promptEn.value; }); }
     const preview = node.querySelector(".knowledge-question-image-preview");
     const selectImage = node.querySelector("[data-select-image]");
     const removeImage = node.querySelector("[data-remove-image]");
@@ -490,14 +495,16 @@
     const optionsNode = node.querySelector(".knowledge-option-editors");
     question.options.forEach((option, optionIndex) => {
       const row = document.createElement("label");
-      row.className = "knowledge-option-editor";
-      row.innerHTML = '<input type="radio" name="correct-' + escapeHtml(question.id) + '" aria-label="Marcar como correcta"><input type="text" autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
+      row.className = "knowledge-option-editor" + (bilingual ? " is-bilingual" : "");
+      row.innerHTML = '<input type="radio" name="correct-' + escapeHtml(question.id) + '" aria-label="Marcar como correcta"><input type="text" autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + ' · ES">' + (bilingual ? '<span class="interaction-en-extra"><span>EN + &nbsp; Respuesta English</span><input class="knowledge-option-en" type="text" autocomplete="off" placeholder="Agregar versión English"></span>' : '') + '<button type="button" aria-label="Eliminar opción">×</button>';
       const radio = row.querySelector('[type="radio"]');
-      const input = row.querySelector('[type="text"]');
+      const input = row.querySelector('[type="text"]:not(.knowledge-option-en)');
       radio.checked = question.correctOptionId === option.id;
       radio.addEventListener("change", () => question.correctOptionId = option.id);
       input.value = option.label || "";
       input.addEventListener("input", () => option.label = input.value);
+      const optionEn = row.querySelector('.knowledge-option-en');
+      if (optionEn) { optionEn.value = question.en.options[option.id] || ''; optionEn.addEventListener('input', () => { question.en.options[option.id] = optionEn.value; }); }
       const remove = row.querySelector("button");
       remove.disabled = question.options.length <= MIN_OPTIONS;
       remove.addEventListener("click", () => {
@@ -532,6 +539,7 @@
     form.noValidate = true;
     form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Trivia" : "Evaluación") + '</h3></div>'
       + '<label><span>Título</span><input name="title" maxlength="240" required placeholder="Ej. Conocimiento del producto"></label>'
+      + (canConfigure('multilanguage.manage') ? '<label class="interaction-en-extra"><span>EN + &nbsp; Título English</span><input name="titleEn" maxlength="240" placeholder="Agregar versión English"></label>' : '')
       + '<label><span>Identificación</span><select name="identificationMode"><option value="anonymous">Anónima</option><option value="optional_name">Nombre opcional</option><option value="required_name">Nombre obligatorio</option></select></label>'
       + (category === "contest"
         ? '<label><span>Tiempo por pregunta (segundos)</span><input name="duration" type="number" min="5" max="300" required></label>'
@@ -540,6 +548,7 @@
       + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question>+ Agregar pregunta</button>'
       + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar ' + noun + "</button></div></div>";
     form.elements.title.value = draft.title || "";
+    if (form.elements.titleEn) form.elements.titleEn.value = draft.titleEn || '';
     form.elements.identificationMode.value = draft.identificationMode || "anonymous";
     form.elements.duration.value = category === "contest"
       ? draft.questionDurationSeconds || 15
@@ -575,6 +584,7 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       draft.title = form.elements.title.value.trim();
+      if (form.elements.titleEn) draft.titleEn = form.elements.titleEn.value.trim();
       draft.identificationMode = form.elements.identificationMode.value;
       if (category === "contest") draft.questionDurationSeconds = Number(form.elements.duration.value);
       else draft.durationSeconds = Number(form.elements.duration.value) * 60;
