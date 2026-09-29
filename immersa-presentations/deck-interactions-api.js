@@ -448,6 +448,18 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     }
   }
 
+  async function getDeckAudiovisualLibrary(req, res) {
+    try {
+      const configuration = await readDeckConfig(req.params.deckId);
+      const selectedIds = new Set(configuration.audiovisual);
+      res.json({ resources: listAudiovisualResources().filter((resource) => selectedIds.has(resource.id)) });
+    } catch (error) {
+      const status = error.statusCode || 500;
+      if (status >= 500) console.error("Unable to read deck audiovisual library", error);
+      res.status(status).json({ error: error.message || "Unable to read deck audiovisual library" });
+    }
+  }
+
   async function putInteractions(req, res) {
     try {
       const payload = await normalizePayload(req.params.deckId, req.body);
@@ -548,7 +560,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     });
   }
 
-  return { getInteractions, putInteractions, readDeckConfig, uploadQuestionImage };
+  return { getInteractions, getDeckAudiovisualLibrary, putInteractions, readDeckConfig, uploadQuestionImage };
 }
 
 module.exports = { createDeckInteractionHandlers, MAX_QUESTION_IMAGE_BYTES };

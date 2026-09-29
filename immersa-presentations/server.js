@@ -1790,6 +1790,7 @@ app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProf
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
+app.get("/api/decks/:deckId/audiovisual-library", deckInteractionHandlers.getDeckAudiovisualLibrary);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireAccountAdjustmentCleared, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
 app.get("/api/audiovisual-library", (_req, res) => res.json({ resources: listAudiovisualResources() }));
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireAccountAdjustmentCleared, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
@@ -2199,6 +2200,14 @@ io.on("connection", (socket) => {
       const playlistItems = action === "select-playlist" && requestedType ? localPlaylistItems(session, payload.playlistId, requestedType) : [];
       const resource = playlistItems[0] || localResource || remoteResource;
       if (!resource) return;
+      if (resource === remoteResource) {
+        try {
+          const configuration = await deckInteractionHandlers.readDeckConfig(session.deckId);
+          if (!configuration.audiovisual.includes(remoteResource.id)) return;
+        } catch (_error) {
+          return;
+        }
+      }
       const type = resource.type;
       const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
