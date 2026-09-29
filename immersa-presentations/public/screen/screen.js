@@ -8,12 +8,16 @@ let knowledgeActivityScreen = null;
 try {
   knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
     socket,
-    root: document.getElementById("knowledgeActivityScreen")
+    root: document.getElementById("knowledgeActivityScreen"),
+    getLocale: () => operationalLocale
   }) || null;
 } catch (error) {
   console.error("Unable to initialize Screen knowledge activities", error);
 }
 let manifest = null;
+let baseManifest = null;
+let englishManifest = null;
+let operationalLocale = 'es';
 let pendingPresentationState = null;
 let manifestRetryTimer = null;
 const screenRoot = document.getElementById("screen");
@@ -37,6 +41,7 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let interactionOverlay = null;
+let lastInteractionResults = null;
 let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
@@ -466,7 +471,15 @@ async function loadDeck() {
   if (!Array.isArray(nextManifest?.slides) || !nextManifest.slides.length) {
     throw new Error("Screen manifest has no slides");
   }
-  manifest = nextManifest;
+  baseManifest = nextManifest;
+  manifest = baseManifest;
+  if (baseManifest.locales?.en?.active) {
+    const englishResponse = await fetch('/decks/' + encodeURIComponent(deckId) + '/locales/en/manifest.json', { cache: 'no-store' }).catch(() => null);
+    if (englishResponse?.ok) {
+      const candidate = await englishResponse.json();
+      if (candidate.slides?.length === baseManifest.slides.length) englishManifest = candidate;
+    }
+  }
   if (pendingPresentationState) render(pendingPresentationState);
   return manifest;
 }
@@ -490,6 +503,13 @@ function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, .
 function render(state) {
   pendingPresentationState = state;
   applyOverlays(state?.overlays || {});
+  const nextLocale = state?.operationalLocale === 'en' && englishManifest ? 'en' : 'es';
+  if (nextLocale !== operationalLocale) {
+    operationalLocale = nextLocale;
+    manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+    knowledgeActivityScreen?.render?.();
+    if (lastInteractionResults) showInteractionResults(lastInteractionResults);
+  }
   if (!manifest?.slides?.length) return;
   const index = state?.liveSlideIndex ?? state?.slideIndex ?? 0;
   const item = manifest.slides[index];
@@ -497,10 +517,10 @@ function render(state) {
   const previousIndex = currentSlideIndex;
   const changed = index !== previousIndex;
   currentSlideIndex = index;
-  const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
+  const src = "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(item.src).replace(/^\/+/, "");
   if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
   else slide.src = src;
-  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
+  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();
@@ -509,8 +529,8 @@ function popReaction(emoji) { if (!overlays.showReactions) return; const node = 
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenRoot, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionOverlay() { if (interactionOverlay) return interactionOverlay; interactionOverlay = document.createElement("section"); interactionOverlay.className = "interaction-results-overlay interaction-hidden"; interactionOverlay.setAttribute("aria-label", "Resultados de interacción"); screenRoot.appendChild(interactionOverlay); return interactionOverlay; }
 function renderResultRows(results) { return '<div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>'; }
-function showInteractionResults(results) { if (!results) return; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (results.title || 'Resultados') + '</h2><p>' + (results.prompt || '') + '</p>' + renderResultRows(results); syncScreenFocus(); }
-function hideInteractionResults() { ensureInteractionOverlay().classList.add("interaction-hidden"); syncScreenFocus(); }
+function showInteractionResults(results) { if (!results) return; lastInteractionResults = results; const labels = results.en?.options || {}; const translated = operationalLocale === 'en' && results.en?.prompt?.trim() && results.options?.every((option) => String(labels[option.id] || '').trim()); const display = translated ? { ...results, title: 'Poll', prompt: results.en.prompt, options: results.options.map((option) => ({ ...option, label: labels[option.id] })) } : results; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (display.title || 'Resultados') + '</h2><p>' + (display.prompt || '') + '</p>' + renderResultRows(display); syncScreenFocus(); }
+function hideInteractionResults() { lastInteractionResults = null; ensureInteractionOverlay().classList.add("interaction-hidden"); syncScreenFocus(); }
 function renderQnaScreen(payload = {}) {
   const question = payload.visible ? payload.question : null;
   const text = String(question?.text || "").trim();
