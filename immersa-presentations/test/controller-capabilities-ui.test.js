@@ -34,7 +34,7 @@ test("Stage live text modal is dedicated to text only", () => {
 
   assert.doesNotMatch(modal, />Stage</i);
   assert.doesNotMatch(modal, /Mensaje en pantalla/i);
-  assert.match(modal, /<strong id="textModalTitle">Texto en vivo<\/strong>/);
+  assert.match(modal, /<strong id="textModalTitle" data-i18n="live\.liveText">Texto en vivo<\/strong>/);
   assert.match(modal, /<label for="messageInput">Este mensaje aparecerá en vivo para todos\.<\/label>/);
   assert.match(modal, />Mostrar texto<[\s\S]*>Cancelar</);
   assert.doesNotMatch(modal, /Link presentación|displayLinkButton/);
