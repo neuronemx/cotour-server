@@ -122,6 +122,7 @@ function setKnowledgeSnapshotAllowed(allowed) {
 knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
   socket,
   root: document.getElementById("knowledgeActivityAudience"),
+  getLocale: () => currentLocale,
   onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed
 });
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
@@ -151,6 +152,7 @@ audienceLocale?.addEventListener('change', () => {
   if (latestPresentationState) render(latestPresentationState);
   else slide.src = slideUrl(currentSlideIndex);
   renderInteractionCard();
+  knowledgeActivityAudience?.render?.();
   joinAudience();
 });
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
