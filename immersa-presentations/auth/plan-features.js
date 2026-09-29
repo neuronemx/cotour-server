@@ -12,6 +12,7 @@ const CAPABILITIES = Object.freeze({
   TRIVIA_RUN: "trivia.run",
   ASSESSMENTS_RUN: "assessments.run",
   METRICS_EXPORT: "metrics.export",
+  MULTILANGUAGE_MANAGE: "multilanguage.manage",
   BRANDING_CUSTOM: "branding.custom",
   GAMES_RUN: "games.run"
 });
@@ -29,7 +30,8 @@ const PLAN_CAPABILITIES = Object.freeze({
     CAPABILITIES.POLLS_CONFIGURE,
     CAPABILITIES.POLLS_RUN,
     CAPABILITIES.QNA_RUN,
-    CAPABILITIES.METRICS_BASIC
+    CAPABILITIES.METRICS_BASIC,
+    CAPABILITIES.MULTILANGUAGE_MANAGE
   ]),
   SPEAKER_PRO: Object.freeze(MANAGED_CAPABILITIES.filter((capability) => capability !== CAPABILITIES.GAMES_RUN)),
   DEMO: Object.freeze(MANAGED_CAPABILITIES)
@@ -132,4 +134,3 @@ module.exports = {
   changedDeckCapabilities,
   changesPaidDeckContent
 };
-
