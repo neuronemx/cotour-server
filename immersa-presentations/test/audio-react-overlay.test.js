@@ -15,7 +15,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   const presenterHtml = read("public/presenter/index.html");
 
   assert.match(html, /\/screen\/audio-react-overlay\.js\?v=5/);
-  assert.match(html, /\/screen\/audio-react-three\.js\?v=1/);
+  assert.match(html, /\/screen\/audio-react-three\.js\?v=2/);
   assert.match(html, /\/screen\/screen\.css\?v=22/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
@@ -131,7 +131,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(server, /\(Number\(previous\.reaction \|\| 0\) \+ 1\) % 12/);
   assert.match(server, /Math\.min\(11, Number\.isFinite/);
   assert.match(presenter, /"Logo", "Caja 3D", "Esfera 3D"/);
-  assert.match(presenter, /index >= 10 \? "\.svg" : "\.jpg"/);
+  assert.match(presenter, /index >= 10 \? "\.svg\?rev=2" : "\.jpg"/);
   assert.match(presenter, /Math\.min\(11, Number\(next\.reaction\) \|\| 0\)/);
   assert.match(presenterCss, /\.audio-react-grid\{/);
 });
