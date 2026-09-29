@@ -47,3 +47,28 @@ test('raffle generated views follow the audience and Screen locale', () => {
   assert.match(window.ImmersaRafflePublicUI.renderAudienceRaffle({ active }), /Enter your name to participate/);
   assert.match(window.ImmersaRafflePublicUI.renderScreenRaffle({ active }), /Tap Join on your phone/);
 });
+
+test('Speaker activity controls render one English live session', () => {
+  const read = (file) => fs.readFileSync(path.join(__dirname, '../public', file), 'utf8');
+  const listeners = new Map();
+  const window = { setInterval() {}, clearInterval() {} };
+  const context = { window, fetch: async () => ({ ok: true, json: async () => ({ contests: [], assessments: [] }) }) };
+  vm.runInNewContext(read('shared/i18n.js'), context);
+  vm.runInNewContext(read('shared/knowledge-activities.js'), context);
+  const root = { innerHTML: '', querySelectorAll() { return []; } };
+  const controller = window.ImmersaKnowledgeActivities.createController({
+    socket: { connected: true, on(event, handler) { listeners.set(event, handler); }, emit() {} },
+    deckId: 'deck-1', role: 'presenter'
+  });
+  controller.mountHost({ root, category: 'contest' });
+  window.ImmersaI18n.setLocale('en');
+  listeners.get('interaction:execution:state')({
+    available: true, executionId: 'run-1', category: 'contest', state: 'LOBBY',
+    title: 'Título español', titleEn: 'English title', participantCount: 1
+  });
+  assert.match(root.innerHTML, /English title/);
+  assert.match(root.innerHTML, /person ready/);
+  assert.match(root.innerHTML, /data-knowledge-command="start"[^>]*>Start<\/button>/);
+  assert.doesNotMatch(root.innerHTML, /Título español/);
+  controller.destroy();
+});
