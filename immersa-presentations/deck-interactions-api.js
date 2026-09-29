@@ -331,9 +331,14 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     const source = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
     return Object.entries(source).reduce((result, [slideId, value]) => {
       if (!slideIds.includes(slideId)) return result;
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const es = String(value.es || '').replace(/\r\n?/g, '\n').trim();
+        const en = String(value.en || '').replace(/\r\n?/g, '\n').trim();
+        if (es || en) result[slideId] = { es, en };
+        return result;
+      }
       const text = String(value || "").replace(/\r\n?/g, "\n").trim();
-      if (!text) return result;
-      result[slideId] = text;
+      if (text) result[slideId] = text;
       return result;
     }, {});
   }
