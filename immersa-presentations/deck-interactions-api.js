@@ -75,6 +75,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
     const settings = item?.settings || {};
+    const english = item?.en && typeof item.en === "object" ? item.en : {};
+    const englishOptions = english.options && typeof english.options === "object" ? english.options : {};
     return {
       id: String(item?.id || "int_" + Date.now() + "_" + index).trim(),
       slide_id: item?.slide_id ? String(item.slide_id) : null,
@@ -82,6 +84,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       title: String(item?.title || prompt).trim() || prompt,
       prompt,
       options,
+      en: {
+        prompt: String(english.prompt || "").trim().slice(0, 1000),
+        options: Object.fromEntries(options.map((option) => [option.id, String(englishOptions[option.id] || "").trim().slice(0, 500)]).filter(([, label]) => label))
+      },
       settings: {
         allow_multiple: Boolean(settings.allow_multiple),
         anonymous: typeof settings.anonymous === "boolean" ? settings.anonymous : true,
