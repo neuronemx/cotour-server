@@ -10,7 +10,7 @@ test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
   assert.match(html, /deck-management-shell\.css\?v=24/);
-  assert.match(html, /deck-management-shell\.js\?v=10/);
+  assert.match(html, /deck-management-shell\.js\?v=12/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
