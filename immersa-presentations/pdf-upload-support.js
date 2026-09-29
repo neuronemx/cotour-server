@@ -569,6 +569,12 @@ function createDeckReplacementHandler(options = {}) {
         nextManifest = reviseSlideAssets(nextManifest, replacementId);
         const nextSlideCount = Array.isArray(nextManifest.slides) ? nextManifest.slides.length : 0;
         const associationsReviewRequired = previousSlideCount !== nextSlideCount;
+        if (nextManifest.locales?.en && Number(nextManifest.locales.en.slides) !== nextSlideCount) {
+          nextManifest.locales = {
+            ...nextManifest.locales,
+            en: { ...nextManifest.locales.en, active: false, requiresCorrection: true }
+          };
+        }
         nextManifest.replacement = {
           replacedAt: new Date().toISOString(),
           previousSlideCount,
@@ -626,9 +632,157 @@ function createDeckReplacementHandler(options = {}) {
   };
 }
 
+// The English presentation is part of the same Deck and is metered with its
+// other assets. Always swap the complete directory so a failed quota update
+// can restore both the files and the original manifest.
+function createLocaleVariantUploadHandler(options = {}) {
+  const multer = require('multer');
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+  return (req, res) => upload.single('pptx')(req, res, async (uploadError) => {
+    if (uploadError) return res.status(400).json({ error: uploadError.code === 'LIMIT_FILE_SIZE' ? 'El archivo supera el límite permitido' : 'No se pudo recibir el archivo' });
+    if (!req.file) return res.status(400).json({ error: 'Falta el archivo' });
+    const extension = path.extname(req.file.originalname).toLowerCase();
+    const sourceType = extension === '.pdf' ? 'pdf' : extension === '.pptx' ? 'pptx' : null;
+    if (!sourceType) return res.status(400).json({ error: 'Solo se aceptan archivos .pptx o .pdf' });
+    let paths;
+    let swapped = false;
+    let lockDir;
+    try {
+      await ensureDataDirs();
+      const { deckId, deckDir } = replacementDeckDir(req.params.deckId);
+      const original = JSON.parse(await fs.promises.readFile(path.join(deckDir, 'manifest.json'), 'utf8'));
+      const count = Array.isArray(original.slides) ? original.slides.length : 0;
+      if (!count) throw replacementError(409, 'El Deck base aún no tiene slides listos', 'BASE_DECK_NOT_READY');
+      const id = crypto.randomUUID();
+      lockDir = path.join(DATA_TMP_DIR, deckId + '-replacement.lock');
+      try { await fs.promises.mkdir(lockDir); }
+      catch (error) {
+        if (error.code === 'EEXIST') throw replacementError(409, 'Ya hay una sustitución en curso para esta presentación.', 'REPLACEMENT_IN_PROGRESS');
+        throw error;
+      }
+      const stageDir = path.join(DATA_TMP_DIR, deckId + '-en-' + id);
+      const nextDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-next-' + id);
+      const backupDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-backup-' + id);
+      const failedDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-failed-' + id);
+      paths = { deckDir, stageDir, nextDir, backupDir, failedDir };
+      await fs.promises.mkdir(stageDir, { recursive: true });
+      const sourceFilename = 'original.' + sourceType;
+      const sourcePath = path.join(stageDir, sourceFilename);
+      await fs.promises.writeFile(sourcePath, req.file.buffer);
+      let variant = { deckId: deckId + '-en-' + id, slides: [], source: { type: sourceType } };
+      try {
+        variant = sourceType === 'pdf'
+          ? await (options.convertDeckPdf || convertDeckPdf)({ deckDir: stageDir, pdfPath: sourcePath, manifest: variant })
+          : await (options.convertDeckPptx || convertDeckPptx)({ deckDir: stageDir, pptxPath: sourcePath, manifest: variant });
+      } catch (error) {
+        throw replacementError(422, error.message || 'La conversión no pudo completarse', 'CONVERSION_FAILED');
+      }
+      await discardConvertedSource(stageDir, sourceFilename);
+      const enCount = Array.isArray(variant.slides) ? variant.slides.length : 0;
+      if (enCount !== count) {
+        const error = replacementError(422, `El Deck tiene ${count} slides y English tiene ${enCount}`, 'LOCALE_SLIDE_COUNT_MISMATCH');
+        error.counts = { es: count, en: enCount };
+        throw error;
+      }
+      await fs.promises.cp(deckDir, nextDir, { recursive: true, errorOnExist: true });
+      const localeDir = path.join(nextDir, 'locales', 'en');
+      await fs.promises.rm(localeDir, { recursive: true, force: true });
+      await fs.promises.mkdir(path.dirname(localeDir), { recursive: true });
+      await fs.promises.cp(stageDir, localeDir, { recursive: true });
+      const nextManifest = {
+        ...original,
+        locales: { ...(original.locales || {}), en: { active: true, slides: enCount, updatedAt: new Date().toISOString() } }
+      };
+      variant.deckId = deckId;
+      variant.slides = variant.slides.map((slide, index) => ({ ...slide, id: String(original.slides[index].id) }));
+      variant.source = { type: sourceType, filename: null, sizeBytes: Number(req.file.size || req.file.buffer.length) };
+      await fs.promises.writeFile(path.join(localeDir, 'manifest.json'), JSON.stringify(variant, null, 2) + '\n');
+      await fs.promises.writeFile(path.join(nextDir, 'manifest.json'), JSON.stringify(nextManifest, null, 2) + '\n');
+      const sourceSizeBytes = await directorySizeBytes(nextDir);
+      await moveReplacementIntoPlace({ deckDir, nextDir, backupDir });
+      swapped = true;
+      const plan = await options.onDeckChanged?.({ req, deck: { deckId, sourceSizeBytes } });
+      await fs.promises.rm(backupDir, { recursive: true, force: true });
+      swapped = false;
+      await fs.promises.rm(lockDir, { recursive: true, force: true });
+      lockDir = null;
+      return res.json({ locale: 'en', active: true, slides: enCount, sourceSizeBytes, plan: plan || null });
+    } catch (error) {
+      if (swapped && paths) await restoreReplacement(paths).catch((restoreError) => console.error('Unable to restore English variant', restoreError));
+      const status = Number(error.statusCode) || (error.code === 'ENOENT' ? 404 : 500);
+      if (status >= 500) console.error('Unable to add English variant', error);
+      return res.status(status).json({ error: error.publicMessage || (status === 404 ? 'Deck no encontrado' : 'No se pudo guardar English'), code: status < 500 ? error.code : undefined, counts: error.counts });
+    } finally {
+      if (paths) await Promise.all([paths.stageDir, paths.nextDir, paths.failedDir].map((dir) => fs.promises.rm(dir, { recursive: true, force: true }))).catch(() => {});
+      if (lockDir) await fs.promises.rm(lockDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+}
+
+function createLocaleVariantMutationHandler(action, options = {}) {
+  if (!['toggle', 'delete'].includes(action)) throw new Error('Unsupported locale operation');
+  return async (req, res) => {
+    let paths;
+    let lockDir;
+    let swapped = false;
+    try {
+      await ensureDataDirs();
+      const { deckId, deckDir } = replacementDeckDir(req.params.deckId);
+      const active = action === 'toggle' ? req.body?.active : null;
+      if (action === 'toggle' && typeof active !== 'boolean') throw replacementError(400, 'Indica si English debe estar activo', 'INVALID_LOCALE_STATE');
+      const id = crypto.randomUUID();
+      lockDir = path.join(DATA_TMP_DIR, deckId + '-replacement.lock');
+      try { await fs.promises.mkdir(lockDir); }
+      catch (error) {
+        if (error.code === 'EEXIST') throw replacementError(409, 'Ya hay una sustitución en curso para esta presentación.', 'REPLACEMENT_IN_PROGRESS');
+        throw error;
+      }
+      const nextDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-next-' + id);
+      const backupDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-backup-' + id);
+      const failedDir = path.join(DATA_DECKS_DIR, '.' + deckId + '-failed-' + id);
+      paths = { deckDir, nextDir, backupDir, failedDir };
+      await fs.promises.cp(deckDir, nextDir, { recursive: true, errorOnExist: true });
+      const manifestPath = path.join(nextDir, 'manifest.json');
+      const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
+      const en = manifest.locales?.en;
+      if (!en) throw replacementError(404, 'English no está agregado', 'LOCALE_NOT_FOUND');
+      if (action === 'toggle' && active && Number(en.slides) !== manifest.slides?.length) {
+        throw replacementError(422, 'English requiere el mismo número de slides que Español', 'LOCALE_SLIDE_COUNT_MISMATCH');
+      }
+      if (action === 'delete') {
+        await fs.promises.rm(path.join(nextDir, 'locales', 'en'), { recursive: true, force: true });
+        const { en: _removed, ...otherLocales } = manifest.locales;
+        manifest.locales = otherLocales;
+      } else {
+        manifest.locales.en = { ...en, active, requiresCorrection: false };
+      }
+      await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+      const sourceSizeBytes = await directorySizeBytes(nextDir);
+      await moveReplacementIntoPlace({ deckDir, nextDir, backupDir });
+      swapped = true;
+      await options.onDeckChanged?.({ req, deck: { deckId, sourceSizeBytes } });
+      await fs.promises.rm(backupDir, { recursive: true, force: true });
+      swapped = false;
+      await fs.promises.rm(lockDir, { recursive: true, force: true });
+      lockDir = null;
+      return res.json({ locale: 'en', active: action === 'toggle' ? active : false, removed: action === 'delete', sourceSizeBytes });
+    } catch (error) {
+      if (swapped && paths) await restoreReplacement(paths).catch((restoreError) => console.error('Unable to restore English variant', restoreError));
+      const status = Number(error.statusCode) || (error.code === 'ENOENT' ? 404 : 500);
+      if (status >= 500) console.error('Unable to change English variant', error);
+      return res.status(status).json({ error: error.publicMessage || 'No se pudo actualizar English', code: status < 500 ? error.code : undefined });
+    } finally {
+      if (paths) await Promise.all([paths.nextDir, paths.failedDir].map((dir) => fs.promises.rm(dir, { recursive: true, force: true }))).catch(() => {});
+      if (lockDir) await fs.promises.rm(lockDir, { recursive: true, force: true }).catch(() => {});
+    }
+  };
+}
+
 module.exports = {
   createUploadHandler,
   createDeckReplacementHandler,
+  createLocaleVariantUploadHandler,
+  createLocaleVariantMutationHandler,
   convertDeckPdf,
   convertDeckPptx,
   convertPdfToSlides,
