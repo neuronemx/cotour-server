@@ -135,7 +135,7 @@ test("Público resets repeated assessments to question one and keeps scroll posi
   assert.match(source, /tr\('knowledge\.answers'\)/);
   assert.match(source, /tr\('knowledge\.dateTime'\)/);
   assert.match(source, /knowledge-submission-kicker/);
-  assert.match(source, /escapeHtml\(state\.title\)/);
+  assert.match(source, /escapeHtml\(title\(\)\)/);
   assert.match(source, /state\.submissionReceipt\?\.grade/);
   assert.match(source, /tr\('knowledge\.grade'\) \+ ' \/ 100/);
   assert.doesNotMatch(source, /Espera a que Speaker muestre los resultados/);
@@ -588,7 +588,7 @@ test("contest lobby, synchronized countdown, winner view, and Screen audio follo
   assert.match(engine, /Necesitas al menos una persona lista para iniciar/);
   assert.match(source, /data-knowledge-command="start"[\s\S]*disabled/);
   assert.match(source, /data-knowledge-countdown/);
-  assert.match(source, /return "¡Inicia!"/);
+  assert.match(source, /return global\.ImmersaI18n\?\.t\('knowledge\.startNow'\) \|\| '¡Inicia!'/);
   assert.match(source, /tr\('knowledge\.winner'\)/);
   assert.match(source, /tr\('knowledge\.noCorrect'\)/);
   assert.match(source, /\/assets\/audio\/contests\/321\.mp3/);
@@ -890,7 +890,7 @@ test("Screen shows only the question and optional image, then centers only the c
 test("lobby entrants are synchronized as people ready without counting as participants", () => {
   const source = read("public/shared/knowledge-activities.js");
   assert.match(source, /\["LOBBY", "COUNTDOWN"\]\.includes\(state\.state\)[\s\S]*state\.participantCount/);
-  assert.match(source, /lobbyCount === 1 \? "persona lista" : "personas listas"/);
+  assert.match(source, /tr\(lobbyCount === 1 \? 'knowledge\.readyOne' : 'knowledge\.readyMany'/);
   assert.match(source, /count === 1 \? tr\('knowledge\.readyOne'\) : tr\('knowledge\.readyMany'\)/);
   assert.match(source, /state\.effectiveParticipantCount \|\| 0/);
 });
@@ -906,7 +906,7 @@ test("Screen lobby uses activity identity, centered presence, and a balanced cou
   assert.match(css, /\.knowledge-screen-countdown \{[\s\S]*?min-height: clamp\(190px, 19vw, 290px\);[\s\S]*?padding-block: clamp\(18px, 2\.4vw, 36px\);[\s\S]*?overflow: visible;/);
   assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value \{[\s\S]*?padding: \.12em \.08em \.18em;[\s\S]*?clamp\(88px, 12vw, 190px\)\/1\.15/);
   assert.match(css, /\.knowledge-screen-intro-state \.knowledge-screen-countdown \.knowledge-countdown-value\.is-starting \{[\s\S]*?clamp\(60px, 8vw, 128px\);[\s\S]*?line-height: 1\.15;/);
-  assert.match(source, /node\.classList\?\.toggle\("is-starting", label === "¡Inicia!"\)/);
+  assert.match(source, /node\.classList\?\.toggle\("is-starting", label === \(global\.ImmersaI18n\?\.t\('knowledge\.startNow'\)/);
   assert.match(css, /\.interaction-panel \.knowledge-definition,[\s\S]*?min-height: 84px;[\s\S]*?padding: 20px;/);
 });
 
