@@ -273,22 +273,31 @@
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar encuesta</button></div></div>';
+    const bilingual = canConfigure('multilanguage.manage');
+    draft.en = draft.en || { prompt: '', options: {} };
+    draft.en.options = draft.en.options || {};
+    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público · ES</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label>' + (bilingual ? '<label class="interaction-en-extra"><span>EN + &nbsp; Pregunta English</span><textarea name="promptEn" rows="3" placeholder="Agregar versión English"></textarea></label>' : '') + '<div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar encuesta</button></div></div>';
     const title = form.elements.title;
     const prompt = form.elements.prompt;
     const optionsFields = form.querySelector(".interaction-options-fields");
     title.value = draft.title || "";
     prompt.value = draft.prompt || "";
+    if (bilingual) form.elements.promptEn.value = draft.en.prompt || '';
 
     function renderOptionFields() {
       optionsFields.innerHTML = "";
       draft.options.forEach((option, optionIndex) => {
         const row = document.createElement("label");
-        row.className = "interaction-option-field";
-        row.innerHTML = '<span class="interaction-option-dot ' + optionDotClasses[optionIndex % optionDotClasses.length] + '" aria-hidden="true"></span><input autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
-        const input = row.querySelector("input");
+        row.className = "interaction-option-field" + (bilingual ? " is-bilingual" : "");
+        row.innerHTML = '<span class="interaction-option-dot ' + optionDotClasses[optionIndex % optionDotClasses.length] + '" aria-hidden="true"></span><input autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + ' · ES">' + (bilingual ? '<span class="interaction-en-extra"><span>EN + &nbsp; Respuesta English</span><input class="interaction-option-en" autocomplete="off" placeholder="Agregar versión English"></span>' : '') + '<button type="button" aria-label="Eliminar opción">×</button>';
+        const input = row.querySelector("input:not(.interaction-option-en)");
         input.value = option.label || "";
         input.addEventListener("input", () => option.label = input.value);
+        const englishInput = row.querySelector('.interaction-option-en');
+        if (englishInput) {
+          englishInput.value = draft.en.options[option.id] || '';
+          englishInput.addEventListener('input', () => { draft.en.options[option.id] = englishInput.value; });
+        }
         row.querySelector("button").disabled = draft.options.length <= MIN_OPTIONS;
         row.querySelector("button").addEventListener("click", () => {
           if (draft.options.length <= MIN_OPTIONS) return;
@@ -315,6 +324,7 @@
       event.preventDefault();
       const next = normalizeForForm({ ...draft, title: title.value.trim(), prompt: prompt.value.trim() });
       next.options = draft.options.map((option, optionIndex) => ({ id: option.id || optionId(optionIndex), label: String(option.label || "").trim() })).filter((option) => option.label);
+      if (bilingual) next.en = { prompt: form.elements.promptEn.value.trim(), options: Object.fromEntries(next.options.map((option) => [option.id, String(draft.en.options[option.id] || '').trim()]).filter(([, label]) => label)) };
       if (!next.prompt) return setFormStatus(form, "La pregunta visible para público es obligatoria.", "error");
       if (next.options.length < MIN_OPTIONS) return setFormStatus(form, "Agrega al menos dos opciones.", "error");
       const saved = [...interactions];
