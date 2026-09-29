@@ -80,6 +80,8 @@ test("Deck writes are checked per interaction family", () => {
   }, current), []);
   assert.deepEqual(changedDeckCapabilities({ interactions: [] }, current), [CAPABILITIES.POLLS_CONFIGURE]);
   assert.deepEqual(changedDeckCapabilities({ contests: [] }, current), [CAPABILITIES.TRIVIA_RUN]);
+  assert.deepEqual(changedDeckCapabilities({ prompter: { 'slide-001': { es: 'Hola', en: 'Hello' } } }, { prompter: { 'slide-001': 'Hola' } }), [CAPABILITIES.MULTILANGUAGE_MANAGE]);
+  assert.deepEqual(changedDeckCapabilities({ prompter: { 'slide-001': 'Hola' } }, { prompter: { 'slide-001': 'Hola' } }), []);
 });
 
 test("workspace plan is resolved from the Deck owner rather than the access link", async () => {
