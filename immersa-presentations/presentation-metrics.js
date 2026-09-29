@@ -39,20 +39,21 @@ class PresentationMetricsRepository {
   async recordAudienceSnapshot({ presentationSessionId, audience = [], connectedCount = 0 }) {
     const sessionId = text(presentationSessionId);
     if (!sessionId) return;
-    const audienceIds = [...new Set((audience || []).map((item) => text(item?.audienceId || item)).filter(Boolean))];
-    if (audienceIds.length) {
-      const placeholders = audienceIds.map(() => "(?, ?)").join(", ");
+    const attendees = new Map((audience || []).map((item) => [text(item?.audienceId || item), item?.locale === 'en' ? 'en' : 'es']).filter(([id]) => id));
+    if (attendees.size) {
+      const placeholders = [...attendees].map(() => "(?, ?, ?)").join(", ");
       await this.pool.execute(
-        `INSERT IGNORE INTO presentation_session_attendance (presentation_session_id, audience_id)
-         VALUES ${placeholders}`,
-        audienceIds.flatMap((audienceId) => [sessionId, audienceId])
+        `INSERT INTO presentation_session_attendance (presentation_session_id, audience_id, locale)
+         VALUES ${placeholders}
+         ON DUPLICATE KEY UPDATE locale = VALUES(locale)`,
+        [...attendees].flatMap(([audienceId, locale]) => [sessionId, audienceId, locale])
       );
     }
     await this.pool.execute(
       `UPDATE presentation_sessions
        SET audience_peak_count = GREATEST(audience_peak_count, ?)
        WHERE id = ?`,
-      [Math.max(Number(connectedCount) || 0, audienceIds.length), sessionId]
+      [Math.max(Number(connectedCount) || 0, attendees.size), sessionId]
     );
   }
 
@@ -125,7 +126,11 @@ class PresentationMetricsRepository {
               ps.audience_peak_count,
               (SELECT COUNT(*)
                FROM presentation_session_attendance psa
-               WHERE psa.presentation_session_id = ps.id) AS participant_count
+               WHERE psa.presentation_session_id = ps.id) AS participant_count,
+              (SELECT COUNT(*) FROM presentation_session_attendance psa
+               WHERE psa.presentation_session_id = ps.id AND psa.locale = 'es') AS participant_count_es,
+              (SELECT COUNT(*) FROM presentation_session_attendance psa
+               WHERE psa.presentation_session_id = ps.id AND psa.locale = 'en') AS participant_count_en
        FROM presentation_sessions ps
        WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
        ORDER BY ps.recording_started_at DESC, ps.id DESC
@@ -192,7 +197,8 @@ class PresentationMetricsRepository {
       durationSeconds: Number(row.duration_seconds || 0),
       participants: {
         connected: Number(row.participant_count || 0),
-        peak: Number(row.audience_peak_count || 0)
+        peak: Number(row.audience_peak_count || 0),
+        locales: { es: Number(row.participant_count_es || 0), en: Number(row.participant_count_en || 0) }
       },
       polls: Array.from(pollsBySession.get(String(row.id))?.values() || []).map((poll) => ({
         ...poll,
