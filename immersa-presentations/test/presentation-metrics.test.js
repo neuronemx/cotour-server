@@ -10,11 +10,11 @@ test("attendance stores unique audience members and the connected peak", async (
   const repository = new PresentationMetricsRepository(pool);
   await repository.recordAudienceSnapshot({
     presentationSessionId: "session-1",
-    audience: [{ audienceId: "a-1" }, { audienceId: "a-1" }, { audienceId: "a-2" }],
+    audience: [{ audienceId: "a-1" }, { audienceId: "a-1", locale: "en" }, { audienceId: "a-2" }],
     connectedCount: 5
   });
-  assert.match(calls[0].sql, /INSERT IGNORE INTO presentation_session_attendance/);
-  assert.deepEqual(calls[0].params, ["session-1", "a-1", "session-1", "a-2"]);
+  assert.match(calls[0].sql, /INSERT INTO presentation_session_attendance[\s\S]*ON DUPLICATE KEY UPDATE locale/);
+  assert.deepEqual(calls[0].params, ["session-1", "a-1", "en", "session-1", "a-2", "es"]);
   assert.match(calls[1].sql, /GREATEST\(audience_peak_count, \?\)/);
   assert.deepEqual(calls[1].params, [5, "session-1"]);
 });
@@ -90,7 +90,8 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
       query += 1;
       if (query === 1) return [[{
         id: "session-1", source_session_id: "room-1", recording_started_at: "2026-08-14T05:00:00.000Z",
-        ended_at: "2026-08-14T05:30:00.000Z", duration_seconds: 1800, audience_peak_count: 8, participant_count: 10
+        ended_at: "2026-08-14T05:30:00.000Z", duration_seconds: 1800, audience_peak_count: 8, participant_count: 10,
+        participant_count_es: 6, participant_count_en: 4
       }]];
       if (query === 2) return [[
         { id: "run-1", presentation_session_id: "session-1", interaction_id: "poll-1", title: "Encuesta", prompt: "¿A?", launched_at: "2026-08-14T05:10:00.000Z", closed_at: "2026-08-14T05:12:00.000Z", option_id: "a", label: "A", sort_order: 0, response_count: 6 },
@@ -101,7 +102,7 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
   };
   const [session] = await new PresentationMetricsRepository(pool).listDeckSessions("deck-1");
   assert.equal(session.durationSeconds, 1800);
-  assert.deepEqual(session.participants, { connected: 10, peak: 8 });
+  assert.deepEqual(session.participants, { connected: 10, peak: 8, locales: { es: 6, en: 4 } });
   assert.equal(session.polls[0].totalResponses, 10);
   assert.deepEqual(session.polls[0].options.map((option) => option.count), [6, 4]);
   assert.deepEqual(session.polls[0].options.map((option) => option.percentage), [60, 40]);
