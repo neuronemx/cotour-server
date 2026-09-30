@@ -38,7 +38,6 @@ const cancelName = document.getElementById("cancelName");
 const deckDetailModal = document.getElementById("deckDetailModal");
 const closeDeckDetail = document.getElementById("closeDeckDetail");
 const detailThumb = document.getElementById("detailThumb");
-const detailLinksThumb = document.getElementById("detailLinksThumb");
 const detailSlideStrip = document.getElementById("detailSlideStrip");
 const detailPreviousSlide = document.getElementById("detailPreviousSlide");
 const detailNextSlide = document.getElementById("detailNextSlide");
@@ -790,7 +789,6 @@ function selectDetailSlide(index, options = {}) {
   const nextIndex = Math.max(0, Math.min(navigation.slides.length - 1, Number(index) || 0));
   navigation.index = nextIndex;
   detailThumb.replaceChildren(renderDetailSlide(navigation.deck, navigation.slides[nextIndex], nextIndex));
-  if (detailLinksThumb) detailLinksThumb.replaceChildren(renderDetailSlide(navigation.deck, navigation.slides[nextIndex], nextIndex));
   navigation.buttons.forEach((button, itemIndex) => {
     const selected = itemIndex === nextIndex;
     button.classList.toggle("is-active", selected);
@@ -1075,10 +1073,6 @@ function openDeckModal(deck) {
     detailThumb.innerHTML = "";
     detailThumb.appendChild(renderThumb(deck, "deck-detail-thumb"));
   }
-  if (detailLinksThumb) {
-    detailLinksThumb.innerHTML = "";
-    detailLinksThumb.appendChild(renderThumb(deck, "deck-detail-thumb"));
-  }
   if (detailTitle) detailTitle.textContent = niceTitle(deck.title || deck.deckId || "Presentación");
   if (detailDate) detailDate.textContent = deckConversionMeta(deck);
   if (detailSlides) detailSlides.textContent = deckSlideLabel(deck);
@@ -1126,7 +1120,6 @@ function closeDeckModal() {
   if (detailPreviousSlide) detailPreviousSlide.hidden = true;
   if (detailNextSlide) detailNextSlide.hidden = true;
   if (detailVideoAction) detailVideoAction.hidden = true;
-  if (detailLinksThumb) detailLinksThumb.replaceChildren();
   deckDetailModal.hidden = true;
   deckDetailModal.setAttribute("aria-hidden", "true");
   document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));

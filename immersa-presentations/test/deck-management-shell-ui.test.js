@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=26/);
-  assert.match(html, /deck-management-shell\.js\?v=14/);
+  assert.match(html, /deck-management-shell\.css\?v=27/);
+  assert.match(html, /deck-management-shell\.js\?v=15/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
@@ -63,7 +63,7 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /participationTab\.setAttribute\("aria-disabled", String\(!enabled\)\)/);
   assert.match(source, /syncDemoMasterTabs\(event\.detail\?\.deck\)/);
   assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
-  assert.match(source, /shell\.classList\.add\("is-compact-header"\)/);
+  assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
   assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
   assert.doesNotMatch(source, /MutationObserver|setInterval|setTimeout/);
 });
@@ -167,7 +167,7 @@ test("Deck detail provides visual slide navigation and direct prompter editing w
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=26/);
+  assert.match(html, /deck-management-shell\.css\?v=27/);
 });
 
 test("Deck Home restores the full Enlaces cover and centers below the persistent header", () => {
@@ -176,15 +176,16 @@ test("Deck Home restores the full Enlaces cover and centers below the persistent
   const shellCss = read("public/home/deck-management-shell.css");
   const shell = read("public/home/deck-management-shell.js");
 
-  assert.match(shell, /shell\.classList\.add\("is-compact-header"\)/);
-  assert.match(html, /id="deckPanelLinks"[\s\S]*?class="deck-links-hero"[\s\S]*?id="detailLinksThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"/);
-  assert.match(read("public/home/home.js"), /detailLinksThumb\.replaceChildren\(renderDetailSlide\(navigation\.deck, navigation\.slides\[nextIndex\], nextIndex\)\)/);
-  assert.match(shellCss, /\.deck-links-hero \{[\s\S]*position: relative;[\s\S]*overflow: hidden;/);
+  assert.match(shell, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.match(html, /class="deck-detail-hero"[\s\S]*?id="detailThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"[\s\S]*?class="deck-detail-copy"/);
+  assert.doesNotMatch(html, /deck-links-hero|detailLinksThumb/);
   assert.match(homeCss, /#deckDetailModal \{ inset:68px 0 0; align-items:center; padding:20px; \}/);
   assert.match(homeCss, /@media \(max-width: 700px\) \{ #deckDetailModal \{ inset:54px 0 0; padding:12px; \} \}/);
+  assert.match(homeCss, /#deckDetailModal \.deck-detail-modal \{ max-height:calc\(100dvh - 110px\); \}/);
   assert.match(shellCss, /height:min\(calc\(100dvh - 108px\),900px\)/);
-  assert.match(shellCss, /height:calc\(100dvh - 78px\)/);
-  assert.match(html, /home\.css\?v=69&ui=3/);
+  assert.match(shellCss, /height:calc\(100dvh - 110px\)/);
+  assert.match(shellCss, /has-audiovisual-library > \.deck-detail-tabs\{[\s\S]*flex:0 0 auto;/);
+  assert.match(html, /home\.css\?v=70&ui=3/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {

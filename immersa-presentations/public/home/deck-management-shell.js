@@ -49,7 +49,7 @@
   function activateTab(name, focus = false) {
     const targetTab = tabs.find((tab) => tab.dataset.deckTab === name);
     if (!targetTab || targetTab.disabled) return;
-    shell.classList.add("is-compact-header");
+    shell.classList.toggle("is-compact-header", name !== "links");
     shell.classList.toggle("has-audiovisual-library", name === "audiovisual");
     modal.dataset.activeDeckTab = name;
     syncDeckHomeLink(name);

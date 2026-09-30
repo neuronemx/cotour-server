@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=69&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=70&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=8">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=7">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
@@ -49,7 +49,7 @@
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=26">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=27">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
 </head>
 <body data-tutorial-context="home">
@@ -117,7 +117,7 @@
   <div id="deckDetailModal" class="modal-backdrop" hidden aria-hidden="true">
     <section class="deck-detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <header class="deck-detail-header">
-        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div></div>
+        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><button id="detailPreviousSlide" class="deck-detail-slide-arrow is-previous" type="button" aria-label="Ver slide anterior" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button id="detailNextSlide" class="deck-detail-slide-arrow is-next" type="button" aria-label="Ver slide siguiente" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button id="detailVideoAction" class="deck-detail-video-action" type="button" hidden><svg viewBox="0 0 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20.5H6z"/><path d="M15 3.5v3h3M9 11h6M9 14.5h6"/></svg><span>Apuntador</span></button><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
         <div class="deck-detail-copy"><div class="deck-detail-title-block"><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><div class="deck-file-actions" aria-label="Administrar presentación"><button id="detailRename" class="deck-file-action" type="button"><img src="/home/assets/renombrar.png" alt=""><span>Renombrar</span></button><button id="detailReplace" class="deck-file-action" type="button"><img src="/home/assets/reemplazar.png" alt=""><span>Reemplazar</span></button><button id="detailLanguage" class="deck-file-action" type="button"><img src="/home/assets/idioma.png" alt=""><span>Idioma</span></button></div><input id="replacementFile" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden></div>
         <div id="detailDemoAdmin" class="deck-demo-admin" hidden><label for="detailDemoPlan">Nivel de esta slide</label><select id="detailDemoPlan"><option value="">Asignar nivel</option><option value="FREE">FREE</option><option value="SPEAKER">SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select><button id="detailDemoPublish" type="button">Publicar Demo</button></div>
         <button id="closeDeckDetail" class="deck-detail-close" type="button" aria-label="Cerrar detalle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -132,7 +132,6 @@
       <div class="deck-detail-content">
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
-          <div class="deck-links-hero"><div id="detailLinksThumb" class="deck-detail-thumb-wrap"></div><button id="detailPreviousSlide" class="deck-detail-slide-arrow is-previous" type="button" aria-label="Ver slide anterior" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button id="detailNextSlide" class="deck-detail-slide-arrow is-next" type="button" aria-label="Ver slide siguiente" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button id="detailVideoAction" class="deck-detail-video-action" type="button" hidden><svg viewBox="0 0 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20.5H6z"/><path d="M15 3.5v3h3M9 11h6M9 14.5h6"/></svg><span>Apuntador</span></button><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
           <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
             <div class="deck-transition-copy"><strong id="deckTransitionTitle">Transición de slides</strong><span>Se aplicará a todo el deck</span></div>
@@ -286,7 +285,7 @@
   <script src="/home/prompter-editor.js?v=2"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=4"></script>
-  <script src="/home/deck-management-shell.js?v=14"></script>
+  <script src="/home/deck-management-shell.js?v=15"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=2"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>

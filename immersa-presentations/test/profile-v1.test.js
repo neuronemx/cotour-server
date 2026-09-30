@@ -146,7 +146,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
   assert.match(home, /home\.js\?v=\d+/);
   assert.match(home, /id="planAccountIdentity"/);
   assert.match(home, /id="planUsage"[^>]*>[\s\S]*?id="planAccountIdentity"[\s\S]*?class="plan-usage-head"/);
-  assert.match(home, /home\.css\?v=69/);
+  assert.match(home, /home\.css\?v=70/);
   assert.match(home, /id="accountAvatarImage"[^>]+referrerpolicy="no-referrer"[^>]+hidden/);
   assert.match(home, /home-account\.js\?v=3/);
   assert.match(read("public/home/home-account.js"), /session\.user\.image/);
