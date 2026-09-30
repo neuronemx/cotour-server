@@ -36,6 +36,8 @@ test('Público uses the attached flags as a destination-language toggle beside Q
   assert.match(script, /setAudienceLocale\(currentLocale === 'en' \? 'es' : 'en'\)/);
   assert.match(css, /\.audience-locale-toggle \{[\s\S]*right: calc\(max\(14px, env\(safe-area-inset-right\)\) \+ 58px\);[\s\S]*bottom: calc\(max\(14px, env\(safe-area-inset-bottom\)\) \+ 3px\);/);
   assert.match(css, /\.audience-locale-toggle img \{[^}]*width: 40px;[^}]*height: 40px;[^}]*opacity: \.85;/);
+  assert.match(css, /@media \(max-width: 520px\), \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.audience-locale-toggle \{[^}]*right: calc\(max\(14px, env\(safe-area-inset-right\)\) \+ 6px\);[^}]*bottom: calc\(max\(14px, env\(safe-area-inset-bottom\)\) \+ 56px\);[^}]*width: 34px;[^}]*height: 34px;/);
+  assert.match(css, /@media \(max-width: 520px\), \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.audience-locale-toggle img \{ width: 34px; height: 34px; \}/);
 });
 
 test('Deck Home chooses the Speaker language before opening and Speaker has no locale selector', () => {
