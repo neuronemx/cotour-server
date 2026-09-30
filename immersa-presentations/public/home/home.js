@@ -52,6 +52,7 @@ const deckTransitionOptions = document.getElementById("deckTransitionOptions");
 const deckTransitionStatus = document.getElementById("deckTransitionStatus");
 const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
+const detailLanguage = document.getElementById("detailLanguage");
 const detailDemoAdmin = document.getElementById("detailDemoAdmin");
 const detailDemoPlan = document.getElementById("detailDemoPlan");
 const detailDemoPublish = document.getElementById("detailDemoPublish");
@@ -1088,7 +1089,13 @@ function openDeckModal(deck) {
   if (detailReplace) {
     detailReplace.hidden = isPublishedDemo || adjustmentRequired;
     const label = detailReplace.querySelector("span");
-    if (label) label.textContent = deck.missing ? "Subir presentación" : "Sustituir";
+    if (label) label.textContent = deck.missing ? "Subir" : "Reemplazar";
+  }
+  if (detailLanguage) {
+    const languageEnabled = capabilityEnabled("multilanguage.manage") && !deck.missing && !deck.immutable && !deck.systemDemo && !adjustmentRequired;
+    detailLanguage.hidden = Boolean(deck.systemDemo) || adjustmentRequired;
+    detailLanguage.disabled = !languageEnabled;
+    detailLanguage.title = languageEnabled ? "Gestionar versión en Inglés" : "Disponible en planes SPEAKER";
   }
   if (detailDemoAdmin) detailDemoAdmin.hidden = !isMaster || Boolean(deck.missing);
   loadDetailSlideNavigation(deck);

@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=24/);
-  assert.match(html, /deck-management-shell\.js\?v=12/);
+  assert.match(html, /deck-management-shell\.css\?v=25/);
+  assert.match(html, /deck-management-shell\.js\?v=13/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
@@ -24,6 +24,10 @@ test("Deck detail exposes the approved management sections", () => {
   assert.doesNotMatch(html, />Business</);
   assert.doesNotMatch(html, /id="detailStatus"/);
   assert.match(html, /data-deck-tab="participation"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Participación<\/span>/);
+  assert.match(html, /id="detailRename"[\s\S]*?renombrar\.png[\s\S]*?<span>Renombrar<\/span>/);
+  assert.match(html, /id="detailReplace"[\s\S]*?reemplazar\.png[\s\S]*?<span>Reemplazar<\/span>/);
+  assert.match(html, /id="detailLanguage"[\s\S]*?idioma\.png[\s\S]*?<span>Idioma<\/span>/);
+  assert.doesNotMatch(html, /data-deck-tab="locales"|EN \+|Español Base|Base · Activo/);
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
@@ -59,7 +63,7 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /participationTab\.setAttribute\("aria-disabled", String\(!enabled\)\)/);
   assert.match(source, /syncDemoMasterTabs\(event\.detail\?\.deck\)/);
   assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
-  assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.match(source, /shell\.classList\.add\("is-compact-header"\)/);
   assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
   assert.doesNotMatch(source, /MutationObserver|setInterval|setTimeout/);
 });
@@ -163,7 +167,7 @@ test("Deck detail provides visual slide navigation and direct prompter editing w
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=24/);
+  assert.match(html, /deck-management-shell\.css\?v=25/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {
