@@ -57,6 +57,7 @@
       if (deckId !== selected) return;
       variant = data.en;
       render();
+      document.dispatchEvent(new CustomEvent('immersa:deck-locale-updated', { detail: { deckId, variant } }));
     } catch (error) { show(error.message, true); }
   }
   async function action(request, success) {

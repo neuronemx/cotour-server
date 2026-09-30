@@ -458,6 +458,7 @@ function manifestSummary(manifest, manifestStats = null) {
     demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
     immutable: manifest.systemDemo?.role === "published",
     publishedAt: manifest.systemDemo?.publishedAt || "",
+    locales: manifest.locales || null,
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -2091,6 +2092,16 @@ io.on("connection", (socket) => {
     } catch (error) {
       currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);
+    }
+    if (role === "presenter" && ["es", "en"].includes(locale)) {
+      try {
+        const manifest = locale === "en" ? await readManifest(joinedDeckId) : null;
+        const validation = validateOperationalLocale(locale, currentFeatureAccess, manifest);
+        if (validation.ok) session.operationalLocale = validation.locale;
+        else socket.emit("presentation:locale_rejected", { code: validation.code });
+      } catch (_error) {
+        socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" });
+      }
     }
     if (session.operationalLocale === "en") {
       try {

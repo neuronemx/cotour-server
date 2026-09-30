@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
+let requestedLocale = params.get("locale") === "en" ? "en" : "es";
 const isPublishedDemo = roleOpenContext.demo_role === "published" || deckId === "immersa-demo";
 const deckHomeLink = document.getElementById("deckHomeLink");
 if (deckHomeLink) deckHomeLink.href = "/home?deck=" + encodeURIComponent(deckId);
@@ -15,7 +16,7 @@ const raffleController = window.ImmersaRaffleControls?.createController ? window
 let manifest = null;
 let baseManifest = null;
 let englishManifest = null;
-let operationalLocale = 'es';
+let operationalLocale = requestedLocale;
 let interactions = [];
 let videoSlideIds = new Set();
 let selectedInteractionId = "";
@@ -198,18 +199,13 @@ async function loadDeck() {
       if (candidate.slides?.length === baseManifest.slides?.length) englishManifest = candidate;
     }
   }
-  const selector = document.getElementById('speakerLocale');
-  if (selector) selector.hidden = !englishManifest;
+  if (requestedLocale === 'en' && !englishManifest) requestedLocale = 'es';
+  operationalLocale = requestedLocale;
+  manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+  window.ImmersaI18n?.setLocale(operationalLocale);
   renderDeckNotice(); total.textContent = manifest.slides.length;
   await loadInteractions(); renderThumbs();
 }
-document.getElementById('speakerLocale')?.addEventListener('change', (event) => {
-  socket.emit('presentation:set_locale', { locale: event.target.value });
-});
-socket.on('presentation:locale_rejected', () => {
-  const selector = document.getElementById('speakerLocale');
-  if (selector) selector.value = operationalLocale;
-});
 function normalizeInteractionList(data) { const list = Array.isArray(data) ? data : Array.isArray(data?.interactions) ? data.interactions : []; return list.filter((item) => item && item.id && item.type && Array.isArray(item.options) && item.options.length); }
 function clearSelectedInteraction() { selectedInteractionId = ""; }
 async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); prompterScripts=data?.prompter||{}; } catch (_error) { interactions = []; videoSlideIds = new Set(); prompterScripts={}; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
@@ -638,7 +634,7 @@ function videoThumbMark(index) { const gradientId = "immersa-video-gradient-" + 
 function applySlideOrientation(container, item, src) { const portrait = item?.orientation === "portrait"; container.classList.toggle("portrait-slide", portrait); if (portrait) container.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else container.style.removeProperty("--slide-bg"); }
 function presenterNavigationLocked(state = currentState) { return Boolean(state?.transmissionPaused && state?.transmissionPausedBy !== "presenter"); }
 function renderThumbs() { thumbs.innerHTML = ""; manifest.slides.forEach((item, index) => { const slideNumber = index + 1; const hasVideo = videoSlideIds.has(slideIdentity(item, index)); const button = document.createElement("button"); button.type = "button"; button.className = "thumb" + (hasVideo ? " has-video" : ""); button.setAttribute("aria-label", "Ir a lámina " + slideNumber + (item.title ? ": " + item.title : "") + (hasVideo ? " · contiene video" : "")); button.title = (item.title ? "Lámina " + slideNumber + " · " + item.title : "Lámina " + slideNumber) + (hasVideo ? " · Video" : ""); button.innerHTML = '<span class="thumb-number">' + slideNumber + '</span><img alt="" src="' + assetSrc(item, "thumb") + '">' + (hasVideo ? videoThumbMark(index) : ""); button.addEventListener("click", () => { if (presenterNavigationLocked()) return; socket.emit("slide_go", { slideIndex: index }); closeThumbsPanel(); }); thumbs.appendChild(button); }); }
-function render(state) { currentState = state; const nextLocale = state.operationalLocale === 'en' && englishManifest ? 'en' : 'es'; if (nextLocale !== operationalLocale) { operationalLocale = nextLocale; window.ImmersaI18n?.setLocale(operationalLocale); manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest; renderThumbs(); hidePrompter(); } const selector = document.getElementById('speakerLocale'); if (selector) selector.value = operationalLocale; const index = state.presenterSlideIndex ?? state.slideIndex; const previousIndex = currentSlideIndex; const changed = index !== previousIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = slideSrc(index); if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex); else slide.src = src; window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map(slideSrc)); applySlideOrientation(streamArea, item, src); window.ImmersaDemoPlanBadge?.update(streamArea, item, manifest); drawingOverlay?.refresh(); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = window.ImmersaI18n?.t(state.transmissionPaused ? 'live.resume' : 'live.pause') || (state.transmissionPaused ? 'Reanudar transmisión' : 'Pausar transmisión'); playPause.setAttribute("aria-label", playPause.title); const navigationLocked = presenterNavigationLocked(state); prevSlide.disabled = navigationLocked || index <= 0; nextSlide.disabled = navigationLocked || index >= manifest.slides.length - 1; updateAudienceQrButton(state); renderPresenterQr(state); updateReactionToggle(state); liveTextControl?.sync(state.overlays || {}); document.querySelectorAll(".thumb").forEach((node, i) => { node.disabled = navigationLocked; node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
+function render(state) { currentState = state; const nextLocale = state.operationalLocale === 'en' && englishManifest ? 'en' : 'es'; if (nextLocale !== operationalLocale) { operationalLocale = nextLocale; window.ImmersaI18n?.setLocale(operationalLocale); manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest; renderThumbs(); hidePrompter(); } const index = state.presenterSlideIndex ?? state.slideIndex; const previousIndex = currentSlideIndex; const changed = index !== previousIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = slideSrc(index); if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex); else slide.src = src; window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map(slideSrc)); applySlideOrientation(streamArea, item, src); window.ImmersaDemoPlanBadge?.update(streamArea, item, manifest); drawingOverlay?.refresh(); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = window.ImmersaI18n?.t(state.transmissionPaused ? 'live.resume' : 'live.pause') || (state.transmissionPaused ? 'Reanudar transmisión' : 'Pausar transmisión'); playPause.setAttribute("aria-label", playPause.title); const navigationLocked = presenterNavigationLocked(state); prevSlide.disabled = navigationLocked || index <= 0; nextSlide.disabled = navigationLocked || index >= manifest.slides.length - 1; updateAudienceQrButton(state); renderPresenterQr(state); updateReactionToggle(state); liveTextControl?.sync(state.overlays || {}); document.querySelectorAll(".thumb").forEach((node, i) => { node.disabled = navigationLocked; node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
 function popReaction(emoji) { if (!localReactions.checked) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(20 + Math.random() * 60) + "%"; node.style.setProperty("--x", Math.round(Math.random() * 240 - 120) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2900); }
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
@@ -892,5 +888,5 @@ loadDeck().then(() => {
   initDrawingOverlay();
   bindPrompterGesture();
   updateDrawingMode();
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter" });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale });
 });

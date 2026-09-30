@@ -599,6 +599,39 @@
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8'/%3E%3C/svg%3E");
 }
 
+.deck-detail-modal .speaker-locale-actions {
+  justify-content: space-between;
+  cursor: default;
+}
+
+.deck-detail-modal .speaker-locale-actions:hover {
+  transform: none;
+}
+
+.speaker-locale-choices {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.speaker-locale-choice {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transition: transform .14s ease, filter .14s ease;
+}
+
+.speaker-locale-choice:hover { transform: translateY(-1px) scale(1.04); filter: brightness(1.08); }
+.speaker-locale-choice:active { transform: scale(.95); }
+.speaker-locale-choice img { width: 30px; height: 30px; display: block; }
+
 .deck-detail-modal .role-audience::before {
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
@@ -684,6 +717,9 @@
   .deck-detail-modal .deck-detail-actions { grid-auto-rows: 45px; }
   .deck-detail-modal .detail-role-action { height: 45px; min-height: 0; padding-right: 9px; padding-left: 36px; font-size: 11.5px; }
   .deck-detail-modal .detail-role-action::before { left: 11px; width: 16px; height: 16px; }
+  .speaker-locale-choices { gap: 5px; }
+  .speaker-locale-choice { width: 29px; height: 29px; flex-basis: 29px; }
+  .speaker-locale-choice img { width: 27px; height: 27px; }
   .deck-detail-modal.is-compact-header .deck-detail-header {
     grid-template-columns: 92px minmax(0, 1fr);
     column-gap: 12px;

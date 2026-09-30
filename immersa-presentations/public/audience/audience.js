@@ -40,7 +40,8 @@ const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
-const audienceLocale = document.getElementById("audienceLocale");
+const audienceLocaleToggle = document.getElementById("audienceLocaleToggle");
+const audienceLocaleFlag = document.getElementById("audienceLocaleFlag");
 const audienceQrToggle = document.getElementById("audienceQrToggle");
 const audienceQrPanel = document.getElementById("audienceQrPanel");
 const audienceQrPattern = document.getElementById("audienceQrPattern");
@@ -137,20 +138,29 @@ async function loadDeck() {
       const candidate = await en.json();
       if (candidate.slides?.length === baseManifest.slides?.length) {
         englishManifest = candidate;
-        audienceLocale.hidden = false;
+        audienceLocaleToggle.hidden = false;
         try { if (localStorage.getItem(localePreferenceKey) === 'en') currentLocale = 'en'; } catch (_error) {}
-        audienceLocale.value = currentLocale;
         manifest = currentLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+        renderAudienceLocaleToggle();
       }
     }
   }
   window.ImmersaI18n?.setLocale(currentLocale);
 }
 function slideUrl(index) { const item = manifest.slides[index]; return "/decks/" + deckId + "/" + (currentLocale === 'en' ? 'locales/en/' : '') + item.src; }
-audienceLocale?.addEventListener('change', () => {
-  currentLocale = audienceLocale.value === 'en' && englishManifest ? 'en' : 'es';
+function renderAudienceLocaleToggle() {
+  if (!audienceLocaleToggle || !audienceLocaleFlag) return;
+  const destination = currentLocale === 'en' ? 'es' : 'en';
+  const destinationLabel = destination === 'en' ? 'Inglés' : 'Español';
+  audienceLocaleFlag.src = destination === 'en' ? '/shared/flags/usa.png' : '/shared/flags/mex.png';
+  audienceLocaleToggle.setAttribute('aria-label', 'Cambiar a ' + destinationLabel);
+  audienceLocaleToggle.title = 'Cambiar a ' + destinationLabel;
+}
+function setAudienceLocale(locale) {
+  currentLocale = locale === 'en' && englishManifest ? 'en' : 'es';
   manifest = currentLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
   try { localStorage.setItem(localePreferenceKey, currentLocale); } catch (_error) {}
+  renderAudienceLocaleToggle();
   window.ImmersaI18n?.setLocale(currentLocale);
   updateFullscreenButton();
   setAudienceQrVisible(!audienceQrPanel?.classList.contains('hidden'));
@@ -161,7 +171,8 @@ audienceLocale?.addEventListener('change', () => {
   renderInteractionCard();
   knowledgeActivityAudience?.render?.();
   if (socket.connected) socket.emit('presentation:set_audience_locale', { locale: currentLocale });
-});
+}
+audienceLocaleToggle?.addEventListener('click', () => setAudienceLocale(currentLocale === 'en' ? 'es' : 'en'));
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }

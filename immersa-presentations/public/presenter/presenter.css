@@ -1371,5 +1371,3 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   color:#062020;
   background:#66cccc;
 }
-.speaker-locale { box-sizing: border-box; width: 64px; min-height: 42px; padding: 0 5px; border: 1px solid rgba(255,255,255,.45); border-radius: 10px; background: #27233f; color: #fff; font: 700 13px Inter, sans-serif; cursor: pointer; }
-.speaker-locale[hidden] { display: none !important; }
