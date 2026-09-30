@@ -21,4 +21,7 @@ test('Idioma uses a dedicated modal with the approved English-version states and
   assert.match(script, /variant\?\.active \? 'Desactivar' : 'Activar'/);
   assert.match(script, /note\.hidden = Boolean\(variant\)/);
   assert.match(script, /Recuerda también incluir los textos en Inglés en Encuestas y Trivias/);
+  const css = read('public/home/locales-editor.css');
+  assert.match(css, /\.deck-locale-actions button \{[\s\S]*min-height: 51px;[\s\S]*border: 1px solid var\(--line\);[\s\S]*background: #fff;/);
+  assert.match(css, /\.deck-locale-actions #deckLocaleUpload \{[\s\S]*background: var\(--grad\);/);
 });

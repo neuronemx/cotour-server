@@ -67,21 +67,31 @@
 .deck-language-note { margin: 0; color: #757d98; font-size: 13px; line-height: 1.48; }
 .deck-locale-actions { display: flex; flex-wrap: wrap; gap: 9px; }
 .deck-locale-actions button {
-  min-height: 40px;
-  padding: 0 15px;
-  border: 1px solid #665be8;
-  border-radius: 10px;
-  color: #fff;
-  background: #292347;
-  font-weight: 750;
+  min-height: 51px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: none;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
 }
-.deck-locale-actions button:hover { background: #37305d; }
+.deck-locale-actions button:hover { transform: translateY(-2px); border-color: rgba(67,104,246,.28); box-shadow: var(--shadow-sm); }
 .deck-locale-actions button:disabled { opacity: .5; cursor: wait; }
+.deck-locale-actions #deckLocaleUpload {
+  border: 0;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: 0 12px 28px -14px rgba(67,104,246,.72);
+}
 .deck-locale-actions .is-delete {
   flex-basis: 100%;
   width: max-content;
   max-width: max-content;
-  border-color: #d9dceb;
+  border-color: var(--line);
   color: #7a3241;
   background: #fff;
 }
