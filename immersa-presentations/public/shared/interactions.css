@@ -373,6 +373,13 @@ body.stage-actions-open .interaction-slide-scrim {
   overflow-wrap: anywhere;
   word-break: normal;
 }
+.screen .interaction-results-overlay > p {
+  color: #f8f4ea;
+  font-size: clamp(28px, 4vw, 54px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.02em;
+}
 .screen .interaction-results-overlay .interaction-result-label {
   align-items: flex-start;
 }
