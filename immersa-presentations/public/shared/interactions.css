@@ -355,6 +355,33 @@ body.stage-actions-open .interaction-slide-scrim {
   background: rgba(255,255,255,.16);
 }
 
+/* Pantalla: la encuesta proyecta solo la pregunta y permite texto multilínea. */
+.screen .interaction-results-overlay h2 {
+  display: none;
+}
+.screen .interaction-results-overlay,
+.screen .interaction-results-overlay p,
+.screen .interaction-results-overlay .interaction-results-list,
+.screen .interaction-results-overlay .interaction-result-row,
+.screen .interaction-results-overlay .interaction-result-label {
+  min-width: 0;
+  max-width: 100%;
+}
+.screen .interaction-results-overlay p,
+.screen .interaction-results-overlay .interaction-result-label span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.screen .interaction-results-overlay .interaction-result-label {
+  align-items: flex-start;
+}
+.screen .interaction-results-overlay .interaction-result-label span {
+  flex: 1 1 auto;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .stage-interaction-panel {
   position: absolute;
   z-index: 6;
