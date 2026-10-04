@@ -1382,16 +1382,28 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 }
 
 .nav-button {
-  width: 78px !important;
-  min-width: 78px !important;
-  height: 58px !important;
-  min-height: 58px !important;
+  width: 104px !important;
+  min-width: 104px !important;
+  height: 72px !important;
+  min-height: 72px !important;
 }
 .nav-button svg {
-  width: 34px !important;
-  height: 34px !important;
+  width: 40px !important;
+  height: 40px !important;
 }
-.nav-divider { height: 34px; }
+.nav-divider { height: 44px; }
+.nav-cluster {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+}
+.slide-status {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+}
+.fx-module { margin-left: auto; }
 
 .audiovisual-panel:not(.is-open),
 .audiovisual-panel:not(.is-open) * {
@@ -1439,34 +1451,46 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 
 @media (max-width: 720px) {
   .audience-people-icon { width: 16px; height: 16px; }
-  .nav-button {
-    width: 70px !important;
-    min-width: 70px !important;
-    height: 56px !important;
-    min-height: 56px !important;
+  .nav-cluster {
+    left: 12px;
+    bottom: 112px;
   }
-  .nav-button svg { width: 32px !important; height: 32px !important; }
+  .nav-button {
+    width: 96px !important;
+    min-width: 96px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+  }
+  .nav-button svg { width: 38px !important; height: 38px !important; }
+  .slide-status { bottom: 10px; }
   .time-panel { max-height: calc(100% - 24px); }
 }
 
 @media (max-width: 390px) {
   .nav-button {
-    width: 66px !important;
-    min-width: 66px !important;
-    height: 54px !important;
-    min-height: 54px !important;
+    width: 90px !important;
+    min-width: 90px !important;
+    height: 68px !important;
+    min-height: 68px !important;
   }
+  .nav-cluster { left: 10px; bottom: 104px; }
+  .slide-status { bottom: 8px; }
   .time-countdown-actions { gap: 7px; }
   .time-shortcuts { gap: 5px; }
   .time-shortcuts button { padding-inline: 8px; }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .nav-button {
-    width: 82px !important;
-    min-width: 82px !important;
-    height: 58px !important;
-    min-height: 58px !important;
+  .nav-cluster {
+    left: 12px;
+    bottom: 12px;
   }
-  .nav-button svg { width: 34px !important; height: 34px !important; }
+  .nav-button {
+    width: 112px !important;
+    min-width: 112px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+  }
+  .nav-button svg { width: 40px !important; height: 40px !important; }
+  .slide-status { bottom: 12px; }
 }

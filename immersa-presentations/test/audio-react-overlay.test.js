@@ -40,7 +40,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
-  assert.match(presenterHtml, /presenter\.css\?v=77/);
+  assert.match(presenterHtml, /presenter\.css\?v=78/);
   assert.match(presenterHtml, /presenter\.js\?v=83/);
 });
 

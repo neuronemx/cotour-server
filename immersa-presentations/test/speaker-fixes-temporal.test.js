@@ -46,9 +46,17 @@ test("Speaker connected badge uses the supplied people icon without the word con
 test("Speaker navigation targets are substantially larger in portrait and landscape", () => {
   const css = read("public/presenter/presenter.css");
 
-  assert.match(css, /\.nav-button \{\s*width: 78px !important;[\s\S]*?height: 58px !important;/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.nav-button \{\s*width: 70px !important;[\s\S]*?height: 56px !important;/);
-  assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\)[\s\S]*?\.nav-button \{\s*width: 82px !important;[\s\S]*?height: 58px !important;/);
+  assert.match(css, /\.nav-button \{\s*width: 104px !important;[\s\S]*?height: 72px !important;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.nav-cluster \{\s*left: 12px;\s*bottom: 112px;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.nav-button \{\s*width: 96px !important;[\s\S]*?height: 72px !important;/);
+  assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\)[\s\S]*?\.nav-button \{\s*width: 112px !important;[\s\S]*?height: 72px !important;/);
+});
+
+test("Speaker slide counter and pause remain centered independently of side controls", () => {
+  const css = read("public/presenter/presenter.css");
+
+  assert.match(css, /\.slide-status \{\s*position: absolute;\s*left: 50%;\s*bottom: 16px;\s*transform: translateX\(-50%\);/);
+  assert.match(css, /\.fx-module \{ margin-left: auto; \}/);
 });
 
 test("Interaction groups retain a visible divider", () => {
