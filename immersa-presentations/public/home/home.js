@@ -7,6 +7,18 @@ let activeDeck = null;
 let detailDeck = null;
 let planUsage = null;
 
+function bindBackdropDismissal(backdrop, onDismiss) {
+  if (!backdrop) return;
+  let startedOnBackdrop = false;
+  backdrop.addEventListener("pointerdown", (event) => {
+    startedOnBackdrop = event.target === backdrop;
+  });
+  backdrop.addEventListener("click", (event) => {
+    if (startedOnBackdrop && event.target === backdrop) onDismiss();
+    startedOnBackdrop = false;
+  });
+}
+
 const deckList = document.getElementById("deckList");
 const deckNotice = document.getElementById("deckNotice");
 const uploadForm = document.getElementById("uploadForm");
@@ -1327,9 +1339,7 @@ if (cancelName) {
 }
 
 if (nameModal) {
-  nameModal.addEventListener("click", (event) => {
-    if (event.target === nameModal) closeNameModal(false);
-  });
+  bindBackdropDismissal(nameModal, () => closeNameModal(false));
 }
 
 if (closeDeckDetail) {
@@ -1337,9 +1347,7 @@ if (closeDeckDetail) {
 }
 
 if (deckDetailModal) {
-  deckDetailModal.addEventListener("click", (event) => {
-    if (event.target === deckDetailModal) closeDeckModal();
-  });
+  bindBackdropDismissal(deckDetailModal, closeDeckModal);
 }
 
 deckTransitionOptions?.addEventListener("click", (event) => {

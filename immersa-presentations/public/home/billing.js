@@ -1,4 +1,14 @@
 (() => {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const openButton = document.getElementById("billingOpen");
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
@@ -546,7 +556,7 @@
 
   openButton?.addEventListener("click", open);
   closeButton?.addEventListener("click", close);
-  modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
+  bindBackdropDismissal(modal, close);
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;

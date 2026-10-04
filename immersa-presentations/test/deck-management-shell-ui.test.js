@@ -202,7 +202,7 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(videos, /renderForm\(config\.videos\.find/);
   assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
   assert.match(videos, /immersa:deck-videos-changed/);
-  assert.match(html, /video-editor\.js\?v=113/);
+  assert.match(html, /video-editor\.js\?v=114/);
 });
 
 test("Deck access actions open Speaker in the current tab and provide a clipboard fallback", () => {

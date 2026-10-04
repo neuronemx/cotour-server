@@ -1,4 +1,14 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const modal = document.getElementById('prompterModal');
   const esField = document.getElementById('prompterModalText');
   const enField = document.getElementById('prompterModalEnglish');
@@ -57,5 +67,5 @@
   document.getElementById('prompterModalSave')?.addEventListener('click', () => persist(false));
   document.getElementById('prompterModalDelete')?.addEventListener('click', () => persist(true));
   document.getElementById('prompterModalClose')?.addEventListener('click', close);
-  modal?.addEventListener('click', (event) => { if (event.target === modal) close(); });
+  bindBackdropDismissal(modal, close);
 })();

@@ -1,4 +1,13 @@
 (function initializeProfileEditor() {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const modal = document.getElementById("profileModal");
   const openButton = document.getElementById("profileButton");
   const closeButton = document.getElementById("profileClose");
@@ -203,7 +212,7 @@
   photoSelect.addEventListener("click", selectPhoto);
   avatarButton.addEventListener("click", selectPhoto);
   photoInput.addEventListener("change", previewPhoto);
-  modal.addEventListener("click", (event) => { if (event.target === modal) closeProfile(); });
+  bindBackdropDismissal(modal, closeProfile);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) closeProfile(); });
   avatarImage.addEventListener("error", () => showPhoto(""));
   loadProfile({ silent: true }).catch(() => {});

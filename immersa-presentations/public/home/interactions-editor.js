@@ -1,4 +1,13 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const MAX_OPTIONS = 6;
   const MIN_OPTIONS = 2;
   const optionLetters = "abcdefghijklmnopqrstuvwxyz";
@@ -107,9 +116,7 @@
     listNode = modal.querySelector(".interactions-list");
     statusNode = modal.querySelector(".interactions-status");
     modal.querySelector(".interactions-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 

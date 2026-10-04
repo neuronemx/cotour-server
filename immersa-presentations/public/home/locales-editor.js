@@ -1,4 +1,13 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const trigger = document.getElementById('detailLanguage');
   const modal = document.getElementById('deckLanguageModal');
   const close = document.getElementById('deckLanguageClose');
@@ -88,7 +97,7 @@
   });
   trigger.addEventListener('click', openModal);
   close.addEventListener('click', closeModal);
-  modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+  bindBackdropDismissal(modal, closeModal);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !modal.hidden) closeModal();
   });
