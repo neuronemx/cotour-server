@@ -74,3 +74,16 @@ test("Speaker controls suppress transient touch rectangles while preserving keyb
   assert.match(css, /button:focus:not\(:focus-visible\),[\s\S]*?outline: none;/);
   assert.doesNotMatch(css, /button:focus-visible[\s\S]*?outline: none/);
 });
+
+test("Speaker thumbnails update without neighbor flicker and follow the selected slide", () => {
+  const script = read("public/presenter/presenter.js");
+  const css = read("public/presenter/presenter.css");
+
+  assert.match(script, /function followActiveThumb\(state\)/);
+  assert.match(script, /thumbs\?\.children\?\.\[index\]/);
+  assert.match(script, /activeThumb\.offsetLeft - \(\(thumbs\.clientWidth - activeThumb\.offsetWidth\) \/ 2\)/);
+  assert.match(script, /thumbs\.scrollTo\(\{ left: Math\.max\(0, centeredLeft\), behavior: "smooth" \}\)/);
+  assert.match(script, /render\(state\);\s*followActiveThumb\(state\);/);
+  assert.match(css, /\.thumbs \{\s*contain: layout paint;\s*scroll-behavior: smooth;/);
+  assert.match(css, /\.thumb,\s*\.thumb img \{\s*transition: none !important;/);
+});

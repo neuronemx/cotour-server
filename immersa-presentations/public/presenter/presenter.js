@@ -67,6 +67,20 @@ const speakerTimerState = { running: false, elapsedMs: 0, startedAt: 0 };
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
+let trackedActiveThumb = null;
+let thumbScrollFrame = null;
+function followActiveThumb(state) {
+  const index = Number(state?.presenterSlideIndex ?? state?.slideIndex);
+  const activeThumb = Number.isInteger(index) ? thumbs?.children?.[index] : null;
+  if (!activeThumb || activeThumb === trackedActiveThumb) return;
+  trackedActiveThumb = activeThumb;
+  if (thumbScrollFrame) cancelAnimationFrame(thumbScrollFrame);
+  thumbScrollFrame = requestAnimationFrame(() => {
+    thumbScrollFrame = null;
+    const centeredLeft = activeThumb.offsetLeft - ((thumbs.clientWidth - activeThumb.offsetWidth) / 2);
+    thumbs.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+  });
+}
 const deckNotice = document.getElementById("deckNotice");
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
@@ -891,7 +905,11 @@ else if (compactLandscapeQuery?.addListener) compactLandscapeQuery.addListener(s
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
-socket.on("presentation_state", (state) => { if (manifest) render(state); });
+socket.on("presentation_state", (state) => {
+  if (!manifest) return;
+  render(state);
+  followActiveThumb(state);
+});
 socket.on("overlay_update", (overlays) => {
   currentState = { ...(currentState || {}), overlays: { ...(currentState?.overlays || {}), ...overlays } };
   updateAudienceQrButton({ overlays });

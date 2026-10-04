@@ -1506,3 +1506,15 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   .nav-button svg { width: 40px !important; height: 40px !important; }
   .slide-status { bottom: 12px; }
 }
+
+/* Keep thumbnail selection stable while the carousel follows the current slide. */
+.thumbs {
+  contain: layout paint;
+  scroll-behavior: smooth;
+}
+.thumb,
+.thumb img {
+  transition: none !important;
+  backface-visibility: hidden;
+}
+.thumb { contain: paint; }
