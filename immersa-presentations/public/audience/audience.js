@@ -151,7 +151,7 @@ function slideUrl(index) { const item = manifest.slides[index]; return "/decks/"
 function renderAudienceLocaleToggle() {
   if (!audienceLocaleToggle || !audienceLocaleFlag) return;
   const destination = currentLocale === 'en' ? 'es' : 'en';
-  const destinationLabel = destination === 'en' ? 'Inglés' : 'Español';
+  const destinationLabel = destination === 'en' ? 'inglés' : 'Español';
   audienceLocaleFlag.src = destination === 'en' ? '/shared/flags/usa.png' : '/shared/flags/mex.png';
   audienceLocaleToggle.setAttribute('aria-label', 'Cambiar a ' + destinationLabel);
   audienceLocaleToggle.title = 'Cambiar a ' + destinationLabel;

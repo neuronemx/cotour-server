@@ -22,7 +22,7 @@
     message.classList.toggle('is-success', Boolean(text) && !error);
   }
   function render() {
-    upload.textContent = variant ? 'Reemplazar' : 'Subir versión Inglés';
+    upload.textContent = variant ? 'Reemplazar' : 'Subir versión inglés';
     toggle.hidden = !variant;
     toggle.textContent = variant?.active ? 'Desactivar' : 'Activar';
     remove.hidden = !variant;
@@ -45,7 +45,7 @@
   }
   async function jsonResponse(response) {
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'No se pudo actualizar la versión en Inglés');
+    if (!response.ok) throw new Error(data.error || 'No se pudo actualizar la versión en inglés');
     return data;
   }
   async function refresh() {
@@ -102,14 +102,14 @@
     form.append('pptx', selected);
     void action(
       { method: 'POST', body: form },
-      'Versión en Inglés cargada. Recuerda también incluir los textos en Inglés en Encuestas y Trivias.'
+      'Versión en inglés cargada. Recuerda también incluir los textos en inglés en Encuestas y Trivias.'
     );
   });
   toggle.addEventListener('click', () => void action(
     { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !variant?.active }) },
-    variant?.active ? 'Versión en Inglés desactivada.' : 'Versión en Inglés activada.'
+    variant?.active ? 'Versión en inglés desactivada.' : 'Versión en inglés activada.'
   ));
   remove.addEventListener('click', () => {
-    if (window.confirm('¿Eliminar la versión en Inglés de este Deck?')) void action({ method: 'DELETE' }, 'Versión en Inglés eliminada.');
+    if (window.confirm('¿Eliminar la versión en inglés de este Deck?')) void action({ method: 'DELETE' }, 'Versión en inglés eliminada.');
   });
 })();

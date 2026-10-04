@@ -1024,7 +1024,7 @@ function renderDetailActions(deck) {
       group.appendChild(text);
       const choices = document.createElement("span");
       choices.className = "speaker-locale-choices";
-      [{ locale: "es", flag: "mex", label: "Español" }, { locale: "en", flag: "usa", label: "Inglés" }].forEach((choice) => {
+      [{ locale: "es", flag: "mex", label: "Español" }, { locale: "en", flag: "usa", label: "inglés" }].forEach((choice) => {
         const localeButton = document.createElement("button");
         localeButton.type = "button";
         localeButton.className = "speaker-locale-choice";
@@ -1151,7 +1151,7 @@ function openDeckModal(deck) {
     const languageEnabled = capabilityEnabled("multilanguage.manage") && !deck.missing && !deck.immutable && !deck.systemDemo && !adjustmentRequired;
     detailLanguage.hidden = Boolean(deck.systemDemo) || adjustmentRequired;
     detailLanguage.disabled = !languageEnabled;
-    detailLanguage.title = languageEnabled ? "Gestionar versión en Inglés" : "Disponible en planes SPEAKER";
+    detailLanguage.title = languageEnabled ? "Gestionar versión en inglés" : "Disponible en planes SPEAKER";
   }
   if (detailDemoAdmin) detailDemoAdmin.hidden = !isMaster || Boolean(deck.missing);
   loadDetailSlideNavigation(deck);
