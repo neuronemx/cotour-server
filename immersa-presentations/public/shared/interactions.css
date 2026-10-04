@@ -1757,7 +1757,8 @@ body.stage-actions-open .interaction-slide-scrim {
 .interactions-shell-group-divider {
   height: 1px;
   margin: 16px 0;
-  background: rgba(255, 255, 255, .06);
+  background: rgba(255, 255, 255, .24);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .28);
 }
 
 .interactions-shell-compact {

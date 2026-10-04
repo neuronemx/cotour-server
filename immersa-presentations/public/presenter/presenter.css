@@ -1371,3 +1371,102 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   color:#062020;
   background:#66cccc;
 }
+
+/* Speaker reliability and control refinements. */
+.audience-people-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: invert(1);
+  opacity: .82;
+}
+
+.nav-button {
+  width: 78px !important;
+  min-width: 78px !important;
+  height: 58px !important;
+  min-height: 58px !important;
+}
+.nav-button svg {
+  width: 34px !important;
+  height: 34px !important;
+}
+.nav-divider { height: 34px; }
+
+.audiovisual-panel:not(.is-open),
+.audiovisual-panel:not(.is-open) * {
+  pointer-events: none !important;
+}
+
+.time-panel {
+  position: absolute;
+  max-height: calc(100% - 32px);
+}
+.time-countdown-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.time-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.time-shortcuts button,
+.time-countdown-actions > button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 9px;
+  color: rgba(245,251,251,.9);
+  background: rgba(255,255,255,.07);
+  font: 700 11px/1 Inter,"Segoe UI",Arial,sans-serif;
+  cursor: pointer;
+}
+.time-shortcuts button:hover {
+  border-color: rgba(104,216,204,.58);
+  background: rgba(104,216,204,.13);
+}
+.time-countdown-actions > button {
+  min-width: 68px;
+  color: #071216;
+  border-color: transparent;
+  background: linear-gradient(135deg,#75eadf,#4cc6ea);
+  box-shadow: 0 7px 18px rgba(74,206,215,.17);
+}
+
+@media (max-width: 720px) {
+  .audience-people-icon { width: 16px; height: 16px; }
+  .nav-button {
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+  }
+  .nav-button svg { width: 32px !important; height: 32px !important; }
+  .time-panel { max-height: calc(100% - 24px); }
+}
+
+@media (max-width: 390px) {
+  .nav-button {
+    width: 66px !important;
+    min-width: 66px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+  }
+  .time-countdown-actions { gap: 7px; }
+  .time-shortcuts { gap: 5px; }
+  .time-shortcuts button { padding-inline: 8px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .nav-button {
+    width: 82px !important;
+    min-width: 82px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+  }
+  .nav-button svg { width: 34px !important; height: 34px !important; }
+}

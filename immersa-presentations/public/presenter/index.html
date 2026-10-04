@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/presenter/presenter.css?v=76">
+  <link rel="stylesheet" href="/presenter/presenter.css?v=77">
   <link rel="stylesheet" href="/shared/controller-tools.css?v=2">
   <link rel="stylesheet" href="/shared/demo-plan-badge.css?v=4">
   <link rel="stylesheet" href="/shared/live-text-control.css?v=3">
@@ -39,7 +39,7 @@
         </div>
       </div>
       <div class="top-actions" aria-label="Estado y vista">
-        <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span> <span data-i18n="live.connected">conectados</span></div>
+        <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span><img class="audience-people-icon" src="/presenter/people.svg" alt=""></div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
           <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
           <svg class="fullscreen-collapse-icon" viewBox="0 0 48 48" aria-hidden="true">
@@ -51,7 +51,6 @@
 
       <img id="slide" alt="Lámina actual">
       <div class="interaction-slide-scrim" aria-hidden="true"></div>
-      <div id="reactions" class="reaction-layer"></div>
       <div id="presenterQr" class="presenter-qr-overlay" hidden>
         <div id="presenterQrPattern" class="presenter-qr-pattern" aria-label="QR de Público"></div>
         <strong>Immersa Live</strong>
@@ -74,10 +73,6 @@
           <button id="audienceQr" data-i18n-label="live.qr" data-i18n-title="live.qr" class="control-button muted-button qr-button fx-btn" type="button" aria-pressed="false" title="Mostrar QR de público" aria-label="Mostrar QR de público">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20v.01"></path></svg>
           </button>
-          <label class="control-button muted-button reaction-toggle fx-btn" aria-label="Ver reacciones en Presenter">
-            <input id="localReactions" type="checkbox" checked>
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="reaction-icon"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-          </label>
           <button id="liveTextToggle" class="control-button muted-button live-text-button fx-btn" type="button" aria-pressed="false" title="Texto en vivo" aria-label="Texto en vivo">
             <span class="live-text-icon" aria-hidden="true"></span>
           </button>
@@ -147,6 +142,6 @@
   <script src="/shared/demo-plan-badge.js?v=2"></script>
   <script src="/shared/immersa-time.js?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/presenter/presenter.js?v=82"></script>
+  <script src="/presenter/presenter.js?v=83"></script>
 </body>
 </html>
