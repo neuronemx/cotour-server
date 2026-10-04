@@ -61,5 +61,16 @@ test("Speaker slide counter and pause remain centered independently of side cont
 
 test("Interaction groups retain a visible divider", () => {
   const css = read("public/shared/interactions.css");
-  assert.match(css, /\.interactions-shell-group-divider \{[\s\S]*?height: 1px;[\s\S]*?background: rgba\(255, 255, 255, \.24\);/);
+  const presenterHtml = read("public/presenter/index.html");
+
+  assert.match(css, /\.interactions-shell-group-divider \{[\s\S]*?width: 100%;[\s\S]*?height: 2px;[\s\S]*?background: rgba\(255, 255, 255, \.42\);/);
+  assert.match(presenterHtml, /\/shared\/interactions\.css\?v=5/);
+});
+
+test("Speaker controls suppress transient touch rectangles while preserving keyboard focus", () => {
+  const css = read("public/presenter/presenter.css");
+
+  assert.match(css, /button,[\s\S]*?\[role="button"\] \{[\s\S]*?-webkit-tap-highlight-color: transparent;[\s\S]*?touch-action: manipulation;/);
+  assert.match(css, /button:focus:not\(:focus-visible\),[\s\S]*?outline: none;/);
+  assert.doesNotMatch(css, /button:focus-visible[\s\S]*?outline: none/);
 });
