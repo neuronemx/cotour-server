@@ -36,5 +36,5 @@ test("public multilingual copy uses lowercase inglés", () => {
     "public/home/locales-editor.js"
   ];
 
-  publicFiles.forEach((file) => assert.doesNotMatch(read(file), /Inglés/));
+  publicFiles.forEach((file) => assert.doesNotMatch(read(file), new RegExp("Ingl\\u00e9s")));
 });
