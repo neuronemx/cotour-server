@@ -24,6 +24,7 @@ test("English interaction fields start collapsed and show a check after completi
   assert.ok(editor.includes("if (field.value.trim()) details.open = false;"));
   assert.ok(css.includes(".interaction-en-disclosure > summary"));
   assert.ok(css.includes(".interaction-en-disclosure.is-complete .interaction-en-check"));
+  assert.ok(css.includes("summary > span:first-child { color: #6540aa !important; font-size: 12.5px; font-weight: 900; }"));
 });
 
 test("public multilingual copy uses lowercase inglés", () => {
