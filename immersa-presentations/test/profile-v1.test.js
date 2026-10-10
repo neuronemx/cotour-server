@@ -142,7 +142,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");
 
-  assert.match(home, /profile-editor\.js\?v=6/);
+  assert.match(home, /profile-editor\.js\?v=7/);
   assert.match(home, /home\.js\?v=\d+/);
   assert.match(home, /id="planAccountIdentity"/);
   assert.match(home, /id="planUsage"[^>]*>[\s\S]*?id="planAccountIdentity"[\s\S]*?class="plan-usage-head"/);
