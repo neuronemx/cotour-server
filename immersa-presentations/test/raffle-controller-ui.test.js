@@ -456,9 +456,9 @@ test("slide scrims are scoped to the slide layer in Speaker and Stage", () => {
   const css = readProjectFile("public/shared/interactions.css");
   assert.doesNotMatch(css, /presenter-shell\.interaction-panel-open::before/);
   assert.equal((speakerHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
-  assert.match(speakerHtml, /class="stream-area"[\s\S]+<img id="slide" alt="Lámina actual">\s+<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="presenterQr"/);
+  assert.match(speakerHtml, /class="stream-area"[\s\S]+<img id="slide"[^>]* alt="Lámina actual">[\s\S]*?<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="presenterQr"/);
   assert.equal((stageHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
-  assert.match(stageHtml, /<div class="screen-frame">[\s\S]+<img id="slide" alt="Slide en vivo">\s+<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="stageLiveText"/);
+  assert.match(stageHtml, /<div class="screen-frame">[\s\S]+<img id="slide"[^>]* alt="Slide en vivo">[\s\S]*?<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="stageLiveText"/);
   assert.doesNotMatch(stageHtml, /stage-actions-backdrop/);
 });
 

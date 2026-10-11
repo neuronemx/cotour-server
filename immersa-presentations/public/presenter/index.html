@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="/shared/qna-controls.css?v=3">
   <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
   <link rel="stylesheet" href="/shared/slide-transitions.css?v=2">
+  <link rel="stylesheet" href="/shared/slide-loading.css?v=1">
 </head>
 <body data-tutorial-context="speaker">
   <main class="presenter-shell">
@@ -49,7 +50,7 @@
         </button>
       </div>
 
-      <img id="slide" alt="Lámina actual">
+      <img id="slide" class="slide-initial-pending" aria-busy="true" alt="Lámina actual"><div id="slideLoading" class="slide-loading" role="status" aria-live="polite"><span class="slide-loading-spinner" aria-hidden="true"></span><span id="slideLoadingMessage">Cargando presentación…</span><button id="slideLoadingRetry" type="button" hidden>Reintentar</button></div>
       <div class="interaction-slide-scrim" aria-hidden="true"></div>
       <div id="presenterQr" class="presenter-qr-overlay" hidden>
         <div id="presenterQrPattern" class="presenter-qr-pattern" aria-label="QR de Público"></div>
@@ -135,7 +136,7 @@
   <script src="/shared/interactions-shell.js?v=4"></script>
   <script src="/shared/raffle-controller.js?v=3"></script>
   <script src="/shared/drawing-overlay.js"></script>
-  <script src="/shared/slide-transitions.js?v=4"></script>
+  <script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script>
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js?v=4"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>

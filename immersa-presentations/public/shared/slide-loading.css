@@ -1,0 +1,8 @@
+.slide-initial-pending { visibility: hidden !important; }
+.slide-loading { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #dddde7; font: 500 13px/1.4 system-ui, sans-serif; text-align: center; padding: 24px; pointer-events: none; }
+.slide-loading[hidden], .slide-loading button[hidden] { display: none !important; }
+.slide-loading-spinner { width: 24px; height: 24px; border: 2px solid rgba(180,180,205,.25); border-top-color: #aaa1df; border-radius: 50%; animation: slide-loading-spin 1s linear infinite; }
+.slide-loading.is-error .slide-loading-spinner { display: none; }
+.slide-loading button { pointer-events: auto; border: 1px solid rgba(180,180,205,.4); border-radius: 18px; padding: 7px 14px; background: #242334; color: #eeeef4; font: inherit; cursor: pointer; }
+@keyframes slide-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .slide-loading-spinner { animation: none; } }

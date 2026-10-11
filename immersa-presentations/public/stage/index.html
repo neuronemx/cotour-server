@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="/shared/presentation-lifecycle.css?v=2">
   <link rel="stylesheet" href="/shared/slide-transitions.css?v=2">
   <style>.event-stage-control{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid rgba(112,86,237,.34);border-radius:11px;background:rgba(112,86,237,.1)}.event-stage-control[hidden]{display:none}.event-stage-copy{display:grid;gap:1px;min-width:0}.event-stage-copy strong{font-size:10px;line-height:1.15}.event-stage-copy span{max-width:180px;overflow:hidden;color:#b7b2d0;font-size:9px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.event-stage-mode{color:#aebcf7!important;font-weight:700}.event-stage-mode.is-live{color:#ffb08d!important}.event-stage-control button{min-height:28px;padding:0 9px;border:0;border-radius:7px;background:#dfe9ff;color:#172442;font:600 10px Inter,system-ui,sans-serif;cursor:pointer}.event-stage-control button.is-live{background:#a42d3d;color:#fff}</style>
+  <link rel="stylesheet" href="/shared/slide-loading.css?v=1">
 </head>
 <body>
   <main class="stage-shell">
@@ -65,7 +66,7 @@
 
     <section class="screen-stage" aria-label="Slide en vivo">
       <div class="screen-frame">
-        <img id="slide" alt="Slide en vivo">
+        <img id="slide" class="slide-initial-pending" aria-busy="true" alt="Slide en vivo"><div id="slideLoading" class="slide-loading" role="status" aria-live="polite"><span class="slide-loading-spinner" aria-hidden="true"></span><span id="slideLoadingMessage">Cargando presentación…</span><button id="slideLoadingRetry" type="button" hidden>Reintentar</button></div>
         <div class="interaction-slide-scrim" aria-hidden="true"></div>
         <div id="stageLiveText" class="live-text-overlay" hidden></div>
         <div id="stageQr" class="stage-qr-overlay" hidden>
@@ -118,7 +119,7 @@
   <script src="/shared/interactions-shell.js?v=4"></script>
   <script src="/shared/raffle-controller.js?v=3"></script>
   <script src="/shared/drawing-overlay.js"></script>
-  <script src="/shared/slide-transitions.js?v=4"></script>
+  <script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script>
   <script src="/shared/live-text-control.js?v=1"></script>
   <script src="/shared/qna-controls.js?v=3"></script>
   <script src="/shared/knowledge-activities.js?v=27"></script>
