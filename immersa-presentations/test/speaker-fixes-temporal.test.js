@@ -18,8 +18,10 @@ test("Speaker timer controls the presentation lifecycle without using the old se
   assert.match(script, /socket\.on\("presentation:lifecycle:state", applyPresentationLifecycle\)/);
   assert.match(script, /presentationLifecycleEnabled = capabilities\["metrics\.basic"\] === true/);
   assert.match(html, /id="speakerTimerValue">Iniciar<\/span>/);
-  assert.match(html, /id="speakerTimerResume"[\s\S]*?>Reanudar<\/button>/);
+  assert.match(html, /id="speakerTimerResume"[^>]*>Continuar<\/button>/);
+  assert.doesNotMatch(html, /id="speakerTimerResume"[^>]*data-i18n/);
   assert.match(html, /id="speakerTimerFinish"[\s\S]*?>Finalizar<\/button>/);
+  assert.match(script, /window\.confirm\("¿Finalizar la sesión\? Todas las pantallas pasarán a la salida\."\)/);
   assert.match(css, /\.speaker-timer-actions \.speaker-timer-finish \{ color:#ffb7b7; background:rgba\(185,42,55,\.28\); \}/);
   assert.doesNotMatch(script, /time:control", \{ target: "speaker"/);
 });

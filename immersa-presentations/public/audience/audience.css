@@ -179,6 +179,13 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .raffle-public-winner-ticket { display: grid; justify-items: center; margin-bottom: 18px; }
 .raffle-public-winner-ticket-art { width: min(70vw, 320px); }
 .raffle-public-winner-ticket-art strong { font-size: clamp(62px, 18vw, 112px); }
+@media (orientation: portrait) and (max-width: 520px) {
+  .slide-viewport:not(.portrait-slide) ~ .live-message {
+    top: calc(50% + 28.125vw + 12px);
+    transform: translateX(-50%);
+    max-height: calc(50dvh - 28.125vw - 82px);
+  }
+}
 @media (orientation: portrait) {
   .audience.is-raffle-split .slide-viewport { inset: 0 0 50dvh; }
   .audience.is-raffle-split #slide { width: 100vw; height: 50dvh; max-width: 100vw; max-height: 50dvh; }
