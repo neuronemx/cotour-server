@@ -131,9 +131,9 @@ body {
 .audiovisual-toggle svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
 .audiovisual-toggle.is-active { color:#fff; background:linear-gradient(135deg,#6c57ef,#22b7dc); border-color:rgba(255,255,255,.3); box-shadow:0 0 26px rgba(94,111,246,.38); }
 .audiovisual-toggle.is-active { background:radial-gradient(circle at 34% 24%,rgba(196,150,255,.98) 0%,rgba(139,63,255,.98) 36%,transparent 62%),linear-gradient(135deg,#8b3dff 0%,#684cff 46%,#21b7ff 100%); box-shadow:0 0 0 5px rgba(104,76,255,.14),0 0 30px rgba(92,92,255,.42),0 0 28px rgba(33,183,255,.22),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.2); }
-.audiovisual-layer { position:absolute; z-index:2; inset:0; display:none; background:#000; }
+.audiovisual-layer { position:absolute; z-index:2; inset:0; display:none; pointer-events:none; background:#000; }
 .audiovisual-layer.is-video { display:block; }
-.audiovisual-layer video { display:block; width:100%; height:100%; object-fit:contain; }
+.audiovisual-layer video { display:block; width:100%; height:100%; pointer-events:none; object-fit:contain; }
 .audiovisual-panel { position:absolute; z-index:60; right:82px; bottom:22px; width:min(430px,calc(100% - 190px)); max-height:min(66vh,570px); overflow:auto; padding:16px; border:1px solid rgba(255,255,255,.16); border-radius:22px; background:linear-gradient(145deg,rgba(22,27,40,.94),rgba(7,9,15,.96)); box-shadow:0 24px 72px rgba(0,0,0,.46),0 0 46px rgba(104,216,204,.11); backdrop-filter:blur(22px); transform:translateY(10px) scale(.98); transform-origin:100% 100%; opacity:0; pointer-events:none; transition:.2s ease; }
 .audiovisual-panel.is-open { opacity:1; pointer-events:auto; transform:translateY(0) scale(1); }
 .audiovisual-panel { bottom:76px; right:96px; }
