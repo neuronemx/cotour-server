@@ -27,6 +27,7 @@ test("Speaker completion shows the promised basic summary and Metrics CTA", () =
   assert.match(speaker, /SPEAKER PRO/);
   assert.match(speaker, /Logo-Immersa\.png\?v=2/);
   assert.doesNotMatch(speaker, /brand-mark/);
+  assert.doesNotMatch(speaker, /beneficios y cupones|próximas campañas/);
   assert.match(read("public/home/home.js"), /requestedTab === "metrics"/);
 });
 

@@ -4,7 +4,7 @@ const express = require("express");
 const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
-const { createUploadHandler, createDeckReplacementHandler } = require("./pdf-upload-support");
+const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -20,6 +20,9 @@ const {
   isSessionInactive
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
+const { listAudiovisualResources } = require("./audiovisual-library");
+const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
 const { createKnowledgeActivityRuntime } = require("./knowledge-activity-runtime");
@@ -30,6 +33,7 @@ const {
   createPresentationLifecycleRuntime
 } = require("./presentation-lifecycle");
 const { PresentationMetricsRepository, createPresentationMetricsHandlers } = require("./presentation-metrics");
+const { ReactionRuntime } = require("./reaction-runtime");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
@@ -81,7 +85,6 @@ const sessions = new Map();
 const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
 const deckSlideCounts = { demo: 3 };
-const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
@@ -186,6 +189,11 @@ const presentationLifecycleRuntime = lifecyclePool
       io,
       repository: new PresentationLifecycleRepository(lifecyclePool),
       getRoleRoomKey,
+      onState: (context, state) => {
+        const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
+        if (state.mode === "live") reactions?.setRecording(state.presentationSessionId);
+        else reactions?.resetCounts(null);
+      },
       beforeStart: async (context) => {
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
@@ -224,6 +232,11 @@ const presentationLifecycleRuntime = lifecyclePool
         return { ok: true };
       },
       afterFinish: async (context, state) => {
+        const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
+        if (reactions) {
+          reactions.accepting = false;
+          await reactions.flush(presentationMetricsRepository, context, state.completedPresentationSessionId);
+        }
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
         raffleSockets.resetSession(context);
@@ -455,6 +468,7 @@ function manifestSummary(manifest, manifestStats = null) {
     demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
     immutable: manifest.systemDemo?.role === "published",
     publishedAt: manifest.systemDemo?.publishedAt || "",
+    locales: manifest.locales || null,
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -770,6 +784,23 @@ async function getDeckSlideCount(deckId) {
   }
 }
 
+function emptyAudiovisualChannel() {
+  return { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() };
+}
+function createAudiovisualChannels() {
+  return { audio: emptyAudiovisualChannel(), video: emptyAudiovisualChannel() };
+}
+function createAudioReactState() {
+  return { enabled: false, reaction: 0, updatedAt: Date.now() };
+}
+function getAudiovisualChannels(session) {
+  const existing = session?.audiovisual;
+  if (existing?.audio && existing?.video) return existing;
+  const channels = createAudiovisualChannels();
+  if (existing?.resource?.type === "audio" || existing?.resource?.type === "video") channels[existing.resource.type] = existing;
+  if (session) session.audiovisual = channels;
+  return channels;
+}
 function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] || 1) {
   return {
     sessionId,
@@ -778,6 +809,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     slideIndex: 0,
     presenterSlideIndex: 0,
     liveSlideIndex: 0,
+    operationalLocale: "es",
     transmissionPaused: false,
     transmissionPausedBy: null,
     presenterConnected: false,
@@ -787,6 +819,12 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
+    reactions: new ReactionRuntime({ emitScreen: (payload) => io.to(getRoleRoomKey(getRoomKey(sessionId, deckId), "screen")).emit("reaction", payload) }),
+    audiovisual: createAudiovisualChannels(),
+    audioReact: createAudioReactState(),
+    time: createImmersaTimeState(),
+    audiovisualVolume: 1,
+    localAudiovisual: [],
     overlays: {
       reactionsOnScreen: true,
       showReactions: true,
@@ -797,6 +835,38 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
       questionVisible: false
     }
   };
+}
+
+function normalizeLocalAudiovisualResources(payload = {}) {
+  const resources = Array.isArray(payload.resources) ? payload.resources : [];
+  return resources.slice(0, 200).map((item) => {
+    const type = item?.type === "video" ? "video" : item?.type === "audio" ? "audio" : "";
+    const id = String(item?.id || "");
+    const name = String(item?.name || "").trim().slice(0, 120);
+    const thumbnailUrl = String(item?.thumbnail_url || "");
+    const duration = Math.max(0, Math.min(86400, Number(item?.duration) || 0));
+    const playlistId = String(item?.playlist?.id || "");
+    const playlistName = String(item?.playlist?.name || "").trim().slice(0, 120);
+    const playlistOrder = Math.max(0, Math.min(999, Number(item?.playlist?.order) || 0));
+    if (!type || !id.startsWith("local:") || !name) return null;
+    const playlist = playlistId.startsWith("local-playlist:" + type + ":") && playlistName
+      ? { id: playlistId.slice(0, 240), name: playlistName, order: playlistOrder }
+      : null;
+    return {
+      id: id.slice(0, 240),
+      type,
+      name,
+      source: "local",
+      thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : "",
+      duration,
+      playlist
+    };
+  }).filter(Boolean);
+}
+function localPlaylistItems(session, playlistId, type) {
+  return (session?.localAudiovisual || [])
+    .filter((item) => item.type === type && String(item.playlist?.id || "") === String(playlistId || ""))
+    .sort((a, b) => Number(a.playlist?.order || 0) - Number(b.playlist?.order || 0) || String(a.name || "").localeCompare(String(b.name || ""), "es", { numeric: true }));
 }
 
 function getSession(sessionId, deckId) {
@@ -818,7 +888,8 @@ function getConnectedAudience(roomKey) {
     audienceId,
     joinedAt: audience.joinedAt,
     name: audience.name || "",
-    label: audience.label || audience.name || ""
+    label: audience.label || audience.name || "",
+    locale: audience.locale || "es"
   }));
 }
 
@@ -844,6 +915,7 @@ function publicState(session) {
     slideIndex: session.slideIndex,
     presenterSlideIndex: session.presenterSlideIndex,
     liveSlideIndex: session.liveSlideIndex,
+    operationalLocale: session.operationalLocale || "es",
     slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
     transmissionPausedBy: session.transmissionPausedBy,
@@ -851,6 +923,8 @@ function publicState(session) {
     screenConnected: session.screenConnected,
     stageConnected: session.stageConnected,
     audienceCount: session.audience.size,
+    audiovisual: session.audiovisual,
+    audioReact: session.audioReact,
     overlays: session.overlays
   };
 }
@@ -858,6 +932,11 @@ function publicState(session) {
 function emitState(roomKey, session) {
   io.to(roomKey).emit("presentation_state", publicState(session));
   io.to(roomKey).emit("audience_count", session.audience.size);
+}
+
+function emitImmersaTimeState(roomKey, session) {
+  const state = immersaTimeSnapshot(session.time || (session.time = createImmersaTimeState()));
+  ["presenter", "screen"].forEach((role) => io.to(getRoleRoomKey(roomKey, role)).emit("time:state", state));
 }
 
 function touchSession(roomKey, now = Date.now()) {
@@ -945,14 +1024,13 @@ async function setPresenterSlide(roomKey, session, nextIndex) {
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
 }
 
-function emitReaction(roomKey, session, emoji) {
-  if (!allowedReactions.has(emoji)) return;
-  io.to(roomKey).emit("reaction", { emoji, target: "audience", at: Date.now() });
-  io.to(roomKey).emit("reaction", { emoji, target: "presenter", at: Date.now() });
-  if (session.overlays.showReactions ?? session.overlays.reactionsOnScreen) {
-    io.to(roomKey).emit("reaction", { emoji, target: "screen", at: Date.now() });
+const reactionMetricsSweep = setInterval(() => {
+  for (const session of sessions.values()) {
+    void session.reactions.flush(presentationMetricsRepository, { deckId: session.deckId, sessionId: session.sessionId })
+      .catch((error) => console.error("Unable to persist reactions", error));
   }
-}
+}, 2000);
+reactionMetricsSweep.unref?.();
 
 function normalizeOverlayPatch(overlays = {}) {
   const patch = { ...overlays };
@@ -988,6 +1066,19 @@ app.post("/api/billing/webhooks/stripe", express.raw({ type: "application/json",
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
+app.use("/decks/:deckId/locales/en", async (req, res, next) => {
+  const deckId = String(req.params.deckId || "");
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(deckId)) return res.sendStatus(404);
+  try {
+    const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    if (!canUseFeature(access, CAPABILITIES.MULTILANGUAGE_MANAGE)) return res.sendStatus(404);
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(DATA_DECKS_DIR, deckId, "manifest.json"), "utf8"));
+    if (manifest.locales?.en?.active !== true) return res.sendStatus(404);
+    return next();
+  } catch (_error) {
+    return res.sendStatus(404);
+  }
+});
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
@@ -1727,7 +1818,9 @@ app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProf
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
+app.get("/api/decks/:deckId/audiovisual-library", deckInteractionHandlers.getDeckAudiovisualLibrary);
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireAccountAdjustmentCleared, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
+app.get("/api/audiovisual-library", (_req, res) => res.json({ resources: listAudiovisualResources() }));
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireAccountAdjustmentCleared, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.createBrand);
@@ -1757,6 +1850,24 @@ app.post(
     }
   })
 );
+app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantUploadHandler({
+    onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck)
+  }));
+app.get("/api/decks/:deckId/locales", ...requireDeckAccount,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE), async (req, res) => {
+    try {
+      const manifest = JSON.parse(await fs.promises.readFile(path.join(await findDeckDir(req.params.deckId), "manifest.json"), "utf8"));
+      res.json({ baseLocale: "es", en: manifest.locales?.en || null });
+    } catch (_error) { res.status(404).json({ error: "Deck no encontrado" }); }
+  });
+app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("toggle", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
+app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("delete", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
 app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
   try {
     res.json(await markDeckAssociationsReviewed(req.params.deckId));
@@ -1914,7 +2025,7 @@ io.on("connection", (socket) => {
   });
 
   socket.use(([eventName], next) => {
-    if (currentRoomKey && isMeaningfulSessionEvent(eventName)) touchSession(currentRoomKey);
+    if (currentRoomKey && eventName !== "reaction" && isMeaningfulSessionEvent(eventName)) touchSession(currentRoomKey);
     next();
   });
 
@@ -1961,7 +2072,7 @@ io.on("connection", (socket) => {
     audienceId: currentAudienceId
   }));
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -1991,6 +2102,22 @@ io.on("connection", (socket) => {
     } catch (error) {
       currentFeatureAccess = featureAccessForPlan("FREE");
       console.error("Unable to resolve live plan features", error);
+    }
+    if (role === "presenter" && ["es", "en"].includes(locale)) {
+      try {
+        const manifest = locale === "en" ? await readManifest(joinedDeckId) : null;
+        const validation = validateOperationalLocale(locale, currentFeatureAccess, manifest);
+        if (validation.ok) session.operationalLocale = validation.locale;
+        else socket.emit("presentation:locale_rejected", { code: validation.code });
+      } catch (_error) {
+        socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" });
+      }
+    }
+    if (session.operationalLocale === "en") {
+      try {
+        const manifest = await readManifest(joinedDeckId);
+        session.operationalLocale = resolveOperationalLocale(session.operationalLocale, currentFeatureAccess, manifest);
+      } catch (_error) { session.operationalLocale = "es"; }
     }
     socket.emit("plan:features", currentFeatureAccess);
     if (currentFeatureAccess.adjustmentRequired) {
@@ -2042,7 +2169,8 @@ io.on("connection", (socket) => {
         audienceId: requestedAudienceId,
         socketId: socket.id,
         audienceName,
-        label
+        label,
+        locale: locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es"
       });
       socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
@@ -2060,6 +2188,10 @@ io.on("connection", (socket) => {
       } catch (error) { console.error("Unable to resolve Event Hub brands", error); }
     }
     emitState(currentRoomKey, session);
+    socket.emit("audiovisual:state", session.audiovisual);
+    socket.emit("audio-react:state", session.audioReact || (session.audioReact = createAudioReactState()));
+    if (role === "presenter" || role === "screen") socket.emit("time:state", immersaTimeSnapshot(session.time || (session.time = createImmersaTimeState())));
+    if (role === "presenter") socket.emit("local-library:updated", { resources: session.localAudiovisual || [] });
     if (
       role === "audience"
       && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)
@@ -2074,7 +2206,7 @@ io.on("connection", (socket) => {
     } else if (role === "audience" && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)) {
       void presentationMetricsRepository?.recordAudienceConnection(
         joinedContext,
-        { audienceId: currentAudienceId },
+        { audienceId: currentAudienceId, locale: session.audience.get(currentAudienceId)?.locale },
         session.audience.size
       ).catch((error) => console.error("Unable to persist presentation attendance", error));
     }
@@ -2101,6 +2233,191 @@ io.on("connection", (socket) => {
         .then(() => brandMentionRuntime.sendCurrentState(socket, joinedContext))
         .catch((error) => console.error("[join] Unable to start brand mentions", error));
     }
+  });
+
+  socket.on("local-library:publish", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    session.localAudiovisual = normalizeLocalAudiovisualResources(payload);
+    io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("local-library:updated", { resources: session.localAudiovisual });
+  });
+
+  socket.on("audiovisual:control", async (payload = {}) => {
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const action = String(payload.action || "");
+    const channels = getAudiovisualChannels(session);
+    const requestedId = String(payload.resourceId || "");
+    const requestedType = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channelType = requestedType || (channels.audio.resource && String(channels.audio.resource.id) === requestedId ? "audio" : channels.video.resource && String(channels.video.resource.id) === requestedId ? "video" : "");
+    const publish = () => {
+      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+      emitState(currentRoomKey, session);
+    };
+
+    if (action === "select" || action === "select-playlist") {
+      const remoteResource = listAudiovisualResources().find((item) => String(item.id) === requestedId);
+      const localResource = (session.localAudiovisual || []).find((item) => String(item.id) === requestedId);
+      const playlistItems = action === "select-playlist" && requestedType ? localPlaylistItems(session, payload.playlistId, requestedType) : [];
+      const resource = playlistItems[0] || localResource || remoteResource;
+      if (!resource) return;
+      if (resource === remoteResource) {
+        try {
+          const configuration = await deckInteractionHandlers.readDeckConfig(session.deckId);
+          if (!configuration.audiovisual.includes(remoteResource.id)) return;
+        } catch (_error) {
+          return;
+        }
+      }
+      const type = resource.type;
+      const current = channels[type];
+      const savedVolume = Number(session.audiovisualVolume);
+      const next = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const shouldFade = type === "audio" && current.resource && current.status === "playing" && String(current.resource.id) !== String(resource.id);
+      if (shouldFade) {
+        const fadingResourceId = String(current.resource.id);
+        channels.audio = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-replace", pendingResource: next };
+        publish();
+        setTimeout(() => {
+          const latest = getAudiovisualChannels(session).audio;
+          if (!latest || latest.status !== "fading" || latest.lastAction !== "fade-replace" || String(latest.resource?.id) !== fadingResourceId) return;
+          getAudiovisualChannels(session).audio = { ...latest.pendingResource, updatedAt: Date.now(), lastAction: "select" };
+          publish();
+        }, 1000);
+        return;
+      }
+      channels[type] = next;
+      publish();
+      return;
+    }
+
+    const type = channelType || (action === "fade-stop" ? "audio" : "");
+    if (!type) return;
+    const current = channels[type];
+    if (!current?.resource) return;
+
+    if (action === "fade-stop" && type === "audio" && current.status === "playing") {
+      const fadedResourceId = String(current.resource.id);
+      channels.audio = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-stop" };
+      publish();
+      setTimeout(() => {
+        const latest = getAudiovisualChannels(session).audio;
+        if (!latest || latest.status !== "fading" || String(latest.resource?.id) !== fadedResourceId) return;
+        getAudiovisualChannels(session).audio = { ...latest, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+        publish();
+      }, 1000);
+      return;
+    }
+
+    if (action === "stop") {
+      channels[type] = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+      publish();
+      return;
+    }
+
+    const now = Date.now();
+    const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
+    const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
+    const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
+    const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
+    if (action === "volume") {
+      session.audiovisualVolume = nextVolume;
+      Object.keys(channels).forEach((key) => {
+        channels[key] = { ...channels[key], volume: nextVolume, updatedAt: now, lastAction: "volume" };
+      });
+    } else {
+      channels[type] = {
+        ...current,
+        status: nextStatus,
+        loop: action === "loop" ? Boolean(payload.loop) : current.loop,
+        volume: nextVolume,
+        position: nextPosition,
+        startedAt: nextStatus === "playing" ? now : null,
+        updatedAt: now,
+        lastAction: action
+      };
+    }
+    publish();
+  });
+
+  socket.on("audio-react:control", (payload = {}) => {
+    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const previous = session.audioReact || createAudioReactState();
+    const action = String(payload.action || "");
+    const nextReaction = action === "next"
+      ? (Number(previous.reaction || 0) + 1) % 12
+      : Math.max(0, Math.min(11, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
+    session.audioReact = {
+      enabled: typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true,
+      reaction: nextReaction,
+      updatedAt: Date.now()
+    };
+    io.to(currentRoomKey).emit("audio-react:state", session.audioReact);
+    emitState(currentRoomKey, session);
+  });
+
+  socket.on("audiovisual:metadata", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    const channels = getAudiovisualChannels(session);
+    const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
+    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
+    const duration = Math.max(0, Number(payload.duration) || 0);
+    if (!duration || channel.duration === duration) return;
+    channel.duration = duration;
+    io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
+  });
+
+  function advanceLocalPlaylistChannel(session, channels, type, resourceId, finishOnLast) {
+    const channel = channels[type];
+    if (!channel?.resource || String(resourceId) !== String(channel.resource.id)) return false;
+    const playlistId = String(channel.resource.playlist?.id || "");
+    if (!playlistId) return false;
+    const playlist = localPlaylistItems(session, playlistId, type);
+    const currentIndex = playlist.findIndex((item) => String(item.id) === String(channel.resource.id));
+    const nextResource = playlist[currentIndex + 1] || (channel.loop ? playlist[0] : null);
+    if (nextResource) {
+      channels[type] = { ...channel, resource: nextResource, status: "playing", position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "playlist-next" };
+      return true;
+    }
+    if (finishOnLast) {
+      channels[type] = { ...channel, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "ended" };
+      return true;
+    }
+    return false;
+  }
+
+  socket.on("audiovisual:playlist-advance", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen" || payload.type !== "video") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const channels = getAudiovisualChannels(session);
+    if (!advanceLocalPlaylistChannel(session, channels, "video", payload.resourceId, false)) return;
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
+  });
+
+  socket.on("audiovisual:ended", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    const channels = getAudiovisualChannels(session);
+    const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
+    const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
+    if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
+    if (advanceLocalPlaylistChannel(session, channels, type, payload.resourceId, true)) {
+      io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+      emitState(currentRoomKey, session);
+      return;
+    }
+    if (channel.loop) return;
+    channel.status = "stopped"; channel.position = 0; channel.startedAt = null; channel.updatedAt = Date.now(); channel.lastAction = "ended";
+    io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(currentRoomKey, session);
   });
 
   socket.on("transmission_pause", () => {
@@ -2149,11 +2466,40 @@ io.on("connection", (socket) => {
     emitState(currentRoomKey, session);
   });
 
-  socket.on("reaction", ({ emoji }) => {
-    if (!currentRoomKey || currentRole !== "audience") return;
+  socket.on("presentation:set_locale", async ({ locale } = {}) => {
+    if (!currentRoomKey || !["presenter", "stage"].includes(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
-    emitReaction(currentRoomKey, session, emoji);
+    try {
+      const access = await getStageFeatureAccess(currentDeckId);
+      const manifest = locale === "en" ? await readManifest(currentDeckId) : null;
+      const validation = validateOperationalLocale(locale, access, manifest);
+      if (!validation.ok) return socket.emit("presentation:locale_rejected", { code: validation.code });
+      session.operationalLocale = validation.locale;
+      emitState(currentRoomKey, session);
+    } catch (_error) { socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" }); }
+  });
+
+  socket.on("presentation:set_audience_locale", ({ locale } = {}) => {
+    if (currentRole !== "audience" || !currentRoomKey || !currentAudienceId) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    const audience = session?.audience?.get(currentAudienceId);
+    if (!audience || audience.socketId !== socket.id) return;
+    audience.locale = locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es";
+    void presentationMetricsRepository?.recordAudienceConnection(
+      { deckId: currentDeckId, sessionId: currentSessionId },
+      { audienceId: currentAudienceId, locale: audience.locale },
+      session.audience.size
+    ).catch((error) => console.error("Unable to persist audience locale", error));
+  });
+
+  socket.on("reaction", (payload) => {
+    if (!currentRoomKey || currentRole !== "audience") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session || session.audience.get(currentAudienceId)?.socketId !== socket.id) return;
+    const accepted = session.reactions.react({ socket, audienceId: currentAudienceId, emoji: payload?.emoji,
+      showOnScreen: session.overlays.showReactions ?? session.overlays.reactionsOnScreen });
+    if (accepted) touchSession(currentRoomKey);
   });
 
   socket.on("drawing_stroke", (stroke) => {
@@ -2192,6 +2538,16 @@ io.on("connection", (socket) => {
     io.to(currentRoomKey).emit("clear_overlays");
     io.to(currentRoomKey).emit("overlay_update", session.overlays);
     emitState(currentRoomKey, session);
+  });
+
+  socket.on("time:control", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "presenter") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    const result = applyImmersaTimeCommand(session.time || (session.time = createImmersaTimeState()), payload, Date.now());
+    if (!result.changed) return;
+    touchSession(currentRoomKey);
+    emitImmersaTimeState(currentRoomKey, session);
   });
 
   socket.on("disconnect", () => {

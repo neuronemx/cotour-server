@@ -41,7 +41,7 @@ test("billing catalog freezes approved MXN tax-inclusive prices", () => {
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER.annual, { official: 999000, founders: 799000 });
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.monthly, { official: 249900 });
   assert.deepEqual(PUBLIC_PRICES_MXN.SPEAKER_PRO.annual, { official: 2499000, founders: 1999000 });
-  assert.equal(PLAN_LIMITS.SPEAKER_PRO.audience, 300);
+  assert.equal(PLAN_LIMITS.SPEAKER_PRO.audience, 500);
   assert.equal(publicCatalog(env, Date.parse("2026-09-01T12:00:00Z")).taxIncluded, true);
 });
 

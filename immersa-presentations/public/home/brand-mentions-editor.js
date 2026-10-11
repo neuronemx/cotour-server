@@ -1,4 +1,13 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const MAX_LOGO_BYTES = 5 * 1024 * 1024;
   const ALLOWED_LOGO_EXTENSIONS = /\.(?:png|jpe?g|webp)$/i;
   let currentDeck = null;
@@ -32,9 +41,7 @@
     bodyNode = modal.querySelector(".brand-mentions-body");
     statusNode = modal.querySelector(".brand-mentions-status");
     modal.querySelector(".brand-mentions-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 

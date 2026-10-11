@@ -8,16 +8,26 @@ let knowledgeActivityScreen = null;
 try {
   knowledgeActivityScreen = window.ImmersaKnowledgeActivities?.createScreen({
     socket,
-    root: document.getElementById("knowledgeActivityScreen")
+    root: document.getElementById("knowledgeActivityScreen"),
+    getLocale: () => operationalLocale
   }) || null;
 } catch (error) {
   console.error("Unable to initialize Screen knowledge activities", error);
 }
 let manifest = null;
+let baseManifest = null;
+let englishManifest = null;
+let operationalLocale = 'es';
 let pendingPresentationState = null;
 let manifestRetryTimer = null;
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
+const localLibraryPicker = document.getElementById("localLibraryPicker");
+const localLibraryStatus = document.getElementById("localLibraryStatus");
+const timeOverlay = document.getElementById("timeOverlay");
+const timeDisplay = document.getElementById("timeDisplay");
+let immersaTimeState = null;
+let immersaTimeTick = null;
 let screenUiTimer = null;
 const slide = document.getElementById("slide");
 const qr = document.getElementById("qr");
@@ -31,6 +41,404 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let interactionOverlay = null;
+let lastInteractionResults = null;
+let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
+let audiovisualLayer = null;
+let audiovisualMedia = null;
+let activeVideoSlot = 0;
+let videoTransitionToken = 0;
+let videoPlaylistAdvanceTimer = null;
+const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), logoUrl: "", scanning: false };
+const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
+const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
+function localResourceId(relativePath, file, type) {
+  const key = [type, relativePath, file.size, file.lastModified].join("|");
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return "local:" + type + ":" + (hash >>> 0).toString(36);
+}
+function setLocalLibraryStatus(text) {
+  if (localLibraryStatus) localLibraryStatus.textContent = text || "";
+  if (localLibraryPicker) localLibraryPicker.classList.toggle("is-linked", Boolean(localLibrary.directoryHandle));
+}
+async function makeLocalVideoThumbnail(file) {
+  const source = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true; video.playsInline = true; video.preload = "metadata";
+  try {
+    await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = () => reject(new Error("No se pudo leer el video")); video.src = source; });
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      video.currentTime = Math.min(Math.max(video.duration * 0.1, 0.12), 2);
+      await new Promise((resolve) => { video.onseeked = resolve; video.onerror = resolve; });
+    }
+    const width = 320, height = 180;
+    const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+    const context = canvas.getContext("2d");
+    const scale = Math.max(width / Math.max(video.videoWidth || width, 1), height / Math.max(video.videoHeight || height, 1));
+    const drawWidth = (video.videoWidth || width) * scale, drawHeight = (video.videoHeight || height) * scale;
+    context.fillStyle = "#111827"; context.fillRect(0, 0, width, height);
+    context.drawImage(video, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+    return { thumbnail: canvas.toDataURL("image/webp", 0.72), duration: Number.isFinite(video.duration) ? video.duration : 0 };
+  } catch (error) {
+    console.warn("Unable to generate local video thumbnail", file.name, error);
+    return { thumbnail: "", duration: 0 };
+  } finally {
+    video.removeAttribute("src"); video.load(); URL.revokeObjectURL(source);
+  }
+}
+async function readLocalAudioDuration(file) {
+  const source = URL.createObjectURL(file);
+  const audio = document.createElement("audio");
+  audio.preload = "metadata";
+  try {
+    await new Promise((resolve, reject) => { audio.onloadedmetadata = resolve; audio.onerror = () => reject(new Error("No se pudo leer el audio")); audio.src = source; });
+    return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+  } catch (error) {
+    console.warn("Unable to read local audio duration", file.name, error);
+    return 0;
+  } finally {
+    audio.removeAttribute("src"); audio.load(); URL.revokeObjectURL(source);
+  }
+}
+function localPlaylistId(folder, type) {
+  const key = ["playlist", type, folder].join("|");
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index += 1) { hash ^= key.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return "local-playlist:" + type + ":" + (hash >>> 0).toString(36);
+}
+async function findLocalReactionLogo(handle) {
+  let selectedEntry = null;
+  let selectedPriority = Number.POSITIVE_INFINITY;
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind !== "file") continue;
+    const normalizedName = String(name).trim().toLowerCase();
+    const priority = normalizedName === "logo.svg" ? 0 : normalizedName === "logo.png" ? 1 : -1;
+    if (priority >= 0 && priority < selectedPriority) {
+      selectedEntry = entry;
+      selectedPriority = priority;
+    }
+  }
+  return selectedEntry ? selectedEntry.getFile() : null;
+}
+function setLocalReactionLogo(file) {
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = file ? URL.createObjectURL(file) : "";
+  window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
+}
+async function collectLocalFiles(handle, prefix = "") {
+  const entries = [];
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind === "directory") entries.push(...await collectLocalFiles(entry, prefix + name + "/"));
+    else if (entry.kind === "file") {
+      const extension = String(name).split(".").pop().toLowerCase();
+      const type = localVideoExtensions.has(extension) ? "video" : localAudioExtensions.has(extension) ? "audio" : "";
+      if (type) {
+        const relativePath = prefix + name;
+        const folder = prefix.replace(/\/$/, "");
+        entries.push({ file: await entry.getFile(), type, relativePath, folder });
+      }
+    }
+  }
+  return entries;
+}
+function clearLocalObjectUrls() {
+  localLibrary.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  localLibrary.objectUrls.clear();
+  if (localLibrary.logoUrl) URL.revokeObjectURL(localLibrary.logoUrl);
+  localLibrary.logoUrl = "";
+}
+function resolveLocalMediaUrl(resource) {
+  const file = localLibrary.files.get(String(resource?.id || ""));
+  if (!file) return "";
+  const existing = localLibrary.objectUrls.get(String(resource.id));
+  if (existing) return existing;
+  const url = URL.createObjectURL(file);
+  localLibrary.objectUrls.set(String(resource.id), url);
+  return url;
+}
+function resolveAudiovisualMediaUrl(resource) {
+  return resource?.source === "local" ? resolveLocalMediaUrl(resource) : resource?.media_url || "";
+}
+async function scanAndPublishLocalLibrary() {
+  if (!localLibrary.directoryHandle || localLibrary.scanning) return;
+  localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
+  try {
+    const logoFile = await findLocalReactionLogo(localLibrary.directoryHandle);
+    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
+    const playlistIndexes = new Map();
+    clearLocalObjectUrls(); localLibrary.files.clear();
+    setLocalReactionLogo(logoFile);
+    const resources = [];
+    for (const entry of files) {
+      const id = localResourceId(entry.relativePath, entry.file, entry.type);
+      const playlistKey = entry.folder ? entry.type + "|" + entry.folder : "";
+      const playlistIndex = playlistKey ? (playlistIndexes.get(playlistKey) || 0) : 0;
+      if (playlistKey) playlistIndexes.set(playlistKey, playlistIndex + 1);
+      const playlist = entry.folder ? {
+        id: localPlaylistId(entry.folder, entry.type),
+        name: entry.folder.split("/").filter(Boolean).pop() || entry.folder,
+        order: playlistIndex
+      } : null;
+      localLibrary.files.set(id, entry.file);
+      const mediaDetails = entry.type === "video"
+        ? await makeLocalVideoThumbnail(entry.file)
+        : { thumbnail: "", duration: await readLocalAudioDuration(entry.file) };
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: mediaDetails.thumbnail, duration: mediaDetails.duration, playlist });
+    }
+    localLibrary.resources = resources;
+    socket.emit("local-library:publish", { resources });
+    setLocalLibraryStatus(resources.length ? "Librería local · " + resources.length + " recursos" : "Librería local vacía");
+  } catch (error) {
+    console.error("Unable to scan local library", error);
+    setLocalLibraryStatus("No se pudo actualizar la carpeta");
+  } finally { localLibrary.scanning = false; }
+}
+async function chooseLocalLibraryFolder() {
+  if (!window.showDirectoryPicker) { setLocalLibraryStatus("Usa Chrome o Edge para vincular una carpeta"); return; }
+  try {
+    localLibrary.directoryHandle = await window.showDirectoryPicker({ mode: "read" });
+    await scanAndPublishLocalLibrary();
+  } catch (error) {
+    if (error?.name !== "AbortError") { console.error("Unable to choose local media folder", error); setLocalLibraryStatus("No se pudo vincular la carpeta"); }
+  }
+}
+let audioFadeToken = 0;
+function emptyAudiovisualChannel() { return { resource: null, status: "stopped", loop: false, volume: 1, position: 0 }; }
+function normalizeAudiovisualChannels(next = {}) {
+  if (next.audio || next.video) return {
+    audio: { ...audiovisualState.audio, ...(next.audio || {}) },
+    video: { ...audiovisualState.video, ...(next.video || {}) }
+  };
+  const type = next.resource?.type;
+  if (type === "audio" || type === "video") return { ...audiovisualState, [type]: { ...audiovisualState[type], ...next } };
+  return audiovisualState;
+}
+function clearVideoPlaylistAdvance() {
+  clearTimeout(videoPlaylistAdvanceTimer);
+  videoPlaylistAdvanceTimer = null;
+}
+function scheduleVideoPlaylistAdvance(media) {
+  clearVideoPlaylistAdvance();
+  const state = audiovisualState.video;
+  const resource = state?.resource;
+  if (!resource?.playlist || state.status !== "playing" || !Number.isFinite(media.duration) || media.duration <= .7) return;
+  const resourceId = String(resource.id || "");
+  const delay = Math.max(0, (media.duration - media.currentTime - .5) * 1000);
+  videoPlaylistAdvanceTimer = window.setTimeout(() => {
+    if (audiovisualState.video?.status !== "playing" || String(audiovisualState.video?.resource?.id || "") !== resourceId || media !== audiovisualMedia.video[activeVideoSlot]) return;
+    socket.emit("audiovisual:playlist-advance", { resourceId, type: "video" });
+  }, delay);
+}
+function bindAudiovisualMediaEvents(type, media) {
+  media.addEventListener("loadedmetadata", () => {
+    if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
+  });
+  media.addEventListener("ended", () => {
+    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) {
+      clearVideoPlaylistAdvance();
+      hideVideoLayerImmediately();
+    }
+    socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type });
+  });
+}
+function ensureAudiovisualLayer() {
+  if (audiovisualLayer) return;
+  audiovisualLayer = document.createElement("div");
+  audiovisualLayer.className = "audiovisual-screen-layer";
+  audiovisualLayer.innerHTML = '<video class="audiovisual-video-slot" playsinline preload="auto"></video><video class="audiovisual-video-slot" playsinline preload="auto"></video><audio preload="auto" crossorigin="anonymous"></audio>';
+  audiovisualMedia = {
+    video: Array.from(audiovisualLayer.querySelectorAll("video")),
+    audio: audiovisualLayer.querySelector("audio")
+  };
+  audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
+  bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
+  audiovisualMedia.audio.addEventListener("error", () => {
+    const media = audiovisualMedia.audio;
+    const resource = audiovisualState.audio?.resource;
+    const id = String(resource?.id || "");
+    if (!id || media.dataset.resourceId !== id || resource?.source === "local" || media.crossOrigin !== "anonymous" || media.dataset.corsFallback === id) return;
+    // CORS errors must not prevent a remote MP3 from playing normally.
+    media.dataset.corsFallback = id;
+    media.removeAttribute("crossorigin");
+    const url = resolveAudiovisualMediaUrl(resource);
+    if (url) {
+      media.src = url;
+      media.load();
+      if (audiovisualState.audio.status === "playing") media.play().catch(() => {});
+    }
+  });
+  screenRoot.appendChild(audiovisualLayer);
+  try {
+    window.ImmersaAudioReact?.init({ root: screenRoot });
+    window.ImmersaAudioReact?.setAudioElement(audiovisualMedia.audio);
+    window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
+  } catch (error) {
+    console.warn("Audio React could not initialize; media playback continues.", error);
+  }
+}
+function hideVideoLayerImmediately() {
+  videoTransitionToken += 1;
+  clearVideoPlaylistAdvance();
+  (audiovisualMedia?.video || []).forEach((media) => {
+    media.classList.add("is-hiding");
+    media.classList.remove("is-visible");
+    media.pause();
+  });
+  audiovisualLayer?.classList.remove("is-video");
+  screenRoot.classList.remove("has-audiovisual-video");
+}
+function stopVideoSlots() {
+  hideVideoLayerImmediately();
+  (audiovisualMedia?.video || []).forEach((media) => {
+    media.currentTime = 0;
+  });
+}
+function revealVideoOnFirstFrame(media, token, resourceId, onReveal) {
+  let revealed = false;
+  const reveal = () => {
+    if (revealed || token !== videoTransitionToken || media.dataset.resourceId !== resourceId || audiovisualState.video?.status !== "playing") return;
+    revealed = true;
+    media.classList.remove("is-hiding");
+    media.classList.add("is-visible");
+    onReveal();
+  };
+  if (typeof media.requestVideoFrameCallback === "function") {
+    media.requestVideoFrameCallback(reveal);
+  } else {
+    media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
+  }
+}
+function applyVideoState(state) {
+  const resource = state?.resource;
+  const slots = audiovisualMedia.video;
+  if (!resource || state.status === "stopped") {
+    stopVideoSlots();
+    return;
+  }
+  const nextId = String(resource.id || "");
+  const current = slots[activeVideoSlot];
+  let incomingIndex = slots.findIndex((media) => media.dataset.resourceId === nextId);
+  if (incomingIndex < 0) incomingIndex = 1 - activeVideoSlot;
+  const incoming = slots[incomingIndex];
+  const token = ++videoTransitionToken;
+  clearVideoPlaylistAdvance();
+  if (incoming.dataset.resourceId !== nextId) {
+    const mediaUrl = resolveAudiovisualMediaUrl(resource);
+    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
+    incoming.pause();
+    incoming.classList.add("is-hiding");
+    incoming.classList.remove("is-visible");
+    incoming.dataset.resourceId = nextId;
+    incoming.src = mediaUrl;
+    incoming.load();
+  }
+  incoming.loop = Boolean(state.loop && !resource.playlist);
+  incoming.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  const shouldSynchronizePosition = ["seek", "play", "pause"].includes(state.lastAction);
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(incoming.currentTime - Number(state.position)) > 1.2) incoming.currentTime = Number(state.position);
+  if (state.status !== "playing") {
+    slots.forEach((media) => media.pause());
+    return;
+  }
+  if (incoming.classList.contains("is-visible")) {
+    incoming.play().catch(() => {});
+    scheduleVideoPlaylistAdvance(incoming);
+    return;
+  }
+  revealVideoOnFirstFrame(incoming, token, nextId, () => {
+    slots.forEach((media) => { media.style.zIndex = media === incoming ? "1" : "0"; });
+    activeVideoSlot = incomingIndex;
+    screenRoot.classList.add("has-audiovisual-video");
+    scheduleVideoPlaylistAdvance(incoming);
+    if (current === incoming) return;
+    // Keep the previous picture under the incoming dissolve until it is opaque.
+    window.setTimeout(() => {
+      if (token !== videoTransitionToken || activeVideoSlot !== incomingIndex) return;
+      current.classList.add("is-hiding");
+      current.classList.remove("is-visible");
+      current.pause();
+    }, 180);
+  });
+  incoming.play().catch(() => {});
+}
+function applyAudioState(state) {
+  const media = audiovisualMedia.audio;
+  const resource = state?.resource;
+  if (!resource || state.status === "stopped") {
+    media.pause(); media.currentTime = 0;
+    return;
+  }
+  if (media.dataset.resourceId !== String(resource.id)) {
+    const mediaUrl = resolveAudiovisualMediaUrl(resource);
+    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
+    media.dataset.resourceId = String(resource.id);
+    delete media.dataset.corsFallback;
+    media.crossOrigin = "anonymous";
+    media.src = mediaUrl;
+    media.currentTime = 0;
+  }
+  media.loop = Boolean(state.loop && !resource?.playlist);
+  if (state.status === "fading") {
+    const token = ++audioFadeToken;
+    const startVolume = media.volume || Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+    const started = performance.now();
+    const fade = () => {
+      if (token !== audioFadeToken || audiovisualState.audio.status !== "fading") return;
+      const ratio = Math.max(0, 1 - ((performance.now() - started) / 1000));
+      media.volume = startVolume * ratio;
+      if (ratio > 0) requestAnimationFrame(fade);
+    };
+    requestAnimationFrame(fade);
+    return;
+  }
+  audioFadeToken += 1;
+  media.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
+  if (state.status === "playing") media.play().catch(() => {}); else media.pause();
+}
+function applyAudiovisualState(next = {}) {
+  audiovisualState = normalizeAudiovisualChannels(next);
+  ensureAudiovisualLayer();
+  applyAudioState(audiovisualState.audio || emptyAudiovisualChannel());
+  applyVideoState(audiovisualState.video || emptyAudiovisualChannel());
+  const videoState = audiovisualState.video || emptyAudiovisualChannel();
+  const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
+  audiovisualLayer.classList.toggle("is-video", hasVideo);
+  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.status === "playing" && audiovisualMedia.video[activeVideoSlot].classList.contains("is-visible")));
+}
+function clearImmersaTimeTick() {
+  if (immersaTimeTick) clearTimeout(immersaTimeTick);
+  immersaTimeTick = null;
+}
+function renderImmersaTime() {
+  clearImmersaTimeTick();
+  if (!timeOverlay || !timeDisplay || !immersaTimeState || !window.ImmersaTime) return;
+  const timer = immersaTimeState.screen || {};
+  const visible = Boolean(timer.visible && timer.mode);
+  timeOverlay.classList.toggle("hidden", !visible);
+  if (!visible) return;
+  let value = "";
+  let shouldTick = false;
+  if (timer.mode === "stopwatch") {
+    value = window.ImmersaTime.duration(window.ImmersaTime.elapsed(timer, immersaTimeState));
+    shouldTick = Boolean(timer.running);
+  } else if (timer.mode === "countdown") {
+    const remaining = window.ImmersaTime.remaining(timer, immersaTimeState);
+    value = window.ImmersaTime.duration(remaining);
+    shouldTick = Boolean(timer.running && remaining > 0);
+  } else if (timer.mode === "clock") {
+    value = window.ImmersaTime.clock(immersaTimeState);
+    shouldTick = true;
+  }
+  timeDisplay.textContent = value;
+  if (shouldTick) immersaTimeTick = setTimeout(renderImmersaTime, 200);
+}
+function applyImmersaTime(next = {}) {
+  if (!window.ImmersaTime) return;
+  immersaTimeState = window.ImmersaTime.normalize(next);
+  renderImmersaTime();
+}
 document.getElementById("audienceUrl").textContent = activeAudienceUrl;
 function normalizeOverlayState(next = {}) { const showReactions = next.showReactions ?? next.reactionsOnScreen ?? true; const showAudienceQr = next.showAudienceQr ?? next.qrVisible ?? false; return { ...next, showReactions, reactionsOnScreen: showReactions, showAudienceQr, qrVisible: showAudienceQr, audienceUrl: next.audienceUrl || activeAudienceUrl || audienceUrl, messageVisible: Boolean(next.messageVisible), messageText: next.messageText || "" }; }
 
@@ -40,7 +448,7 @@ function updateFullscreenButton() {
   if (!fullscreenToggle) return;
   fullscreenToggle.classList.toggle("is-active", active);
   fullscreenToggle.setAttribute("aria-pressed", String(active));
-  fullscreenToggle.title = active ? "Salir de pantalla completa" : "Pantalla completa";
+  fullscreenToggle.title = window.ImmersaI18n?.t(active ? 'audience.fullscreen.exit' : 'live.fullscreen') || (active ? 'Salir de pantalla completa' : 'Pantalla completa');
   fullscreenToggle.setAttribute("aria-label", fullscreenToggle.title);
 }
 function showScreenUi() {
@@ -78,7 +486,15 @@ async function loadDeck() {
   if (!Array.isArray(nextManifest?.slides) || !nextManifest.slides.length) {
     throw new Error("Screen manifest has no slides");
   }
-  manifest = nextManifest;
+  baseManifest = nextManifest;
+  manifest = baseManifest;
+  if (baseManifest.locales?.en?.active) {
+    const englishResponse = await fetch('/decks/' + encodeURIComponent(deckId) + '/locales/en/manifest.json', { cache: 'no-store' }).catch(() => null);
+    if (englishResponse?.ok) {
+      const candidate = await englishResponse.json();
+      if (candidate.slides?.length === baseManifest.slides.length) englishManifest = candidate;
+    }
+  }
   if (pendingPresentationState) render(pendingPresentationState);
   return manifest;
 }
@@ -98,10 +514,33 @@ function syncScreenFocus() {
   const resultsVisible = Boolean(interactionOverlay && !interactionOverlay.classList.contains("interaction-hidden"));
   screenRoot.classList.toggle("has-focus-overlay", messageVisible || resultsVisible);
 }
-function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); message.textContent = overlays.messageText || ""; message.classList.toggle("hidden", !overlays.messageVisible || !overlays.messageText); syncScreenFocus(); }
+function renderLiveMessage() {
+  const text = String(overlays.messageText || "");
+  const visible = Boolean(overlays.messageVisible && text);
+  message.replaceChildren();
+  if (!visible) {
+    message.classList.add("hidden");
+    return;
+  }
+  const copy = document.createElement("span");
+  copy.className = "message-copy";
+  copy.textContent = text;
+  message.appendChild(copy);
+  message.classList.remove("hidden");
+}
+function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); renderLiveMessage(); syncScreenFocus(); }
 function render(state) {
   pendingPresentationState = state;
   applyOverlays(state?.overlays || {});
+  const nextLocale = state?.operationalLocale === 'en' && englishManifest ? 'en' : 'es';
+  if (nextLocale !== operationalLocale) {
+    operationalLocale = nextLocale;
+    window.ImmersaI18n?.setLocale(operationalLocale);
+    updateFullscreenButton();
+    manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest;
+    knowledgeActivityScreen?.render?.();
+    if (lastInteractionResults) showInteractionResults(lastInteractionResults);
+  }
   if (!manifest?.slides?.length) return;
   const index = state?.liveSlideIndex ?? state?.slideIndex ?? 0;
   const item = manifest.slides[index];
@@ -109,20 +548,30 @@ function render(state) {
   const previousIndex = currentSlideIndex;
   const changed = index !== previousIndex;
   currentSlideIndex = index;
-  const src = "/decks/" + encodeURIComponent(deckId) + "/" + String(item.src).replace(/^\/+/, "");
+  const src = "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(item.src).replace(/^\/+/, "");
   if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
   else slide.src = src;
-  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
+  window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
   applySlideOrientation(item, src);
   window.ImmersaDemoPlanBadge?.update(screenRoot, item, manifest);
   drawingOverlay?.refresh();
 }
-function popReaction(emoji) { if (!overlays.showReactions) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(18 + Math.random() * 64) + "vw"; node.style.setProperty("--x", Math.round(Math.random() * 220 - 110) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 3100); }
+function popReaction(emoji) {
+  const reactions = document.getElementById("reactions");
+  if (!overlays.showReactions || !reactions || reactions.childElementCount >= 40) return;
+  const node = document.createElement("span");
+  node.className = "reaction";
+  node.textContent = emoji;
+  node.style.left = Math.round(18 + Math.random() * 64) + "vw";
+  node.style.setProperty("--x", Math.round(Math.random() * 220 - 110) + "px");
+  reactions.appendChild(node);
+  setTimeout(() => node.remove(), 3100);
+}
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: screenRoot, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionOverlay() { if (interactionOverlay) return interactionOverlay; interactionOverlay = document.createElement("section"); interactionOverlay.className = "interaction-results-overlay interaction-hidden"; interactionOverlay.setAttribute("aria-label", "Resultados de interacción"); screenRoot.appendChild(interactionOverlay); return interactionOverlay; }
 function renderResultRows(results) { return '<div class="interaction-results-list">' + results.options.map((option) => '<div class="interaction-result-row"><div class="interaction-result-label"><span>' + option.label + '</span><strong>' + option.percentage + '%</strong></div><div class="interaction-result-bar"><span style="width:' + option.percentage + '%"></span></div></div>').join("") + '</div>'; }
-function showInteractionResults(results) { if (!results) return; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (results.title || 'Resultados') + '</h2><p>' + (results.prompt || '') + '</p>' + renderResultRows(results); syncScreenFocus(); }
-function hideInteractionResults() { ensureInteractionOverlay().classList.add("interaction-hidden"); syncScreenFocus(); }
+function showInteractionResults(results) { if (!results) return; lastInteractionResults = results; const labels = results.en?.options || {}; const translated = operationalLocale === 'en' && results.en?.prompt?.trim() && results.options?.every((option) => String(labels[option.id] || '').trim()); const display = translated ? { ...results, title: 'Poll', prompt: results.en.prompt, options: results.options.map((option) => ({ ...option, label: labels[option.id] })) } : results; const overlay = ensureInteractionOverlay(); overlay.classList.remove("interaction-hidden"); overlay.innerHTML = '<h2>' + (display.title || 'Resultados') + '</h2><p>' + (display.prompt || '') + '</p>' + renderResultRows(display); syncScreenFocus(); }
+function hideInteractionResults() { lastInteractionResults = null; ensureInteractionOverlay().classList.add("interaction-hidden"); syncScreenFocus(); }
 function renderQnaScreen(payload = {}) {
   const question = payload.visible ? payload.question : null;
   const text = String(question?.text || "").trim();
@@ -141,6 +590,7 @@ function renderQnaScreen(payload = {}) {
 }
 
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
+if (localLibraryPicker) localLibraryPicker.addEventListener("click", chooseLocalLibraryFolder);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => {
@@ -161,6 +611,9 @@ document.addEventListener("keydown", (event) => {
 showScreenUi();
 
 socket.on("presentation_state", render);
+socket.on("audiovisual:state", applyAudiovisualState);
+socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
+socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));
 socket.on("reaction", ({ emoji, target }) => { if (target === "screen") popReaction(emoji); });
@@ -172,6 +625,7 @@ socket.on("qna:screen", renderQnaScreen);
 makeQrPattern(activeAudienceUrl);
 socket.on("connect", () => {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });
+  if (localLibrary.resources.length) socket.emit("local-library:publish", { resources: localLibrary.resources });
 });
 if (socket.connected) {
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });

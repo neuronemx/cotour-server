@@ -130,7 +130,7 @@
   function activeFromEventPayload(payload) { return withLocalCountdown(payload?.raffle || payload?.active || payload || null); }
   function numericCount(value, fallback = 0) { const count = Number(value); return Number.isFinite(count) ? count : fallback; }
   function errorMessage(reason) {
-    const messages = { active_interaction_exists: "Cierra la encuesta activa antes de iniciar un sorteo.", active_raffle_exists: "Ya hay un sorteo activo.", invalid_raffle_mode: "Este modo de sorteo no está disponible.", visual_key_requires_four_options: "Clave visual necesita cuatro opciones.", entry_key_required: "Elige la opción correcta antes de abrir la participación.", entry_key_must_match_option: "La respuesta correcta debe existir entre las cuatro opciones.", poll_options_required: "Encuesta necesita al menos dos opciones.", no_eligible_entries: "No hay participantes elegibles.", no_connected_eligible_entries: "No hay participantes elegibles conectados." };
+    const messages = { active_interaction_exists: "Cierra la encuesta activa antes de iniciar un sorteo.", active_raffle_exists: "Ya hay un sorteo activo.", invalid_raffle_mode: "Este modo de sorteo no está disponible.", visual_key_requires_four_options: "Clave visual necesita cuatro opciones.", entry_key_required: "Elige la opción correcta antes de abrir la participación.", entry_key_must_match_option: "La respuesta correcta debe existir entre las cuatro opciones.", poll_options_required: "Encuesta necesita al menos dos opciones.", no_entries: "Necesitas al menos un participante para cerrar la tómbola.", no_eligible_entries: "No hay participantes elegibles.", no_connected_eligible_entries: "No hay participantes elegibles conectados." };
     return messages[reason] || "No se pudo completar la acción. Intenta de nuevo.";
   }
 
@@ -153,7 +153,7 @@
   }
 
   function modeLabel(mode) { return RAFFLE_MODES.find((item) => item.id === mode)?.label || "Sorteo"; }
-  function activeModeTitle(mode) { return "Sorteo " + modeLabel(mode); }
+  function activeModeTitle(mode) { return mode === "free" ? "Sorteo" : "Sorteo " + modeLabel(mode); }
   function entryCount(active) { return Number(active?.entryCount ?? active?.entries?.length ?? 0); }
   function eligibleCount(active) { return Number(active?.eligibleCount ?? 0); }
   function winnerLabel(active) { const winner = active?.winner || active?.winners?.[0] || null; const label = winner?.label || winner?.name; return label ? String(label) : "Ganador seleccionado"; }
@@ -166,7 +166,7 @@
   function getRaffleActions(state) {
     const active = state?.active;
     if (!active || active.state === "closed") return [];
-    if (active.state === "collecting") return [{ event: "raffle:close_entries", label: "Cerrar tómbola", primary: true }, { event: "raffle:close", label: "Cancelar sorteo", danger: true, secondary: true }];
+    if (active.state === "collecting") return [{ event: "raffle:close_entries", label: "Cerrar tómbola", primary: true, disabled: entryCount(active) === 0 }, { event: "raffle:close", label: "Cancelar sorteo", danger: true, secondary: true }];
     if (active.state === "entries_closed") return [{ event: "raffle:draw", label: "Desliza para iniciar sorteo", primary: true, slide: true }, { event: "raffle:reset_winners", label: "Restablecer ganadores" }, { event: "raffle:close", label: "Cancelar sorteo", danger: true, secondary: true }];
     if (active.state === "drawing") return [];
     if (active.state === "winner") return [{ event: "raffle:close", label: "Cerrar sorteo", primary: true }];
@@ -204,11 +204,7 @@
     const disabled = Boolean(state.activeInteraction || state.pendingEvent);
     const warning = state.activeInteraction ? '<p class="raffle-warning">Cierra la encuesta activa antes de iniciar un sorteo.</p>' : "";
     if (state.configMode === "visual_key") return '<section class="raffle-section"><div class="raffle-heading"><h2>Clave visual</h2><p>Elige la opción que se mostrará en Pantalla.</p></div>' + warning + renderVisualKeyConfig(state, disabled) + '</section>';
-    const modeButtons = RAFFLE_MODES.filter((mode) => mode.id === "free").map((mode) => {
-      const attrs = mode.id === "visual_key" ? 'data-raffle-config-mode="visual_key"' : 'data-raffle-create="' + mode.id + '"';
-      const descriptions = { free: 'Participan solo quienes pulsen Participar.' }; const selectedClass = state.configMode === mode.id ? ' is-selected' : ''; return '<button type="button" class="raffle-mode-card' + selectedClass + '" ' + attrs + ' ' + (!canCreateMode(state, mode.id) && mode.id !== "visual_key" ? 'disabled' : '') + '><strong>' + mode.label + '</strong><span class="raffle-mode-description">' + descriptions[mode.id] + '</span></button>';
-    }).join("");
-    return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteos disponibles</h2><p>Elige un modo para crear la convocatoria.</p></div>' + warning + '<div class="raffle-mode-grid">' + modeButtons + '</div></section>';
+    return '<section class="raffle-section"><div class="raffle-heading"><h2>Sorteo</h2><p>Abre la tómbola para que tu público participe.</p></div>' + warning + '<div class="raffle-actions"><button type="button" class="primary raffle-action" data-raffle-create="free" ' + (disabled ? 'disabled' : '') + '>Abrir sorteo</button></div></section>';
   }
   function renderStats(active, state) { if (active.state !== "collecting" && active.state !== "entries_closed") return ""; return '<div class="raffle-stats-pill"><span class="raffle-stat-item"><span>Conectados</span><strong>' + numericCount(state.connectedAudienceCount) + '</strong></span><span class="raffle-stat-divider" aria-hidden="true"></span><span class="raffle-stat-item"><span>Elegibles</span><strong>' + eligibleCount(active) + '</strong></span></div>'; }
   function activeStatusText(active) { if (active?.state === "collecting" && active?.mode === "poll") return "Participación con pregunta o evaluación"; const labels = { collecting: "Participación abierta", entries_closed: "Participación cerrada", drawing: "Sorteando...", winner: "Tenemos ganador" }; return labels[active?.state] || "Sorteo"; }

@@ -90,7 +90,7 @@ test("audience logo uses a contained inner mark on a borderless lockup", () => {
 test("audience logo stays contained in compact mobile landscape", () => {
   assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*width: 36px;[^}]*height: 36px;[^}]*padding: 3px;[^}]*overflow: hidden;[^}]*\}[\s\S]*?\.brand-mark \{[^}]*width: 28px;[^}]*height: 28px;[^}]*\}/);
   assert.match(audienceCss, /@media \(orientation: landscape\) and \(max-height: 520px\) \{[\s\S]*?\.brand-lockup \{[^}]*top: max\(9px, env\(safe-area-inset-top\)\);[^}]*left: max\(9px, env\(safe-area-inset-left\)\);/);
-  assert.match(audienceIndex, /\/audience\/audience\.css\?v=14/);
+  assert.match(audienceIndex, /\/audience\/audience\.css\?v=26/);
 });
 
 test("hotfix stays scoped away from speaker logo css and PNG assets", () => {
@@ -124,7 +124,7 @@ test("audience public interactions are centered in the viewport", () => {
 });
 
 
-test("audience reuses the shared interaction slide scrim", () => {
+test("Sorteo leaves the audience slide sharp and unobscured", () => {
   assert.equal((audienceIndex.match(/class="interaction-slide-scrim"/g) || []).length, 1);
   assert.match(audienceIndex, /<section id="slideViewport" class="slide-viewport"[^>]*>[\s\S]*?<\/section>\n    <div class="interaction-slide-scrim" aria-hidden="true"><\/div>\n    <div class="brand-lockup"/);
 
@@ -135,7 +135,8 @@ test("audience reuses the shared interaction slide scrim", () => {
   assert.equal(scrim["-webkit-backdrop-filter"], "blur(4px)");
 
   assert.match(interactionsCss, /\.presenter-shell\.interaction-panel-open \.interaction-slide-scrim,\nbody\.stage-actions-open \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
-  assert.match(interactionsCss, /\.audience:has\(\.interaction-card:not\(\.interaction-hidden\)\) > \.interaction-slide-scrim,\n\.audience:has\(\.raffle-public-overlay\) > \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.match(interactionsCss, /\.audience:has\(\.interaction-card:not\(\.interaction-hidden\)\) > \.interaction-slide-scrim \{\n  opacity: 1;\n  visibility: visible;\n\}/);
+  assert.doesNotMatch(interactionsCss, /\.audience:has\(\.raffle-public-overlay\) > \.interaction-slide-scrim/);
   assert.doesNotMatch(interactionsCss, /\.audience:has\(\.interaction-card\) > \.interaction-slide-scrim/);
 
   const raffleOverlay = declarations(cssBlock(audienceCss, ".raffle-public-overlay"));

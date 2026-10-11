@@ -21,6 +21,7 @@ test("FREE, SPEAKER and SPEAKER PRO expose the approved capability matrix", () =
   assert.equal(canUseFeature(free, CAPABILITIES.ACCESS_SCREEN), true);
   assert.equal(canUseFeature(free, CAPABILITIES.ACCESS_BACKSTAGE), false);
   assert.equal(canUseFeature(free, CAPABILITIES.POLLS_RUN), false);
+  assert.equal(canUseFeature(free, CAPABILITIES.MULTILANGUAGE_MANAGE), false);
 
   const speaker = featureAccessForPlan("speaker");
   for (const capability of [
@@ -30,6 +31,7 @@ test("FREE, SPEAKER and SPEAKER PRO expose the approved capability matrix", () =
     CAPABILITIES.QNA_RUN,
     CAPABILITIES.METRICS_BASIC
   ]) assert.equal(canUseFeature(speaker, capability), true, capability);
+  assert.equal(canUseFeature(speaker, CAPABILITIES.MULTILANGUAGE_MANAGE), true);
   for (const capability of [
     CAPABILITIES.RAFFLES_RUN,
     CAPABILITIES.TRIVIA_RUN,
@@ -47,6 +49,7 @@ test("FREE, SPEAKER and SPEAKER PRO expose the approved capability matrix", () =
     CAPABILITIES.BRANDING_CUSTOM
   ]) assert.equal(canUseFeature(pro, capability), true, capability);
   assert.equal(canUseFeature(pro, CAPABILITIES.GAMES_RUN), false);
+  assert.equal(canUseFeature(pro, CAPABILITIES.MULTILANGUAGE_MANAGE), true);
 });
 
 test("controller events resolve to an exact plan capability", () => {
@@ -77,6 +80,8 @@ test("Deck writes are checked per interaction family", () => {
   }, current), []);
   assert.deepEqual(changedDeckCapabilities({ interactions: [] }, current), [CAPABILITIES.POLLS_CONFIGURE]);
   assert.deepEqual(changedDeckCapabilities({ contests: [] }, current), [CAPABILITIES.TRIVIA_RUN]);
+  assert.deepEqual(changedDeckCapabilities({ prompter: { 'slide-001': { es: 'Hola', en: 'Hello' } } }, { prompter: { 'slide-001': 'Hola' } }), [CAPABILITIES.MULTILANGUAGE_MANAGE]);
+  assert.deepEqual(changedDeckCapabilities({ prompter: { 'slide-001': 'Hola' } }, { prompter: { 'slide-001': 'Hola' } }), []);
 });
 
 test("workspace plan is resolved from the Deck owner rather than the access link", async () => {

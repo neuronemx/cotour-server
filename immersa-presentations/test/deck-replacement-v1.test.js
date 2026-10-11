@@ -169,7 +169,7 @@ test("Home offers centered rename and replacement actions and explains preserved
   const source = fs.readFileSync(path.join(appDir, "public", "home", "home.js"), "utf8");
   const css = fs.readFileSync(path.join(appDir, "public", "home", "home.css"), "utf8");
   assert.match(html, /id="detailRename"[^>]*>[\s\S]*Renombrar/);
-  assert.match(html, /id="detailReplace"[^>]*>[\s\S]*Sustituir/);
+  assert.match(html, /id="detailReplace"[^>]*>[\s\S]*Reemplazar/);
   assert.doesNotMatch(html, /id="detailDelete"|Eliminar presentación/);
   assert.match(html, /id="replacementReview"/);
   assert.match(css, /\.deck-file-actions\s*\{[^}]*justify-content:center/s);

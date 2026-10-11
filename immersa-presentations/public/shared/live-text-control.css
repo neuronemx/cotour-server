@@ -17,8 +17,12 @@
   inset: 0;
   z-index: 30;
   display: none;
-  place-items: center;
-  padding: 18px;
+  place-items: start center;
+  padding: max(18px, env(safe-area-inset-top)) 18px 18px;
+}
+
+.controller-live-text-card {
+  margin-top: clamp(18px, 7vh, 72px);
 }
 
 .controller-live-text-modal.is-open {

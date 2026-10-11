@@ -102,6 +102,10 @@ function normalizeQuestion(question, index) {
   return {
     id: text(question?.id, 96) || `question-${index + 1}`,
     prompt,
+    en: {
+      prompt: text(question?.en?.prompt, 2000),
+      options: Object.fromEntries(options.map((option) => [option.id, text(question?.en?.options?.[option.id], 500)]).filter(([, label]) => label))
+    },
     image: normalizeQuestionImage(question?.image),
     options: options.map(({ correct, ...option }) => option),
     correctOptionId
@@ -132,6 +136,7 @@ function normalizeDefinition(definition) {
     id: text(definition?.id, 96) || randomUUID(),
     category,
     title,
+    titleEn: text(definition?.titleEn, 240),
     identificationMode,
     questionDurationSeconds: category === "contest"
       ? finiteInteger(definition?.questionDurationSeconds, 15, 5, 300)
@@ -177,7 +182,7 @@ function questionForParticipant(execution, participant, questionId) {
   const options = optionOrderFor(execution, participant, questionId)
     .map((optionId) => question.options.find((option) => option.id === optionId))
     .filter(Boolean);
-  return { id: question.id, prompt: question.prompt, image: clone(question.image), options };
+  return { id: question.id, prompt: question.prompt, en: clone(question.en), image: clone(question.image), options };
 }
 
 function createExecution({
@@ -729,6 +734,7 @@ function baseRoleState(execution, nowMs) {
     executionId: execution.id,
     category: execution.category,
     title: execution.title,
+    titleEn: execution.definition.titleEn || '',
     state: execution.state,
     substate: execution.substate,
     revision: execution.revision,
@@ -796,6 +802,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
       screen.currentQuestion = {
         id: current.id,
         prompt: current.prompt,
+        promptEn: current.en?.prompt && current.options.every((option) => current.en?.options?.[option.id]?.trim())
+          ? current.en.prompt : "",
         image: clone(current.image)
       };
       if (execution.substate === "REVEAL") {
@@ -803,6 +811,8 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
         const correctOption = current.options.find((option) => option.id === current.correctOptionId);
         screen.reveal = {
           correctLabel: correctOption?.label || "",
+          correctLabelEn: current.en?.prompt && current.options.every((option) => current.en?.options?.[option.id]?.trim())
+            ? current.en.options[correctOption?.id] || "" : "",
           responseCount: answers.length,
           correctCount: answers.filter((answer) => answer.correct).length
         };
@@ -877,11 +887,17 @@ function stateForRole(execution, { role, participantId = "", tabId = "", nowMs =
           const answer = ownResult.answers.find((item) => item.questionId === questionId);
           const selected = question?.options.find((option) => option.id === answer?.optionId);
           const correct = question?.options.find((option) => option.id === question?.correctOptionId);
+          const englishReady = Boolean(question?.en?.prompt && question.options.every((option) => question.en?.options?.[option.id]?.trim()));
           return {
             questionId,
             prompt: question?.prompt || "",
             selectedLabel: selected?.label || null,
             correctLabel: correct?.label || "",
+            en: englishReady ? {
+              prompt: question.en.prompt,
+              selectedLabel: selected ? question.en.options[selected.id] : null,
+              correctLabel: correct ? question.en.options[correct.id] : ""
+            } : null,
             status: !answer ? "omitted" : answer.correct ? "correct" : "incorrect"
           };
         })

@@ -1,4 +1,13 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const MAX_OPTIONS = 6;
   const MIN_OPTIONS = 2;
   const optionLetters = "abcdefghijklmnopqrstuvwxyz";
@@ -107,9 +116,7 @@
     listNode = modal.querySelector(".interactions-list");
     statusNode = modal.querySelector(".interactions-status");
     modal.querySelector(".interactions-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 
@@ -129,6 +136,30 @@
   function canConfigure(capability) {
     if (currentDeck?.demoRole === "master") return true;
     return planAccess?.capabilities?.[capability] === true || planAccess?.features?.[capability] === true;
+  }
+
+  function englishVariantAvailable() {
+    return canConfigure("multilanguage.manage") && Number(currentDeck?.locales?.en?.slides || 0) > 0;
+  }
+
+  function englishFieldMarkup(label, control) {
+    return '<details class="interaction-en-extra interaction-en-disclosure" data-english-field><summary><span>' + label + '</span><span class="interaction-en-check" aria-label="Campo en inglés completo">✓</span></summary><div class="interaction-en-field-body">' + control + '</div></details>';
+  }
+
+  function bindEnglishDisclosures(root) {
+    root.querySelectorAll("[data-english-field]").forEach((details) => {
+      if (details.dataset.englishBound === "true") return;
+      const field = details.querySelector("input, textarea");
+      if (!field) return;
+      const update = () => details.classList.toggle("is-complete", Boolean(field.value.trim()));
+      details.dataset.englishBound = "true";
+      update();
+      field.addEventListener("input", update);
+      field.addEventListener("blur", () => {
+        update();
+        if (field.value.trim()) details.open = false;
+      });
+    });
   }
 
   async function loadPlanAccess() {
@@ -273,22 +304,31 @@
     const form = document.createElement("form");
     form.className = "interaction-edit-form";
     form.noValidate = true;
-    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label><div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar encuesta</button></div></div>';
+    const bilingual = englishVariantAvailable();
+    draft.en = draft.en || { prompt: '', options: {} };
+    draft.en.options = draft.en.options || {};
+    form.innerHTML = '<div class="interaction-form-header"><h3>' + (index === null ? 'Crear encuesta' : 'Editar encuesta') + '</h3></div><label><span>Título interno</span><input name="title" autocomplete="off" placeholder="Ej. Pulso inicial de audiencia"></label><label><span>Pregunta visible para público · ES</span><textarea name="prompt" rows="3" required placeholder="¿Qué esperas de esta sesión?"></textarea></label>' + (bilingual ? englishFieldMarkup('Pregunta en inglés', '<textarea name="promptEn" rows="3" placeholder="Agregar versión en inglés"></textarea>') : '') + '<div class="interaction-activation"><span>Activación</span><div class="interaction-segmented" role="group" aria-label="Activación"><button type="button" class="is-active">Libre</button><button type="button" disabled>Fijar a slide <small>Próximamente</small></button></div><p>Speaker o Backstage la lanzan cuando quieran.</p></div><div class="interaction-options-editor"><div class="interaction-options-title"><strong>Opciones</strong></div><div class="interaction-options-fields"></div></div><div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar encuesta</button></div></div>';
     const title = form.elements.title;
     const prompt = form.elements.prompt;
     const optionsFields = form.querySelector(".interaction-options-fields");
     title.value = draft.title || "";
     prompt.value = draft.prompt || "";
+    if (bilingual) form.elements.promptEn.value = draft.en.prompt || '';
 
     function renderOptionFields() {
       optionsFields.innerHTML = "";
       draft.options.forEach((option, optionIndex) => {
         const row = document.createElement("label");
-        row.className = "interaction-option-field";
-        row.innerHTML = '<span class="interaction-option-dot ' + optionDotClasses[optionIndex % optionDotClasses.length] + '" aria-hidden="true"></span><input autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
-        const input = row.querySelector("input");
+        row.className = "interaction-option-field" + (bilingual ? " is-bilingual" : "");
+        row.innerHTML = '<span class="interaction-option-dot ' + optionDotClasses[optionIndex % optionDotClasses.length] + '" aria-hidden="true"></span><input autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + ' · ES">' + (bilingual ? englishFieldMarkup('Respuesta en inglés', '<input class="interaction-option-en" autocomplete="off" placeholder="Agregar versión en inglés">') : '') + '<button type="button" aria-label="Eliminar opción">×</button>';
+        const input = row.querySelector("input:not(.interaction-option-en)");
         input.value = option.label || "";
         input.addEventListener("input", () => option.label = input.value);
+        const englishInput = row.querySelector('.interaction-option-en');
+        if (englishInput) {
+          englishInput.value = draft.en.options[option.id] || '';
+          englishInput.addEventListener('input', () => { draft.en.options[option.id] = englishInput.value; });
+        }
         row.querySelector("button").disabled = draft.options.length <= MIN_OPTIONS;
         row.querySelector("button").addEventListener("click", () => {
           if (draft.options.length <= MIN_OPTIONS) return;
@@ -303,9 +343,11 @@
           renderOptionFields();
         }));
       }
+      bindEnglishDisclosures(optionsFields);
     }
 
     renderOptionFields();
+    bindEnglishDisclosures(form);
     form.querySelector("[data-cancel]").addEventListener("click", () => {
       activeDraft = null;
       editingIndex = null;
@@ -315,6 +357,7 @@
       event.preventDefault();
       const next = normalizeForForm({ ...draft, title: title.value.trim(), prompt: prompt.value.trim() });
       next.options = draft.options.map((option, optionIndex) => ({ id: option.id || optionId(optionIndex), label: String(option.label || "").trim() })).filter((option) => option.label);
+      if (bilingual) next.en = { prompt: form.elements.promptEn.value.trim(), options: Object.fromEntries(next.options.map((option) => [option.id, String(draft.en.options[option.id] || '').trim()]).filter(([, label]) => label)) };
       if (!next.prompt) return setFormStatus(form, "La pregunta visible para público es obligatoria.", "error");
       if (next.options.length < MIN_OPTIONS) return setFormStatus(form, "Agrega al menos dos opciones.", "error");
       const saved = [...interactions];
@@ -438,10 +481,15 @@
   function knowledgeQuestionEditor(question, questionIndex, rerender) {
     const node = document.createElement("fieldset");
     node.className = "knowledge-question-editor";
-    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label><div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
-    const prompt = node.querySelector("textarea");
+    const bilingual = englishVariantAvailable();
+    question.en = question.en || { prompt: '', options: {} };
+    question.en.options = question.en.options || {};
+    node.innerHTML = '<legend>Pregunta ' + (questionIndex + 1) + '</legend><label><span>Pregunta · ES</span><textarea rows="2" required placeholder="Escribe la pregunta"></textarea></label>' + (bilingual ? englishFieldMarkup('Pregunta en inglés', '<textarea class="knowledge-question-en" rows="2" placeholder="Agregar versión en inglés"></textarea>') : '') + '<div class="knowledge-question-image-field"><div class="knowledge-question-image-preview"></div><div class="knowledge-question-image-copy"><strong>Imagen opcional</strong><span>PNG, JPG o WebP · máximo 5 MB</span><div class="knowledge-question-image-actions"><button type="button" data-select-image></button><button type="button" data-remove-image>Eliminar</button></div></div><input type="file" data-image-input accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></div><div class="knowledge-option-editors"></div><div class="knowledge-question-actions"></div>';
+    const prompt = node.querySelector("textarea:not(.knowledge-question-en)");
     prompt.value = question.prompt || "";
     prompt.addEventListener("input", () => question.prompt = prompt.value);
+    const promptEn = node.querySelector('.knowledge-question-en');
+    if (promptEn) { promptEn.value = question.en.prompt || ''; promptEn.addEventListener('input', () => { question.en.prompt = promptEn.value; }); }
     const preview = node.querySelector(".knowledge-question-image-preview");
     const selectImage = node.querySelector("[data-select-image]");
     const removeImage = node.querySelector("[data-remove-image]");
@@ -480,14 +528,16 @@
     const optionsNode = node.querySelector(".knowledge-option-editors");
     question.options.forEach((option, optionIndex) => {
       const row = document.createElement("label");
-      row.className = "knowledge-option-editor";
-      row.innerHTML = '<input type="radio" name="correct-' + escapeHtml(question.id) + '" aria-label="Marcar como correcta"><input type="text" autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + '"><button type="button" aria-label="Eliminar opción">×</button>';
+      row.className = "knowledge-option-editor" + (bilingual ? " is-bilingual" : "");
+      row.innerHTML = '<input type="radio" name="correct-' + escapeHtml(question.id) + '" aria-label="Marcar como correcta"><input type="text" autocomplete="off" placeholder="Opción ' + (optionIndex + 1) + ' · ES">' + (bilingual ? englishFieldMarkup('Respuesta en inglés', '<input class="knowledge-option-en" type="text" autocomplete="off" placeholder="Agregar versión en inglés">') : '') + '<button type="button" aria-label="Eliminar opción">×</button>';
       const radio = row.querySelector('[type="radio"]');
-      const input = row.querySelector('[type="text"]');
+      const input = row.querySelector('[type="text"]:not(.knowledge-option-en)');
       radio.checked = question.correctOptionId === option.id;
       radio.addEventListener("change", () => question.correctOptionId = option.id);
       input.value = option.label || "";
       input.addEventListener("input", () => option.label = input.value);
+      const optionEn = row.querySelector('.knowledge-option-en');
+      if (optionEn) { optionEn.value = question.en.options[option.id] || ''; optionEn.addEventListener('input', () => { question.en.options[option.id] = optionEn.value; }); }
       const remove = row.querySelector("button");
       remove.disabled = question.options.length <= MIN_OPTIONS;
       remove.addEventListener("click", () => {
@@ -512,6 +562,7 @@
         rerender();
       }));
     }
+    bindEnglishDisclosures(node);
     return node;
   }
 
@@ -522,6 +573,7 @@
     form.noValidate = true;
     form.innerHTML = '<div class="interaction-form-header"><span>' + (index === null ? "Crear" : "Editar") + '</span><h3>' + (category === "contest" ? "Trivia" : "Evaluación") + '</h3></div>'
       + '<label><span>Título</span><input name="title" maxlength="240" required placeholder="Ej. Conocimiento del producto"></label>'
+      + (englishVariantAvailable() ? englishFieldMarkup('Título en inglés', '<input name="titleEn" maxlength="240" placeholder="Agregar versión en inglés">') : '')
       + '<label><span>Identificación</span><select name="identificationMode"><option value="anonymous">Anónima</option><option value="optional_name">Nombre opcional</option><option value="required_name">Nombre obligatorio</option></select></label>'
       + (category === "contest"
         ? '<label><span>Tiempo por pregunta (segundos)</span><input name="duration" type="number" min="5" max="300" required></label>'
@@ -530,6 +582,8 @@
       + '<div class="knowledge-questions-editor"></div><button type="button" class="interactions-add-option" data-add-question>+ Agregar pregunta</button>'
       + '<div class="modal-actions"><button class="secondary-action" type="button" data-cancel>Cancelar</button><div class="interaction-submit-feedback"><p class="interaction-form-status" role="alert" aria-live="assertive"></p><button class="primary-action" type="submit">Guardar ' + noun + "</button></div></div>";
     form.elements.title.value = draft.title || "";
+    if (form.elements.titleEn) form.elements.titleEn.value = draft.titleEn || '';
+    bindEnglishDisclosures(form);
     form.elements.identificationMode.value = draft.identificationMode || "anonymous";
     form.elements.duration.value = category === "contest"
       ? draft.questionDurationSeconds || 15
@@ -565,6 +619,7 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       draft.title = form.elements.title.value.trim();
+      if (form.elements.titleEn) draft.titleEn = form.elements.titleEn.value.trim();
       draft.identificationMode = form.elements.identificationMode.value;
       if (category === "contest") draft.questionDurationSeconds = Number(form.elements.duration.value);
       else draft.durationSeconds = Number(form.elements.duration.value) * 60;

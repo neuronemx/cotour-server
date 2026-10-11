@@ -9,8 +9,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=17/);
-  assert.match(html, /deck-management-shell\.js\?v=10/);
+  assert.match(html, /deck-management-shell\.css\?v=28/);
+  assert.match(html, /deck-management-shell\.js\?v=15/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
@@ -24,6 +24,10 @@ test("Deck detail exposes the approved management sections", () => {
   assert.doesNotMatch(html, />Business</);
   assert.doesNotMatch(html, /id="detailStatus"/);
   assert.match(html, /data-deck-tab="participation"[^>]*>[\s\S]*?deck-detail-tab-rocket[\s\S]*?<span>Participación<\/span>/);
+  assert.match(html, /id="detailRename"[\s\S]*?renombrar\.png[\s\S]*?<span>Renombrar<\/span>/);
+  assert.match(html, /id="detailReplace"[\s\S]*?reemplazar\.png[\s\S]*?<span>Reemplazar<\/span>/);
+  assert.match(html, /id="detailLanguage"[\s\S]*?idioma\.png[\s\S]*?<span>Idioma<\/span>/);
+  assert.doesNotMatch(html, /data-deck-tab="locales"|EN \+|Español Base|Base · Activo/);
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
@@ -127,7 +131,7 @@ test("Home header remains outside the overlapping upload shell and Speaker stays
   assert.doesNotMatch(source, /window\.open\("about:blank", "_blank"\)/);
 });
 
-test("Deck detail provides visual slide navigation and direct video editing without changing the show", () => {
+test("Deck detail provides visual slide navigation and direct prompter editing without changing the show", () => {
   const html = read("public/home/index.html");
   const source = read("public/home/home.js");
   const css = read("public/home/deck-management-shell.css");
@@ -143,7 +147,8 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(source, /function selectDetailSlide\(index/);
   assert.match(source, /detailThumb\.replaceChildren\(renderDetailSlide\(navigation\.deck, navigation\.slides\[nextIndex\], nextIndex\)\)/);
   assert.match(source, /aria-pressed/);
-  assert.match(source, /immersa:deck-video-slide-request/);
+  assert.match(source, /immersa:deck-prompter-slide-request/);
+  assert.match(source, /detailVideoAction\.setAttribute\("aria-label", "Configurar Apuntador del slide "/);
   assert.match(source, /immersa:deck-videos-changed/);
   assert.match(source, /detailSlideStrip\?\.addEventListener\("wheel"/);
   assert.match(source, /passive: false/);
@@ -162,7 +167,25 @@ test("Deck detail provides visual slide navigation and direct video editing with
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=17/);
+  assert.match(html, /deck-management-shell\.css\?v=28/);
+});
+
+test("Deck Home restores the full Enlaces cover and centers below the persistent header", () => {
+  const html = read("public/home/index.html");
+  const homeCss = read("public/home/home.css");
+  const shellCss = read("public/home/deck-management-shell.css");
+  const shell = read("public/home/deck-management-shell.js");
+
+  assert.match(shell, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
+  assert.match(html, /class="deck-detail-hero"[\s\S]*?id="detailThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"[\s\S]*?class="deck-detail-copy"/);
+  assert.doesNotMatch(html, /deck-links-hero|detailLinksThumb/);
+  assert.match(homeCss, /#deckDetailModal \{ inset:68px 0 0; align-items:center; padding:20px; \}/);
+  assert.match(homeCss, /@media \(max-width: 700px\) \{ #deckDetailModal \{ inset:54px 0 0; padding:12px; \} \}/);
+  assert.match(homeCss, /#deckDetailModal \.deck-detail-modal \{ max-height:calc\(100dvh - 110px\); \}/);
+  assert.match(shellCss, /height:min\(calc\(100dvh - 108px\),900px\)/);
+  assert.match(shellCss, /height:calc\(100dvh - 110px\)/);
+  assert.match(shellCss, /has-audiovisual-library > \.deck-detail-tabs\{[\s\S]*flex:0 0 auto;/);
+  assert.match(html, /home\.css\?v=70&ui=3/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {
@@ -179,7 +202,7 @@ test("Direct video action reuses the current editor with the selected slide", ()
   assert.match(videos, /renderForm\(config\.videos\.find/);
   assert.match(videos, /else if \(selectedSlideId\) slideSelect\.value = selectedSlideId/);
   assert.match(videos, /immersa:deck-videos-changed/);
-  assert.match(html, /video-editor\.js\?v=113/);
+  assert.match(html, /video-editor\.js\?v=114/);
 });
 
 test("Deck access actions open Speaker in the current tab and provide a clipboard fallback", () => {

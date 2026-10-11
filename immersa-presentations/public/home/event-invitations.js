@@ -1,4 +1,13 @@
 (() => {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   const panel = document.getElementById("eventInvitations");
   const list = document.getElementById("eventInvitationsList");
   const modal = document.getElementById("eventInvitationModal");
@@ -123,7 +132,7 @@
     renderModal();
   }
   close?.addEventListener("click", closeModal);
-  modal.addEventListener("click", (event) => { if (event.target === modal) closeModal(); });
+  bindBackdropDismissal(modal, closeModal);
   presentationsTab.addEventListener("click", () => setView("presentations"));
   invitationsTab.addEventListener("click", () => {
     setView("invitations");

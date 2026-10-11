@@ -33,14 +33,14 @@ test("countdown suffix is removed from Sorteos views without changing remaining 
   assert.doesNotMatch(controllerHtml, /REVELACIÓN EN/);
 });
 
-test("free collecting controls render Sorteo Libre with connected count and no tickets", () => {
+test("free collecting controls render Sorteo with connected count and no tickets", () => {
   let state = reduceRaffleControllerState(createInitialRaffleControllerState(), "state", { audienceCount: 2 });
   state = reduceRaffleControllerState(state, "raffle:state", {
     active: { id: "r-free", mode: "free", state: "collecting", entryCount: 0, eligibleCount: 0 }
   });
 
   const html = adjustRaffleHtml(renderRaffleController(state));
-  assert.match(html, /<h2>Sorteo Libre<\/h2><p>Participación abierta<\/p>/);
+  assert.match(html, /<h2>Sorteo<\/h2><p>Participación abierta<\/p>/);
   assert.match(html, /<span>Conectados<\/span><strong>2<\/strong>/);
   assert.match(html, /<span>Elegibles<\/span><strong>0<\/strong>/);
   assert.doesNotMatch(html, /BOLETOS/);
@@ -67,7 +67,7 @@ test("non-free collecting also hides ticket metric", () => {
 
 test("Speaker and Stage active states render full raffle mode titles", () => {
   const modes = [
-    ["free", CONTROLLER_MODE_TITLES.free, "Libre"],
+    ["free", "Sorteo", "Libre"],
     ["visual_key", CONTROLLER_MODE_TITLES.visual_key, "Clave visual"],
     ["poll", CONTROLLER_MODE_TITLES.poll, "Encuesta"]
   ];

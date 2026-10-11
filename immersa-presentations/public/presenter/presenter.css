@@ -15,6 +15,18 @@
   --line: rgba(255,255,255,.13);
 }
 * { box-sizing: border-box; }
+button,
+a,
+label,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
 html, body { width: 100%; max-width: 100vw; height: 100%; min-height: 100%; overflow: hidden; }
 body {
   margin: 0;
@@ -44,10 +56,13 @@ body {
     0 22px 64px rgba(0,0,0,.4);
 }
 .stream-area.is-drawing { touch-action: none; }
+.stream-area.is-time-open > .immersa-video-slide,
+.stream-area.is-time-open > .immersa-youtube-slide,
+.stream-area.is-time-open > .immersa-youtube-slide iframe { pointer-events: none !important; }
 .stream-area::before, .stream-area::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .stream-area.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(30px); transform: scale(1.09); opacity: .58; }
 .stream-area.portrait-slide::after { background: rgba(0,0,0,.44); opacity: 1; }
-.stream-area img#slide { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+.stream-area img#slide { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; max-width: 100%; height: 100%; max-height: 100%; object-fit: contain; touch-action:none; user-select:none; -webkit-user-drag:none; }
 .brand-lockup {
   position: absolute; z-index: 8; top: 14px; left: 14px;
   width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center;
@@ -116,6 +131,21 @@ body {
   stroke: none;
 }
 .thumbs-toggle { display: none; }
+.audiovisual-toggle svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
+.audiovisual-toggle.is-active { color:#fff; background:linear-gradient(135deg,#6c57ef,#22b7dc); border-color:rgba(255,255,255,.3); box-shadow:0 0 26px rgba(94,111,246,.38); }
+.audiovisual-toggle.is-active { background:radial-gradient(circle at 34% 24%,rgba(196,150,255,.98) 0%,rgba(139,63,255,.98) 36%,transparent 62%),linear-gradient(135deg,#8b3dff 0%,#684cff 46%,#21b7ff 100%); box-shadow:0 0 0 5px rgba(104,76,255,.14),0 0 30px rgba(92,92,255,.42),0 0 28px rgba(33,183,255,.22),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.2); }
+.audiovisual-layer { position:absolute; z-index:2; inset:0; display:none; pointer-events:none; background:#000; }
+.audiovisual-layer.is-video { display:block; }
+.audiovisual-layer video { display:block; width:100%; height:100%; pointer-events:none; object-fit:contain; }
+.audiovisual-panel { position:absolute; z-index:60; right:82px; bottom:22px; width:min(430px,calc(100% - 190px)); max-height:min(66vh,570px); overflow:auto; padding:16px; border:1px solid rgba(255,255,255,.16); border-radius:22px; background:linear-gradient(145deg,rgba(22,27,40,.94),rgba(7,9,15,.96)); box-shadow:0 24px 72px rgba(0,0,0,.46),0 0 46px rgba(104,216,204,.11); backdrop-filter:blur(22px); transform:translateY(10px) scale(.98); transform-origin:100% 100%; opacity:0; pointer-events:none; transition:.2s ease; }
+.audiovisual-panel.is-open { opacity:1; pointer-events:auto; transform:translateY(0) scale(1); }
+.audiovisual-panel { bottom:76px; right:96px; }
+.audiovisual-panel-head { position:relative; padding-right:28px; }
+.audiovisual-panel-head [data-av-close]{position:absolute;right:0;top:-6px;width:25px;height:25px;padding:0;border:0;border-radius:50%;background:transparent;color:rgba(234,255,251,.66);font-size:23px;line-height:1;cursor:pointer}.audiovisual-panel-head [data-av-close]:hover{color:#fff;background:rgba(255,255,255,.08)}
+.audiovisual-panel-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 13px; }.audiovisual-panel-head h2{margin:0;font-size:16px}.audiovisual-panel-head span{font-size:11px;color:rgba(234,255,251,.6)}
+.audiovisual-resource-list { display:grid; gap:8px; }.audiovisual-resource { position:relative; overflow:hidden; width:100%; min-height:58px; display:flex; align-items:center; gap:10px; padding:7px; text-align:left; color:#f5f7ff; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.09); border-radius:14px; }.audiovisual-resource:hover,.audiovisual-resource.is-active{border-color:rgba(104,216,204,.66);background:rgba(104,216,204,.12)}.audiovisual-resource img,.audiovisual-resource .av-icon{width:46px;height:42px;border-radius:10px;object-fit:cover;background:linear-gradient(135deg,#7651fa,#36c9c7);display:grid;place-items:center;font-size:18px}.audiovisual-resource strong{font-size:13px;display:block}.audiovisual-resource .av-play{margin-left:auto;color:#eafffb;font-size:16px}.audiovisual-inline-controls{position:absolute;inset:0 0 0 auto;width:0;overflow:hidden;display:flex;align-items:center;gap:7px;padding:0;background:transparent;transition:width .26s cubic-bezier(.2,.8,.2,1),padding .26s ease;white-space:nowrap}.audiovisual-resource.is-active .audiovisual-inline-controls{width:min(76%,330px);padding:0 10px}.audiovisual-inline-controls button{width:26px;height:26px;flex:0 0 26px;border-radius:50%;color:rgba(234,255,251,.9);background:transparent;border:0;font-size:13px}.audiovisual-inline-controls .av-stop{color:#eafffb;background:transparent}.audiovisual-inline-controls button.is-active{color:#68d8cc;background:transparent}.audiovisual-inline-controls input{accent-color:#eafffb;min-width:0;height:14px}.audiovisual-inline-controls .audiovisual-progress{flex:1}.audiovisual-inline-controls .audiovisual-volume{width:46px}
+.audiovisual-resource { isolation:isolate; overflow:visible; border:0; background:transparent; transition:none; }.audiovisual-resource::before{content:"";position:absolute;z-index:1;inset:0;width:100%;border-radius:14px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);transition:width .72s cubic-bezier(.16,.86,.2,1),background .28s ease,border-color .28s ease}.audiovisual-resource:hover::before,.audiovisual-resource.is-active::before{border-color:rgba(104,216,204,.66);background:rgba(104,216,204,.12)}.audiovisual-resource.is-active::before{width:50%}.audiovisual-resource > img,.audiovisual-resource > .av-icon,.audiovisual-resource > span:not(.audiovisual-inline-controls){position:relative;z-index:2}.audiovisual-resource .av-play{display:none}.audiovisual-inline-controls{z-index:0;right:0;left:50%;width:50%;justify-content:flex-start;overflow:visible;opacity:0;transform:translateX(16px);transition:opacity .28s ease .35s,transform .72s cubic-bezier(.16,.86,.2,1);gap:10px}.audiovisual-resource.is-active .audiovisual-inline-controls{width:50%;padding:0 8px;opacity:1;transform:translateX(0)}.audiovisual-inline-controls button,.audiovisual-inline-controls label{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;margin:0;padding:0;border:0;background:transparent;color:rgba(234,255,251,.92);cursor:pointer}.audiovisual-inline-controls svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:1.65;fill:none;stroke-linecap:round;stroke-linejoin:round}.audiovisual-inline-controls button:first-child svg{fill:currentColor;stroke:none;width:15px;height:15px}.audiovisual-inline-controls button.is-active{color:#68d8cc;background:transparent}.audiovisual-inline-controls label{position:relative}.audiovisual-inline-controls label input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.audiovisual-resource img,.audiovisual-resource .av-icon{height:26px;aspect-ratio:16/9}.audiovisual-resource.is-active::before{width:60%}.audiovisual-inline-controls{left:60%;width:40%}.audiovisual-resource.is-active .audiovisual-inline-controls{width:40%}
 .reaction-layer { pointer-events: none; position: absolute; z-index: 3; inset: 0; overflow: hidden; }
 .reaction { position: absolute; left: 50%; bottom: 16%; font-size: clamp(34px, 5vw, 68px); filter: drop-shadow(0 14px 28px rgba(0,0,0,.36)); animation: floatReaction 2.8s ease-out forwards; }
 @keyframes floatReaction { from { transform: translate(-50%, 0) scale(.84); opacity: 0; } 14% { opacity: 1; } to { transform: translate(calc(-50% + var(--x)), -42vh) scale(1.32); opacity: 0; } }
@@ -273,6 +303,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   border-color: rgba(255,255,255,.36);
   box-shadow: 0 0 0 5px rgba(255,157,61,.14), 0 0 32px rgba(255,157,61,.52), inset 0 1px 0 rgba(255,255,255,.25);
 }
+.presenter-qr-overlay{position:absolute;z-index:12;right:28px;bottom:92px;width:220px;padding:14px;display:grid;gap:9px;border:1px solid rgba(255,255,255,.58);border-radius:18px;color:#111;background:rgba(248,244,234,.95);box-shadow:0 24px 60px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.74);text-align:center}.presenter-qr-overlay[hidden]{display:none}.presenter-qr-pattern{width:100%;aspect-ratio:1;display:grid;place-items:center;overflow:hidden;border-radius:12px;background:#fff}.presenter-qr-pattern canvas,.presenter-qr-pattern img{width:100%;height:auto;display:block}.presenter-qr-pattern.qr-fallback{padding:10px;align-items:center;color:#111;font-size:11px;line-height:1.3;overflow-wrap:anywhere}.presenter-qr-overlay strong{color:#111;font-size:16px;line-height:1.1}.presenter-qr-overlay span{color:rgba(0,0,0,.68);font-size:10.5px;line-height:1.28;overflow-wrap:anywhere}
 .fx-btn, .qr-button, .reaction-toggle, .thumbs-toggle {
   width: 46px; min-width: 46px; height: 46px; min-height: 46px;
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px;
@@ -558,3 +589,940 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
     opacity: .86;
   }
 }
+
+/* Library panel: align its base with the vertical tools and preserve 16:9 art. */
+.audiovisual-panel{bottom:16px!important}.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px!important;height:35px!important;aspect-ratio:16/9}.audiovisual-toggle.is-active{border-radius:999px;background-clip:padding-box;overflow:hidden}
+
+/* Librería Immersa player */
+.audiovisual-panel{bottom:112px!important}.audiovisual-resource{min-height:58px;overflow:visible}.audiovisual-resource img,.audiovisual-resource .av-icon{width:76px;height:43px;flex:0 0 76px;object-fit:cover;border-radius:8px}.audiovisual-resource::before{transition:width 1.1s cubic-bezier(.16,.86,.2,1),background .25s ease,border-color .25s ease}.audiovisual-inline-controls{left:60%;width:40%;gap:8px;padding:0 8px;transition:opacity .32s ease .5s,transform 1.1s cubic-bezier(.16,.86,.2,1)}.audiovisual-inline-controls button{width:22px;height:22px;flex:0 0 22px;padding:0;background:none;border:0}.audiovisual-inline-controls .av-control-icon{width:17px;height:17px;object-fit:contain;filter:invert(1) brightness(1.65)}.audiovisual-inline-controls button.is-active .av-control-icon{filter:invert(80%) sepia(38%) saturate(715%) hue-rotate(124deg) brightness(94%) drop-shadow(0 0 5px #68d8cc)}.av-volume-control{width:48px;height:22px;flex:0 0 48px;display:block}.av-volume-control input[type=range]{appearance:none;width:100%;height:2px;margin:10px 0;background:rgba(234,255,251,.55);border-radius:2px}.av-volume-control input[type=range]::-webkit-slider-thumb{appearance:none;width:9px;height:9px;border:1px solid #eafffb;border-radius:50%;background:#536070}.audiovisual-panel-head [data-av-close]{width:28px;height:28px;display:grid;place-items:center;padding:0;line-height:1;font-size:17px;border:1px solid rgba(234,255,251,.18);border-radius:50%;background:rgba(255,255,255,.06)}
+
+/* Keep resource artwork separate from the three player controls. */
+.audiovisual-resource .av-control-icon{width:17px!important;height:17px!important;flex:0 0 17px!important;display:block!important;background:none!important;border-radius:0!important;box-shadow:none!important;padding:0!important;object-fit:contain!important}
+.av-volume-control input[type=range]{position:static!important;opacity:1!important;pointer-events:auto!important;display:block!important}
+
+/* Active player uses the full revealed area. */
+.audiovisual-inline-controls{justify-content:flex-start;gap:10px!important;padding:0 12px!important}.audiovisual-inline-controls .av-volume-control{width:auto!important;min-width:54px;flex:1 1 auto!important}.audiovisual-panel-head{padding-right:42px!important}.audiovisual-panel-head span{margin-left:auto!important;margin-right:8px!important;white-space:nowrap}
+
+.audiovisual-resource img,.audiovisual-resource .av-icon{width:62px!important;height:35px!important;flex-basis:62px!important}.audiovisual-inline-controls button{width:32px!important;height:32px!important;flex-basis:32px!important}.audiovisual-inline-controls .av-control-icon{width:25px!important;height:25px!important}.audiovisual-inline-controls .av-volume-control{width:58px!important;height:28px!important;flex:0 0 58px!important;padding:0!important;border:0!important;background:transparent!important}.av-volume-control img{width:100%;height:100%;object-fit:contain;filter:invert(1) brightness(1.6)}
+
+.audiovisual-resource>img,.audiovisual-resource>.av-icon{width:78px!important;height:44px!important;flex:0 0 78px!important}.av-volume-control img{background:none!important;border-radius:0!important;box-shadow:none!important;padding:0!important}
+
+.audiovisual-inline-controls .av-control-icon{filter:invert(43%) sepia(0%) saturate(0%) brightness(88%)!important}.audiovisual-inline-controls button.is-active .av-control-icon{filter:invert(80%) sepia(38%) saturate(715%) hue-rotate(124deg) brightness(94%) drop-shadow(0 0 5px #68d8cc)!important}.av-volume-control{display:flex!important;align-items:flex-end!important;gap:3px!important}.av-volume-control i{display:block;width:5px;background:#666;border-radius:2px}.av-volume-control i:nth-child(1){height:7px}.av-volume-control i:nth-child(2){height:10px}.av-volume-control i:nth-child(3){height:13px}.av-volume-control i:nth-child(4){height:16px}.av-volume-control i:nth-child(5){height:19px}.av-volume-control i.is-on{background:#68d8cc;box-shadow:0 0 6px rgba(104,216,204,.9)}
+
+.audiovisual-inline-controls{height:100%;align-items:center!important;justify-content:space-between!important;gap:0!important;padding:0 11px!important}.av-volume-control{height:28px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:3px!important}.av-volume-control i{margin:0!important;align-self:center}.audiovisual-inline-controls button,.audiovisual-inline-controls .av-volume-control{transform:none!important}
+
+/* Three equal player columns; volume bars share a baseline. */
+.audiovisual-inline-controls{display:grid!important;grid-template-columns:repeat(3,1fr)!important;justify-items:center!important;align-items:center!important;padding:0 8px!important}.audiovisual-inline-controls button,.audiovisual-inline-controls .av-volume-control{justify-self:center!important}.av-volume-control{width:42px!important;height:25px!important;display:flex!important;align-items:flex-end!important;justify-content:center!important;gap:3px!important}.av-volume-control i{align-self:flex-end!important;margin:0!important}.av-volume-control i.is-on{background:#68d8cc!important;box-shadow:0 0 6px rgba(104,216,204,.9),0 0 11px rgba(104,216,204,.42)!important}
+
+.av-volume-control{height:25px!important;align-items:center!important}.av-volume-control i{width:4px!important;align-self:flex-end!important;cursor:pointer}.av-volume-control i:nth-child(5){transform:translateY(-1px)}
+
+.av-volume-control{transform:translateY(-5px)!important}.av-volume-control i:nth-child(5){transform:none!important}.av-volume-control i{pointer-events:auto!important}
+
+.av-volume-control{position:relative!important;top:-5px!important;transform:none!important}
+
+.audiovisual-inline-controls button.is-active .av-control-icon{filter:invert(78%) sepia(22%) saturate(808%) hue-rotate(125deg) brightness(89%) drop-shadow(0 0 5px #66cccc)!important}.av-volume-control{gap:0!important}.av-volume-control i{width:8px!important;background:transparent!important;position:relative}.av-volume-control i::after{content:"";position:absolute;bottom:0;left:2px;width:4px;height:100%;border-radius:2px;background:#666}.av-volume-control i.is-on::after{background:#66cccc;box-shadow:0 0 6px rgba(102,204,204,.95),0 0 11px rgba(102,204,204,.42)}
+
+.av-volume-control i.is-on{box-shadow:none!important}.av-volume-control i.is-on::after{box-shadow:0 0 3px rgba(102,204,204,.78)!important}
+
+.av-volume-control i,.av-volume-control i.is-on{box-shadow:none!important;filter:none!important}.av-volume-control i.is-on::after{box-shadow:0 0 1px rgba(102,204,204,.85)!important}@media (max-width:720px) and (orientation:portrait){.audiovisual-panel{left:14px!important;right:14px!important;width:auto!important;max-width:none!important;bottom:calc(74px + env(safe-area-inset-bottom))!important;max-height:calc(100dvh - 150px)!important;padding:14px!important}.audiovisual-resource{min-height:52px!important;padding:6px!important}.audiovisual-resource>img,.audiovisual-resource>.av-icon{width:64px!important;height:36px!important;flex-basis:64px!important}.audiovisual-resource strong{font-size:14px!important}.audiovisual-panel-head h2{font-size:16px!important}.audiovisual-panel-head span{font-size:10px!important}}
+
+.av-volume-control i::after{filter:none!important}.av-volume-control i.is-on::after{box-shadow:0 0 1px rgba(102,204,204,.65)!important}@media (max-width:720px) and (orientation:portrait){.audiovisual-panel{bottom:118px!important}.audiovisual-resource.is-active::before{width:50%!important}.audiovisual-inline-controls{left:50%!important;width:50%!important}.audiovisual-resource.is-active .audiovisual-inline-controls{width:50%!important}}
+
+
+/* Final mobile library alignment and compact visual-only volume glow. */
+.av-volume-control i.is-on,
+.av-volume-control i.is-on::after {
+  filter: none !important;
+}
+.av-volume-control i.is-on::after {
+  box-shadow: 0 0 1px 0 rgba(102, 204, 204, .55) !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-panel { bottom:111px !important; }
+}
+
+
+/* The 8px volume targets are intentionally invisible; only their 4px cores light up. */
+.av-volume-control i {
+  width: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i::after {
+  left: 2px !important;
+  width: 4px !important;
+  background: #666 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i.is-on::after {
+  width: 4px !important;
+  background: #66cccc !important;
+  box-shadow: 0 0 4px 0 rgba(102, 204, 204, .72) !important;
+}
+
+/* Selection reveals the player; audio fade-stop closes it over that same second. */
+@keyframes av-player-reveal {
+  from { width: 100%; }
+  to { width: 50%; }
+}
+@keyframes av-controls-reveal {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.audiovisual-resource.is-active::before {
+  animation: av-player-reveal 1s cubic-bezier(.16,.86,.2,1) both;
+}
+.audiovisual-resource.is-active .audiovisual-inline-controls {
+  animation: av-controls-reveal 1s cubic-bezier(.16,.86,.2,1) both;
+}
+.audiovisual-resource.is-closing::before {
+  width: 100% !important;
+  transition: width 1s cubic-bezier(.16,.86,.2,1) !important;
+}
+.audiovisual-resource.is-closing .audiovisual-inline-controls {
+  opacity: 0 !important;
+  transform: translateX(16px) !important;
+  transition: opacity .18s ease, transform 1s cubic-bezier(.16,.86,.2,1) !important;
+}
+
+
+/* Hidden player controls cannot intercept a resource selection. */
+.audiovisual-inline-controls { pointer-events: none !important; }
+.audiovisual-resource.is-active .audiovisual-inline-controls { pointer-events: auto !important; }
+
+
+/* Stable player: only the card surface reveals; the controls never slide. */
+.audiovisual-inline-controls,
+.audiovisual-resource.is-active .audiovisual-inline-controls {
+  transform: none !important;
+  transition: opacity .16s ease !important;
+  animation: none !important;
+}
+.audiovisual-resource.is-active::before { animation: none !important; width: 60% !important; }
+.audiovisual-resource.is-active.is-revealing::before {
+  animation: av-player-reveal-desktop .5s cubic-bezier(.16,.86,.2,1) both !important;
+}
+@keyframes av-player-reveal-desktop {
+  from { width: 100%; }
+  to { width: 60%; }
+}
+.audiovisual-resource.is-closing::before {
+  width: 100% !important;
+  transition: width .5s cubic-bezier(.16,.86,.2,1) !important;
+}
+.audiovisual-resource.is-audio.is-closing::before {
+  transition-duration: 1s !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active::before { width: 50% !important; }
+  .audiovisual-resource.is-active.is-revealing::before {
+    animation: av-player-reveal-mobile .5s cubic-bezier(.16,.86,.2,1) both !important;
+  }
+  @keyframes av-player-reveal-mobile {
+    from { width: 100%; }
+    to { width: 50%; }
+  }
+}
+
+/* 8px is only a touch target. The visible bar is this isolated 4px ::before. */
+.av-volume-control i,
+.av-volume-control i.is-on {
+  width: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i::after { display: none !important; }
+.av-volume-control i::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 2px !important;
+  bottom: 0 !important;
+  width: 4px !important;
+  height: 100% !important;
+  display: block !important;
+  border-radius: 2px !important;
+  background: #666 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.av-volume-control i.is-on::before {
+  width: 4px !important;
+  background: #66cccc !important;
+  box-shadow: 0 0 4px 0 rgba(102,204,204,.72) !important;
+}
+
+
+/* Active resource is a player surface, not a selectable card. */
+.audiovisual-resource.is-active {
+  cursor: default !important;
+  user-select: none !important;
+}
+.audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+  min-width: 0 !important;
+  max-width: calc(60% - 98px) !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) strong {
+  display: block !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+    max-width: calc(50% - 82px) !important;
+  }
+}
+
+/* One visible .5 s surface reveal; controls remain static. */
+.audiovisual-resource.is-active.is-revealing::before {
+  animation: av-player-reveal-desktop .5s cubic-bezier(.16,.86,.2,1) both !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active.is-revealing::before {
+    animation: av-player-reveal-mobile .5s cubic-bezier(.16,.86,.2,1) both !important;
+  }
+}
+
+
+/* Stop is an action, never a selected control on touch devices. */
+.audiovisual-inline-controls [data-av-stop],
+.audiovisual-inline-controls [data-av-stop]:active,
+.audiovisual-inline-controls [data-av-stop]:focus,
+.audiovisual-inline-controls [data-av-stop]:focus-visible {
+  color: #666 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.audiovisual-inline-controls [data-av-stop]:active .av-control-icon,
+.audiovisual-inline-controls [data-av-stop]:focus .av-control-icon,
+.audiovisual-inline-controls [data-av-stop]:focus-visible .av-control-icon {
+  filter: invert(43%) sepia(0%) saturate(0%) brightness(88%) !important;
+}
+
+/* Local media stays a separate catalog but uses the same live player cards. */
+.audiovisual-local-section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.audiovisual-local-head{display:flex;align-items:center;justify-content:space-between;margin:0 2px 9px}.audiovisual-local-head h3{margin:0;color:rgba(234,255,251,.82);font-size:12px;font-weight:700}.audiovisual-local-head button{width:26px;height:26px;border:0;border-radius:50%;display:grid;place-items:center;background:transparent;color:rgba(234,255,251,.68);font-size:17px;line-height:1;cursor:pointer}.audiovisual-local-head button:hover{background:rgba(104,216,204,.14);color:#68d8cc}.audiovisual-empty{margin:0;padding:12px 4px;color:rgba(234,255,251,.62);font-size:12px}
+
+
+/* The active card owns only its collapsed surface; long titles never cross into the player. */
+.audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+  flex: 0 1 calc(60% - 98px) !important;
+  width: calc(60% - 98px) !important;
+  min-width: 0 !important;
+  max-width: calc(60% - 98px) !important;
+  box-sizing: border-box !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active > span:not(.audiovisual-inline-controls) {
+    flex-basis: calc(50% - 82px) !important;
+    width: calc(50% - 82px) !important;
+    max-width: calc(50% - 82px) !important;
+  }
+}
+
+
+/* Explicit label scope: audio icons are media, never title containers. */
+.audiovisual-resource > .av-icon {
+  width: 78px !important;
+  height: 44px !important;
+  flex: 0 0 78px !important;
+  min-width: 78px !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label {
+  position: relative !important;
+  z-index: 2 !important;
+  min-width: 0 !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  flex: 0 1 calc(60% - 98px) !important;
+  width: calc(60% - 98px) !important;
+  min-width: 0 !important;
+  max-width: calc(60% - 98px) !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  display: block !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > .av-icon { width: 64px !important; height: 36px !important; flex-basis: 64px !important; min-width: 64px !important; }
+  .audiovisual-resource.is-active > .audiovisual-resource-label { flex-basis: calc(50% - 82px) !important; width: calc(50% - 82px) !important; max-width: calc(50% - 82px) !important; }
+}
+
+
+/* Active cards are a fixed two-zone layout: neither title nor thumbnail can reflow the player. */
+.audiovisual-resource.is-active { display: block !important; position: relative !important; }
+.audiovisual-resource.is-active > img,
+.audiovisual-resource.is-active > .av-icon {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 7px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 78px !important;
+  height: 44px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  flex: none !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 95px !important;
+  right: 40% !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+.audiovisual-resource.is-active > .audiovisual-inline-controls {
+  position: absolute !important;
+  z-index: 4 !important;
+  left: 60% !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 40% !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource.is-active > img,
+  .audiovisual-resource.is-active > .av-icon { width: 64px !important; height: 36px !important; min-width: 64px !important; max-width: 64px !important; left: 6px !important; }
+  .audiovisual-resource.is-active > .audiovisual-resource-label { left: 82px !important; right: 50% !important; }
+  .audiovisual-resource.is-active > .audiovisual-inline-controls { left: 50% !important; width: 50% !important; }
+}
+
+
+/* Local playlists lead their catalog; keep Speaker thumbnails on a fixed desktop frame. */
+.audiovisual-local-subhead {
+  margin:10px 2px 6px;
+  color:rgba(234,255,251,.58);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.audiovisual-playlist-list { margin-bottom:10px; }
+@media (min-width:721px) {
+  .audiovisual-resource.is-audio > .av-icon,
+  .audiovisual-resource.is-audio.is-active > .av-icon {
+    width:78px !important;
+    height:44px !important;
+    min-width:78px !important;
+    max-width:78px !important;
+    flex:0 0 78px !important;
+    aspect-ratio:16 / 9 !important;
+    object-fit:cover !important;
+    overflow:hidden !important;
+  }
+}
+
+
+/* IMMERSA TIME — Speaker header and vertical control. */
+.speaker-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px 0 9px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 999px;
+  color: #f8f8f5;
+  background: rgba(8,10,14,.46);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 28px rgba(0,0,0,.22);
+  cursor: pointer;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+  transition: .2s ease;
+}
+.speaker-timer img, .time-toggle img { width: 17px; height: 17px; filter: invert(1); opacity: .82; }
+.speaker-timer:hover, .speaker-timer.is-running { border-color: rgba(104,216,204,.64); background: rgba(104,216,204,.15); box-shadow: 0 0 0 1px rgba(104,216,204,.14) inset, 0 0 28px rgba(104,216,204,.15); }
+.speaker-timer.is-pending { cursor: wait; opacity: .72; }
+.time-toggle img { width: 24px; height: 24px; }
+.time-toggle.is-active { color:#fff; background: radial-gradient(circle at 34% 24%,rgba(196,150,255,.98) 0%,rgba(139,63,255,.98) 36%,transparent 62%),linear-gradient(135deg,#8b3dff 0%,#684cff 46%,#21b7ff 100%); border-color:rgba(255,255,255,.3); box-shadow:0 0 0 5px rgba(104,76,255,.14),0 0 30px rgba(92,92,255,.42),0 0 28px rgba(33,183,255,.22),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.2); }
+
+.time-panel {
+  position: absolute;
+  z-index: 16;
+  right: 96px;
+  bottom: 76px;
+  width: min(448px, calc(100% - 190px));
+  max-height: min(72vh, 660px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 20px;
+  color: #f5f8ff;
+  background: linear-gradient(145deg, rgba(30,38,54,.96), rgba(9,12,20,.98));
+  box-shadow: 0 28px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter: blur(24px) saturate(1.25);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(.98);
+  transform-origin: 100% 100%;
+  transition: .2s ease;
+}
+.time-panel.is-open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+.time-panel-head, .time-section-label, .time-speaker-actions, .time-screen-actions { display: flex; align-items: center; }
+.time-panel-head { justify-content: space-between; margin-bottom: 16px; }
+.time-panel-head span { display:block; color:#68d8cc; font-size:10px; font-weight:800; letter-spacing:.12em; }
+.time-panel-head h2 { margin:2px 0 0; font-size:21px; line-height:1; }
+.time-panel-head button, .time-close { width:28px; height:28px; padding:0; border:0; border-radius:50%; color:rgba(255,255,255,.7); background:transparent; font-size:23px; line-height:1; cursor:pointer; }
+.time-panel-head button:hover, .time-close:hover { color:#fff; background:rgba(255,255,255,.1); }
+.time-speaker-section, .time-screen-section { padding:14px; border:1px solid rgba(255,255,255,.1); border-radius:15px; background:rgba(255,255,255,.045); }
+.time-screen-section { margin-top:12px; }
+.time-section-label { justify-content:space-between; gap:10px; color:rgba(240,248,255,.94); font-size:13px; font-weight:800; }
+.time-section-label small { color:rgba(222,238,244,.52); font-size:10px; font-weight:700; }
+.time-speaker-value { display:block; margin:12px 0; color:#fff; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:42px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.07em; line-height:.86; }
+.time-speaker-actions { gap:8px; }
+.time-primary, .time-secondary, .time-countdown-form > button { min-height:32px; padding:0 12px; border:1px solid transparent; border-radius:9px; font:700 12px/1 Inter,"Segoe UI",Arial,sans-serif; cursor:pointer; }
+.time-primary, .time-countdown-form > button { color:#071216; background:linear-gradient(135deg,#75eadf,#4cc6ea); box-shadow:0 7px 18px rgba(74,206,215,.17); }
+.time-primary:hover, .time-countdown-form > button:hover { filter:brightness(1.08); }
+.time-secondary { color:rgba(248,251,255,.9); border-color:rgba(255,255,255,.17); background:rgba(255,255,255,.07); }
+.time-secondary:hover { background:rgba(255,255,255,.13); }
+.time-launch-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.time-launch-card { display:grid; gap:4px; min-height:64px; padding:11px; border:1px solid rgba(255,255,255,.12); border-radius:11px; color:#f7faff; background:rgba(255,255,255,.055); text-align:left; cursor:pointer; transition:.18s ease; }
+.time-launch-card:hover, .time-launch-card.is-active { border-color:rgba(104,216,204,.58); background:rgba(104,216,204,.12); }
+.time-launch-card b { font-size:12px; }
+.time-launch-card span { color:rgba(232,248,248,.62); font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:16px; font-weight:800; letter-spacing:-.045em; }
+.time-countdown-form { display:grid; grid-template-columns:minmax(100px,1fr) 44px 44px 44px auto; align-items:end; gap:7px; margin-top:9px; padding-top:11px; border-top:1px solid rgba(255,255,255,.09); }
+.time-countdown-form > div { align-self:center; }
+.time-countdown-form b, .time-countdown-form span { display:block; }
+.time-countdown-form b { font-size:12px; }.time-countdown-form span { margin-top:3px; color:rgba(232,248,248,.55); font-size:10px; }
+.time-countdown-form label { position:relative; }
+.time-countdown-form input { width:44px; height:34px; padding:0 2px; border:1px solid rgba(255,255,255,.16); border-radius:8px; outline:0; color:#f7fbff; background:rgba(0,0,0,.2); font:800 14px/1 "Helvetica Neue",Helvetica,Arial,sans-serif; text-align:center; font-variant-numeric:tabular-nums; }
+.time-countdown-form input:focus { border-color:#68d8cc; box-shadow:0 0 0 2px rgba(104,216,204,.15); }
+.time-countdown-form em { position:absolute; right:4px; bottom:2px; color:rgba(221,245,242,.45); font-size:7px; font-style:normal; }
+.time-countdown-form > button { min-width:58px; padding:0 8px; }
+.time-screen-live { display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 10px; margin-top:13px; padding-top:12px; border-top:1px solid rgba(255,255,255,.09); }
+.time-screen-live > span { font-size:12px; font-weight:800; }.time-screen-live strong { font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:23px; font-weight:900; letter-spacing:-.06em; font-variant-numeric:tabular-nums; }.time-screen-live small { color:rgba(222,238,244,.58); font-size:10px; }
+.time-screen-actions { grid-column:1 / -1; gap:7px; margin-top:6px; }
+.time-screen-actions .time-close { margin-left:auto; }
+.time-screen-empty { margin:13px 0 0; color:rgba(222,238,244,.52); font-size:11px; }
+@media (max-width: 720px) {
+  .speaker-timer { min-height:32px; padding:0 9px 0 7px; font-size:12px; }
+  .speaker-timer img { width:15px; height:15px; }
+  .time-panel { right:16px; bottom:72px; width:min(430px,calc(100% - 32px)); max-height:72vh; }
+}
+
+
+/* IMMERSA TIME refinement — private header control and centered Screen tools. */
+.speaker-timer-stack {
+  position: absolute;
+  z-index: 9;
+  top: 14px;
+  left: 64px;
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+.top-actions { top: 18px; }
+.speaker-timer {
+  min-height: 42px;
+  padding: 0 14px 0 10px;
+  font-size: 15px;
+}
+.speaker-timer-actions {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 10px;
+  background: rgba(7,10,15,.7);
+  box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  backdrop-filter: blur(16px);
+}
+.speaker-timer-actions[hidden] { display: none; }
+.speaker-timer-actions button {
+  min-height: 24px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(245,251,251,.9);
+  background: rgba(255,255,255,.09);
+  font: 750 10px/1 Inter,"Segoe UI",Arial,sans-serif;
+  cursor: pointer;
+}
+.speaker-timer-actions button:hover { color:#071216; background:#68d8cc; }
+.speaker-timer-actions .speaker-timer-finish { color:#ffb7b7; background:rgba(185,42,55,.28); }
+.speaker-timer-actions .speaker-timer-finish:hover { color:#fff; background:#b92a37; }
+.speaker-timer-actions button:disabled { cursor:wait; opacity:.62; }
+
+.time-toggle { overflow: hidden; }
+.time-toggle img {
+  width: 22px;
+  height: 22px;
+  filter: invert(76%) sepia(8%) saturate(525%) hue-rotate(153deg) brightness(88%) contrast(89%);
+  opacity: 1;
+  transform: translateY(-4px);
+}
+.time-toggle.is-active img { filter: invert(1); }
+
+.time-panel {
+  position: fixed;
+  z-index: 30;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(76vh, 620px);
+  padding: 20px;
+  transform: translate(-50%, calc(-50% + 10px)) scale(.98);
+  transform-origin: center;
+}
+.time-panel.is-open { transform: translate(-50%, -50%) scale(1); }
+.time-panel-head { margin-bottom: 18px; }
+.time-panel-head h2 {
+  margin: 0;
+  color: #68d8cc;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: .13em;
+  text-transform: none;
+}
+.time-launch-grid { margin-top: 0; }
+.time-countdown-form {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 13px;
+}
+.time-countdown-copy { grid-column: 1; }
+.time-countdown-inputs {
+  grid-column: 2;
+  display: flex;
+  gap: 7px;
+}
+.time-countdown-form > button {
+  grid-column: 2;
+  justify-self: end;
+  min-width: 68px;
+  margin-top: -2px;
+}
+.time-screen-live {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 14px;
+}
+.time-screen-preview { min-width: 0; }
+.time-screen-preview span {
+  display: block;
+  color: rgba(222,238,244,.62);
+  font-size: 10px;
+  font-weight: 750;
+}
+.time-screen-preview strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 29px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.06em;
+  line-height: .9;
+}
+.time-screen-actions {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  gap: 6px;
+  margin: 0;
+}
+.time-screen-actions-clock { justify-self: end; }
+.time-screen-actions .time-close { margin-left: 2px; }
+@media (max-width: 720px) {
+  .speaker-timer-stack { top: 12px; left: 60px; }
+  .top-actions { top: 17px; }
+  .speaker-timer { min-height: 38px; }
+  .time-panel { width: min(410px, calc(100vw - 24px)); padding: 17px; }
+}
+
+
+/* Library labels always reserve a fixed lane for their playback controls. */
+.audiovisual-resource > .audiovisual-resource-label {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: calc(100% - 98px) !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label strong {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label strong {
+  text-overflow: ellipsis !important;
+}
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > .audiovisual-resource-label {
+    max-width: calc(100% - 82px) !important;
+  }
+}
+
+/* Nudge the Time glyph three pixels lower inside its circular control. */
+.prompter-overlay{position:absolute;z-index:19;inset:0;display:none;grid-template-rows:minmax(0,1fr);padding:clamp(24px,6vw,92px);overflow:hidden;color:#fff;background:#000;font-family:Helvetica,Arial,sans-serif;pointer-events:none;box-sizing:border-box}.prompter-overlay.is-visible{display:grid}.prompter-overlay.has-preview{grid-template-rows:minmax(0,4fr) minmax(0,1fr)}.prompter-overlay-current{min-width:0;min-height:0;height:100%;max-height:100%;overflow:auto;scrollbar-width:none;font-size:clamp(25px,3.8vw,62px);font-weight:700;line-height:1.2}.prompter-overlay-current::-webkit-scrollbar{display:none}.prompter-overlay-current>div{min-height:100%;display:flex;align-items:center;white-space:pre-wrap}.prompter-overlay-next{display:none;min-width:0;min-height:0;height:100%;max-height:100%;overflow:hidden;align-self:stretch;padding-top:12px;box-sizing:border-box;border-top:1px solid rgba(255,255,255,.3);white-space:pre-wrap;color:rgba(255,255,255,.62);font-size:clamp(15px,1.75vw,28px);font-weight:700;line-height:1.25}.prompter-overlay.has-preview .prompter-overlay-next{display:block}
+.time-toggle img { transform: translateY(-7px); }
+
+
+/* Speaker library: fixed cover, independent title lane and independent player lane. */
+.audiovisual-resource {
+  min-height: 70px !important;
+  align-items: center !important;
+}
+.audiovisual-resource > img,
+.audiovisual-resource > .av-icon,
+.audiovisual-resource.is-audio > .av-icon,
+.audiovisual-resource.is-audio.is-active > .av-icon {
+  width: 78px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  height: 44px !important;
+  flex: 0 0 78px !important;
+  aspect-ratio: 16 / 9 !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource > .audiovisual-resource-label {
+  position: relative !important;
+  z-index: 2 !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.audiovisual-resource > .audiovisual-resource-label strong {
+  display: -webkit-box !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: ellipsis !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 3 !important;
+  line-height: 1.2 !important;
+}
+.audiovisual-resource.is-active > .audiovisual-resource-label {
+  position: absolute !important;
+  z-index: 2 !important;
+  left: 96px !important;
+  right: 40% !important;
+  top: 7px !important;
+  bottom: 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  width: auto !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+.audiovisual-resource.is-active > .audiovisual-inline-controls {
+  left: 60% !important;
+  right: 0 !important;
+  width: 40% !important;
+}
+
+/* Five pixels lower than the previous position. */
+.time-toggle img { transform: translateY(-2px); }
+
+@media (max-width:720px) and (orientation:portrait) {
+  .audiovisual-resource > img,
+  .audiovisual-resource > .av-icon,
+  .audiovisual-resource.is-audio > .av-icon,
+  .audiovisual-resource.is-audio.is-active > .av-icon {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    height: 36px !important;
+    flex-basis: 64px !important;
+  }
+  .audiovisual-resource.is-active > .audiovisual-resource-label {
+    left: 82px !important;
+    right: 50% !important;
+  }
+  .audiovisual-resource.is-active > .audiovisual-inline-controls {
+    left: 50% !important;
+    width: 50% !important;
+  }
+}
+
+
+/* Duration stays beneath the resource name, including while live controls are open. */
+.audiovisual-resource-label{display:grid;min-width:0;gap:2px;}
+.audiovisual-resource-label small{display:block;color:rgba(234,255,251,.55);font-size:10px;font-variant-numeric:tabular-nums;line-height:1.1;}
+
+
+/* Audio / Video / React menu */
+.audiovisual-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 15px}.audiovisual-tab{min-height:38px;display:flex;align-items:center;justify-content:center;gap:7px;padding:7px 8px;border:1px solid rgba(234,255,251,.13);border-radius:11px;color:rgba(234,255,251,.62);background:rgba(255,255,255,.035);font:600 12px/1 inherit;cursor:pointer}.audiovisual-tab svg,.audiovisual-tab img{width:16px;height:16px;display:block;fill:currentColor;filter:invert(1) brightness(1.4);object-fit:contain}.audiovisual-tab svg{filter:none}.audiovisual-tab:hover{color:#eafffb;background:rgba(255,255,255,.075)}.audiovisual-tab.is-selected{color:#eafffb;border-color:rgba(102,204,204,.62);background:rgba(102,204,204,.13)}.audiovisual-tab.is-reacting img{filter:invert(75%) sepia(31%) saturate(667%) hue-rotate(125deg) brightness(88%)}.audiovisual-panel-content{display:grid;gap:14px}.audiovisual-group{display:grid;gap:7px}.audiovisual-group h3{margin:0 2px;color:rgba(234,255,251,.65);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.audiovisual-running h3{color:#66cccc}.audio-react-control{display:grid;gap:12px;padding:4px 0}.audio-react-power{width:100%;min-height:66px;display:flex;align-items:center;gap:13px;padding:11px;border:1px solid rgba(234,255,251,.14);border-radius:15px;background:rgba(255,255,255,.045);color:#eafffb;text-align:left;cursor:pointer}.audio-react-power>img{width:36px;height:36px;filter:invert(1) brightness(1.45)}.audio-react-power span{display:grid;gap:3px}.audio-react-power strong{font-size:14px}.audio-react-power small{color:rgba(234,255,251,.58);font-size:11px}.audio-react-power b{margin-left:auto;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.09);font-size:11px}.audio-react-power.is-on{border-color:rgba(102,204,204,.66);background:rgba(102,204,204,.13)}.audio-react-power.is-on>img{filter:invert(77%) sepia(22%) saturate(808%) hue-rotate(125deg) brightness(89%) drop-shadow(0 0 5px #66cccc)}.audio-react-power.is-on b{color:#062020;background:#66cccc}.audio-react-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.audio-react-actions select{min-width:0;padding:0 10px;border:1px solid rgba(234,255,251,.15);border-radius:10px;background:#202735;color:#eafffb;font:600 12px/1 inherit}.audio-react-actions button{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid rgba(102,204,204,.45);border-radius:10px;background:rgba(102,204,204,.12);color:#eafffb;font:600 12px/1 inherit;cursor:pointer}.audio-react-actions button span{font-size:17px;line-height:10px}
+@media (max-width:720px) and (orientation:portrait){.audiovisual-tabs{margin-bottom:12px}.audio-react-actions{grid-template-columns:1fr}.audio-react-actions select,.audio-react-actions button{min-height:39px}}
+
+
+/* Audio React — visual reaction picker. */
+.audio-react-picker{display:grid;gap:8px}.audio-react-picker>p{margin:0 2px;color:rgba(234,255,251,.62);font-size:11px;font-weight:700}.audio-react-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.audio-react-choice{position:relative;display:grid;overflow:hidden;min-width:0;padding:0;border:1px solid rgba(234,255,251,.14);border-radius:10px;color:#eafffb;background:#0a0d14;text-align:left;cursor:pointer;isolation:isolate;transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease}.audio-react-choice img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;opacity:.82;transition:opacity .16s ease,transform .22s ease}.audio-react-choice span{display:flex;align-items:center;gap:5px;min-width:0;padding:6px 7px;color:rgba(234,255,251,.82);font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.audio-react-choice span b{display:inline-grid;place-items:center;width:15px;height:15px;flex:0 0 15px;border-radius:50%;color:#071216;background:rgba(234,255,251,.78);font-size:8px}.audio-react-choice:hover{border-color:rgba(124,225,219,.62);transform:translateY(-1px)}.audio-react-choice:hover img{opacity:1;transform:scale(1.035)}.audio-react-choice.is-selected{border-color:#66cccc;box-shadow:0 0 0 1px rgba(102,204,204,.35),0 0 18px rgba(102,204,204,.16)}.audio-react-choice.is-selected img{opacity:1}.audio-react-choice.is-selected span{background:rgba(102,204,204,.15);color:#fff}.audio-react-choice.is-selected span b{background:#66cccc}.audio-react-next{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:10px 12px;border:1px solid rgba(102,204,204,.45);border-radius:10px;background:rgba(102,204,204,.12);color:#eafffb;font:600 12px/1 inherit;cursor:pointer}.audio-react-next span{font-size:17px;line-height:10px}@media (max-width:720px) and (orientation:portrait){.audio-react-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.audio-react-choice span{font-size:9px}.audio-react-next{min-height:39px}}
+
+
+/* React control lives in the Audio / Video / React menu. */
+.audiovisual-tab{position:relative}.audio-react-tab-status{padding:3px 5px;border-radius:999px;color:rgba(234,255,251,.66);background:rgba(255,255,255,.09);font-size:8px;font-weight:800;line-height:1}.audiovisual-tab.is-reacting .audio-react-tab-status{color:#062020;background:#66cccc}.audio-react-off-hint{margin:2px;color:rgba(234,255,251,.56);font-size:11px}.audio-react-power,.audio-react-next{display:none!important}
+
+
+/* Keep Audiovisual title reachable while its catalog scrolls. */
+.audiovisual-panel-head{position:sticky!important;z-index:8;top:-16px;margin:-16px -16px 13px!important;padding:16px 16px 13px!important;background:linear-gradient(145deg,rgba(22,27,40,.985),rgba(7,9,15,.99));box-shadow:0 8px 18px rgba(7,9,15,.38)}.audiovisual-tab.is-playing{color:#eafffb;border-color:rgba(102,204,204,.56);background:rgba(102,204,204,.1);box-shadow:0 0 16px rgba(102,204,204,.12)}.audiovisual-tab.is-playing svg{filter:drop-shadow(0 0 5px #66cccc)}
+
+
+/* React Off keeps its gallery open; illumination belongs only to the live state. */
+.audiovisual-tab.is-reacting{color:#eafffb;border-color:rgba(102,204,204,.72);background:rgba(102,204,204,.18);box-shadow:0 0 18px rgba(102,204,204,.18)}.audiovisual-tab.is-reacting .audio-react-tab-status{color:#062020;background:#66cccc}.audio-react-off-hint{display:none}
+
+
+/* Audiovisual modal: one opaque sticky header for title and navigation. */
+.audiovisual-panel{
+  --audiovisual-panel-bg:rgba(10,12,19,.985);
+  padding:0!important;
+  background:var(--audiovisual-panel-bg)!important;
+  overscroll-behavior:contain;
+}
+.audiovisual-panel-sticky{
+  position:sticky;
+  top:0;
+  z-index:9;
+  display:grid;
+  gap:11px;
+  padding:16px 16px 13px;
+  border-radius:21px 21px 0 0;
+  background:var(--audiovisual-panel-bg);
+}
+.audiovisual-panel-head{
+  position:relative!important;
+  top:auto!important;
+  z-index:auto!important;
+  display:flex;
+  align-items:center!important;
+  justify-content:space-between;
+  min-height:28px;
+  margin:0!important;
+  padding:0!important;
+  background:none!important;
+  box-shadow:none!important;
+}
+.audiovisual-panel-head [data-av-close]{
+  position:static!important;
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  padding:0;
+  border:1px solid rgba(234,255,251,.18);
+  border-radius:50%;
+  color:rgba(234,255,251,.72);
+  background:rgba(255,255,255,.06);
+}
+.audiovisual-panel-head [data-av-close] svg{
+  width:14px;
+  height:14px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.2;
+  stroke-linecap:round;
+}
+.audiovisual-tabs{
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
+  margin:0!important;
+  padding:0!important;
+  background:none!important;
+}
+.audiovisual-panel-content{padding:0 16px 16px;}
+.audiovisual-tab.is-playing,
+.audiovisual-tab.is-reacting{
+  color:#eafffb;
+  border-color:rgba(102,204,204,.72);
+  background:rgba(102,204,204,.18);
+  box-shadow:0 0 18px rgba(102,204,204,.18);
+}
+.audiovisual-tab.is-playing svg{
+  filter:drop-shadow(0 0 5px #66cccc);
+}
+.audiovisual-tab.is-reacting img{
+  filter:invert(76%) sepia(35%) saturate(718%) hue-rotate(124deg) brightness(100%) drop-shadow(0 0 5px #66cccc);
+}
+.audiovisual-tab.is-reacting .audio-react-tab-status{
+  color:#062020;
+  background:#66cccc;
+}
+
+/* Speaker reliability and control refinements. */
+.audience-people-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: invert(1);
+  opacity: .82;
+}
+
+.nav-button {
+  width: 104px !important;
+  min-width: 104px !important;
+  height: 72px !important;
+  min-height: 72px !important;
+}
+.nav-button svg {
+  width: 40px !important;
+  height: 40px !important;
+}
+.nav-divider { height: 44px; }
+.nav-cluster {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+}
+.slide-status {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+}
+.fx-module { margin-left: auto; }
+
+.audiovisual-panel:not(.is-open),
+.audiovisual-panel:not(.is-open) * {
+  pointer-events: none !important;
+}
+
+.time-panel {
+  position: fixed;
+  z-index: 2147483000;
+  max-height: calc(100% - 32px);
+}
+.time-countdown-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.time-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.time-shortcuts button,
+.time-countdown-actions > button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 9px;
+  color: rgba(245,251,251,.9);
+  background: rgba(255,255,255,.07);
+  font: 700 11px/1 Inter,"Segoe UI",Arial,sans-serif;
+  cursor: pointer;
+}
+.time-shortcuts button:hover {
+  border-color: rgba(104,216,204,.58);
+  background: rgba(104,216,204,.13);
+}
+.time-countdown-actions > button {
+  min-width: 68px;
+  color: #071216;
+  border-color: transparent;
+  background: linear-gradient(135deg,#75eadf,#4cc6ea);
+  box-shadow: 0 7px 18px rgba(74,206,215,.17);
+}
+
+@media (max-width: 720px) {
+  .audience-people-icon { width: 16px; height: 16px; }
+  .nav-cluster {
+    left: 12px;
+    bottom: 112px;
+  }
+  .nav-button {
+    width: 96px !important;
+    min-width: 96px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+  }
+  .nav-button svg { width: 38px !important; height: 38px !important; }
+  .slide-status { bottom: 10px; }
+  .time-panel { max-height: calc(100% - 24px); }
+}
+
+@media (max-width: 390px) {
+  .nav-button {
+    width: 90px !important;
+    min-width: 90px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+  }
+  .nav-cluster { left: 10px; bottom: 104px; }
+  .slide-status { bottom: 8px; }
+  .time-countdown-actions { gap: 7px; }
+  .time-shortcuts { gap: 5px; }
+  .time-shortcuts button { padding-inline: 8px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .nav-cluster {
+    left: 12px;
+    bottom: 12px;
+  }
+  .nav-button {
+    width: 112px !important;
+    min-width: 112px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+  }
+  .nav-button svg { width: 40px !important; height: 40px !important; }
+  .slide-status { bottom: 12px; }
+}
+
+/* Keep thumbnail selection stable while the carousel follows the current slide. */
+.thumbs {
+  contain: layout paint;
+  scroll-behavior: smooth;
+}
+.thumb,
+.thumb img {
+  transition: none !important;
+  backface-visibility: hidden;
+}
+.thumb { contain: paint; }

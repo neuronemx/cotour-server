@@ -1,4 +1,13 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    let startedOnBackdrop = false;
+    backdrop.addEventListener("pointerdown", (event) => { startedOnBackdrop = event.target === backdrop; });
+    backdrop.addEventListener("click", (event) => {
+      if (startedOnBackdrop && event.target === backdrop) onDismiss();
+      startedOnBackdrop = false;
+    });
+  }
+
   let currentDeck = null;
   let config = null;
   let modal = null;
@@ -172,9 +181,7 @@
     bodyNode = modal.querySelector(".video-editor-body");
     statusNode = modal.querySelector(".video-editor-status");
     modal.querySelector(".video-editor-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 

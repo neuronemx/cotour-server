@@ -13,11 +13,12 @@ test("Speaker tools render in the requested visual order", () => {
   const controllerCss = read("public/shared/controller-tools.css");
   const liveTextIcon = read("public/assets/icons/texto-en-vivo.svg");
   const tools = html.match(/<div class="fx-module"[\s\S]*?<\/div>\s*<\/section>/)?.[0] || "";
-  const domOrder = ["audienceQr", "localReactions", "liveTextToggle", "drawToggle", "interactionToggle"]
+  const domOrder = ["audienceQr", "liveTextToggle", "drawToggle", "interactionToggle"]
     .map((id) => [id, tools.indexOf(`id="${id}"`)])
     .sort((a, b) => a[1] - b[1])
     .map(([id]) => id);
-  assert.deepEqual(domOrder, ["audienceQr", "localReactions", "liveTextToggle", "drawToggle", "interactionToggle"]);
+  assert.deepEqual(domOrder, ["audienceQr", "liveTextToggle", "drawToggle", "interactionToggle"]);
+  assert.doesNotMatch(html, /id="localReactions"|id="reactions" class="reaction-layer"/);
   assert.match(css, /\.fx-module[\s\S]*?flex-direction:\s*column-reverse/);
   assert.match(html, /id="liveTextToggle"[\s\S]*?class="live-text-icon"/);
   assert.match(liveTextCss, /mask:\s*url\("\/assets\/icons\/texto-en-vivo\.svg"\)/);

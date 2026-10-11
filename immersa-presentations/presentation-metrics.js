@@ -39,20 +39,21 @@ class PresentationMetricsRepository {
   async recordAudienceSnapshot({ presentationSessionId, audience = [], connectedCount = 0 }) {
     const sessionId = text(presentationSessionId);
     if (!sessionId) return;
-    const audienceIds = [...new Set((audience || []).map((item) => text(item?.audienceId || item)).filter(Boolean))];
-    if (audienceIds.length) {
-      const placeholders = audienceIds.map(() => "(?, ?)").join(", ");
+    const attendees = new Map((audience || []).map((item) => [text(item?.audienceId || item), item?.locale === 'en' ? 'en' : 'es']).filter(([id]) => id));
+    if (attendees.size) {
+      const placeholders = [...attendees].map(() => "(?, ?, ?)").join(", ");
       await this.pool.execute(
-        `INSERT IGNORE INTO presentation_session_attendance (presentation_session_id, audience_id)
-         VALUES ${placeholders}`,
-        audienceIds.flatMap((audienceId) => [sessionId, audienceId])
+        `INSERT INTO presentation_session_attendance (presentation_session_id, audience_id, locale)
+         VALUES ${placeholders}
+         ON DUPLICATE KEY UPDATE locale = VALUES(locale)`,
+        [...attendees].flatMap(([audienceId, locale]) => [sessionId, audienceId, locale])
       );
     }
     await this.pool.execute(
       `UPDATE presentation_sessions
        SET audience_peak_count = GREATEST(audience_peak_count, ?)
        WHERE id = ?`,
-      [Math.max(Number(connectedCount) || 0, audienceIds.length), sessionId]
+      [Math.max(Number(connectedCount) || 0, attendees.size), sessionId]
     );
   }
 
@@ -75,6 +76,15 @@ class PresentationMetricsRepository {
       [executionId, presentationSessionId, text(active.id), text(active.title) || "Encuesta", text(active.prompt) || "Encuesta", launchedAt]
     );
     return executionId;
+  }
+
+  async recordReactionSnapshot({ presentationSessionId, collectorId, counts }) {
+    await this.pool.execute(
+      `INSERT INTO presentation_reaction_counts (presentation_session_id, collector_id, emoji, reaction_count)
+       VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE reaction_count = GREATEST(reaction_count, VALUES(reaction_count))`,
+      ["❤️", "👏", "🔥"].flatMap((emoji) => [text(presentationSessionId), text(collectorId), emoji, Math.max(0, Number(counts[emoji]) || 0)])
+    );
   }
 
   async recordPollSnapshot({ presentationSessionId, snapshot, closedAt = null }) {
@@ -125,7 +135,11 @@ class PresentationMetricsRepository {
               ps.audience_peak_count,
               (SELECT COUNT(*)
                FROM presentation_session_attendance psa
-               WHERE psa.presentation_session_id = ps.id) AS participant_count
+               WHERE psa.presentation_session_id = ps.id) AS participant_count,
+              (SELECT COUNT(*) FROM presentation_session_attendance psa
+               WHERE psa.presentation_session_id = ps.id AND psa.locale = 'es') AS participant_count_es,
+              (SELECT COUNT(*) FROM presentation_session_attendance psa
+               WHERE psa.presentation_session_id = ps.id AND psa.locale = 'en') AS participant_count_en
        FROM presentation_sessions ps
        WHERE ps.deck_id = ? AND ps.recording_started_at IS NOT NULL
        ORDER BY ps.recording_started_at DESC, ps.id DESC
@@ -160,6 +174,21 @@ class PresentationMetricsRepository {
       sessionIds
     );
     const pollsBySession = new Map();
+    const [reactionRows] = await this.pool.execute(
+      `SELECT presentation_session_id, emoji, SUM(reaction_count) AS reaction_count
+       FROM presentation_reaction_counts
+       WHERE presentation_session_id IN (${placeholders})
+       GROUP BY presentation_session_id, emoji`, sessionIds
+    );
+    const reactionsBySession = new Map();
+    for (const row of reactionRows || []) {
+      const id = String(row.presentation_session_id);
+      if (!reactionsBySession.has(id)) reactionsBySession.set(id, { total: 0, byEmoji: {} });
+      const reactions = reactionsBySession.get(id);
+      const count = Number(row.reaction_count || 0);
+      reactions.total += count;
+      reactions.byEmoji[row.emoji] = count;
+    }
     for (const row of pollRows || []) {
       const sessionId = String(row.presentation_session_id);
       if (!pollsBySession.has(sessionId)) pollsBySession.set(sessionId, new Map());
@@ -192,7 +221,8 @@ class PresentationMetricsRepository {
       durationSeconds: Number(row.duration_seconds || 0),
       participants: {
         connected: Number(row.participant_count || 0),
-        peak: Number(row.audience_peak_count || 0)
+        peak: Number(row.audience_peak_count || 0),
+        locales: { es: Number(row.participant_count_es || 0), en: Number(row.participant_count_en || 0) }
       },
       polls: Array.from(pollsBySession.get(String(row.id))?.values() || []).map((poll) => ({
         ...poll,
@@ -201,7 +231,8 @@ class PresentationMetricsRepository {
           percentage: poll.totalResponses ? Math.round((option.count / poll.totalResponses) * 100) : 0
         }))
       })),
-      qna: qnaBySession.get(String(row.id)) || { received: 0, projected: 0 }
+      qna: qnaBySession.get(String(row.id)) || { received: 0, projected: 0 },
+      reactions: reactionsBySession.get(String(row.id)) || { total: 0, byEmoji: {} }
     }));
   }
 }

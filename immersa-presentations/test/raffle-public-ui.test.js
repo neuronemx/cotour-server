@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { RaffleStore, RAFFLE_REVEAL_DELAY_MS } = require("../raffle-store");
-const { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds } = require("../public/shared/raffle-public-ui");
+const { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, isAudienceSplitRaffle } = require("../public/shared/raffle-public-ui");
 const { adjustRaffleHtml } = require("../public/shared/raffle-ux-adjustments");
 
 const visualKeyConfig = {
@@ -40,19 +40,29 @@ test("Audience free collecting requires an explicit participation ticket", () =>
   assert.equal(state.active.ownEntry, null);
   assert.match(html, /data-raffle-enter>Participar/);
   assert.doesNotMatch(html, /Estás participando|Tu boleto está dentro de la tómbola/);
-  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1" }).ok, true);
+  assert.equal(store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana" }).ok, true);
   const enteredHtml = renderAudienceRaffle(store.getAudienceState("s1", "a1"));
-  assert.match(enteredHtml, /Estás participando/);
-  assert.match(enteredHtml, /Tu boleto está dentro de la tómbola/);
+  assert.match(enteredHtml, /raffle-public-ticket/);
+  assert.match(enteredHtml, /src="\/shared\/raffle-ticket\.png\?v=2"/);
+  assert.match(enteredHtml, /Estás participando con este boleto/);
+  assert.match(enteredHtml, /Mucha suerte/);
+  assert.match(enteredHtml, /<strong>01<\/strong>/);
+});
+
+test("Free raffle reserves half of Audience for the slide until drawing begins", () => {
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "collecting" }), true);
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "entries_closed" }), true);
+  assert.equal(isAudienceSplitRaffle({ mode: "free", state: "drawing" }), false);
+  assert.equal(isAudienceSplitRaffle({ mode: "poll", state: "collecting" }), false);
 });
 
 test("Audience free entries_closed distinguishes real ownEntry from closed tombola", () => {
   const store = new RaffleStore();
   store.create({ sessionId: "s1", config: freeConfig() });
-  store.enter({ sessionId: "s1", audienceId: "a1" });
+  store.enter({ sessionId: "s1", audienceId: "a1", name: "Ana" });
   store.closeEntries("s1", [{ audienceId: "a1" }]);
 
-  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /Boleto activo/);
+  assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a1")), /raffle-public-ticket/);
   assert.match(renderAudienceRaffle(store.getAudienceState("s1", "a2")), /<h2>La tómbola está cerrada<\/h2>/);
 });
 
@@ -146,8 +156,8 @@ test("Speaker, Audience, and Screen states share the canonical five second revea
   const store = new RaffleStore(() => 0);
   const nowMs = 20_000;
   store.create({ sessionId: "s1", config: freeConfig() });
-  store.enter({ sessionId: "s1", audienceId: "a1", label: "Mesa 1" });
-  store.enter({ sessionId: "s1", audienceId: "a2", label: "Mesa 2" });
+  store.enter({ sessionId: "s1", audienceId: "a1", name: "Mesa 1", label: "Mesa 1" });
+  store.enter({ sessionId: "s1", audienceId: "a2", name: "Mesa 2", label: "Mesa 2" });
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs });
 
@@ -180,11 +190,14 @@ test("Speaker, Audience, and Screen states share the canonical five second revea
 });
 
 test("Audience winner is private and non-winner stays positive without identity", () => {
-  const ownEntry = { enteredAt: new Date(1_000).toISOString() };
+  const ownEntry = { enteredAt: new Date(1_000).toISOString(), ticketNumber: 1 };
   const winnerHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: true, ownEntry } });
   const otherHtml = renderAudienceRaffle({ active: { mode: "free", state: "winner", isWinner: false, ownEntry } });
 
   assert.match(winnerHtml, /¡GANASTE!/);
+  assert.match(winnerHtml, /raffle-public-winner-ticket/);
+  assert.match(winnerHtml, /raffle-public-winner-ticket-art/);
+  assert.match(winnerHtml, /src="\/shared\/raffle-ticket\.png\?v=2"/);
   assert.match(winnerHtml, /Levanta tu teléfono/);
   assert.match(otherHtml, /Gracias por participar :\)/);
   assert.doesNotMatch(otherHtml, /Tenemos ganador|Perdiste|audienceId|socketId|Mesa/);
@@ -197,10 +210,15 @@ test("Audience GANASTE heading stays inside the winner card", () => {
   assert.match(css, /\.raffle-public-winner-private h2 \{[^}]*white-space:\s*nowrap/);
 });
 
+test("Audience ticket number is centered in the right ticket section", () => {
+  const css = readProjectFile("public/audience/audience.css");
+  assert.match(css, /\.raffle-public-ticket strong, \.raffle-public-winner-ticket-art strong \{[^}]*left:\s*61\.5%;[^}]*color:\s*#999999/);
+});
+
 test("Audience free bystander stays on closed tombola through drawing and winner", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
-  store.enter({ sessionId: "s1", audienceId: "participant" });
+  store.enter({ sessionId: "s1", audienceId: "participant", name: "Participante" });
   store.closeEntries("s1", [{ audienceId: "participant" }, { audienceId: "bystander" }]);
 
   store.drawWinner("s1", ["participant", "bystander"], { nowMs: 1_000 });
@@ -262,11 +280,11 @@ test("Screen visual key option follows selected Speaker config and stays frozen"
   assert.equal(closed.entries[0].selectedOptionId, "c");
 });
 
-test("Screen drawing and winner keep identity private", () => {
+test("Screen drawing and winner show the ticket and winner name", () => {
   const store = new RaffleStore(() => 0);
   store.create({ sessionId: "s1", config: freeConfig() });
-  store.enter({ sessionId: "s1", audienceId: "a1", label: "Mesa 1" });
-  store.enter({ sessionId: "s1", audienceId: "a2", label: "Mesa 2" });
+  store.enter({ sessionId: "s1", audienceId: "a1", name: "Mesa 1", label: "Mesa 1" });
+  store.enter({ sessionId: "s1", audienceId: "a2", name: "Mesa 2", label: "Mesa 2" });
   store.closeEntries("s1", [{ audienceId: "a1", label: "Mesa 1" }, { audienceId: "a2", label: "Mesa 2" }]);
   store.drawWinner("s1", ["a1", "a2"], { nowMs: 1000 });
 
@@ -282,8 +300,12 @@ test("Screen drawing and winner keep identity private", () => {
 
   store.revealWinner("s1", { nowMs: 6000 });
   const winnerHtml = renderScreenRaffle(store.getScreenState("s1"));
-  assert.match(winnerHtml, /¡TENEMOS GANADOR!/);
-  assert.doesNotMatch(winnerHtml, /Mesa|audienceId|ticket|Ganador seleccionado/);
+  assert.match(winnerHtml, /Boleto <b>01<\/b>/);
+  assert.match(winnerHtml, /<h2>¡Felicidades!<\/h2>/);
+  assert.match(winnerHtml, /Mesa 1/);
+  assert.match(winnerHtml, /Ganaste/);
+  assert.doesNotMatch(winnerHtml, /Ganaste el sorteo|#01/);
+  assert.doesNotMatch(winnerHtml, /audienceId|Ganador seleccionado/);
 });
 
 test("Public raffle runtime sends explicit free entry and closes Audience explicitly", () => {
@@ -291,7 +313,7 @@ test("Public raffle runtime sends explicit free entry and closes Audience explic
   const storeSource = readProjectFile("raffle-store.js");
 
   assert.match(publicUi, /socket\.emit\("raffle:enter", \{ optionId \}\)/);
-  assert.match(publicUi, /socket\.emit\("raffle:enter"\)/);
+  assert.match(publicUi, /socket\.emit\("raffle:enter", \{ name \}\)/);
   assert.match(publicUi, /socket\.emit\("raffle:submit_poll_response", \{ optionId \}\)/);
   assert.match(publicUi, /socket\.on\("raffle:closed", clearOverlay\)/);
   assert.match(storeSource, /getRoleRoomKey\(context\.roomKey, "audience"\)\)\.emit\("raffle:closed"/);
@@ -304,4 +326,26 @@ test("Screen styles include visual key display treatment and reduced-motion fall
   assert.match(css, /rgba\(27,61,149/);
   assert.match(css, /rgba\(104,216,204/);
   assert.match(css, /prefers-reduced-motion: reduce/);
+});
+
+test("Audience split styles resize the slide and keep ticket beneath reactions", () => {
+  const css = readProjectFile("public/audience/audience.css");
+  assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 0 50dvh; \}/);
+  assert.match(css, /\.audience\.is-raffle-split \.slide-viewport \{ inset: 0 50vw 0 0; \}/);
+  assert.match(css, /\.raffle-public-overlay\.is-free\.has-ticket \{ z-index: 3; \}/);
+  assert.match(css, /aspect-ratio:\s*400\s*\/\s*224/);
+  assert.match(css, /left:\s*61\.5%/);
+  assert.match(css, /color:\s*#999999/);
+});
+
+test("Screen winner uses the provided celebratory ticket-card treatment", () => {
+  const css = readProjectFile("public/screen/screen.css");
+  const winnerHtml = renderScreenRaffle({ active: { mode: "free", state: "winner", ticketDigits: 2, winner: { ticketNumber: 1, name: "Ana" } } });
+  assert.match(winnerHtml, /data-raffle-confetti/);
+  assert.match(winnerHtml, /raffle-screen-crown/);
+  assert.match(winnerHtml, /raffle-screen-winner-ticket/);
+  assert.match(css, /raffle-screen-confetti/);
+  assert.match(css, /var\(--duration, 2\.6s\)/);
+  assert.match(css, /raffle-screen-crown/);
+  assert.match(css, /#e8c26a/);
 });

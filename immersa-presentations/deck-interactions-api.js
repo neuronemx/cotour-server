@@ -4,6 +4,7 @@ const fs = require("fs");
 const multer = require("multer");
 const { normalizeDefinition, KnowledgeActivityError } = require("./knowledge-activity-engine");
 const { detectLogo } = require("./brand-mentions-api");
+const { listAudiovisualResources } = require("./audiovisual-library");
 
 const MAX_VIDEO_PREVIEW_BYTES = 96 * 1024;
 const VIDEO_PREVIEW_WIDTH = 320;
@@ -74,6 +75,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
     const settings = item?.settings || {};
+    const english = item?.en && typeof item.en === "object" ? item.en : {};
+    const englishOptions = english.options && typeof english.options === "object" ? english.options : {};
     return {
       id: String(item?.id || "int_" + Date.now() + "_" + index).trim(),
       slide_id: item?.slide_id ? String(item.slide_id) : null,
@@ -81,6 +84,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       title: String(item?.title || prompt).trim() || prompt,
       prompt,
       options,
+      en: {
+        prompt: String(english.prompt || "").trim().slice(0, 1000),
+        options: Object.fromEntries(options.map((option) => [option.id, String(englishOptions[option.id] || "").trim().slice(0, 500)]).filter(([, label]) => label))
+      },
       settings: {
         allow_multiple: Boolean(settings.allow_multiple),
         anonymous: typeof settings.anonymous === "boolean" ? settings.anonymous : true,
@@ -320,6 +327,29 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       .filter(Boolean);
   }
 
+  function normalizePrompter(parsed, slideIds) {
+    const source = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return Object.entries(source).reduce((result, [slideId, value]) => {
+      if (!slideIds.includes(slideId)) return result;
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const es = String(value.es || '').replace(/\r\n?/g, '\n').trim();
+        const en = String(value.en || '').replace(/\r\n?/g, '\n').trim();
+        if (es || en) result[slideId] = { es, en };
+        return result;
+      }
+      const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+      if (text) result[slideId] = text;
+      return result;
+    }, {});
+  }
+
+  function validAudiovisualIds(value) {
+    const available = new Set(listAudiovisualResources().map((resource) => resource.id));
+    return Array.from(new Set((Array.isArray(value) ? value : [])
+      .map((item) => String(item || "").trim())
+      .filter((id) => available.has(id))));
+  }
+
   function payloadFromParsed(parsed, deckId, slideIds) {
     return {
       deck_id: deckId,
@@ -328,7 +358,9 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       assessments: Array.isArray(parsed?.assessments) ? parsed.assessments : [],
       hidden_slide_ids: migrateHiddenIds(parsed || {}, slideIds),
       hidden_slide_indexes: normalizeIndexes(parsed?.hidden_slide_indexes),
-      videos: Array.isArray(parsed?.videos) ? parsed.videos : []
+      videos: Array.isArray(parsed?.videos) ? parsed.videos : [],
+      audiovisual: validAudiovisualIds(parsed?.audiovisual),
+      prompter: normalizePrompter(parsed?.prompter, slideIds)
     };
   }
 
@@ -342,7 +374,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       return { ...payloadFromParsed(parsed, deckId, slideIds), slides: manifest.slides || [] };
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], slides: manifest.slides || [] };
+      return { deck_id: deckId, interactions: [], contests: [], assessments: [], hidden_slide_ids: [], hidden_slide_indexes: [], videos: [], audiovisual: [], prompter: {}, slides: manifest.slides || [] };
     }
   }
 
@@ -411,7 +443,9 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       assessments,
       hidden_slide_ids: hiddenIds,
       hidden_slide_indexes: hiddenIds.map((slideId) => slideIds.indexOf(slideId)).filter((index) => index >= 0),
-      videos
+      videos,
+      audiovisual: validAudiovisualIds(body.audiovisual === undefined ? current.audiovisual : body.audiovisual),
+      prompter: body.prompter === undefined ? current.prompter : normalizePrompter(body.prompter, slideIds)
     };
   }
 
@@ -422,6 +456,18 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       const status = error.statusCode || 500;
       if (status >= 500) console.error("Unable to read deck configuration", error);
       res.status(status).json({ error: error.message || "Unable to read deck configuration" });
+    }
+  }
+
+  async function getDeckAudiovisualLibrary(req, res) {
+    try {
+      const configuration = await readDeckConfig(req.params.deckId);
+      const selectedIds = new Set(configuration.audiovisual);
+      res.json({ resources: listAudiovisualResources().filter((resource) => selectedIds.has(resource.id)) });
+    } catch (error) {
+      const status = error.statusCode || 500;
+      if (status >= 500) console.error("Unable to read deck audiovisual library", error);
+      res.status(status).json({ error: error.message || "Unable to read deck audiovisual library" });
     }
   }
 
@@ -525,7 +571,7 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     });
   }
 
-  return { getInteractions, putInteractions, readDeckConfig, uploadQuestionImage };
+  return { getInteractions, getDeckAudiovisualLibrary, putInteractions, readDeckConfig, uploadQuestionImage };
 }
 
 module.exports = { createDeckInteractionHandlers, MAX_QUESTION_IMAGE_BYTES };

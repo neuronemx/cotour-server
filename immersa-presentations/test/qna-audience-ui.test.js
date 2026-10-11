@@ -13,10 +13,10 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
     fs.promises.readFile(path.join(__dirname, "..", "public", "shared", "qna-question-icon.svg"), "utf8")
   ]);
   assert.match(html, /id="qnaOpen"[^>]*hidden/);
-  assert.match(html, /<span>Enviar pregunta<\/span>/);
+  assert.match(html, /<span data-i18n="audience\.qna\.open">Enviar pregunta<\/span>/);
   assert.match(html, /qna-question-icon\.svg/);
   assert.match(html, /maxlength="1000"/);
-  assert.match(html, /Nombre <span>\(opcional\)<\/span>/);
+  assert.match(html, /data-i18n="audience\.qna\.name">Nombre<\/span> <span data-i18n="audience\.qna\.optional">\(opcional\)<\/span>/);
   assert.match(html, /Autorizo que mi nombre aparezca en Pantalla/);
   assert.match(html, /id="qnaAllowName"[^>]*checked/);
   assert.match(script, /socket\.on\("qna:state", renderQnaState\)/);
@@ -25,8 +25,8 @@ test("Público Q&A UI preserves the frozen form and visibility contract", async 
   assert.match(script, /qnaState\.questionsOpen && !qnaState\.hasSubmitted/);
   assert.match(script, /scheduleQnaCooldown\(10_000\)/);
   assert.match(script, /cooldownRemainingMs/);
-  assert.match(script, /Espera 10 segundos para enviar otra pregunta/);
-  assert.match(script, /Tu pregunta ha sido enviada/);
+  assert.match(script, /audience\.qna\.cooldown/);
+  assert.match(script, /audience\.qna\.confirmed/);
   assert.doesNotMatch(script, /QNA_ALREADY_SUBMITTED/);
   assert.doesNotMatch(script, /qna:select|qna:project|qna:delete|qna:new_round/);
   assert.match(css, /\.qna-composer/);

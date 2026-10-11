@@ -3,15 +3,15 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ImmersaRafflePublicUI = api;
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
+  const tr = (key, fallback) => root.ImmersaI18n?.t(key) || fallback;
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
   }
 
   function modeLabel(mode) {
-    if (mode === "visual_key") return "Clave visual";
-    if (mode === "poll") return "Encuesta";
-    if (mode === "free") return "Sorteo abierto";
-    return "Sorteo";
+    if (mode === "visual_key") return tr('raffle.visualKey', 'Clave visual');
+    if (mode === "poll") return tr('audience.poll.title', 'Encuesta');
+    return tr('raffle.title', 'Sorteo');
   }
 
   function visualOptionLabel(option) {
@@ -56,6 +56,21 @@
     return active?.ownSelection?.selectedOptionId || active?.ownEntry?.selectedOptionId || "";
   }
 
+  function ticketNumber(active, entry = active?.ownEntry) {
+    const number = Number(entry?.ticketNumber);
+    if (!Number.isFinite(number) || number < 1) return "";
+    return String(Math.floor(number)).padStart(Math.max(2, Number(active?.ticketDigits) || 2), "0");
+  }
+
+  function renderTicketGraphic(number, className = "raffle-public-ticket") {
+    return '<div class="' + className + '" aria-label="' + tr('raffle.ticket', 'Boleto') + ' ' + escapeHtml(number) + '"><img src="/shared/raffle-ticket.png?v=2" alt="" aria-hidden="true"><strong>' + escapeHtml(number) + '</strong></div>';
+  }
+
+  function renderTicket(active, entry = active?.ownEntry) {
+    const number = ticketNumber(active, entry);
+    return number ? '<div class="raffle-public-ticket-state"><p>' + tr('raffle.enteredTicket', 'Estás participando con este boleto') + '</p>' + renderTicketGraphic(number) + '<p>' + tr('raffle.goodLuck', 'Mucha suerte') + '</p></div>' : '<h2>' + tr('raffle.activeTicket', 'Boleto activo') + '</h2><p>' + tr('raffle.open', 'La tómbola está abierta.') + '</p>';
+  }
+
   function screenDisplayOption(active) {
     if (active?.displayOption) return active.displayOption;
     if (!active?.displayOptionId) return null;
@@ -73,35 +88,40 @@
   function renderAudienceCollecting(active) {
     const hasEntry = Boolean(active.ownEntry);
     if (active.mode === "free") {
-      if (hasEntry) return '<h2>Estás participando</h2><p>Tu boleto está dentro de la tómbola.</p>';
-      return '<h2>Sorteo abierto</h2><p>Confirma que estás presente para recibir tu boleto.</p><button type="button" class="raffle-public-enter" data-raffle-enter>Participar</button>';
+      if (hasEntry) return renderTicket(active);
+      return '<h2>' + tr('raffle.title', 'Sorteo') + '</h2><p>' + tr('raffle.enterName', 'Ingresa tu nombre y participa.') + '</p><input class="raffle-public-name" data-raffle-name type="text" autocomplete="name" maxlength="80" placeholder="' + tr('audience.qna.namePlaceholder', 'Tu nombre') + '" required><button type="button" class="raffle-public-enter" data-raffle-enter>' + tr('raffle.enter', 'Participar') + '</button>';
     }
-    if (hasEntry) return '<h2>Boleto activo</h2><p>Tu participación quedó registrada.</p>';
+    if (hasEntry) return '<h2>' + tr('raffle.activeTicket', 'Boleto activo') + '</h2><p>' + tr('raffle.registered', 'Tu participación quedó registrada.') + '</p>';
     const options = safeOptions(active);
     if (active.mode === "visual_key") {
       const selected = selectedOptionId(active);
-      return '<h2>Elige una opción</h2><p>El presentador te dirá la correcta</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false, option.id === selected)).join("") + '</div>';
+      return '<h2>' + tr('raffle.choose', 'Elige una opción') + '</h2><p>' + tr('raffle.speakerReveals', 'El presentador te dirá la correcta') + '</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false, option.id === selected)).join("") + '</div>';
     }
-    const copy = "Elige una opción para activar tu boleto.";
+    const copy = tr('raffle.chooseTicket', 'Elige una opción para activar tu boleto.');
     return '<h2>' + escapeHtml(modeLabel(active.mode)) + '</h2><p>' + escapeHtml(active.prompt || copy) + '</p><div class="raffle-public-options">' + options.map((option) => renderOption(option, false, option.id === selectedOptionId(active))).join("") + '</div>';
   }
 
   function renderAudienceEntriesClosed(active) {
-    if (active.ownEntry) return '<h2>Boleto activo</h2><p>La tómbola está cerrada. Mantente atento.</p>';
-    if (active.mode === "free") return '<h2>La tómbola está cerrada</h2>';
-    if (active.mode === "visual_key" && active.ownSelection) return '<h2>Gracias por participar :)</h2>';
-    return '<h2>La tómbola ya está cerrada :(</h2><p>Mantente atento a próximos sorteos</p>';
+    if (active.ownEntry && active.mode === "free") return renderTicket(active);
+    if (active.ownEntry) return '<h2>' + tr('raffle.activeTicket', 'Boleto activo') + '</h2><p>' + tr('raffle.closedWait', 'La tómbola está cerrada. Mantente atento.') + '</p>';
+    if (active.mode === "free") return '<h2>' + tr('raffle.closed', 'La tómbola está cerrada') + '</h2>';
+    if (active.mode === "visual_key" && active.ownSelection) return '<h2>' + tr('raffle.thanks', 'Gracias por participar :)') + '</h2>';
+    return '<h2>' + tr('raffle.closedSad', 'La tómbola ya está cerrada :(') + '</h2><p>' + tr('raffle.nextTime', 'Mantente atento a próximos sorteos') + '</p>';
   }
 
   function renderAudienceDrawing(active, nowMs) {
     const remaining = remainingSeconds(active, nowMs);
-    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>Revelación en</span><strong>' + remaining + '</strong></div>';
-    return '<h2>Sorteando...</h2>' + countdown;
+    const countdown = remaining === null ? "" : '<div class="raffle-public-countdown"><span>' + tr('raffle.revealIn', 'Revelación en') + '</span><strong>' + remaining + '</strong></div>';
+    return '<h2>' + tr('raffle.drawing', 'Sorteando...') + '</h2>' + countdown;
   }
 
   function renderAudienceWinner(active) {
-    if (active.isWinner) return '<div class="raffle-public-winner-private"><h2>¡GANASTE!</h2><p>Levanta tu teléfono</p></div>';
-    return '<h2>Gracias por participar :)</h2>';
+    if (active.isWinner) {
+      const number = ticketNumber(active);
+      const ticket = number ? '<div class="raffle-public-winner-ticket">' + renderTicketGraphic(number, "raffle-public-winner-ticket-art") + '</div>' : "";
+      return '<div class="raffle-public-winner-private">' + ticket + '<h2>' + tr('raffle.youWon', '¡GANASTE!') + '</h2><p>' + tr('raffle.raisePhone', 'Levanta tu teléfono') + '</p></div>';
+    }
+    return '<h2>' + tr('raffle.thanks', 'Gracias por participar :)') + '</h2>';
   }
 
   function renderAudienceRaffle(stateOrActive, privateWinner = false, nowMs = Date.now()) {
@@ -116,35 +136,42 @@
       : withWinner.state === "winner" ? renderAudienceWinner(withWinner)
       : "";
     if (!body) return "";
-    return '<section class="raffle-public-overlay raffle-public-audience is-' + escapeHtml(withWinner.state) + ' is-' + escapeHtml(withWinner.mode) + '" role="dialog" aria-live="polite" aria-label="Sorteo"><div class="raffle-public-card">' + body + '</div></section>';
+    const hasTicket = withWinner.mode === "free" && ["collecting", "entries_closed"].includes(withWinner.state) && Boolean(ticketNumber(withWinner));
+    return '<section class="raffle-public-overlay raffle-public-audience is-' + escapeHtml(withWinner.state) + ' is-' + escapeHtml(withWinner.mode) + (hasTicket ? ' has-ticket' : '') + '" role="dialog" aria-live="polite" aria-label="' + tr('raffle.title', 'Sorteo') + '"><div class="raffle-public-card">' + body + '</div></section>';
   }
 
   function renderScreenCollecting(active) {
-    if (active.mode === "free") return '<h2>Sorteo abierto</h2><p>Pulsa Participar en tu teléfono</p>';
+    if (active.mode === "free") return '<h2>' + tr('raffle.title', 'Sorteo') + '</h2><p>' + tr('raffle.tapPhone', 'Pulsa Participar en tu teléfono') + '</p>';
     if (active.mode === "visual_key") {
       const option = screenDisplayOption(active);
       const label = visualOptionLabel(option);
-      const display = label ? '<div class="raffle-screen-display-option" aria-label="Opción ' + escapeHtml(label) + '"><strong>' + escapeHtml(label) + '</strong></div>' : "";
-      return '<h2>Elige en tu pantalla:</h2>' + display;
+      const display = label ? '<div class="raffle-screen-display-option" aria-label="' + tr('raffle.option', 'Opción') + ' ' + escapeHtml(label) + '"><strong>' + escapeHtml(label) + '</strong></div>' : "";
+      return '<h2>' + tr('raffle.chooseOnPhone', 'Elige en tu pantalla:') + '</h2>' + display;
     }
-    return '<h2>Participa desde tu pantalla</h2>';
+    return '<h2>' + tr('raffle.joinPhone', 'Participa desde tu pantalla') + '</h2>';
   }
 
   function renderScreenDrawing(active, nowMs) {
     const remaining = remainingSeconds(active, nowMs);
     const number = remaining === null ? "" : '<strong>' + remaining + '</strong>';
-    return '<div class="raffle-screen-motion" aria-hidden="true"><span></span><span></span><span></span></div><h2>Sorteando...</h2><div class="raffle-screen-countdown">' + number + '</div>';
+    return '<div class="raffle-screen-motion" aria-hidden="true"><span></span><span></span><span></span></div><h2>' + tr('raffle.drawing', 'Sorteando...') + '</h2><div class="raffle-screen-countdown">' + number + '</div>';
   }
 
-  function renderScreenWinner() {
-    return '<h2>¡TENEMOS GANADOR!</h2>';
+  function renderScreenWinner(active) {
+    const number = ticketNumber(active, active?.winner);
+    const name = String(active?.winner?.name || active?.winner?.label || "").trim();
+    return '<div class="raffle-screen-winner"><div class="raffle-screen-confetti" data-raffle-confetti aria-hidden="true"></div><div class="raffle-screen-crown" aria-hidden="true"><svg width="46" height="38" viewBox="0 0 46 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14L12 22L23 6L34 22L42 14L38 32H8L4 14Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4" cy="11" r="2.6" fill="currentColor"/><circle cx="23" cy="4" r="2.6" fill="currentColor"/><circle cx="42" cy="11" r="2.6" fill="currentColor"/></svg></div><p class="raffle-screen-winner-ticket">' + tr('raffle.ticket', 'Boleto') + ' <b>' + escapeHtml(number) + '</b></p><h2>' + tr('raffle.congrats', '¡Felicidades!') + '</h2><strong class="raffle-screen-winner-name">' + escapeHtml(name) + '</strong><p class="raffle-screen-winner-message">' + tr('raffle.won', 'Ganaste') + '</p></div>';
+  }
+
+  function isAudienceSplitRaffle(active) {
+    return active?.mode === "free" && ["collecting", "entries_closed"].includes(active?.state);
   }
 
   function renderScreenRaffle(stateOrActive, nowMs = Date.now()) {
     const active = normalizeRaffleState(stateOrActive);
     if (!active) return "";
     const body = active.state === "collecting" ? renderScreenCollecting(active)
-      : active.state === "entries_closed" ? '<h2>Tómbola cerrada</h2>'
+      : active.state === "entries_closed" ? '<h2>' + tr('raffle.closedShort', 'Tómbola cerrada') + '</h2>'
       : active.state === "drawing" ? renderScreenDrawing(active, nowMs)
       : active.state === "winner" ? renderScreenWinner(active)
       : "";
@@ -211,7 +238,38 @@
       pendingEntry = false;
       active = null;
       rendered = "";
+      host.classList?.remove("is-raffle-split");
       host.querySelector("[data-raffle-public-root]")?.remove();
+    }
+
+    function populateWinnerConfetti(overlay) {
+      if (role !== "screen") return;
+      const field = overlay.querySelector("[data-raffle-confetti]");
+      if (!field || field.childElementCount) return;
+      const colors = ["#e8c26a", "#f3dfa8", "#8b87d6", "#f6f3ea"];
+      const random = root.Math?.random || Math.random;
+      for (let wave = 0; wave < 3; wave += 1) {
+        for (let index = 0; index < 12; index += 1) {
+          const piece = root.document.createElement("i");
+          const direction = random() > .5 ? 1 : -1;
+          if (random() > .6) piece.classList.add("is-round");
+          piece.style.left = (8 + random() * 84) + "%";
+          piece.style.background = colors[Math.floor(random() * colors.length)];
+          piece.style.setProperty("--peak", (random() * .3 + .6).toFixed(2));
+          piece.style.setProperty("--duration", (random() * .6 + 2.6).toFixed(2) + "s");
+          piece.style.setProperty("--delay", (wave + random() * .35).toFixed(2) + "s");
+          piece.style.setProperty("--x1", (direction * (18 + random() * 22)).toFixed(0) + "px");
+          piece.style.setProperty("--x2", (-direction * (16 + random() * 26)).toFixed(0) + "px");
+          piece.style.setProperty("--x3", (direction * (10 + random() * 18)).toFixed(0) + "px");
+          piece.style.setProperty("--y1", (70 + random() * 30).toFixed(0) + "px");
+          piece.style.setProperty("--y2", (170 + random() * 40).toFixed(0) + "px");
+          piece.style.setProperty("--y3", (230 + random() * 40).toFixed(0) + "px");
+          piece.style.setProperty("--r1", (Math.floor(random() * 200) + 60) + "deg");
+          piece.style.setProperty("--r2", (Math.floor(random() * 260) + 220) + "deg");
+          piece.style.setProperty("--r3", (Math.floor(random() * 300) + 380) + "deg");
+          field.appendChild(piece);
+        }
+      }
     }
 
     function render() {
@@ -219,14 +277,19 @@
       if (!html) return clearOverlay();
       const overlay = ensureOverlay();
       if (rendered === html) return;
+      const pendingName = overlay.querySelector?.('[data-raffle-name]')?.value || '';
       rendered = html;
       overlay.innerHTML = html;
+      populateWinnerConfetti(overlay);
       bindOverlay(overlay);
+      const nameInput = overlay.querySelector?.('[data-raffle-name]');
+      if (nameInput && pendingName) nameInput.value = pendingName;
     }
 
     function applyState(payload) {
       active = withLocalCountdown(normalizeRaffleState(payload));
       if (!active) return clearOverlay();
+      if (role === "audience") host.classList?.toggle("is-raffle-split", isAudienceSplitRaffle(active));
       if (active.state !== "winner") privateWinner = false;
       if (active.ownEntry || active.ownSelection) pendingEntry = false;
       syncTimer();
@@ -242,11 +305,13 @@
       if (active.mode === "poll") socket.emit("raffle:submit_poll_response", { optionId });
     }
 
-    function submitFreeEntry(button) {
+    function submitFreeEntry(button, input) {
       if (!active || pendingEntry || active.state !== "collecting" || active.mode !== "free" || active.ownEntry) return;
+      const name = String(input?.value || "").trim();
+      if (!name) { input?.classList?.add("is-invalid"); input?.focus?.(); return; }
       pendingEntry = true;
-      if (button) { button.disabled = true; button.textContent = "Registrando..."; }
-      socket.emit("raffle:enter");
+      if (button) { button.disabled = true; button.textContent = tr('raffle.registering', 'Registrando...'); }
+      socket.emit("raffle:enter", { name });
     }
 
     function bindOverlay(overlay) {
@@ -255,7 +320,10 @@
         button.addEventListener("click", () => submitOption(button.dataset.raffleOption));
       });
       const enterButton = overlay.querySelector("[data-raffle-enter]");
-      enterButton?.addEventListener("click", () => submitFreeEntry(enterButton));
+      const nameInput = overlay.querySelector("[data-raffle-name]");
+      nameInput?.addEventListener("input", () => nameInput.classList.remove("is-invalid"));
+      nameInput?.addEventListener("keydown", (event) => { if (event.key === "Enter") submitFreeEntry(enterButton, nameInput); });
+      enterButton?.addEventListener("click", () => submitFreeEntry(enterButton, nameInput));
     }
 
     socket.on("raffle:state", applyState);
@@ -274,8 +342,9 @@
       render();
     });
     socket.on("raffle:closed", clearOverlay);
+    root.addEventListener?.('immersa:locale-change', render);
   }
 
   if (root?.document && root?.io) installRuntime();
-  return { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, normalizeRaffleState };
+  return { renderAudienceRaffle, renderScreenRaffle, withLocalCountdown, remainingSeconds, normalizeRaffleState, isAudienceSplitRaffle };
 });

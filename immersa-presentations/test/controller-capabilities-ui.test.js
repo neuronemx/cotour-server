@@ -34,7 +34,7 @@ test("Stage live text modal is dedicated to text only", () => {
 
   assert.doesNotMatch(modal, />Stage</i);
   assert.doesNotMatch(modal, /Mensaje en pantalla/i);
-  assert.match(modal, /<strong id="textModalTitle">Texto en vivo<\/strong>/);
+  assert.match(modal, /<strong id="textModalTitle" data-i18n="live\.liveText">Texto en vivo<\/strong>/);
   assert.match(modal, /<label for="messageInput">Este mensaje aparecerá en vivo para todos\.<\/label>/);
   assert.match(modal, />Mostrar texto<[\s\S]*>Cancelar</);
   assert.doesNotMatch(modal, /Link presentación|displayLinkButton/);
@@ -48,7 +48,7 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
 
   assert.match(html, /id="audienceQrToggle"[\s\S]*?<svg[\s\S]*?<rect x="3" y="3" width="7" height="7"/);
   assert.match(html, /id="audienceQrPanel"[^>]*hidden/);
-  assert.match(html, /<strong>Comparte esta presentación<\/strong>/);
+  assert.match(html, /<strong data-i18n="audience\.qr\.share">Comparte esta presentación<\/strong>/);
   assert.doesNotMatch(html, /id="audienceQrClose"|class="audience-qr-close"/);
   assert.match(html, /qrcodejs@1\.0\.0/);
   assert.match(script, /publicOpenContext\.public_url \|\| window\.location\.href/);
@@ -57,7 +57,7 @@ test("Audience can open its own local QR from the bottom-right corner", () => {
   assert.doesNotMatch(script, /audienceQrClose/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*right:[\s\S]*bottom:/);
   assert.match(css, /\.audience-qr-toggle\s*\{[\s\S]*aspect-ratio:\s*1;[\s\S]*border-radius:\s*50%;[\s\S]*overflow:\s*visible;/);
-  assert.match(html, /audience\.css\?v=14/);
+  assert.match(html, /audience\.css\?v=26/);
 });
 
 test("Audience glass controls paint their fills continuously", () => {

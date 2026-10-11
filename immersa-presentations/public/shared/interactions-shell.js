@@ -1,7 +1,8 @@
 (function (root, factory) {
   if (typeof module === "object" && module.exports) module.exports = factory(root);
   else root.ImmersaInteractionsShell = factory(root);
-})(typeof window !== "undefined" ? window : globalThis, function () {
+})(typeof window !== "undefined" ? window : globalThis, function (global) {
+  const tr = (key, fallback) => global.ImmersaI18n?.t(key) || fallback;
   const VIEWS = new Set(["home", "polls", "qna", "assessments", "raffles", "contests", "games"]);
   const APPROVED_CATEGORY_ICONS = {
     polls: {
@@ -98,9 +99,9 @@
     button.dataset.interactionsVariant = variant;
     button.append(
       createIcon(documentRef, APPROVED_CATEGORY_ICONS[category.id]),
-      createElement(documentRef, "span", "interactions-shell-category-label", category.label),
+      createElement(documentRef, "span", "interactions-shell-category-label", tr('shell.' + category.id, category.label)),
       createElement(documentRef, "span", "interactions-shell-plan-label", CATEGORY_PLAN_LABELS[category.id] || ""),
-      createElement(documentRef, "span", "interactions-shell-live-label", "En vivo")
+      createElement(documentRef, "span", "interactions-shell-live-label", tr('shell.live', 'En vivo'))
     );
     return button;
   }
@@ -119,20 +120,20 @@
     const buttons = new Map(CATEGORIES.map((category) => [category.id, []]));
 
     const container = createElement(documentRef, "section", "interactions-native-shell");
-    container.setAttribute("aria-label", "Interacciones");
+    container.setAttribute("aria-label", tr('live.interactions', 'Interacciones'));
     const header = createElement(documentRef, "div", "interactions-shell-header");
-    const title = createElement(documentRef, "h2", "interactions-shell-title", "Interacciones");
+    const title = createElement(documentRef, "h2", "interactions-shell-title", tr('live.interactions', 'Interacciones'));
     const closeButton = createElement(documentRef, "button", "interactions-shell-close", "×");
     closeButton.type = "button";
     closeButton.dataset.interactionsClose = "true";
-    closeButton.setAttribute("aria-label", "Cerrar interacciones");
+    closeButton.setAttribute("aria-label", tr('shell.close', 'Cerrar interacciones'));
     header.append(title, closeButton);
 
     const home = createElement(documentRef, "div", "interactions-shell-home");
     GROUPS.forEach((group, groupIndex) => {
       const groupNode = createElement(documentRef, "section", "interactions-shell-group");
       groupNode.dataset.interactionsGroup = group.id;
-      groupNode.appendChild(createElement(documentRef, "p", "interactions-shell-group-label", group.label));
+      groupNode.appendChild(createElement(documentRef, "p", "interactions-shell-group-label", tr('shell.' + group.id, group.label)));
       const row = createElement(documentRef, "div", "interactions-shell-group-row");
       group.categories.forEach((category) => {
         const button = createCategoryButton(documentRef, category, "expanded");
@@ -145,13 +146,13 @@
     });
 
     const compact = createElement(documentRef, "div", "interactions-shell-compact");
-    compact.setAttribute("aria-label", "Categorías de interacciones");
+    compact.setAttribute("aria-label", tr('shell.categories', 'Categorías de interacciones'));
     CATEGORIES.forEach((category) => {
       const button = createCategoryButton(documentRef, category, "compact");
       compact.appendChild(button);
       buttons.get(category.id).push(button);
     });
-    const backButton = createElement(documentRef, "button", "interactions-shell-back", "Regresar");
+    const backButton = createElement(documentRef, "button", "interactions-shell-back", tr('shell.back', 'Regresar'));
     backButton.type = "button";
     backButton.dataset.interactionsBack = "true";
 
@@ -207,7 +208,7 @@
 
     function renderState() {
       const onHome = view === "home";
-      title.textContent = "Interacciones";
+      title.textContent = tr('live.interactions', 'Interacciones');
       title.hidden = !titleVisible;
       closeButton.hidden = !closeVisible || locked;
       home.hidden = !onHome;
@@ -231,6 +232,24 @@
       syncRendererVisibility();
     }
 
+    function localizeShell() {
+      container.setAttribute('aria-label', tr('live.interactions', 'Interacciones'));
+      closeButton.setAttribute('aria-label', tr('shell.close', 'Cerrar interacciones'));
+      compact.setAttribute('aria-label', tr('shell.categories', 'Categorías de interacciones'));
+      backButton.textContent = tr('shell.back', 'Regresar');
+      GROUPS.forEach((group) => {
+        const node = home.querySelector?.('[data-interactions-group="' + group.id + '"] .interactions-shell-group-label');
+        if (node) node.textContent = tr('shell.' + group.id, group.label);
+      });
+      CATEGORIES.forEach((category) => buttons.get(category.id)?.forEach((button) => {
+        const label = button.querySelector?.('.interactions-shell-category-label');
+        const live = button.querySelector?.('.interactions-shell-live-label');
+        if (label) label.textContent = tr('shell.' + category.id, category.label);
+        if (live) live.textContent = tr('shell.live', 'En vivo');
+      }));
+      renderState();
+    }
+
     function onCategoryClick(event) {
       const button = event.target?.closest?.("[data-interactions-category]");
       if (!button || button.disabled || button.hidden) return;
@@ -247,6 +266,7 @@
       options.onSelectCategory?.("home");
     });
     listen(closeButton, "click", () => { options.onRequestClose?.(); });
+    if (global.addEventListener) listen(global, 'immersa:locale-change', localizeShell);
 
     CATEGORIES.forEach((category) => {
       const visible = options.categoryVisibility?.[category.id] !== false;

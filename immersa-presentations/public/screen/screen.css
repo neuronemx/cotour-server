@@ -4,12 +4,20 @@
 .screen::before, .screen::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .screen.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(34px); transform: scale(1.08); opacity: .62; }
 .screen.portrait-slide::after { background: rgba(0,0,0,.48); opacity: 1; }
-.screen.has-focus-overlay::after { z-index: 2; background: rgba(2, 4, 8, .22); opacity: 1; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.screen.has-focus-overlay::after { z-index: 1; background: rgba(2, 4, 8, .22); opacity: 1; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+/* Activities stay above a Librería video without dimming or blurring it. */
+.screen.has-focus-overlay.has-audiovisual-video::after { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 #slide { position: relative; z-index: 1; width: 100vw; height: 100vh; object-fit: contain; display: block; }
+.audiovisual-screen-layer { position:absolute; z-index:2; inset:0; display:none; background:transparent; }.audiovisual-screen-layer.is-video{display:block}.audiovisual-screen-layer video{display:block;width:100%;height:100%;object-fit:contain}.audiovisual-screen-layer audio{position:absolute;width:1px;height:1px;opacity:0}
 .disconnect { position: fixed; top: 22px; right: 22px; padding: 10px 14px; border-radius: 999px; background: rgba(10,10,10,.62); color: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.14); font-size: 13px; backdrop-filter: blur(12px); }
 .hidden { display: none !important; }
 .fullscreen-toggle { position: fixed; z-index: 8; top: 18px; right: 18px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(8,10,14,.38); color: rgba(255,255,255,.78); font-size: 22px; line-height: 1; cursor: pointer; opacity: 0; transform: translateY(-4px); pointer-events: none; backdrop-filter: blur(16px); box-shadow: 0 18px 48px rgba(0,0,0,.28); transition: opacity .22s ease, transform .22s ease, background .22s ease, border-color .22s ease, color .22s ease, box-shadow .22s ease; }
 .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.local-library-picker { right: 72px; font-size: 0; }
+.local-library-picker svg { width: 19px; height: 19px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.local-library-picker.is-linked { color: #68d8cc; border-color: rgba(104,216,204,.62); background: rgba(104,216,204,.16); box-shadow: 0 0 24px rgba(104,216,204,.16); }
+.local-library-status { position: fixed; z-index: 8; top: 64px; right: 18px; max-width: min(300px, 70vw); color: rgba(234,255,251,.78); font-size: 12px; opacity: 0; transform: translateY(-4px); pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.6); transition: opacity .22s ease, transform .22s ease; }
+.screen.ui-visible .local-library-status:not(:empty) { opacity: 1; transform: translateY(0); }
 .fullscreen-toggle:hover { background: rgba(104,216,204,.16); border-color: rgba(104,216,204,.48); color: #eafffb; box-shadow: 0 0 0 1px rgba(104,216,204,.18) inset, 0 20px 60px rgba(0,0,0,.34); }
 .fullscreen-toggle:active { transform: translateY(0) scale(.96); }
 .fullscreen-toggle.is-active { background: rgba(104,216,204,.2); border-color: rgba(104,216,204,.68); color: #68d8cc; box-shadow: 0 0 0 1px rgba(104,216,204,.24) inset, 0 0 34px rgba(104,216,204,.2); }
@@ -30,7 +38,8 @@
   fill: currentColor;
   stroke: none;
 }
-.message { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(82vw, 980px); padding: 34px 42px; border-radius: 8px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.18); color: #f8f4ea; text-align: center; font-size: clamp(34px, 5vw, 72px); font-weight: 800; line-height: 1.08; backdrop-filter: blur(14px); box-shadow: 0 22px 90px rgba(0,0,0,.5); }
+.message { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(82vw, 980px); max-height: min(76vh, 640px); display: grid; justify-items: center; gap: 22px; overflow: auto; overscroll-behavior: contain; padding: 34px 42px; border-radius: 8px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.18); color: #f8f4ea; text-align: center; font-size: clamp(34px, 5vw, 72px); font-weight: 800; line-height: 1.08; backdrop-filter: blur(14px); box-shadow: 0 22px 90px rgba(0,0,0,.5); }
+.message-copy { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .qr { position: fixed; z-index: 3; right: 32px; bottom: 32px; width: min(440px, 50vw); padding: 20px; display: grid; gap: 12px; border-radius: 8px; background: rgba(248,244,234,.94); color: #111; box-shadow: 0 18px 70px rgba(0,0,0,.38); }
 .qr-pattern { width: 100%; aspect-ratio: 1; background: #fff; display: grid; place-items: center; overflow: hidden; }
 .qr-pattern canvas, .qr-pattern img { display: block; width: 100%; height: auto; }
@@ -68,8 +77,104 @@
 .raffle-screen-motion span:nth-child(2) { right: 16%; top: 32%; animation-delay: -.8s; }
 .raffle-screen-motion span:nth-child(3) { left: 45%; bottom: 15%; animation-delay: -1.5s; }
 @keyframes raffleTicketOrbit { 0%, 100% { transform: translate3d(0,0,0) rotate(-8deg); opacity: .35; } 50% { transform: translate3d(18px,-18px,0) rotate(12deg); opacity: .9; } }
-.is-winner .raffle-screen-card { animation: raffleWinnerIn .55s ease-out both; }
+.raffle-screen-overlay.is-winner { background: rgba(8,7,26,.72); }
+.is-winner .raffle-screen-card { width: min(1040px, 92vw); padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; animation: raffleWinnerIn .55s ease-out both; }
+.raffle-screen-winner { position: relative; isolation: isolate; width: 100%; display: grid; justify-items: center; gap: 0; padding: 6.8rem 5.2rem 5.6rem; overflow: hidden; border-radius: 42px; color: #f6f3ea; text-align: center; background: radial-gradient(60% 55% at 50% 18%, rgba(232,194,106,.16), transparent 65%), linear-gradient(160deg, #2c2a68 0%, #1d1a4a 55%, #16143a 100%); box-shadow: 0 50px 100px -30px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05); }
+.raffle-screen-confetti { position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+.raffle-screen-confetti i { position: absolute; top: -24px; display: block; width: 9px; height: 14px; opacity: 0; animation: raffleConfettiWave var(--duration, 2.6s) ease-in var(--delay, 0s) infinite; }
+.raffle-screen-confetti i.is-round { width: 9px; height: 9px; border-radius: 50%; }
+@keyframes raffleConfettiWave { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; } 8% { opacity: var(--peak, .85); } 28% { transform: translateY(var(--y1, 90px)) translateX(var(--x1, 22px)) rotate(var(--r1, 140deg)); } 56% { transform: translateY(var(--y2, 190px)) translateX(var(--x2, -18px)) rotate(var(--r2, 300deg)); opacity: var(--peak, .85); } 70% { transform: translateY(var(--y3, 250px)) translateX(var(--x3, 10px)) rotate(var(--r3, 420deg)); opacity: 0; } 100% { opacity: 0; } }
+.raffle-screen-crown { --raffle-crown-scale: 2; position: relative; z-index: 2; display: flex; justify-content: center; margin-bottom: 3.4rem; color: #e8c26a; filter: drop-shadow(0 12px 28px rgba(232,194,106,.35)); animation: raffleWinnerDrop .55s .1s cubic-bezier(.2,.7,.2,1) both; }
+.raffle-screen-crown svg { display: block; }
+.raffle-screen-winner .raffle-screen-winner-ticket { position: absolute; z-index: 2; top: 3.2rem; right: 3.2rem; display: flex; align-items: baseline; gap: 1rem; margin: 0; color: rgba(246,243,234,.65); font-size: 2.3rem; line-height: 1.2; animation: raffleWinnerRise .5s .12s ease-out both; }
+.raffle-screen-winner-ticket b { padding: .6rem 1.7rem; border: 3px solid rgba(232,194,106,.5); border-radius: 20px; color: #f6f3ea; background: rgba(232,194,106,.1); font-weight: 700; font-size: 2.7rem; }
+.raffle-screen-winner h2 { position: relative; z-index: 2; margin: 0 0 1.1rem; color: #f6f3ea; font-family: Georgia, serif; font-size: clamp(4.2rem, 8vw, 5.4rem); font-weight: 700; letter-spacing: -.01em; line-height: 1.08; text-shadow: none; animation: raffleWinnerRise .5s .3s ease-out both; }
+.raffle-screen-winner-name { position: relative; z-index: 2; display: block; margin: 0 0 3.6rem; color: #f3dfa8; font-family: Georgia, serif; font-size: clamp(2.6rem, 5.5vw, 3.4rem); font-style: italic; font-weight: 600; line-height: 1.2; animation: raffleWinnerRise .5s .42s ease-out both; }
+.raffle-screen-winner .raffle-screen-winner-message { position: relative; z-index: 2; display: inline-block; margin: 0; padding: 1.3rem 2.8rem; border-radius: 999px; color: #241f4d; background: #f6f3ea; font-size: 1.84rem; font-weight: 600; line-height: 1.2; animation: raffleWinnerRise .5s .56s ease-out both; }
+@keyframes raffleWinnerDrop { from { opacity: 0; transform: translateY(-10px) scale(calc(var(--raffle-crown-scale) * .8)); } to { opacity: 1; transform: translateY(0) scale(var(--raffle-crown-scale)); } }
+@keyframes raffleWinnerRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes raffleWinnerIn { from { transform: scale(.96); opacity: .72; } to { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .raffle-screen-motion span, .is-winner .raffle-screen-card, .qna-screen-card, .raffle-screen-crown, .raffle-screen-winner-ticket, .raffle-screen-winner h2, .raffle-screen-winner-name, .raffle-screen-winner-message { animation: none; } .raffle-screen-confetti i { animation: none; opacity: 0; } }
+@media (max-width: 720px) { .is-winner .raffle-screen-card { width: min(92vw, 720px); } .raffle-screen-winner { padding: 4.6rem 2.4rem 3.6rem; border-radius: 28px; } .raffle-screen-crown { --raffle-crown-scale: 1.5; margin-bottom: 2.5rem; } .raffle-screen-winner .raffle-screen-winner-ticket { top: 1.5rem; right: 1.5rem; gap: .5rem; font-size: 1rem; } .raffle-screen-winner-ticket b { padding: .3rem .8rem; border-width: 1.5px; border-radius: 10px; font-size: 1.2rem; } .raffle-screen-winner h2 { font-size: clamp(2.7rem, 11vw, 4.2rem); } .raffle-screen-winner-name { margin-bottom: 2rem; font-size: clamp(1.7rem, 7vw, 2.6rem); } .raffle-screen-winner .raffle-screen-winner-message { padding: .7rem 1.5rem; font-size: 1rem; } }
+@media (max-width: 380px) { .raffle-screen-winner { padding: 3.5rem 1.7rem 2.6rem; } }
 @media (pointer: coarse) { .screen.ui-visible .fullscreen-toggle, .fullscreen-toggle:focus-visible { opacity: 1; transform: translateY(0); pointer-events: auto; } }
 @media (max-width: 720px) { .fullscreen-toggle { top: 12px; right: 12px; width: 40px; height: 40px; font-size: 20px; } .qr { right: 18px; bottom: 18px; width: min(360px, 52vw); padding:14px; } .qr strong { font-size:20px; } .qr span { font-size:12px; } .qna-screen-overlay { padding: 5vw; } .qna-screen-card { width: 90vw; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; border-radius: 20px; } .raffle-screen-card { padding: 24px; } .is-collecting.is-visual_key .raffle-screen-card { width: min(86vw, 620px); } }
+
+
+/* Local playlist video dissolve: two Screen-owned layers, never a socket-side video stream. */
+.audiovisual-screen-layer .audiovisual-video-slot {
+  position:absolute;
+  inset:0;
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+  opacity:0;
+  transition:opacity .18s ease;
+  will-change:opacity;
+}
+.audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-hiding { opacity:0; transition:none; }
+
+
+/* IMMERSA TIME is the visual layer above every Screen surface. */
+.time-overlay {
+  position: fixed;
+  z-index: 30;
+  top: clamp(30px, 7vh, 108px);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: min(94vw, 1800px);
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.time-overlay span {
+  color: #f8f8f6;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: clamp(56px, 10.6vw, 204px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -.075em;
+  line-height: .84;
+  text-shadow: 0 3px 10px rgba(0,0,0,.52), 0 16px 46px rgba(0,0,0,.42);
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .time-overlay { top: 28px; }
+  .time-overlay span { font-size: clamp(42px, 14vw, 82px); }
+}
+
+
+/* Keep the Helvetica TIME glyphs distinct at projection scale. */
+.time-overlay span { letter-spacing: .022em; }
+
+
+/* Audio React is a transparent, non-interactive layer between media and interactions. */
+.audio-react-overlay{position:absolute;inset:0;z-index:2;width:100%;height:100%;display:block;pointer-events:none;opacity:0;transition:opacity .28s ease}.audio-react-overlay.is-active{opacity:1}
+
+
+/* Audio React stays solid over Slides and video; no screen blend. */
+.audio-react-logo{position:absolute;z-index:2;top:50%;left:50%;display:block;max-width:min(34vw,420px);max-height:min(34vh,420px);width:auto;height:auto;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.9);transform-origin:center;transition:opacity .2s ease;will-change:transform,opacity}.audio-react-logo.is-active{opacity:.96}
+
+/* Texto en Vivo and interaction overlays always sit above Audio React. */
+.audio-react-overlay,.audio-react-logo{contain:layout paint;will-change:opacity}
+
+/* Reaction 10 uses the same centered coordinate system as the canvas overlay. */
+.audio-react-logo{
+  position:absolute!important;
+  top:50%!important;
+  right:auto!important;
+  bottom:auto!important;
+  left:50%!important;
+  margin:0!important;
+  transform:translate(-50%,-50%) scale(.9);
+  transform-origin:50% 50%;
+}
+
+/* The original three.js particle scenes render over Slide/Video, below live text. */
+.audio-react-three-canvas{position:absolute;inset:0;z-index:2;width:100%;height:100%;display:block;pointer-events:none;contain:layout paint}
+/* Increase Reaction 10's natural on-screen dimensions by 20%, retaining its center. */
+.audio-react-logo{max-width:min(40.8vw,504px);max-height:min(40.8vh,504px)}
