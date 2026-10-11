@@ -963,6 +963,7 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 }
 .speaker-timer img, .time-toggle img { width: 17px; height: 17px; filter: invert(1); opacity: .82; }
 .speaker-timer:hover, .speaker-timer.is-running { border-color: rgba(104,216,204,.64); background: rgba(104,216,204,.15); box-shadow: 0 0 0 1px rgba(104,216,204,.14) inset, 0 0 28px rgba(104,216,204,.15); }
+.speaker-timer.is-pending { cursor: wait; opacity: .72; }
 .time-toggle img { width: 24px; height: 24px; }
 .time-toggle.is-active { color:#fff; background: radial-gradient(circle at 34% 24%,rgba(196,150,255,.98) 0%,rgba(139,63,255,.98) 36%,transparent 62%),linear-gradient(135deg,#8b3dff 0%,#684cff 46%,#21b7ff 100%); border-color:rgba(255,255,255,.3); box-shadow:0 0 0 5px rgba(104,76,255,.14),0 0 30px rgba(92,92,255,.42),0 0 28px rgba(33,183,255,.22),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.2); }
 
@@ -1069,6 +1070,9 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
   cursor: pointer;
 }
 .speaker-timer-actions button:hover { color:#071216; background:#68d8cc; }
+.speaker-timer-actions .speaker-timer-finish { color:#ffb7b7; background:rgba(185,42,55,.28); }
+.speaker-timer-actions .speaker-timer-finish:hover { color:#fff; background:#b92a37; }
+.speaker-timer-actions button:disabled { cursor:wait; opacity:.62; }
 
 .time-toggle { overflow: hidden; }
 .time-toggle img {
@@ -1426,7 +1430,8 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 }
 
 .time-panel {
-  position: absolute;
+  position: fixed;
+  z-index: 2147483000;
   max-height: calc(100% - 32px);
 }
 .time-countdown-actions {

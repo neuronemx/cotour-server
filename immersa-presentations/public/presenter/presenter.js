@@ -59,11 +59,14 @@ const speakerTimer = document.getElementById("speakerTimer");
 const speakerTimerValue = document.getElementById("speakerTimerValue");
 const speakerTimerActions = document.getElementById("speakerTimerActions");
 const speakerTimerResume = document.getElementById("speakerTimerResume");
-const speakerTimerReset = document.getElementById("speakerTimerReset");
+const speakerTimerFinish = document.getElementById("speakerTimerFinish");
 let immersaTimeState = null;
 let immersaTimePanel = null;
 let immersaTimeTick = null;
 const speakerTimerState = { running: false, elapsedMs: 0, startedAt: 0 };
+let presentationLifecycleEnabled = planAllows("metrics.basic");
+let presentationLifecycleState = { available: presentationLifecycleEnabled, mode: "test", startedAt: null };
+let presentationLifecyclePending = false;
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
@@ -536,18 +539,33 @@ function clearImmersaTimeTick() {
   if (immersaTimeTick) clearTimeout(immersaTimeTick);
   immersaTimeTick = null;
 }
+function presentationIsLive() {
+  return presentationLifecycleEnabled && presentationLifecycleState.mode === "live";
+}
 function speakerTimerCanReset() {
   return Boolean(!speakerTimerState.running && speakerElapsedMs() > 0);
 }
 function updateImmersaTimeReadouts() {
-  const value = speakerTimeValue();
+  const live = presentationIsLive();
+  const value = presentationLifecycleEnabled ? (live ? speakerTimeValue() : "Iniciar") : speakerTimeValue();
   if (speakerTimerValue) speakerTimerValue.textContent = value;
-  const resettable = speakerTimerCanReset();
-  if (speakerTimerActions) speakerTimerActions.hidden = !resettable;
+  const paused = presentationLifecycleEnabled ? (live && !speakerTimerState.running) : speakerTimerCanReset();
+  if (speakerTimerActions) speakerTimerActions.hidden = !paused;
   if (speakerTimer) {
     speakerTimer.classList.toggle("is-running", speakerTimerState.running);
-    speakerTimer.setAttribute("aria-label", speakerTimerState.running ? "Detener Timer Speaker" : (resettable ? "Reanudar Timer Speaker" : "Iniciar Timer Speaker"));
-    speakerTimer.title = speakerTimerState.running ? "Detener Timer Speaker" : (resettable ? "Reanudar Timer Speaker" : "Iniciar Timer Speaker");
+    speakerTimer.classList.toggle("is-pending", presentationLifecyclePending);
+    speakerTimer.disabled = presentationLifecycleEnabled && (presentationLifecyclePending || presentationLifecycleState.available === false);
+    const label = presentationLifecycleEnabled
+      ? (!live ? "Iniciar sesión" : (speakerTimerState.running ? "Pausar Timer Speaker" : "Reanudar Timer Speaker"))
+      : (speakerTimerState.running ? "Detener Timer Speaker" : (speakerTimerCanReset() ? "Reanudar Timer Speaker" : "Iniciar Timer Speaker"));
+    speakerTimer.setAttribute("aria-label", label);
+    speakerTimer.title = label;
+  }
+  if (speakerTimerResume) speakerTimerResume.disabled = presentationLifecyclePending;
+  if (speakerTimerFinish) {
+    speakerTimerFinish.disabled = presentationLifecyclePending;
+    speakerTimerFinish.textContent = presentationLifecycleEnabled ? "Finalizar" : "Restablecer";
+    speakerTimerFinish.classList.toggle("speaker-timer-finish", presentationLifecycleEnabled);
   }
   document.querySelectorAll("[data-time-screen-value]").forEach((node) => { node.textContent = screenTimeValue(); });
 }
@@ -566,7 +584,7 @@ function ensureImmersaTimePanel() {
   immersaTimePanel = document.createElement("section");
   immersaTimePanel.className = "time-panel";
   immersaTimePanel.setAttribute("aria-label", "IMMERSA TIME");
-  streamArea.appendChild(immersaTimePanel);
+  document.body.appendChild(immersaTimePanel);
   return immersaTimePanel;
 }
 function screenTimeControls(timer) {
@@ -616,6 +634,13 @@ function renderImmersaTimePanel() {
   panel.querySelectorAll("[data-time-screen-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: button.dataset.timeScreenAction })));
 }
 function toggleSpeakerTimer() {
+  if (presentationLifecyclePending) return;
+  if (presentationLifecycleEnabled && !presentationIsLive()) {
+    presentationLifecyclePending = true;
+    syncImmersaTimeUi();
+    socket.emit("presentation:lifecycle:start");
+    return;
+  }
   if (speakerTimerState.running) {
     speakerTimerState.elapsedMs = speakerElapsedMs();
     speakerTimerState.running = false;
@@ -627,16 +652,60 @@ function toggleSpeakerTimer() {
   syncImmersaTimeUi();
 }
 function resumeSpeakerTimer() {
+  if ((presentationLifecycleEnabled && !presentationIsLive()) || presentationLifecyclePending) return;
   if (!speakerTimerState.running) {
     speakerTimerState.running = true;
     speakerTimerState.startedAt = Date.now();
   }
   syncImmersaTimeUi();
 }
-function resetSpeakerTimer() {
-  speakerTimerState.running = false;
-  speakerTimerState.elapsedMs = 0;
-  speakerTimerState.startedAt = 0;
+function finishPresentationFromSpeaker() {
+  if (!presentationLifecycleEnabled) {
+    speakerTimerState.running = false;
+    speakerTimerState.elapsedMs = 0;
+    speakerTimerState.startedAt = 0;
+    syncImmersaTimeUi();
+    return;
+  }
+  if (!presentationIsLive() || presentationLifecyclePending) return;
+  presentationLifecyclePending = true;
+  syncImmersaTimeUi();
+  socket.emit("presentation:lifecycle:finish");
+}
+function applyPresentationLifecycle(next = {}) {
+  const wasLive = presentationIsLive();
+  presentationLifecycleState = {
+    available: next.available !== false,
+    mode: next.mode === "live" ? "live" : "test",
+    startedAt: next.startedAt || null
+  };
+  presentationLifecyclePending = false;
+  if (!presentationLifecycleEnabled) {
+    syncImmersaTimeUi();
+    return;
+  }
+  if (presentationIsLive() && !wasLive) {
+    const lifecycleStart = Date.parse(presentationLifecycleState.startedAt || "");
+    speakerTimerState.running = true;
+    speakerTimerState.elapsedMs = 0;
+    speakerTimerState.startedAt = Number.isFinite(lifecycleStart) ? lifecycleStart : Date.now();
+  } else if (!presentationIsLive()) {
+    speakerTimerState.running = false;
+    speakerTimerState.elapsedMs = 0;
+    speakerTimerState.startedAt = 0;
+  }
+  syncImmersaTimeUi();
+}
+function rejectPresentationLifecycle(payload = {}) {
+  presentationLifecyclePending = false;
+  syncImmersaTimeUi();
+  alert(payload.message || "No se pudo cambiar el estado de la presentación");
+}
+function applyPresentationLifecycleFeature(access = {}) {
+  const capabilities = access.capabilities || access.features || {};
+  presentationLifecycleEnabled = capabilities["metrics.basic"] === true;
+  presentationLifecycleState.available = presentationLifecycleEnabled;
+  presentationLifecyclePending = false;
   syncImmersaTimeUi();
 }
 function openImmersaTimePanel() {
@@ -899,7 +968,7 @@ if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovi
 if (timeToggle) timeToggle.addEventListener("click", toggleImmersaTimePanel);
 if (speakerTimer) speakerTimer.addEventListener("click", toggleSpeakerTimer);
 if (speakerTimerResume) speakerTimerResume.addEventListener("click", resumeSpeakerTimer);
-if (speakerTimerReset) speakerTimerReset.addEventListener("click", resetSpeakerTimer);
+if (speakerTimerFinish) speakerTimerFinish.addEventListener("click", finishPresentationFromSpeaker);
 if (fullscreenToggle) fullscreenToggle.addEventListener("click", toggleFullscreen);
 if (thumbsToggle) thumbsToggle.addEventListener("click", toggleThumbsPanel);
 if (compactLandscapeQuery?.addEventListener) compactLandscapeQuery.addEventListener("change", syncThumbsPanelMode);
@@ -922,6 +991,12 @@ socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
 socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
 socket.on("time:state", applyImmersaTime);
+socket.on("presentation:lifecycle:state", applyPresentationLifecycle);
+socket.on("presentation:lifecycle:rejected", rejectPresentationLifecycle);
+socket.on("plan:features", applyPresentationLifecycleFeature);
+socket.on("plan:feature_locked", (payload = {}) => {
+  if (payload.feature === "metrics.basic" && presentationLifecyclePending) rejectPresentationLifecycle(payload);
+});
 socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; warmAudiovisualDurations(localAudiovisualResources); renderAudiovisualPanel(); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });

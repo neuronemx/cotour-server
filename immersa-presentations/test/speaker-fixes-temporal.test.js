@@ -6,12 +6,21 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-test("Speaker timer is private and never resumes the server speaker channel", () => {
+test("Speaker timer controls the presentation lifecycle without using the old server speaker channel", () => {
   const script = read("public/presenter/presenter.js");
+  const html = read("public/presenter/index.html");
+  const css = read("public/presenter/presenter.css");
 
   assert.match(script, /const speakerTimerState = \{ running: false, elapsedMs: 0, startedAt: 0 \}/);
   assert.match(script, /function speakerElapsedMs\(\)[\s\S]*?Date\.now\(\) - speakerTimerState\.startedAt/);
-  assert.match(script, /function resetSpeakerTimer\(\)[\s\S]*?speakerTimerState\.elapsedMs = 0;[\s\S]*?speakerTimerState\.startedAt = 0;/);
+  assert.match(script, /socket\.emit\("presentation:lifecycle:start"\)/);
+  assert.match(script, /socket\.emit\("presentation:lifecycle:finish"\)/);
+  assert.match(script, /socket\.on\("presentation:lifecycle:state", applyPresentationLifecycle\)/);
+  assert.match(script, /presentationLifecycleEnabled = capabilities\["metrics\.basic"\] === true/);
+  assert.match(html, /id="speakerTimerValue">Iniciar<\/span>/);
+  assert.match(html, /id="speakerTimerResume"[\s\S]*?>Reanudar<\/button>/);
+  assert.match(html, /id="speakerTimerFinish"[\s\S]*?>Finalizar<\/button>/);
+  assert.match(css, /\.speaker-timer-actions \.speaker-timer-finish \{ color:#ffb7b7; background:rgba\(185,42,55,\.28\); \}/);
   assert.doesNotMatch(script, /time:control", \{ target: "speaker"/);
 });
 
@@ -19,10 +28,10 @@ test("Tiempo is centered in the Speaker canvas and offers immediate 5 10 30 minu
   const script = read("public/presenter/presenter.js");
   const css = read("public/presenter/presenter.css");
 
-  assert.match(script, /streamArea\.appendChild\(immersaTimePanel\)/);
+  assert.match(script, /document\.body\.appendChild\(immersaTimePanel\)/);
   for (const minutes of [5, 10, 30]) assert.match(script, new RegExp(`data-time-shortcut="${minutes}"`));
   assert.match(script, /socket\.emit\("time:control", \{ target: "screen", action: "start", mode: "countdown", hours: 0, minutes, seconds: 0 \}\)/);
-  assert.match(css, /\.time-panel \{[\s\S]*?position: absolute;[\s\S]*?max-height: calc\(100% - 32px\);/);
+  assert.match(css, /\.time-panel \{[\s\S]*?position: fixed;[\s\S]*?z-index: 2147483000;[\s\S]*?max-height: calc\(100% - 32px\);/);
   assert.match(css, /\.time-shortcuts \{[\s\S]*?display: flex;/);
 });
 
