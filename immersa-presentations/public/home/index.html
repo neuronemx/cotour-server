@@ -49,7 +49,7 @@
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=29">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=30">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
 </head>
 <body data-tutorial-context="home">
@@ -129,13 +129,13 @@
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
-      <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden>…</button>
+      <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
       <div class="deck-detail-content">
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
           <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
-            <div class="deck-transition-row"><label id="deckTransitionTitle" for="deckTransitionOptions">Transición de slides</label><select id="deckTransitionOptions" aria-label="Transición global del Deck">
+            <div class="deck-transition-row"><label id="deckTransitionTitle" for="deckTransitionOptions">Transición slides</label><select id="deckTransitionOptions" aria-label="Transición global del Deck">
               <option value="none" data-deck-transition="none">Sin transición</option>
               <option value="dissolve" data-deck-transition="dissolve">Disolvencia</option>
               <option value="wipe" data-deck-transition="wipe">Wipe</option>
@@ -285,7 +285,7 @@
   <script src="/home/prompter-editor.js?v=4"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=5"></script>
-  <script src="/home/deck-management-shell.js?v=16"></script>
+  <script src="/home/deck-management-shell.js?v=17"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=3"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>

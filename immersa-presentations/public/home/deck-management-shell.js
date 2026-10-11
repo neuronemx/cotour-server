@@ -16,11 +16,13 @@
     const mobile = window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
     more.hidden = !mobile || rail.scrollWidth <= rail.clientWidth + 1;
     more.style.top = (Math.max(rail.offsetTop, shell.scrollTop) + (rail.offsetHeight - 34) / 2) + 'px';
-    more.setAttribute('aria-label', rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 2 ? 'Volver a las primeras secciones' : 'Más secciones del deck');
+    const returning = rail.scrollLeft > 2;
+    more.classList.toggle('is-returning', returning);
+    more.setAttribute('aria-label', returning ? 'Volver a las primeras secciones' : 'Más secciones del deck');
+    more.title = returning ? 'Regresar' : 'Más secciones';
   }
   more?.addEventListener('click', () => {
-    const atEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 2;
-    rail.scrollTo({ left: atEnd ? 0 : rail.scrollLeft + rail.clientWidth * .7, behavior: 'smooth' });
+    rail.scrollTo({ left: rail.scrollLeft > 2 ? 0 : rail.scrollWidth, behavior: 'smooth' });
   });
   rail?.addEventListener('scroll', syncMore, { passive: true });
   shell.addEventListener('scroll', syncMore, { passive: true });
