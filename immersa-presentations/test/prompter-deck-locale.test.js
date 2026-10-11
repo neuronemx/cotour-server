@@ -6,7 +6,7 @@ const vm = require('node:vm');
 test('Apuntador requires an uploaded English deck and responds to upload/deletion without changing decks', async () => {
   const events = {}, elements = {};
   const element = (id) => elements[id] ||= { value: '', textContent: '', hidden: true, addEventListener() {}, setAttribute() {}, focus() {} };
-  const context = { document: { getElementById: element, addEventListener: (name, handler) => { events[name] = handler; } }, fetch: async () => ({ ok: true, json: async () => ({ prompter: {} }) }) };
+  const context = { window: { addEventListener() {} }, document: { getElementById: element, addEventListener: (name, handler) => { events[name] = handler; } }, fetch: async () => ({ ok: true, json: async () => ({ prompter: {} }) }) };
   vm.runInNewContext(fs.readFileSync('public/home/prompter-editor.js', 'utf8'), context);
   const deck = { deckId: 'es-only', locales: {} };
   events['immersa:deck-detail-open']({ detail: { deck, capabilities: { 'multilanguage.manage': true } } });
