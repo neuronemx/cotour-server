@@ -43,7 +43,7 @@ test("Plans modal uses the viewport below the measured fixed header", async () =
   assert.match(source, /--billing-header-offset/);
   assert.match(css, /\.billing-backdrop\{inset:var\(--billing-header-offset,64px\) 0 0/);
   assert.match(css, /max-height:calc\(100dvh - var\(--billing-header-offset,64px\) - 40px\)/);
-  assert.match(html, /\/home\/billing\.css\?v=9/);
+  assert.match(html, /\/home\/billing\.css\?v=10/);
   assert.match(html, /\/home\/billing\.js\?v=15/);
 });
 
