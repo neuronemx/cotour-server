@@ -78,6 +78,15 @@ class PresentationMetricsRepository {
     return executionId;
   }
 
+  async recordReactionSnapshot({ presentationSessionId, collectorId, counts }) {
+    await this.pool.execute(
+      `INSERT INTO presentation_reaction_counts (presentation_session_id, collector_id, emoji, reaction_count)
+       VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE reaction_count = GREATEST(reaction_count, VALUES(reaction_count))`,
+      ["❤️", "👏", "🔥"].flatMap((emoji) => [text(presentationSessionId), text(collectorId), emoji, Math.max(0, Number(counts[emoji]) || 0)])
+    );
+  }
+
   async recordPollSnapshot({ presentationSessionId, snapshot, closedAt = null }) {
     const active = snapshot?.active;
     if (!active) return false;
@@ -165,6 +174,21 @@ class PresentationMetricsRepository {
       sessionIds
     );
     const pollsBySession = new Map();
+    const [reactionRows] = await this.pool.execute(
+      `SELECT presentation_session_id, emoji, SUM(reaction_count) AS reaction_count
+       FROM presentation_reaction_counts
+       WHERE presentation_session_id IN (${placeholders})
+       GROUP BY presentation_session_id, emoji`, sessionIds
+    );
+    const reactionsBySession = new Map();
+    for (const row of reactionRows || []) {
+      const id = String(row.presentation_session_id);
+      if (!reactionsBySession.has(id)) reactionsBySession.set(id, { total: 0, byEmoji: {} });
+      const reactions = reactionsBySession.get(id);
+      const count = Number(row.reaction_count || 0);
+      reactions.total += count;
+      reactions.byEmoji[row.emoji] = count;
+    }
     for (const row of pollRows || []) {
       const sessionId = String(row.presentation_session_id);
       if (!pollsBySession.has(sessionId)) pollsBySession.set(sessionId, new Map());
@@ -207,7 +231,8 @@ class PresentationMetricsRepository {
           percentage: poll.totalResponses ? Math.round((option.count / poll.totalResponses) * 100) : 0
         }))
       })),
-      qna: qnaBySession.get(String(row.id)) || { received: 0, projected: 0 }
+      qna: qnaBySession.get(String(row.id)) || { received: 0, projected: 0 },
+      reactions: reactionsBySession.get(String(row.id)) || { total: 0, byEmoji: {} }
     }));
   }
 }

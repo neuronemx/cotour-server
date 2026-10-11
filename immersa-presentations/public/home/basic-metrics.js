@@ -136,7 +136,8 @@
     stats.append(
       metric("Asistencia", quantity(session.participants?.connected, "persona", "personas"), `Pico de ${Number(session.participants?.peak) || 0} conectadas`),
       metric("Encuestas", quantity((session.polls || []).length, "encuesta", "encuestas"), quantity(pollResponses, "respuesta", "respuestas")),
-      metric("Q&A", quantity(session.qna?.received, "recibida", "recibidas"), `${Number(session.qna?.projected) || 0} proyectada${Number(session.qna?.projected) === 1 ? "" : "s"}`)
+      metric("Q&A", quantity(session.qna?.received, "recibida", "recibidas"), `${Number(session.qna?.projected) || 0} proyectada${Number(session.qna?.projected) === 1 ? "" : "s"}`),
+      metric("Reacciones", Number(session.reactions?.total) || 0, ["❤️", "👏", "🔥"].map((emoji) => `${emoji} ${Number(session.reactions?.byEmoji?.[emoji]) || 0}`).join(" · "))
     );
     body.appendChild(stats);
     if ((session.polls || []).length) {

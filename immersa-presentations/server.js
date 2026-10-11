@@ -33,6 +33,7 @@ const {
   createPresentationLifecycleRuntime
 } = require("./presentation-lifecycle");
 const { PresentationMetricsRepository, createPresentationMetricsHandlers } = require("./presentation-metrics");
+const { ReactionRuntime } = require("./reaction-runtime");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
 const { createBetterAuthCompatibilityBridge } = require("./auth/better-auth-bridge");
@@ -84,7 +85,6 @@ const sessions = new Map();
 const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
 const deckSlideCounts = { demo: 3 };
-const allowedReactions = new Set(["❤️", "👏", "🔥"]);
 const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
@@ -189,6 +189,11 @@ const presentationLifecycleRuntime = lifecyclePool
       io,
       repository: new PresentationLifecycleRepository(lifecyclePool),
       getRoleRoomKey,
+      onState: (context, state) => {
+        const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
+        if (state.mode === "live") reactions?.setRecording(state.presentationSessionId);
+        else reactions?.resetCounts(null);
+      },
       beforeStart: async (context) => {
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
@@ -227,6 +232,11 @@ const presentationLifecycleRuntime = lifecyclePool
         return { ok: true };
       },
       afterFinish: async (context, state) => {
+        const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
+        if (reactions) {
+          reactions.accepting = false;
+          await reactions.flush(presentationMetricsRepository, context, state.completedPresentationSessionId);
+        }
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
         raffleSockets.resetSession(context);
@@ -809,6 +819,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
+    reactions: new ReactionRuntime({ emitScreen: (payload) => io.to(getRoleRoomKey(getRoomKey(sessionId, deckId), "screen")).emit("reaction", payload) }),
     audiovisual: createAudiovisualChannels(),
     audioReact: createAudioReactState(),
     time: createImmersaTimeState(),
@@ -1013,14 +1024,13 @@ async function setPresenterSlide(roomKey, session, nextIndex) {
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
 }
 
-function emitReaction(roomKey, session, emoji) {
-  if (!allowedReactions.has(emoji)) return;
-  io.to(roomKey).emit("reaction", { emoji, target: "audience", at: Date.now() });
-  io.to(roomKey).emit("reaction", { emoji, target: "presenter", at: Date.now() });
-  if (session.overlays.showReactions ?? session.overlays.reactionsOnScreen) {
-    io.to(roomKey).emit("reaction", { emoji, target: "screen", at: Date.now() });
+const reactionMetricsSweep = setInterval(() => {
+  for (const session of sessions.values()) {
+    void session.reactions.flush(presentationMetricsRepository, { deckId: session.deckId, sessionId: session.sessionId })
+      .catch((error) => console.error("Unable to persist reactions", error));
   }
-}
+}, 2000);
+reactionMetricsSweep.unref?.();
 
 function normalizeOverlayPatch(overlays = {}) {
   const patch = { ...overlays };
@@ -2015,7 +2025,7 @@ io.on("connection", (socket) => {
   });
 
   socket.use(([eventName], next) => {
-    if (currentRoomKey && isMeaningfulSessionEvent(eventName)) touchSession(currentRoomKey);
+    if (currentRoomKey && eventName !== "reaction" && isMeaningfulSessionEvent(eventName)) touchSession(currentRoomKey);
     next();
   });
 
@@ -2483,11 +2493,13 @@ io.on("connection", (socket) => {
     ).catch((error) => console.error("Unable to persist audience locale", error));
   });
 
-  socket.on("reaction", ({ emoji }) => {
+  socket.on("reaction", (payload) => {
     if (!currentRoomKey || currentRole !== "audience") return;
     const session = getSessionByRoomKey(currentRoomKey);
-    if (!session) return;
-    emitReaction(currentRoomKey, session, emoji);
+    if (!session || session.audience.get(currentAudienceId)?.socketId !== socket.id) return;
+    const accepted = session.reactions.react({ socket, audienceId: currentAudienceId, emoji: payload?.emoji,
+      showOnScreen: session.overlays.showReactions ?? session.overlays.reactionsOnScreen });
+    if (accepted) touchSession(currentRoomKey);
   });
 
   socket.on("drawing_stroke", (stroke) => {

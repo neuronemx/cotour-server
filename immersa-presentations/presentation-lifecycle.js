@@ -153,6 +153,7 @@ function createPresentationLifecycleRuntime({
   preserveAutomaticStart = async () => false,
   beforeFinish = async () => ({ ok: true }),
   afterFinish = async () => {},
+  onState = () => {},
   logger = console
 }) {
   if (!io?.to || !repository?.state || !getRoleRoomKey) {
@@ -184,6 +185,7 @@ function createPresentationLifecycleRuntime({
   }
 
   function emitState(context, state) {
+    onState(context, state);
     io.to(getRoleRoomKey(context.roomKey, "presenter")).emit("presentation:lifecycle:state", state);
     io.to(getRoleRoomKey(context.roomKey, "stage")).emit("presentation:lifecycle:state", state);
     return state;
@@ -217,6 +219,7 @@ function createPresentationLifecycleRuntime({
     const state = await withLock(context, async () => {
       const current = await repository.state(payload(context));
       if (current.mode === "live") return current;
+      onState(context, current);
       const preserveTestData = automatic && Boolean(await preserveAutomaticStart(context));
       if (!preserveTestData) await beforeStart(context);
       const started = await repository.start(payload(context), { preserveTestData });
@@ -252,7 +255,9 @@ function createPresentationLifecycleRuntime({
       const context = getContext();
       if (!validControl(context)) return;
       try {
-        socket.emit("presentation:lifecycle:state", await repository.state(payload(context)));
+        const state = await repository.state(payload(context));
+        onState(context, state);
+        socket.emit("presentation:lifecycle:state", state);
       } catch (error) {
         logger.error("Unable to read presentation lifecycle", error);
         reject(socket, "request", error);
@@ -284,7 +289,9 @@ function createPresentationLifecycleRuntime({
 
   async function sendCurrentState(socket, context) {
     if (!validControl(context)) return;
-    socket.emit("presentation:lifecycle:state", await repository.state(payload(context)));
+    const state = await repository.state(payload(context));
+    onState(context, state);
+    socket.emit("presentation:lifecycle:state", state);
   }
 
   async function startAutomatically(context) {

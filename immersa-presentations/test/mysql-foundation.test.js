@@ -81,7 +81,8 @@ test("database schema preserves Q&A and Speaker metrics storage contracts", asyn
     "032_event_activity_reopen_after_live_session.sql",
     "033_event_hub_polls.sql",
     "034_event_global_interaction_metrics.sql",
-    "035_multilanguage_attendance.sql"
+    "035_multilanguage_attendance.sql",
+    "036_presentation_reactions.sql"
   ]);
   const schema = (await Promise.all(files.map((file) => fs.promises.readFile(path.join(migrationsDir, file), "utf8")))).join("\n");
   assert.match(schema, /ENGINE=InnoDB/g);
@@ -153,7 +154,8 @@ test("migration runner serializes and records pending SQL files", async () => {
     "032_event_activity_reopen_after_live_session.sql",
     "033_event_hub_polls.sql",
     "034_event_global_interaction_metrics.sql",
-    "035_multilanguage_attendance.sql"
+    "035_multilanguage_attendance.sql",
+    "036_presentation_reactions.sql"
   ]);
   const recorded = calls.filter((call) => call.kind === "execute").map((call) => call.values[0]);
   assert.deepEqual(recorded, result.executed);

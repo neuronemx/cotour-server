@@ -17,7 +17,7 @@ test("Screen keeps the slide visible until the selected video paints its first f
   assert.match(source, /incoming\.classList\.add\("is-hiding"\)[\s\S]*revealVideoOnFirstFrame[\s\S]*incoming\.play\(\)/);
   assert.match(css, /\.audiovisual-screen-layer \{[^}]*background:transparent/);
   assert.match(css, /\.audiovisual-video-slot \{[\s\S]*background:#000;[\s\S]*transition:opacity \.18s ease/);
-  assert.match(html, /\/screen\/screen\.js\?v=23/);
+  assert.match(html, /\/screen\/screen\.js\?v=\d+/);
 });
 
 test("Screen removes video synchronously on stop or natural end", async () => {

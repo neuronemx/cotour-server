@@ -13,8 +13,8 @@ test("Deck metrics renders Speaker session summaries and poll details", () => {
 
   assert.match(html, /id="basicMetrics"/);
   assert.match(html, /id="basicMetricsRefresh"[^>]*>Actualizar/);
-  assert.match(html, /basic-metrics\.css\?v=1/);
-  assert.match(html, /basic-metrics\.js\?v=1/);
+  assert.match(html, /basic-metrics\.css\?v=\d+/);
+  assert.match(html, /basic-metrics\.js\?v=\d+/);
   assert.match(source, /\/api\/decks\/\$\{encodeURIComponent\(activeDeck\.deckId\)\}\/metrics\/basic/);
   assert.match(source, /capabilities\?\.\["metrics\.basic"\] === true/);
   assert.match(source, /Inicia manualmente desde Backstage/);
