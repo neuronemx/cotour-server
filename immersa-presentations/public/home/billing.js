@@ -46,6 +46,12 @@
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
 
+  function syncBillingViewport() {
+    if (!modal) return;
+    const headerBottom = document.querySelector(".stage-header")?.getBoundingClientRect().bottom || 0;
+    modal.style.setProperty("--billing-header-offset", Math.max(0, Math.ceil(headerBottom)) + "px");
+  }
+
   const money = (centavos) => new Intl.NumberFormat(currency === "usd" ? "en-US" : "es-MX", {
     style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
   }).format(Math.max(0, Number(centavos) || 0) / 100);
@@ -528,6 +534,7 @@
 
   async function open() {
     closePlanChangeConfirmation();
+    syncBillingViewport();
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
@@ -553,6 +560,7 @@
   }
 
   window.setInterval(updatePassCountdown, 60 * 1000);
+  window.addEventListener("resize", () => { if (!modal?.hidden) syncBillingViewport(); });
 
   openButton?.addEventListener("click", open);
   closeButton?.addEventListener("click", close);

@@ -234,7 +234,10 @@ function bindAudiovisualMediaEvents(type, media) {
     if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
   });
   media.addEventListener("ended", () => {
-    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) clearVideoPlaylistAdvance();
+    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) {
+      clearVideoPlaylistAdvance();
+      hideVideoLayerImmediately();
+    }
     socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type });
   });
 }
@@ -273,14 +276,37 @@ function ensureAudiovisualLayer() {
     console.warn("Audio React could not initialize; media playback continues.", error);
   }
 }
-function stopVideoSlots() {
+function hideVideoLayerImmediately() {
   videoTransitionToken += 1;
   clearVideoPlaylistAdvance();
   (audiovisualMedia?.video || []).forEach((media) => {
-    media.pause();
-    media.currentTime = 0;
+    media.classList.add("is-hiding");
     media.classList.remove("is-visible");
+    media.pause();
   });
+  audiovisualLayer?.classList.remove("is-video");
+  screenRoot.classList.remove("has-audiovisual-video");
+}
+function stopVideoSlots() {
+  hideVideoLayerImmediately();
+  (audiovisualMedia?.video || []).forEach((media) => {
+    media.currentTime = 0;
+  });
+}
+function revealVideoOnFirstFrame(media, token, resourceId, onReveal) {
+  let revealed = false;
+  const reveal = () => {
+    if (revealed || token !== videoTransitionToken || media.dataset.resourceId !== resourceId || audiovisualState.video?.status !== "playing") return;
+    revealed = true;
+    media.classList.remove("is-hiding");
+    media.classList.add("is-visible");
+    onReveal();
+  };
+  if (typeof media.requestVideoFrameCallback === "function") {
+    media.requestVideoFrameCallback(reveal);
+  } else {
+    media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
+  }
 }
 function applyVideoState(state) {
   const resource = state?.resource;
@@ -289,62 +315,51 @@ function applyVideoState(state) {
     stopVideoSlots();
     return;
   }
-  const current = slots[activeVideoSlot];
-  const currentId = String(current.dataset.resourceId || "");
   const nextId = String(resource.id || "");
-  const volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
-  if (currentId !== nextId) {
-    clearVideoPlaylistAdvance();
-    const incomingIndex = 1 - activeVideoSlot;
-    const incoming = slots[incomingIndex];
+  const current = slots[activeVideoSlot];
+  let incomingIndex = slots.findIndex((media) => media.dataset.resourceId === nextId);
+  if (incomingIndex < 0) incomingIndex = 1 - activeVideoSlot;
+  const incoming = slots[incomingIndex];
+  const token = ++videoTransitionToken;
+  clearVideoPlaylistAdvance();
+  if (incoming.dataset.resourceId !== nextId) {
     const mediaUrl = resolveAudiovisualMediaUrl(resource);
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
-    const token = ++videoTransitionToken;
     incoming.pause();
+    incoming.classList.add("is-hiding");
+    incoming.classList.remove("is-visible");
     incoming.dataset.resourceId = nextId;
     incoming.src = mediaUrl;
-    incoming.currentTime = 0;
-    incoming.loop = Boolean(state.loop && !resource?.playlist);
-    incoming.volume = volume;
-    incoming.classList.remove("is-visible");
-    const begin = () => {
-      if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || audiovisualState.video?.status !== "playing") return;
-      incoming.play().catch(() => {});
-      const hasCurrentVideo = Boolean(currentId && !current.paused);
-      incoming.classList.add("is-visible");
-      if (!hasCurrentVideo) {
-        current.classList.remove("is-visible");
-        activeVideoSlot = incomingIndex;
-        scheduleVideoPlaylistAdvance(incoming);
-        return;
-      }
-      current.classList.remove("is-visible");
-      activeVideoSlot = incomingIndex;
-      scheduleVideoPlaylistAdvance(incoming);
-      window.setTimeout(() => {
-        if (token !== videoTransitionToken) return;
-        current.pause();
-        current.currentTime = 0;
-        current.removeAttribute("src");
-        current.load();
-      }, 500);
-    };
-    incoming.addEventListener("canplay", begin, { once: true });
     incoming.load();
+  }
+  incoming.loop = Boolean(state.loop && !resource.playlist);
+  incoming.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  const shouldSynchronizePosition = ["seek", "play", "pause"].includes(state.lastAction);
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(incoming.currentTime - Number(state.position)) > 1.2) incoming.currentTime = Number(state.position);
+  if (state.status !== "playing") {
+    slots.forEach((media) => media.pause());
     return;
   }
-  current.loop = Boolean(state.loop && !resource?.playlist);
-  current.volume = volume;
-  const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
-  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(current.currentTime - Number(state.position)) > 1.2) current.currentTime = Number(state.position);
-  if (state.status === "playing") {
-    current.classList.add("is-visible");
-    current.play().catch(() => {});
-    scheduleVideoPlaylistAdvance(current);
-  } else {
-    clearVideoPlaylistAdvance();
-    current.pause();
+  if (incoming.classList.contains("is-visible")) {
+    incoming.play().catch(() => {});
+    scheduleVideoPlaylistAdvance(incoming);
+    return;
   }
+  revealVideoOnFirstFrame(incoming, token, nextId, () => {
+    slots.forEach((media) => { media.style.zIndex = media === incoming ? "1" : "0"; });
+    activeVideoSlot = incomingIndex;
+    screenRoot.classList.add("has-audiovisual-video");
+    scheduleVideoPlaylistAdvance(incoming);
+    if (current === incoming) return;
+    // Keep the previous picture under the incoming dissolve until it is opaque.
+    window.setTimeout(() => {
+      if (token !== videoTransitionToken || activeVideoSlot !== incomingIndex) return;
+      current.classList.add("is-hiding");
+      current.classList.remove("is-visible");
+      current.pause();
+    }, 180);
+  });
+  incoming.play().catch(() => {});
 }
 function applyAudioState(state) {
   const media = audiovisualMedia.audio;
@@ -390,7 +405,7 @@ function applyAudiovisualState(next = {}) {
   const videoState = audiovisualState.video || emptyAudiovisualChannel();
   const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
   audiovisualLayer.classList.toggle("is-video", hasVideo);
-  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && videoState.status === "playing"));
+  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.status === "playing" && audiovisualMedia.video[activeVideoSlot].classList.contains("is-visible")));
 }
 function clearImmersaTimeTick() {
   if (immersaTimeTick) clearTimeout(immersaTimeTick);
