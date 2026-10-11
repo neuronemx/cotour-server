@@ -889,3 +889,23 @@
     overscroll-behavior-y:none;
   }
 }
+
+.deck-tabs-more { position:absolute; right:8px; z-index:13; width:34px; height:34px; border-radius:50%; border:1px solid #ddd; background:#fff; color:var(--ink); font-size:23px; line-height:1; box-shadow:0 0 0 6px #fff; }
+.deck-tabs-more[hidden] { display:none; }
+@media (max-width:700px) and (orientation:portrait) {
+  #deckDetailModal nav.deck-detail-tabs { padding-right:52px; clip-path:inset(0 44px 0 0); }
+  .deck-transition-settings { padding:14px; }
+}
+
+.deck-detail-modal { position:relative; }
+
+/* Keep the transition controls centered without an empty status row. */
+.deck-detail-modal .deck-transition-settings { display:grid; grid-template-columns:minmax(0,1fr); align-items:center; gap:0; padding:11px 14px; }
+.deck-detail-modal .deck-transition-row { width:100%; align-items:center; }
+.deck-detail-modal .deck-transition-row label { display:flex; align-items:center; margin:0; }
+.deck-detail-modal .deck-transition-row select { margin:0; }
+.deck-detail-modal .deck-transition-status:empty { display:none; }
+.deck-detail-modal .deck-transition-status:not(:empty) { margin-top:8px; }
+.deck-tabs-more { display:grid; place-items:center; padding:0; }
+.deck-tabs-more svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.deck-tabs-more.is-returning svg { transform:rotate(180deg); }
