@@ -19,7 +19,7 @@ test("Tiempo is centered in the Speaker canvas and offers immediate 5 10 30 minu
   const script = read("public/presenter/presenter.js");
   const css = read("public/presenter/presenter.css");
 
-  assert.match(script, /streamArea\.appendChild\(immersaTimePanel\)/);
+  assert.match(script, /document\.body\.appendChild\(immersaTimePanel\)/);
   for (const minutes of [5, 10, 30]) assert.match(script, new RegExp(`data-time-shortcut="${minutes}"`));
   assert.match(script, /socket\.emit\("time:control", \{ target: "screen", action: "start", mode: "countdown", hours: 0, minutes, seconds: 0 \}\)/);
   assert.match(css, /\.time-panel \{[\s\S]*?position: absolute;[\s\S]*?max-height: calc\(100% - 32px\);/);

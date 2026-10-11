@@ -177,7 +177,41 @@ function applySlideOrientation(item, src) { const portrait = item?.orientation =
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
 function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }
 function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
-function applyLiveMessage(overlays = {}) { if (!liveMessage) return; const text = overlays.messageText || ""; const visible = Boolean(overlays.messageVisible && text); liveMessage.textContent = visible ? text : ""; liveMessage.classList.toggle("hidden", !visible); }
+function liveMessageUrl(text) {
+  const match = String(text || "").match(/(?:https?:\/\/|www\.)[^\s<>"']+/i);
+  if (!match) return "";
+  let candidate = match[0].replace(/[),.;!?]+$/, "");
+  if (/^www\./i.test(candidate)) candidate = "https://" + candidate;
+  try {
+    const parsed = new URL(candidate);
+    return /^https?:$/.test(parsed.protocol) ? parsed.href : "";
+  } catch (_error) {
+    return "";
+  }
+}
+function applyLiveMessage(overlays = {}) {
+  if (!liveMessage) return;
+  const text = String(overlays.messageText || "");
+  const visible = Boolean(overlays.messageVisible && text);
+  liveMessage.replaceChildren();
+  if (visible) {
+    const copy = document.createElement("span");
+    copy.className = "live-message-copy";
+    copy.textContent = text;
+    liveMessage.appendChild(copy);
+    const url = liveMessageUrl(text);
+    if (url) {
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "live-message-go";
+      go.textContent = "Ir";
+      go.setAttribute("aria-label", "Abrir enlace en una pestaña nueva");
+      go.addEventListener("click", () => window.open(url, "_blank", "noopener,noreferrer"));
+      liveMessage.appendChild(go);
+    }
+  }
+  liveMessage.classList.toggle("hidden", !visible);
+}
 function render(state) { const index = state.liveSlideIndex ?? state.slideIndex; const nextIndex = Math.max(0, Math.min(index, manifest.slides.length - 1)); const previousIndex = currentSlideIndex; const changed = nextIndex !== previousIndex; if (changed) resetZoom(); currentSlideIndex = nextIndex; const item = manifest.slides[currentSlideIndex]; const src = slideUrl(currentSlideIndex); if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, nextIndex - previousIndex); else slide.src = src; window.ImmersaSlideTransitions?.preload([currentSlideIndex - 1, currentSlideIndex + 1].filter((slideIndex) => manifest.slides[slideIndex]).map(slideUrl)); applySlideOrientation(item, src); window.ImmersaDemoPlanBadge?.update(viewport, item, manifest); applyLiveMessage(state.overlays || {}); drawingOverlay?.refresh(); }
 function popReaction(emoji) { const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(15 + Math.random() * 70) + "vw"; document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2700); }
 function takeSnapshot() { if (!manifest || snapshot?.disabled) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }

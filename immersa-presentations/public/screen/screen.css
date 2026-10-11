@@ -40,9 +40,6 @@
 }
 .message { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(82vw, 980px); max-height: min(76vh, 640px); display: grid; justify-items: center; gap: 22px; overflow: auto; overscroll-behavior: contain; padding: 34px 42px; border-radius: 8px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.18); color: #f8f4ea; text-align: center; font-size: clamp(34px, 5vw, 72px); font-weight: 800; line-height: 1.08; backdrop-filter: blur(14px); box-shadow: 0 22px 90px rgba(0,0,0,.5); }
 .message-copy { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
-.message-go { min-height: 48px; padding: 0 26px; border: 1px solid rgba(255,255,255,.34); border-radius: 999px; color: #071211; background: #68d8cc; box-shadow: 0 10px 28px rgba(0,0,0,.28); font: 800 20px/1 Inter, "Segoe UI", Arial, sans-serif; cursor: pointer; }
-.message-go:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.message-go:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .qr { position: fixed; z-index: 3; right: 32px; bottom: 32px; width: min(440px, 50vw); padding: 20px; display: grid; gap: 12px; border-radius: 8px; background: rgba(248,244,234,.94); color: #111; box-shadow: 0 18px 70px rgba(0,0,0,.38); }
 .qr-pattern { width: 100%; aspect-ratio: 1; background: #fff; display: grid; place-items: center; overflow: hidden; }
 .qr-pattern canvas, .qr-pattern img { display: block; width: 100%; height: auto; }

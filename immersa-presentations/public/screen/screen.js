@@ -499,17 +499,6 @@ function syncScreenFocus() {
   const resultsVisible = Boolean(interactionOverlay && !interactionOverlay.classList.contains("interaction-hidden"));
   screenRoot.classList.toggle("has-focus-overlay", messageVisible || resultsVisible);
 }
-function liveMessageUrl(text) {
-  const match = String(text || "").match(/\bhttps?:\/\/[^\s<>"']+/i);
-  if (!match) return "";
-  const candidate = match[0].replace(/[),.;!?]+$/, "");
-  try {
-    const parsed = new URL(candidate);
-    return /^https?:$/.test(parsed.protocol) ? parsed.href : "";
-  } catch (_error) {
-    return "";
-  }
-}
 function renderLiveMessage() {
   const text = String(overlays.messageText || "");
   const visible = Boolean(overlays.messageVisible && text);
@@ -522,16 +511,6 @@ function renderLiveMessage() {
   copy.className = "message-copy";
   copy.textContent = text;
   message.appendChild(copy);
-  const url = liveMessageUrl(text);
-  if (url) {
-    const go = document.createElement("button");
-    go.type = "button";
-    go.className = "message-go";
-    go.textContent = "Ir";
-    go.setAttribute("aria-label", "Abrir enlace en una pestaña nueva");
-    go.addEventListener("click", () => window.open(url, "_blank", "noopener,noreferrer"));
-    message.appendChild(go);
-  }
   message.classList.remove("hidden");
 }
 function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); renderLiveMessage(); syncScreenFocus(); }
