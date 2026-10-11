@@ -193,13 +193,14 @@ function applyLiveMessage(overlays = {}) {
   if (!liveMessage) return;
   const text = String(overlays.messageText || "");
   const visible = Boolean(overlays.messageVisible && text);
+  const url = visible ? liveMessageUrl(text) : "";
   liveMessage.replaceChildren();
+  liveMessage.classList.toggle("has-link", Boolean(url));
   if (visible) {
     const copy = document.createElement("span");
     copy.className = "live-message-copy";
     copy.textContent = text;
     liveMessage.appendChild(copy);
-    const url = liveMessageUrl(text);
     if (url) {
       const go = document.createElement("button");
       go.type = "button";

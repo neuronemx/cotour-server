@@ -56,6 +56,9 @@ body {
     0 22px 64px rgba(0,0,0,.4);
 }
 .stream-area.is-drawing { touch-action: none; }
+.stream-area.is-time-open > .immersa-video-slide,
+.stream-area.is-time-open > .immersa-youtube-slide,
+.stream-area.is-time-open > .immersa-youtube-slide iframe { pointer-events: none !important; }
 .stream-area::before, .stream-area::after { content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .stream-area.portrait-slide::before { background-image: var(--slide-bg); background-size: cover; background-position: center; filter: blur(30px); transform: scale(1.09); opacity: .58; }
 .stream-area.portrait-slide::after { background: rgba(0,0,0,.44); opacity: 1; }

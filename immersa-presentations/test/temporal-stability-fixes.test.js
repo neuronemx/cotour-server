@@ -35,22 +35,28 @@ test("Público recognizes http, https, and www links without HTML injection", ()
   assert.match(script, /window\.open\(url, "_blank", "noopener,noreferrer"\)/);
   assert.doesNotMatch(script, /liveMessage\.innerHTML/);
   assert.match(css, /\.live-message-copy \{[\s\S]*?overflow-wrap: anywhere;/);
-  assert.match(css, /\.live-message-go \{[\s\S]*?pointer-events: auto;/);
-  assert.match(html, /audience\.css\?v=23/);
-  assert.match(html, /audience\.js\?v=17/);
+  assert.match(script, /classList\.toggle\("has-link", Boolean\(url\)\)/);
+  assert.match(css, /\.live-message\.has-link \{ padding-bottom: 48px; \}/);
+  assert.match(css, /\.live-message-go \{[\s\S]*?position: absolute;[\s\S]*?right: 10px;[\s\S]*?bottom: 10px;[\s\S]*?min-height: 29px;[\s\S]*?pointer-events: auto;/);
+  assert.match(html, /audience\.css\?v=24/);
+  assert.match(html, /audience\.js\?v=18/);
 });
 
-test("A running Speaker audiovisual video cannot contain or intercept the Tiempo modal", () => {
+test("A running Speaker audiovisual video cannot intercept the Tiempo modal", () => {
   const script = read("public/presenter/presenter.js");
   const css = read("public/presenter/presenter.css");
   const html = read("public/presenter/index.html");
 
-  assert.match(script, /document\.body\.appendChild\(immersaTimePanel\)/);
-  assert.doesNotMatch(script, /streamArea\.appendChild\(immersaTimePanel\)/);
+  assert.match(script, /streamArea\.appendChild\(immersaTimePanel\)/);
+  assert.doesNotMatch(script, /document\.body\.appendChild\(immersaTimePanel\)/);
+  assert.match(script, /streamArea\.classList\.add\("is-time-open"\)/);
+  assert.match(script, /streamArea\.classList\.remove\("is-time-open"\)/);
   assert.match(script, /data-time-close/);
   assert.match(script, /addEventListener\("click", closeImmersaTimePanel\)/);
   assert.match(css, /\.time-panel\.is-open \{[\s\S]*?pointer-events: auto;/);
-  assert.match(html, /presenter\.js\?v=85/);
+  assert.match(css, /\.stream-area\.is-time-open > \.immersa-video-slide,[\s\S]*?pointer-events: none !important;/);
+  assert.match(html, /presenter\.css\?v=82/);
+  assert.match(html, /presenter\.js\?v=86/);
 });
 
 test("Audience uses a fixed viewport so Safari keeps the slide centered", () => {
@@ -59,5 +65,5 @@ test("Audience uses a fixed viewport so Safari keeps the slide centered", () => 
 
   assert.match(css, /\.audience \{ position: fixed; inset: 0; width: auto; height: auto;/);
   assert.match(css, /#slide \{[\s\S]*?width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain;/);
-  assert.match(html, /audience\.css\?v=23/);
+  assert.match(html, /audience\.css\?v=24/);
 });
