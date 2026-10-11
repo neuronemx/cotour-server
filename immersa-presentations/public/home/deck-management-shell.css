@@ -889,3 +889,12 @@
     overscroll-behavior-y:none;
   }
 }
+
+.deck-tabs-more { position:absolute; right:8px; z-index:13; width:34px; height:34px; border-radius:50%; border:1px solid #ddd; background:#fff; color:var(--ink); font-size:23px; line-height:1; box-shadow:0 0 0 6px #fff; }
+.deck-tabs-more[hidden] { display:none; }
+@media (max-width:700px) and (orientation:portrait) {
+  #deckDetailModal nav.deck-detail-tabs { padding-right:52px; clip-path:inset(0 44px 0 0); }
+  .deck-transition-settings { padding:14px; }
+}
+
+.deck-detail-modal { position:relative; }

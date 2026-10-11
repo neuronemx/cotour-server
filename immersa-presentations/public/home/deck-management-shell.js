@@ -9,6 +9,25 @@
   const participationTab = tabs.find((tab) => tab.dataset.deckTab === "participation");
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
+  const rail = modal.querySelector('.deck-detail-tabs');
+  const more = document.getElementById('deckTabsMore');
+  function syncMore() {
+    if (!rail || !more) return;
+    const mobile = window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
+    more.hidden = !mobile || rail.scrollWidth <= rail.clientWidth + 1;
+    more.style.top = (Math.max(rail.offsetTop, shell.scrollTop) + (rail.offsetHeight - 34) / 2) + 'px';
+    more.setAttribute('aria-label', rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 2 ? 'Volver a las primeras secciones' : 'Más secciones del deck');
+  }
+  more?.addEventListener('click', () => {
+    const atEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 2;
+    rail.scrollTo({ left: atEnd ? 0 : rail.scrollLeft + rail.clientWidth * .7, behavior: 'smooth' });
+  });
+  rail?.addEventListener('scroll', syncMore, { passive: true });
+  shell.addEventListener('scroll', syncMore, { passive: true });
+  window.addEventListener('resize', syncMore);
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMore).observe(rail);
+  document.addEventListener('immersa:deck-detail-open', () => requestAnimationFrame(syncMore));
+
   const moduleDetails = {
     participation: {
       selector: ".role-interactions",
@@ -71,6 +90,7 @@
       });
     }
     if (moduleDetails[name]) mountEditor(name);
+    requestAnimationFrame(syncMore);
   }
 
   function syncDemoMasterTabs(deck) {

@@ -19,11 +19,20 @@
   let data;
   let slide;
   let bilingual = false;
+  let canManageEnglish = false;
+  let currentDeck = null;
+  function syncEnglish() {
+    bilingual = canManageEnglish && Number(currentDeck?.locales?.en?.slides || 0) > 0;
+    enWrapper.hidden = !bilingual;
+    updateCount();
+  }
   const words = (value) => String(value || '').trim().split(/\s+/).filter(Boolean).length;
   function updateCount() { count.textContent = words(esField.value) + ' palabras ES' + (bilingual ? ' · ' + words(enField.value) + ' palabras EN' : ''); }
   function close() { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); }
   async function open(request) {
     deck = request.deck;
+    currentDeck = deck;
+    syncEnglish();
     slide = request;
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
@@ -59,7 +68,14 @@
     else close();
   }
   document.addEventListener('immersa:deck-detail-open', (event) => {
-    bilingual = event.detail?.capabilities?.['multilanguage.manage'] === true;
+    canManageEnglish = event.detail?.capabilities?.['multilanguage.manage'] === true;
+    currentDeck = event.detail?.deck || null;
+    syncEnglish();
+  });
+  document.addEventListener('immersa:deck-locale-updated', (event) => {
+    if (String(currentDeck?.deckId) !== String(event.detail?.deckId)) return;
+    currentDeck.locales = { ...(currentDeck.locales || {}), en: event.detail.variant };
+    syncEnglish();
   });
   document.addEventListener('immersa:deck-prompter-slide-request', (event) => open(event.detail).catch((error) => { status.textContent = error.message; }));
   esField?.addEventListener('input', updateCount);
