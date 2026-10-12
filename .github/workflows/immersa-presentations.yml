@@ -80,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: ['mariadb:11.4', 'mysql:9']
+        database: ['mariadb:11.4', 'mysql:9.7.2']
     services:
       database:
         image: ${{ matrix.database }}
