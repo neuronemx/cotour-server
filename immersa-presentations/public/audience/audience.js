@@ -38,10 +38,14 @@ const pointers = new Map();
 const viewer = document.getElementById("viewer");
 function syncRaffleVisibleHeight() {
   const height = window.visualViewport?.height || window.innerHeight;
-  if (viewer && Number.isFinite(height) && height > 0) viewer.style.setProperty('--raffle-visible-height', height + 'px');
+  if (!viewer || !Number.isFinite(height) || height <= 0) return;
+  viewer.style.setProperty('--raffle-visible-height', height + 'px');
+  const offset = window.visualViewport?.offsetTop || 0;
+  viewer.style.setProperty('--raffle-visible-top', Math.max(0, offset) + 'px');
 }
 syncRaffleVisibleHeight();
 window.visualViewport?.addEventListener('resize', syncRaffleVisibleHeight);
+window.visualViewport?.addEventListener('scroll', syncRaffleVisibleHeight);
 window.addEventListener('resize', syncRaffleVisibleHeight);
 
 const viewport = document.getElementById("slideViewport");

@@ -248,3 +248,12 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
   .audience.is-raffle-split .raffle-public-ticket strong { font-size:calc(var(--raffle-ticket-width) * .32); }
   .audience.is-raffle-split .raffle-public-ticket-state p { font-size:clamp(15px, 4vw, 18px); }
 }
+
+/* While typing, the name form uses the visible area above the iOS keyboard. */
+@media (orientation:portrait) and (max-width:520px) {
+  .audience.is-raffle-split .raffle-public-overlay.is-free.is-collecting:not(.has-ticket):focus-within {
+    top:calc(var(--raffle-visible-top, 0px) + 12px);
+    height:max(0px, calc(var(--raffle-visible-height, 100dvh) - 24px));
+    z-index:37;
+  }
+}
