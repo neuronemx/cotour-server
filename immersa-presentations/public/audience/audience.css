@@ -251,7 +251,7 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 
 /* While typing, the name form uses the visible area above the iOS keyboard. */
 @media (orientation:portrait) and (max-width:520px) {
-  .audience.is-raffle-split .raffle-public-overlay.is-free.is-collecting:not(.has-ticket):focus-within {
+  .audience.is-raffle-split.is-raffle-name-editing .raffle-public-overlay.is-free.is-collecting:not(.has-ticket) {
     top:calc(var(--raffle-visible-top, 0px) + 12px);
     height:max(0px, calc(var(--raffle-visible-height, 100dvh) - 24px));
     z-index:37;
