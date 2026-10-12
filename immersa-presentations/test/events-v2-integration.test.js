@@ -56,11 +56,11 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const grants = new EventGrantRepository(domain, { now: () => grantNow });
   const grantSockets = createEventGrantSockets({ io: sockets, grants, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
   t.after(() => grantSockets.close());
-  app.use('/api/events-v2', createGrantAccessRouter({ grants, enabled: () => domainEnabled && grantEnabled }));
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json());
   app.use(boundary.httpMiddleware());
+  app.use('/api/events-v2', createGrantAccessRouter({ grants, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
   const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets });

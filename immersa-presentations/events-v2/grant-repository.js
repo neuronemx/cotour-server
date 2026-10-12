@@ -82,6 +82,7 @@ class EventGrantRepository {
     // not an implicit consequence of having an account ADMIN role.
     await this.domain.event(db, orgId, eventId, actor,
       kind === 'SPEAKER' ? 'event.configure' : 'event.members.manage');
+    await this.domain.user(db, actor);
     const org = (await this.rows(db, `SELECT authz_version FROM event_organization_memberships
       WHERE organization_id = ? AND user_id = ? AND active = 1`, [orgId, actor]))[0];
     const member = (await this.rows(db, `SELECT authz_version FROM event_memberships
@@ -195,6 +196,7 @@ class EventGrantRepository {
 
   async createSession(db, g, context) {
     const sessionToken = secret(), expires = new Date(Math.min(this.now().getTime() + this.sessionTtlMs, g.expires_at.getTime()));
+    await db.execute('DELETE FROM event_grant_sessions WHERE grant_id = ? AND expires_at <= ?', [g.id, this.now()]);
     await db.execute('INSERT INTO event_grant_sessions (token_hash,grant_id,expires_at) VALUES (?,?,?)', [hash(sessionToken), g.id, expires]);
     return { context, sessionToken, sessionExpiresAt: expires.toISOString() };
   }
