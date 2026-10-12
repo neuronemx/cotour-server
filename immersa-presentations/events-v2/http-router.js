@@ -1,7 +1,8 @@
 const express = require('express');
 const { EventAccessError, accountActor, assertFields } = require('./authorization');
+const { requireOrigin } = require('./grant-http');
 
-function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false }) {
+function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null }) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -30,20 +31,39 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
       return res.status(503).json({ code: 'AUTHORIZATION_UNAVAILABLE' });
     }
   };
+  const revalidate = action => async (req, actor) => {
+    const result = await action(req, actor);
+    await grantSockets?.reviewAll();
+    return result;
+  };
   router.post('/platform/organizations', requirePlatformAdmin, handle((req, actor) => repository.createOrganization(actor, req.body), ['name', 'adminUserId', 'createEventsEnabled'], 201));
   router.patch('/platform/organizations/:orgId', requirePlatformAdmin, handle((req, actor) => repository.setCreationEnabled(actor, req.params.orgId, req.body.createEventsEnabled), ['createEventsEnabled']));
   router.get('/organizations', handle((_req, actor) => repository.listOrganizations(actor)));
   router.get('/organizations/:orgId', handle((req, actor) => repository.getOrganization(actor, req.params.orgId)));
-  router.put('/organizations/:orgId/members/:userId', handle((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, req.body.role), ['role']));
-  router.delete('/organizations/:orgId/members/:userId', handle((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, null)));
+  router.put('/organizations/:orgId/members/:userId', handle(revalidate((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, req.body.role)), ['role']));
+  router.delete('/organizations/:orgId/members/:userId', handle(revalidate((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, null))));
   router.post('/organizations/:orgId/events', handle((req, actor) => repository.createEvent(actor, req.params.orgId, req.body), ['title', 'slug', 'timezone'], 201));
   router.get('/organizations/:orgId/events', handle((req, actor) => repository.listEvents(actor, req.params.orgId)));
   const eventPath = '/organizations/:orgId/events/:eventId';
   router.get(eventPath, handle((req, actor) => repository.getEvent(actor, req.params.orgId, req.params.eventId)));
   router.patch(eventPath, handle((req, actor) => repository.updateEvent(actor, req.params.orgId, req.params.eventId, req.body.title), ['title']));
-  router.put(eventPath + '/members/:userId', handle((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, req.body.roles), ['roles']));
-  router.delete(eventPath + '/members/:userId', handle((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, null)));
+  router.put(eventPath + '/members/:userId', handle(revalidate((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, req.body.roles)), ['roles']));
+  router.delete(eventPath + '/members/:userId', handle(revalidate((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, null))));
   router.get(eventPath + '/activities/:activityId', handle((req, actor) => repository.getActivity(actor, req.params.orgId, req.params.eventId, req.params.activityId)));
+  if (grants) {
+    router.put(eventPath + '/operational-window', requireOrigin, handle(async (req, actor) => {
+      const result = await grants.setWindow(actor, req.params.orgId, req.params.eventId, req.body.endsAt);
+      await grantSockets?.reviewAll();
+      return result;
+    }, ['endsAt']));
+    router.post(eventPath + '/grants', requireOrigin, handle((req, actor) => grants.issue(actor, req.params.orgId, req.params.eventId, req.body),
+      ['kind', 'purpose', 'stageId', 'activityId', 'liveSessionId'], 201));
+    router.delete(eventPath + '/grants/:grantId', requireOrigin, handle(async (req, actor) => {
+      const result = await grants.revoke(actor, req.params.orgId, req.params.eventId, req.params.grantId);
+      grantSockets?.disconnectGrant(result.grantId);
+      return result;
+    }));
+  }
   // No v2 endpoint falls through to legacy routes, even when a live family is
   // not implemented yet. This router deliberately exposes metadata only.
   router.use((_req, res) => res.status(404).json({ code: 'RESOURCE_NOT_FOUND' }));
