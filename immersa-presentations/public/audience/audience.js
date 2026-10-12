@@ -36,6 +36,75 @@ let qnaCooldownUntil = 0;
 let audienceAccessMessage = "";
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
+function createRaffleViewportRuntime({ viewer, window, document }) {
+  let baseline = window.visualViewport?.height || window.innerHeight;
+  let editing = false;
+  let closing = false;
+  let keyboardSeen = false;
+  let restoreTimer = null;
+  const isName = (target) => Boolean(target?.matches?.('[data-raffle-name]'));
+  const geometry = () => ({ height: window.visualViewport?.height || window.innerHeight, top: Math.max(0, window.visualViewport?.offsetTop || 0) });
+  function publish({ height, top }) {
+    if (!viewer || !Number.isFinite(height) || height <= 0) return;
+    viewer.style.setProperty('--raffle-visible-height', height + 'px');
+    viewer.style.setProperty('--raffle-visible-top', top + 'px');
+  }
+  function cancelRestore() {
+    if (restoreTimer !== null) window.clearTimeout(restoreTimer);
+    restoreTimer = null;
+  }
+  function sync() {
+    const current = geometry();
+    if (!Number.isFinite(current.height) || current.height <= 0) return;
+    if (editing && current.height < baseline - 150) keyboardSeen = true;
+    // Enter/OK can hide the keyboard before or after the input loses focus.
+    if (editing && keyboardSeen && current.height >= baseline - 80) closing = true;
+    if (closing) {
+      cancelRestore();
+      if (current.height >= baseline - 80) {
+        restoreTimer = window.setTimeout(() => {
+          restoreTimer = null;
+          const settled = geometry();
+          if (!closing || settled.height < baseline - 80) return;
+          // Restore geometry and layout together; never render the shrunken split.
+          publish(settled);
+          editing = closing = keyboardSeen = false;
+          baseline = settled.height;
+          viewer?.classList.remove('is-raffle-name-editing');
+        }, 120);
+      }
+      return;
+    }
+    if (!editing && isName(document.activeElement) && current.height < baseline - 150) {
+      editing = keyboardSeen = true;
+      viewer?.classList.add('is-raffle-name-editing');
+    }
+    if (!editing) baseline = current.height;
+    publish(current);
+  }
+  document.addEventListener('focusin', (event) => {
+    if (!isName(event.target)) return;
+    cancelRestore();
+    editing = true;
+    closing = false;
+    keyboardSeen = false;
+    baseline = Math.max(baseline, geometry().height);
+    viewer?.classList.add('is-raffle-name-editing');
+    sync();
+  }, true);
+  document.addEventListener('focusout', (event) => {
+    if (!editing || !isName(event.target)) return;
+    closing = true;
+    sync();
+  }, true);
+  window.visualViewport?.addEventListener('resize', sync);
+  window.visualViewport?.addEventListener('scroll', sync);
+  window.addEventListener('resize', sync);
+  sync();
+  return { sync };
+}
+const raffleViewportRuntime = createRaffleViewportRuntime({ viewer, window, document });
+
 const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");

@@ -39,8 +39,8 @@ test("Público recognizes http, https, and www links without HTML injection", ()
   assert.match(css, /\.live-message\.has-link \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*?padding: 11px 10px 11px 15px;/);
   assert.match(css, /\.live-message-go \{[\s\S]*?position: static;[\s\S]*?width: auto;[\s\S]*?min-height: 24px;[\s\S]*?font: 800 10px\/1[\s\S]*?pointer-events: auto;/);
   assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\)[\s\S]*?\.live-message\.has-link \{ padding: 8px 8px 8px 12px; \}[\s\S]*?\.live-message-go \{ min-height: 22px;/);
-  assert.match(html, /audience\.css\?v=26/);
-  assert.match(html, /audience\.js\?v=18/);
+  assert.match(html, /audience\.css\?v=29/);
+  assert.match(html, /audience\.js\?v=21/);
 });
 
 test("A running Speaker audiovisual video cannot intercept the Tiempo modal", () => {
@@ -67,5 +67,5 @@ test("Audience uses a fixed viewport so Safari keeps the slide centered", () => 
 
   assert.match(css, /\.audience \{ position: fixed; inset: 0; width: auto; height: auto;/);
   assert.match(css, /#slide \{[\s\S]*?width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain;/);
-  assert.match(html, /audience\.css\?v=26/);
+  assert.match(html, /audience\.css\?v=29/);
 });
