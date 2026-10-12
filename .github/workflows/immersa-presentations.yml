@@ -80,7 +80,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: ['mariadb:11.4', 'mysql:9.7.2']
+        include:
+          - database: 'mariadb:11.4'
+            healthcheck: 'healthcheck.sh --connect --innodb_initialized'
+          - database: 'mysql:9.7.2'
+            healthcheck: 'mysqladmin ping -h 127.0.0.1 -uroot -pisolated-ci-password'
     services:
       database:
         image: ${{ matrix.database }}
@@ -92,7 +96,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pisolated-ci-password"
+          --health-cmd="${{ matrix.healthcheck }}"
           --health-interval=5s --health-timeout=5s --health-retries=20
     defaults:
       run:
