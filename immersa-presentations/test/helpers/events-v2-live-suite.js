@@ -86,12 +86,31 @@ async function liveSuite(t, f) {
   await t.test('revoke, finish, changed version and outage prevent mutation and emission', async () => {
     const revoked = await issue('SPEAKER', { activityId: activityA }), client = await connect(revoked); await join(client);
     let leaked = 0; client.on('events:live:state', () => leaked++); await request('admin1', 'DELETE', path(a) + '/grants/' + revoked.context.grantId); await ack(stage, 'events:slide:prev'); assert.equal(client.connected, false); assert.equal(leaked, 0);
-    const previous = runtime.states.get(executionKey(a, liveA)); preparations.set(liveA, { ...preparations.get(liveA), versionId: 'changed' });
-    assert.equal((await ack(stage, 'events:slide:next')).code, 'CONTENT_VERSION_CHANGED'); assert.equal(runtime.states.get(executionKey(a, liveA)), previous); prepare(a, liveA);
+    const previous = runtime.states.get(executionKey(a, liveA));
+    // Existing bound sockets may be disconnected by the idle review as soon
+    // as preparation changes. Use an unbound connection for an exact denial
+    // ack, and test idle disconnection separately for finished resources.
+    for (const connected of [stage, speaker, player]) connected.close();
+    preparations.set(liveA, { ...preparations.get(liveA), versionId: 'changed' });
+    const changed = await connect(stageSession);
+    assert.equal((await join(changed)).code, 'CONTENT_VERSION_CHANGED');
+    assert.equal(runtime.states.get(executionKey(a, liveA)), previous); changed.close(); prepare(a, liveA);
+    stage = await connect(stageSession); await join(stage);
+    let denied = false, outageEmits = 0;
+    stage.on('events:access_denied', () => { denied = true; });
+    stage.on('events:live:state', () => outageEmits++);
+    const disconnected = new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('outage did not disconnect')), 3000); stage.once('disconnect', () => { clearTimeout(timer); resolve(); }); });
     const saved = grants.pool; grants.pool = { execute: async () => { throw new Error('DB unavailable'); } };
-    try { assert.equal((await ack(stage, 'events:slide:next')).ok, false); assert.equal(runtime.states.get(executionKey(a, liveA)), previous); } finally { grants.pool = saved; }
-    await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = ? WHERE id = ?", [f.now(), liveA]); await grantSockets.reviewAll(); assert.equal(speaker.connected, false); assert.equal(player.connected, false);
-    const next = await connect(stageSession), reads = f.preparationReads(); assert.equal((await join(next)).ok, false); assert.equal(f.preparationReads(), reads); assert.equal(runtime.states.get(executionKey(a, liveA)), previous); next.close();
+    try {
+      stage.emit('events:slide:next', {}); await disconnected;
+      assert.equal(denied, true); assert.equal(outageEmits, 0); assert.equal(runtime.states.get(executionKey(a, liveA)), previous);
+    } finally { grants.pool = saved; }
+    speaker = await connect(await issue('SPEAKER', { activityId: activityA })); await join(speaker);
+    await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = ? WHERE id = ?", [f.now(), liveA]);
+    await grantSockets.reviewAll(); assert.equal(speaker.connected, false);
+    const next = await connect(stageSession), reads = f.preparationReads();
+    assert.equal((await join(next)).ok, false); assert.equal(f.preparationReads(), reads);
+    assert.equal(runtime.states.get(executionKey(a, liveA)), previous); next.close();
   });
 }
 module.exports = { liveSuite };

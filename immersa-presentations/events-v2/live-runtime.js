@@ -56,12 +56,14 @@ class EventLiveRuntime {
     const key = executionKey(credentials.eventId, liveId);
     return this.serial(key, async () => {
       const candidate = await grants.withSession(credentials, async (context, db) => {
+        if (command !== 'snapshot') {
+          if (!['next', 'prev', 'go', 'pause', 'play'].includes(command)) throw error('COMMAND_NOT_ENABLED');
+          if (!(control(context) || (context.kind === 'PLAYER' && ['next', 'prev'].includes(command)))) throw error('LIVE_COMMAND_DENIED');
+        }
         const prepared = await this.prepared(context, db, liveId);
         const state = this.states.get(key) || this.initial(prepared);
-        if (state.deckId !== prepared.deckId || state.versionId !== prepared.versionId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
+        if (state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.deckId !== prepared.deckId || state.versionId !== prepared.versionId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
         if (command === 'snapshot') return state;
-        if (!['next', 'prev', 'go', 'pause', 'play'].includes(command)) throw error('COMMAND_NOT_ENABLED');
-        if (!(control(context) || (context.kind === 'PLAYER' && ['next', 'prev'].includes(command)))) throw error('LIVE_COMMAND_DENIED');
         const next = { ...state };
         if (['next', 'prev', 'go'].includes(command)) {
           if (context.kind !== 'PLAYER' && state.transmissionPaused && state.transmissionPausedBy !== context.kind) throw error('LIVE_COMMAND_DENIED');
@@ -86,7 +88,7 @@ class EventLiveRuntime {
     return grants.withSession(credentials, async (context, db) => {
       const prepared = await this.prepared(context, db, liveId);
       const state = this.states.get(executionKey(context.eventId, liveId));
-      if (!state || state.versionId !== prepared.versionId || state.deckId !== prepared.deckId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
+      if (!state || state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.versionId !== prepared.versionId || state.deckId !== prepared.deckId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
       const snapshot = { eventId: context.eventId, liveSessionId: liveId, revision: state.revision,
         slideIndex: state.liveSlideIndex, transmissionPaused: state.transmissionPaused };
       if (control(context)) Object.assign(snapshot, { presenterSlideIndex: state.presenterSlideIndex,
