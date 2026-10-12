@@ -213,3 +213,38 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
   }
   .audience-locale-toggle img { width: 34px; height: 34px; }
 }
+
+/* Portrait phones: share the usable viewport, leaving controls and Safari chrome clear. */
+@media (orientation:portrait) and (max-width:520px) {
+  .audience.is-raffle-split {
+    --raffle-header-clearance:max(60px, calc(50px + env(safe-area-inset-top)));
+    --raffle-footer-clearance:max(84px, calc(72px + env(safe-area-inset-bottom)));
+    --raffle-slide-height:min(calc(var(--raffle-visible-height, 100dvh) * .36), 56.25vw);
+  }
+  .audience.is-raffle-split .slide-viewport {
+    inset:var(--raffle-header-clearance) 0 auto;
+    height:var(--raffle-slide-height);
+  }
+  .audience.is-raffle-split #slide { width:100%; height:100%; max-height:100%; }
+  .audience.is-raffle-split .raffle-public-overlay.is-free.is-collecting,
+  .audience.is-raffle-split .raffle-public-overlay.is-free.is-entries_closed {
+    inset:calc(var(--raffle-header-clearance) + var(--raffle-slide-height) + 10px) 0 auto;
+    height:max(0px, calc(var(--raffle-visible-height, 100dvh) - var(--raffle-header-clearance) - var(--raffle-slide-height) - 10px - var(--raffle-footer-clearance)));
+    align-items:center;
+    padding:0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    min-height:0;
+  }
+  .audience.is-raffle-split .raffle-public-overlay.is-free .raffle-public-card {
+    width:100%; min-height:0; max-height:100%; padding:16px;
+    gap:10px; align-content:start; border-radius:22px;
+    overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
+    -webkit-overflow-scrolling:touch;
+  }
+  .audience.is-raffle-split .raffle-public-ticket-state {
+    min-height:0; gap:clamp(8px, 1.5dvh, 14px);
+    --raffle-ticket-width:min(76vw, 360px, max(140px, calc((var(--raffle-visible-height, 100dvh) - var(--raffle-header-clearance) - var(--raffle-slide-height) - var(--raffle-footer-clearance) - 120px) * 1.7857)));
+  }
+  .audience.is-raffle-split .raffle-public-ticket { width:var(--raffle-ticket-width); }
+  .audience.is-raffle-split .raffle-public-ticket strong { font-size:calc(var(--raffle-ticket-width) * .32); }
+  .audience.is-raffle-split .raffle-public-ticket-state p { font-size:clamp(15px, 4vw, 18px); }
+}

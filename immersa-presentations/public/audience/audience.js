@@ -36,6 +36,14 @@ let qnaCooldownUntil = 0;
 let audienceAccessMessage = "";
 const pointers = new Map();
 const viewer = document.getElementById("viewer");
+function syncRaffleVisibleHeight() {
+  const height = window.visualViewport?.height || window.innerHeight;
+  if (viewer && Number.isFinite(height) && height > 0) viewer.style.setProperty('--raffle-visible-height', height + 'px');
+}
+syncRaffleVisibleHeight();
+window.visualViewport?.addEventListener('resize', syncRaffleVisibleHeight);
+window.addEventListener('resize', syncRaffleVisibleHeight);
+
 const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
 const snapshot = document.getElementById("snapshot");
