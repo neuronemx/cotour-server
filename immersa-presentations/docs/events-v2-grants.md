@@ -30,16 +30,18 @@ POST, clears the fragment, and never persists it in localStorage or logs it.
 1B supplies the backend protocol, not a new link landing UI or consoles.
 
 HTTP canje uses a per-grant host-only __Host cookie: Secure, HttpOnly,
-SameSite=Strict, Path=/, expires at the event end. Cookies for different actors
+SameSite=Strict, Path=/. Cookies for different actors
 or events do not overwrite each other. Short socket credentials expire after
 15 minutes or at event end, whichever is earlier. Same-origin POST `/renew`
 uses the long HttpOnly cookie to mint a new short credential even after sleep
 past the short TTL; an active socket can renew its short session. Renewal
 keeps actor/scope and the original grant window. A future client renews before
 expiry and uses the cookie endpoint on reconnect; no manual daily renewal.
-After an event-end extension, online renewal refreshes the browser cookie end.
-An offline browser whose cookie reaches the old end must reopen the original
-operational link; an HTTP response cannot extend a cookie in an offline device.
+The browser cookie has a long retention TTL (400 days), independent of access
+validity. This avoids losing a participant or requiring another operational
+link when an offline browser misses an event-end extension. The DB grant/end
+always governs permission: an expired or revoked grant rejects the cookie,
+and retaining that cookie never keeps the event open or revives access.
 
 Changing event end updates active unrevoked grants transactionally. Already
 expired/revoked grants stay invalid. Grant access always rechecks the current

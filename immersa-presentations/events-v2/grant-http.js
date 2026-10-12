@@ -20,8 +20,12 @@ function browserToken(headers, grantId) {
   if (matches.length !== 1) return null;
   try { return decodeURIComponent(matches[0].slice(name.length + 1)); } catch (_) { return null; }
 }
-function setGrantCookie(res, grantId, token, expiresAt) {
-  res.cookie(cookieName(grantId), token, { secure: true, httpOnly: true, sameSite: 'strict', path: '/', expires: new Date(expiresAt) });
+function setGrantCookie(res, grantId, token) {
+  // Retention is not authorization. Keeping the credential past the old end
+  // allows an offline browser to reconnect after an authorized end extension.
+  // The DB grant/window still expires access at the actual event end and never
+  // revives expired/revoked links. No browser renewal can extend that window.
+  res.cookie(cookieName(grantId), token, { secure: true, httpOnly: true, sameSite: 'strict', path: '/', maxAge: 400 * 24 * 60 * 60 * 1000 });
 }
 function createGrantAccessRouter({ grants, enabled = () => false }) {
   const router = express.Router();
@@ -45,7 +49,7 @@ function createGrantAccessRouter({ grants, enabled = () => false }) {
   };
   router.post('/access/exchange', requireOrigin, handle(async (req, res) => {
     const session = await grants.exchange(req.body.eventId, req.body.token);
-    setGrantCookie(res, session.context.grantId, req.body.token, session.context.expiresAt);
+    setGrantCookie(res, session.context.grantId, req.body.token);
     return session;
   }, ['eventId', 'token']));
   router.get('/access/:eventId/:grantId/context', handle(req => grants.withBrowser({ ...req.params, token: browserToken(req.headers, req.params.grantId) })));
@@ -54,12 +58,12 @@ function createGrantAccessRouter({ grants, enabled = () => false }) {
     // Validate the cookie's fixed grant as well as the event path before exchange.
     await grants.withBrowser({ ...req.params, token });
     const session = await grants.exchange(req.params.eventId, token);
-    setGrantCookie(res, req.params.grantId, token, session.context.expiresAt);
+    setGrantCookie(res, req.params.grantId, token);
     return session;
   }, []));
   router.post('/public/:publicId/participants', requireOrigin, handle(async (req, res) => {
     const registration = await grants.register(req.params.publicId, req.body.name);
-    setGrantCookie(res, registration.grantId, registration.token, registration.expiresAt);
+    setGrantCookie(res, registration.grantId, registration.token);
     // Long registration secret exists only in the HttpOnly cookie, never in JS.
     return registration.session;
   }, ['name'], 201));

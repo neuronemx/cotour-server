@@ -71,6 +71,7 @@ async function grantSuite(t, f) {
     const setCookie = response.headers.get('set-cookie');
     for (const attr of ['__Host-', 'Secure', 'HttpOnly', 'SameSite=Strict', 'Path=/']) assert.ok(setCookie.includes(attr), attr);
     assert.ok(!setCookie.includes('Domain='));
+    assert.ok(new Date(setCookie.match(/Expires=([^;]+)/)[1]) > new Date(grant.expiresAt), 'cookie retention does not cap an extended event');
     cookie = setCookie.split(';')[0];
     assert.equal((await request(null, 'GET', `${access}/${a}/${grant.grantId}/context`, undefined, { cookie })).status, 200);
     assert.notEqual((await request(null, 'GET', `${access}/${b}/${grant.grantId}/context`, undefined, { cookie })).status, 200);
@@ -113,6 +114,15 @@ async function grantSuite(t, f) {
     const renewed = await socket(auth(session));
     assert.equal((await ack(renewed.client, 'events:session:renew')).ok, true);
     renewed.client.close();
+    const newEnd = new Date(f.now().getTime() + 30 * 86400000);
+    await window(newEnd);
+    // The original cookie works even with an updated event end; it is neither
+    // a new actor nor a client-chosen grant extension.
+    const extended = await request(null, 'POST', `${access}/${a}/${grant.grantId}/renew`, {}, { cookie });
+    assert.equal(extended.status, 200);
+    assert.equal(extended.body.context.expiresAt, newEnd.toISOString());
+    assert.equal(extended.body.context.actorId, grant.grantId);
+    session = extended.body;
   });
 
   await t.test('revocation disconnects active socket immediately and survives process reconstruction', async () => {
