@@ -1,0 +1,53 @@
+const express = require('express');
+const { EventAccessError, accountActor, assertFields } = require('./authorization');
+
+function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false }) {
+  const router = express.Router();
+  router.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!enabled) return res.status(404).json({ code: 'EVENTS_V2_DISABLED' });
+    if (!repository) return res.status(503).json({ code: 'AUTHORIZATION_UNAVAILABLE' });
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      const origin = req.headers.origin;
+      if (origin) {
+        try {
+          const url = new URL(origin);
+          if (!['http:', 'https:'].includes(url.protocol) || url.host !== req.get('host')) throw new Error('origin');
+        } catch (_) { return res.status(403).json({ code: 'ORIGIN_DENIED' }); }
+      }
+      if (req.headers['sec-fetch-site'] === 'cross-site') return res.status(403).json({ code: 'ORIGIN_DENIED' });
+    }
+    next();
+  });
+  router.use(requireAccount);
+  const handle = (action, fields = null, status = 200) => async (req, res) => {
+    try {
+      if (fields) assertFields(req.body, fields);
+      return res.status(status).json(await action(req, accountActor(req)));
+    } catch (error) {
+      if (error instanceof EventAccessError) return res.status(error.statusCode).json({ code: error.code });
+      console.error('[events-v2] authorization operation unavailable', { code: error.code || 'UNKNOWN' });
+      return res.status(503).json({ code: 'AUTHORIZATION_UNAVAILABLE' });
+    }
+  };
+  router.post('/platform/organizations', requirePlatformAdmin, handle((req, actor) => repository.createOrganization(actor, req.body), ['name', 'adminUserId', 'createEventsEnabled'], 201));
+  router.patch('/platform/organizations/:orgId', requirePlatformAdmin, handle((req, actor) => repository.setCreationEnabled(actor, req.params.orgId, req.body.createEventsEnabled), ['createEventsEnabled']));
+  router.get('/organizations', handle((_req, actor) => repository.listOrganizations(actor)));
+  router.get('/organizations/:orgId', handle((req, actor) => repository.getOrganization(actor, req.params.orgId)));
+  router.put('/organizations/:orgId/members/:userId', handle((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, req.body.role), ['role']));
+  router.delete('/organizations/:orgId/members/:userId', handle((req, actor) => repository.setOrganizationMember(actor, req.params.orgId, req.params.userId, null)));
+  router.post('/organizations/:orgId/events', handle((req, actor) => repository.createEvent(actor, req.params.orgId, req.body), ['title', 'slug', 'timezone'], 201));
+  router.get('/organizations/:orgId/events', handle((req, actor) => repository.listEvents(actor, req.params.orgId)));
+  const eventPath = '/organizations/:orgId/events/:eventId';
+  router.get(eventPath, handle((req, actor) => repository.getEvent(actor, req.params.orgId, req.params.eventId)));
+  router.patch(eventPath, handle((req, actor) => repository.updateEvent(actor, req.params.orgId, req.params.eventId, req.body.title), ['title']));
+  router.put(eventPath + '/members/:userId', handle((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, req.body.roles), ['roles']));
+  router.delete(eventPath + '/members/:userId', handle((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, null)));
+  router.get(eventPath + '/activities/:activityId', handle((req, actor) => repository.getActivity(actor, req.params.orgId, req.params.eventId, req.params.activityId)));
+  // No v2 endpoint falls through to legacy routes, even when a live family is
+  // not implemented yet. This router deliberately exposes metadata only.
+  router.use((_req, res) => res.status(404).json({ code: 'RESOURCE_NOT_FOUND' }));
+  return router;
+}
+
+module.exports = { createEventDomainRouter };
