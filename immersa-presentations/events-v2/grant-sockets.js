@@ -1,16 +1,19 @@
 const { sameOrigin } = require('./grant-http');
+const { createLiveSocketAdapter } = require('./live-sockets');
 
-function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000 }) {
+function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null }) {
   const namespace = io.of('/events-v2');
   const credentials = new WeakMap();
   let reviewPromise = null;
   const accessError = () => Object.assign(new Error('EVENT_ACCESS_DENIED'), { data: { code: 'EVENT_ACCESS_DENIED' } });
   const disconnect = socket => { socket.emit('events:access_denied', { code: 'EVENT_ACCESS_DENIED' }); socket.disconnect(true); };
+  const live = runtime && createLiveSocketAdapter({ namespace, grants, runtime, credentials, enabled, disconnect });
   async function reviewSocket(socket) {
     try {
       if (!enabled() || !grants) throw accessError();
       const context = await grants.withSession(credentials.get(socket));
       if (socket.connected) socket.data.eventContext = context;
+      if (live) await live.review(socket);
     } catch (_) { if (socket.connected) disconnect(socket); }
   }
   function reviewAll() {
@@ -68,8 +71,9 @@ function createEventGrantSockets({ io, grants, enabled = () => false, reviewInte
         if (!closed && typeof ack === 'function') ack({ ok: true, context });
       } catch (_) { if (socket.connected) disconnect(socket); }
     });
+    if (live) live.attach(socket);
     socket.onAny(name => {
-      if (!['events:context:get', 'events:session:renew'].includes(name)) {
+      if (!['events:context:get', 'events:session:renew', ...(live?.names || [])].includes(name)) {
         socket.emit('events:command_denied', { code: 'COMMAND_NOT_ENABLED' });
       }
     });

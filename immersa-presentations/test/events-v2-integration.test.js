@@ -21,6 +21,8 @@ const { EventGrantRepository } = require('../events-v2/grant-repository');
 const { createGrantAccessRouter } = require('../events-v2/grant-http');
 const { createEventGrantSockets } = require('../events-v2/grant-sockets');
 const { grantSuite } = require('./helpers/events-v2-grant-suite');
+const { liveSuite } = require('./helpers/events-v2-live-suite');
+const { EventLiveRuntime } = require('../events-v2/live-runtime');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -54,7 +56,10 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   let domainEnabled = true, grantEnabled = true;
   let grantNow = new Date();
   const grants = new EventGrantRepository(domain, { now: () => grantNow });
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
+  const preparations = new Map();
+  let preparationReads = 0;
+  const runtime = new EventLiveRuntime({ readPreparation: async live => { preparationReads++; return preparations.get(live.liveSessionId); } });
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
@@ -226,6 +231,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.ok([...sockets.of('/').sockets.values()].every(socket => ![...socket.rooms].some(room => room.includes(a))));
     programClient.close();
   });
-  await grantSuite(t, { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
-    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; } });
+  const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, preparationReads: () => preparationReads };
+  await grantSuite(t, fixtures);
+  await liveSuite(t, fixtures);
 });
