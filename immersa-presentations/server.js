@@ -47,6 +47,8 @@ const { LegacyEventBoundary } = require("./events-v2/legacy-boundary");
 const { EventGrantRepository } = require("./events-v2/grant-repository");
 const { createGrantAccessRouter } = require("./events-v2/grant-http");
 const { createEventGrantSockets } = require("./events-v2/grant-sockets");
+const { EventLiveRuntime } = require("./events-v2/live-runtime");
+const { clampSlide: clampPresentationSlide, applyPresenterSlide } = require("./presentation-navigation");
 const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
@@ -164,7 +166,7 @@ const eventDomainRepository = lifecyclePool ? new EventDomainRepository(lifecycl
 const legacyEventBoundary = lifecyclePool ? new LegacyEventBoundary(lifecyclePool) : null;
 const eventGrantRepository = eventDomainRepository ? new EventGrantRepository(eventDomainRepository) : null;
 const eventGrantsEnabled = () => process.env.IMMERSA_EVENTS_V2_ENABLED === "true" && betterAuthCompatibilityBridge.enabled;
-const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled });
+const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: new EventLiveRuntime() });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
@@ -910,9 +912,7 @@ function getConnectedAudience(roomKey) {
 }
 
 function clampSlide(session, slideIndex) {
-  const lastSlide = Math.max(0, (session.slideCount || 1) - 1);
-  const numeric = Number.isFinite(slideIndex) ? slideIndex : 0;
-  return Math.max(0, Math.min(numeric, lastSlide));
+  return clampPresentationSlide(session, slideIndex);
 }
 
 async function refreshSessionDeck(session, deckId = session.deckId) {
@@ -1035,9 +1035,7 @@ async function setPresenterSlide(roomKey, session, nextIndex) {
   const slideCount = await refreshSessionDeck(session);
   const clampedIndex = clampSlide(session, requestedIndex);
   console.log("[navigate]", roomKey, "requested", requestedIndex, "clamped", clampedIndex, "slideCount", slideCount);
-  session.presenterSlideIndex = clampedIndex;
-  session.slideIndex = session.presenterSlideIndex;
-  if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
+  applyPresenterSlide(session, clampedIndex);
 }
 
 const reactionMetricsSweep = setInterval(() => {
