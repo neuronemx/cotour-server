@@ -41,6 +41,9 @@ const { createProfileHandlers } = require("./profile-api");
 const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
+const { EventDomainRepository } = require("./events-v2/domain-repository");
+const { createEventDomainRouter } = require("./events-v2/http-router");
+const { LegacyEventBoundary } = require("./events-v2/legacy-boundary");
 const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
@@ -154,6 +157,8 @@ const billingRuntime = createBillingRuntime({
 });
 const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
+const eventDomainRepository = lifecyclePool ? new EventDomainRepository(lifecyclePool) : null;
+const legacyEventBoundary = lifecyclePool ? new LegacyEventBoundary(lifecyclePool) : null;
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
@@ -274,6 +279,11 @@ async function getStageFeatureAccess(deckId) {
 }
 
 const accessLinkHandlers = createAccessLinkHandlers({
+  allowLegacyPresentation: legacyEventBoundary ? async (sessionId, deckId) => (
+    !(await legacyEventBoundary.isV2("deck", deckId))
+    && !(await legacyEventBoundary.isV2("live", sessionId))
+    && !(await legacyEventBoundary.isV2("event", sessionId))
+  ) : null,
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
@@ -1066,6 +1076,12 @@ app.post("/api/billing/webhooks/stripe", express.raw({ type: "application/json",
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
+if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
+app.use("/api/events-v2", createEventDomainRouter({
+  repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
+  requirePlatformAdmin: requireImmersaAdmin,
+  enabled: process.env.IMMERSA_EVENTS_V2_ENABLED === "true"
+}));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {
   const deckId = String(req.params.deckId || "");
   if (!/^[a-z0-9][a-z0-9-]*$/i.test(deckId)) return res.sendStatus(404);
@@ -2074,6 +2090,7 @@ io.on("connection", (socket) => {
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
+    if (legacyEventBoundary && !(await legacyEventBoundary.allowPresentationJoin(socket, sessionId, deckId))) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
     currentRoomKey = getRoomKey(joinedSessionId, joinedDeckId);

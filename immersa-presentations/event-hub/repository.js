@@ -171,7 +171,7 @@ class EventHubRepository {
 
   async listHubs() {
     const [rows] = await this.pool.execute(
-      "SELECT workspace_id, slug, title, timezone, status FROM event_hubs ORDER BY created_at DESC, title"
+      "SELECT workspace_id, slug, title, timezone, status FROM event_hubs WHERE NOT EXISTS (SELECT 1 FROM event_v2_contexts v2 WHERE v2.event_id = event_hubs.workspace_id) ORDER BY created_at DESC, title"
     );
     return rows || [];
   }
@@ -479,7 +479,8 @@ class EventHubRepository {
       `SELECT q.public_id, q.audience_level, h.workspace_id, h.slug, h.title, h.status
        FROM event_public_qrs q
        INNER JOIN event_hubs h ON h.workspace_id = q.event_workspace_id
-       WHERE q.public_id = ? AND q.active = 1 LIMIT 1`,
+       WHERE q.public_id = ? AND q.active = 1
+         AND NOT EXISTS (SELECT 1 FROM event_v2_contexts v2 WHERE v2.event_id = q.event_workspace_id) LIMIT 1`,
       [required(publicId, "public id")]
     );
     const qr = rows?.[0];
@@ -693,6 +694,7 @@ class EventHubRepository {
        INNER JOIN event_stages s ON s.id = a.event_stage_id
        INNER JOIN event_hubs h ON h.workspace_id = a.event_workspace_id
        WHERE asa.status IN ('INVITED', 'LINKED', 'DECLINED', 'DECK_SELECTED') AND a.status IN ('SCHEDULED', 'LIVE')
+         AND NOT EXISTS (SELECT 1 FROM event_v2_contexts v2 WHERE v2.event_id = a.event_workspace_id)
        ORDER BY a.scheduled_starts_at IS NULL, a.scheduled_starts_at, h.title, a.title`,
       [required(userId, "speaker user id")]
     );

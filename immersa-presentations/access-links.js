@@ -345,10 +345,16 @@ function injectPublicAudienceContext(html, accessLink, deck, presentationSession
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, allowLegacyPresentation = null }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
+
+  async function legacyAllowed(accessLink) {
+    if (!allowLegacyPresentation) return true;
+    const deck = await findDeckForAccessLink(accessLink, deckDirs);
+    return allowLegacyPresentation(accessLink.session_id, deck?.deckId || accessLink.deck_id);
+  }
 
   function latestPresentationSessionId(accessLinks, sessionId) {
     return accessLinks
@@ -382,6 +388,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     const accessLink = accessLinks.find((link) => link.access_token === accessToken);
     if (!accessLink) return { status: 404, error: 'Access link not found' };
     if (accessLink.active === false) return { status: 403, error: 'Access link inactive' };
+    if (!(await legacyAllowed(accessLink))) return { status: 404, error: 'Access link not found' };
     return { accessLink };
   }
 
@@ -394,6 +401,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     if (!ACCESS_TOKEN_PATTERN.test(String(accessLink.access_token || ''))) return { status: 404, error: 'Public link not found' };
     if (accessLink.role !== 'audience') return { status: 403, error: 'Public link role is not allowed' };
     if (accessLink.active === false) return { status: 403, error: 'Public link inactive' };
+    if (!(await legacyAllowed(accessLink))) return { status: 404, error: 'Public link not found' };
     return { accessLink };
   }
 
@@ -410,6 +418,9 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         : await findDeckManifestBySessionId(sessionId, deckDirs);
       const deck = deckResult?.deck;
       if (!deck) return res.status(404).json({ error: 'Presentation not found' });
+      if (allowLegacyPresentation && !(await allowLegacyPresentation(sessionId, deck.deckId))) {
+        return res.status(404).json({ error: 'Presentation not found' });
+      }
 
       const accessLinks = await loadAccessLinks(storePath);
       if (role === 'audience') {
@@ -450,6 +461,9 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     const deckResult = await findDeckManifestByDeckId(deckId, deckDirs);
     const deck = deckResult?.deck;
     if (!deck?.session_id) throw new Error('Presentation not found');
+    if (allowLegacyPresentation && !(await allowLegacyPresentation(deck.session_id, deck.deckId))) {
+      throw new Error('Presentation not found');
+    }
 
     const accessLinks = await loadAccessLinks(storePath);
     const usedTokens = new Set(accessLinks.map((link) => link.access_token).filter(Boolean));

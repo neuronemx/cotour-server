@@ -73,3 +73,41 @@ jobs:
 
       - name: Check presentation runtime syntax
         run: node --check public/shared/presentation-runtime.js
+
+  events-v2-integration:
+    name: Events v2 database and access isolation (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: 'mariadb:11.4'
+            healthcheck: 'healthcheck.sh --connect --innodb_initialized'
+          - database: 'mysql:9.7.2'
+            healthcheck: 'mysqladmin ping -h 127.0.0.1 -uroot -pisolated-ci-password'
+    services:
+      database:
+        image: ${{ matrix.database }}
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-password
+          MARIADB_DATABASE: events_v2_test
+          MYSQL_ROOT_PASSWORD: isolated-ci-password
+          MYSQL_DATABASE: events_v2_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.healthcheck }}"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    defaults:
+      run:
+        working-directory: immersa-presentations
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Exercise real account sessions, HTTP, Socket.IO and database constraints
+        env:
+          IMMERSA_EVENTS_V2_TEST_DATABASE_URL: mysql://root:isolated-ci-password@127.0.0.1:3306/events_v2_test
+        run: node --test test/events-v2-integration.test.js
