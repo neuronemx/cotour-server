@@ -106,8 +106,9 @@ async function liveSuite(t, f) {
       assert.equal(denied, true); assert.equal(outageEmits, 0); assert.equal(runtime.states.get(executionKey(a, liveA)), previous);
     } finally { grants.pool = saved; }
     speaker = await connect(await issue('SPEAKER', { activityId: activityA })); await join(speaker);
+    const finishedDisconnect = new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('finished run did not disconnect')), 3000); speaker.once('disconnect', () => { clearTimeout(timer); resolve(); }); });
     await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = ? WHERE id = ?", [f.now(), liveA]);
-    await grantSockets.reviewAll(); assert.equal(speaker.connected, false);
+    await grantSockets.reviewAll(); await finishedDisconnect; assert.equal(speaker.connected, false);
     const next = await connect(stageSession), reads = f.preparationReads();
     assert.equal((await join(next)).ok, false); assert.equal(f.preparationReads(), reads);
     assert.equal(runtime.states.get(executionKey(a, liveA)), previous); next.close();
