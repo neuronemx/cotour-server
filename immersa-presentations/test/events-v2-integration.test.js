@@ -2,6 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 const express = require('express');
 const { Server } = require('socket.io');
 const { io: clientSocket } = require('socket.io-client');
@@ -13,6 +16,7 @@ const { createEventDomainRouter } = require('../events-v2/http-router');
 const { LegacyEventBoundary } = require('../events-v2/legacy-boundary');
 const { EventHubRepository } = require('../event-hub/repository');
 const { EventHubAdminInteractions } = require('../event-hub/admin-interactions');
+const { createAccessLinkHandlers } = require('../access-links');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -29,7 +33,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const env = { BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: 'events-v2-isolated-ci-secret-12345678901234567890', IMMERSA_AUTH_ENABLED: 'true' };
   const bridge = createBetterAuthCompatibilityBridge({ env, enabled: true, unverifiedCleanupEnabled: false,
     databaseFactory: () => pool, emailSenderFactory: () => null });
-  t.after(async () => { await new Promise(resolve => sockets.close(resolve)); await bridge.close(); });
+  t.after(async () => { await new Promise(resolve => sockets.close(resolve)); await bridge.close(); await pool.end().catch(() => {}); });
   const migration = await runMigrations(pool);
   assert.ok(migration.executed.includes('037_event_organization_memberships.sql'));
   const { runAuthMigration } = await import('../auth/migrate-auth-v1.mjs');
@@ -38,6 +42,11 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const boundary = new LegacyEventBoundary(pool);
   const legacy = new EventHubRepository(pool);
   const interactions = new EventHubAdminInteractions({ io: sockets, repository: legacy });
+  const localDir = await fs.mkdtemp(path.join(os.tmpdir(), 'events-v2-links-'));
+  t.after(() => fs.rm(localDir, { recursive: true, force: true }));
+  const links = createAccessLinkHandlers({ dataDir: localDir, dataDecksDir: localDir, staticDecksDir: localDir,
+    allowLegacyPresentation: async (sessionId, deckId) => !(await boundary.isV2('deck', deckId))
+      && !(await boundary.isV2('live', sessionId)) && !(await boundary.isV2('event', sessionId)) });
   let domainEnabled = true;
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
@@ -48,6 +57,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
+  app.get('/api/access-links/:access_token', links.resolveAccessLink);
+  app.get('/api/open/:access_token', links.openPresentation);
   app.use((_req, res) => res.status(200).json({ legacy: true }));
   sockets.on('connection', socket => {
     interactions.attach(socket);
@@ -61,7 +72,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const cookies = new Map();
   const ids = new Map();
   async function request(actor, method, path, body, extraHeaders = {}) {
-    const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json',
+    const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', origin: base,
       ...(cookies.has(actor) ? { cookie: cookies.get(actor) } : {}), ...extraHeaders }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: await response.json() };
   }
@@ -72,7 +83,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.equal(signup.status, 200, JSON.stringify(signup.body));
     await sql('UPDATE `user` SET emailVerified = 1 WHERE email = ?', [email]);
     ids.set(actor, (await sql('SELECT id FROM `user` WHERE email = ?', [email]))[0].id);
-    const login = await fetch(base + '/api/auth/sign-in/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: 'Integration-password-12345' }) });
+    const login = await fetch(base + '/api/auth/sign-in/email', { method: 'POST', headers: { 'Content-Type': 'application/json', origin: base }, body: JSON.stringify({ email, password: 'Integration-password-12345' }) });
     assert.equal(login.status, 200);
     cookies.set(actor, login.headers.getSetCookie().map(cookie => cookie.split(';')[0]).join('; '));
   }
@@ -132,6 +143,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.equal((await request('admin1', 'PATCH', eventPath(o1, a), { title: 'bad' }, { origin: 'https://evil.example' })).status, 403);
     assert.equal((await sql('SELECT title FROM event_hubs WHERE workspace_id = ?', [a]))[0].title, 'A prepared');
     assert.deepEqual(await sql('SELECT role FROM event_member_roles WHERE event_id = ? AND user_id = ?', [a, ids.get('producer')]), [{ role: 'PRODUCER' }]);
+    await sql('INSERT INTO event_memberships (event_id,organization_id,user_id) VALUES (?,?,?)', [a, o1, ids.get('member')]);
+    assert.equal((await request('member', 'PATCH', eventPath(o1, a), { title: 'no role' })).status, 403);
   });
   await t.test('org membership cannot be forged through a cross-org FK', async () => {
     await assert.rejects(() => sql('INSERT INTO event_memberships (event_id,organization_id,user_id) VALUES (?,?,?)', [a, o2, ids.get('admin2')]), { code: 'ER_NO_REFERENCED_ROW_2' });
@@ -169,6 +182,18 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.deepEqual((await request('admin1', 'GET', '/api/admin/event-hubs')).body.hubs, []);
     assert.equal((await request('admin1', 'GET', '/decks/personal-deck/manifest.json')).status, 200);
     assert.equal(await boundary.isV2('deck', 'personal-deck'), false);
+    for (const deckId of ['v2-private-deck', 'personal-deck']) {
+      await fs.mkdir(path.join(localDir, deckId));
+      await fs.writeFile(path.join(localDir, deckId, 'manifest.json'), JSON.stringify({ deckId, session_id: 'session-' + deckId, slides: [] }));
+    }
+    await fs.writeFile(path.join(localDir, 'access-links.json'), JSON.stringify([
+      { access_token: 'a_1234567890', session_id: 'session-v2-private-deck', deck_id: 'v2-private-deck', role: 'speaker', active: true },
+      { access_token: 'a_abcdefghij', session_id: 'session-personal-deck', deck_id: 'personal-deck', role: 'speaker', active: true }
+    ]));
+    assert.equal((await request(null, 'GET', '/api/access-links/a_1234567890')).status, 404);
+    assert.equal((await request(null, 'GET', '/api/open/a_1234567890')).status, 404);
+    assert.equal((await request(null, 'GET', '/api/open/a_abcdefghij')).status, 200);
+    await assert.rejects(() => links.createAccessLinkForDeck({ deckId: 'v2-private-deck', role: 'stage' }));
     domainEnabled = true;
     const attempts = [];
     for (let i = 0; i < 2; i++) {
