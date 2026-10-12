@@ -75,18 +75,24 @@ jobs:
         run: node --check public/shared/presentation-runtime.js
 
   events-v2-integration:
-    name: Events v2 database and access isolation
+    name: Events v2 database and access isolation (${{ matrix.database }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mariadb:11.4', 'mysql:9']
     services:
       database:
-        image: mariadb:11.4
+        image: ${{ matrix.database }}
         env:
           MARIADB_ROOT_PASSWORD: isolated-ci-password
           MARIADB_DATABASE: events_v2_test
+          MYSQL_ROOT_PASSWORD: isolated-ci-password
+          MYSQL_DATABASE: events_v2_test
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pisolated-ci-password"
           --health-interval=5s --health-timeout=5s --health-retries=20
     defaults:
       run:
