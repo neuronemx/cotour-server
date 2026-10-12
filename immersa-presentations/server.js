@@ -44,6 +44,9 @@ const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const { EventDomainRepository } = require("./events-v2/domain-repository");
 const { createEventDomainRouter } = require("./events-v2/http-router");
 const { LegacyEventBoundary } = require("./events-v2/legacy-boundary");
+const { EventGrantRepository } = require("./events-v2/grant-repository");
+const { createGrantAccessRouter } = require("./events-v2/grant-http");
+const { createEventGrantSockets } = require("./events-v2/grant-sockets");
 const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
 const {
@@ -159,6 +162,9 @@ const eventHubEmailSender = createResendEmailSender({ env: process.env });
 eventHubRepository = lifecyclePool ? new EventHubRepository(lifecyclePool) : null;
 const eventDomainRepository = lifecyclePool ? new EventDomainRepository(lifecyclePool) : null;
 const legacyEventBoundary = lifecyclePool ? new LegacyEventBoundary(lifecyclePool) : null;
+const eventGrantRepository = eventDomainRepository ? new EventGrantRepository(eventDomainRepository) : null;
+const eventGrantsEnabled = () => process.env.IMMERSA_EVENTS_V2_ENABLED === "true" && betterAuthCompatibilityBridge.enabled;
+const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
@@ -1077,9 +1083,11 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
+app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
+  grants: eventGrantRepository, grantSockets: eventGrantSockets,
   enabled: process.env.IMMERSA_EVENTS_V2_ENABLED === "true"
 }));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {

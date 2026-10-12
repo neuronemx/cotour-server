@@ -17,6 +17,10 @@ const { LegacyEventBoundary } = require('../events-v2/legacy-boundary');
 const { EventHubRepository } = require('../event-hub/repository');
 const { EventHubAdminInteractions } = require('../event-hub/admin-interactions');
 const { createAccessLinkHandlers } = require('../access-links');
+const { EventGrantRepository } = require('../events-v2/grant-repository');
+const { createGrantAccessRouter } = require('../events-v2/grant-http');
+const { createEventGrantSockets } = require('../events-v2/grant-sockets');
+const { grantSuite } = require('./helpers/events-v2-grant-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -47,14 +51,19 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const links = createAccessLinkHandlers({ dataDir: localDir, dataDecksDir: localDir, staticDecksDir: localDir,
     allowLegacyPresentation: async (sessionId, deckId) => !(await boundary.isV2('deck', deckId))
       && !(await boundary.isV2('live', sessionId)) && !(await boundary.isV2('event', sessionId)) });
-  let domainEnabled = true;
+  let domainEnabled = true, grantEnabled = true;
+  let grantNow = new Date();
+  const grants = new EventGrantRepository(domain, { now: () => grantNow });
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
+  t.after(() => grantSockets.close());
+  app.use('/api/events-v2', createGrantAccessRouter({ grants, enabled: () => domainEnabled && grantEnabled }));
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json());
   app.use(boundary.httpMiddleware());
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
-  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true });
+  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
   app.get('/api/access-links/:access_token', links.resolveAccessLink);
@@ -74,7 +83,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   async function request(actor, method, path, body, extraHeaders = {}) {
     const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', origin: base,
       ...(cookies.has(actor) ? { cookie: cookies.get(actor) } : {}), ...extraHeaders }, body: body === undefined ? undefined : JSON.stringify(body) });
-    return { status: response.status, body: await response.json() };
+    return { status: response.status, body: await response.json(), headers: response.headers };
   }
   async function sql(query, params = []) { return (await pool.execute(query, params))[0]; }
   for (const actor of ['platform', 'admin1', 'admin2', 'producer', 'dual', 'member']) {
@@ -217,4 +226,6 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.ok([...sockets.of('/').sockets.values()].every(socket => ![...socket.rooms].some(room => room.includes(a))));
     programClient.close();
   });
+  await grantSuite(t, { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; } });
 });
