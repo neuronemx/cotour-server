@@ -27,6 +27,9 @@ const { EventPollRuntime } = require('../events-v2/poll-runtime');
 const { pollSuite } = require('./helpers/events-v2-poll-suite');
 const { qnaSuite } = require('./helpers/events-v2-qna-suite');
 const { EventRaffleRuntime } = require('../events-v2/raffle-runtime');
+const { EventGameRuntime } = require('../events-v2/game-runtime');
+const { EventTimeRuntime } = require('../events-v2/time-runtime');
+const { gameTimeSuite } = require('./helpers/events-v2-game-time-suite');
 const { raffleSuite } = require('./helpers/events-v2-raffle-suite');
 const { EventKnowledgeRuntime } = require('../events-v2/knowledge-runtime');
 const { knowledgeSuite } = require('./helpers/events-v2-knowledge-suite');
@@ -34,7 +37,7 @@ const { EventQnaRuntime } = require('../events-v2/qna-runtime');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
-test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 300000 }, async t => {
+test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 450000 }, async t => {
   // Dedicated, disposable CI database only. Never default to the runtime DB.
   const parsedUrl = new URL(databaseUrl);
   assert.match(parsedUrl.pathname, /events_v2_test/, 'requires an explicitly named test database');
@@ -81,7 +84,15 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     readRaffles: async prepared => { const data = preparations.get(prepared.liveSessionId); return data ? { ...data, raffles: data.raffles || [] } : null; },
     now: () => raffleClockStart + raffleClockOffset });
   pollRuntime.raffles = raffleRuntime; knowledgeRuntime.raffles = raffleRuntime;
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
+  const gameClockStart = Date.now(); let gameClockOffset = 0;
+  const gameTimers = new Map();
+  const gameRuntime = new EventGameRuntime({ liveRuntime: runtime, polls: pollRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime,
+    readGames: async prepared => { const data = preparations.get(prepared.liveSessionId); return data ? { ...data, games: data.games || [] } : null; },
+    now: () => gameClockStart + gameClockOffset,
+    setTimeoutFn: callback => { const handle = {}; gameTimers.set(handle, callback); return handle; }, clearTimeoutFn: handle => gameTimers.delete(handle) });
+  pollRuntime.games = gameRuntime; knowledgeRuntime.games = gameRuntime; raffleRuntime.games = gameRuntime;
+  const timeRuntime = new EventTimeRuntime({ liveRuntime: runtime, now: () => gameClockStart + gameClockOffset });
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, games: gameRuntime, time: timeRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
@@ -254,11 +265,12 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     programClient.close();
   });
   const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
-    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, raffleRuntime, raffleClockStart: () => raffleClockStart, setRaffleClockOffset: value => { raffleClockOffset = value; }, knowledgeClockStart: () => knowledgeClockStart, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, raffleRuntime, gameRuntime, timeRuntime, gameTimers, gameClockStart: () => gameClockStart, setGameClockOffset: value => { gameClockOffset = value; }, raffleClockStart: () => raffleClockStart, setRaffleClockOffset: value => { raffleClockOffset = value; }, knowledgeClockStart: () => knowledgeClockStart, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
   await grantSuite(t, fixtures);
   await liveSuite(t, fixtures);
   await pollSuite(t, fixtures);
   await qnaSuite(t, fixtures);
   await knowledgeSuite(t, fixtures);
   await raffleSuite(t, fixtures);
+  await gameTimeSuite(t, fixtures);
 });

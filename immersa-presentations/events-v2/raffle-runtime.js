@@ -123,7 +123,7 @@ class EventRaffleRuntime {
           if (definition.mode !== 'visual_key' || !definition.options.some(option => option.id === payload.optionId)) throw error('RAFFLE_INVALID_OPTION');
           result = store.configureVisualKey(key, payload.optionId); body.draftDefinitionId = definition.id;
         } else {
-          if (this.polls?.states.get(key)?.store.hasActive(key) || (this.knowledge && await this.knowledge.hasActive(context, db, liveId, scoped.prepared))) throw error('INTERACTION_BUSY');
+          if ((this.games && await this.games.hasActive(context, db, liveId, scoped.prepared)) || this.polls?.states.get(key)?.store.hasActive(key) || (this.knowledge && await this.knowledge.hasActive(context, db, liveId, scoped.prepared))) throw error('INTERACTION_BUSY');
           const runId = crypto.randomUUID();
           result = store.create({ sessionId: key, config: { ...definition, id: runId,
             entryKey: body.draftDefinitionId === definition.id ? store.getSession(key).visualKeyDraftEntryKey : definition.entryKey } });

@@ -7,8 +7,9 @@ const POLL_COMMANDS = Object.freeze({ 'events:poll:launch': 'launch', 'events:po
 const QNA_COMMANDS = Object.freeze({ 'events:qna:open': 'open', 'events:qna:set_open': 'set_open', 'events:qna:submit': 'submit', 'events:qna:select': 'select', 'events:qna:project': 'project', 'events:qna:delete': 'delete', 'events:qna:new_round': 'new_round', 'events:qna:panel_close': 'panel_close' });
 const KNOWLEDGE_COMMANDS = Object.freeze(Object.fromEntries(['open', 'start', 'finalize', 'cancel', 'show_results', 'close', 'retry_processing', 'force_results', 'join', 'claim_tab', 'answer', 'submit'].map(command => [`events:knowledge:${command}`, command])));
 const RAFFLE_COMMANDS = Object.freeze(Object.fromEntries(['configure_key', 'open', 'enter', 'submit_poll_response', 'close_entries', 'draw', 'reveal', 'close', 'reset_winners'].map(command => [`events:raffle:${command}`, command])));
+const GAME_COMMANDS = Object.freeze(Object.fromEntries(['configure', 'start_queue', 'skip', 'end', 'start', 'pause', 'resume', 'team_names', 'join_team', 'input'].map(command => [`events:game:${command}`, command])));
 const NAMES = ['events:live:join', 'events:live:snapshot', ...Object.keys(COMMANDS)];
-function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, credentials, enabled, disconnect }) {
+function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, credentials, enabled, disconnect }) {
   const bindings = new WeakMap();
   function valid(payload, fields) {
     return payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -25,6 +26,8 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       const questionState = qna ? await qna.projection(context, db, liveId, prepared) : null;
       const poll = polls ? await polls.projection(context, db, liveId, prepared) : null;
       const raffle = raffles ? await raffles.projection(context, db, liveId, prepared) : null;
+      const game = games ? await games.projection(context, db, liveId, prepared) : null;
+      const timing = time ? await time.projection(context, db, liveId, prepared) : null;
       const activity = knowledge ? await knowledge.projection(context, db, liveId, prepared, socket.id) : null;
       if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
       socket.emit('events:live:state', snapshot);
@@ -32,7 +35,9 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (questionState) socket.emit('events:qna:state', questionState);
       if (activity) socket.emit('events:knowledge:state', activity);
       if (raffle) socket.emit('events:raffle:state', raffle);
-      if (typeof ack === 'function') ack({ ok: true, snapshot: projectionKind === 'raffle' ? raffle : projectionKind === 'knowledge' ? activity : projectionKind === 'qna' ? questionState : projectionKind === 'poll' ? poll : snapshot });
+      if (game) socket.emit('events:game:state', game);
+      if (timing) socket.emit('events:time:state', timing);
+      if (typeof ack === 'function') ack({ ok: true, snapshot: projectionKind === 'game' ? game : projectionKind === 'time' ? timing : projectionKind === 'raffle' ? raffle : projectionKind === 'knowledge' ? activity : projectionKind === 'qna' ? questionState : projectionKind === 'poll' ? poll : snapshot });
     });
   }
   async function review(socket) {
@@ -41,6 +46,8 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (qna) await qna.projection(context, db, bindings.get(socket), prepared);
       if (knowledge) await knowledge.projection(context, db, bindings.get(socket), prepared);
       if (raffles) await raffles.projection(context, db, bindings.get(socket), prepared);
+      if (games) await games.projection(context, db, bindings.get(socket), prepared);
+      if (time) await time.projection(context, db, bindings.get(socket), prepared);
     });
   }
   async function fanout(key) {
@@ -64,8 +71,9 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
             const knowledgeCode = name.startsWith('events:knowledge:') && ['INVALID_STATE', 'INVALID_NAME', 'NO_READY_PARTICIPANTS', 'PARTICIPANT_NOT_FOUND', 'TAB_NOT_ACTIVE', 'QUESTION_NOT_FOUND', 'OPTION_NOT_FOUND', 'DEADLINE_PASSED', 'DUPLICATE', 'NO_CONFIRMED_ANSWERS'].includes(error.code) ? `KNOWLEDGE_${error.code}` : code;
             const raffleCode = name.startsWith('events:raffle:') && error instanceof EventAccessError && error.code.startsWith('RAFFLE_')
               && error.code !== 'RAFFLE_STATE_INVALID' ? error.code : knowledgeCode;
-            ackError(ack, raffleCode);
-            if (raffleCode === 'LIVE_ACCESS_DENIED' && socket.connected) disconnect(socket);
+            const familyCode = /^(events:game:|events:time:)/.test(name) && error instanceof EventAccessError && /^(GAME_|TIME_)/.test(error.code) ? error.code : raffleCode;
+            ackError(ack, familyCode);
+            if (familyCode === 'LIVE_ACCESS_DENIED' && socket.connected) disconnect(socket);
           }
         });
       });
@@ -81,6 +89,32 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
       await deliver(socket, ack);
     });
+    if (games) {
+      handler('events:game:snapshot', async (payload, ack) => {
+        if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        await games.operate(grants, credentials.get(socket), bindings.get(socket), 'tick');
+        await deliver(socket, ack, 'game');
+      });
+      for (const [name, command] of Object.entries(GAME_COMMANDS)) handler(name, async (payload, ack) => {
+        const fields = command === 'configure' ? ['expectedRevision', 'selected'] : command === 'start_queue' ? ['expectedRevision']
+          : ['skip', 'end'].includes(command) ? ['expectedRevision', 'queueRunId'] : command === 'team_names' ? ['gameRunId', 'left', 'right']
+          : command === 'join_team' ? ['gameRunId', 'team'] : command === 'input' ? ['gameRunId', 'direction'] : ['gameRunId'];
+        if (!valid(payload, fields) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        const key = await games.operate(grants, credentials.get(socket), bindings.get(socket), command, payload);
+        await deliver(socket, ack, 'game'); await fanout(key);
+      });
+    }
+    if (time) {
+      handler('events:time:snapshot', async (payload, ack) => {
+        if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        await deliver(socket, ack, 'time');
+      });
+      handler('events:time:control', async (payload, ack) => {
+        if (!bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        const key = await time.operate(grants, credentials.get(socket), bindings.get(socket), payload);
+        await deliver(socket, ack, 'time'); await fanout(key);
+      });
+    }
     if (raffles) {
       handler('events:raffle:snapshot', async (payload, ack) => {
         if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
@@ -145,9 +179,8 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       await fanout(key);
     });
   }
-  if (raffles) {
-    raffles.notify = fanout;
-    raffles.connected = async (db, context, liveId) => {
+  if (raffles || games) {
+    const connected = async (db, context, liveId) => {
       const participants = new Set();
       // Presence is a fresh SQL-authorized view of fixed live bindings. Reuse
       // the drawing transaction so revoke/access changes cannot race selection.
@@ -164,8 +197,10 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (!enabled()) throw new Error('LIVE_ACCESS_DENIED');
       return [...participants];
     };
+    if (raffles) { raffles.connected = connected; raffles.notify = fanout; }
+    if (games) { games.connected = connected; games.notify = fanout; }
   }
   if (knowledge) knowledge.notify = fanout;
-  return { attach, review, names: [...NAMES, ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : [])] };
+  return { attach, review, names: [...NAMES, ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : [])] };
 }
 module.exports = { createLiveSocketAdapter };

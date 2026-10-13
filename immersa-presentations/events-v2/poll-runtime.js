@@ -67,6 +67,7 @@ class EventPollRuntime {
           if (store.hasActive(key)) throw error('POLL_ALREADY_ACTIVE');
           if (this.knowledge && await this.knowledge.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
           if (this.raffles && await this.raffles.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
+          if (this.games && await this.games.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
           const poll = prepared.polls.find(poll => poll.id === payload.interactionId);
           if (!poll) throw error('POLL_NOT_FOUND');
           if (!store.launch({ sessionId: key, interaction: poll })) throw error('POLL_CONTENT_NOT_PREPARED');
