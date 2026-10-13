@@ -22,6 +22,7 @@ function createSession() {
 
 class GameQueueStore {
   constructor(options = {}) {
+    this.controlRoles = new Set(options.controlRoles || CONTROL_ROLES);
     this.catalog = [...(options.catalog || DEFAULT_GAME_CATALOG)]
       .map((game) => ({ ...game, id: String(game.id || "") }))
       .filter((game) => game.id)
@@ -47,7 +48,7 @@ class GameQueueStore {
   }
 
   configure(sessionId, role, gameTypes, availableGameTypes) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const session = this.getSession(sessionId);
     if (session.status !== "idle") return { ok: false, reason: "queue_locked" };
     const requested = Array.from(new Set(Array.from(gameTypes || []).map((gameType) => String(gameType || ""))));
@@ -60,7 +61,7 @@ class GameQueueStore {
   }
 
   validateStart(sessionId, role, availableGameTypes) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const session = this.getSession(sessionId);
     if (session.status !== "idle") return { ok: false, reason: "queue_locked" };
     if (!session.selected.length) return { ok: false, reason: "empty_queue" };
@@ -115,7 +116,7 @@ class GameQueueStore {
   }
 
   end(sessionId, role) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const session = this.getSession(sessionId);
     session.status = "idle";
     session.current_game_type = "";

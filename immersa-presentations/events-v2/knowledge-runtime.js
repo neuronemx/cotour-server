@@ -103,6 +103,7 @@ class EventKnowledgeRuntime {
         if (current && !engine.TERMINAL_STATES.has(current.state)) throw error('INTERACTION_BUSY');
         if (this.polls?.states.get(key)?.store.hasActive(key)) throw error('INTERACTION_BUSY');
         if (this.raffles && await this.raffles.hasActive(context, db, liveId, scoped.prepared)) throw error('INTERACTION_BUSY');
+          if (this.games && await this.games.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
         const definition = scoped.definitions.find(item => item.id === payload.definitionId);
         if (!definition) throw error('KNOWLEDGE_DEFINITION_NOT_FOUND');
         if (!scoped.record) await db.execute(`INSERT INTO event_v2_knowledge_sessions

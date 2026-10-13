@@ -68,6 +68,7 @@ function createInitialState(nowMs, durationMs = DEFAULT_DURATION_MS, names = {})
 
 class PongStore {
   constructor(options = {}) {
+    this.controlRoles = new Set(options.controlRoles || CONTROL_ROLES);
     this.now = options.now || Date.now;
     this.sessions = new Map();
     this.inputWindowMs = options.inputWindowMs || INPUT_WINDOW_MS;
@@ -86,7 +87,7 @@ class PongStore {
   }
 
   prepare(sessionId, role, nowMs = this.now()) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const previous = this.getSession(sessionId);
     const game = createInitialState(nowMs, this.durationMs, {
       left: previous.teams.left.name,
@@ -98,7 +99,7 @@ class PongStore {
   }
 
   setTeamNames(sessionId, role, names = {}, nowMs = this.now()) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const game = this.getSession(sessionId);
     if (game.status !== "ready") return { ok: false, reason: "names_locked" };
     const nextNames = names && typeof names === "object" ? names : {};
@@ -135,7 +136,7 @@ class PongStore {
   }
 
   start(sessionId, role, nowMs = this.now()) {
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     const game = this.getSession(sessionId);
     if (game.status !== "ready") return { ok: false, reason: "invalid_state" };
     const hasLeftTeam = Array.from(game.roster.values()).some((team) => team === "left");
@@ -162,7 +163,7 @@ class PongStore {
 
   pause(sessionId, role, nowMs = this.now()) {
     const game = this.getSession(sessionId);
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     if (game.status !== "running") return { ok: false, reason: "invalid_state" };
     game.remaining_ms = Math.max(0, game.ends_at_ms - nowMs);
     game.ends_at_ms = null;
@@ -176,7 +177,7 @@ class PongStore {
 
   resume(sessionId, role, nowMs = this.now()) {
     const game = this.getSession(sessionId);
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     if (game.status !== "paused") return { ok: false, reason: "invalid_state" };
     game.ends_at_ms = nowMs + Math.max(0, game.remaining_ms || 0);
     game.remaining_ms = null;
@@ -190,7 +191,7 @@ class PongStore {
 
   close(sessionId, role, nowMs = this.now()) {
     const game = this.getSession(sessionId);
-    if (!CONTROL_ROLES.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
+    if (!this.controlRoles.has(String(role || ""))) return { ok: false, reason: "unauthorized_role" };
     game.status = "closed";
     game.ends_at_ms = null;
     game.remaining_ms = 0;
