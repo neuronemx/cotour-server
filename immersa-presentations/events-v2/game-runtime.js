@@ -98,7 +98,7 @@ class EventGameRuntime {
               game.input.right = state.pendingInputs.filter(input => input.direction === 'right').length;
             } else for (const team of ['left', 'right']) for (const id of game.input[team].keys()) if (!allowed.has(id)) game.input[team].delete(id);
             const window = game.input.window_started_at_ms;
-            engine.step(key, Math.max(0, Math.min(50, now - state.lastStep)), now); state.lastStep = now;
+            engine.step(key, Math.max(0, now - state.lastStep), now); state.lastStep = now;
             if (game.type === 'breakout' && game.input.window_started_at_ms !== window) state.pendingInputs = [];
             if (game.status === 'finished') {
               if (state.queue.nextGameType(key)) state.queue.scheduleTransition(key, game.type, now + 5000);
