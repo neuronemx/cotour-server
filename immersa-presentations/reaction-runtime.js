@@ -5,9 +5,11 @@ const SCREEN_LIMIT = 40;
 const SCREEN_LIFETIME_MS = 3100;
 
 class ReactionRuntime {
-  constructor({ emitScreen, now = Date.now }) {
+  constructor({ emitScreen, now = Date.now, screenLimit = SCREEN_LIMIT }) {
+    if (!Number.isSafeInteger(screenLimit) || screenLimit < 1 || screenLimit > 1000) throw new RangeError("Invalid reaction screen limit");
     this.emitScreen = emitScreen;
     this.now = now;
+    this.screenLimit = screenLimit;
     this.limiters = new Map();
     this.visibleUntil = [];
     this.nextPruneAt = 0;
@@ -43,7 +45,7 @@ class ReactionRuntime {
     this.bucket.version += 1;
     socket.emit("reaction", { emoji, target: "audience", at: now });
     this.visibleUntil = this.visibleUntil.filter((until) => until > now);
-    if (showOnScreen && this.visibleUntil.length < SCREEN_LIMIT) {
+    if (showOnScreen && this.visibleUntil.length < this.screenLimit) {
       this.visibleUntil.push(now + SCREEN_LIFETIME_MS);
       this.emitScreen({ emoji, target: "screen", at: now });
     }

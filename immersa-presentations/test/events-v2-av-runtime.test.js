@@ -51,7 +51,8 @@ test('idle reads/denied roles never initialize; failed commit cannot publish med
 test('100 authorized reactions persist beyond visual cap; Público only gets its own echo, limiter survives windows and rollback', async () => {
   const f = fixtures(), stage = f.credentials('STAGE'); await f.live.operate(f.grants, stage, f.liveId);
   for (let i = 0; i < 100; i++) { const reply = await f.av.operate(f.grants, f.credentials('PARTICIPANT'), f.liveId, 'react', { emoji: '❤️' }); assert.equal(reply.own.target, 'audience'); }
-  assert.equal(f.record().heart_count, 100); const key = [...f.av.states.keys()][0]; assert.equal(f.av.states.get(key).state.visibleReactions.length, 40);
+  assert.equal(f.record().heart_count, 100); const key = [...f.av.states.keys()][0]; assert.equal(f.av.states.get(key).state.visibleReactions.length, 50);
+  assert.equal((await f.av.projection(f.context(f.credentials('PLAYER')), f.db, f.liveId)).reactions.length, 50);
   const publicActor = f.credentials('PARTICIPANT'), publicView = await f.av.projection(f.context(publicActor), f.db, f.liveId); assert.equal(publicView.reactions, undefined); assert.equal(publicView.reactionCounts, undefined); assert.equal(publicView.channels, undefined);
   for (let i = 0; i < 4; i++) await f.av.operate(f.grants, publicActor, f.liveId, 'react', { emoji: '👏' });
   await assert.rejects(f.av.operate(f.grants, { ...publicActor, grantId: crypto.randomUUID() }, f.liveId, 'react', { emoji: '👏' }), { code: 'AV_REACTION_RATE_LIMITED' }); assert.equal(f.record().clap_count, 4);

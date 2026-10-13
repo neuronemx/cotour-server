@@ -7,6 +7,7 @@ const token = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,120}$/.tes
 const bounded = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
 const fields = (payload, allowed) => payload && typeof payload === 'object' && !Array.isArray(payload) && Object.keys(payload).length === allowed.length && allowed.every(key => Object.hasOwn(payload, key));
 const columns = { '❤️': 'heart_count', '👏': 'clap_count', '🔥': 'fire_count' };
+const EVENT_SCREEN_LIMIT = 50;
 function normalizeAV(catalog) {
   if (!Array.isArray(catalog.resources) || catalog.resources.length > 200 || !Array.isArray(catalog.playlists) || catalog.playlists.length > 100) throw error('AV_CONTENT_NOT_PREPARED');
   const seen = new Set(), assets = new Map();
@@ -52,7 +53,7 @@ class EventAVRuntime {
   fork(scoped) {
     const previous = this.states.get(scoped.key), state = previous ? structuredClone(previous.state) : initial(this.now());
     state.strokes = state.strokes.filter(stroke => stroke.createdAt + stroke.ttl > this.now()); state.visibleReactions = state.visibleReactions.filter(reaction => reaction.until > this.now());
-    const own = [], screen = [], reactions = new ReactionRuntime({ now: this.now, emitScreen: payload => screen.push(payload) });
+    const own = [], screen = [], reactions = new ReactionRuntime({ now: this.now, screenLimit: EVENT_SCREEN_LIMIT, emitScreen: payload => screen.push(payload) });
     if (previous) for (const key of ['limiters', 'visibleUntil', 'nextPruneAt', 'bucket', 'accepting']) reactions[key] = structuredClone(previous.reactions[key]);
     reactions.bucket.counts = { '❤️': Number(scoped.record?.heart_count || 0), '👏': Number(scoped.record?.clap_count || 0), '🔥': Number(scoped.record?.fire_count || 0) };
     return { ...scoped, state, reactions, own, screen };
@@ -205,4 +206,4 @@ class EventAVRuntime {
   }
   close() { for (const timer of this.timers.values()) this.clearTimeoutFn(timer); this.timers.clear(); this.witnesses.clear(); }
 }
-module.exports = { EventAVRuntime, normalizeAV, fields };
+module.exports = { EventAVRuntime, normalizeAV, fields, EVENT_SCREEN_LIMIT };

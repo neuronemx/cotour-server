@@ -14,7 +14,8 @@ function answerLabel(execution, answer) {
   return question?.options.find((option) => option.id === answer?.optionId)?.label || "Omitida";
 }
 
-function resultCsv(execution) {
+function resultCsv(execution, { cell = csvCell } = {}) {
+  const rowCsv = values => values.map(cell).join(",");
   const result = execution?.result;
   if (!result) {
     const error = new Error("Results are not ready");
@@ -37,7 +38,7 @@ function resultCsv(execution) {
       row.totalQuestions,
       (row.correctTimeMs / 1000).toFixed(2)
     ]);
-    return "\uFEFF" + [csvRow(headers), ...rows.map(csvRow)].join("\r\n") + "\r\n";
+    return "\uFEFF" + [rowCsv(headers), ...rows.map(rowCsv)].join("\r\n") + "\r\n";
   }
   const questionHeaders = questions.map((question, index) => `P${index + 1}: ${question.prompt}`);
   const headers = [
@@ -66,7 +67,7 @@ function resultCsv(execution) {
       })
     ];
   });
-  return "\uFEFF" + [csvRow(headers), ...rows.map(csvRow)].join("\r\n") + "\r\n";
+  return "\uFEFF" + [rowCsv(headers), ...rows.map(rowCsv)].join("\r\n") + "\r\n";
 }
 
 function historySummary(execution) {

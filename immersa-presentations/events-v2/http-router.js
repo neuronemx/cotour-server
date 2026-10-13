@@ -1,8 +1,9 @@
 const express = require('express');
 const { EventAccessError, accountActor, assertFields } = require('./authorization');
 const { requireOrigin } = require('./grant-http');
+const { attachEventReports } = require('./reports-http');
 
-function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null }) {
+function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null }) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -45,6 +46,7 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
   router.post('/organizations/:orgId/events', handle((req, actor) => repository.createEvent(actor, req.params.orgId, req.body), ['title', 'slug', 'timezone'], 201));
   router.get('/organizations/:orgId/events', handle((req, actor) => repository.listEvents(actor, req.params.orgId)));
   const eventPath = '/organizations/:orgId/events/:eventId';
+  attachEventReports(router, reports, eventPath);
   router.get(eventPath, handle((req, actor) => repository.getEvent(actor, req.params.orgId, req.params.eventId)));
   router.patch(eventPath, handle((req, actor) => repository.updateEvent(actor, req.params.orgId, req.params.eventId, req.body.title), ['title']));
   router.put(eventPath + '/members/:userId', handle(revalidate((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, req.body.roles)), ['roles']));

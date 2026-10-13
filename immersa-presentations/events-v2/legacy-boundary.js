@@ -12,6 +12,7 @@ class LegacyEventBoundary {
       stage: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_stages r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
       activity: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_activities r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
       live: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_live_sessions r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
+      knowledgeExecution: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_live_sessions l ON l.event_workspace_id = c.event_id JOIN event_v2_knowledge_executions e ON e.presentation_session_id = l.id WHERE e.id = ?', [id]],
       qr: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_public_qrs r ON r.event_workspace_id = c.event_id WHERE r.public_id = ?', [id]],
       assignment: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_activities a ON a.event_workspace_id = c.event_id JOIN event_activity_speaker_assignments r ON r.event_activity_id = a.id WHERE r.id = ?', [id]],
       deck: [`SELECT c.event_id FROM event_v2_contexts c WHERE EXISTS
@@ -48,6 +49,7 @@ class LegacyEventBoundary {
         [/^\/api\/(?:admin\/event-stages|event\/stages)\/([^/]+)/, 'stage'],
         [/^\/api\/event\/stage-control\/([^/]+)/, 'deck'],
         [/^\/api\/event\/live-sessions\/([^/]+)/, 'live'],
+        [/^\/api\/knowledge-activities\/([^/]+)\/export\//, 'knowledgeExecution'],
         [/^\/api\/event\/public\/([^/]+)/, 'qr'],
         [/^\/api\/event-hub\/speaker-invitations\/([^/]+)/, 'assignment'],
         [/^\/event-hubs\/([^/]+)\/brand-assets\//, 'event'],

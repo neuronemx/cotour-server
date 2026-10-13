@@ -7,7 +7,7 @@ class EventAccessError extends Error {
 }
 
 const ROLE_CAPABILITIES = Object.freeze({
-  ADMIN: Object.freeze(['event.read', 'event.configure', 'event.members.manage']),
+  ADMIN: Object.freeze(['event.read', 'event.configure', 'event.members.manage', 'event.metrics.read', 'event.metrics.export']),
   PRODUCER: Object.freeze(['event.read', 'event.configure'])
 });
 
