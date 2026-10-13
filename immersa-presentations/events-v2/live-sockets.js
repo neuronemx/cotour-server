@@ -2,25 +2,31 @@ const { isId } = require('./grant-repository');
 const { executionKey } = require('./live-runtime');
 const COMMANDS = Object.freeze({ 'events:slide:next': 'next', 'events:slide:prev': 'prev', 'events:slide:go': 'go',
   'events:presentation:pause': 'pause', 'events:presentation:play': 'play' });
+const POLL_COMMANDS = Object.freeze({ 'events:poll:launch': 'launch', 'events:poll:submit': 'submit', 'events:poll:show': 'show', 'events:poll:hide': 'hide', 'events:poll:close': 'close' });
 const NAMES = ['events:live:join', 'events:live:snapshot', ...Object.keys(COMMANDS)];
-function createLiveSocketAdapter({ namespace, grants, runtime, credentials, enabled, disconnect }) {
+function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, credentials, enabled, disconnect }) {
   const bindings = new WeakMap();
   function valid(payload, fields) {
     return payload && typeof payload === 'object' && !Array.isArray(payload)
       && Object.keys(payload).length === fields.length && fields.every(key => Object.hasOwn(payload, key));
   }
   function ackError(ack, code) { if (typeof ack === 'function') ack({ ok: false, code }); }
-  async function deliver(socket, ack) {
+  async function deliver(socket, ack, pollSnapshot = false) {
     const liveId = bindings.get(socket);
     if (!socket.connected || !enabled() || !liveId) throw new Error('LIVE_ACCESS_DENIED');
-    await runtime.deliver(grants, credentials.get(socket), liveId, snapshot => {
+    await runtime.deliver(grants, credentials.get(socket), liveId, async (snapshot, context, db, prepared) => {
+      if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
+      const poll = polls ? await polls.projection(context, db, liveId, prepared) : null;
       if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
       socket.emit('events:live:state', snapshot);
-      if (typeof ack === 'function') ack({ ok: true, snapshot });
+      if (poll) socket.emit('events:poll:state', poll);
+      if (typeof ack === 'function') ack({ ok: true, snapshot: pollSnapshot ? poll : snapshot });
     });
   }
   async function review(socket) {
-    if (bindings.has(socket)) await runtime.deliver(grants, credentials.get(socket), bindings.get(socket), () => {});
+    if (bindings.has(socket)) await runtime.deliver(grants, credentials.get(socket), bindings.get(socket), async (_snapshot, context, db, prepared) => {
+      if (polls) await polls.projection(context, db, bindings.get(socket), prepared);
+    });
   }
   async function fanout(key) {
     await Promise.all([...namespace.sockets.values()].filter(socket => bindings.has(socket)
@@ -39,7 +45,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, credentials, enab
             if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
             await operation(payload, ack);
           } catch (error) {
-            const code = ['CONTENT_NOT_PREPARED', 'CONTENT_VERSION_CHANGED', 'LIVE_COMMAND_DENIED', 'INVALID_COMMAND'].includes(error.code) ? error.code : 'LIVE_ACCESS_DENIED';
+            const code = ['CONTENT_NOT_PREPARED', 'CONTENT_VERSION_CHANGED', 'LIVE_COMMAND_DENIED', 'INVALID_COMMAND', 'POLL_CONTENT_NOT_PREPARED', 'POLL_COMMAND_DENIED', 'POLL_ALREADY_ACTIVE', 'POLL_NOT_FOUND', 'POLL_NOT_ACTIVE', 'POLL_DUPLICATE_RESPONSE', 'POLL_INVALID_OPTION'].includes(error.code) ? error.code : 'LIVE_ACCESS_DENIED';
             ackError(ack, code);
             if (code === 'LIVE_ACCESS_DENIED' && socket.connected) disconnect(socket);
           }
@@ -57,6 +63,19 @@ function createLiveSocketAdapter({ namespace, grants, runtime, credentials, enab
       if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
       await deliver(socket, ack);
     });
+    if (polls) {
+      handler('events:poll:snapshot', async (payload, ack) => {
+        if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        await deliver(socket, ack, true);
+      });
+      for (const [name, command] of Object.entries(POLL_COMMANDS)) handler(name, async (payload, ack) => {
+        const fields = command === 'launch' ? ['interactionId'] : command === 'submit' ? ['pollRunId', 'optionId'] : ['pollRunId'];
+        if (!valid(payload, fields) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        const key = await polls.operate(grants, credentials.get(socket), bindings.get(socket), command, payload);
+        await deliver(socket, ack, true);
+        await fanout(key);
+      });
+    }
     for (const [name, command] of Object.entries(COMMANDS)) handler(name, async (payload, ack) => {
       if (!valid(payload, command === 'go' ? ['slideIndex'] : []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
       const key = await runtime.operate(grants, credentials.get(socket), bindings.get(socket), command, payload);
@@ -64,6 +83,6 @@ function createLiveSocketAdapter({ namespace, grants, runtime, credentials, enab
       await fanout(key);
     });
   }
-  return { attach, review, names: NAMES };
+  return { attach, review, names: [...NAMES, ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : [])] };
 }
 module.exports = { createLiveSocketAdapter };

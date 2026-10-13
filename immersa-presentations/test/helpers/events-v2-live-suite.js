@@ -18,7 +18,7 @@ async function liveSuite(t, f) {
   }
   const join = (client, liveId = liveA) => ack(client, 'events:live:join', { liveSessionId: liveId });
   const snapshot = client => ack(client, 'events:live:snapshot');
-  const prepare = (eventId, liveSessionId) => preparations.set(liveSessionId, Object.freeze({ eventId, liveSessionId, deckId: 'v2-private-deck', versionId: 'immutable-test-version', slideCount: 5 }));
+  const prepare = (eventId, liveSessionId) => preparations.set(liveSessionId, Object.freeze({ eventId, liveSessionId, deckId: 'v2-private-deck', versionId: 'immutable-test-version', slideCount: 5, polls: [] }));
   const liveA2 = crypto.randomUUID(), liveB = crypto.randomUUID(), otherStage = crypto.randomUUID(), otherActivity = crypto.randomUUID(), otherLive = crypto.randomUUID();
   await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['FREE', activityA]);
   const stageB = (await sql('SELECT event_stage_id FROM event_activities WHERE id = ?', [activityB]))[0].event_stage_id;

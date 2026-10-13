@@ -8,8 +8,9 @@ const control = context => ['STAGE', 'SPEAKER'].includes(context.kind);
 class EventLiveRuntime {
   // No public deck fallback. Phase 2 supplies a private, versioned preparation
   // reader; this increment exercises that boundary with scoped test fixtures.
-  constructor({ readPreparation = async () => null } = {}) {
+  constructor({ readPreparation = async () => null, enabled = () => true } = {}) {
     this.readPreparation = readPreparation;
+    this.enabled = enabled;
     this.states = new Map();
     this.queues = new Map();
   }
@@ -56,6 +57,7 @@ class EventLiveRuntime {
     const key = executionKey(credentials.eventId, liveId);
     return this.serial(key, async () => {
       const candidate = await grants.withSession(credentials, async (context, db) => {
+        if (!this.enabled()) throw error('LIVE_ACCESS_DENIED');
         if (command !== 'snapshot') {
           if (!['next', 'prev', 'go', 'pause', 'play'].includes(command)) throw error('COMMAND_NOT_ENABLED');
           if (!(control(context) || (context.kind === 'PLAYER' && ['next', 'prev'].includes(command)))) throw error('LIVE_COMMAND_DENIED');
@@ -78,6 +80,7 @@ class EventLiveRuntime {
         next.revision++;
         return Object.freeze(next);
       });
+      if (!this.enabled()) throw error('LIVE_ACCESS_DENIED');
       this.states.set(key, candidate);
       return key;
     });
@@ -93,7 +96,7 @@ class EventLiveRuntime {
         slideIndex: state.liveSlideIndex, transmissionPaused: state.transmissionPaused };
       if (control(context)) Object.assign(snapshot, { presenterSlideIndex: state.presenterSlideIndex,
         liveSlideIndex: state.liveSlideIndex, slideCount: state.slideCount, transmissionPausedBy: state.transmissionPausedBy });
-      return emit(Object.freeze(snapshot));
+      return emit(Object.freeze(snapshot), context, db, prepared);
     });
   }
 }
