@@ -17,6 +17,11 @@ async function reportsSuite(t, f) {
         { id: 'trivia', category: 'contest', title: 'Trivia CSV', identificationMode: 'optional_name', questionDurationSeconds: 5, questions: [question] }] });
   }
   await sql('UPDATE event_activities SET access_level=? WHERE id IN (?,?)', ['FREE', activityA, activityB]);
+  // The grant suite intentionally revoked this organization membership.
+  // Establish this suite's active Producer explicitly before testing that
+  // preparation permission does not include nominal report permission.
+  await domain.setOrganizationMember(ids.get('admin1'), o1, ids.get('producer'), 'MEMBER');
+  await domain.setEventMember(ids.get('admin1'), o1, a, ids.get('producer'), ['PRODUCER']);
   async function get(actor, route, extra = {}, method = 'GET') {
     const response = await fetch(base + route, { method, headers: { origin: base, ...(cookies.has(actor) ? { cookie: cookies.get(actor) } : {}), ...extra } });
     const text = await response.text(); let data; try { data = JSON.parse(text); } catch (_) { data = null; }
@@ -33,8 +38,10 @@ async function reportsSuite(t, f) {
   }
   const credentials = session => ({ eventId: session.context.eventId, grantId: session.context.grantId, sessionToken: session.sessionToken });
   let stage, speaker, player, alice, bob, assessmentId, triviaId, aliceQuestion;
+  stage = await issue('STAGE', { stageId: stageA }); speaker = await issue('SPEAKER', { activityId: activityA }); player = await issue('PLAYER', { liveSessionId: live });
+  alice = await register('=SUM(1,2)'); bob = await register('東京, "Ana"');
   const counts = async () => {
-    const result = {}; for (const table of ['event_v2_qna_sessions', 'event_v2_qna_questions', 'event_v2_knowledge_sessions', 'event_v2_knowledge_executions', 'event_v2_knowledge_answers', 'event_v2_reaction_counts', 'presentation_sessions', 'knowledge_activity_executions', 'presentation_reaction_counts']) result[table] = Number((await sql(`SELECT COUNT(*) AS n FROM ${table}`))[0].n); return result;
+    const result = {}; for (const table of ['event_access_grants', 'event_participant_identities', 'event_v2_qna_sessions', 'event_v2_qna_questions', 'event_v2_knowledge_sessions', 'event_v2_knowledge_executions', 'event_v2_knowledge_answers', 'event_v2_reaction_counts', 'presentation_sessions', 'knowledge_activity_executions', 'presentation_reaction_counts']) result[table] = Number((await sql(`SELECT COUNT(*) AS n FROM ${table}`))[0].n); return result;
   };
   await t.test('report HTTP authenticates accounts, requires explicit Admin and never initializes idle engines or nominal data', async () => {
     const before = await counts(), states = [runtime.states.size, avRuntime.states.size], preparationReads = f.preparationReads();
@@ -44,8 +51,6 @@ async function reportsSuite(t, f) {
       for (const [actor, status] of [[null, 401], ['platform', 404], ['producer', 403], ['dual', 403], ['member', 404], ['admin2', 404]]) assert.equal((await get(actor, path(suffix), { 'x-role': 'ADMIN' })).status, status);
     }
     assert.deepEqual(await counts(), before); assert.deepEqual([runtime.states.size, avRuntime.states.size], states); assert.equal(f.preparationReads(), preparationReads);
-    stage = await issue('STAGE', { stageId: stageA }); speaker = await issue('SPEAKER', { activityId: activityA }); player = await issue('PLAYER', { liveSessionId: live });
-    alice = await register('=SUM(1,2)'); bob = await register('東京, "Ana"');
     for (const session of [stage, speaker, player, alice]) assert.equal((await get(null, path('qna/export.csv'), { cookie: session.cookie, authorization: 'Bearer ' + session.sessionToken })).status, 401);
     assert.equal((await get('admin1', path('qna/history'), { 'sec-fetch-site': 'cross-site' })).status, 403);
   });
@@ -146,7 +151,8 @@ async function reportsSuite(t, f) {
     for (const event of [a, b]) await domain.setEventMember(ids.get('admin1'), o1, event, ids.get('dual'), ['PRODUCER']);
   });
   await t.test('HTTP never sends nominal content before authorization commits; injected DB failure returns only a sanitized 503', async () => {
-    const original = reports.domain, before = await counts(), auditRows = Number((await sql('SELECT COUNT(*) AS n FROM event_security_audit'))[0].n);
+    const auditCount = async () => Number((await sql('SELECT COUNT(*) AS n FROM event_security_audit WHERE actor_user_id=? AND action=? AND event_id=? AND resource_id=?', [ids.get('admin1'), 'event.metrics.export', a, live]))[0].n);
+    const original = reports.domain, before = await counts(), auditRows = await auditCount();
     const faulty = new EventDomainRepository(domain.pool);
     faulty.transaction = async (_actor, _action, operation) => { const db = await domain.pool.getConnection(); try { await db.beginTransaction(); await operation(db); throw new Error('PRIVATE_DB_PASSWORD'); } finally { await db.rollback(); db.release(); } };
     reports.domain = faulty;
@@ -154,7 +160,7 @@ async function reportsSuite(t, f) {
       const response = await get('admin1', path(`knowledge/${assessmentId}/export.csv`), { 'If-None-Match': '"private-cached"' });
       assert.equal(response.status, 503); assert.deepEqual(response.data, { code: 'AUTHORIZATION_UNAVAILABLE' }); assert.equal(response.headers.get('content-disposition'), null); assert.equal(response.text.includes('=SUM'), false); assert.equal(response.text.includes('PRIVATE_DB_PASSWORD'), false);
     } finally { reports.domain = original; }
-    assert.deepEqual(await counts(), before); assert.equal(Number((await sql('SELECT COUNT(*) AS n FROM event_security_audit'))[0].n), auditRows);
+    assert.deepEqual(await counts(), before); assert.equal(await auditCount(), auditRows);
     assert.equal((await get('admin1', path(`knowledge/${assessmentId}/export.csv`))).status, 200);
   });
 }
