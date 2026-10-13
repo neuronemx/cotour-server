@@ -49,6 +49,7 @@ const { createGrantAccessRouter } = require("./events-v2/grant-http");
 const { createEventGrantSockets } = require("./events-v2/grant-sockets");
 const { EventLiveRuntime } = require("./events-v2/live-runtime");
 const { EventPollRuntime } = require("./events-v2/poll-runtime");
+const { EventQnaRuntime } = require("./events-v2/qna-runtime");
 const { clampSlide: clampPresentationSlide, applyPresenterSlide } = require("./presentation-navigation");
 const { EventHubLoadTestFootprint } = require("./event-hub/load-test-footprint");
 const { EventBrandMentionStore } = require("./event-hub/brand-mentions");
@@ -169,7 +170,8 @@ const eventGrantRepository = eventDomainRepository ? new EventGrantRepository(ev
 const eventGrantsEnabled = () => process.env.IMMERSA_EVENTS_V2_ENABLED === "true" && betterAuthCompatibilityBridge.enabled;
 const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled });
 const eventPollRuntime = new EventPollRuntime({ liveRuntime: eventLiveRuntime });
-const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime });
+const eventQnaRuntime = new EventQnaRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool });
+const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
