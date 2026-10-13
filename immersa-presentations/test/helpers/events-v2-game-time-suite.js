@@ -155,7 +155,7 @@ async function gameTimeSuite(t, f) {
     player = await connect(playerSession); attendee = await connect(publicSession); stage = await connect(stageSession);
     let publicPushes = 0; attendee.on('events:game:state', () => publicPushes++); attendee.on('events:time:state', () => publicPushes++);
     await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['PAID', activityA]);
-    assert.equal((await controlTime(player, { target: 'screen', action: 'start', mode: 'clock' })).ok, true); assert.equal(publicPushes, 0); assert.equal(attendee.connected, false);
+    const audienceGone = gone(attendee); assert.equal((await controlTime(player, { target: 'screen', action: 'start', mode: 'clock' })).ok, true); await audienceGone; assert.equal(publicPushes, 0); assert.equal(attendee.connected, false);
     await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['FREE', activityA]);
     await sql('UPDATE event_access_grants SET revoked_at = ? WHERE id = ?', [f.now(), playerSession.context.grantId]);
     const deniedBefore = timeRuntime.states.get(key); assert.equal((await ack(player, 'events:time:control', { expectedRevision: deniedBefore.state.revision, target: 'screen', action: 'hide' })).code, 'LIVE_ACCESS_DENIED'); assert.equal(timeRuntime.states.get(key), deniedBefore);
