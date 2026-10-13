@@ -51,3 +51,16 @@ test('an unauthorized deadline cannot notify or mutate through a timer', async (
   runtime.schedule('event:live', { state: 'COUNTDOWN', countdownDeadlineAt: new Date(10).toISOString() }, { withSession: async () => { throw new Error('revoked'); } }, { eventId: 'event' }, 'live');
   await fire(); assert.equal(notifications, 0); assert.equal(runtime.timers.size, 0);
 });
+
+test('deadline witnesses prefer a scoped controller and reauthorize fallback after revocation', async () => {
+  let fire, notifications = 0; const attempted = [];
+  const runtime = new EventKnowledgeRuntime({ liveRuntime: {}, pool: {}, now: () => 0,
+    setTimeoutFn: callback => { fire = callback; return 1; }, clearTimeoutFn: () => {} });
+  runtime.notify = async () => { notifications++; };
+  runtime.operate = async (_grants, credentials) => { attempted.push(credentials.grantId); if (credentials.grantId === 'revoked') throw new Error('revoked'); };
+  const run = { state: 'COUNTDOWN', countdownDeadlineAt: new Date(10).toISOString() };
+  runtime.schedule('event:live', run, {}, { grantId: 'valid' }, 'live', 'PLAYER');
+  runtime.schedule('event:live', run, {}, { grantId: 'revoked' }, 'live', 'STAGE');
+  runtime.schedule('event:live', run, {}, { grantId: 'public' }, 'live', 'PARTICIPANT');
+  await fire(); assert.deepEqual(attempted, ['revoked', 'valid']); assert.equal(notifications, 1);
+});

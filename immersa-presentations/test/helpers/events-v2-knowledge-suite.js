@@ -159,6 +159,17 @@ async function knowledgeSuite(t, f) {
   });
   await t.test('deadline timers reauthorize; revocation, access downgrade, outage and finish block writes and delivery', async () => {
     const opened = await command(player, 'open', { definitionId: 'trivia' }); await join(attendee, opened.snapshot.execution.executionId); await control(player, 'start');
+    let fire, timerNotifications = 0;
+    const timerActor = await register('Timer witness');
+    const deadlineDriver = new EventKnowledgeRuntime({ liveRuntime: f.runtime, pool: domain.pool, polls: f.pollRuntime,
+      readKnowledge: async prepared => preparations.get(prepared.liveSessionId), now: () => Date.now() + clock,
+      setTimeoutFn: callback => { fire = callback; return { unref() {} }; }, clearTimeoutFn: () => {} });
+    deadlineDriver.notify = async () => { timerNotifications++; };
+    await deadlineDriver.operate(grants, credentials(stageSession), live, 'tick');
+    await deadlineDriver.operate(grants, credentials(timerActor), live, 'tick');
+    await request('admin1', 'DELETE', eventPath(a) + '/grants/' + timerActor.context.grantId);
+    clock += 4800; f.setKnowledgeClockOffset(clock); await fire();
+    assert.equal(timerNotifications, 1); assert.equal((await snap(player)).execution.state, 'ACTIVE'); deadlineDriver.close();
     const before = (await sql('SELECT revision FROM event_v2_knowledge_executions WHERE id = ?', [opened.snapshot.execution.executionId]))[0].revision;
     const narrowSession = await issue('SPEAKER', { activityId: activityA }); const narrow = await connect(narrowSession); let denied = new Promise(resolve => narrow.once('disconnect', resolve));
     await request('admin1', 'DELETE', eventPath(a) + '/grants/' + narrowSession.context.grantId); await denied;
@@ -167,7 +178,7 @@ async function knowledgeSuite(t, f) {
     let publicEmissions = 0; attendee.on('events:knowledge:state', () => { publicEmissions++; });
     const audienceDisconnected = disconnected(attendee);
     await sql("UPDATE event_activities SET access_level = 'PAID' WHERE id = ?", [activityA]); await f.grantSockets.reviewAll(); await audienceDisconnected; publicEmissions = 0;
-    assert.equal(attendee.connected, false); await advance(4800, player); assert.equal(publicEmissions, 0);
+    assert.equal(attendee.connected, false); await snap(player); assert.equal(publicEmissions, 0);
     f.setEnabled(false); await assert.rejects(knowledgeRuntime.operate(grants, credentials(stageSession), live, 'tick')); f.setEnabled(true);
     const broken = { withSession: async () => { throw new Error('database unavailable'); } }; await assert.rejects(knowledgeRuntime.operate(broken, credentials(stageSession), live, 'tick'), /database unavailable/);
     const playerDisconnected = disconnected(player);

@@ -51,7 +51,7 @@ class EventKnowledgeRuntime {
     random = Math.random, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
     this.live = liveRuntime; this.pool = pool; this.polls = polls; this.readKnowledge = readKnowledge;
     this.now = now; this.random = random; this.setTimeoutFn = setTimeoutFn; this.clearTimeoutFn = clearTimeoutFn;
-    this.timers = new Map(); this.notify = async () => {};
+    this.timers = new Map(); this.witnesses = new Map(); this.notify = async () => {};
   }
   repository(db) {
     return new KnowledgeActivityRepository(this.pool, { storage: 'events-v2', executor: db,
@@ -92,7 +92,7 @@ class EventKnowledgeRuntime {
   }
   async operate(grants, credentials, liveId, command, payload = {}) {
     const key = executionKey(credentials.eventId, liveId);
-    const run = await this.live.serial(key, () => grants.withSession(credentials, async (context, db) => {
+    const authorized = await this.live.serial(key, () => grants.withSession(credentials, async (context, db) => {
       if (!this.live.enabled()) throw error('LIVE_ACCESS_DENIED');
       const publicCommand = ['join', 'claim_tab', 'answer', 'submit'].includes(command);
       if (command !== 'tick' && (publicCommand ? context.kind !== 'PARTICIPANT' || !context.participantId : !controls(context))) throw error('KNOWLEDGE_COMMAND_DENIED');
@@ -145,20 +145,32 @@ class EventKnowledgeRuntime {
         if (current.revision !== before) await repository.saveExecution(current, { expectedRevision: before });
       } else if (command !== 'tick') throw error('KNOWLEDGE_NOT_ACTIVE');
       if (!this.live.enabled()) throw error('LIVE_ACCESS_DENIED');
-      return current;
+      return { run: current, kind: context.kind };
     }));
     if (!this.live.enabled()) throw error('LIVE_ACCESS_DENIED');
-    this.schedule(key, run, grants, credentials, liveId);
+    this.schedule(key, authorized.run, grants, credentials, liveId, authorized.kind);
     return key;
   }
-  schedule(key, run, grants, credentials, liveId) {
+  schedule(key, run, grants, credentials, liveId, kind = 'PARTICIPANT') {
     const previous = this.timers.get(key); if (previous) this.clearTimeoutFn(previous);
     this.timers.delete(key);
     const deadline = nextDeadline(run);
-    if (!Number.isFinite(deadline) || engine.TERMINAL_STATES.has(run?.state)) return;
+    if (!Number.isFinite(deadline) || engine.TERMINAL_STATES.has(run?.state)) { this.witnesses.delete(key); return; }
+    // A revoked public window must not stall a timer when another currently
+    // scoped controller is still connected. Keep bounded, post-commit witnesses
+    // and authorize each afresh; a stored witness never grants authority itself.
+    const witnesses = this.witnesses.get(key) || new Map();
+    const witnessId = credentials.grantId || 'local';
+    witnesses.delete(witnessId); witnesses.set(witnessId, { grants, credentials, kind });
+    const boundedWitnesses = [...witnesses.entries()].reverse().sort((a, b) => Number(controls(b[1])) - Number(controls(a[1]))).slice(0, 12);
+    this.witnesses.set(key, new Map(boundedWitnesses));
     const handle = this.setTimeoutFn(async () => {
       this.timers.delete(key);
-      try { await this.operate(grants, credentials, liveId, 'tick'); await this.notify(key); } catch (_) { /* Fresh scoped activity can resume after reconnect. */ }
+      for (const [id, witness] of this.witnesses.get(key) || []) {
+        try { await this.operate(witness.grants, witness.credentials, liveId, 'tick'); await this.notify(key); return; }
+        catch (_) { this.witnesses.get(key)?.delete(id); }
+      }
+      this.witnesses.delete(key); // Fresh authorized activity can resume.
     }, Math.max(5, deadline - this.now() + 5));
     handle?.unref?.(); this.timers.set(key, handle);
   }
@@ -174,6 +186,6 @@ class EventKnowledgeRuntime {
     snapshot.execution = engine.stateForRole(run, { role: view, participantId: context.participantId, tabId, nowMs: this.now() });
     return snapshot;
   }
-  close() { for (const handle of this.timers.values()) this.clearTimeoutFn(handle); this.timers.clear(); }
+  close() { for (const handle of this.timers.values()) this.clearTimeoutFn(handle); this.timers.clear(); this.witnesses.clear(); }
 }
 module.exports = { EventKnowledgeRuntime, normalizeKnowledge, nextDeadline };
