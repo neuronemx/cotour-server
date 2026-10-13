@@ -27,7 +27,10 @@ async function raffleSuite(t, f) {
   await sql('UPDATE event_activities SET access_level = ? WHERE id IN (?,?)', ['FREE', activityA, activityB]);
   let clock = 0; f.setRaffleClockOffset(clock);
   const clients = new Set(); t.after(() => { for (const client of clients) client.close(); });
-  const ack = (client, name, payload = {}) => new Promise((resolve, reject) => client.timeout(7000).emit(name, payload, (error, result) => error ? reject(error) : resolve(result)));
+  const ack = (client, name, payload = {}) => { const failure = new Error(`raffle acknowledgment failed: ${name}`); return new Promise((resolve, reject) => {
+    if (!client.connected) return reject(Object.assign(failure, { cause: new Error('client already disconnected') }));
+    client.timeout(7000).emit(name, payload, (error, result) => error ? reject(Object.assign(failure, { cause: error })) : resolve(result));
+  }); };
   const credentials = session => ({ eventId: session.context.eventId, grantId: session.context.grantId, sessionToken: session.sessionToken });
   async function issue(kind, fields, event = a) {
     const result = await request('admin1', 'POST', path(event) + '/grants', { kind, purpose: kind === 'PLAYER' ? 'player' : 'live', ...fields }); assert.equal(result.status, 201);
@@ -83,6 +86,8 @@ async function raffleSuite(t, f) {
   });
   await t.test('free raffle uses event identity and names, deduplicates windows and never enters bystanders', async () => {
     assert.equal((await enter(attendee, runId, { name: 'Alice' })).ok, true); await enter(other, runId);
+    const unnamed = await connect(await register(null)); const beforeRejected = (await persisted()).revision;
+    assert.equal((await enter(unnamed, runId)).code, 'RAFFLE_NAME_REQUIRED'); assert.equal((await persisted()).revision, beforeRejected); await closePresence(unnamed);
     const duplicate = await connect(participantSession); assert.equal((await enter(duplicate, runId, { name: '' })).ok, true);
     assert.equal((await snap(duplicate)).displayName, 'Alice'); assert.equal((await snap(duplicate)).active.ownEntry.ticketNumber, 1);
     assert.equal((await snap(stage)).active.entryCount, 2); assert.equal((await snap(spectator)).active.ownEntry, null);
@@ -113,6 +118,10 @@ async function raffleSuite(t, f) {
     assert.equal((await snap(attendee)).active.isWinner, false); assert.equal((await snap(stage)).active.winner, null);
     const rebuilt = new EventRaffleRuntime({ liveRuntime: f.runtime, readRaffles: async prepared => preparations.get(prepared.liveSessionId), now: () => f.raffleClockStart() + clock });
     const restored = await grants.withSession(credentials(stageSession), (context, db) => rebuilt.projection(context, db, live)); assert.equal(restored.active.revealAt, (await snap(stage)).active.revealAt);
+    const originalReader = rebuilt.readRaffles; rebuilt.readRaffles = async prepared => ({ ...preparations.get(prepared.liveSessionId), versionId: 'foreign-version' });
+    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => rebuilt.projection(context, db, live)), { code: 'RAFFLE_CONTENT_NOT_PREPARED' });
+    rebuilt.readRaffles = async prepared => ({ ...preparations.get(prepared.liveSessionId), raffles: definitions().map(item => ({ ...item, title: 'Changed without a version' })) });
+    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => rebuilt.projection(context, db, live)), { code: 'CONTENT_VERSION_CHANGED' }); rebuilt.readRaffles = originalReader;
     let fire, notifications = 0; const driver = new EventRaffleRuntime({ liveRuntime: f.runtime, readRaffles: rebuilt.readRaffles, now: rebuilt.now,
       setTimeoutFn: callback => { fire = callback; return { unref() {} }; }, clearTimeoutFn: () => {} });
     driver.connected = raffleRuntime.connected; driver.notify = async () => { notifications++; };
@@ -181,7 +190,9 @@ async function raffleSuite(t, f) {
     await control(player, 'close', run);
     const before = (await persisted()).revision;
     const broken = { withSession: async () => { throw new Error('raffle database unavailable'); } }; await assert.rejects(raffleRuntime.operate(broken, credentials(stageSession), live, 'open', { definitionId: 'free' }), /database unavailable/);
-    f.setEnabled(false); await assert.rejects(raffleRuntime.operate(grants, credentials(stageSession), live, 'open', { definitionId: 'free' })); f.setEnabled(true); assert.equal((await persisted()).revision, before);
+    const killed = disconnected(player); f.setEnabled(false); await assert.rejects(raffleRuntime.operate(grants, credentials(stageSession), live, 'open', { definitionId: 'free' }));
+    await f.grantSockets.reviewAll(); await killed; f.setEnabled(true); assert.equal((await persisted()).revision, before);
+    player.close(); player = await connect(await issue('PLAYER', { liveSessionId: live })); spectator.close(); spectator = await connect(spectatorSession);
     let emissions = 0; spectator.on('events:raffle:state', () => { emissions++; }); const publicGone = disconnected(spectator);
     await sql("UPDATE event_activities SET access_level = 'PAID' WHERE id = ?", [activityA]); await f.grantSockets.reviewAll(); await publicGone; emissions = 0; await snap(player); assert.equal(emissions, 0);
     const playerGone = disconnected(player); await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = CURRENT_TIMESTAMP WHERE id = ?", [live]);
