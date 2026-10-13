@@ -1,13 +1,13 @@
 const { sameOrigin } = require('./grant-http');
 const { createLiveSocketAdapter } = require('./live-sockets');
 
-function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null }) {
+function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null }) {
   const namespace = io.of('/events-v2');
   const credentials = new WeakMap();
   let reviewPromise = null;
   const accessError = () => Object.assign(new Error('EVENT_ACCESS_DENIED'), { data: { code: 'EVENT_ACCESS_DENIED' } });
   const disconnect = socket => { socket.emit('events:access_denied', { code: 'EVENT_ACCESS_DENIED' }); socket.disconnect(true); };
-  const live = runtime && createLiveSocketAdapter({ namespace, grants, runtime, polls, qna, knowledge, raffles, games, time, credentials, enabled, disconnect });
+  const live = runtime && createLiveSocketAdapter({ namespace, grants, runtime, polls, qna, knowledge, raffles, games, time, av, credentials, enabled, disconnect });
   async function reviewSocket(socket) {
     try {
       if (!enabled() || !grants) throw accessError();
@@ -87,7 +87,7 @@ function createEventGrantSockets({ io, grants, enabled = () => false, reviewInte
     namespace,
     reviewAll,
     disconnectGrant(grantId) { for (const socket of namespace.sockets.values()) if (socket.data.eventContext?.grantId === grantId) disconnect(socket); },
-    close() { games?.close(); raffles?.close(); knowledge?.close(); clearInterval(timer); for (const socket of namespace.sockets.values()) disconnect(socket); }
+    close() { av?.close(); games?.close(); raffles?.close(); knowledge?.close(); clearInterval(timer); for (const socket of namespace.sockets.values()) disconnect(socket); }
   };
 }
 module.exports = { createEventGrantSockets };
