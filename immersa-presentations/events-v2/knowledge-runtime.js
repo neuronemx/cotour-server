@@ -51,7 +51,7 @@ class EventKnowledgeRuntime {
     random = Math.random, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
     this.live = liveRuntime; this.pool = pool; this.polls = polls; this.readKnowledge = readKnowledge;
     this.now = now; this.random = random; this.setTimeoutFn = setTimeoutFn; this.clearTimeoutFn = clearTimeoutFn;
-    this.timers = new Map(); this.witnesses = new Map(); this.notify = async () => {};
+    this.timers = new Map(); this.witnesses = new Map(); this.witnessSequence = 0; this.notify = async () => {};
   }
   repository(db) {
     return new KnowledgeActivityRepository(this.pool, { storage: 'events-v2', executor: db,
@@ -161,8 +161,8 @@ class EventKnowledgeRuntime {
     // and authorize each afresh; a stored witness never grants authority itself.
     const witnesses = this.witnesses.get(key) || new Map();
     const witnessId = credentials.grantId || 'local';
-    witnesses.delete(witnessId); witnesses.set(witnessId, { grants, credentials, kind });
-    const boundedWitnesses = [...witnesses.entries()].reverse().sort((a, b) => Number(controls(b[1])) - Number(controls(a[1]))).slice(0, 12);
+    witnesses.delete(witnessId); witnesses.set(witnessId, { grants, credentials, kind, sequence: ++this.witnessSequence });
+    const boundedWitnesses = [...witnesses.entries()].sort((a, b) => Number(controls(b[1])) - Number(controls(a[1])) || b[1].sequence - a[1].sequence).slice(0, 12);
     this.witnesses.set(key, new Map(boundedWitnesses));
     const handle = this.setTimeoutFn(async () => {
       this.timers.delete(key);
