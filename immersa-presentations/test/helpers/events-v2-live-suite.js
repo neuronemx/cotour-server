@@ -6,7 +6,13 @@ async function liveSuite(t, f) {
   const { request, sql, grants, grantSockets, base, o1, a, b, stageA, activityA, activityB, liveA, publicId, runtime, preparations } = f;
   const path = event => `/api/events-v2/organizations/${o1}/events/${event}`;
   const active = new Set(); t.after(() => { for (const client of active) client.close(); });
-  const ack = (client, event, payload = {}) => new Promise((resolve, reject) => client.timeout(3000).emit(event, payload, (error, result) => error ? reject(error) : resolve(result)));
+  // Temporal uses remote SQL and serial authorization/projection for each
+  // recipient. This is a functional assertion, not a three-second latency SLA.
+  const ack = (client, event, payload = {}) => {
+    const diagnostic = new Error(`live acknowledgment failed: ${event}`);
+    return new Promise((resolve, reject) => client.timeout(10000).emit(event, payload,
+      (error, result) => error ? reject(Object.assign(diagnostic, { cause: error })) : resolve(result)));
+  };
   async function connect(session) {
     const auth = { eventId: session.context.eventId, grantId: session.context.grantId, sessionToken: session.sessionToken, role: 'STAGE', audienceLevel: 'PAID' };
     const client = clientSocket(base + '/events-v2', { auth, extraHeaders: { origin: base }, transports: ['websocket'], forceNew: true, reconnection: false }); active.add(client);

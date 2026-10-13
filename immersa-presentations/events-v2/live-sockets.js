@@ -9,7 +9,7 @@ const KNOWLEDGE_COMMANDS = Object.freeze(Object.fromEntries(['open', 'start', 'f
 const RAFFLE_COMMANDS = Object.freeze(Object.fromEntries(['configure_key', 'open', 'enter', 'submit_poll_response', 'close_entries', 'draw', 'reveal', 'close', 'reset_winners'].map(command => [`events:raffle:${command}`, command])));
 const GAME_COMMANDS = Object.freeze(Object.fromEntries(['configure', 'start_queue', 'skip', 'end', 'start', 'pause', 'resume', 'team_names', 'join_team', 'input'].map(command => [`events:game:${command}`, command])));
 const NAMES = ['events:live:join', 'events:live:snapshot', ...Object.keys(COMMANDS)];
-function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, credentials, enabled, disconnect }) {
+function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, credentials, enabled, disconnect }) {
   const bindings = new WeakMap();
   function valid(payload, fields) {
     return payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -21,12 +21,14 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
     if (!socket.connected || !enabled() || !liveId) throw new Error('LIVE_ACCESS_DENIED');
     if (knowledge) await knowledge.operate(grants, credentials.get(socket), liveId, 'tick');
     if (raffles) await raffles.operate(grants, credentials.get(socket), liveId, 'tick');
+    if (av) await av.operate(grants, credentials.get(socket), liveId, 'tick');
     await runtime.deliver(grants, credentials.get(socket), liveId, async (snapshot, context, db, prepared) => {
       if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
       const questionState = qna ? await qna.projection(context, db, liveId, prepared) : null;
       const poll = polls ? await polls.projection(context, db, liveId, prepared) : null;
       const raffle = raffles ? await raffles.projection(context, db, liveId, prepared) : null;
       const game = games ? await games.projection(context, db, liveId, prepared) : null;
+      const media = av ? await av.projection(context, db, liveId, prepared) : null;
       const timing = time ? await time.projection(context, db, liveId, prepared) : null;
       const activity = knowledge ? await knowledge.projection(context, db, liveId, prepared, socket.id) : null;
       if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
@@ -37,7 +39,8 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (raffle) socket.emit('events:raffle:state', raffle);
       if (game) socket.emit('events:game:state', game);
       if (timing) socket.emit('events:time:state', timing);
-      if (typeof ack === 'function') ack({ ok: true, snapshot: projectionKind === 'game' ? game : projectionKind === 'time' ? timing : projectionKind === 'raffle' ? raffle : projectionKind === 'knowledge' ? activity : projectionKind === 'qna' ? questionState : projectionKind === 'poll' ? poll : snapshot });
+      if (media) socket.emit('events:av:state', media);
+      if (typeof ack === 'function') ack({ ok: true, snapshot: projectionKind === 'av' ? media : projectionKind === 'game' ? game : projectionKind === 'time' ? timing : projectionKind === 'raffle' ? raffle : projectionKind === 'knowledge' ? activity : projectionKind === 'qna' ? questionState : projectionKind === 'poll' ? poll : snapshot });
     });
   }
   async function review(socket) {
@@ -48,6 +51,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (raffles) await raffles.projection(context, db, bindings.get(socket), prepared);
       if (games) await games.projection(context, db, bindings.get(socket), prepared);
       if (time) await time.projection(context, db, bindings.get(socket), prepared);
+      if (av) await av.projection(context, db, bindings.get(socket), prepared);
     });
   }
   async function fanout(key) {
@@ -71,7 +75,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
             const knowledgeCode = name.startsWith('events:knowledge:') && ['INVALID_STATE', 'INVALID_NAME', 'NO_READY_PARTICIPANTS', 'PARTICIPANT_NOT_FOUND', 'TAB_NOT_ACTIVE', 'QUESTION_NOT_FOUND', 'OPTION_NOT_FOUND', 'DEADLINE_PASSED', 'DUPLICATE', 'NO_CONFIRMED_ANSWERS'].includes(error.code) ? `KNOWLEDGE_${error.code}` : code;
             const raffleCode = name.startsWith('events:raffle:') && error instanceof EventAccessError && error.code.startsWith('RAFFLE_')
               && error.code !== 'RAFFLE_STATE_INVALID' ? error.code : knowledgeCode;
-            const familyCode = /^(events:game:|events:time:)/.test(name) && error instanceof EventAccessError && /^(GAME_|TIME_)/.test(error.code) ? error.code : raffleCode;
+            const familyCode = /^(events:game:|events:time:|events:av:)/.test(name) && error instanceof EventAccessError && /^(GAME_|TIME_|AV_)/.test(error.code) ? error.code : raffleCode;
             ackError(ack, familyCode);
             if (familyCode === 'LIVE_ACCESS_DENIED' && socket.connected) disconnect(socket);
           }
@@ -89,6 +93,23 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
       if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
       await deliver(socket, ack);
     });
+    if (av) {
+      handler('events:av:snapshot', async (payload, ack) => {
+        if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        await deliver(socket, ack, 'av');
+      });
+      for (const command of ['control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance']) handler(`events:av:${command}`, async (payload, ack) => {
+        if (!bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
+        const result = await av.operate(grants, credentials.get(socket), bindings.get(socket), command, payload);
+        // Own echo remains tied to this socket's credential and revalidated
+        // live binding. Other Público windows/participants receive no echo.
+        if (result.own) await runtime.deliver(grants, credentials.get(socket), bindings.get(socket), async () => {
+          if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
+          socket.emit('events:av:reaction', result.own);
+        });
+        await deliver(socket, ack, 'av'); await fanout(result.key);
+      });
+    }
     if (games) {
       handler('events:game:snapshot', async (payload, ack) => {
         if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
@@ -201,6 +222,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
     if (games) { games.connected = connected; games.notify = fanout; }
   }
   if (knowledge) knowledge.notify = fanout;
-  return { attach, review, names: [...NAMES, ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : [])] };
+  if (av) av.notify = fanout;
+  return { attach, review, names: [...NAMES, ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : []), ...(av ? ['snapshot', 'control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].map(command => `events:av:${command}`) : [])] };
 }
 module.exports = { createLiveSocketAdapter };

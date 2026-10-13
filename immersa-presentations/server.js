@@ -1,3 +1,4 @@
+const audiovisualState = require('./audiovisual-state');
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
@@ -50,6 +51,8 @@ const { createEventGrantSockets } = require("./events-v2/grant-sockets");
 const { EventLiveRuntime } = require("./events-v2/live-runtime");
 const { EventPollRuntime } = require("./events-v2/poll-runtime");
 const { EventGameRuntime } = require('./events-v2/game-runtime');
+const { EventAVRuntime } = require('./events-v2/av-runtime');
+const { createEventAssetRouter } = require('./events-v2/asset-http');
 const { EventTimeRuntime } = require('./events-v2/time-runtime');
 const { EventRaffleRuntime } = require("./events-v2/raffle-runtime");
 const { EventKnowledgeRuntime } = require("./events-v2/knowledge-runtime");
@@ -183,7 +186,8 @@ eventKnowledgeRuntime.raffles = eventRaffleRuntime;
 const eventGameRuntime = new EventGameRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime });
 eventPollRuntime.games = eventGameRuntime; eventKnowledgeRuntime.games = eventGameRuntime; eventRaffleRuntime.games = eventGameRuntime;
 const eventTimeRuntime = new EventTimeRuntime({ liveRuntime: eventLiveRuntime });
-const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime });
+const eventAVRuntime = new EventAVRuntime({ liveRuntime: eventLiveRuntime });
+const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime, av: eventAVRuntime });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
@@ -820,7 +824,7 @@ async function getDeckSlideCount(deckId) {
 }
 
 function emptyAudiovisualChannel() {
-  return { resource: null, status: "stopped", loop: false, volume: 1, position: 0, updatedAt: Date.now() };
+  return audiovisualState.emptyChannel();
 }
 function createAudiovisualChannels() {
   return { audio: emptyAudiovisualChannel(), video: emptyAudiovisualChannel() };
@@ -1064,32 +1068,10 @@ const reactionMetricsSweep = setInterval(() => {
 reactionMetricsSweep.unref?.();
 
 function normalizeOverlayPatch(overlays = {}) {
-  const patch = { ...overlays };
-  const reactionState = patch.showReactions ?? patch.reactionsOnScreen;
-  if (typeof reactionState !== "undefined") {
-    const enabled = Boolean(reactionState);
-    patch.showReactions = enabled;
-    patch.reactionsOnScreen = enabled;
-  }
-  return patch;
+  return audiovisualState.overlayPatch(overlays);
 }
-
 function normalizeDrawingStroke(session, stroke) {
-  const points = Array.isArray(stroke?.points) ? stroke.points : [];
-  if (points.length < 2) return null;
-  const normalizedPoints = points.slice(0, 240).map((point) => ({
-    x: Math.max(0, Math.min(1, Number(point?.x) || 0)),
-    y: Math.max(0, Math.min(1, Number(point?.y) || 0))
-  }));
-  const slideIndex = clampSlide(session, Number(stroke?.slideIndex));
-  return {
-    slideIndex,
-    points: normalizedPoints,
-    color: "#b20de9",
-    width: Math.max(0.003, Math.min(0.02, Number(stroke?.width) || 0.009)),
-    createdAt: Date.now(),
-    ttl: Math.max(3000, Math.min(5000, Number(stroke?.ttl) || 4200))
-  };
+  return audiovisualState.drawing(stroke, clampSlide(session, Number(stroke?.slideIndex)));
 }
 
 ensureDataDirs().catch((error) => console.error("Unable to prepare Immersa data directory", error));
@@ -1098,6 +1080,7 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
+app.use("/api/events-v2", createEventAssetRouter({ grants: eventGrantRepository, av: eventAVRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
@@ -2314,16 +2297,17 @@ io.on("connection", (socket) => {
       const type = resource.type;
       const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
-      const next = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      const candidate = audiovisualState.select(current, resource, Boolean(payload.loop), Number.isFinite(savedVolume) ? savedVolume : 1);
+      const next = candidate.pendingResource || candidate;
       const shouldFade = type === "audio" && current.resource && current.status === "playing" && String(current.resource.id) !== String(resource.id);
       if (shouldFade) {
         const fadingResourceId = String(current.resource.id);
-        channels.audio = { ...current, status: "fading", updatedAt: Date.now(), lastAction: "fade-replace", pendingResource: next };
+        channels.audio = candidate;
         publish();
         setTimeout(() => {
           const latest = getAudiovisualChannels(session).audio;
           if (!latest || latest.status !== "fading" || latest.lastAction !== "fade-replace" || String(latest.resource?.id) !== fadingResourceId) return;
-          getAudiovisualChannels(session).audio = { ...latest.pendingResource, updatedAt: Date.now(), lastAction: "select" };
+          getAudiovisualChannels(session).audio = audiovisualState.completeFade(latest);
           publish();
         }, 1000);
         return;
@@ -2345,40 +2329,17 @@ io.on("connection", (socket) => {
       setTimeout(() => {
         const latest = getAudiovisualChannels(session).audio;
         if (!latest || latest.status !== "fading" || String(latest.resource?.id) !== fadedResourceId) return;
-        getAudiovisualChannels(session).audio = { ...latest, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
+        getAudiovisualChannels(session).audio = audiovisualState.completeFade(latest);
         publish();
       }, 1000);
       return;
     }
 
-    if (action === "stop") {
-      channels[type] = { ...current, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "stop" };
-      publish();
-      return;
-    }
-
-    const now = Date.now();
-    const currentPosition = current.status === "playing" && current.startedAt ? Math.max(0, Number(current.position || 0) + ((now - current.startedAt) / 1000)) : Number(current.position || 0);
-    const nextStatus = action === "play" ? "playing" : action === "pause" ? "paused" : current.status;
-    const nextPosition = action === "seek" ? Math.max(0, Number(payload.position) || 0) : (nextStatus === "playing" ? currentPosition : action === "pause" ? currentPosition : current.position);
-    const nextVolume = action === "volume" ? Math.max(0, Math.min(1, Number(payload.volume))) : current.volume;
     if (action === "volume") {
-      session.audiovisualVolume = nextVolume;
-      Object.keys(channels).forEach((key) => {
-        channels[key] = { ...channels[key], volume: nextVolume, updatedAt: now, lastAction: "volume" };
-      });
-    } else {
-      channels[type] = {
-        ...current,
-        status: nextStatus,
-        loop: action === "loop" ? Boolean(payload.loop) : current.loop,
-        volume: nextVolume,
-        position: nextPosition,
-        startedAt: nextStatus === "playing" ? now : null,
-        updatedAt: now,
-        lastAction: action
-      };
-    }
+      session.audiovisualVolume = Math.max(0, Math.min(1, Number(payload.volume)));
+      Object.keys(channels).forEach((key) => { channels[key] = { ...channels[key], volume: session.audiovisualVolume, updatedAt: Date.now(), lastAction: "volume" }; });
+    } else channels[type] = audiovisualState.control(current, payload);
+
     publish();
   });
 
@@ -2391,11 +2352,10 @@ io.on("connection", (socket) => {
     const nextReaction = action === "next"
       ? (Number(previous.reaction || 0) + 1) % 12
       : Math.max(0, Math.min(11, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
-    session.audioReact = {
+    session.audioReact = audiovisualState.audioReact(previous, {
       enabled: typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true,
-      reaction: nextReaction,
-      updatedAt: Date.now()
-    };
+      reaction: nextReaction
+    });
     io.to(currentRoomKey).emit("audio-react:state", session.audioReact);
     emitState(currentRoomKey, session);
   });
@@ -2419,17 +2379,10 @@ io.on("connection", (socket) => {
     const playlistId = String(channel.resource.playlist?.id || "");
     if (!playlistId) return false;
     const playlist = localPlaylistItems(session, playlistId, type);
-    const currentIndex = playlist.findIndex((item) => String(item.id) === String(channel.resource.id));
-    const nextResource = playlist[currentIndex + 1] || (channel.loop ? playlist[0] : null);
-    if (nextResource) {
-      channels[type] = { ...channel, resource: nextResource, status: "playing", position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "playlist-next" };
-      return true;
-    }
-    if (finishOnLast) {
-      channels[type] = { ...channel, status: "stopped", position: 0, startedAt: null, updatedAt: Date.now(), lastAction: "ended" };
-      return true;
-    }
-    return false;
+    const next = audiovisualState.advancePlaylist(channel, playlist, finishOnLast);
+    if (!next) return false;
+    channels[type] = next;
+    return true;
   }
 
   socket.on("audiovisual:playlist-advance", (payload = {}) => {
