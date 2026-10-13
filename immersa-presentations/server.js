@@ -53,6 +53,7 @@ const { EventPollRuntime } = require("./events-v2/poll-runtime");
 const { EventGameRuntime } = require('./events-v2/game-runtime');
 const { EventAVRuntime } = require('./events-v2/av-runtime');
 const { createEventAssetRouter } = require('./events-v2/asset-http');
+const { EventReportsRepository } = require('./events-v2/reports-repository');
 const { EventTimeRuntime } = require('./events-v2/time-runtime');
 const { EventRaffleRuntime } = require("./events-v2/raffle-runtime");
 const { EventKnowledgeRuntime } = require("./events-v2/knowledge-runtime");
@@ -187,6 +188,7 @@ const eventGameRuntime = new EventGameRuntime({ liveRuntime: eventLiveRuntime, p
 eventPollRuntime.games = eventGameRuntime; eventKnowledgeRuntime.games = eventGameRuntime; eventRaffleRuntime.games = eventGameRuntime;
 const eventTimeRuntime = new EventTimeRuntime({ liveRuntime: eventLiveRuntime });
 const eventAVRuntime = new EventAVRuntime({ liveRuntime: eventLiveRuntime });
+const eventReportsRepository = eventDomainRepository ? new EventReportsRepository({ domain: eventDomainRepository, enabled: eventGrantsEnabled }) : null;
 const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime, av: eventAVRuntime });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
@@ -1085,7 +1087,7 @@ app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
-  grants: eventGrantRepository, grantSockets: eventGrantSockets,
+  grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository,
   enabled: process.env.IMMERSA_EVENTS_V2_ENABLED === "true"
 }));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {

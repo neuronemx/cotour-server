@@ -15,6 +15,15 @@ function fixture() {
   return { runtime, screen, own, other, react, advance: (ms) => { now += ms; } };
 }
 
+test("Events may configure a 50-reaction cap while Presentaciones keeps its default 40", () => {
+  const screen = [], own = [];
+  const runtime = new ReactionRuntime({ screenLimit: 50, now: () => 1000, emitScreen: payload => screen.push(payload) });
+  for (let i = 0; i < 100; i++) assert.equal(runtime.react({ audienceId: `evt-${i}`, emoji: "❤️", showOnScreen: true, socket: { emit: (_event, payload) => own.push(payload) } }), true);
+  assert.equal(screen.length, 50); assert.equal(own.length, 100); assert.equal(runtime.bucket.counts["❤️"], 100);
+  assert.equal(fixture().runtime.screenLimit, 40);
+  for (const screenLimit of [0, -1, 1.5, NaN, 1001]) assert.throws(() => new ReactionRuntime({ screenLimit, emitScreen: () => {} }), RangeError);
+});
+
 test("100 valid reactions count and echo to their sender; only 40 fan out to Screen", () => {
   const f = fixture();
   for (let i = 0; i < 100; i++) assert.equal(f.react(`aud-${i}`), true);

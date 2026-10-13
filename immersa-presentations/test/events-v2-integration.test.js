@@ -38,6 +38,8 @@ const { raffleSuite } = require('./helpers/events-v2-raffle-suite');
 const { EventKnowledgeRuntime } = require('../events-v2/knowledge-runtime');
 const { knowledgeSuite } = require('./helpers/events-v2-knowledge-suite');
 const { EventQnaRuntime } = require('../events-v2/qna-runtime');
+const { EventReportsRepository } = require('../events-v2/reports-repository');
+const { reportsSuite } = require('./helpers/events-v2-reports-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -115,11 +117,15 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   app.use('/api/events-v2', createGrantAccessRouter({ grants, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
-  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets });
+  const reports = new EventReportsRepository({ domain, enabled: () => domainEnabled && grantEnabled });
+  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets, reports });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
   app.get('/api/access-links/:access_token', links.resolveAccessLink);
   app.get('/api/open/:access_token', links.openPresentation);
+  app.get('/api/qna/export/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.type('text/csv').send('LEGACY_EXPORT_SENTINEL'));
+  app.delete('/api/qna/history/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.json({ legacy: 'LEGACY_DELETE_SENTINEL' }));
+  app.get('/api/knowledge-activities/:executionId/export/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.type('text/csv').send('LEGACY_EXPORT_SENTINEL'));
   app.use((_req, res) => res.status(200).json({ legacy: true }));
   sockets.on('connection', socket => {
     interactions.attach(socket);
@@ -288,4 +294,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await raffleSuite(t, fixtures);
   await gameTimeSuite(t, fixtures);
   await avSuite(t, fixtures);
+  await reportsSuite(t, { ...fixtures, reports, cookies });
 });
