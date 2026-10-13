@@ -117,7 +117,7 @@ class EventReportsRepository {
     }
     const [rows] = await db.execute(`SELECT q.id, r.round_number, q.question_text, q.name, q.projected_at, q.created_at
       FROM event_v2_qna_questions q JOIN event_v2_qna_rounds r ON r.id = q.qna_round_id
-      WHERE r.presentation_session_id = ?${afterSql} ORDER BY r.round_number, q.created_at, q.id LIMIT ?`, [...values, page.limit + 1]);
+      WHERE r.presentation_session_id = ?${afterSql} ORDER BY r.round_number, q.created_at, q.id LIMIT ${page.limit + 1}`, values);
     const selected = rows.slice(0, page.limit);
     return { questions: selected.map(row => ({ id: row.id, roundNumber: Number(row.round_number), question: row.question_text, name: row.name || '', answered: Boolean(row.projected_at), createdAt: date(row.created_at) })),
       nextAfter: rows.length > page.limit ? selected.at(-1).id : null };
@@ -133,7 +133,7 @@ class EventReportsRepository {
     const [rows] = await db.execute(`SELECT e.id, e.category, e.title, e.state, e.opened_at, e.started_at, e.closed_at,
       (r.execution_id IS NOT NULL) AS results_ready FROM event_v2_knowledge_executions e
       LEFT JOIN event_v2_knowledge_results r ON r.execution_id = e.id
-      WHERE e.presentation_session_id = ?${afterSql} ORDER BY e.opened_at, e.id LIMIT ?`, [...values, page.limit + 1]);
+      WHERE e.presentation_session_id = ?${afterSql} ORDER BY e.opened_at, e.id LIMIT ${page.limit + 1}`, values);
     const selected = rows.slice(0, page.limit);
     return { executions: selected.map(row => ({ executionId: row.id, category: row.category, title: row.title, state: row.state, openedAt: date(row.opened_at), startedAt: date(row.started_at), closedAt: date(row.closed_at), resultsReady: Boolean(row.results_ready) })),
       nextAfter: rows.length > page.limit ? selected.at(-1).id : null };

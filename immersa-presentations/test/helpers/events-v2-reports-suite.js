@@ -20,8 +20,10 @@ async function reportsSuite(t, f) {
   // The grant suite intentionally revoked this organization membership.
   // Establish this suite's active Producer explicitly before testing that
   // preparation permission does not include nominal report permission.
-  await domain.setOrganizationMember(ids.get('admin1'), o1, ids.get('producer'), 'MEMBER');
-  await domain.setEventMember(ids.get('admin1'), o1, a, ids.get('producer'), ['PRODUCER']);
+  for (const actor of ['producer', 'dual']) {
+    await domain.setOrganizationMember(ids.get('admin1'), o1, ids.get(actor), 'MEMBER');
+    await domain.setEventMember(ids.get('admin1'), o1, a, ids.get(actor), ['PRODUCER']);
+  }
   async function get(actor, route, extra = {}, method = 'GET') {
     const response = await fetch(base + route, { method, headers: { origin: base, ...(cookies.has(actor) ? { cookie: cookies.get(actor) } : {}), ...extra } });
     const text = await response.text(); let data; try { data = JSON.parse(text); } catch (_) { data = null; }
@@ -48,7 +50,9 @@ async function reportsSuite(t, f) {
     for (const suffix of ['qna/history', 'qna/export.csv', 'knowledge/history', 'reactions', 'reactions/export.csv']) {
       const result = await get('admin1', path(suffix)); assert.equal(result.status, 200, result.text);
       assert.equal(result.headers.get('cache-control'), 'no-store');
-      for (const [actor, status] of [[null, 401], ['platform', 404], ['producer', 403], ['dual', 403], ['member', 404], ['admin2', 404]]) assert.equal((await get(actor, path(suffix), { 'x-role': 'ADMIN' })).status, status);
+      for (const [actor, status] of [[null, 401], ['platform', 404], ['producer', 403], ['dual', 403], ['member', 404], ['admin2', 404]]) {
+        const denied = await get(actor, path(suffix), { 'x-role': 'ADMIN' }); assert.equal(denied.status, status, `${actor}/${suffix}: ${denied.text}`);
+      }
     }
     assert.deepEqual(await counts(), before); assert.deepEqual([runtime.states.size, avRuntime.states.size], states); assert.equal(f.preparationReads(), preparationReads);
     for (const session of [stage, speaker, player, alice]) assert.equal((await get(null, path('qna/export.csv'), { cookie: session.cookie, authorization: 'Bearer ' + session.sessionToken })).status, 401);

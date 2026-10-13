@@ -16,6 +16,7 @@ function attachEventReports(router, reports, eventPath) {
       return res.type('text/csv; charset=utf-8').send(result.csv);
     } catch (error) {
       if (error instanceof EventAccessError) return res.status(error.statusCode).json({ code: error.code });
+      console.error('[events-v2] report unavailable', { code: error.code || 'UNKNOWN' });
       return res.status(503).json({ code: 'AUTHORIZATION_UNAVAILABLE' });
     }
   };
