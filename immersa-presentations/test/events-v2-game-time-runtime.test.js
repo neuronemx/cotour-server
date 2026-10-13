@@ -64,3 +64,17 @@ test('Time projects server-clock expiry and freezes/reset/resumes without exposi
   await assert.rejects(f.time.operate(f.grants, stage, f.liveId, { target: 'speaker', action: 'stop', expectedRevision: 0 }), { code: 'TIME_STALE_REVISION' });
   await assert.rejects(f.time.operate(f.grants, stage, f.liveId, { target: 'speaker', action: 'stop', expectedRevision: reset.revision, now: 1 }), { code: 'TIME_INVALID_COMMAND' });
 });
+test('automatic game frames reauthorize controller witnesses, fall back after revocation, and stop without a valid grant', async () => {
+  const f = fixtures(), stage = f.credentials('STAGE'), player = f.credentials('PLAYER'), callbacks = [];
+  const revoked = new Set(), calls = [];
+  const witnessed = { withSession: (credential, operation) => { calls.push(credential.kind); if (revoked.has(credential.kind)) throw new Error('revoked'); return f.grants.withSession(credential, operation); } };
+  f.games.setTimeoutFn = callback => { callbacks.push(callback); return {}; };
+  await f.live.operate(witnessed, stage, f.liveId);
+  await f.games.operate(witnessed, stage, f.liveId, 'configure', { expectedRevision: 0, selected: ['breakout'] });
+  const key = await f.games.operate(witnessed, stage, f.liveId, 'start_queue', { expectedRevision: 1 });
+  const id = f.games.states.get(key).breakout.sessions.get(key).id;
+  await f.games.operate(witnessed, player, f.liveId, 'start', { gameRunId: id });
+  let notifications = 0; f.games.notify = async () => { notifications++; }; revoked.add('PLAYER'); calls.length = 0;
+  f.clock(104001); await callbacks[0](); assert.deepEqual(calls, ['PLAYER', 'STAGE']); assert.equal(notifications, 1);
+  const before = f.games.states.get(key); revoked.add('STAGE'); await callbacks[1](); assert.equal(f.games.states.get(key), before); assert.equal(notifications, 1); assert.equal(f.games.timers.size, 0);
+});
