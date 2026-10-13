@@ -157,8 +157,8 @@ async function gameTimeSuite(t, f) {
     await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['PAID', activityA]);
     const audienceGone = gone(attendee); assert.equal((await controlTime(player, { target: 'screen', action: 'start', mode: 'clock' })).ok, true); await audienceGone; assert.equal(publicPushes, 0); assert.equal(attendee.connected, false);
     await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['FREE', activityA]);
-    await sql('UPDATE event_access_grants SET revoked_at = ? WHERE id = ?', [f.now(), playerSession.context.grantId]);
-    const deniedBefore = timeRuntime.states.get(key); assert.equal((await ack(player, 'events:time:control', { expectedRevision: deniedBefore.state.revision, target: 'screen', action: 'hide' })).code, 'LIVE_ACCESS_DENIED'); assert.equal(timeRuntime.states.get(key), deniedBefore);
+    const playerGone = gone(player); await sql('UPDATE event_access_grants SET revoked_at = ? WHERE id = ?', [f.now(), playerSession.context.grantId]);
+    const deniedBefore = timeRuntime.states.get(key); await assert.rejects(timeRuntime.operate(grants, credentials(playerSession), live, { expectedRevision: deniedBefore.state.revision, target: 'screen', action: 'hide' }), { code: 'GRANT_ACCESS_DENIED' }); await f.grantSockets.reviewAll(); await playerGone; assert.equal(timeRuntime.states.get(key), deniedBefore);
     await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = ? WHERE id = ?", [f.now(), live]);
     await assert.rejects(gameRuntime.operate(grants, credentials(stageSession), live, 'tick'), { code: 'LIVE_ACCESS_DENIED' });
     assert.equal(gameRuntime.states.get(key), gameBefore); assert.equal((await sql('SELECT COUNT(*) n FROM presentation_sessions'))[0].n, legacyBefore);
