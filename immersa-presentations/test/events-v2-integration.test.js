@@ -25,6 +25,8 @@ const { liveSuite } = require('./helpers/events-v2-live-suite');
 const { EventLiveRuntime } = require('../events-v2/live-runtime');
 const { EventPollRuntime } = require('../events-v2/poll-runtime');
 const { pollSuite } = require('./helpers/events-v2-poll-suite');
+const { qnaSuite } = require('./helpers/events-v2-qna-suite');
+const { EventQnaRuntime } = require('../events-v2/qna-runtime');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -62,7 +64,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   let preparationReads = 0;
   const runtime = new EventLiveRuntime({ enabled: () => domainEnabled && grantEnabled, readPreparation: async live => { preparationReads++; return preparations.get(live.liveSessionId); } });
   const pollRuntime = new EventPollRuntime({ liveRuntime: runtime, readPolls: async prepared => preparations.get(prepared.liveSessionId) });
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
+  let qnaClockOffset = 0;
+  const qnaRuntime = new EventQnaRuntime({ liveRuntime: runtime, pool, now: () => Date.now() + qnaClockOffset });
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
@@ -235,8 +239,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     programClient.close();
   });
   const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
-    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, preparationReads: () => preparationReads };
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
   await grantSuite(t, fixtures);
   await liveSuite(t, fixtures);
   await pollSuite(t, fixtures);
+  await qnaSuite(t, fixtures);
 });
