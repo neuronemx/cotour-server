@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const engine = require('../knowledge-activity-engine');
 const { KnowledgeActivityRepository } = require('../db/knowledge-activity-repository');
 const { EventAccessError } = require('./authorization');
@@ -70,7 +71,7 @@ class EventKnowledgeRuntime {
       || record.deck_id !== prepared.deckId || record.version_id !== prepared.versionId || record.catalog_digest !== digest)) throw error('CONTENT_VERSION_CHANGED');
     const run = record?.latest_execution_id ? await this.repository(db).loadExecution(record.latest_execution_id) : null;
     if (record?.latest_execution_id && (!run || run.presentationSessionId !== liveId || run.sourceSessionId !== key || run.deckId !== prepared.deckId
-      || JSON.stringify(run.definition) !== JSON.stringify(definitions.find(item => item.id === run.definitionId)))) throw error('CONTENT_VERSION_CHANGED');
+      || !isDeepStrictEqual(run.definition, definitions.find(item => item.id === run.definitionId)))) throw error('CONTENT_VERSION_CHANGED');
     return { prepared, key, record, definitions, digest, run };
   }
   async hasActive(context, db, liveId, preparedLive) {

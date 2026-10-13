@@ -45,6 +45,15 @@ async function knowledgeSuite(t, f) {
   async function answer(client, executionId, questionId = 'question', optionId = 'right', attemptId = crypto.randomUUID()) { return command(client, 'answer', { executionId, questionId, optionId, attemptId }); }
   const rows = async table => Number((await sql(`SELECT COUNT(*) n FROM ${table}`))[0].n);
   const beforeLegacy = await rows('knowledge_activity_executions'), beforeSessions = await rows('presentation_sessions');
+  function disconnected(client) {
+    if (!client.connected) return Promise.resolve();
+    return new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('knowledge disconnect timeout')), 5000); client.once('disconnect', () => { clearTimeout(timer); resolve(); }); });
+  }
+  function faultGrants() {
+    const faultyDomain = new EventDomainRepository(domain.pool);
+    faultyDomain.transaction = async (_actor, _action, operation) => { const db = await domain.pool.getConnection(); try { await db.beginTransaction(); await operation(db); throw new Error('KNOWLEDGE_TEST_COMMIT_FAILURE'); } finally { await db.rollback(); db.release(); } };
+    return new EventGrantRepository(faultyDomain, { now: f.now });
+  }
   let stage, player, speaker, attendee, other, stageSession, participantSession, runId, evaluationId, clock = 0;
   async function advance(ms, client = stage) { clock += ms; f.setKnowledgeClockOffset(clock); return snap(client); }
   await t.test('knowledge partial migration recovery; idle reads and denied commands cannot initialize data', async () => {
@@ -58,9 +67,7 @@ async function knowledgeSuite(t, f) {
     assert.equal(await rows('event_v2_knowledge_sessions'), 0); assert.equal(await rows('event_v2_knowledge_executions'), 0);
   });
   await t.test('knowledge setup and admission roll back atomically; concurrent activation leaves one execution', async () => {
-    const faultyDomain = new EventDomainRepository(domain.pool);
-    faultyDomain.transaction = async (_actor, _action, operation) => { const db = await domain.pool.getConnection(); try { await db.beginTransaction(); await operation(db); throw new Error('KNOWLEDGE_TEST_COMMIT_FAILURE'); } finally { await db.rollback(); db.release(); } };
-    const faulty = new EventGrantRepository(faultyDomain, { now: f.now });
+    const faulty = faultGrants();
     await assert.rejects(knowledgeRuntime.operate(faulty, credentials(stageSession), live, 'open', { definitionId: 'trivia' }), /KNOWLEDGE_TEST_COMMIT_FAILURE/);
     assert.equal(await rows('event_v2_knowledge_sessions'), 0); assert.equal(await rows('event_v2_knowledge_executions'), 0);
     const replies = await Promise.all([command(stage, 'open', { definitionId: 'trivia' }), command(speaker, 'open', { definitionId: 'trivia' })]);
@@ -75,6 +82,8 @@ async function knowledgeSuite(t, f) {
     assert.equal((await snap(duplicate)).displayName, 'Alice'); assert.equal((await snap(attendee)).execution.participant.tabActive, false);
     assert.equal((await control(player, 'start')).ok, true); await advance(4800);
     assert.equal((await answer(attendee, runId)).code, 'KNOWLEDGE_TAB_NOT_ACTIVE');
+    await assert.rejects(knowledgeRuntime.operate(faultGrants(), credentials(participantSession), live, 'answer', { executionId: runId, tabId: duplicate.id, questionId: 'question', optionId: 'right', attemptId: crypto.randomUUID() }), /KNOWLEDGE_TEST_COMMIT_FAILURE/);
+    assert.equal(await rows('event_v2_knowledge_answers'), 0); assert.equal((await snap(duplicate)).execution.answerCount, 0);
     const attempt = crypto.randomUUID(); const replied = await answer(duplicate, runId, 'question', 'right', attempt); assert.equal(replied.ok, true);
     assert.equal(JSON.stringify(replied.snapshot).includes('correctOptionId'), false); assert.equal(replied.snapshot.execution.personalResult, null);
     assert.equal((await answer(duplicate, runId, 'question', 'right', attempt)).ok, true); assert.equal((await answer(duplicate, runId, 'question', 'wrong')).code, 'KNOWLEDGE_DUPLICATE');
@@ -89,6 +98,17 @@ async function knowledgeSuite(t, f) {
     assert.equal((await ack(stage, 'events:qna:open')).ok, true);
     await advance(5200); assert.equal((await snap(player)).execution.reveal.correctLabel, 'Right'); assert.equal((await snap(attendee)).execution.reveal.correct, true);
     await advance(5100); assert.equal((await snap(player)).execution.state, 'PROCESSING');
+    // Persist a processing-error fixture to exercise the real recovery transition.
+    const stored = (await sql('SELECT snapshot_json FROM event_v2_knowledge_executions WHERE id = ?', [runId]))[0].snapshot_json;
+    const fixture = typeof stored === 'string' ? JSON.parse(stored) : stored; fixture.state = 'PROCESSING_ERROR'; fixture.processingReadyAt = null;
+    await sql("UPDATE event_v2_knowledge_executions SET state = 'PROCESSING_ERROR', snapshot_json = ? WHERE id = ?", [JSON.stringify(fixture), runId]);
+    assert.equal((await control(player, 'retry_processing')).ok, true);
+    const recovered = (await snap(player)).execution; assert.equal(recovered.state, 'RESULTS_VISIBLE');
+    // Force-results is exercised in a separate persisted processing fixture.
+    const storedAgain = (await sql('SELECT snapshot_json FROM event_v2_knowledge_executions WHERE id = ?', [runId]))[0].snapshot_json;
+    const forcing = typeof storedAgain === 'string' ? JSON.parse(storedAgain) : storedAgain; forcing.state = 'PROCESSING'; forcing.result = null; forcing.resultsVisible = false; forcing.processingReadyAt = new Date(Date.now() + clock + 3000).toISOString();
+    await sql("DELETE FROM event_v2_knowledge_results WHERE execution_id = ?", [runId]);
+    await sql("UPDATE event_v2_knowledge_executions SET state = 'PROCESSING', snapshot_json = ? WHERE id = ?", [JSON.stringify(forcing), runId]);
     assert.equal((await control(player, 'force_results')).ok, true); assert.equal((await snap(player)).execution.state, 'RESULTS_VISIBLE');
     assert.equal((await snap(player)).execution.top10[0].label, 'Alice'); assert.equal((await snap(attendee)).execution.personalResult.correctCount, 1);
     assert.equal((await control(player, 'close')).ok, true);
@@ -131,7 +151,7 @@ async function knowledgeSuite(t, f) {
     assert.equal((await command(sameRunPlayer, 'cancel', { executionId: runId, expectedRevision: started.snapshot.execution.revision })).code, 'KNOWLEDGE_STALE_EXECUTION');
     assert.equal((await snap(foreignPlayer)).execution, null);
     let foreignEmissions = 0; foreignPlayer.on('events:knowledge:state', () => { foreignEmissions++; });
-    await control(sameRunPlayer, 'cancel'); assert.equal(foreignEmissions, 0); sameRunPlayer.close(); foreignPlayer.close();
+    await control(sameRunPlayer, 'cancel'); await snap(sameRunPlayer); assert.equal(foreignEmissions, 0); sameRunPlayer.close(); foreignPlayer.close();
     const forged = await connect(participantSession); let denied = new Promise(resolve => forged.once('disconnect', resolve));
     const reply = await command(forged, 'join', { executionId: evaluationId, participantId: 'forged' }); assert.equal(reply.ok, false); await denied;
     const legacy = await connect(participantSession); let rawDenied = new Promise(resolve => legacy.once('events:command_denied', resolve));
@@ -145,12 +165,14 @@ async function knowledgeSuite(t, f) {
     await assert.rejects(knowledgeRuntime.operate(grants, credentials(narrowSession), live, 'tick'));
     assert.equal((await sql('SELECT revision FROM event_v2_knowledge_executions WHERE id = ?', [opened.snapshot.execution.executionId]))[0].revision, before);
     let publicEmissions = 0; attendee.on('events:knowledge:state', () => { publicEmissions++; });
-    await sql("UPDATE event_activities SET access_level = 'PAID' WHERE id = ?", [activityA]); await f.grantSockets.reviewAll(); publicEmissions = 0;
+    const audienceDisconnected = disconnected(attendee);
+    await sql("UPDATE event_activities SET access_level = 'PAID' WHERE id = ?", [activityA]); await f.grantSockets.reviewAll(); await audienceDisconnected; publicEmissions = 0;
     assert.equal(attendee.connected, false); await advance(4800, player); assert.equal(publicEmissions, 0);
     f.setEnabled(false); await assert.rejects(knowledgeRuntime.operate(grants, credentials(stageSession), live, 'tick')); f.setEnabled(true);
     const broken = { withSession: async () => { throw new Error('database unavailable'); } }; await assert.rejects(knowledgeRuntime.operate(broken, credentials(stageSession), live, 'tick'), /database unavailable/);
+    const playerDisconnected = disconnected(player);
     await sql("UPDATE event_live_sessions SET status = 'FINISHED', ended_at = CURRENT_TIMESTAMP WHERE id = ?", [live]);
-    await assert.rejects(knowledgeRuntime.operate(grants, credentials(stageSession), live, 'tick')); await f.grantSockets.reviewAll(); assert.equal(player.connected, false);
+    await assert.rejects(knowledgeRuntime.operate(grants, credentials(stageSession), live, 'tick')); await f.grantSockets.reviewAll(); await playerDisconnected; assert.equal(player.connected, false);
     knowledgeRuntime.close(); await sql("UPDATE event_activities SET access_level = 'FREE' WHERE id = ?", [activityA]);
   });
 }
