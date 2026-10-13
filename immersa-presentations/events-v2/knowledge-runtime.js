@@ -49,7 +49,7 @@ function nextDeadline(run) {
 class EventKnowledgeRuntime {
   constructor({ liveRuntime, pool, polls = null, readKnowledge = async () => null, now = Date.now,
     random = Math.random, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
-    this.live = liveRuntime; this.pool = pool; this.polls = polls; this.readKnowledge = readKnowledge;
+    this.live = liveRuntime; this.pool = pool; this.raffles = null; this.polls = polls; this.readKnowledge = readKnowledge;
     this.now = now; this.random = random; this.setTimeoutFn = setTimeoutFn; this.clearTimeoutFn = clearTimeoutFn;
     this.timers = new Map(); this.witnesses = new Map(); this.witnessSequence = 0; this.notify = async () => {};
   }
@@ -102,6 +102,7 @@ class EventKnowledgeRuntime {
       if (command === 'open') {
         if (current && !engine.TERMINAL_STATES.has(current.state)) throw error('INTERACTION_BUSY');
         if (this.polls?.states.get(key)?.store.hasActive(key)) throw error('INTERACTION_BUSY');
+        if (this.raffles && await this.raffles.hasActive(context, db, liveId, scoped.prepared)) throw error('INTERACTION_BUSY');
         const definition = scoped.definitions.find(item => item.id === payload.definitionId);
         if (!definition) throw error('KNOWLEDGE_DEFINITION_NOT_FOUND');
         if (!scoped.record) await db.execute(`INSERT INTO event_v2_knowledge_sessions

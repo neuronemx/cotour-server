@@ -38,6 +38,7 @@ class EventPollRuntime {
     this.readPolls = readPolls;
     this.states = new Map();
     this.knowledge = null;
+    this.raffles = null;
   }
   async prepared(context, db, liveId, preparedLive = null) {
     const prepared = preparedLive || await this.live.prepared(context, db, liveId);
@@ -65,6 +66,7 @@ class EventPollRuntime {
         if (command === 'launch') {
           if (store.hasActive(key)) throw error('POLL_ALREADY_ACTIVE');
           if (this.knowledge && await this.knowledge.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
+          if (this.raffles && await this.raffles.hasActive(context, db, liveId)) throw error('INTERACTION_BUSY');
           const poll = prepared.polls.find(poll => poll.id === payload.interactionId);
           if (!poll) throw error('POLL_NOT_FOUND');
           if (!store.launch({ sessionId: key, interaction: poll })) throw error('POLL_CONTENT_NOT_PREPARED');
