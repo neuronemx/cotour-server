@@ -106,7 +106,7 @@ async function knowledgeSuite(t, f) {
     const recovered = (await snap(player)).execution; assert.equal(recovered.state, 'RESULTS_VISIBLE');
     // Force-results is exercised in a separate persisted processing fixture.
     const storedAgain = (await sql('SELECT snapshot_json FROM event_v2_knowledge_executions WHERE id = ?', [runId]))[0].snapshot_json;
-    const forcing = typeof storedAgain === 'string' ? JSON.parse(storedAgain) : storedAgain; forcing.state = 'PROCESSING'; forcing.result = null; forcing.resultsVisible = false; forcing.processingReadyAt = new Date(Date.now() + clock + 3000).toISOString();
+    const forcing = typeof storedAgain === 'string' ? JSON.parse(storedAgain) : storedAgain; forcing.state = 'PROCESSING'; forcing.result = null; forcing.resultsVisible = false; forcing.processingReadyAt = new Date(f.knowledgeClockStart() + clock + 3000).toISOString();
     await sql("DELETE FROM event_v2_knowledge_results WHERE execution_id = ?", [runId]);
     await sql("UPDATE event_v2_knowledge_executions SET state = 'PROCESSING', snapshot_json = ? WHERE id = ?", [JSON.stringify(forcing), runId]);
     assert.equal((await control(player, 'force_results')).ok, true); assert.equal((await snap(player)).execution.state, 'RESULTS_VISIBLE');
@@ -162,7 +162,7 @@ async function knowledgeSuite(t, f) {
     let fire, timerNotifications = 0;
     const timerActor = await register('Timer witness');
     const deadlineDriver = new EventKnowledgeRuntime({ liveRuntime: f.runtime, pool: domain.pool, polls: f.pollRuntime,
-      readKnowledge: async prepared => preparations.get(prepared.liveSessionId), now: () => Date.now() + clock,
+      readKnowledge: async prepared => preparations.get(prepared.liveSessionId), now: () => f.knowledgeClockStart() + clock,
       setTimeoutFn: callback => { fire = callback; return { unref() {} }; }, clearTimeoutFn: () => {} });
     deadlineDriver.notify = async () => { timerNotifications++; };
     await deadlineDriver.operate(grants, credentials(stageSession), live, 'tick');

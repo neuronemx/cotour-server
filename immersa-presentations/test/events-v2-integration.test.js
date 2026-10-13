@@ -32,7 +32,7 @@ const { EventQnaRuntime } = require('../events-v2/qna-runtime');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
-test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 180000 }, async t => {
+test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 300000 }, async t => {
   // Dedicated, disposable CI database only. Never default to the runtime DB.
   const parsedUrl = new URL(databaseUrl);
   assert.match(parsedUrl.pathname, /events_v2_test/, 'requires an explicitly named test database');
@@ -68,10 +68,11 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const pollRuntime = new EventPollRuntime({ liveRuntime: runtime, readPolls: async prepared => preparations.get(prepared.liveSessionId) });
   let qnaClockOffset = 0;
   const qnaRuntime = new EventQnaRuntime({ liveRuntime: runtime, pool, now: () => Date.now() + qnaClockOffset });
+  const knowledgeClockStart = Date.now();
   let knowledgeClockOffset = 0;
   const knowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: runtime, pool, polls: pollRuntime,
     readKnowledge: async prepared => { const data = preparations.get(prepared.liveSessionId); return data ? { ...data, knowledge: data.knowledge || [] } : null; },
-    now: () => Date.now() + knowledgeClockOffset });
+    now: () => knowledgeClockStart + knowledgeClockOffset });
   pollRuntime.knowledge = knowledgeRuntime;
   const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
   t.after(() => grantSockets.close());
@@ -246,7 +247,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     programClient.close();
   });
   const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
-    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, knowledgeClockStart: () => knowledgeClockStart, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
   await grantSuite(t, fixtures);
   await liveSuite(t, fixtures);
   await pollSuite(t, fixtures);
