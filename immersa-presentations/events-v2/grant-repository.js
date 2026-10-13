@@ -226,11 +226,20 @@ class EventGrantRepository {
     if (!isId(eventId) || !isId(grantId) || !validSecret(sessionToken)) throw denied();
     const initial = await this.locator(eventId);
     return this.domain.transaction('credential.session', 'grant.session', async db => {
-      const { g, context } = await this.validated(db, eventId, grantId, initial);
-      const s = (await this.rows(db, 'SELECT expires_at FROM event_grant_sessions WHERE token_hash = ? AND grant_id = ? FOR UPDATE', [hash(sessionToken), grantId]))[0];
-      if (!s || s.expires_at <= this.now()) throw denied();
-      return callback(Object.freeze({ ...context, sessionExpiresAt: s.expires_at.toISOString() }), db, g);
+      const { g, context } = await this.sessionOn(db, { eventId, grantId, sessionToken }, initial.organization_id);
+      return callback(context, db, g);
     });
+  }
+
+  // Revalidate another connected participant while the caller already holds
+  // this organization's transaction lock. No locator/pool/nested transaction;
+  // all grant, issuer, resource and short-session checks still run in SQL.
+  async sessionOn(db, { eventId, grantId, sessionToken }, organizationId) {
+    if (!isId(eventId) || !isId(grantId) || !isId(organizationId) || !validSecret(sessionToken)) throw denied();
+    const { g, context } = await this.validated(db, eventId, grantId, { organization_id: organizationId });
+    const s = (await this.rows(db, 'SELECT expires_at FROM event_grant_sessions WHERE token_hash = ? AND grant_id = ? FOR UPDATE', [hash(sessionToken), grantId]))[0];
+    if (!s || s.expires_at <= this.now()) throw denied();
+    return { g, context: Object.freeze({ ...context, sessionExpiresAt: s.expires_at.toISOString() }) };
   }
 
   async renew(credentials) {
