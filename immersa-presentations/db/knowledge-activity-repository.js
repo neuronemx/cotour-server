@@ -105,16 +105,45 @@ class KnowledgeActivityRepository {
     if (!pool?.getConnection || !pool?.execute) throw new Error("A MySQL pool is required");
     this.pool = pool;
     this.createId = options.createId || randomUUID;
+    const storage = options.storage || "presentations";
+    if (!["presentations", "events-v2"].includes(storage)) throw new Error("Invalid knowledge storage");
+    this.eventStorage = storage === "events-v2";
+    if (this.eventStorage && (!options.executor?.execute || typeof options.transactionExecutor !== "function")) {
+      throw new Error("Events knowledge requires an authorized transaction executor");
+    }
+    this.executor = options.executor || pool;
+    this.transactionExecutor = options.transactionExecutor || (operation => inTransaction(pool, operation));
+  }
+
+  execute(executor, sql, values) {
+    const tables = { presentation_sessions: "event_v2_knowledge_sessions",
+      knowledge_activity_executions: "event_v2_knowledge_executions",
+      knowledge_activity_participants: "event_v2_knowledge_participants",
+      knowledge_activity_participant_orders: "event_v2_knowledge_participant_orders",
+      knowledge_activity_answers: "event_v2_knowledge_answers",
+      knowledge_activity_results: "event_v2_knowledge_results",
+      knowledge_activity_commands: "event_v2_knowledge_commands" };
+    // Fixed SQL identifiers only. JSON parameters work on MySQL and MariaDB;
+    // the legacy SQL is unchanged, including its historical casts.
+    const statement = this.eventStorage ? String(sql)
+      .replace(/\b(presentation_sessions|knowledge_activity_\w+)\b/g, table => tables[table] || table)
+      .replace(/CAST\(\? AS JSON\)/g, "?") : sql;
+    return executor.execute(statement, values);
+  }
+
+  requireLegacyLifecycle() {
+    if (this.eventStorage) throw new KnowledgeActivityError("KNOWLEDGE_EVENTS_LIFECYCLE_NOT_ENABLED", "Use the authorized Events adapter");
   }
 
   async ensurePresentationSession({ deckId, sourceSessionId }) {
+    this.requireLegacyLifecycle();
     const normalizedDeckId = String(deckId || "").trim();
     const normalizedSourceSessionId = String(sourceSessionId || "").trim();
     if (!normalizedDeckId || !normalizedSourceSessionId) {
       throw new KnowledgeActivityError("INVALID_INPUT", "deckId and sourceSessionId are required");
     }
-    return inTransaction(this.pool, async (connection) => {
-      const [rows] = await connection.execute(
+    return this.transactionExecutor( async (connection) => {
+      const [rows] = await this.execute(connection, 
         `SELECT id
          FROM presentation_sessions
          WHERE deck_id = ? AND source_session_id = ? AND ended_at IS NULL
@@ -125,7 +154,7 @@ class KnowledgeActivityRepository {
       );
       if (rows[0]) return rows[0].id;
       const presentationSessionId = this.createId();
-      await connection.execute(
+      await this.execute(connection, 
         `INSERT INTO presentation_sessions (id, deck_id, source_session_id)
          VALUES (?, ?, ?)`,
         [presentationSessionId, normalizedDeckId, normalizedSourceSessionId]
@@ -136,7 +165,7 @@ class KnowledgeActivityRepository {
 
   async createExecution(execution) {
     try {
-      await this.pool.execute(
+      await this.execute(this.executor, 
         `INSERT INTO knowledge_activity_executions
            (id, presentation_session_id, source_definition_id, category, contract_version,
             title, state, revision, active_session_key, snapshot_json, opened_at, started_at,
@@ -159,9 +188,9 @@ class KnowledgeActivityRepository {
     participants: participantsToSave,
     answers: answersToSave
   } = {}) {
-    return inTransaction(this.pool, async (connection) => {
+    return this.transactionExecutor( async (connection) => {
       const values = executionValues(execution);
-      const [updated] = await connection.execute(
+      const [updated] = await this.execute(connection, 
         `UPDATE knowledge_activity_executions
          SET source_definition_id = ?, category = ?, contract_version = ?, title = ?,
              state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
@@ -182,7 +211,7 @@ class KnowledgeActivityRepository {
         ? participantsToSave
         : execution.participants;
       for (const participant of participants) {
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT INTO knowledge_activity_participants
              (execution_id, participant_id, recovery_token_hash, user_number, display_name, public_label,
               active_tab_id, state, joined_at, submitted_at, completed_at)
@@ -209,7 +238,7 @@ class KnowledgeActivityRepository {
             mysqlDateTime(participant.completedAt)
           ]
         );
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT INTO knowledge_activity_participant_orders
              (execution_id, participant_id, question_order_json, option_orders_json, current_question_index)
            VALUES (?, ?, CAST(? AS JSON), CAST(? AS JSON), ?)
@@ -231,7 +260,7 @@ class KnowledgeActivityRepository {
         ? answersToSave
         : execution.answers;
       for (const answer of answers) {
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT INTO knowledge_activity_answers
              (execution_id, participant_id, question_id, option_id, client_attempt_id,
               correct, elapsed_ms, received_at)
@@ -256,7 +285,7 @@ class KnowledgeActivityRepository {
       }
 
       for (const command of execution.commandLog) {
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT IGNORE INTO knowledge_activity_commands
              (execution_id, command_id, actor_role, intent, applied_revision, result_json, applied_at)
            VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?)`,
@@ -273,7 +302,7 @@ class KnowledgeActivityRepository {
       }
 
       if (execution.result) {
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT IGNORE INTO knowledge_activity_results
              (execution_id, mode, revision, excluded_response_count, result_json, created_at)
            VALUES (?, ?, ?, ?, CAST(? AS JSON), ?)`,
@@ -293,9 +322,9 @@ class KnowledgeActivityRepository {
 
   async saveAnswerBatch(execution, { expectedRevision, participants = [], answers = [] } = {}) {
     if (!answers.length) return execution;
-    return inTransaction(this.pool, async (connection) => {
+    return this.transactionExecutor( async (connection) => {
       const values = executionValues(execution);
-      const [updated] = await connection.execute(
+      const [updated] = await this.execute(connection, 
         `UPDATE knowledge_activity_executions
          SET state = ?, revision = ?, active_session_key = ?, snapshot_json = CAST(? AS JSON),
              deadline_at = ?, processing_started_at = ?, results_ready_at = ?,
@@ -319,7 +348,7 @@ class KnowledgeActivityRepository {
           mysqlDateTime(participant.submittedAt),
           mysqlDateTime(participant.completedAt)
         ]);
-        await connection.execute(
+        await this.execute(connection, 
           `INSERT INTO knowledge_activity_participants
              (execution_id, participant_id, recovery_token_hash, user_number, display_name, public_label,
               active_tab_id, state, joined_at, submitted_at, completed_at)
@@ -333,7 +362,7 @@ class KnowledgeActivityRepository {
         );
       }
       const answerValues = answers.flatMap((answer) => [execution.id, answer.participantId, answer.questionId, answer.optionId, answer.clientAttemptId || null, answer.correct ? 1 : 0, Number.isFinite(answer.elapsedMs) ? answer.elapsedMs : null, mysqlDateTime(answer.receivedAt)]);
-      await connection.execute(
+      await this.execute(connection, 
         `INSERT INTO knowledge_activity_answers
            (execution_id, participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at)
          VALUES ${answers.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}
@@ -345,10 +374,10 @@ class KnowledgeActivityRepository {
     });
   }
 
-  async hydrate(row, executor = this.pool) {
+  async hydrate(row, executor = this.executor) {
     if (!row?.snapshot_json) return null;
     const snapshot = parseJson(row.snapshot_json);
-    const [participants] = await executor.execute(
+    const [participants] = await this.execute(executor, 
       `SELECT p.participant_id, p.recovery_token_hash, p.user_number, p.display_name, p.public_label,
               p.active_tab_id, p.state, p.joined_at, p.submitted_at, p.completed_at,
               o.question_order_json, o.option_orders_json, o.current_question_index
@@ -359,18 +388,25 @@ class KnowledgeActivityRepository {
        ORDER BY p.user_number`,
       [String(row.id || snapshot.id || "")]
     );
-    const [answers] = await executor.execute(
+    const [answers] = await this.execute(executor, 
       `SELECT participant_id, question_id, option_id, client_attempt_id, correct, elapsed_ms, received_at
        FROM knowledge_activity_answers
        WHERE execution_id = ?
        ORDER BY received_at, participant_id, question_id`,
       [String(row.id || snapshot.id || "")]
     );
-    return hydrateExecution(snapshot, participants || [], answers || []);
+    const execution = hydrateExecution(snapshot, participants || [], answers || []);
+    if (this.eventStorage) {
+      for (const participant of execution.participants) for (const field of ['joinedAt', 'lastSeenAt', 'submittedAt', 'completedAt']) {
+        if (participant[field]) participant[field] = new Date(participant[field]).toISOString();
+      }
+      for (const answer of execution.answers) if (answer.receivedAt) answer.receivedAt = new Date(answer.receivedAt).toISOString();
+    }
+    return execution;
   }
 
   async loadExecution(executionId) {
-    const [rows] = await this.pool.execute(
+    const [rows] = await this.execute(this.executor, 
       `SELECT id, snapshot_json
        FROM knowledge_activity_executions
        WHERE id = ?
@@ -381,7 +417,7 @@ class KnowledgeActivityRepository {
   }
 
   async loadActiveExecution({ deckId, sourceSessionId }) {
-    const [rows] = await this.pool.execute(
+    const [rows] = await this.execute(this.executor, 
       `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id
@@ -394,7 +430,8 @@ class KnowledgeActivityRepository {
   }
 
   async listActiveExecutions() {
-    const [rows] = await this.pool.execute(
+    this.requireLegacyLifecycle();
+    const [rows] = await this.execute(this.executor, 
       `SELECT id, snapshot_json
        FROM knowledge_activity_executions
        WHERE active_session_key IS NOT NULL`
@@ -403,7 +440,8 @@ class KnowledgeActivityRepository {
   }
 
   async listHistory(deckId) {
-    const [rows] = await this.pool.execute(
+    this.requireLegacyLifecycle();
+    const [rows] = await this.execute(this.executor, 
       `SELECT e.id, e.snapshot_json
        FROM knowledge_activity_executions e
        INNER JOIN presentation_sessions ps ON ps.id = e.presentation_session_id

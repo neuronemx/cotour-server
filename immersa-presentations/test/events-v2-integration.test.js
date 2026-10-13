@@ -26,11 +26,13 @@ const { EventLiveRuntime } = require('../events-v2/live-runtime');
 const { EventPollRuntime } = require('../events-v2/poll-runtime');
 const { pollSuite } = require('./helpers/events-v2-poll-suite');
 const { qnaSuite } = require('./helpers/events-v2-qna-suite');
+const { EventKnowledgeRuntime } = require('../events-v2/knowledge-runtime');
+const { knowledgeSuite } = require('./helpers/events-v2-knowledge-suite');
 const { EventQnaRuntime } = require('../events-v2/qna-runtime');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
-test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 120000 }, async t => {
+test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 300000 }, async t => {
   // Dedicated, disposable CI database only. Never default to the runtime DB.
   const parsedUrl = new URL(databaseUrl);
   assert.match(parsedUrl.pathname, /events_v2_test/, 'requires an explicitly named test database');
@@ -66,7 +68,13 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const pollRuntime = new EventPollRuntime({ liveRuntime: runtime, readPolls: async prepared => preparations.get(prepared.liveSessionId) });
   let qnaClockOffset = 0;
   const qnaRuntime = new EventQnaRuntime({ liveRuntime: runtime, pool, now: () => Date.now() + qnaClockOffset });
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
+  const knowledgeClockStart = Date.now();
+  let knowledgeClockOffset = 0;
+  const knowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: runtime, pool, polls: pollRuntime,
+    readKnowledge: async prepared => { const data = preparations.get(prepared.liveSessionId); return data ? { ...data, knowledge: data.knowledge || [] } : null; },
+    now: () => knowledgeClockStart + knowledgeClockOffset });
+  pollRuntime.knowledge = knowledgeRuntime;
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 50 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
@@ -239,9 +247,10 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     programClient.close();
   });
   const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
-    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
+    now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, knowledgeClockStart: () => knowledgeClockStart, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
   await grantSuite(t, fixtures);
   await liveSuite(t, fixtures);
   await pollSuite(t, fixtures);
   await qnaSuite(t, fixtures);
+  await knowledgeSuite(t, fixtures);
 });

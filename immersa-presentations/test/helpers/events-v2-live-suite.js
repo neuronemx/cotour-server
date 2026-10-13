@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { io: clientSocket } = require('socket.io-client');
-const { executionKey } = require('../../events-v2/live-runtime');
+const { executionKey, EventLiveRuntime } = require('../../events-v2/live-runtime');
 async function liveSuite(t, f) {
   const { request, sql, grants, grantSockets, base, o1, a, b, stageA, activityA, activityB, liveA, publicId, runtime, preparations } = f;
   const path = event => `/api/events-v2/organizations/${o1}/events/${event}`;
@@ -71,11 +71,14 @@ async function liveSuite(t, f) {
     await ack(second, 'events:slide:next'); assert.equal((await snapshot(stage)).snapshot.presenterSlideIndex, 3); second.close(); foreign.close();
   });
   await t.test('FREE cannot enter PAID or receive after level changes; forged PAID ignored', async () => {
+    const publicDisconnected = publicClient.connected ? new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('public client disconnect timeout')), 3000); publicClient.once('disconnect', () => { clearTimeout(timer); resolve(); }); }) : Promise.resolve();
     await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['PAID', activityA]);
-    let leaked = 0; publicClient.on('events:live:state', () => leaked++); await ack(stage, 'events:slide:prev'); await grantSockets.reviewAll();
+    let leaked = 0; publicClient.on('events:live:state', () => leaked++); await ack(stage, 'events:slide:prev'); await grantSockets.reviewAll(); await publicDisconnected;
     assert.equal(leaked, 0); assert.equal(publicClient.connected, false);
-    const registered = await request(null, 'POST', `/api/events-v2/public/${publicId}/participants`, { name: 'FREE' }), client = await connect(registered.body), reads = f.preparationReads();
-    assert.equal((await join(client)).ok, false); assert.equal(f.preparationReads(), reads); client.close(); await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['FREE', activityA]);
+    const registered = await request(null, 'POST', `/api/events-v2/public/${publicId}/participants`, { name: 'FREE' }), client = await connect(registered.body);
+    let deniedReads = 0; const isolated = new EventLiveRuntime({ readPreparation: async () => { deniedReads++; return null; } });
+    await assert.rejects(isolated.operate(grants, { eventId: registered.body.context.eventId, grantId: registered.body.context.grantId, sessionToken: registered.body.sessionToken }, liveA), { code: 'LIVE_ACCESS_DENIED' });
+    assert.equal(deniedReads, 0); assert.equal((await join(client)).ok, false); client.close(); await sql('UPDATE event_activities SET access_level = ? WHERE id = ?', ['FREE', activityA]);
   });
   await t.test('reconnect restores same execution; forged command context cannot mutate', async () => {
     const before = runtime.states.get(executionKey(a, liveA)), count = (await sql('SELECT COUNT(*) n FROM event_live_attendance'))[0].n;
