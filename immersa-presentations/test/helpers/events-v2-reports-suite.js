@@ -24,6 +24,8 @@ async function reportsSuite(t, f) {
     await domain.setOrganizationMember(ids.get('admin1'), o1, ids.get(actor), 'MEMBER');
     await domain.setEventMember(ids.get('admin1'), o1, a, ids.get(actor), ['PRODUCER']);
   }
+  // Earlier delegation tests also assigned this account an event role.
+  await domain.setEventMember(ids.get('admin1'), o1, a, ids.get('member'), null);
   async function get(actor, route, extra = {}, method = 'GET') {
     const response = await fetch(base + route, { method, headers: { origin: base, ...(cookies.has(actor) ? { cookie: cookies.get(actor) } : {}), ...extra } });
     const text = await response.text(); let data; try { data = JSON.parse(text); } catch (_) { data = null; }
