@@ -137,8 +137,8 @@ async function knowledgeSuite(t, f) {
     assert.equal(restored.execution.answerCount, 2); assert.equal(restored.execution.personalResult.grade, 50);
     assert.equal(await rows('knowledge_activity_executions'), beforeLegacy); assert.equal(await rows('presentation_sessions'), beforeSessions);
     assert.deepEqual(await new KnowledgeActivityRepository(domain.pool).listHistory('v2-private-deck'), []);
-    const original = preparations.get(live); preparations.set(live, { ...original, knowledge: definitions().map(definition => ({ ...definition, title: 'Changed without a new version' })) });
-    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => rebuilt.projection(context, db, live)), { code: 'CONTENT_VERSION_CHANGED' }); preparations.set(live, original);
+    const original = preparations.get(live); rebuilt.readKnowledge = async () => ({ ...original, knowledge: definitions().map(definition => ({ ...definition, title: 'Changed without a new version' })) });
+    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => rebuilt.projection(context, db, live)), { code: 'CONTENT_VERSION_CHANGED' }); rebuilt.readKnowledge = async prepared => preparations.get(prepared.liveSessionId);
     const before = await rows('event_v2_knowledge_answers'); await control(player, 'close');
     const opened = await command(player, 'open', { definitionId: 'anonymous' }); await join(attendee, opened.snapshot.execution.executionId);
     assert.match((await snap(attendee)).execution.participant.label, /^Usuario /); assert.equal((await snap(attendee)).displayName, 'Alice');
