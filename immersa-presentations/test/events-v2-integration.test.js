@@ -40,6 +40,8 @@ const { knowledgeSuite } = require('./helpers/events-v2-knowledge-suite');
 const { EventQnaRuntime } = require('../events-v2/qna-runtime');
 const { EventReportsRepository } = require('../events-v2/reports-repository');
 const { reportsSuite } = require('./helpers/events-v2-reports-suite');
+const { EventLifecycle } = require('../events-v2/lifecycle');
+const { lifecycleSuite } = require('./helpers/events-v2-lifecycle-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -107,14 +109,15 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
       return bytes ? { size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), contentType: resource.contentType, verified: true,
         open: async (start, end) => { assetOpens++; return Readable.from([bytes.subarray(start, end + 1)]); } } : null;
     }, setTimeoutFn: callback => { const handle = {}; avTimers.set(handle, callback); return handle; }, clearTimeoutFn: handle => avTimers.delete(handle) });
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, games: gameRuntime, time: timeRuntime, av: avRuntime, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
+  const lifecycle = new EventLifecycle({ grants, runtime, engines: [pollRuntime, knowledgeRuntime, raffleRuntime, gameRuntime, timeRuntime, avRuntime] });
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, games: gameRuntime, time: timeRuntime, av: avRuntime, lifecycle, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json());
   app.use(boundary.httpMiddleware());
   app.use('/api/events-v2', createEventAssetRouter({ grants, av: avRuntime, enabled: () => domainEnabled && grantEnabled }));
-  app.use('/api/events-v2', createGrantAccessRouter({ grants, enabled: () => domainEnabled && grantEnabled }));
+  app.use('/api/events-v2', createGrantAccessRouter({ grants, lifecycle, grantSockets, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
   const reports = new EventReportsRepository({ domain, enabled: () => domainEnabled && grantEnabled });
@@ -295,4 +298,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await gameTimeSuite(t, fixtures);
   await avSuite(t, fixtures);
   await reportsSuite(t, { ...fixtures, reports, cookies });
+  await lifecycleSuite(t, { ...fixtures, lifecycle, reports, cookies });
 });

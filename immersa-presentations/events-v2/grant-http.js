@@ -27,7 +27,7 @@ function setGrantCookie(res, grantId, token) {
   // revives expired/revoked links. No browser renewal can extend that window.
   res.cookie(cookieName(grantId), token, { secure: true, httpOnly: true, sameSite: 'strict', path: '/', maxAge: 400 * 24 * 60 * 60 * 1000 });
 }
-function createGrantAccessRouter({ grants, enabled = () => false }) {
+function createGrantAccessRouter({ grants, lifecycle = null, grantSockets = null, enabled = () => false }) {
   const router = express.Router();
   router.use(['/access', '/public'], (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -67,6 +67,25 @@ function createGrantAccessRouter({ grants, enabled = () => false }) {
     // Long registration secret exists only in the HttpOnly cookie, never in JS.
     return registration.session;
   }, ['name'], 201));
+  if (lifecycle) {
+    const credential = req => {
+      if (Object.keys(req.query).length) throw new EventAccessError('INVALID_INPUT', 400);
+      return { eventId: req.params.eventId, grantId: req.params.grantId, token: browserToken(req.headers, req.params.grantId) };
+    };
+    const root = '/access/:eventId/:grantId';
+    router.get(root + '/live-session', handle(req => {
+      if (Object.keys(req.query).length) throw new EventAccessError('INVALID_INPUT', 400);
+      const c = credential(req); return lifecycle.current(c, lifecycle.browser(c));
+    }));
+    router.post(root + '/activities/:activityId/start', requireOrigin, handle(req => {
+      const c = credential(req); return lifecycle.start(c, req.params.activityId, lifecycle.browser(c));
+    }, [], 201));
+    router.post(root + '/live-sessions/:liveId/finish', requireOrigin, handle(async req => {
+      const c = credential(req), result = await lifecycle.finish(c, req.params.liveId, lifecycle.browser(c));
+      grantSockets?.finishLive(result.eventId, result.liveSessionId);
+      return result;
+    }, []));
+  }
   router.use(['/access', '/public'], (_req, res) => res.status(404).json({ code: 'RESOURCE_NOT_FOUND' }));
   return router;
 }
