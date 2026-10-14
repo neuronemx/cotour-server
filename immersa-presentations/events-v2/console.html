@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/events-v2/console.css">
   <script defer src="/events-v2/access-client.js"></script>
   <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/events-v2/live-console.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
 <body>
@@ -18,6 +19,39 @@
     <p id="access-status" role="status" aria-live="polite">Conectando con el evento.</p>
     <p id="access-detail"></p>
     <button id="retry" type="button" hidden>Volver a conectar</button>
+    <section id="operation" hidden aria-label="Actividad">
+      <div class="activity-row">
+        <label for="activity">Actividad</label>
+        <select id="activity"><option value="">Selecciona una actividad</option></select>
+        <button id="refresh" type="button">Actualizar</button>
+      </div>
+      <p id="live-status" role="status" aria-live="polite"></p>
+      <div id="position" hidden>
+        <output id="live-position"></output>
+        <p id="preview-position"></p>
+      </div>
+      <div id="navigation" class="controls" hidden>
+        <button id="prev" type="button" aria-label="Slide anterior">Anterior</button>
+        <button id="next" type="button" aria-label="Slide siguiente">Siguiente</button>
+        <label for="slide-number">Slide</label>
+        <input id="slide-number" type="number" min="1" inputmode="numeric">
+        <button id="go" type="button">Ir</button>
+        <button id="pause" type="button">Pausar transmisión</button>
+      </div>
+      <div id="stage-lifecycle" class="controls" hidden>
+        <button id="start" type="button">Iniciar presentación</button>
+        <button id="finish" type="button">Finalizar presentación</button>
+      </div>
+      <p class="content-note">La visualización de los archivos privados aún no está disponible.</p>
+    </section>
+    <dialog id="finish-dialog" aria-labelledby="finish-title">
+      <h2 id="finish-title">¿Finalizar esta presentación?</h2>
+      <p>Se cerrará la sesión en vivo de esta actividad.</p>
+      <div class="controls">
+        <button id="cancel-finish" type="button">Cancelar</button>
+        <button id="confirm-finish" type="button">Finalizar</button>
+      </div>
+    </dialog>
   </main>
 </body>
 </html>

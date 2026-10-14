@@ -5,6 +5,33 @@ const { isId } = require('./grant-repository');
 
 const CONSOLE_KINDS = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
 
+async function consoleTargets(grants, db, context) {
+  if (context.kind === 'SPEAKER' && context.purpose !== 'live') return [];
+  const where = ['a.event_workspace_id=?', "a.access_level IN ('FREE','PAID')", "a.status IN ('SCHEDULED','LIVE')"];
+  const params = [context.eventId];
+  if (context.stageId) { where.push('a.event_stage_id=?'); params.push(context.stageId); }
+  if (context.activityId) { where.push('a.id=?'); params.push(context.activityId); }
+  if (context.liveSessionId) { where.push('l.id=?'); params.push(context.liveSessionId); }
+  if (context.kind === 'PARTICIPANT') {
+    where.push('l.id IS NOT NULL');
+    if (context.audienceLevel !== 'PAID') where.push("a.access_level='FREE'");
+  }
+  const rows = await grants.rows(db, `SELECT a.id AS activityId, a.event_stage_id AS stageId, a.title,
+    a.access_level AS accessLevel, a.status AS activityStatus, a.deck_id, a.deck_check_status,
+    s.name AS stageTitle, l.id AS liveSessionId
+    FROM event_activities a JOIN event_stages s ON s.id=a.event_stage_id AND s.event_workspace_id=a.event_workspace_id AND s.active=1
+    LEFT JOIN event_live_sessions l ON l.event_activity_id=a.id AND l.event_stage_id=a.event_stage_id
+      AND l.event_workspace_id=a.event_workspace_id AND l.status='LIVE' AND l.ended_at IS NULL
+    WHERE ${where.join(' AND ')} ORDER BY s.sort_order,a.scheduled_starts_at,a.title,l.id LIMIT 501`, params);
+  if (rows.length > 500) throw new EventAccessError('CONSOLE_TARGET_LIMIT', 409);
+  const occupied = rows.some(row => row.liveSessionId);
+  return rows.map(row => ({ eventId: context.eventId, activityId: row.activityId, stageId: row.stageId,
+    title: row.title, stageTitle: row.stageTitle, accessLevel: row.accessLevel,
+    liveSessionId: row.liveSessionId || null, status: row.liveSessionId ? 'LIVE' : row.activityStatus,
+    canStart: context.kind === 'STAGE' && context.purpose === 'live' && !occupied && row.activityStatus === 'SCHEDULED'
+      && Boolean(row.deck_id) && row.deck_check_status === 'DECK_CHECK' }));
+}
+
 function createEventConsolePages({ enabled = () => false } = {}) {
   const router = express.Router();
   router.use('/console', (_req, res, next) => {
@@ -34,7 +61,8 @@ function attachEventConsoleContext(router, grants, handle, browserToken) {
       if (context.kind !== CONSOLE_KINDS[req.params.view]) throw new EventAccessError('CONSOLE_ACCESS_DENIED');
       const rows = await grants.rows(db, 'SELECT title FROM event_hubs WHERE workspace_id = ?', [context.eventId]);
       if (!rows[0]) throw new EventAccessError('RESOURCE_NOT_FOUND', 404);
-      return { context, event: { eventId: context.eventId, title: rows[0].title }, view: req.params.view };
+      return { context, event: { eventId: context.eventId, title: rows[0].title }, view: req.params.view,
+        targets: await consoleTargets(grants, db, context) };
     });
   }));
 }

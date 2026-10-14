@@ -29,7 +29,7 @@ function clock() {
     }
   };
 }
-function harness({ fetchImpl, autoContext = true, renewal } = {}) {
+function harness({ fetchImpl, autoContext = true, renewal, commandHandler, onEvent } = {}) {
   const time = clock(), calls = [], sockets = [], states = [];
   const packet = () => ({ context, sessionToken: short, sessionExpiresAt: new Date(time.now() + 100000).toISOString() });
   const fetch = async (url, options) => {
@@ -45,6 +45,7 @@ function harness({ fetchImpl, autoContext = true, renewal } = {}) {
     disconnect() { this.connected = false; this.deliver('disconnect'); }
     deliver(name, payload) { super.emit(name, payload); }
     emit(name, payload, ack) {
+      if (name !== 'events:session:renew' && commandHandler) return commandHandler(name, payload, ack, this);
       assert.equal(name, 'events:session:renew'); assert.deepEqual(payload, {}); this.renewals++;
       if (renewal) renewal(ack, this);
       else ack({ ok: true, context: { ...context, sessionExpiresAt: new Date(time.now() + 100000).toISOString() } });
@@ -54,7 +55,7 @@ function harness({ fetchImpl, autoContext = true, renewal } = {}) {
     assert.equal(namespace, '/events-v2'); assert.equal(options.reconnection, false); assert.equal(options.autoConnect, false);
     assert.equal(options.forceNew, true); assert.deepEqual(Object.keys(options.auth).sort(), ['eventId', 'grantId', 'sessionToken']);
     const socket = new Socket(options); sockets.push(socket); return socket;
-  }, ...time, onState: state => states.push(state), retryDelayMs: 1000 });
+  }, ...time, onState: state => states.push(state), onEvent, retryDelayMs: 1000 });
   return { client, calls, sockets, states, time, packet };
 }
 
@@ -159,4 +160,43 @@ test('closing an unavailable initial exchange cancels retries and drops its in-m
   await h.client.start(token); h.client.close(); const calls = h.calls.length;
   await h.time.tick(100000); await h.client.resume();
   assert.equal(h.calls.length, calls); assert.equal(h.time.timers.size, 0); assert.equal(h.sockets.length, 0);
+});
+
+test('commands use only the Events allowlist and exact payload; closed connections cancel pending acks', async () => {
+  let acknowledge; const sent = [];
+  const h = harness({ commandHandler: (name, payload, ack) => { sent.push({ name, payload }); acknowledge = ack; } });
+  await assert.rejects(h.client.command('events:slide:next'), { code: 'COMMAND_NOT_READY' });
+  await h.client.start(token);
+  await assert.rejects(h.client.command('slide_next'), { code: 'COMMAND_NOT_ENABLED' });
+  await assert.rejects(h.client.command('events:slide:next', { role: 'STAGE' }), { code: 'INVALID_COMMAND' });
+  const payload = { slideIndex: 1 }, result = h.client.command('events:slide:go', payload); payload.slideIndex = 99;
+  assert.deepEqual(sent, [{ name: 'events:slide:go', payload: { slideIndex: 1 } }]);
+  h.client.close(); await assert.rejects(result, { code: 'COMMAND_INTERRUPTED' });
+  acknowledge({ ok: true, snapshot: { PRIVATE_STALE: true } }); assert.equal(h.client.getState().status, 'closed'); assert.equal(h.time.timers.size, 0);
+});
+
+test('lost command ack recovers a fresh connection without replaying the mutation', async () => {
+  const sent = []; let acknowledge;
+  const h = harness({ commandHandler: (name, payload, ack) => { sent.push(name); acknowledge = ack; } });
+  await h.client.start(token); const failed = assert.rejects(h.client.command('events:slide:next'), { code: 'COMMAND_ACK_TIMEOUT' });
+  await h.time.tick(10000); await failed; assert.equal(h.client.getState().status, 'retrying');
+  await h.time.tick(1000); assert.equal(h.client.getState().status, 'ready'); assert.equal(h.sockets.length, 2);
+  acknowledge({ ok: true }); assert.deepEqual(sent, ['events:slide:next']); assert.equal(h.client.getState().status, 'ready'); h.client.close();
+});
+
+test('foreign activity metadata is rejected before socket creation or event callbacks', async () => {
+  const h = harness({ fetchImpl: async url => url.includes('/console/') ? { ok: true, status: 200, json: async () => ({
+    context, view: 'stage', event: { eventId, title: 'Own' }, targets: [{ eventId: otherId, activityId: otherId,
+      stageId: otherId, liveSessionId: null, title: 'FOREIGN_ACTIVITY', stageTitle: 'Other', accessLevel: 'FREE', status: 'SCHEDULED', canStart: true }]
+  }) } : undefined });
+  await h.client.start(token); assert.equal(h.client.getState().status, 'denied'); assert.equal(h.sockets.length, 0);
+  assert.equal(JSON.stringify(h.states).includes('FOREIGN_ACTIVITY'), false);
+});
+
+test('stale socket state cannot reach a controller after reconnect or close', async () => {
+  const delivered = []; const h = harness({ onEvent: (name, value) => delivered.push({ name, value }) });
+  await h.client.start(token); const old = h.sockets[0]; old.deliver('events:live:state', { revision: 1 });
+  old.deliver('disconnect'); await h.time.tick(1000); old.deliver('events:live:state', { revision: 999 });
+  h.client.close(); h.sockets[1].deliver('events:live:state', { revision: 999 });
+  assert.deepEqual(delivered, [{ name: 'events:live:state', value: { revision: 1 } }]);
 });

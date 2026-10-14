@@ -23,7 +23,7 @@
     return { binding: Object.freeze({ view, eventId: match[2].toLowerCase(), grantId: match[3].toLowerCase() }), token: params.get('token') || null };
   }
 
-  function createClient({ binding, fetch, io, onState = () => {}, now = Date.now,
+  function createClient({ binding, fetch, io, onState = () => {}, onEvent = () => {}, now = Date.now,
     setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout, requestTimeoutMs = 10000, retryDelayMs = 1000 }) {
     if (!binding || !Object.hasOwn(kinds, binding.view) || !id(binding.eventId) || !id(binding.grantId)) throw failure('INVALID_ACCESS_LINK');
     binding = Object.freeze({ view: binding.view, eventId: binding.eventId, grantId: binding.grantId });
@@ -31,9 +31,11 @@
     let status = Object.freeze({ status: 'idle', context: null, eventName: null });
     let epoch = 0, stopped = false, socket = null, credential = null, identity = null, bootstrapToken = null;
     let retryTimer = null, renewTimer = null, connectTimer = null, ackTimer = null, attempts = 0, pending = null;
-    const requests = new Set();
+    const requests = new Set(), commands = new Set();
+    let targets = [];
     function publish(state, context = null, eventName = null) {
-      status = Object.freeze({ status: state, context: context && Object.freeze({ ...context }), eventName });
+      status = Object.freeze({ status: state, context: context && Object.freeze({ ...context }), eventName,
+        generation: epoch, targets: Object.freeze(state === 'ready' ? targets : []) });
       onState(status);
     }
     function clearTimers() {
@@ -41,7 +43,8 @@
       retryTimer = renewTimer = connectTimer = ackTimer = null;
     }
     function dropSocket() {
-      const old = socket; socket = null; credential = null;
+      const old = socket; socket = null; credential = null; targets = [];
+      for (const entry of [...commands]) entry.finish(failure('COMMAND_INTERRUPTED'));
       if (old) {
         if (old.auth && typeof old.auth === 'object') for (const key of Object.keys(old.auth)) delete old.auth[key];
         old.auth = {}; old.removeAllListeners(); old.disconnect();
@@ -58,6 +61,51 @@
       return fixed;
     }
     function current(version) { return !stopped && version === epoch; }
+    function validateTargets(items, context) {
+      if (!Array.isArray(items) || items.length > 500) throw failure('INVALID_ACCESS_RESPONSE');
+      return items.map(item => {
+        if (!item || item.eventId !== binding.eventId || !id(item.activityId) || !id(item.stageId)
+          || (item.liveSessionId !== null && !id(item.liveSessionId)) || typeof item.title !== 'string' || item.title.length > 191
+          || typeof item.stageTitle !== 'string' || item.stageTitle.length > 120 || !['FREE', 'PAID'].includes(item.accessLevel)
+          || !['SCHEDULED', 'LIVE'].includes(item.status) || typeof item.canStart !== 'boolean'
+          || (item.status === 'LIVE') !== Boolean(item.liveSessionId)
+          || (context.stageId && context.stageId !== item.stageId) || (context.activityId && context.activityId !== item.activityId)
+          || (context.liveSessionId && context.liveSessionId !== item.liveSessionId)
+          || (context.kind === 'PARTICIPANT' && (!item.liveSessionId || (context.audienceLevel !== 'PAID' && item.accessLevel !== 'FREE')))
+          || (item.canStart && (context.kind !== 'STAGE' || item.liveSessionId || context.purpose !== 'live'))
+          || (context.kind === 'SPEAKER' && context.purpose !== 'live')) throw failure('ACCESS_DENIED');
+        return Object.freeze({ eventId: item.eventId, activityId: item.activityId, stageId: item.stageId,
+          liveSessionId: item.liveSessionId, title: item.title, stageTitle: item.stageTitle,
+          accessLevel: item.accessLevel, status: item.status, canStart: item.canStart });
+      });
+    }
+    function command(name, payload = {}) {
+      const fields = { 'events:live:join': ['liveSessionId'], 'events:live:snapshot': [],
+        'events:slide:next': [], 'events:slide:prev': [], 'events:slide:go': ['slideIndex'],
+        'events:presentation:pause': [], 'events:presentation:play': [],
+        'events:lifecycle:start': ['activityId'], 'events:lifecycle:finish': [] };
+      if (!Object.hasOwn(fields, name)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== fields[name].length
+        || fields[name].some(key => !Object.hasOwn(payload, key))
+        || (name === 'events:live:join' && !id(payload.liveSessionId))
+        || (name === 'events:lifecycle:start' && !id(payload.activityId))
+        || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
+      if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
+      const s = socket, version = epoch, copy = { ...payload };
+      return new Promise((resolve, reject) => {
+        const entry = { timer: null, finish: (error, result) => {
+          if (!commands.delete(entry)) return;
+          clearTimeoutFn(entry.timer); error ? reject(error) : resolve(result);
+        } };
+        commands.add(entry);
+        entry.timer = setTimeoutFn(() => { entry.finish(failure('COMMAND_ACK_TIMEOUT')); recover(s, version); }, requestTimeoutMs);
+        s.emit(name, copy, result => {
+          if (socket !== s || !current(version)) return entry.finish(failure('COMMAND_INTERRUPTED'));
+          if (!result || typeof result.ok !== 'boolean') { entry.finish(failure('INVALID_COMMAND_RESPONSE')); return recover(s, version); }
+          entry.finish(null, result);
+        });
+      });
+    }
     async function request(path, method, body) {
       const abort = new AbortController(); requests.add(abort);
       const timer = setTimeoutFn(() => abort.abort(), requestTimeoutMs);
@@ -106,6 +154,7 @@
           try {
             if (!result?.ok) throw failure('ACCESS_DENIED');
             validContext(result.context);
+            targets = validateTargets(targets, result.context);
             credential.context = result.context;
             publish('ready', result.context, status.eventName);
             scheduleRenew(s, version, result.context.sessionExpiresAt);
@@ -132,6 +181,7 @@
         if (metadata.view !== binding.view || metadata.event?.eventId !== binding.eventId
           || typeof metadata.event.title !== 'string' || validContext(metadata.context) !== fixed) throw failure('ACCESS_DENIED');
         identity = fixed;
+        targets = validateTargets(metadata.targets || [], session.context);
         credential = { context: session.context, sessionToken: session.sessionToken };
         const s = io('/events-v2', { autoConnect: false, reconnection: false, forceNew: true, withCredentials: true,
           auth: { eventId: binding.eventId, grantId: binding.grantId, sessionToken: credential.sessionToken } });
@@ -141,6 +191,7 @@
           if (socket !== s || !current(version)) return;
           try {
             validContext(context);
+            targets = validateTargets(targets, context);
             if (connectTimer !== null) clearTimeoutFn(connectTimer);
             connectTimer = null; attempts = 0;
             credential.context = context;
@@ -149,6 +200,9 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
+        for (const name of ['events:live:state', 'events:lifecycle:finished']) s.on(name, value => {
+          if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
+        });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);
         s.connect();
       } catch (error) {
@@ -170,7 +224,7 @@
       for (const request of requests) request.abort();
       publish('closed');
     }
-    return Object.freeze({ start: run, resume, close, getState: () => status });
+    return Object.freeze({ start: run, resume, close, command, getState: () => status });
   }
   return Object.freeze({ consumeLink, createClient });
 });
