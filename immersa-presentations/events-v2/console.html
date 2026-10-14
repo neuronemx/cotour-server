@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Acceso · IMMERSA Eventos</title>
+  <link rel="stylesheet" href="/events-v2/console.css">
+  <script defer src="/events-v2/access-client.js"></script>
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/events-v2/console-page.js"></script>
+</head>
+<body>
+  <main>
+    <p class="brand">IMMERSA <span>Eventos</span></p>
+    <p id="function">Acceso</p>
+    <h1 id="event-name">Verificando acceso…</h1>
+    <p id="access-status" role="status" aria-live="polite">Conectando con el evento.</p>
+    <p id="access-detail"></p>
+    <button id="retry" type="button" hidden>Volver a conectar</button>
+  </main>
+</body>
+</html>

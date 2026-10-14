@@ -48,6 +48,7 @@ const { createEventDomainRouter } = require("./events-v2/http-router");
 const { LegacyEventBoundary } = require("./events-v2/legacy-boundary");
 const { EventGrantRepository } = require("./events-v2/grant-repository");
 const { createGrantAccessRouter } = require("./events-v2/grant-http");
+const { createEventConsolePages } = require("./events-v2/console-http");
 const { createEventGrantSockets } = require("./events-v2/grant-sockets");
 const { EventLiveRuntime } = require("./events-v2/live-runtime");
 const { EventLifecycle } = require("./events-v2/lifecycle");
@@ -1065,6 +1066,7 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
+app.use("/events-v2", createEventConsolePages({ enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventAssetRouter({ grants: eventGrantRepository, av: eventAVRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, lifecycle: eventLifecycle, grantSockets: eventGrantSockets, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventDomainRouter({
