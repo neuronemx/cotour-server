@@ -12,6 +12,15 @@ const path = `/events-v2/console/stage/${eventId}/${grantId}`;
 const context = { eventId, grantId, organizationId: otherId, actorId: grantId, kind: 'STAGE', purpose: 'live',
   stageId: otherId, activityId: null, liveSessionId: null, participantId: null, expiresAt: new Date(10000000).toISOString() };
 
+test('poll transport admits exact canonical IDs only and fences poll events from retired sockets', async () => {
+  const events = [], sent = [], h = harness({ onEvent: (name, value) => events.push({ name, value }), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true, snapshot: null }); } });
+  await h.client.start(token);
+  for (const [name, payload] of [['launch', { interactionId: 'own' }], ['submit', { pollRunId: otherId, optionId: 'one' }], ['snapshot', {}], ['show', { pollRunId: otherId }], ['hide', { pollRunId: otherId }], ['close', { pollRunId: otherId }]]) assert.equal((await h.client.command('events:poll:' + name, payload)).ok, true);
+  for (const payload of [{ interactionId: 'own', participantId: grantId }, { interactionId: '' }, { interactionId: 'x'.repeat(121) }]) await assert.rejects(h.client.command('events:poll:launch', payload), { code: 'INVALID_COMMAND' });
+  await assert.rejects(h.client.command('events:poll:submit', { pollRunId: 'invalid', optionId: 'one' }), { code: 'INVALID_COMMAND' });
+  const old = h.sockets[0]; old.deliver('events:poll:state', { liveSessionId: otherId }); assert.equal(events.length, 1); h.client.close(); old.deliver('events:poll:state', {}); assert.equal(events.length, 1); assert.equal(sent.length, 6);
+});
+
 function clock() {
   let time = 0, seq = 0; const timers = new Map();
   return { now: () => time, timers,

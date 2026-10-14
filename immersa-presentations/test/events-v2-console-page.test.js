@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const consoleModule = require('../public/events-v2/live-console');
+const pollModule = require('../public/events-v2/poll-console');
+const pollPage = require('../public/events-v2/poll-page');
 const source = fs.readFileSync(require.resolve('../public/events-v2/console-page.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../events-v2/console.html'), 'utf8');
 const eventId = '00000000-0000-4000-8000-000000000001', activityId = '00000000-0000-4000-8000-000000000002';
@@ -18,7 +20,8 @@ function page(kind = 'STAGE', purpose = 'live') {
     set innerHTML(_) { throw new Error('Unsafe HTML assignment'); }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     fire(name, event = {}) { for (const fn of this.listeners[name] || []) fn(event); }
-    append(item) { this.children.push(item); }
+    append(...items) { this.children.push(...items); }
+    setAttribute(name, value) { this[name] = value; }
     replaceChildren() { this.children = []; }
     showModal() { this.open = true; }
     close() { this.open = false; }
@@ -28,9 +31,12 @@ function page(kind = 'STAGE', purpose = 'live') {
   const window = new Element(), sent = []; let options, controller, generation = 0, resumes = 0;
   window.history = { replaceState() {} }; window.location = { pathname: '/generic', reload() {} }; window.fetch = async () => {}; window.io = () => {};
   window.ImmersaEventLiveConsole = { ...consoleModule, createController: args => (controller = consoleModule.createController(args)) };
+  window.ImmersaEventPollConsole = pollModule; window.ImmersaEventPollPage = pollPage;
   const access = { start() { options.onState({ status: 'connecting' }); }, close() { options.onState({ status: 'closed' }); }, resume() { resumes++; options.onState({ status: 'connecting' }); },
     command: async (name, payload) => { sent.push({ name, payload }); return name === 'events:lifecycle:finish'
-      ? { ok: true, liveSession: { eventId, liveSessionId, status: 'FINISHED' } } : { ok: true, snapshot: projection }; } };
+      ? { ok: true, liveSession: { eventId, liveSessionId, status: 'FINISHED' } }
+      : name === 'events:poll:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, pollRunId: null, active: null, resultsVisible: false, available: [], results: null, response: null } }
+        : { ok: true, snapshot: projection }; } };
   window.ImmersaEventAccess = { consumeLink: () => ({ binding: { view: { STAGE: 'stage', SPEAKER: 'speaker', PLAYER: 'screen', PARTICIPANT: 'audience' }[kind] } }), createClient: args => { options = args; return access; } };
   vm.runInNewContext(source, { window, document }, { filename: 'console-page.js' });
   return { elements, document, sent, resumes: () => resumes,
@@ -69,7 +75,7 @@ test('real page handlers expose controller navigation only to Stage/Speaker; Par
     assert.equal(h.sent.some(row => row.name === 'events:slide:go'), ['STAGE', 'SPEAKER'].includes(kind));
     h.elements.pause.fire('click'); await settle();
     assert.equal(h.sent.some(row => row.name === 'events:presentation:pause'), ['STAGE', 'SPEAKER'].includes(kind));
-    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.length, 1); }
+    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.filter(row => !row.name.startsWith('events:poll:')).length, 1); }
   }
 });
 
@@ -77,7 +83,7 @@ test('Player emergency keyboard excludes typing, modifiers and repeats; unavaila
   const h = page('PLAYER', 'player'); h.ready(); await settle();
   let prevented = 0; const key = { key: 'ArrowRight', target: { tagName: 'BODY' }, preventDefault() { prevented++; } };
   for (const extra of [{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }, { target: { tagName: 'INPUT' } }, { target: { tagName: 'SELECT' } }]) h.document.fire('keydown', { ...key, ...extra });
-  assert.equal(h.sent.length, 1); h.document.fire('keydown', key); await settle();
+  assert.equal(h.sent.filter(row => !row.name.startsWith('events:poll:')).length, 1); h.document.fire('keydown', key); await settle();
   assert.equal(h.sent.at(-1).name, 'events:slide:next'); assert.equal(prevented, 1);
   h.deny(); h.document.fire('keydown', key); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:slide:next').length, 1);
   const rehearsal = page('SPEAKER', 'rehearsal'); rehearsal.ready([]); await settle();
