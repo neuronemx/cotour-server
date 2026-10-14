@@ -8,7 +8,7 @@ async function perimeterSuite(t, f) {
   const { sql, request, domain, boundary, legacy, base, a, stageA, activityA, liveA, publicId, localDir, perimeterDataDir, perimeterPublicDir } = f;
   const v1 = crypto.randomUUID(), stage = crypto.randomUUID(), activity = crypto.randomUUID(), speaker = crypto.randomUUID(), poll = crypto.randomUUID();
   await sql("INSERT INTO workspaces (id,kind,plan) VALUES (?,'event','FREE')", [v1]);
-  await sql('INSERT INTO event_hubs (workspace_id,slug,title) VALUES (?,?,?)', [v1, 'perimeter-legacy-' + v1, 'Legacy fixture']);
+  await sql('INSERT INTO event_hubs (workspace_id,slug,title,created_by_user_id) VALUES (?,?,?,?)', [v1, 'perimeter-legacy-' + v1, 'Legacy fixture', f.ids.get('platform')]);
   await sql('INSERT INTO event_stages (id,event_workspace_id,name) VALUES (?,?,?)', [stage, v1, 'Legacy stage']);
   await sql("INSERT INTO event_activities (id,event_workspace_id,event_stage_id,title,deck_id,access_level) VALUES (?,?,?,?,?,'FREE')", [activity, v1, stage, 'Legacy activity', 'personal-deck']);
   await sql("INSERT INTO event_speakers (id,event_workspace_id,source_kind,manual_name) VALUES (?,?,'MANUAL','PRIVATE_PERIMETER_NAME')", [speaker, a]);
