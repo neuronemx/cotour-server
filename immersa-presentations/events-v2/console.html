@@ -9,6 +9,8 @@
   <script defer src="/events-v2/access-client.js"></script>
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/events-v2/live-console.js"></script>
+  <script defer src="/events-v2/poll-console.js"></script>
+  <script defer src="/events-v2/poll-page.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
 <body>
@@ -43,6 +45,21 @@
         <button id="finish" type="button">Finalizar presentación</button>
       </div>
       <p class="content-note">La visualización de los archivos privados aún no está disponible.</p>
+      <section id="poll-panel" hidden aria-label="Encuesta">
+        <div id="poll-controls" class="controls" hidden>
+          <label for="poll-catalog">Encuesta</label><select id="poll-catalog"></select>
+          <button id="poll-launch" type="button">Abrir encuesta</button>
+          <button id="poll-show" type="button">Mostrar resultados</button>
+          <button id="poll-hide" type="button">Ocultar resultados</button>
+          <button id="poll-close" type="button">Cerrar encuesta</button>
+        </div>
+        <p id="poll-status" role="status" aria-live="polite"></p>
+        <h2 id="poll-question"></h2>
+        <div id="poll-options"></div>
+        <button id="poll-submit" type="button" hidden>Enviar respuesta</button>
+        <div id="poll-results"></div>
+      </section>
+      <div id="poll-emergency" hidden role="menu"><button id="poll-emergency-action" type="button" role="menuitem"></button></div>
     </section>
     <dialog id="finish-dialog" aria-labelledby="finish-title">
       <h2 id="finish-title">¿Finalizar esta presentación?</h2>

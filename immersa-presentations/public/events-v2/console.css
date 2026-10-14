@@ -21,4 +21,11 @@ output { font-size: 28px; font-weight: 700; }
 .content-note, #preview-position { color: #b4bed0; font-size: 14px; line-height: 1.6; }
 dialog { background: #171d2a; color: inherit; border: 1px solid #56617a; border-radius: 18px; padding: 28px; max-width: calc(100vw - 36px); }
 dialog::backdrop { background: #000a; }
+#poll-question, #poll-options, #poll-results { overflow-wrap: anywhere; }
+#poll-options { display: grid; gap: 12px; margin: 18px 0; }
+#poll-options label { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #56617a; border-radius: 10px; }
+#poll-options input { width: 22px; height: 22px; flex: none; }
+#poll-results progress { width: 100%; accent-color: #78d6d0; }
+#poll-emergency { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100vw - 32px); }
+#poll-emergency-action { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 [hidden] { display: none !important; }
