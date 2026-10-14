@@ -123,8 +123,13 @@ async function gameTimeSuite(t, f) {
     assert.equal((await snap(secondClient)).game, null); assert.equal((await timing(foreignClient)).screen.visible, false);
     assert.equal((await snap(player)).game.type, 'pong'); await queueCommand(player, 'end');
     const question = await ack(attendee, 'events:qna:submit', { roundId: qna.snapshot.roundId, question: 'Games coexist?', allowNameOnScreen: false }); assert.equal(question.ok, true);
-    const original = gameRuntime.readGames; gameRuntime.readGames = async prepared => ({ ...preparations.get(prepared.liveSessionId), versionId: 'wrong' });
-    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => gameRuntime.projection(context, db, live)), { code: 'GAME_CONTENT_NOT_PREPARED' }); gameRuntime.readGames = original;
+    // Keep fault injection local to this read. The production runtime's idle
+    // review must stay active: mutating its shared reader can legitimately
+    // disconnect every live recipient before the following Time test.
+    const wrongCatalog = Object.create(gameRuntime), beforeCatalog = gameRuntime.states.get(key);
+    wrongCatalog.readGames = async prepared => ({ ...preparations.get(prepared.liveSessionId), versionId: 'wrong' });
+    await assert.rejects(grants.withSession(credentials(stageSession), (context, db) => wrongCatalog.projection(context, db, live)), { code: 'GAME_CONTENT_NOT_PREPARED' });
+    assert.equal(gameRuntime.states.get(key), beforeCatalog);
   });
   await t.test('Time runs private Speaker and independent Screen stopwatch/countdown/clock with stale revision and timestamp protection', async () => {
     assert.equal((await controlTime(stage, { target: 'speaker', action: 'start' })).ok, true);
