@@ -49,6 +49,7 @@ const { EventGrantRepository } = require("./events-v2/grant-repository");
 const { createGrantAccessRouter } = require("./events-v2/grant-http");
 const { createEventGrantSockets } = require("./events-v2/grant-sockets");
 const { EventLiveRuntime } = require("./events-v2/live-runtime");
+const { EventLifecycle } = require("./events-v2/lifecycle");
 const { EventPollRuntime } = require("./events-v2/poll-runtime");
 const { EventGameRuntime } = require('./events-v2/game-runtime');
 const { EventAVRuntime } = require('./events-v2/av-runtime');
@@ -189,7 +190,9 @@ eventPollRuntime.games = eventGameRuntime; eventKnowledgeRuntime.games = eventGa
 const eventTimeRuntime = new EventTimeRuntime({ liveRuntime: eventLiveRuntime });
 const eventAVRuntime = new EventAVRuntime({ liveRuntime: eventLiveRuntime });
 const eventReportsRepository = eventDomainRepository ? new EventReportsRepository({ domain: eventDomainRepository, enabled: eventGrantsEnabled }) : null;
-const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime, av: eventAVRuntime });
+const eventLifecycle = eventGrantRepository ? new EventLifecycle({ grants: eventGrantRepository, runtime: eventLiveRuntime,
+  engines: [eventPollRuntime, eventKnowledgeRuntime, eventRaffleRuntime, eventGameRuntime, eventTimeRuntime, eventAVRuntime] }) : null;
+const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime, av: eventAVRuntime, lifecycle: eventLifecycle });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
@@ -1083,7 +1086,7 @@ app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler)
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
 app.use("/api/events-v2", createEventAssetRouter({ grants: eventGrantRepository, av: eventAVRuntime, enabled: eventGrantsEnabled }));
-app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, enabled: eventGrantsEnabled }));
+app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, lifecycle: eventLifecycle, grantSockets: eventGrantSockets, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
