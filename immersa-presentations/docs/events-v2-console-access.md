@@ -1,5 +1,7 @@
 # Events v2 — first console access increment
 
+Historical scope of the access increment. The next navigation/lifecycle connection is documented in [events-v2-console-controls.md](events-v2-console-controls.md); its remaining limits and acceptance requirements still apply.
+
 Technical entry: `/events-v2/console/{stage|speaker|screen|audience}/{eventId}/{grantId}#token={secret}`. The long token belongs only in the fragment. A reload uses the same path without the fragment and restores the existing HttpOnly cookie; audience entry starts from its already registered cookie. This is an internal pilot path, not the future public slug portal.
 
 The generic HTML lives outside `public/`, is flag-gated and sends no-store/no-referrer/CSP headers. Static JS/CSS contain no event data. No legacy console script, socket namespace or default deck is used. The same client handles all four grant kinds without deriving privileges from a selected UI function.

@@ -47,6 +47,7 @@ const { createDeckInteractionHandlers } = require('../deck-interactions-api');
 const { readDeckInventory } = require('../deck-inventory');
 const { createEventConsolePages } = require('../events-v2/console-http');
 const { consoleSuite } = require('./helpers/events-v2-console-suite');
+const { consoleControlsSuite } = require('./helpers/events-v2-console-controls-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -341,4 +342,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await lifecycleSuite(t, { ...fixtures, lifecycle, reports, cookies });
   await perimeterSuite(t, { ...fixtures, boundary, legacy, cookies, localDir, perimeterDataDir, perimeterPublicDir, perimeterReads: () => perimeterReads, perimeterWrites: () => perimeterWrites, legacyStates: () => createdRuntimeStates });
   await consoleSuite(t, fixtures);
+  await consoleControlsSuite(t, fixtures);
 });

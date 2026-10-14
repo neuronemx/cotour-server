@@ -1,7 +1,7 @@
 :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #10131b; color: #edf1fa; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 28px; }
-main { width: min(100%, 620px); border: 1px solid #313a50; border-radius: 22px; padding: clamp(26px, 6vw, 48px); background: #171d2a; }
+main { width: min(100%, 900px); border: 1px solid #313a50; border-radius: 22px; padding: clamp(26px, 6vw, 48px); background: #171d2a; }
 .brand { font-size: 17px; font-weight: 800; letter-spacing: .08em; margin: 0 0 42px; }
 .brand span { font-weight: 400; color: #aeb9ce; letter-spacing: 0; }
 #function { color: #78d6d0; margin-bottom: 10px; }
@@ -10,4 +10,15 @@ h1 { font-size: clamp(25px, 5vw, 36px); line-height: 1.2; overflow-wrap: anywher
 #access-detail { color: #b4bed0; line-height: 1.6; }
 button { border: 0; border-radius: 10px; padding: 13px 20px; font: inherit; background: #78d6d0; color: #10131b; cursor: pointer; }
 button:focus-visible { outline: 3px solid #edf1fa; outline-offset: 4px; }
+button:disabled { opacity: .4; cursor: default; }
+section { border-top: 1px solid #313a50; margin-top: 28px; padding-top: 26px; }
+.activity-row, .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.activity-row select { flex: 1; min-width: 150px; }
+input, select { color: inherit; background: #10131b; border: 1px solid #56617a; border-radius: 8px; font: inherit; padding: 12px; max-width: 100%; }
+input { width: 88px; }
+.controls { margin: 18px 0; }
+output { font-size: 28px; font-weight: 700; }
+.content-note, #preview-position { color: #b4bed0; font-size: 14px; line-height: 1.6; }
+dialog { background: #171d2a; color: inherit; border: 1px solid #56617a; border-radius: 18px; padding: 28px; max-width: calc(100vw - 36px); }
+dialog::backdrop { background: #000a; }
 [hidden] { display: none !important; }
