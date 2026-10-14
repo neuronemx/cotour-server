@@ -45,6 +45,8 @@ const { lifecycleSuite } = require('./helpers/events-v2-lifecycle-suite');
 const { perimeterSuite } = require('./helpers/events-v2-perimeter-suite');
 const { createDeckInteractionHandlers } = require('../deck-interactions-api');
 const { readDeckInventory } = require('../deck-inventory');
+const { createEventConsolePages } = require('../events-v2/console-http');
+const { consoleSuite } = require('./helpers/events-v2-console-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -119,6 +121,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json());
   app.use(boundary.httpMiddleware());
+  app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createEventAssetRouter({ grants, av: avRuntime, enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createGrantAccessRouter({ grants, lifecycle, grantSockets, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
@@ -337,4 +340,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await reportsSuite(t, { ...fixtures, reports, cookies });
   await lifecycleSuite(t, { ...fixtures, lifecycle, reports, cookies });
   await perimeterSuite(t, { ...fixtures, boundary, legacy, cookies, localDir, perimeterDataDir, perimeterPublicDir, perimeterReads: () => perimeterReads, perimeterWrites: () => perimeterWrites, legacyStates: () => createdRuntimeStates });
+  await consoleSuite(t, fixtures);
 });

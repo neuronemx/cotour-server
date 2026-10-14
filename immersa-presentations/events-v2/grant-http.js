@@ -1,6 +1,7 @@
 const express = require('express');
 const { EventAccessError, assertFields } = require('./authorization');
 const { isId } = require('./grant-repository');
+const { attachEventConsoleContext } = require('./console-http');
 
 const cookieName = grantId => '__Host-immersa-events-v2-' + grantId;
 function sameOrigin(origin, host) {
@@ -61,6 +62,7 @@ function createGrantAccessRouter({ grants, lifecycle = null, grantSockets = null
     setGrantCookie(res, req.params.grantId, token);
     return session;
   }, []));
+  attachEventConsoleContext(router, grants, handle, browserToken);
   router.post('/public/:publicId/participants', requireOrigin, handle(async (req, res) => {
     const registration = await grants.register(req.params.publicId, req.body.name);
     setGrantCookie(res, registration.grantId, registration.token);
