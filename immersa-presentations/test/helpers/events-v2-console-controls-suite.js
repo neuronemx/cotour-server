@@ -84,6 +84,7 @@ async function consoleControlsSuite(t, f) {
     player = open(await issue('screen', 'PLAYER', { liveSessionId: liveId })); await player.start(); await player.live();
     assert.deepEqual(player.ready().targets.map(row => row.liveSessionId), [liveId]);
     await attendee.access.resume();
+    await waitUntil(() => attendee.ready().status === 'ready', 'audience catalog after reconnect');
     assert.equal(attendee.ready().targets.some(row => row.liveSessionId === paidLive), false);
     await attendee.controller.select(targetKey(attendee.ready().targets.find(row => row.activityId === free))); await attendee.live();
     let qr = (await sql("SELECT public_id FROM event_public_qrs WHERE event_workspace_id=? AND audience_level='PAID'", [a]))[0];
