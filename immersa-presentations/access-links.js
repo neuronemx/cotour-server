@@ -352,6 +352,9 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
 
   async function legacyAllowed(accessLink) {
     if (!allowLegacyPresentation) return true;
+    // Stored scope is checked before resolving any manifest. Older links
+    // without deck_id still use the existing lookup, followed by the same guard.
+    if (!(await allowLegacyPresentation(accessLink.session_id, accessLink.deck_id))) return false;
     const deck = await findDeckForAccessLink(accessLink, deckDirs);
     return allowLegacyPresentation(accessLink.session_id, deck?.deckId || accessLink.deck_id);
   }
@@ -458,6 +461,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
   async function createAccessLinkForDeck({ deckId, role }) {
     const normalizedRole = String(role || '').trim();
     if (!isValidRole(normalizedRole)) throw new Error('Invalid role');
+    if (allowLegacyPresentation && !(await allowLegacyPresentation('', deckId))) throw new Error('Presentation not found');
     const deckResult = await findDeckManifestByDeckId(deckId, deckDirs);
     const deck = deckResult?.deck;
     if (!deck?.session_id) throw new Error('Presentation not found');

@@ -21,6 +21,7 @@ const {
   isSessionInactive
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { readDeckInventory } = require("./deck-inventory");
 const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
 const { listAudiovisualResources } = require("./audiovisual-library");
 const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
@@ -649,30 +650,9 @@ async function ensureManifestSessionId(manifestPath, manifest, usedSessionIds, c
 }
 
 async function readDecksFrom(rootDir, seen, usedSessionIds, canPersistSessionId = false) {
-  let entries = [];
-  try {
-    entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
-
-  const decks = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory() || seen.has(entry.name)) continue;
-    const manifestPath = path.join(rootDir, entry.name, "manifest.json");
-    try {
-      const manifestStats = await fs.promises.stat(manifestPath);
-      const manifest = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
-      const manifestWithSessionId = await ensureManifestSessionId(manifestPath, manifest, usedSessionIds, canPersistSessionId);
-      seen.add(entry.name);
-      decks.push(manifestSummary({ ...manifestWithSessionId, deckId: manifestWithSessionId.deckId || entry.name, title: manifestWithSessionId.title || entry.name }, manifestStats));
-    } catch (error) {
-      console.warn("Skipping deck manifest", manifestPath, error.message);
-    }
-  }
-
-  return decks;
+  return readDeckInventory({ rootDir, seen, usedSessionIds, canPersistSessionId,
+    allowDeck: async deckId => !legacyEventBoundary || !(await legacyEventBoundary.isV2('deck', deckId)),
+    ensureManifestSessionId, manifestSummary });
 }
 
 async function listDecks(allowedDeckIds = null) {
@@ -2101,9 +2081,9 @@ io.on("connection", (socket) => {
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
-    if (legacyEventBoundary && !(await legacyEventBoundary.allowPresentationJoin(socket, sessionId, deckId))) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
+    if (legacyEventBoundary && !(await legacyEventBoundary.allowPresentationJoin(socket, joinedSessionId, joinedDeckId))) return;
     currentRoomKey = getRoomKey(joinedSessionId, joinedDeckId);
     currentRole = role;
     currentSessionId = joinedSessionId;

@@ -42,6 +42,9 @@ const { EventReportsRepository } = require('../events-v2/reports-repository');
 const { reportsSuite } = require('./helpers/events-v2-reports-suite');
 const { EventLifecycle } = require('../events-v2/lifecycle');
 const { lifecycleSuite } = require('./helpers/events-v2-lifecycle-suite');
+const { perimeterSuite } = require('./helpers/events-v2-perimeter-suite');
+const { createDeckInteractionHandlers } = require('../deck-interactions-api');
+const { readDeckInventory } = require('../deck-inventory');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -129,11 +132,45 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   app.get('/api/qna/export/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.type('text/csv').send('LEGACY_EXPORT_SENTINEL'));
   app.delete('/api/qna/history/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.json({ legacy: 'LEGACY_DELETE_SENTINEL' }));
   app.get('/api/knowledge-activities/:executionId/export/:access_token', links.guardAccessRoles(['speaker']), (_req, res) => res.type('text/csv').send('LEGACY_EXPORT_SENTINEL'));
+  const perimeterPublicDir = path.join(localDir, 'perimeter-public');
+  const perimeterDataDir = path.join(localDir, 'perimeter-data');
+  const legacyDeckApi = createDeckInteractionHandlers({ dataDecksDir: perimeterDataDir, staticDecksDir: path.join(perimeterPublicDir, 'decks') });
+  let perimeterReads = 0, perimeterWrites = 0;
+  app.get('/api/decks/:deckId/interactions', (req, res, next) => { perimeterReads++; return legacyDeckApi.getInteractions(req, res, next); });
+  app.get('/api/admin/event-hubs/:workspaceId/decks', bridge.requireApiAuth(), platformGuard, async (_req, res) => {
+    perimeterReads++;
+    const result = await readDeckInventory({ rootDir: perimeterDataDir, seen: new Set(), usedSessionIds: new Set(),
+      allowDeck: async id => !(await boundary.isV2('deck', id)), ensureManifestSessionId: async (_p, manifest) => manifest, manifestSummary: value => value });
+    res.json({ decks: result });
+  });
+  app.post('/api/admin/event-hubs/:workspaceId/activities', bridge.requireApiAuth(), platformGuard, async (req, res) => {
+    perimeterWrites++;
+    try { res.status(201).json(await legacy.createActivity({ eventWorkspaceId: req.params.workspaceId, ...req.body })); }
+    catch (e) { res.status(e.statusCode || 500).json({ code: e.code }); }
+  });
+  app.post('/api/event/stages/:stageId/live-sessions', async (req, res) => {
+    perimeterWrites++;
+    try { await legacy.authorizeStageOperation({ eventStageId: req.params.stageId, accessSecret: req.headers['x-immersa-event-stage-access'] });
+      const activity = await legacy.getActivity(req.body.eventActivityId);
+      if (activity.event_stage_id !== req.params.stageId) return res.status(403).json({ code: 'ACTIVITY_STAGE_MISMATCH' });
+      res.status(201).json(await legacy.startLiveSession({ eventActivityId: activity.id })); }
+    catch (e) { res.status(e.statusCode || 500).json({ code: e.code }); }
+  });
+  app.post('/api/event/stages/:stageId/live-sessions/:liveSessionId/finish', async (req, res) => {
+    perimeterWrites++;
+    try { await legacy.authorizeStageOperation({ eventStageId: req.params.stageId, accessSecret: req.headers['x-immersa-event-stage-access'] });
+      const live = await legacy.getLiveSession(req.params.liveSessionId);
+      if (live.event_stage_id !== req.params.stageId) return res.status(403).json({ code: 'LIVE_SESSION_STAGE_MISMATCH' });
+      res.json(await legacy.finishLiveSession(live.id)); }
+    catch (e) { res.status(e.statusCode || 500).json({ code: e.code }); }
+  });
+  app.use('/decks', express.static(perimeterDataDir)); app.use(express.static(perimeterPublicDir));
   app.use((_req, res) => res.status(200).json({ legacy: true }));
   sockets.on('connection', socket => {
     interactions.attach(socket);
     socket.on('join_presentation', async payload => {
-      if (!(await boundary.allowPresentationJoin(socket, payload.session, payload.deck))) return;
+      const sessionId = String(payload.session || 'demo01'), deckId = String(payload.deck || 'demo');
+      if (!(await boundary.allowPresentationJoin(socket, sessionId, deckId))) return;
       createdRuntimeStates++;
       socket.join('legacy-runtime');
       socket.emit('presentation_state', { legacy: true });
@@ -299,4 +336,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await avSuite(t, fixtures);
   await reportsSuite(t, { ...fixtures, reports, cookies });
   await lifecycleSuite(t, { ...fixtures, lifecycle, reports, cookies });
+  await perimeterSuite(t, { ...fixtures, boundary, legacy, cookies, localDir, perimeterDataDir, perimeterPublicDir, perimeterReads: () => perimeterReads, perimeterWrites: () => perimeterWrites, legacyStates: () => createdRuntimeStates });
 });

@@ -1,3 +1,4 @@
+const path = require('node:path');
 const { EventAccessError } = require('./authorization');
 
 // This boundary remains active when the v2 feature flag is off. Disabling
@@ -6,9 +7,12 @@ class LegacyEventBoundary {
   constructor(pool) { this.pool = pool; }
 
   async isV2(kind, id) {
+    id = String(id || '').trim();
     if (!id) return false;
     const selectors = {
       event: ['SELECT c.event_id FROM event_v2_contexts c WHERE c.event_id = ?', [id]],
+      speaker: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_speakers r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
+      poll: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_hub_polls r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
       stage: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_stages r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
       activity: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_activities r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
       live: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_live_sessions r ON r.event_workspace_id = c.event_id WHERE r.id = ?', [id]],
@@ -25,6 +29,14 @@ class LegacyEventBoundary {
   }
 
   async assertPresentation(sessionId, deckId) {
+    const deck = String(deckId || '');
+    if (/[\\/\0]/.test(deck) || ['.', '..'].includes(deck.trim())) {
+      throw new EventAccessError('INVALID_DECK_ID', 400);
+    }
+    // This execution namespace is reserved for the grant-authorized engines.
+    if (/^evt:.*:(?:live|venue):/i.test(String(sessionId || '').trim())) {
+      throw new EventAccessError('EVENT_V2_ACCESS_REQUIRED', 404);
+    }
     if (await this.isV2('deck', deckId) || await this.isV2('live', sessionId) || await this.isV2('event', sessionId)) {
       throw new EventAccessError('EVENT_V2_ACCESS_REQUIRED', 404);
     }
@@ -45,30 +57,48 @@ class LegacyEventBoundary {
     return async (req, res, next) => {
       // Fixed path families, no inference from client roles or flags.
       const routes = [
-        [/^\/api\/admin\/event-hubs\/([^/]+)/, 'event'],
-        [/^\/api\/(?:admin\/event-stages|event\/stages)\/([^/]+)/, 'stage'],
-        [/^\/api\/event\/stage-control\/([^/]+)/, 'deck'],
-        [/^\/api\/event\/live-sessions\/([^/]+)/, 'live'],
-        [/^\/api\/knowledge-activities\/([^/]+)\/export\//, 'knowledgeExecution'],
-        [/^\/api\/event\/public\/([^/]+)/, 'qr'],
-        [/^\/api\/event-hub\/speaker-invitations\/([^/]+)/, 'assignment'],
-        [/^\/event-hubs\/([^/]+)\/brand-assets\//, 'event'],
-        [/^\/(p_evt_[^/]+)$/, 'qr'],
-        [/^\/(?:api\/decks|decks|api\/demo-session\/decks)\/([^/]+)/, 'deck']
+        [/^\/api\/admin\/event-hubs\/([^/]+)/i, 'event'],
+        [/^\/api\/(?:admin\/event-stages|event\/stages)\/([^/]+)/i, 'stage'],
+        [/^\/api\/event\/stage-control\/([^/]+)/i, 'deck'],
+        [/^\/api\/event\/live-sessions\/([^/]+)/i, 'live'],
+        [/^\/api\/knowledge-activities\/([^/]+)\/export\//i, 'knowledgeExecution'],
+        [/^\/api\/event\/public\/([^/]+)/i, 'qr'],
+        [/^\/api\/event-hub\/speaker-invitations\/([^/]+)/i, 'assignment'],
+        [/^\/event-hubs\/([^/]+)\/brand-assets\//i, 'event'],
+        [/^\/(p_evt_[^/]+)\/?$/i, 'qr'],
+        [/^\/(?:api\/decks|decks|api\/demo-session\/decks)\/([^/]+)/i, 'deck'],
+        // A visible v1 parent cannot disguise a v2 child locator.
+        [/^\/api\/admin\/event-hubs\/[^/]+\/activities\/([^/]+)/i, 'activity'],
+        [/^\/api\/admin\/event-hubs\/[^/]+\/activities\/[^/]+\/speakers\/([^/]+)/i, 'speaker'],
+        [/^\/api\/admin\/event-hubs\/[^/]+\/polls\/([^/]+)/i, 'poll'],
+        [/^\/api\/event\/stages\/[^/]+\/live-sessions\/([^/]+)/i, 'live']
       ];
       try {
-        for (const [pattern, kind] of routes) {
-          const match = req.path.match(pattern);
-          if (match && await this.isV2(kind, decodeURIComponent(match[1]))) {
-            return res.status(404).json({ code: 'EVENT_V2_ACCESS_REQUIRED' });
+        let decoded;
+        try { decoded = decodeURIComponent(req.path); }
+        catch (_) { throw new EventAccessError('INVALID_RESOURCE_PATH', 400); }
+        if (decoded.includes('\0')) throw new EventAccessError('INVALID_RESOURCE_PATH', 400);
+        // Express routes are case-insensitive; serve-static decodes and
+        // normalizes dot segments. Inspect that path as well as the original
+        // locator, without rewriting req.url or changing legacy routing.
+        const candidates = new Map();
+        const add = (kind, id) => { id = String(id || '').trim(); if (id) candidates.set(kind + ':' + id, { kind, id }); };
+        for (const [value, encoded] of [[path.posix.normalize(decoded), false], [req.path, true]]) {
+          for (const [pattern, kind] of routes) {
+            const match = value.match(pattern);
+            if (match) add(kind, encoded ? decodeURIComponent(match[1]) : match[1]);
           }
         }
-        if (req.path === '/api/access-links' && req.body?.session_id) {
+        if (/^\/api\/access-links\/?$/i.test(decoded) && req.body?.session_id) {
           await this.assertPresentation(req.body.session_id, req.body.deck_id || req.body.deckId);
         }
-        if (req.path.startsWith('/api/event/') && req.body?.eventActivityId
-          && await this.isV2('activity', req.body.eventActivityId)) {
-          return res.status(404).json({ code: 'EVENT_V2_ACCESS_REQUIRED' });
+        if (/^\/api\/(?:admin\/event-hubs|admin\/event-stages|event|event-hub\/speaker-invitations)(?:\/|$)/i.test(decoded)) {
+          for (const [field, kind] of [['eventActivityId', 'activity'], ['eventStageId', 'stage'], ['deckId', 'deck'], ['speakerId', 'speaker']]) {
+            if (req.body?.[field]) add(kind, req.body[field]);
+          }
+        }
+        for (const { kind, id } of candidates.values()) {
+          if (await this.isV2(kind, id)) return res.status(404).json({ code: 'EVENT_V2_ACCESS_REQUIRED' });
         }
         return next();
       } catch (error) {
