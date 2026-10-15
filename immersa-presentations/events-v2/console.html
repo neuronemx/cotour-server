@@ -15,6 +15,8 @@
   <script defer src="/events-v2/qna-page.js"></script>
   <script defer src="/events-v2/knowledge-console.js"></script>
   <script defer src="/events-v2/knowledge-page.js"></script>
+  <script defer src="/events-v2/raffle-console.js"></script>
+  <script defer src="/events-v2/raffle-page.js"></script>
   <script defer src="/events-v2/emergency-menu.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
@@ -99,8 +101,18 @@
         <button id="knowledge-submit" type="button" hidden>Enviar evaluación</button>
         <p id="knowledge-receipt" role="status"></p><div id="knowledge-results"></div>
       </section>
+      <section id="raffle-panel" class="panel" hidden>
+        <h2>Sorteos</h2><div id="raffle-controls">
+          <label>Sorteo <select id="raffle-catalog"></select></label><button id="raffle-open" type="button">Abrir sorteo</button>
+          <div id="raffle-key-controls"><label>Clave visual <select id="raffle-key"></select></label><button id="raffle-configure-key" type="button">Guardar clave</button></div>
+          <div class="controls"><button id="raffle-close_entries" type="button" hidden>Cerrar participación</button><button id="raffle-draw" type="button" hidden>Sortear</button><button id="raffle-reveal" type="button" hidden>Revelar ganador</button><button id="raffle-close" type="button" hidden>Cerrar sorteo</button><button id="raffle-reset_winners" type="button" hidden>Reiniciar ganadores</button></div></div>
+        <h3 id="raffle-title"></h3><p id="raffle-status" role="status"></p><p id="raffle-prompt"></p><p id="raffle-counts"></p><p id="raffle-clock" role="timer"></p><p id="raffle-display-option"></p>
+        <div id="raffle-registration"><label>Tu nombre <input id="raffle-name" maxlength="120" autocomplete="name"></label><button id="raffle-enter" type="button">Participar</button></div>
+        <div id="raffle-options" class="controls"></div><p id="raffle-receipt" role="status"></p><p id="raffle-winner" role="status"></p>
+      </section>
       <div id="interaction-emergency" hidden role="menu"><button id="interaction-emergency-action" type="button" role="menuitem"></button></div>
     </section>
+    <dialog id="raffle-confirm-dialog" aria-labelledby="raffle-confirm-title"><h2 id="raffle-confirm-title"></h2><p id="raffle-confirm-detail"></p><div class="controls"><button id="raffle-cancel-confirm" type="button">Cancelar</button><button id="raffle-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="knowledge-confirm-dialog" aria-labelledby="knowledge-confirm-title">
       <h2 id="knowledge-confirm-title"></h2><p id="knowledge-confirm-detail"></p>
       <div class="controls"><button id="knowledge-cancel-confirm" type="button">Cancelar</button><button id="knowledge-confirm" type="button">Confirmar</button></div>

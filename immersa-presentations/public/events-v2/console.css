@@ -47,3 +47,5 @@ dialog::backdrop { background: #000a; }
 #knowledge-options button[aria-pressed="true"] { border-color: #78d6d0; background: #244c50; }
 #knowledge-clock { display: block; min-height: 1.3em; font-variant-numeric: tabular-nums; }
 #knowledge-results p { line-height: 1.5; }
+
+#raffle-options{display:grid;gap:.75rem}#raffle-options button[aria-pressed="true"]{outline:3px solid currentColor}#raffle-name{width:100%;max-width:24rem;font-size:1rem}#raffle-receipt,#raffle-winner{overflow-wrap:anywhere;font-size:1.25rem}#raffle-catalog,#raffle-key{max-width:100%}
