@@ -12,6 +12,19 @@ const path = `/events-v2/console/stage/${eventId}/${grantId}`;
 const context = { eventId, grantId, organizationId: otherId, actorId: grantId, kind: 'STAGE', purpose: 'live',
   stageId: otherId, activityId: null, liveSessionId: null, participantId: null, expiresAt: new Date(10000000).toISOString() };
 
+test('Knowledge transport enforces execution/revision/answer fields and excludes client role, identity and tab claims', async () => {
+  const sent = [], events = [], h = harness({ onEvent: name => events.push(name), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true }); } });
+  await h.client.start(token);
+  for (const [action, payload] of [['snapshot', {}], ['open', { definitionId: 'def' }],
+    ...['start','finalize','cancel','show_results','close','retry_processing','force_results'].map(a => [a, { executionId: otherId, expectedRevision: 3 }]),
+    ['join', { executionId: otherId, name: '' }], ['claim_tab', { executionId: otherId }], ['submit', { executionId: otherId }],
+    ['answer', { executionId: otherId, questionId: 'q', optionId: 'o', attemptId: 'attempt' }]]) assert.equal((await h.client.command('events:knowledge:' + action, payload)).ok, true);
+  for (const extra of [{ role: 'STAGE' }, { participantId: grantId }, { tabId: 'forged' }, { executionId: 'bad' }, { questionId: ' ' }, { attemptId: '' }]) await assert.rejects(h.client.command('events:knowledge:answer', { executionId: otherId, questionId: 'q', optionId: 'o', attemptId: 'attempt', ...extra }), { code: 'INVALID_COMMAND' });
+  await assert.rejects(h.client.command('events:knowledge:start', { executionId: otherId, expectedRevision: -1 }), { code: 'INVALID_COMMAND' });
+  const old = h.sockets[0]; old.deliver('events:knowledge:state', {}); h.client.close(); old.deliver('events:knowledge:state', {});
+  assert.equal(sent.length, 13); assert.deepEqual(events, ['events:knowledge:state']);
+});
+
 test('Q&A transport accepts exact payloads, explicit consent and optional own name, rejecting actor overrides and retired events', async () => {
   const sent = [], events = [], h = harness({ onEvent: name => events.push(name), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true }); } });
   await h.client.start(token);

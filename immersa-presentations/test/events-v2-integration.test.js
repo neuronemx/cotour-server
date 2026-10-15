@@ -50,6 +50,7 @@ const { consoleSuite } = require('./helpers/events-v2-console-suite');
 const { consoleControlsSuite } = require('./helpers/events-v2-console-controls-suite');
 const { consolePollsSuite } = require('./helpers/events-v2-console-polls-suite');
 const { consoleQnaSuite } = require('./helpers/events-v2-console-qna-suite');
+const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -350,4 +351,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await consoleControlsSuite(t, fixtures);
   await consolePollsSuite(t, fixtures);
   await consoleQnaSuite(t, fixtures);
+  await consoleKnowledgeSuite(t, fixtures);
 });
