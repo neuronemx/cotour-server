@@ -54,6 +54,10 @@ async function consoleQnaSuite(t, f) {
   const attendeeItem = await audience(), attendee = open(attendeeItem), second = open(await audience());
   let round, firstQuestion, secondQuestion;
   const count = async () => Number((await sql('SELECT COUNT(*) n FROM event_v2_qna_questions WHERE qna_round_id = ?', [round]))[0].n);
+  const playerAction = async (action, input) => {
+    const result = await player.qna.operate(action, input), state = player.qna.getState();
+    assert.equal(result, true, JSON.stringify({ action, status: state.status, code: state.code, access: player.access.getState().status }));
+  };
   try {
     await t.test('shipped Q&A consoles read without initialization, open one canonical round and preserve poll coexistence', async () => {
       for (const c of [stage, speaker, player, other, attendee, second]) await c.start();
@@ -97,19 +101,19 @@ async function consoleQnaSuite(t, f) {
     });
     await t.test('Player completes Q&A select/project/hide/intake/delete/new-round with consent, stale-round, revoke and finish isolation', async () => {
       await until(() => player.snapshot()?.availableQuestions?.length === 2, 'Player candidates');
-      assert.equal(await player.qna.operate('select', { questionId: firstQuestion }), true);
-      assert.equal(await player.qna.operate('project', { questionId: firstQuestion }), true); assert.equal(player.snapshot().screen.question.name, '');
-      assert.equal(await player.qna.operate('project', { questionId: secondQuestion }), true); assert.equal(player.snapshot().screen.question.name, 'Consented name');
+      await playerAction('select', { questionId: firstQuestion });
+      await playerAction('project', { questionId: firstQuestion }); assert.equal(player.snapshot().screen.question.name, '');
+      await playerAction('project', { questionId: secondQuestion }); assert.equal(player.snapshot().screen.question.name, 'Consented name');
       assert.equal(await player.qna.operate('delete', { questionId: secondQuestion }), false);
-      assert.equal(await player.qna.operate('panel_close'), true); assert.equal(player.snapshot().screen.visible, false); assert.equal(player.snapshot().questionsOpen, true);
-      assert.equal(await player.qna.operate('set_open', { open: false }), true);
+      await playerAction('panel_close'); assert.equal(player.snapshot().screen.visible, false); assert.equal(player.snapshot().questionsOpen, true);
+      await playerAction('set_open', { open: false });
       await until(() => attendee.snapshot()?.questionsOpen === false, 'closed intake'); assert.equal(await attendee.qna.operate('submit', { question: 'Closed?', allowNameOnScreen: false }), false);
-      assert.equal(await player.qna.operate('new_round'), true); const next = player.snapshot().roundId; assert.notEqual(next, round);
+      await playerAction('new_round'); const next = player.snapshot().roundId; assert.notEqual(next, round);
       const stale = await attendee.access.command('events:qna:submit', { roundId: round, question: 'Stale?', allowNameOnScreen: false }); assert.equal(stale.code, 'QNA_STALE_ROUND');
-      assert.equal(await player.qna.operate('set_open', { open: true }), true); await attendee.qna.refresh();
+      await playerAction('set_open', { open: true }); await attendee.qna.refresh();
       assert.equal(await attendee.qna.operate('submit', { question: 'Removable', name: '', allowNameOnScreen: false }), true);
       const removable = attendee.snapshot().questionId; await until(() => player.snapshot()?.availableQuestions?.some(q => q.id === removable), 'deletable candidate');
-      assert.equal(await player.qna.operate('delete', { questionId: removable }), true); assert.equal(player.snapshot().availableQuestions.length, 0);
+      await playerAction('delete', { questionId: removable }); assert.equal(player.snapshot().availableQuestions.length, 0);
       await grants.revoke(admin, o1, a, speaker.access.getState().context.grantId); await f.grantSockets.reviewAll(); await until(() => speaker.access.getState().status === 'denied', 'revoked Q&A');
       assert.equal(speaker.snapshot(), null); assert.equal(await speaker.qna.operate('new_round'), false);
       await stage.live.operate('finish'); await until(() => attendee.snapshot() === null && player.snapshot() === null, 'finished Q&A');
