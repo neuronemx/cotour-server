@@ -55,12 +55,12 @@ async function consoleKnowledgeSuite(t, f) {
   const registered = await request(null, 'POST', `/api/events-v2/public/${f.publicId}/participants`, { name: 'Registered name' }); assert.equal(registered.status, 201);
   const attendeeItem = { view: 'audience', issued: { grantId: registered.body.context.grantId }, cookie: registered.headers.get('set-cookie').split(';')[0] }, attendee = open(attendeeItem);
   const action = async name => {
-    await player.knowledge.refresh();
+    await player.ready(); assert.equal(await player.knowledge.refresh(), true);
     const candidate = player.knowledge.emergencyActions().find(row => row.action === name); assert.ok(candidate, name + ': ' + JSON.stringify(player.knowledge.getState()));
     assert.equal(await player.knowledge.operate(candidate.action, candidate.input), true, name + ': ' + JSON.stringify(player.knowledge.getState()));
   };
-  const advance = async ms => { clock += ms; f.setKnowledgeClockOffset(clock); assert.equal(await player.knowledge.refresh(), true); };
-  const refreshPublic = async () => { assert.equal(await attendee.knowledge.refresh(), true, JSON.stringify(attendee.knowledge.getState())); };
+  const advance = async ms => { await player.ready(); clock += ms; f.setKnowledgeClockOffset(clock); assert.equal(await player.knowledge.refresh(), true); };
+  const refreshPublic = async () => { await attendee.ready(); assert.equal(await attendee.knowledge.refresh(), true, JSON.stringify(attendee.knowledge.getState())); };
   let trivia, evaluation;
   try {
     await t.test('shipped Knowledge consoles read without initialization, preserve role privacy and Q&A coexistence', async () => {
@@ -112,7 +112,7 @@ async function consoleKnowledgeSuite(t, f) {
       await refreshPublic(); assert.equal(attendee.run().personalResult.correctCount, 1); await action('close');
     });
     await t.test('assessment edits, explicit submission and cookie recovery retain own receipt and delay private grades until publication', async () => {
-      assert.equal(await player.knowledge.operate('open', { definitionId: 'evaluation' }), true); evaluation = player.run().executionId;
+      await player.ready(); assert.equal(await player.knowledge.operate('open', { definitionId: 'evaluation' }), true); evaluation = player.run().executionId;
       await refreshPublic(); assert.equal(await attendee.knowledge.operate('join'), true); await action('start'); await advance(4800); await refreshPublic();
       assert.deepEqual(new Set(attendee.run().questions.map(q => q.id)), new Set(['question','second']));
       assert.equal(await attendee.knowledge.operate('answer', { questionId: 'question', optionId: 'wrong' }), true);
@@ -127,7 +127,7 @@ async function consoleKnowledgeSuite(t, f) {
       assert.equal(player.run().participants, undefined); assert.equal(player.run().result, null); assert.equal(player.run().personalResult, undefined); await action('close');
     });
     await t.test('Knowledge stale runs, cancellation, grant revocation and Live finish cannot affect a separate execution', async () => {
-      assert.equal(await player.knowledge.operate('open', { definitionId: 'trivia' }), true); const next = player.run().executionId;
+      await player.ready(); assert.equal(await player.knowledge.operate('open', { definitionId: 'trivia' }), true); const next = player.run().executionId;
       assert.notEqual(next, trivia); assert.notEqual(next, evaluation);
       const stale = await attendee.access.command('events:knowledge:answer', { executionId: trivia, questionId: 'question', optionId: 'right', attemptId: crypto.randomUUID() }); assert.equal(stale.code, 'KNOWLEDGE_STALE_EXECUTION');
       const other = open(await issue('screen', 'PLAYER', { liveSessionId: otherLive }), otherActivity); await other.start();
