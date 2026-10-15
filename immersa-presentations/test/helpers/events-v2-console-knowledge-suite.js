@@ -136,7 +136,13 @@ async function consoleKnowledgeSuite(t, f) {
       const revoked = open({ ...speakerItem, issued: { grantId: speakerItem.issued.grantId }, cookie: speaker.cookie() }); await revoked.start();
       await grants.revoke(admin, o1, a, speakerItem.issued.grantId); await f.grantSockets.reviewAll(); await until(() => revoked.access.getState().status === 'denied', 'revoked');
       assert.equal(revoked.snapshot(), null); assert.equal(await revoked.knowledge.operate('open', { definitionId: 'trivia' }), false);
-      assert.equal(await stage.live.operate('finish'), true); await until(() => player.snapshot() === null && attendee.snapshot() === null, 'finished');
+      // The authorized finish event can retire the pending ack before it
+      // returns. Verify committed completion and a single command, not ack order.
+      const finishes = stage.commands.filter(name => name === 'events:lifecycle:finish').length;
+      assert.equal(stage.live.getState().status, 'live'); await stage.live.operate('finish');
+      await until(() => stage.live.getState().status === 'finished' && player.snapshot() === null && attendee.snapshot() === null, 'finished');
+      assert.equal(stage.commands.filter(name => name === 'events:lifecycle:finish').length, finishes + 1);
+      assert.equal((await sql('SELECT status FROM event_live_sessions WHERE id = ?', [liveId]))[0].status, 'FINISHED');
       assert.equal(other.run().executionId, separate); assert.equal(other.run().state, 'LOBBY');
     });
   } finally { close(); f.setKnowledgeClockOffset(0); }
