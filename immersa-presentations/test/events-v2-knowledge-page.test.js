@@ -40,6 +40,10 @@ test('registration prefills and preserves corrections; inactive tabs offer expli
   e['knowledge-join'].fire('click'); assert.deepEqual(h.sent.at(-1), { action: 'join', input: { name: 'Correction' } });
   h.render({ snapshot: { execution: { ...h.run(), participant: { label: 'Correction', tabActive: false, submittedAt: null } } } });
   assert.equal(e['knowledge-claim'].hidden, false); assert.equal(h.sent.length, 1); e['knowledge-claim'].fire('click'); assert.equal(h.sent.at(-1).action, 'claim_tab');
+  for (const state of ['PROCESSING','PROCESSING_ERROR','RESULTS_READY','RESULTS_VISIBLE','CLOSED','CANCELLED']) {
+    h.render({ snapshot: { execution: { ...h.run(), state, participant: { label: 'Correction', tabActive: false, submittedAt: null } } } });
+    assert.equal(e['knowledge-claim'].hidden, true, state);
+  }
 });
 test('partial assessment submission needs a current confirmation and uses only the canonical receipt/grade after publication', () => {
   const h = harness(), e = h.e; h.render({ snapshot: { execution: { ...h.run(), answerCount: 1, answers: [{ questionId: 'q2', optionId: 'a' }] } } });

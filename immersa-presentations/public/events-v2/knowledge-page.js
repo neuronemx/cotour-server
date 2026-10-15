@@ -54,7 +54,7 @@
       $('knowledge-name').required = r?.identificationMode === 'required_name'; $('knowledge-name').disabled = state.pending;
       $('knowledge-join').disabled = !registration || state.pending || !r.registrationOpen;
       const p = usable && publicView ? r?.participant : null;
-      $('knowledge-claim').hidden = !p || p.tabActive || p.submittedAt || ended;
+      $('knowledge-claim').hidden = !p || p.tabActive || p.submittedAt || !['LOBBY','COUNTDOWN','ACTIVE'].includes(r.state);
       $('knowledge-claim').disabled = state.pending;
       $('knowledge-tab-status').textContent = p && !p.tabActive && !ended ? 'La actividad está activa en otra pestaña.' : '';
       const qs = publicView ? r?.category === 'assessment' ? r.questions || [] : r?.currentQuestion ? [r.currentQuestion] : [] : [];
