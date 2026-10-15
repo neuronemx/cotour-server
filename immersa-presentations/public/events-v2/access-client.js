@@ -94,7 +94,10 @@
         'events:knowledge:snapshot': [], 'events:knowledge:open': ['definitionId'],
         ...Object.fromEntries(['start','finalize','cancel','show_results','close','retry_processing','force_results'].map(action => ['events:knowledge:' + action, ['executionId','expectedRevision']])),
         'events:knowledge:join': ['executionId'], 'events:knowledge:claim_tab': ['executionId'],
-        'events:knowledge:answer': ['executionId','questionId','optionId','attemptId'], 'events:knowledge:submit': ['executionId'] };
+        'events:knowledge:answer': ['executionId','questionId','optionId','attemptId'], 'events:knowledge:submit': ['executionId'],
+        'events:raffle:snapshot': [], 'events:raffle:open': ['definitionId'], 'events:raffle:configure_key': ['definitionId','optionId'],
+        ...Object.fromEntries(['enter','submit_poll_response','close_entries','draw','reveal','close','reset_winners'].map(action => ['events:raffle:'+action,['raffleRunId']])) };
+      if (['events:raffle:enter','events:raffle:submit_poll_response'].includes(name)) for (const key of ['optionId','name']) if (Object.hasOwn(payload || {}, key)) fields[name] = [...fields[name], key];
       if (name === 'events:knowledge:join' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (!Object.hasOwn(fields, name)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
@@ -113,6 +116,9 @@
           : key === 'expectedRevision' ? !Number.isSafeInteger(payload[key]) || payload[key] < 0
             : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 96)
               || (key !== 'name' && (!payload[key].trim() || payload[key] !== payload[key].trim()))))
+        || (name.startsWith('events:raffle:') && fields[name].some(key => key === 'raffleRunId' ? !id(payload[key])
+          : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 96)
+            || (key !== 'name' && (!payload[key].trim() || payload[key] !== payload[key].trim()))))
         || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
       if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
       const s = socket, version = epoch, copy = { ...payload };
@@ -224,7 +230,7 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
-        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state']) s.on(name, value => {
+        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state', 'events:raffle:state']) s.on(name, value => {
           if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
         });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);

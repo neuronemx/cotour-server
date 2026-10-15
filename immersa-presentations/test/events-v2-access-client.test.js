@@ -12,6 +12,13 @@ const path = `/events-v2/console/stage/${eventId}/${grantId}`;
 const context = { eventId, grantId, organizationId: otherId, actorId: grantId, kind: 'STAGE', purpose: 'live',
   stageId: otherId, activityId: null, liveSessionId: null, participantId: null, expiresAt: new Date(10000000).toISOString() };
 
+test('raffle transport accepts exact commands, fences old sockets and rejects role, identity, key and revision injection',async()=>{
+ const events=[],sent=[],h=harness({onEvent:name=>events.push(name),commandHandler:(name,payload,ack)=>{sent.push(name);ack({ok:true});}});await h.client.start(token);
+ for(const [action,payload] of [['snapshot',{}],['open',{definitionId:'free'}],['configure_key',{definitionId:'visual',optionId:'b'}],...['enter','submit_poll_response','close_entries','draw','reveal','close','reset_winners'].map(a=>[a,{raffleRunId:otherId,...(['enter','submit_poll_response'].includes(a)?{optionId:'a',name:''}:{})}])]) assert.equal((await h.client.command('events:raffle:'+action,payload)).ok,true);
+ for(const extra of [{role:'STAGE'},{participantId:otherId},{entryKey:'a'},{expectedRevision:2},{raffleRunId:'bad'},{name:'x'.repeat(121)}])await assert.rejects(h.client.command('events:raffle:enter',{raffleRunId:otherId,...extra}),{code:'INVALID_COMMAND'});
+ const old=h.sockets[0];old.deliver('events:raffle:state',{});h.client.close();old.deliver('events:raffle:state',{});assert.deepEqual(events,['events:raffle:state']);assert.equal(sent.length,10);
+});
+
 test('Knowledge transport enforces execution/revision/answer fields and excludes client role, identity and tab claims', async () => {
   const sent = [], events = [], h = harness({ onEvent: name => events.push(name), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true }); } });
   await h.client.start(token);
