@@ -60,7 +60,7 @@
     emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna] });
     client.start(link.token); link.token = null; link = null;
     $('activity').addEventListener('change', () => live.select($('activity').value));
-    $('refresh').addEventListener('click', async () => { await live.refresh(); await Promise.allSettled([poll.refresh(), qna.refresh()]); });
+    $('refresh').addEventListener('click', () => live.refresh());
     for (const action of ['prev', 'next', 'start']) $(action).addEventListener('click', () => live.operate(action));
     $('go').addEventListener('click', () => live.operate('go', { slideIndex: Number($('slide-number').value) - 1 }));
     $('pause').addEventListener('click', () => live.operate(live.getState().snapshot?.transmissionPaused ? 'play' : 'pause'));

@@ -55,7 +55,8 @@ test('page hides and clears operations before authority or after denial; authori
   assert.equal(h.elements.operation.hidden, false); assert.equal(h.elements['event-name'].textContent, '<script>Event</script>');
   assert.equal(h.elements.activity.children[1].textContent, target.title + ' · ' + target.stageTitle + ' · En vivo');
   await settle(); const reads = h.sent.filter(row => row.name === 'events:qna:snapshot').length;
-  h.elements.refresh.fire('click'); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:qna:snapshot').length, reads + 1);
+  h.elements.refresh.fire('click'); await settle(); assert.equal(h.resumes(), 1); assert.equal(h.elements.operation.hidden, true);
+  h.ready(); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:qna:snapshot').length, reads + 1);
   assert.equal(h.elements.position.hidden, false); h.deny();
   assert.equal(h.elements.operation.hidden, true); assert.equal(h.elements.position.hidden, true); assert.equal(h.elements.activity.children.length, 1);
   assert.equal(h.elements.next.disabled, true);
