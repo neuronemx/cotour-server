@@ -12,6 +12,17 @@ const path = `/events-v2/console/stage/${eventId}/${grantId}`;
 const context = { eventId, grantId, organizationId: otherId, actorId: grantId, kind: 'STAGE', purpose: 'live',
   stageId: otherId, activityId: null, liveSessionId: null, participantId: null, expiresAt: new Date(10000000).toISOString() };
 
+test('Q&A transport accepts exact payloads, explicit consent and optional own name, rejecting actor overrides and retired events', async () => {
+  const sent = [], events = [], h = harness({ onEvent: name => events.push(name), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true }); } });
+  await h.client.start(token);
+  for (const [action, payload] of [['snapshot', {}], ['open', {}], ['set_open', { roundId: otherId, open: false }],
+    ['submit', { roundId: otherId, question: 'Q?', allowNameOnScreen: false }], ['submit', { roundId: otherId, question: 'Q?', allowNameOnScreen: true, name: '' }],
+    ...['select','project','delete'].map(action => [action, { roundId: otherId, questionId: grantId }]), ...['new_round','panel_close'].map(action => [action, { roundId: otherId }])]) assert.equal((await h.client.command('events:qna:' + action, payload)).ok, true);
+  for (const extra of [{ participantId: grantId }, { name: 'x'.repeat(121) }, { question: ' ' }, { question: 'x'.repeat(1001) }, { allowNameOnScreen: 'yes' }, { roundId: 'bad' }]) await assert.rejects(h.client.command('events:qna:submit', { roundId: otherId, question: 'Q?', allowNameOnScreen: false, ...extra }), { code: 'INVALID_COMMAND' });
+  const old = h.sockets[0]; old.deliver('events:qna:state', {}); h.client.close(); old.deliver('events:qna:state', {});
+  assert.deepEqual(events, ['events:qna:state']); assert.equal(sent.length, 10);
+});
+
 test('poll transport admits exact canonical IDs only and fences poll events from retired sockets', async () => {
   const events = [], sent = [], h = harness({ onEvent: (name, value) => events.push({ name, value }), commandHandler: (name, payload, ack) => { sent.push({ name, payload }); ack({ ok: true, snapshot: null }); } });
   await h.client.start(token);

@@ -26,6 +26,15 @@ dialog::backdrop { background: #000a; }
 #poll-options label { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #56617a; border-radius: 10px; }
 #poll-options input { width: 22px; height: 22px; flex: none; }
 #poll-results progress { width: 100%; accent-color: #78d6d0; }
-#poll-emergency { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100vw - 32px); }
-#poll-emergency-action { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#interaction-emergency { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100vw - 32px); }
+#interaction-emergency-action { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 [hidden] { display: none !important; }
+
+#qna-public { display: grid; gap: 12px; }
+#qna-name, #qna-question { width: 100%; }
+#qna-question { color: inherit; background: #10131b; border: 1px solid #56617a; border-radius: 8px; font: inherit; padding: 12px; resize: vertical; }
+.qna-consent { display: flex; align-items: center; gap: 12px; }
+#qna-consent { width: 22px; height: 22px; flex: none; }
+#qna-list { max-width: 100%; min-width: 160px; flex: 1; }
+#qna-output { margin: 24px 0; font-size: clamp(22px, 4vw, 36px); overflow-wrap: anywhere; white-space: pre-wrap; }
+#qna-projected-name { font-size: .65em; }

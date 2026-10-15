@@ -11,6 +11,9 @@
   <script defer src="/events-v2/live-console.js"></script>
   <script defer src="/events-v2/poll-console.js"></script>
   <script defer src="/events-v2/poll-page.js"></script>
+  <script defer src="/events-v2/qna-console.js"></script>
+  <script defer src="/events-v2/qna-page.js"></script>
+  <script defer src="/events-v2/emergency-menu.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
 <body>
@@ -59,8 +62,32 @@
         <button id="poll-submit" type="button" hidden>Enviar respuesta</button>
         <div id="poll-results"></div>
       </section>
-      <div id="poll-emergency" hidden role="menu"><button id="poll-emergency-action" type="button" role="menuitem"></button></div>
+      <section id="qna-panel" hidden aria-label="Preguntas y respuestas">
+        <div id="qna-controls" class="controls" hidden>
+          <button id="qna-open" type="button">Abrir Q&A</button>
+          <button id="qna-intake" type="button">Cerrar recepción</button>
+          <label for="qna-list">Preguntas</label><select id="qna-list"></select>
+          <button id="qna-project" type="button">Proyectar</button>
+          <button id="qna-delete" type="button">Eliminar</button>
+          <button id="qna-hide" type="button">Ocultar Q&A</button>
+          <button id="qna-new-round" type="button">Nueva ronda</button>
+        </div>
+        <p id="qna-status" role="status" aria-live="polite"></p>
+        <div id="qna-public" hidden>
+          <label for="qna-name">Tu nombre</label><input id="qna-name" type="text" maxlength="120" autocomplete="name">
+          <label for="qna-question">Tu pregunta</label><textarea id="qna-question" maxlength="1000" rows="4"></textarea>
+          <label class="qna-consent"><input id="qna-consent" type="checkbox">Permito mostrar mi nombre con esta pregunta</label>
+          <p id="qna-cooldown" role="status"></p>
+          <button id="qna-submit" type="button">Enviar pregunta</button>
+        </div>
+        <blockquote id="qna-output" hidden><p id="qna-projected-text"></p><cite id="qna-projected-name"></cite></blockquote>
+      </section>
+      <div id="interaction-emergency" hidden role="menu"><button id="interaction-emergency-action" type="button" role="menuitem"></button></div>
     </section>
+    <dialog id="qna-confirm-dialog" aria-labelledby="qna-confirm-title">
+      <h2 id="qna-confirm-title"></h2>
+      <div class="controls"><button id="qna-cancel" type="button">Cancelar</button><button id="qna-confirm" type="button">Confirmar</button></div>
+    </dialog>
     <dialog id="finish-dialog" aria-labelledby="finish-title">
       <h2 id="finish-title">¿Finalizar esta presentación?</h2>
       <p>Se cerrará la sesión en vivo de esta actividad.</p>

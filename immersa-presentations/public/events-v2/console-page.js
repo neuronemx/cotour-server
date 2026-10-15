@@ -2,7 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const names = { stage: 'Stage', speaker: 'Speaker', screen: 'Pantalla', audience: 'Público' };
-  let client, live, poll, pollView, accessState = { status: 'idle' }, lastTargets = null;
+  let client, live, poll, pollView, qna, qnaView, emergency, accessState = { status: 'idle' }, lastTargets = null;
   function renderOperation(state) {
     const connected = accessState.status === 'ready', controls = ['STAGE', 'SPEAKER'].includes(state.kind) && state.purpose === 'live';
     $('operation').hidden = !connected;
@@ -45,16 +45,19 @@
     $('access-status').textContent = messages[state.status] || 'Verificando acceso…';
     $('access-detail').textContent = state.context?.purpose === 'rehearsal' ? 'El ensayo todavía no está disponible.' : '';
     $('retry').hidden = state.status !== 'retrying';
-    poll.updateAccess(state); live.updateAccess(state);
+    poll.updateAccess(state); qna.updateAccess(state); live.updateAccess(state);
   }
   try {
     let link = window.ImmersaEventAccess.consumeLink(window.location, window.history);
     $('function').textContent = names[link.binding.view];
     client = window.ImmersaEventAccess.createClient({ binding: link.binding, fetch: window.fetch.bind(window), io: window.io,
-      onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); } });
-    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); } });
-    poll = window.ImmersaEventPollConsole.createController({ access: client, onState: state => pollView?.render(state) });
+      onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); qna.receive(name, value); } });
+    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); } });
+    poll = window.ImmersaEventPollConsole.createController({ access: client, onState: state => { pollView?.render(state); emergency?.render(); } });
     pollView = window.ImmersaEventPollPage.createView({ document, controller: poll });
+    qna = window.ImmersaEventQnaConsole.createController({ access: client, onState: state => { qnaView?.render(state); emergency?.render(); } });
+    qnaView = window.ImmersaEventQnaPage.createView({ document, controller: qna });
+    emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna] });
     client.start(link.token); link.token = null; link = null;
     $('activity').addEventListener('change', () => live.select($('activity').value));
     $('refresh').addEventListener('click', () => live.refresh());
@@ -66,7 +69,7 @@
     $('confirm-finish').addEventListener('click', () => { $('finish-dialog').close(); live.operate('finish'); });
     document.addEventListener('keydown', event => {
       if (live.getState().kind !== 'PLAYER' || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
-        || ['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target?.tagName)) return;
+        || event.target?.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target?.tagName)) return;
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); live.operate(event.key === 'ArrowLeft' ? 'prev' : 'next'); }
     });
     $('retry').addEventListener('click', () => client.resume());

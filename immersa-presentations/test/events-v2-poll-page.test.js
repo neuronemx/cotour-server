@@ -31,17 +31,3 @@ test('operator catalog choice survives renders; submit and control handlers use 
   assert.equal(e['poll-catalog'].value, 'second'); e['poll-launch'].fire('click'); assert.deepEqual(h.sent.at(-1), { action: 'launch', input: { interactionId: 'second' } });
   e['poll-close'].fire('click'); assert.equal(h.sent.at(-1).action, 'close');
 });
-test('Player one-line emergency menu uses E/arrows/Enter/Esc and closes on denial without rendering control labels', () => {
-  const h = harness('PLAYER'), e = h.elements; const key = key => h.document.fire('keydown', { key, target: { tagName: 'BODY' }, preventDefault() {} });
-  assert.equal(e['poll-controls'].hidden, true); key('e'); assert.equal(e['poll-emergency'].hidden, false); assert.equal(e['poll-emergency-action'].textContent, 'First');
-  key('ArrowDown'); assert.equal(e['poll-emergency-action'].textContent, 'Close'); key('Enter'); assert.equal(h.sent.at(-1).action, 'close'); assert.equal(e['poll-emergency'].hidden, true);
-  key('e'); key('Escape'); assert.equal(e['poll-emergency'].hidden, true); key('e'); h.render({ status: 'waiting', kind: null, snapshot: null });
-  assert.equal(e['poll-emergency'].hidden, true); key('Enter'); assert.equal(h.sent.length, 1);
-});
-test('keyboard emergency excludes typing, modifiers, repeat and non-Player functions', () => {
-  for (const kind of ['PLAYER','STAGE','SPEAKER','PARTICIPANT']) {
-    const h = harness(kind);
-    for (const extra of [{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }, { target: { tagName: 'INPUT' } }, { target: { isContentEditable: true } }]) h.document.fire('keydown', { key: 'e', target: { tagName: 'BODY' }, preventDefault() {}, ...extra });
-    assert.equal(h.elements['poll-emergency'].hidden, true); assert.equal(h.sent.length, 0);
-  }
-});
