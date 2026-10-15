@@ -38,3 +38,12 @@ dialog::backdrop { background: #000a; }
 #qna-list { max-width: 100%; min-width: 160px; flex: 1; }
 #qna-output { margin: 24px 0; font-size: clamp(22px, 4vw, 36px); overflow-wrap: anywhere; white-space: pre-wrap; }
 #qna-projected-name { font-size: .65em; }
+
+#knowledge-panel { overflow-wrap: anywhere; }
+#knowledge-catalog { flex: 1; min-width: 160px; }
+#knowledge-name { width: min(100%, 360px); margin: 12px; }
+#knowledge-options { display: grid; gap: 12px; margin: 20px 0; }
+#knowledge-options button { color: inherit; background: #242e43; text-align: left; border: 1px solid #56617a; }
+#knowledge-options button[aria-pressed="true"] { border-color: #78d6d0; background: #244c50; }
+#knowledge-clock { display: block; min-height: 1.3em; font-variant-numeric: tabular-nums; }
+#knowledge-results p { line-height: 1.5; }

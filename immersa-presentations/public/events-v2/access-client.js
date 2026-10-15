@@ -90,7 +90,12 @@
         'events:qna:snapshot': [], 'events:qna:open': [], 'events:qna:set_open': ['roundId', 'open'],
         'events:qna:submit': ['roundId', 'question', 'allowNameOnScreen'],
         'events:qna:select': ['roundId', 'questionId'], 'events:qna:project': ['roundId', 'questionId'],
-        'events:qna:delete': ['roundId', 'questionId'], 'events:qna:new_round': ['roundId'], 'events:qna:panel_close': ['roundId'] };
+        'events:qna:delete': ['roundId', 'questionId'], 'events:qna:new_round': ['roundId'], 'events:qna:panel_close': ['roundId'],
+        'events:knowledge:snapshot': [], 'events:knowledge:open': ['definitionId'],
+        ...Object.fromEntries(['start','finalize','cancel','show_results','close','retry_processing','force_results'].map(action => ['events:knowledge:' + action, ['executionId','expectedRevision']])),
+        'events:knowledge:join': ['executionId'], 'events:knowledge:claim_tab': ['executionId'],
+        'events:knowledge:answer': ['executionId','questionId','optionId','attemptId'], 'events:knowledge:submit': ['executionId'] };
+      if (name === 'events:knowledge:join' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (!Object.hasOwn(fields, name)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
       if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== fields[name].length
@@ -104,6 +109,10 @@
             : ['open', 'allowNameOnScreen'].includes(key) ? typeof payload[key] !== 'boolean'
               : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 1000)
                 || (key === 'question' && !payload[key].trim())))
+        || (name.startsWith('events:knowledge:') && fields[name].some(key => key === 'executionId' ? !id(payload[key])
+          : key === 'expectedRevision' ? !Number.isSafeInteger(payload[key]) || payload[key] < 0
+            : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 96)
+              || (key !== 'name' && (!payload[key].trim() || payload[key] !== payload[key].trim()))))
         || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
       if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
       const s = socket, version = epoch, copy = { ...payload };
@@ -215,7 +224,7 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
-        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state']) s.on(name, value => {
+        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state']) s.on(name, value => {
           if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
         });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);

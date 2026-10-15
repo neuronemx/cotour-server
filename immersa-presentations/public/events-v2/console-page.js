@@ -2,7 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const names = { stage: 'Stage', speaker: 'Speaker', screen: 'Pantalla', audience: 'Público' };
-  let client, live, poll, pollView, qna, qnaView, emergency, accessState = { status: 'idle' }, lastTargets = null;
+  let client, live, poll, pollView, qna, qnaView, knowledge, knowledgeView, emergency, accessState = { status: 'idle' }, lastTargets = null;
   function renderOperation(state) {
     const connected = accessState.status === 'ready', controls = ['STAGE', 'SPEAKER'].includes(state.kind) && state.purpose === 'live';
     $('operation').hidden = !connected;
@@ -45,19 +45,21 @@
     $('access-status').textContent = messages[state.status] || 'Verificando acceso…';
     $('access-detail').textContent = state.context?.purpose === 'rehearsal' ? 'El ensayo todavía no está disponible.' : '';
     $('retry').hidden = state.status !== 'retrying';
-    poll.updateAccess(state); qna.updateAccess(state); live.updateAccess(state);
+    poll.updateAccess(state); qna.updateAccess(state); knowledge.updateAccess(state); live.updateAccess(state);
   }
   try {
     let link = window.ImmersaEventAccess.consumeLink(window.location, window.history);
     $('function').textContent = names[link.binding.view];
     client = window.ImmersaEventAccess.createClient({ binding: link.binding, fetch: window.fetch.bind(window), io: window.io,
-      onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); qna.receive(name, value); } });
-    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); } });
+      onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); qna.receive(name, value); knowledge.receive(name, value); } });
+    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); knowledge?.updateLive(state); } });
     poll = window.ImmersaEventPollConsole.createController({ access: client, onState: state => { pollView?.render(state); emergency?.render(); } });
     pollView = window.ImmersaEventPollPage.createView({ document, controller: poll });
     qna = window.ImmersaEventQnaConsole.createController({ access: client, onState: state => { qnaView?.render(state); emergency?.render(); } });
     qnaView = window.ImmersaEventQnaPage.createView({ document, controller: qna });
-    emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna] });
+    knowledge = window.ImmersaEventKnowledgeConsole.createController({ access: client, onState: state => { knowledgeView?.render(state); emergency?.render(); } });
+    knowledgeView = window.ImmersaEventKnowledgePage.createView({ document, controller: knowledge });
+    emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna, knowledge] });
     client.start(link.token); link.token = null; link = null;
     $('activity').addEventListener('change', () => live.select($('activity').value));
     $('refresh').addEventListener('click', () => live.refresh());

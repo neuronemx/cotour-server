@@ -13,6 +13,8 @@
   <script defer src="/events-v2/poll-page.js"></script>
   <script defer src="/events-v2/qna-console.js"></script>
   <script defer src="/events-v2/qna-page.js"></script>
+  <script defer src="/events-v2/knowledge-console.js"></script>
+  <script defer src="/events-v2/knowledge-page.js"></script>
   <script defer src="/events-v2/emergency-menu.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
@@ -82,8 +84,27 @@
         </div>
         <blockquote id="qna-output" hidden><p id="qna-projected-text"></p><cite id="qna-projected-name"></cite></blockquote>
       </section>
+      <section id="knowledge-panel" hidden aria-label="Trivias y Evaluaciones">
+        <div id="knowledge-controls" class="controls" hidden>
+          <label for="knowledge-catalog">Trivia/Evaluación</label><select id="knowledge-catalog"></select>
+          <button id="knowledge-open" type="button">Abrir actividad</button><button id="knowledge-start" type="button" hidden>Iniciar</button><button id="knowledge-finalize" type="button" hidden>Finalizar actividad</button><button id="knowledge-cancel" type="button" hidden>Cancelar actividad</button><button id="knowledge-show_results" type="button" hidden>Mostrar resultados</button><button id="knowledge-close" type="button" hidden>Cerrar resultados</button><button id="knowledge-retry_processing" type="button" hidden>Reintentar procesamiento</button><button id="knowledge-force_results" type="button" hidden>Forzar resultados</button>
+        </div>
+        <h2 id="knowledge-title"></h2><p id="knowledge-status" role="status" aria-live="polite"></p>
+        <p id="knowledge-counts"></p><output id="knowledge-clock" aria-live="off"></output>
+        <div id="knowledge-registration" hidden><label id="knowledge-name-label" for="knowledge-name">Tu nombre</label><input id="knowledge-name" type="text" maxlength="120" autocomplete="name"><button id="knowledge-join" type="button">Entrar</button></div>
+        <p id="knowledge-tab-status" role="status"></p><button id="knowledge-claim" type="button" hidden>Continuar en esta pestaña</button>
+        <p id="knowledge-progress"></p><h3 id="knowledge-question"></h3><div id="knowledge-options"></div>
+        <p id="knowledge-answer-status" role="status"></p>
+        <div id="knowledge-assessment-nav" class="controls" hidden><button id="knowledge-prev" type="button">Anterior</button><button id="knowledge-next" type="button">Siguiente</button></div>
+        <button id="knowledge-submit" type="button" hidden>Enviar evaluación</button>
+        <p id="knowledge-receipt" role="status"></p><div id="knowledge-results"></div>
+      </section>
       <div id="interaction-emergency" hidden role="menu"><button id="interaction-emergency-action" type="button" role="menuitem"></button></div>
     </section>
+    <dialog id="knowledge-confirm-dialog" aria-labelledby="knowledge-confirm-title">
+      <h2 id="knowledge-confirm-title"></h2><p id="knowledge-confirm-detail"></p>
+      <div class="controls"><button id="knowledge-cancel-confirm" type="button">Cancelar</button><button id="knowledge-confirm" type="button">Confirmar</button></div>
+    </dialog>
     <dialog id="qna-confirm-dialog" aria-labelledby="qna-confirm-title">
       <h2 id="qna-confirm-title"></h2>
       <div class="controls"><button id="qna-cancel" type="button">Cancelar</button><button id="qna-confirm" type="button">Confirmar</button></div>
