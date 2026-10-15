@@ -86,7 +86,12 @@
         'events:lifecycle:start': ['activityId'], 'events:lifecycle:finish': [],
         'events:poll:snapshot': [], 'events:poll:launch': ['interactionId'],
         'events:poll:submit': ['pollRunId', 'optionId'], 'events:poll:show': ['pollRunId'],
-        'events:poll:hide': ['pollRunId'], 'events:poll:close': ['pollRunId'] };
+        'events:poll:hide': ['pollRunId'], 'events:poll:close': ['pollRunId'],
+        'events:qna:snapshot': [], 'events:qna:open': [], 'events:qna:set_open': ['roundId', 'open'],
+        'events:qna:submit': ['roundId', 'question', 'allowNameOnScreen'],
+        'events:qna:select': ['roundId', 'questionId'], 'events:qna:project': ['roundId', 'questionId'],
+        'events:qna:delete': ['roundId', 'questionId'], 'events:qna:new_round': ['roundId'], 'events:qna:panel_close': ['roundId'] };
+      if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (!Object.hasOwn(fields, name)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
       if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== fields[name].length
         || fields[name].some(key => !Object.hasOwn(payload, key))
@@ -94,6 +99,11 @@
         || (name === 'events:lifecycle:start' && !id(payload.activityId))
         || (name.startsWith('events:poll:') && fields[name].some(key =>
           key === 'pollRunId' ? !id(payload[key]) : typeof payload[key] !== 'string' || !payload[key].trim() || payload[key].length > 120))
+        || (name.startsWith('events:qna:') && fields[name].some(key =>
+          ['roundId', 'questionId'].includes(key) ? !id(payload[key])
+            : ['open', 'allowNameOnScreen'].includes(key) ? typeof payload[key] !== 'boolean'
+              : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 1000)
+                || (key === 'question' && !payload[key].trim())))
         || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
       if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
       const s = socket, version = epoch, copy = { ...payload };
@@ -205,7 +215,7 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
-        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state']) s.on(name, value => {
+        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state']) s.on(name, value => {
           if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
         });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);

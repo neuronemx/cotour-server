@@ -4,6 +4,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const consoleModule = require('../public/events-v2/live-console');
 const pollModule = require('../public/events-v2/poll-console');
+const qnaModule = require('../public/events-v2/qna-console');
+const qnaPage = require('../public/events-v2/qna-page');
+const emergencyMenu = require('../public/events-v2/emergency-menu');
 const pollPage = require('../public/events-v2/poll-page');
 const source = fs.readFileSync(require.resolve('../public/events-v2/console-page.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../events-v2/console.html'), 'utf8');
@@ -31,14 +34,16 @@ function page(kind = 'STAGE', purpose = 'live') {
   const window = new Element(), sent = []; let options, controller, generation = 0, resumes = 0;
   window.history = { replaceState() {} }; window.location = { pathname: '/generic', reload() {} }; window.fetch = async () => {}; window.io = () => {};
   window.ImmersaEventLiveConsole = { ...consoleModule, createController: args => (controller = consoleModule.createController(args)) };
+  window.ImmersaEventQnaConsole = qnaModule; window.ImmersaEventQnaPage = qnaPage; window.ImmersaEventEmergencyMenu = emergencyMenu;
   window.ImmersaEventPollConsole = pollModule; window.ImmersaEventPollPage = pollPage;
   const access = { start() { options.onState({ status: 'connecting' }); }, close() { options.onState({ status: 'closed' }); }, resume() { resumes++; options.onState({ status: 'connecting' }); },
     command: async (name, payload) => { sent.push({ name, payload }); return name === 'events:lifecycle:finish'
       ? { ok: true, liveSession: { eventId, liveSessionId, status: 'FINISHED' } }
       : name === 'events:poll:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, pollRunId: null, active: null, resultsVisible: false, available: [], results: null, response: null } }
+        : name === 'events:qna:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, roundId: null, roundNumber: 0, questionsOpen: false, displayName: 'Own', hasSubmitted: false, questionId: null, cooldownRemainingMs: 0, screen: { visible: false, question: null }, questions: [], selectedQuestionId: null, availableQuestions: [] } }
         : { ok: true, snapshot: projection }; } };
   window.ImmersaEventAccess = { consumeLink: () => ({ binding: { view: { STAGE: 'stage', SPEAKER: 'speaker', PLAYER: 'screen', PARTICIPANT: 'audience' }[kind] } }), createClient: args => { options = args; return access; } };
-  vm.runInNewContext(source, { window, document }, { filename: 'console-page.js' });
+  vm.runInNewContext(source, { window, document, setTimeout, clearTimeout }, { filename: 'console-page.js' });
   return { elements, document, sent, resumes: () => resumes,
     ready: (targets = [target]) => options.onState({ status: 'ready', generation: ++generation, eventName: '<script>Event</script>', targets, context: { eventId, stageId, kind, purpose } }),
     deny: () => options.onState({ status: 'denied' }), controller: () => controller };
@@ -49,6 +54,9 @@ test('page hides and clears operations before authority or after denial; authori
   h.ready(); await h.controller().select(consoleModule.targetKey(target));
   assert.equal(h.elements.operation.hidden, false); assert.equal(h.elements['event-name'].textContent, '<script>Event</script>');
   assert.equal(h.elements.activity.children[1].textContent, target.title + ' · ' + target.stageTitle + ' · En vivo');
+  await settle(); const reads = h.sent.filter(row => row.name === 'events:qna:snapshot').length;
+  h.elements.refresh.fire('click'); await settle(); assert.equal(h.resumes(), 1); assert.equal(h.elements.operation.hidden, true);
+  h.ready(); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:qna:snapshot').length, reads + 1);
   assert.equal(h.elements.position.hidden, false); h.deny();
   assert.equal(h.elements.operation.hidden, true); assert.equal(h.elements.position.hidden, true); assert.equal(h.elements.activity.children.length, 1);
   assert.equal(h.elements.next.disabled, true);
@@ -75,7 +83,7 @@ test('real page handlers expose controller navigation only to Stage/Speaker; Par
     assert.equal(h.sent.some(row => row.name === 'events:slide:go'), ['STAGE', 'SPEAKER'].includes(kind));
     h.elements.pause.fire('click'); await settle();
     assert.equal(h.sent.some(row => row.name === 'events:presentation:pause'), ['STAGE', 'SPEAKER'].includes(kind));
-    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.filter(row => !row.name.startsWith('events:poll:')).length, 1); }
+    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.filter(row => !/^events:(poll|qna):/.test(row.name)).length, 1); }
   }
 });
 
@@ -83,7 +91,7 @@ test('Player emergency keyboard excludes typing, modifiers and repeats; unavaila
   const h = page('PLAYER', 'player'); h.ready(); await settle();
   let prevented = 0; const key = { key: 'ArrowRight', target: { tagName: 'BODY' }, preventDefault() { prevented++; } };
   for (const extra of [{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }, { target: { tagName: 'INPUT' } }, { target: { tagName: 'SELECT' } }]) h.document.fire('keydown', { ...key, ...extra });
-  assert.equal(h.sent.filter(row => !row.name.startsWith('events:poll:')).length, 1); h.document.fire('keydown', key); await settle();
+  assert.equal(h.sent.filter(row => !/^events:(poll|qna):/.test(row.name)).length, 1); h.document.fire('keydown', key); await settle();
   assert.equal(h.sent.at(-1).name, 'events:slide:next'); assert.equal(prevented, 1);
   h.deny(); h.document.fire('keydown', key); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:slide:next').length, 1);
   const rehearsal = page('SPEAKER', 'rehearsal'); rehearsal.ready([]); await settle();

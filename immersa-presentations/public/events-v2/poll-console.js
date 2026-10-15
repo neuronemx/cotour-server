@@ -114,7 +114,7 @@
         if (!control || snapshot.active || !snapshot.available.some(row => row.id === input.interactionId)) return false;
         payload = { interactionId: input.interactionId };
       } else {
-        if (!snapshot.active || !snapshot.pollRunId) return false;
+        if (!snapshot.active || !snapshot.pollRunId || (input.pollRunId !== undefined && input.pollRunId !== snapshot.pollRunId)) return false;
         if (action === 'submit') {
           if (kind !== 'PARTICIPANT' || snapshot.response || !snapshot.active.options.some(row => row.id === input.optionId)) return false;
           payload = { pollRunId: snapshot.pollRunId, optionId: input.optionId };
@@ -141,8 +141,8 @@
     function emergencyActions() {
       if (state.kind !== 'PLAYER' || state.status !== 'ready' || state.pending || !snapshot) return [];
       if (!snapshot.active) return snapshot.available.map(row => ({ action: 'launch', title: row.title, input: { interactionId: row.id } }));
-      return [{ action: snapshot.resultsVisible ? 'hide' : 'show', title: snapshot.resultsVisible ? 'Ocultar resultados' : 'Mostrar resultados', input: {} },
-        { action: 'close', title: 'Cerrar encuesta', input: {} }];
+      return [{ action: snapshot.resultsVisible ? 'hide' : 'show', title: snapshot.resultsVisible ? 'Ocultar resultados' : 'Mostrar resultados', input: { pollRunId: snapshot.pollRunId } },
+        { action: 'close', title: 'Cerrar encuesta', input: { pollRunId: snapshot.pollRunId } }];
     }
     return Object.freeze({ updateAccess, updateLive, receive, operate, refresh: read, emergencyActions, getState: () => state });
   }

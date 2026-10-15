@@ -5,14 +5,7 @@
   'use strict';
   function createView({ document, controller }) {
     const $ = id => document.getElementById(id);
-    let state = controller.getState(), selected = null, selectedRun = null, menuOpen = false, menuIndex = 0, optionSignature = null, inputs = [];
-    function menu() {
-      const actions = controller.emergencyActions();
-      if (!actions.length) menuOpen = false;
-      menuIndex = Math.min(menuIndex, Math.max(0, actions.length - 1));
-      $('poll-emergency').hidden = !menuOpen;
-      $('poll-emergency-action').textContent = menuOpen ? actions[menuIndex].title : '';
-    }
+    let state = controller.getState(), selected = null, selectedRun = null, optionSignature = null, inputs = [];
     function render(value) {
       state = value;
       const usable = state.status === 'ready' && Boolean(state.snapshot), control = ['STAGE', 'SPEAKER'].includes(state.kind);
@@ -62,27 +55,10 @@
           bar.max = 100; bar.value = row.percentage; bar.setAttribute('aria-label', row.label); line.append(text, bar); $('poll-results').append(line);
         }
       }
-      menu();
     }
     $('poll-launch').addEventListener('click', () => controller.operate('launch', { interactionId: $('poll-catalog').value }));
     for (const action of ['show', 'hide', 'close']) $('poll-' + action).addEventListener('click', () => controller.operate(action));
     $('poll-submit').addEventListener('click', () => controller.operate('submit', { optionId: selected }));
-    function execute() {
-      const item = controller.emergencyActions()[menuIndex]; menuOpen = false; menu();
-      if (item) controller.operate(item.action, item.input);
-    }
-    $('poll-emergency-action').addEventListener('click', execute);
-    document.addEventListener('keydown', event => {
-      if (state.kind !== 'PLAYER' || state.status !== 'ready' || event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey
-        || event.target?.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target?.tagName)) return;
-      if (event.key.toLowerCase() === 'e' && controller.emergencyActions().length) { menuOpen = !menuOpen; menuIndex = 0; menu(); event.preventDefault(); return; }
-      if (!menuOpen) return;
-      const actions = controller.emergencyActions();
-      if (event.key === 'Escape') { menuOpen = false; menu(); }
-      else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { menuIndex = (menuIndex + (event.key === 'ArrowDown' ? 1 : -1) + actions.length) % actions.length; menu(); }
-      else if (event.key === 'Enter') execute(); else return;
-      event.preventDefault();
-    });
     render(state); return Object.freeze({ render });
   }
   return Object.freeze({ createView });
