@@ -70,7 +70,8 @@
     av = window.ImmersaEventAVConsole.createController({access:client,onState:state=>{avView?.render(state);emergency?.render();}});
     avView = window.ImmersaEventAVPage.createView({document,controller:av,audioReact:window.ImmersaAudioReact,onVisibility:value=>showSurface('av',value)});
     slides=window.ImmersaEventSlidesConsole.createController({access:client,onState:state=>{slidesView?.render(state);pollView?.render(poll.getState());knowledgeView?.render(knowledge.getState());}});
-    slidesView=window.ImmersaEventSlidesPage.createView({document,controller:slides,onVisibility:value=>showSurface('slides',value)});
+    slidesView=window.ImmersaEventSlidesPage.createView({document,controller:slides,onVisibility:value=>showSurface('slides',value),getDrawingEnabled:()=>$('av-drawing-enabled').checked});
+    $('av-drawing-enabled').addEventListener('change',()=>slidesView.render(slides.getState()));
     emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna, knowledge, raffle, game, time, av] });
     client.start(link.token); link.token = null; link = null;
     $('activity').addEventListener('change', () => live.select($('activity').value));

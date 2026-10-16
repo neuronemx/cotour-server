@@ -62,7 +62,7 @@
         <button id="start" type="button">Iniciar presentación</button>
         <button id="finish" type="button">Finalizar presentación</button>
       </div>
-      <div id="slides-operator" hidden><figure><figcaption>Vista del control</figcaption><img id="slides-preview" alt="Slide del control" hidden></figure><figure><figcaption>Siguiente</figcaption><img id="slides-next" alt="Siguiente slide" hidden></figure></div>
+      <div id="slides-operator" hidden><figure><figcaption>Vista del control</figcaption><div id="slides-prompter-target" role="button" tabindex="-1" aria-label="Mantén pulsado para leer el apuntador"><img id="slides-preview" alt="Slide del control" draggable="false" hidden><div id="slides-prompter" hidden><div id="slides-notes-current"></div><div id="slides-notes-next" hidden></div></div></div></figure><figure><figcaption>Siguiente</figcaption><img id="slides-next" alt="Siguiente slide" hidden></figure></div>
       <section id="poll-panel" hidden aria-label="Encuesta">
         <div id="poll-controls" class="controls" hidden>
           <label for="poll-catalog">Encuesta</label><select id="poll-catalog"></select>
