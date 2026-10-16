@@ -1,13 +1,13 @@
 const { sameOrigin } = require('./grant-http');
 const { createLiveSocketAdapter } = require('./live-sockets');
 
-function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, lifecycle = null }) {
+function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, slides = null, lifecycle = null }) {
   const namespace = io.of('/events-v2');
   const credentials = new WeakMap();
   let reviewPromise = null;
   const accessError = () => Object.assign(new Error('EVENT_ACCESS_DENIED'), { data: { code: 'EVENT_ACCESS_DENIED' } });
   const disconnect = socket => { socket.emit('events:access_denied', { code: 'EVENT_ACCESS_DENIED' }); socket.disconnect(true); };
-  const live = runtime && createLiveSocketAdapter({ namespace, grants, runtime, polls, qna, knowledge, raffles, games, time, av, lifecycle, credentials, enabled, disconnect });
+  const live = runtime && createLiveSocketAdapter({ namespace, grants, runtime, polls, qna, knowledge, raffles, games, time, av, slides, lifecycle, credentials, enabled, disconnect });
   async function reviewSocket(socket) {
     try {
       if (!enabled() || !grants) throw accessError();

@@ -2,7 +2,10 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const names = { stage: 'Stage', speaker: 'Speaker', screen: 'Pantalla', audience: 'Público' };
-  let client, live, poll, pollView, qna, qnaView, knowledge, knowledgeView, raffle, raffleView, game, time, gameTimeView, av, avView, emergency, accessState = { status: 'idle' }, lastTargets = null;
+  let client, live, poll, pollView, qna, qnaView, knowledge, knowledgeView, raffle, raffleView, game, time, gameTimeView, av, avView, slides, slidesView, emergency, accessState = { status: 'idle' }, lastTargets = null;
+  const visible={slides:false,av:false};
+  const showSurface=(family,value)=>{visible[family]=value;$('slides-surface').hidden=!visible.slides&&!visible.av;};
+  const language=()=>slides?.getLanguage()||'es';
   function renderOperation(state) {
     const connected = accessState.status === 'ready', controls = ['STAGE', 'SPEAKER'].includes(state.kind) && state.purpose === 'live';
     $('operation').hidden = !connected;
@@ -45,27 +48,29 @@
     $('access-status').textContent = messages[state.status] || 'Verificando acceso…';
     $('access-detail').textContent = state.context?.purpose === 'rehearsal' ? 'El ensayo todavía no está disponible.' : '';
     $('retry').hidden = state.status !== 'retrying';
-    poll.updateAccess(state); qna.updateAccess(state); knowledge.updateAccess(state); raffle.updateAccess(state); game.updateAccess(state); time.updateAccess(state); av.updateAccess(state); live.updateAccess(state);
+    slides.updateAccess(state); poll.updateAccess(state); qna.updateAccess(state); knowledge.updateAccess(state); raffle.updateAccess(state); game.updateAccess(state); time.updateAccess(state); av.updateAccess(state); live.updateAccess(state);
   }
   try {
     let link = window.ImmersaEventAccess.consumeLink(window.location, window.history);
     $('function').textContent = names[link.binding.view];
     client = window.ImmersaEventAccess.createClient({ binding: link.binding, fetch: window.fetch.bind(window), io: window.io,
       onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); qna.receive(name, value); knowledge.receive(name, value); raffle.receive(name, value); game.receive(name, value); time.receive(name, value); av.receive(name,value); } });
-    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); knowledge?.updateLive(state); raffle?.updateLive(state); game?.updateLive(state); time?.updateLive(state); av?.updateLive(state); } });
+    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); knowledge?.updateLive(state); raffle?.updateLive(state); game?.updateLive(state); time?.updateLive(state); av?.updateLive(state); slides?.updateLive(state); } });
     poll = window.ImmersaEventPollConsole.createController({ access: client, onState: state => { pollView?.render(state); emergency?.render(); } });
-    pollView = window.ImmersaEventPollPage.createView({ document, controller: poll });
+    pollView = window.ImmersaEventPollPage.createView({ document, controller: poll, getLanguage:language });
     qna = window.ImmersaEventQnaConsole.createController({ access: client, onState: state => { qnaView?.render(state); emergency?.render(); } });
     qnaView = window.ImmersaEventQnaPage.createView({ document, controller: qna });
     knowledge = window.ImmersaEventKnowledgeConsole.createController({ access: client, onState: state => { knowledgeView?.render(state); emergency?.render(); } });
-    knowledgeView = window.ImmersaEventKnowledgePage.createView({ document, controller: knowledge });
+    knowledgeView = window.ImmersaEventKnowledgePage.createView({ document, controller: knowledge, getLanguage:language });
     raffle = window.ImmersaEventRaffleConsole.createController({ access: client, onState: state => { raffleView?.render(state); emergency?.render(); } });
     raffleView = window.ImmersaEventRafflePage.createView({ document, controller: raffle });
     game = window.ImmersaEventGameTimeConsole.createGameController({ access: client, onState: state => { gameTimeView?.renderGame(state); emergency?.render(); } });
     time = window.ImmersaEventGameTimeConsole.createTimeController({ access: client, onState: state => { gameTimeView?.renderTime(state); emergency?.render(); } });
     gameTimeView = window.ImmersaEventGameTimePage.createView({ document, game, time });
     av = window.ImmersaEventAVConsole.createController({access:client,onState:state=>{avView?.render(state);emergency?.render();}});
-    avView = window.ImmersaEventAVPage.createView({document,controller:av,audioReact:window.ImmersaAudioReact});
+    avView = window.ImmersaEventAVPage.createView({document,controller:av,audioReact:window.ImmersaAudioReact,onVisibility:value=>showSurface('av',value)});
+    slides=window.ImmersaEventSlidesConsole.createController({access:client,onState:state=>{slidesView?.render(state);pollView?.render(poll.getState());knowledgeView?.render(knowledge.getState());}});
+    slidesView=window.ImmersaEventSlidesPage.createView({document,controller:slides,onVisibility:value=>showSurface('slides',value)});
     emergency = window.ImmersaEventEmergencyMenu.createView({ document, controllers: [poll, qna, knowledge, raffle, game, time, av] });
     client.start(link.token); link.token = null; link = null;
     $('activity').addEventListener('change', () => live.select($('activity').value));

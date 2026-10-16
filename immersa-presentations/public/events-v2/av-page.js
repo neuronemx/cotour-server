@@ -1,6 +1,6 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.ImmersaEventAVPage=factory();})(typeof window==='object'?window:this,function(){
   'use strict';
-  function createView({document,controller,audioReact,now=Date.now,setTimeoutFn=setTimeout,clearTimeoutFn=clearTimeout}){
+  function createView({document,controller,audioReact,onVisibility=()=>{},now=Date.now,setTimeoutFn=setTimeout,clearTimeoutFn=clearTimeout}){
     const reactionNodes=new Map();
     const $=id=>document.getElementById('av-'+id), media={audio:$('audio'),video:$('video')}, bindings={},controls={};
     let state=controller.getState(),previous=null,receivedAt=now(),timer=null,confirmation=null,catalogKey='',initialized=false,points=[],drawingSlide=null,ownTimer=null,mediaEpoch=0;
@@ -50,7 +50,7 @@
       if(transient)timer=setTimeoutFn(draw,100);
     }
     function render(value){state=value;const s=state.snapshot,ready=state.status==='ready'&&!!s,operator=ready&&['STAGE','SPEAKER'].includes(state.kind);if(confirmation&&confirmation.key!==key())closeConfirm();
-      $('panel').hidden=!ready;$('operator').hidden=!operator;$('public-reactions').hidden=!ready||state.kind!=='PARTICIPANT';$('output').hidden=!ready;
+      $('panel').hidden=!ready;$('operator').hidden=!operator;$('public-reactions').hidden=!ready||state.kind!=='PARTICIPANT';const retain=!ready&&['retrying','connecting'].includes(state.accessStatus)&&Object.keys(bindings).length>0;$('output').hidden=!(ready||retain);onVisibility(ready||retain);
       if(!ready){closeConfirm();cancelDrawing();if(timer!==null)clearTimeoutFn(timer);timer=null;if(!['retrying','connecting'].includes(state.accessStatus))stopMedia();$('message-output').textContent='';$('reactions-output').replaceChildren();reactionNodes.clear();$('own-reaction').textContent='';if(ownTimer!==null)clearTimeoutFn(ownTimer);ownTimer=null;$('message').value='';previous=null;return;}
       $('status').textContent=state.code?state.code==='AV_REACTION_RATE_LIMITED'?'Espera un momento antes de reaccionar.':'No se pudo completar la acción. Actualiza el estado.':'';
       $('message-output').textContent=s.overlays.messageText;$('message-output').hidden=!s.overlays.messageVisible;

@@ -6,6 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <title>Acceso · IMMERSA Eventos</title>
   <link rel="stylesheet" href="/events-v2/console.css">
+  <script defer src="/events-v2/slides-console.js"></script>
+  <script defer src="/events-v2/slides-page.js"></script>
   <script defer src="/events-v2/av-console.js"></script>
   <script defer src="/screen/audio-react-three.js"></script>
   <script defer src="/screen/audio-react-overlay.js"></script>
@@ -34,6 +36,9 @@
     <p id="access-status" role="status" aria-live="polite">Conectando con el evento.</p>
     <p id="access-detail"></p>
     <button id="retry" type="button" hidden>Volver a conectar</button>
+    <div id="slides-language-controls" class="controls" hidden><button id="slides-language-es" type="button" lang="es">Español</button><button id="slides-language-en" type="button" lang="en">English</button></div>
+    <p id="slides-status" role="status" aria-live="polite"></p><p id="slides-fallback"></p>
+    <div id="slides-surface" hidden><img id="slides-image" alt="Slide" referrerpolicy="no-referrer" hidden><div id="av-output" hidden><video id="av-video" playsinline preload="metadata" hidden></video><audio id="av-audio" preload="metadata"></audio><div id="av-react-layer"></div><canvas id="av-drawing" width="960" height="540" aria-label="Trazo sobre la presentación"></canvas><p id="av-message-output" hidden></p><div id="av-reactions-output"></div></div></div>
     <section id="operation" hidden aria-label="Actividad">
       <div class="activity-row">
         <label for="activity">Actividad</label>
@@ -57,7 +62,7 @@
         <button id="start" type="button">Iniciar presentación</button>
         <button id="finish" type="button">Finalizar presentación</button>
       </div>
-      <p class="content-note">La visualización de los archivos privados aún no está disponible.</p>
+      <div id="slides-operator" hidden><figure><figcaption>Vista del control</figcaption><img id="slides-preview" alt="Slide del control" hidden></figure><figure><figcaption>Siguiente</figcaption><img id="slides-next" alt="Siguiente slide" hidden></figure></div>
       <section id="poll-panel" hidden aria-label="Encuesta">
         <div id="poll-controls" class="controls" hidden>
           <label for="poll-catalog">Encuesta</label><select id="poll-catalog"></select>
@@ -135,7 +140,7 @@
         <div id="av-operator" hidden><div class="controls"><label>Medio <select id="av-catalog"></select></label><button id="av-select" type="button">Reproducir</button><label>Lista <select id="av-playlists"></select></label><button id="av-select-playlist" type="button">Reproducir lista</button><label>Volumen <input id="av-volume" type="range" min="0" max="100" value="100"></label></div>
         <div id="av-channel-controls"></div><label>Mensaje <textarea id="av-message" maxlength="2000"></textarea></label><div class="controls"><button id="av-show-message" type="button">Mostrar mensaje</button><button id="av-clear-message" type="button">Borrar mensaje</button><button id="av-clear-screen" type="button">Limpiar overlays</button><button id="av-reactions-toggle" type="button">Reacciones</button></div>
         <div class="controls"><label>Audio React <select id="av-react-mode"></select></label><button id="av-react-toggle" type="button">Audio React</button><button id="av-react-next" type="button">Siguiente Audio React</button><label><input id="av-drawing-enabled" type="checkbox">Dibujar</label></div><p id="av-counts"></p></div>
-        <div id="av-output" hidden><video id="av-video" playsinline preload="metadata" hidden></video><audio id="av-audio" preload="metadata"></audio><div id="av-react-layer"></div><canvas id="av-drawing" width="960" height="540" aria-label="Trazo sobre la presentación"></canvas><p id="av-message-output" hidden></p><div id="av-reactions-output"></div></div>
+
         <button id="av-activate" type="button" hidden>Activar audio y video</button><p id="av-media-status" role="status"></p>
         <div id="av-public-reactions" class="controls" hidden><button id="av-heart" type="button" aria-label="Enviar corazón">❤️</button><button id="av-clap" type="button" aria-label="Enviar aplauso">👏</button><button id="av-fire" type="button" aria-label="Enviar fuego">🔥</button></div><output id="av-own-reaction" aria-live="polite"></output>
       </section>

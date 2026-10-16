@@ -99,7 +99,7 @@
         'events:game:skip': ['expectedRevision','queueRunId'], 'events:game:end': ['expectedRevision','queueRunId'],
         ...Object.fromEntries(['start','pause','resume'].map(action=>['events:game:'+action,['gameRunId']])),
         'events:game:team_names': ['gameRunId','left','right'], 'events:game:join_team': ['gameRunId','team'], 'events:game:input': ['gameRunId','direction'],
-        'events:time:snapshot': [], 'events:time:control': ['target','action','expectedRevision'],
+        'events:slides:snapshot': ['language'], 'events:time:snapshot': [], 'events:time:control': ['target','action','expectedRevision'],
         'events:raffle:snapshot': [], 'events:raffle:open': ['definitionId'], 'events:raffle:configure_key': ['definitionId','optionId'],
         ...Object.fromEntries(['enter','submit_poll_response','close_entries','draw','reveal','close','reset_winners'].map(action => ['events:raffle:'+action,['raffleRunId']])) };
       if (name === 'events:time:control' && payload?.target === 'screen' && payload.action === 'start') {
@@ -143,6 +143,7 @@
           || !Number.isSafeInteger(payload.expectedRevision) || payload.expectedRevision < 0
           || (payload.target === 'screen' && payload.action === 'start' && (!['stopwatch','countdown','clock'].includes(payload.mode)
             || (payload.mode === 'countdown' && (![['hours',99],['minutes',59],['seconds',59]].every(([k,max])=>Number.isSafeInteger(payload[k]) && payload[k]>=0 && payload[k]<=max) || payload.hours+payload.minutes+payload.seconds===0))))))
+        || (name === 'events:slides:snapshot' && !['es','en'].includes(payload.language))
         || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
       if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
       const s = socket, version = epoch, copy = { ...payload };

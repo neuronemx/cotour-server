@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createView } = require('../public/events-v2/poll-page');
-function harness(kind) {
+function harness(kind,getLanguage=()=> 'es') {
   class Element {
     constructor() { this.children = []; this.handlers = {}; this.hidden = false; this.value = ''; }
     set innerHTML(_) { throw new Error('Unsafe HTML'); }
@@ -17,7 +17,7 @@ function harness(kind) {
   let state = { status: 'ready', kind, pending: false, snapshot: { pollRunId: 'run', active: { prompt: '<img onerror=bad()>', options: [{ id: 'a', label: '<script>A</script>' }, { id: 'b', label: 'B' }] },
     response: null, available: [{ id: 'first', title: 'First' }, { id: 'second', title: 'Second' }], results: kind === 'PARTICIPANT' ? null : { totalResponses: 1, options: [{ id: 'a', label: 'A', count: 1, percentage: 100 }] } } };
   const controller = { getState: () => state, operate: (action, input) => sent.push({ action, input }), emergencyActions: () => state.kind === 'PLAYER' && state.status === 'ready' && !state.pending ? [{ title: 'First', action: 'launch', input: { interactionId: 'first' } }, { title: 'Close', action: 'close', input: {} }] : [] };
-  const view = createView({ document, controller }); return { elements, document, sent, state: () => state, render: extra => { state = { ...state, ...extra }; view.render(state); } };
+  const view = createView({ document, controller, getLanguage }); return { elements, document, sent, state: () => state, render: extra => { state = { ...state, ...extra }; view.render(state); } };
 }
 test('poll page writes questions/options as literal text and retains radio elements while updating the receipt', () => {
   const h = harness('PARTICIPANT'), e = h.elements; assert.equal(e['poll-question'].textContent, '<img onerror=bad()>');
@@ -31,3 +31,5 @@ test('operator catalog choice survives renders; submit and control handlers use 
   assert.equal(e['poll-catalog'].value, 'second'); e['poll-launch'].fire('click'); assert.deepEqual(h.sent.at(-1), { action: 'launch', input: { interactionId: 'second' } });
   e['poll-close'].fire('click'); assert.equal(h.sent.at(-1).action, 'close');
 });
+
+test('changing prepared content language preserves the selected answer and falls back for missing option translations',()=>{let language='es';const h=harness('PARTICIPANT',()=>language),s=h.state();s.snapshot.active.en={prompt:'<script>English</script>',options:{a:'English A'}};h.render({});h.elements['poll-options'].children[0].children[0].fire('change');language='en';h.render({});assert.equal(h.elements['poll-question'].textContent,'<script>English</script>');assert.equal(h.elements['poll-options'].children[0].children[1].textContent,'English A');assert.equal(h.elements['poll-options'].children[1].children[1].textContent,'B');assert.equal(h.elements['poll-options'].children[0].children[0].checked,true);h.elements['poll-submit'].fire('click');assert.equal(h.sent.at(-1).input.optionId,'a');});

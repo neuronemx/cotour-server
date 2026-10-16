@@ -39,7 +39,8 @@ class EventLiveRuntime {
       || !Number.isSafeInteger(preparation.slideCount) || preparation.slideCount < 1 || preparation.slideCount > 100000) {
       throw error('CONTENT_NOT_PREPARED');
     }
-    return { ...live, versionId: preparation.versionId, slideCount: preparation.slideCount };
+    if (preparation.slideDigest !== undefined && !/^[a-f0-9]{64}$/.test(preparation.slideDigest)) throw error('CONTENT_NOT_PREPARED');
+    return { ...live, versionId: preparation.versionId, slideCount: preparation.slideCount, ...(preparation.slideDigest ? { slideDigest: preparation.slideDigest } : {}) };
   }
   initial(preparation) {
     return Object.freeze({ ...preparation, presenterSlideIndex: 0, liveSlideIndex: 0, slideIndex: 0,
@@ -64,7 +65,7 @@ class EventLiveRuntime {
         }
         const prepared = await this.prepared(context, db, liveId);
         const state = this.states.get(key) || this.initial(prepared);
-        if (state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.deckId !== prepared.deckId || state.versionId !== prepared.versionId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
+        if (state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.deckId !== prepared.deckId || state.versionId !== prepared.versionId || state.slideCount !== prepared.slideCount || state.slideDigest !== prepared.slideDigest) throw error('CONTENT_VERSION_CHANGED');
         if (command === 'snapshot') return state;
         const next = { ...state };
         if (['next', 'prev', 'go'].includes(command)) {
@@ -91,7 +92,7 @@ class EventLiveRuntime {
     return grants.withSession(credentials, async (context, db) => {
       const prepared = await this.prepared(context, db, liveId);
       const state = this.states.get(executionKey(context.eventId, liveId));
-      if (!state || state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.versionId !== prepared.versionId || state.deckId !== prepared.deckId || state.slideCount !== prepared.slideCount) throw error('CONTENT_VERSION_CHANGED');
+      if (!state || state.activityId !== prepared.activityId || state.stageId !== prepared.stageId || state.versionId !== prepared.versionId || state.deckId !== prepared.deckId || state.slideCount !== prepared.slideCount || state.slideDigest !== prepared.slideDigest) throw error('CONTENT_VERSION_CHANGED');
       const snapshot = { eventId: context.eventId, liveSessionId: liveId, revision: state.revision,
         slideIndex: state.liveSlideIndex, transmissionPaused: state.transmissionPaused };
       if (control(context)) Object.assign(snapshot, { presenterSlideIndex: state.presenterSlideIndex,
