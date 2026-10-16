@@ -12,6 +12,16 @@ const path = `/events-v2/console/stage/${eventId}/${grantId}`;
 const context = { eventId, grantId, organizationId: otherId, actorId: grantId, kind: 'STAGE', purpose: 'live',
   stageId: otherId, activityId: null, liveSessionId: null, participantId: null, expiresAt: new Date(10000000).toISOString() };
 
+test('game and Time transport allow exact bounded commands and fence retired family state events',async()=>{
+ const events=[],sent=[],h=harness({onEvent:name=>events.push(name),commandHandler:(name,payload,ack)=>{sent.push(name);ack({ok:true});}});await h.client.start(token);
+ const commands=[['game:snapshot',{}],['time:snapshot',{}],['game:configure',{selected:['pong','breakout'],expectedRevision:0}],['game:start_queue',{expectedRevision:1}],...['skip','end'].map(a=>['game:'+a,{queueRunId:otherId,expectedRevision:2}]),...['start','pause','resume'].map(a=>['game:'+a,{gameRunId:otherId}]),['game:team_names',{gameRunId:otherId,left:'Blue',right:'Red'}],['game:join_team',{gameRunId:otherId,team:'left'}],['game:input',{gameRunId:otherId,direction:'up'}],['time:control',{target:'screen',action:'start',mode:'countdown',hours:0,minutes:1,seconds:2,expectedRevision:0}],['time:control',{target:'speaker',action:'start',expectedRevision:1}]];
+ for(const [name,payload]of commands)assert.equal((await h.client.command('events:'+name,payload)).ok,true);
+ for(const [name,payload]of commands)await assert.rejects(h.client.command('events:'+name,{...payload,actorId:otherId}),{code:'INVALID_COMMAND'});
+ for(const payload of [{target:'screen',action:'start',mode:'countdown',hours:0,minutes:60,seconds:0,expectedRevision:1},{target:'speaker',action:'hide',expectedRevision:1},{target:'screen',action:'start',mode:'clock',expectedRevision:1,now:1000}])await assert.rejects(h.client.command('events:time:control',payload),{code:'INVALID_COMMAND'});
+ await assert.rejects(h.client.command('events:game:configure',{selected:['pong','pong'],expectedRevision:0}),{code:'INVALID_COMMAND'});await assert.rejects(h.client.command('events:game:input',{gameRunId:otherId,direction:'evil'}),{code:'INVALID_COMMAND'});
+ const old=h.sockets[0];old.deliver('events:game:state',{});old.deliver('events:time:state',{});assert.deepEqual(events,['events:game:state','events:time:state']);h.client.close();old.deliver('events:time:state',{});assert.equal(events.length,2);
+});
+
 test('raffle transport accepts exact commands, fences old sockets and rejects role, identity, key and revision injection',async()=>{
  const events=[],sent=[],h=harness({onEvent:name=>events.push(name),commandHandler:(name,payload,ack)=>{sent.push(name);ack({ok:true});}});await h.client.start(token);
  for(const [action,payload] of [['snapshot',{}],['open',{definitionId:'free'}],['configure_key',{definitionId:'visual',optionId:'b'}],...['enter','submit_poll_response','close_entries','draw','reveal','close','reset_winners'].map(a=>[a,{raffleRunId:otherId,...(['enter','submit_poll_response'].includes(a)?{optionId:'a',name:''}:{})}])]) assert.equal((await h.client.command('events:raffle:'+action,payload)).ok,true);

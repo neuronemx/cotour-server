@@ -17,6 +17,8 @@
   <script defer src="/events-v2/knowledge-page.js"></script>
   <script defer src="/events-v2/raffle-console.js"></script>
   <script defer src="/events-v2/raffle-page.js"></script>
+  <script defer src="/events-v2/game-time-console.js"></script>
+  <script defer src="/events-v2/game-time-page.js"></script>
   <script defer src="/events-v2/emergency-menu.js"></script>
   <script defer src="/events-v2/console-page.js"></script>
 </head>
@@ -110,8 +112,24 @@
         <div id="raffle-registration"><label>Tu nombre <input id="raffle-name" maxlength="120" autocomplete="name"></label><button id="raffle-enter" type="button">Participar</button></div>
         <div id="raffle-options" class="controls"></div><p id="raffle-receipt" role="status"></p><p id="raffle-winner" role="status"></p>
       </section>
+      <section id="game-panel" hidden aria-label="Juegos"><h2>Juegos</h2>
+        <div id="game-operator" hidden><div id="game-catalog" class="controls"></div><div class="controls">
+          <button id="game-start_queue" type="button">Abrir juegos</button><button id="game-start" type="button">Iniciar juego</button><button id="game-pause" type="button">Pausar juego</button><button id="game-resume" type="button">Continuar juego</button><button id="game-skip" type="button">Saltar juego</button><button id="game-end" type="button">Terminar juegos</button>
+        </div><div id="game-team-names" class="controls"><label>Equipo izquierdo <input id="game-name-left" maxlength="24"></label><label>Equipo derecho <input id="game-name-right" maxlength="24"></label><button id="game-save-names" type="button">Guardar nombres</button></div></div>
+        <p id="game-status" role="status"></p><p id="game-score"></p><output id="game-remaining"></output><p id="game-result" role="status"></p>
+        <canvas id="game-board" width="960" height="540" aria-label="Juego en vivo" hidden></canvas>
+        <p id="game-membership" role="status"></p><div id="game-team-choice" class="controls" hidden><button id="game-join-left" type="button"></button><button id="game-join-right" type="button"></button></div>
+        <div id="game-inputs" class="controls" hidden><button id="game-input-left" type="button" aria-label="Mover a la izquierda">Izquierda</button><button id="game-input-right" type="button" aria-label="Mover a la derecha">Derecha</button><button id="game-input-up" type="button" aria-label="Mover arriba">Arriba</button><button id="game-input-down" type="button" aria-label="Mover abajo">Abajo</button></div>
+      </section>
+      <section id="time-panel" hidden aria-label="Tiempo"><h2>Time</h2><p id="time-status" role="status"></p><output id="time-screen-output" role="timer" aria-live="off" hidden></output>
+        <div id="time-controls" hidden><div class="controls"><label>En Pantalla <select id="time-mode"><option value="stopwatch">Cronómetro</option><option value="countdown">Temporizador</option><option value="clock">Hora actual</option></select></label>
+        <div id="time-duration" class="controls" hidden><label>Horas <input id="time-hours" type="number" min="0" max="99" value="0" inputmode="numeric"></label><label>Minutos <input id="time-minutes" type="number" min="0" max="59" value="5" inputmode="numeric"></label><label>Segundos <input id="time-seconds" type="number" min="0" max="59" value="0" inputmode="numeric"></label></div><button id="time-start" type="button">Mostrar tiempo</button>
+        <button id="time-screen-stop" type="button">Pausar tiempo</button><button id="time-screen-resume" type="button">Continuar tiempo</button><button id="time-screen-reset" type="button">Reiniciar tiempo</button><button id="time-screen-hide" type="button">Ocultar tiempo</button></div></div>
+        <div id="time-speaker" hidden><h3>Cronómetro de Speaker</h3><output id="time-speaker-output" role="timer" aria-live="off"></output><div class="controls"><button id="time-speaker-start" type="button">Iniciar cronómetro</button><button id="time-speaker-stop" type="button">Detener cronómetro</button><button id="time-speaker-reset" type="button">Reiniciar cronómetro</button></div></div>
+      </section>
       <div id="interaction-emergency" hidden role="menu"><button id="interaction-emergency-action" type="button" role="menuitem"></button></div>
     </section>
+    <dialog id="game-time-confirm-dialog" aria-labelledby="game-time-confirm-title"><h2 id="game-time-confirm-title"></h2><div class="controls"><button id="game-time-cancel" type="button">Cancelar</button><button id="game-time-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="raffle-confirm-dialog" aria-labelledby="raffle-confirm-title"><h2 id="raffle-confirm-title"></h2><p id="raffle-confirm-detail"></p><div class="controls"><button id="raffle-cancel-confirm" type="button">Cancelar</button><button id="raffle-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="knowledge-confirm-dialog" aria-labelledby="knowledge-confirm-title">
       <h2 id="knowledge-confirm-title"></h2><p id="knowledge-confirm-detail"></p>

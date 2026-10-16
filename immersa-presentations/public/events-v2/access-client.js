@@ -95,8 +95,16 @@
         ...Object.fromEntries(['start','finalize','cancel','show_results','close','retry_processing','force_results'].map(action => ['events:knowledge:' + action, ['executionId','expectedRevision']])),
         'events:knowledge:join': ['executionId'], 'events:knowledge:claim_tab': ['executionId'],
         'events:knowledge:answer': ['executionId','questionId','optionId','attemptId'], 'events:knowledge:submit': ['executionId'],
+        'events:game:snapshot': [], 'events:game:configure': ['expectedRevision','selected'], 'events:game:start_queue': ['expectedRevision'],
+        'events:game:skip': ['expectedRevision','queueRunId'], 'events:game:end': ['expectedRevision','queueRunId'],
+        ...Object.fromEntries(['start','pause','resume'].map(action=>['events:game:'+action,['gameRunId']])),
+        'events:game:team_names': ['gameRunId','left','right'], 'events:game:join_team': ['gameRunId','team'], 'events:game:input': ['gameRunId','direction'],
+        'events:time:snapshot': [], 'events:time:control': ['target','action','expectedRevision'],
         'events:raffle:snapshot': [], 'events:raffle:open': ['definitionId'], 'events:raffle:configure_key': ['definitionId','optionId'],
         ...Object.fromEntries(['enter','submit_poll_response','close_entries','draw','reveal','close','reset_winners'].map(action => ['events:raffle:'+action,['raffleRunId']])) };
+      if (name === 'events:time:control' && payload?.target === 'screen' && payload.action === 'start') {
+        fields[name] = [...fields[name], 'mode', ...(payload.mode === 'countdown' ? ['hours','minutes','seconds'] : [])];
+      }
       if (['events:raffle:enter','events:raffle:submit_poll_response'].includes(name)) for (const key of ['optionId','name']) if (Object.hasOwn(payload || {}, key)) fields[name] = [...fields[name], key];
       if (name === 'events:knowledge:join' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
@@ -119,6 +127,16 @@
         || (name.startsWith('events:raffle:') && fields[name].some(key => key === 'raffleRunId' ? !id(payload[key])
           : typeof payload[key] !== 'string' || payload[key].length > (key === 'name' ? 120 : 96)
             || (key !== 'name' && (!payload[key].trim() || payload[key] !== payload[key].trim()))))
+        || (name.startsWith('events:game:') && fields[name].some(key => key === 'expectedRevision' ? !Number.isSafeInteger(payload[key]) || payload[key] < 0
+          : ['gameRunId','queueRunId'].includes(key) ? !id(payload[key])
+          : key === 'selected' ? !Array.isArray(payload[key]) || payload[key].length > 2 || new Set(payload[key]).size !== payload[key].length || payload[key].some(v=>!['breakout','pong'].includes(v))
+          : key === 'team' ? !['left','right'].includes(payload[key]) : key === 'direction' ? !['left','right','up','down'].includes(payload[key])
+          : typeof payload[key] !== 'string' || !payload[key].trim() || Array.from(payload[key]).length > 24))
+        || (name === 'events:time:control' && (!['speaker','screen'].includes(payload.target)
+          || !(payload.target === 'speaker' ? ['start','stop','reset'] : ['start','stop','resume','reset','hide']).includes(payload.action)
+          || !Number.isSafeInteger(payload.expectedRevision) || payload.expectedRevision < 0
+          || (payload.target === 'screen' && payload.action === 'start' && (!['stopwatch','countdown','clock'].includes(payload.mode)
+            || (payload.mode === 'countdown' && (![['hours',99],['minutes',59],['seconds',59]].every(([k,max])=>Number.isSafeInteger(payload[k]) && payload[k]>=0 && payload[k]<=max) || payload.hours+payload.minutes+payload.seconds===0))))))
         || (name === 'events:slide:go' && (!Number.isSafeInteger(payload.slideIndex) || payload.slideIndex < 0))) return Promise.reject(failure('INVALID_COMMAND'));
       if (status.status !== 'ready' || !socket || stopped) return Promise.reject(failure('COMMAND_NOT_READY'));
       const s = socket, version = epoch, copy = { ...payload };
@@ -230,7 +248,7 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
-        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state', 'events:raffle:state']) s.on(name, value => {
+        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state', 'events:raffle:state', 'events:game:state', 'events:time:state']) s.on(name, value => {
           if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
         });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);
