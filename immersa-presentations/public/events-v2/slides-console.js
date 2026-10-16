@@ -10,7 +10,12 @@
       && row.url===prefix+row.language+'/'+row.index+'/'+variant);return Object.freeze({index:row.index,language:row.language,url:row.url});}
     const out={eventId:value.eventId,liveSessionId:liveId,revision:value.revision,contentVersion:value.contentVersion,
       availableLanguages:Object.freeze([...value.availableLanguages]),language:value.language,slide:image(value.slide,'full')};
-    if(['STAGE','SPEAKER'].includes(context.kind)){out.preview=image(value.preview,'thumb');out.next=value.next===null?null:image(value.next,'thumb');check(!out.next||out.next.index===out.preview.index+1);}
+    if(['STAGE','SPEAKER'].includes(context.kind)){out.preview=image(value.preview,'thumb');out.next=value.next===null?null:image(value.next,'thumb');check(!out.next||out.next.index===out.preview.index+1);
+      if(Object.hasOwn(value,'prompter')){
+        const notes=(row,image)=>{if(!image){check(row===null);return null;}check(row&&row.index===image.index&&(row.language===image.language||image.language==='en'&&row.language==='es')&&typeof row.text==='string'&&row.text.length<=8000&&!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(row.text));return Object.freeze({index:row.index,language:row.language,text:row.text});};
+        check(value.prompter&&typeof value.prompter==='object');out.prompter=Object.freeze({current:notes(value.prompter.current,out.preview),next:notes(value.prompter.next,out.next)});
+      }
+    }
     check(['STAGE','SPEAKER','PLAYER','PARTICIPANT'].includes(context.kind));return Object.freeze(out);
   }
   function createController({access,onState=()=>{}}){

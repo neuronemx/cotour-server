@@ -27,8 +27,9 @@ function normalizeSlides(catalog, slideCount) {
     if (!s || Object.keys(s).some(k => !languages.includes(k)) || !s.es || (!catalog.englishEnabled && s.en)) fail('SLIDES_CONTENT_NOT_PREPARED');
     return Object.fromEntries(languages.filter(k => s[k]).map(k => {
       const variant = s[k];
-      if (Object.keys(variant).some(key => !['full', 'thumb'].includes(key)) || !variant.full) fail('SLIDES_CONTENT_NOT_PREPARED');
-      const full = resource(variant.full); return [k, { full, thumb: variant.thumb ? resource(variant.thumb) : full }];
+      if (Object.keys(variant).some(key => !['full', 'thumb', 'notes'].includes(key)) || !variant.full
+        || (Object.hasOwn(variant, 'notes') && (typeof variant.notes !== 'string' || variant.notes.length > 8000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(variant.notes)))) fail('SLIDES_CONTENT_NOT_PREPARED');
+      const full = resource(variant.full); return [k, { full, thumb: variant.thumb ? resource(variant.thumb) : full, ...(Object.hasOwn(variant, 'notes') ? { notes: variant.notes } : {}) }];
     }));
   });
   if (catalog.englishEnabled && !slides.some(s => s.en)) fail('SLIDES_CONTENT_NOT_PREPARED');
@@ -70,6 +71,14 @@ class EventSlidesRuntime {
       snapshot.preview = this.image(context, scoped, state.presenterSlideIndex, selected, 'thumb');
       snapshot.next = state.presenterSlideIndex + 1 < scoped.prepared.slideCount
         ? this.image(context, scoped, state.presenterSlideIndex + 1, selected, 'thumb') : null;
+      if (d.slides.some(s => languages.some(l => Object.hasOwn(s[l] || {}, 'notes')))) {
+        const notes = image => {
+          if (!image) return null;
+          const slide = d.slides[image.index], language = selected === 'en' && slide.en?.notes?.trim() ? 'en' : 'es';
+          return { index: image.index, language, text: slide[language]?.notes || '' };
+        };
+        snapshot.prompter = { current: notes(snapshot.preview), next: notes(snapshot.next) };
+      }
     }
     return snapshot;
   }
