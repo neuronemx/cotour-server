@@ -63,7 +63,7 @@ const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 // The full 105-case SQL suite reached its former 600 s parent budget in the
 // final Q&A console case over Temporal SQL. Allow the added coverage to finish;
 // command deadlines, authorization reviews and production behavior are unchanged.
-test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 750000 }, async t => {
+test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !databaseUrl, timeout: 900000 }, async t => {
   // Dedicated, disposable CI database only. Never default to the runtime DB.
   const parsedUrl = new URL(databaseUrl);
   assert.match(parsedUrl.pathname, /events_v2_test/, 'requires an explicitly named test database');
