@@ -28,7 +28,7 @@ async function consoleSlidesSuite(t,f){
  }
  const stage=open(await issue('stage','STAGE',{stageId})),player=open(await issue('screen','PLAYER',{liveSessionId:liveId}));
  const registered=await request(null,'POST',`/api/events-v2/public/${f.publicId}/participants`,{name:'Slides attendee'});assert.equal(registered.status,201);
- const attendee=open({view:'audience',issued:{grantId:registered.body.context.grantId},cookie:registered.headers.get('set-cookie').split(';')[0]});
+ const attendeeGrantId=registered.body.context.grantId;const attendee=open({view:'audience',issued:{grantId:attendeeGrantId},cookie:registered.headers.get('set-cookie').split(';')[0]});
  const image=(c,url,options={})=>fetch(base+url,{...options,headers:{cookie:c.cookie(),...options.headers}});
  try{
  await t.test('shipped slide consoles separate private previews from transmission and serve reauthorized images with personal English fallback',async()=>{
@@ -47,9 +47,12 @@ async function consoleSlidesSuite(t,f){
   assert.equal(await stage.live.operate('play'),true);await until(()=>attendee.snapshot()?.slide.index===1&&player.snapshot()?.slide.index===1,'resumed slide');assert.equal(attendee.snapshot().language,'en');assert.equal(attendee.snapshot().slide.language,'es');
  });
  await t.test('private slides deny changed access levels, changed preparation, revocation and finished lives without opening bytes',async()=>{
-  let url=attendee.snapshot().slide.url;const before=f.imageOpens();await sql("UPDATE event_activities SET access_level='PAID' WHERE id=?",[activity]);assert.equal((await image(attendee,url)).status,403);assert.equal(f.imageOpens(),before);await sql("UPDATE event_activities SET access_level='FREE' WHERE id=?",[activity]);
-  const data=preparations.get(liveId);data.presenterLanguage='es';assert.equal((await image(stage,stage.snapshot().slide.url)).status,403);data.presenterLanguage='en';
-  await grants.revoke(admin,o1,a,attendee.access.getState().context.grantId);await f.grantSockets.reviewAll();await until(()=>attendee.access.getState().status==='denied','revoke');assert.equal(attendee.snapshot(),null);assert.ok([401,403].includes((await image(attendee,url)).status));assert.equal(f.imageOpens(),before);
+  let url=attendee.snapshot().slide.url;const before=f.imageOpens(),idleUrl=url.replace('/'+liveId+'/', '/'+otherLive+'/');
+  // Negative fixtures use an unbound Live. Periodic review must remain free to
+  // revoke actual observers without racing an unrelated later assertion.
+  await sql("UPDATE event_activities SET access_level='PAID' WHERE id=?",[otherActivity]);const denied=await image(attendee,idleUrl);assert.equal(denied.status,403);assert.equal((await denied.json()).code,'LIVE_ACCESS_DENIED');assert.equal(f.imageOpens(),before);await sql("UPDATE event_activities SET access_level='FREE' WHERE id=?",[otherActivity]);
+  const data=preparations.get(otherLive);data.presenterLanguage='es';const changed=await image(attendee,idleUrl);assert.equal(changed.status,403);assert.equal((await changed.json()).code,'CONTENT_VERSION_CHANGED');data.presenterLanguage='en';
+  await grants.revoke(admin,o1,a,attendeeGrantId);await f.grantSockets.reviewAll();await until(()=>attendee.access.getState().status==='denied','revoke');assert.equal(attendee.snapshot(),null);assert.ok([401,403].includes((await image(attendee,url)).status));assert.equal(f.imageOpens(),before);
   url=player.snapshot().slide.url;assert.equal(stage.access.getState().status,'ready');await stage.live.operate('finish');await until(()=>player.snapshot()===null,'finish');const ended=await sql('SELECT status,ended_at FROM event_live_sessions WHERE id=?',[liveId]);assert.equal(ended[0].status,'FINISHED');assert.ok(ended[0].ended_at);assert.equal(stage.commands.filter(n=>n==='events:lifecycle:finish').length,1);assert.equal((await image(player,url)).status,403);assert.equal(f.imageOpens(),before);
  });
  }finally{close();}
