@@ -419,7 +419,7 @@
       ensureLayer();
       ensureAudioContext();
       initCloud(); initBlobs(); buildSand(); buildKaleidoPts();
-      setLogo(DEFAULT_LOGO);
+      setLogo(options?.logoUrl || DEFAULT_LOGO);
     },
     setAudioElement(element) {
       audioEl = element || null;

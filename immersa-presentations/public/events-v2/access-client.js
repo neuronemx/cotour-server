@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.ImmersaEventAccess = factory();
-})(typeof window === 'object' ? window : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(() => require('./av-console'));
+  else root.ImmersaEventAccess = factory(() => root.ImmersaEventAVConsole);
+})(typeof window === 'object' ? window : this, function (getAV) {
   'use strict';
   const kinds = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
   const id = value => typeof value === 'string' && /^[a-f0-9-]{36}$/i.test(value);
@@ -108,6 +108,12 @@
       if (['events:raffle:enter','events:raffle:submit_poll_response'].includes(name)) for (const key of ['optionId','name']) if (Object.hasOwn(payload || {}, key)) fields[name] = [...fields[name], key];
       if (name === 'events:knowledge:join' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
+      if (name.startsWith('events:av:')) {
+        const action = name.slice(10);
+        if (!['snapshot','control','audio_react','overlay','draw','clear_message','clear_screen','react','ended','playlist_advance'].includes(action)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
+        if (!getAV().validCommand(action, payload)) return Promise.reject(failure('INVALID_COMMAND'));
+        fields[name] = Object.keys(payload);
+      }
       if (!Object.hasOwn(fields, name)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
       if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== fields[name].length
         || fields[name].some(key => !Object.hasOwn(payload, key))
@@ -248,7 +254,7 @@
           } catch (_) { denied(); }
         });
         for (const name of ['connect_error', 'disconnect', 'events:access_denied']) s.on(name, () => recover(s, version));
-        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state', 'events:raffle:state', 'events:game:state', 'events:time:state']) s.on(name, value => {
+        for (const name of ['events:live:state', 'events:lifecycle:finished', 'events:poll:state', 'events:qna:state', 'events:knowledge:state', 'events:raffle:state', 'events:game:state', 'events:time:state', 'events:av:state', 'events:av:reaction']) s.on(name, value => {
           if (socket === s && current(version) && status.status === 'ready') onEvent(name, value);
         });
         connectTimer = setTimeoutFn(() => recover(s, version), requestTimeoutMs);
