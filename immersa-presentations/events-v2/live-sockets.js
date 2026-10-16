@@ -9,7 +9,7 @@ const KNOWLEDGE_COMMANDS = Object.freeze(Object.fromEntries(['open', 'start', 'f
 const RAFFLE_COMMANDS = Object.freeze(Object.fromEntries(['configure_key', 'open', 'enter', 'submit_poll_response', 'close_entries', 'draw', 'reveal', 'close', 'reset_winners'].map(command => [`events:raffle:${command}`, command])));
 const GAME_COMMANDS = Object.freeze(Object.fromEntries(['configure', 'start_queue', 'skip', 'end', 'start', 'pause', 'resume', 'team_names', 'join_team', 'input'].map(command => [`events:game:${command}`, command])));
 const NAMES = ['events:live:join', 'events:live:snapshot', ...Object.keys(COMMANDS)];
-function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, lifecycle = null, credentials, enabled, disconnect }) {
+function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, slides = null, lifecycle = null, credentials, enabled, disconnect }) {
   const bindings = new WeakMap();
   function valid(payload, fields) {
     return payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -75,7 +75,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
             const knowledgeCode = name.startsWith('events:knowledge:') && ['INVALID_STATE', 'INVALID_NAME', 'NO_READY_PARTICIPANTS', 'PARTICIPANT_NOT_FOUND', 'TAB_NOT_ACTIVE', 'QUESTION_NOT_FOUND', 'OPTION_NOT_FOUND', 'DEADLINE_PASSED', 'DUPLICATE', 'NO_CONFIRMED_ANSWERS'].includes(error.code) ? `KNOWLEDGE_${error.code}` : code;
             const raffleCode = name.startsWith('events:raffle:') && error instanceof EventAccessError && error.code.startsWith('RAFFLE_')
               && error.code !== 'RAFFLE_STATE_INVALID' ? error.code : knowledgeCode;
-            const familyCode = /^(events:game:|events:time:|events:av:)/.test(name) && error instanceof EventAccessError && /^(GAME_|TIME_|AV_)/.test(error.code) ? error.code : raffleCode;
+            const familyCode = /^(events:game:|events:time:|events:av:|events:slides:)/.test(name) && error instanceof EventAccessError && /^(GAME_|TIME_|AV_|SLIDES_)/.test(error.code) ? error.code : raffleCode;
             const lifecycleCode = name.startsWith('events:lifecycle:') && error instanceof EventAccessError
               && ['LIFECYCLE_COMMAND_DENIED', 'LIFECYCLE_STATE_INVALID', 'STAGE_ALREADY_LIVE', 'RESOURCE_NOT_FOUND', 'INVALID_INPUT'].includes(error.code) ? error.code : familyCode;
             ackError(ack, lifecycleCode);
@@ -113,6 +113,15 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
     handler('events:live:snapshot', async (payload, ack) => {
       if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
       await deliver(socket, ack);
+    });
+    if (slides) handler('events:slides:snapshot', async (payload, ack) => {
+      if (!valid(payload, ['language']) || !['es','en'].includes(payload.language) || !bindings.has(socket)) throw new EventAccessError('SLIDES_INVALID_INPUT', 400);
+      // Personal read only: never changes operational language or Live state.
+      await runtime.deliver(grants, credentials.get(socket), bindings.get(socket), async (_live, context, db, prepared) => {
+        const snapshot = await slides.projection(context, db, bindings.get(socket), prepared, payload.language);
+        if (!socket.connected || !enabled()) throw new Error('LIVE_ACCESS_DENIED');
+        if (typeof ack === 'function') ack({ ok: true, snapshot });
+      });
     });
     if (av) {
       handler('events:av:snapshot', async (payload, ack) => {
@@ -254,6 +263,6 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
   }
   if (knowledge) knowledge.notify = fanout;
   if (av) av.notify = fanout;
-  return { attach, review, finishLive, names: [...NAMES, ...(lifecycle ? ['events:lifecycle:current', 'events:lifecycle:start', 'events:lifecycle:finish'] : []), ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : []), ...(av ? ['snapshot', 'control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].map(command => `events:av:${command}`) : [])] };
+  return { attach, review, finishLive, names: [...NAMES, ...(slides ? ['events:slides:snapshot'] : []), ...(lifecycle ? ['events:lifecycle:current', 'events:lifecycle:start', 'events:lifecycle:finish'] : []), ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : []), ...(av ? ['snapshot', 'control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].map(command => `events:av:${command}`) : [])] };
 }
 module.exports = { createLiveSocketAdapter };

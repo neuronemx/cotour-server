@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { createView } = require('../public/events-v2/knowledge-page');
 const html = fs.readFileSync(require.resolve('../events-v2/console.html'), 'utf8');
-function harness(kind = 'PARTICIPANT') {
+function harness(kind = 'PARTICIPANT',getLanguage=()=> 'es') {
   class Element {
     constructor(tag = '') { this.tagName = tag; this.children = []; this.handlers = {}; this.value = ''; this.open = false; }
     set innerHTML(_) { throw new Error('Unsafe HTML'); }
@@ -22,7 +22,7 @@ function harness(kind = 'PARTICIPANT') {
       questions: [{ id: 'q2', prompt: '<img>Second?', options: [{ id: 'a', label: '<script>A</script>' },{ id: 'b', label: 'B' }] },{ id: 'q1', prompt: 'First?', options: [{ id: 'c', label: 'C' },{ id: 'd', label: 'D' }] }], personalResult: null, submissionReceipt: null, resultsVisible: false, top10: [] } } };
   const controller = { getState: () => state, operate: (action, input) => sent.push({ action, input }), refresh: () => { reads++; }, availableActions: () => ['STAGE','SPEAKER'].includes(state.kind) ? ['start','finalize','cancel'] : [] };
   const document = { getElementById: id => e[id], createElement: tag => new Element(tag.toUpperCase()) };
-  const view = createView({ document, controller, now: () => time, setTimeoutFn: (fn, ms) => { const id = ++sequence; timers.set(id, { fn, ms }); return id; }, clearTimeoutFn: id => timers.delete(id) });
+  const view = createView({ document, controller, getLanguage, now: () => time, setTimeoutFn: (fn, ms) => { const id = ++sequence; timers.set(id, { fn, ms }); return id; }, clearTimeoutFn: id => timers.delete(id) });
   return { e, sent, timers, document, reads: () => reads, run: () => state.snapshot.execution, render(extra) { state = { ...state, ...extra }; view.render(state); },
     tick(ms) { time += ms; const entry = timers.entries().next().value; if (entry) { timers.delete(entry[0]); entry[1].fn(); } } };
 }
@@ -68,3 +68,5 @@ test('Player uses projected text and ranking without a second emergency listener
   assert.equal(e['knowledge-results'].children[0].textContent, '1. <script>Name</script> · 1/2 · 1.00 s');
   h.render({ status: 'waiting', kind: null, snapshot: null }); assert.equal(h.timers.size, 0); assert.equal(e['knowledge-question'].textContent, ''); assert.equal(e['knowledge-results'].children.length, 0);
 });
+
+test('prepared English title/questions/options keep current answer identity and fall back to Spanish',()=>{let language='es';const h=harness('PARTICIPANT',()=>language),r=h.run();r.titleEn='English evaluation';r.questions[0].en={prompt:'English question',options:{a:'English A'}};r.answers=[{questionId:'q2',optionId:'a'}];language='en';h.render({});assert.equal(h.e['knowledge-title'].textContent,'English evaluation');assert.equal(h.e['knowledge-question'].textContent,'English question');assert.equal(h.e['knowledge-options'].children[0].textContent,'English A');assert.equal(h.e['knowledge-options'].children[0]['aria-pressed'],'true');assert.equal(h.e['knowledge-options'].children[1].textContent,'B');h.e['knowledge-next'].fire('click');assert.equal(h.e['knowledge-question'].textContent,'First?');});

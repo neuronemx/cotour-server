@@ -28,6 +28,9 @@ const { pollSuite } = require('./helpers/events-v2-poll-suite');
 const { qnaSuite } = require('./helpers/events-v2-qna-suite');
 const { EventRaffleRuntime } = require('../events-v2/raffle-runtime');
 const { Readable } = require('node:stream');
+const { EventSlidesRuntime } = require('../events-v2/slides-runtime');
+const { createEventSlidesRouter } = require('../events-v2/slides-http');
+const {consoleSlidesSuite}=require('./helpers/events-v2-console-slides-suite');
 const { EventAVRuntime } = require('../events-v2/av-runtime');
 const { createEventAssetRouter } = require('../events-v2/asset-http');
 const { avSuite } = require('./helpers/events-v2-av-suite');
@@ -125,13 +128,16 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
         open: async (start, end) => { assetOpens++; return Readable.from([bytes.subarray(start, end + 1)]); } } : null;
     }, setTimeoutFn: callback => { const handle = {}; avTimers.set(handle, callback); return handle; }, clearTimeoutFn: handle => avTimers.delete(handle) });
   const lifecycle = new EventLifecycle({ grants, runtime, engines: [pollRuntime, knowledgeRuntime, raffleRuntime, gameRuntime, timeRuntime, avRuntime] });
-  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, games: gameRuntime, time: timeRuntime, av: avRuntime, lifecycle, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
+  const slideImages=new Map();let imageOpens=0;
+  const slidesRuntime=new EventSlidesRuntime({liveRuntime:runtime,readSlides:async p=>preparations.get(p.liveSessionId),readImage:async(p,r)=>{const bytes=slideImages.get(p.liveSessionId)?.get(r.assetId);return bytes?{verified:true,size:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),contentType:r.contentType,open:async(start,end)=>{imageOpens++;return Readable.from([bytes.subarray(start,end+1)]);}}:null;}});
+  const grantSockets = createEventGrantSockets({ io: sockets, grants, runtime, polls: pollRuntime, qna: qnaRuntime, knowledge: knowledgeRuntime, raffles: raffleRuntime, games: gameRuntime, time: timeRuntime, av: avRuntime, slides:slidesRuntime, lifecycle, enabled: () => domainEnabled && grantEnabled, reviewIntervalMs: 500 });
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json());
   app.use(boundary.httpMiddleware());
   app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
+  app.use('/api/events-v2', createEventSlidesRouter({grants,slides:slidesRuntime,enabled:()=>domainEnabled&&grantEnabled}));
   app.use('/api/events-v2', createEventAssetRouter({ grants, av: avRuntime, enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createGrantAccessRouter({ grants, lifecycle, grantSockets, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
@@ -337,7 +343,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     assert.ok([...sockets.of('/').sockets.values()].every(socket => ![...socket.rooms].some(room => room.includes(a))));
     programClient.close();
   });
-  const fixtures = { request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
+  const fixtures = { slidesRuntime,slideImages,imageOpens:()=>imageOpens,request, sql, grants, domain, grantSockets, sockets, base, ids, o1, o2, a, b, c, stageA, stageB, activityA, activityB, liveA, publicId,
     now: () => grantNow, setNow: value => { grantNow = value; }, setEnabled: value => { grantEnabled = value; }, preparations, runtime, pollRuntime, qnaRuntime, knowledgeRuntime, raffleRuntime, gameRuntime, timeRuntime, gameTimers, avRuntime, avTimers, avAssets, assetOpens: () => assetOpens, setAVClockOffset: value => { avClockOffset = value; }, avClockStart: () => avClockStart, gameClockStart: () => gameClockStart, setGameClockOffset: value => { gameClockOffset = value; }, raffleClockStart: () => raffleClockStart, setRaffleClockOffset: value => { raffleClockOffset = value; }, knowledgeClockStart: () => knowledgeClockStart, setKnowledgeClockOffset: value => { knowledgeClockOffset = value; }, setQnaClockOffset: value => { qnaClockOffset = value; }, preparationReads: () => preparationReads };
   await grantSuite(t, fixtures);
   await liveSuite(t, fixtures);
@@ -358,4 +364,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await consoleRaffleSuite(t, fixtures);
   await consoleGameTimeSuite(t, fixtures);
   await consoleAVSuite(t, fixtures);
+  await consoleSlidesSuite(t, fixtures);
 });

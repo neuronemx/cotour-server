@@ -3,13 +3,14 @@
   else root.ImmersaEventPollPage = factory();
 })(typeof window === 'object' ? window : this, function () {
   'use strict';
-  function createView({ document, controller }) {
+  function createView({ document, controller, getLanguage=()=>'es' }) {
     const $ = id => document.getElementById(id);
     let state = controller.getState(), selected = null, selectedRun = null, optionSignature = null, inputs = [];
     function render(value) {
       state = value;
       const usable = state.status === 'ready' && Boolean(state.snapshot), control = ['STAGE', 'SPEAKER'].includes(state.kind);
-      const snapshot = state.snapshot, active = snapshot?.active;
+      const snapshot = state.snapshot, active = snapshot?.active, english=getLanguage()==='en';
+      const translated=(es,en)=>english&&typeof en==='string'&&en.trim()?en:es||'';
       $('poll-panel').hidden = !usable && state.status !== 'loading' && state.status !== 'unavailable';
       $('poll-controls').hidden = !control || !usable;
       const catalogValue = $('poll-catalog').value;
@@ -19,7 +20,8 @@
         COMMAND_ACK_TIMEOUT: 'Estamos comprobando el estado de la acción.', POLL_CONTENT_NOT_PREPARED: 'Las encuestas aún no están preparadas.' };
       $('poll-status').textContent = state.code ? errors[state.code] || 'No se pudo completar la acción.'
         : !usable ? 'Comprobando encuestas…' : snapshot.response ? 'Respuesta registrada.' : active ? 'Encuesta abierta' : 'No hay encuesta abierta';
-      $('poll-question').textContent = active?.prompt || '';
+      $('poll-submit').textContent=english?'Submit answer':'Enviar respuesta';
+      $('poll-question').textContent = translated(active?.prompt,active?.en?.prompt);
       if (selectedRun !== snapshot?.pollRunId) { selected = null; selectedRun = snapshot?.pollRunId || null; }
       if (snapshot?.response) selected = snapshot.response.optionId;
       if (usable && control) {
@@ -33,14 +35,14 @@
       for (const id of ['poll-show', 'poll-hide', 'poll-close']) $(id).disabled = !usable || state.pending || !active;
       $('poll-submit').hidden = state.kind !== 'PARTICIPANT' || !active || !usable;
       $('poll-submit').disabled = state.pending || Boolean(snapshot?.response) || !selected;
-      const signature = usable && active && state.kind === 'PARTICIPANT' ? JSON.stringify([snapshot.pollRunId, active.options]) : null;
+      const signature = usable && active && state.kind === 'PARTICIPANT' ? JSON.stringify([snapshot.pollRunId, active.options, english, active.en]) : null;
       if (optionSignature !== signature) {
         optionSignature = signature; inputs = []; $('poll-options').replaceChildren();
       if (signature) {
         for (const row of active.options) {
           const label = document.createElement('label'), input = document.createElement('input'), text = document.createElement('span');
           input.type = 'radio'; input.name = 'event-poll-choice'; input.value = row.id; input.checked = selected === row.id;
-          input.disabled = state.pending || Boolean(snapshot.response); text.textContent = row.label;
+          input.disabled = state.pending || Boolean(snapshot.response); text.textContent = translated(row.label,active.en?.options?.[row.id]);
           input.addEventListener('change', () => { selected = row.id; render(state); }); inputs.push(input);
           label.append(input, text); $('poll-options').append(label);
         }
@@ -51,8 +53,8 @@
         const total = document.createElement('p'); total.textContent = 'Respuestas: ' + snapshot.results.totalResponses; $('poll-results').append(total);
         for (const row of snapshot.results.options) {
           const line = document.createElement('div'), text = document.createElement('p'), bar = document.createElement('progress');
-          text.textContent = row.label + ' · ' + row.count + ' (' + row.percentage + '%)';
-          bar.max = 100; bar.value = row.percentage; bar.setAttribute('aria-label', row.label); line.append(text, bar); $('poll-results').append(line);
+          text.textContent = translated(row.label,active?.en?.options?.[row.id]) + ' · ' + row.count + ' (' + row.percentage + '%)';
+          bar.max = 100; bar.value = row.percentage; bar.setAttribute('aria-label', translated(row.label,active?.en?.options?.[row.id])); line.append(text, bar); $('poll-results').append(line);
         }
       }
     }

@@ -6,7 +6,7 @@
   const labels = { LOBBY: 'Esperando participantes', COUNTDOWN: 'Preparados para comenzar', ACTIVE: 'Actividad en curso', PROCESSING: 'Procesando resultados…',
     PROCESSING_ERROR: 'No se pudo completar el procesamiento.', RESULTS_READY: 'Resultados listos para publicar', RESULTS_VISIBLE: 'Resultados publicados', CLOSED: 'Actividad cerrada', CANCELLED: 'Actividad cancelada' };
   const actions = { start: 'Iniciar', finalize: 'Finalizar actividad', cancel: 'Cancelar actividad', show_results: 'Mostrar resultados', close: 'Cerrar resultados', retry_processing: 'Reintentar procesamiento', force_results: 'Forzar resultados' };
-  function createView({ document, controller, now = Date.now, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
+  function createView({ document, controller, getLanguage=()=> 'es', now = Date.now, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
     const $ = id => document.getElementById(id);
     let state, runId = null, index = 0, signature = null, options = [], savedName = null, timer = null, timingKey = null, receivedAt = 0, confirmation = null;
     function deadline(r) { return r?.state === 'COUNTDOWN' ? r.countdownDeadlineAt : r?.state === 'PROCESSING' ? r.processingReadyAt || r.processingDeadlineAt
@@ -23,6 +23,7 @@
     const appendText = (parent, tag, value) => { const node = document.createElement(tag); node.textContent = value; parent.append(node); return node; };
     function render(value) {
       state = value;
+      const english=getLanguage()==='en',translated=(es,en)=>english&&typeof en==='string'&&en.trim()?en:es||'';
       const s = state.snapshot, r = s?.execution, usable = state.status === 'ready' && Boolean(s), publicView = state.kind === 'PARTICIPANT';
       const operator = ['STAGE','SPEAKER'].includes(state.kind), ended = !r || ['CLOSED','CANCELLED'].includes(r.state);
       if (runId !== r?.executionId) { runId = r?.executionId || null; index = r?.participant?.currentQuestionIndex || 0; savedName = null; }
@@ -30,7 +31,7 @@
       if (timingKey !== nextTiming) { timingKey = nextTiming; receivedAt = now(); }
       $('knowledge-panel').hidden = state.kind === 'PLAYER' ? !usable || ended : state.status === 'waiting';
       $('knowledge-controls').hidden = !operator || !usable;
-      $('knowledge-title').textContent = usable ? r?.title || '' : '';
+      $('knowledge-title').textContent = usable ? translated(r?.title,r?.titleEn) : '';
       const errors = { INTERACTION_BUSY: 'Hay otra interacción activa.', KNOWLEDGE_NO_READY_PARTICIPANTS: 'Espera a que una persona pulse Entrar.',
         KNOWLEDGE_TAB_NOT_ACTIVE: 'La actividad está activa en otra pestaña.', KNOWLEDGE_STALE_REVISION: 'La actividad cambió. Estamos comprobando el estado.',
         KNOWLEDGE_STALE_EXECUTION: 'Hay una nueva actividad.', KNOWLEDGE_DUPLICATE: 'La respuesta ya está registrada.', KNOWLEDGE_DEADLINE_PASSED: 'El tiempo para responder terminó.',
@@ -60,13 +61,13 @@
       const qs = publicView ? r?.category === 'assessment' ? r.questions || [] : r?.currentQuestion ? [r.currentQuestion] : [] : [];
       index = Math.max(0, Math.min(index, qs.length - 1));
       const q = publicView ? qs[index] : r?.currentQuestion;
-      $('knowledge-question').textContent = usable && q ? q.prompt : '';
+      $('knowledge-question').textContent = usable && q ? translated(q.prompt,q.en?.prompt||q.promptEn) : '';
       $('knowledge-progress').textContent = p && r.questionCount ? (r.category === 'assessment' && qs.length ? index + 1 : (r.questionIndex ?? 0) + 1) + '/' + r.questionCount : '';
-      const nextSignature = usable && publicView && p && q ? JSON.stringify([r.executionId,q.id,q.options]) : null;
+      const nextSignature = usable && publicView && p && q ? JSON.stringify([r.executionId,q.id,q.options,english,q.en]) : null;
       if (signature !== nextSignature) {
         signature = nextSignature; options = []; $('knowledge-options').replaceChildren();
         if (nextSignature) for (const option of q.options) {
-          const button = document.createElement('button'); button.type = 'button'; button.textContent = option.label;
+          const button = document.createElement('button'); button.type = 'button'; button.textContent = translated(option.label,q.en?.options?.[option.id]);
           button.addEventListener('click', () => controller.operate('answer', { questionId: q.id, optionId: option.id }));
           options.push({ button, id: option.id }); $('knowledge-options').append(button);
         }
@@ -84,8 +85,8 @@
       $('knowledge-receipt').textContent = p && r.submissionReceipt ? 'Evaluación enviada · ' + r.submissionReceipt.answeredCount + '/' + r.submissionReceipt.totalQuestions + ' respuestas · ' + new Date(r.submissionReceipt.submittedAt).toLocaleString('es-MX') : '';
       $('knowledge-results').replaceChildren();
       if (usable && r?.reveal) {
-        const correctLabel = publicView ? r.currentQuestion?.options.find(o => o.id === r.reveal.correctOptionId)?.label : r.reveal.correctLabel;
-        appendText($('knowledge-results'), 'p', 'Respuesta correcta: ' + (correctLabel || ''));
+        const correctLabel = publicView ? translated(r.currentQuestion?.options.find(o => o.id === r.reveal.correctOptionId)?.label,r.currentQuestion?.en?.options?.[r.reveal.correctOptionId]) : translated(r.reveal.correctLabel,r.reveal.correctLabelEn);
+        appendText($('knowledge-results'), 'p', (english?'Correct answer: ':'Respuesta correcta: ') + (correctLabel || ''));
       }
       if (usable && r?.top10?.length) for (const row of r.top10) appendText($('knowledge-results'), 'p', row.position + '. ' + row.label + ' · ' + row.correctCount + '/' + row.totalQuestions + ' · ' + (row.correctTimeMs / 1000).toFixed(2) + ' s');
       if (usable && operator && r?.result) appendText($('knowledge-results'), 'p', 'Resultados: ' + r.result.participantCount + ' participantes' + (r.result.averageGrade === null ? '' : ' · Promedio: ' + r.result.averageGrade));

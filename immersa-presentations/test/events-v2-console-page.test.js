@@ -31,6 +31,7 @@ function page(kind = 'STAGE', purpose = 'live') {
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     fire(name, event = {}) { for (const fn of this.listeners[name] || []) fn(event); }
     append(...items) { this.children.push(...items); }
+    removeAttribute(name){delete this[name];}
     setAttribute(name, value) { this[name] = value; }
     replaceChildren() { this.children = []; }
     showModal() { this.open = true; }
@@ -41,6 +42,7 @@ function page(kind = 'STAGE', purpose = 'live') {
   const window = new Element(), sent = []; let options, controller, generation = 0, resumes = 0;
   window.history = { replaceState() {} }; window.location = { pathname: '/generic', reload() {} }; window.fetch = async () => {}; window.io = () => {};
   window.ImmersaEventLiveConsole = { ...consoleModule, createController: args => (controller = consoleModule.createController(args)) };
+  window.ImmersaEventSlidesConsole=require('../public/events-v2/slides-console');window.ImmersaEventSlidesPage=require('../public/events-v2/slides-page');
   window.ImmersaEventAVConsole=avModule;window.ImmersaEventAVPage=avPage;
   window.ImmersaEventGameTimeConsole = gameTimeModule; window.ImmersaEventGameTimePage = gameTimePage;
   window.ImmersaEventRaffleConsole = raffleModule; window.ImmersaEventRafflePage = rafflePage;
@@ -50,7 +52,7 @@ function page(kind = 'STAGE', purpose = 'live') {
   const access = { start() { options.onState({ status: 'connecting' }); }, close() { options.onState({ status: 'closed' }); }, resume() { resumes++; options.onState({ status: 'connecting' }); },
     command: async (name, payload) => { sent.push({ name, payload }); return name === 'events:lifecycle:finish'
       ? { ok: true, liveSession: { eventId, liveSessionId, status: 'FINISHED' } }
-      : name === 'events:poll:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, pollRunId: null, active: null, resultsVisible: false, available: [], results: null, response: null } }
+      : name === 'events:slides:snapshot' ? {ok:false,code:'SLIDES_CONTENT_NOT_PREPARED'} : name === 'events:poll:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, pollRunId: null, active: null, resultsVisible: false, available: [], results: null, response: null } }
         : name === 'events:qna:snapshot' ? { ok: true, snapshot: { eventId, liveSessionId, revision: 0, roundId: null, roundNumber: 0, questionsOpen: false, displayName: 'Own', hasSubmitted: false, questionId: null, cooldownRemainingMs: 0, screen: { visible: false, question: null }, questions: [], selectedQuestionId: null, availableQuestions: [] } }
         : name === 'events:av:snapshot' ? {ok:true,snapshot:{eventId,liveSessionId,revision:0,overlays:{messageVisible:false,messageText:'',showReactions:true,reactionsOnScreen:true,qrVisible:false,publicId:null},strokes:[],audioReact:{enabled:false,reaction:0,updatedAt:100000},channels:Object.fromEntries(['audio','video'].map(type=>[type,{resource:null,status:'stopped',loop:false,volume:1,position:0,startedAt:null,updatedAt:100000,playbackId:null,fadeAt:null}])),available:[],playlists:[],reactionCounts:{'❤️':0,'👏':0,'🔥':0},reactions:[]}}
         : name === 'events:game:snapshot' ? { ok: true, snapshot: {eventId,liveSessionId,revision:0,queueRunId:null,game:null,queue:{status:'idle',selected:[],current_game_type:'',current_index:-1,next_game_type:'',transition_at_ms:null,locked:false,revision:0,catalog:[]}} }
@@ -99,7 +101,7 @@ test('real page handlers expose controller navigation only to Stage/Speaker; Par
     assert.equal(h.sent.some(row => row.name === 'events:slide:go'), ['STAGE', 'SPEAKER'].includes(kind));
     h.elements.pause.fire('click'); await settle();
     assert.equal(h.sent.some(row => row.name === 'events:presentation:pause'), ['STAGE', 'SPEAKER'].includes(kind));
-    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.filter(row => !/^events:(poll|qna|knowledge|raffle|game|time|av):/.test(row.name)).length, 1); }
+    if (kind === 'PARTICIPANT') { h.elements.next.fire('click'); await settle(); assert.equal(h.sent.filter(row => !/^events:(poll|qna|knowledge|raffle|game|time|av|slides):/.test(row.name)).length, 1); }
   }
 });
 
@@ -107,7 +109,7 @@ test('Player emergency keyboard excludes typing, modifiers and repeats; unavaila
   const h = page('PLAYER', 'player'); h.ready(); await settle();
   let prevented = 0; const key = { key: 'ArrowRight', target: { tagName: 'BODY' }, preventDefault() { prevented++; } };
   for (const extra of [{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }, { target: { tagName: 'INPUT' } }, { target: { tagName: 'SELECT' } }]) h.document.fire('keydown', { ...key, ...extra });
-  assert.equal(h.sent.filter(row => !/^events:(poll|qna|knowledge|raffle|game|time|av):/.test(row.name)).length, 1); h.document.fire('keydown', key); await settle();
+  assert.equal(h.sent.filter(row => !/^events:(poll|qna|knowledge|raffle|game|time|av|slides):/.test(row.name)).length, 1); h.document.fire('keydown', key); await settle();
   assert.equal(h.sent.at(-1).name, 'events:slide:next'); assert.equal(prevented, 1);
   h.deny(); h.document.fire('keydown', key); await settle(); assert.equal(h.sent.filter(row => row.name === 'events:slide:next').length, 1);
   const rehearsal = page('SPEAKER', 'rehearsal'); rehearsal.ready([]); await settle();
