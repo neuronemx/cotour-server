@@ -6,6 +6,10 @@
   <meta name="referrer" content="no-referrer">
   <title>Acceso · IMMERSA Eventos</title>
   <link rel="stylesheet" href="/events-v2/console.css">
+  <script defer src="/events-v2/av-console.js"></script>
+  <script defer src="/screen/audio-react-three.js"></script>
+  <script defer src="/screen/audio-react-overlay.js"></script>
+  <script defer src="/events-v2/av-page.js"></script>
   <script defer src="/events-v2/access-client.js"></script>
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/events-v2/live-console.js"></script>
@@ -127,8 +131,17 @@
         <button id="time-screen-stop" type="button">Pausar tiempo</button><button id="time-screen-resume" type="button">Continuar tiempo</button><button id="time-screen-reset" type="button">Reiniciar tiempo</button><button id="time-screen-hide" type="button">Ocultar tiempo</button></div></div>
         <div id="time-speaker" hidden><h3>Cronómetro de Speaker</h3><output id="time-speaker-output" role="timer" aria-live="off"></output><div class="controls"><button id="time-speaker-start" type="button">Iniciar cronómetro</button><button id="time-speaker-stop" type="button">Detener cronómetro</button><button id="time-speaker-reset" type="button">Reiniciar cronómetro</button></div></div>
       </section>
+      <section id="av-panel" hidden aria-label="Audiovisual"><h2>Audiovisual</h2><p id="av-status" role="status"></p>
+        <div id="av-operator" hidden><div class="controls"><label>Medio <select id="av-catalog"></select></label><button id="av-select" type="button">Reproducir</button><label>Lista <select id="av-playlists"></select></label><button id="av-select-playlist" type="button">Reproducir lista</button><label>Volumen <input id="av-volume" type="range" min="0" max="100" value="100"></label></div>
+        <div id="av-channel-controls"></div><label>Mensaje <textarea id="av-message" maxlength="2000"></textarea></label><div class="controls"><button id="av-show-message" type="button">Mostrar mensaje</button><button id="av-clear-message" type="button">Borrar mensaje</button><button id="av-clear-screen" type="button">Limpiar overlays</button><button id="av-reactions-toggle" type="button">Reacciones</button></div>
+        <div class="controls"><label>Audio React <select id="av-react-mode"></select></label><button id="av-react-toggle" type="button">Audio React</button><button id="av-react-next" type="button">Siguiente Audio React</button><label><input id="av-drawing-enabled" type="checkbox">Dibujar</label></div><p id="av-counts"></p></div>
+        <div id="av-output" hidden><video id="av-video" playsinline preload="metadata" hidden></video><audio id="av-audio" preload="metadata"></audio><div id="av-react-layer"></div><canvas id="av-drawing" width="960" height="540" aria-label="Trazo sobre la presentación"></canvas><p id="av-message-output" hidden></p><div id="av-reactions-output"></div></div>
+        <button id="av-activate" type="button" hidden>Activar audio y video</button><p id="av-media-status" role="status"></p>
+        <div id="av-public-reactions" class="controls" hidden><button id="av-heart" type="button" aria-label="Enviar corazón">❤️</button><button id="av-clap" type="button" aria-label="Enviar aplauso">👏</button><button id="av-fire" type="button" aria-label="Enviar fuego">🔥</button></div><output id="av-own-reaction" aria-live="polite"></output>
+      </section>
       <div id="interaction-emergency" hidden role="menu"><button id="interaction-emergency-action" type="button" role="menuitem"></button></div>
     </section>
+    <dialog id="av-confirm-dialog" aria-labelledby="av-confirm-title"><h2 id="av-confirm-title"></h2><div class="controls"><button id="av-cancel" type="button">Cancelar</button><button id="av-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="game-time-confirm-dialog" aria-labelledby="game-time-confirm-title"><h2 id="game-time-confirm-title"></h2><div class="controls"><button id="game-time-cancel" type="button">Cancelar</button><button id="game-time-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="raffle-confirm-dialog" aria-labelledby="raffle-confirm-title"><h2 id="raffle-confirm-title"></h2><p id="raffle-confirm-detail"></p><div class="controls"><button id="raffle-cancel-confirm" type="button">Cancelar</button><button id="raffle-confirm" type="button">Confirmar</button></div></dialog>
     <dialog id="knowledge-confirm-dialog" aria-labelledby="knowledge-confirm-title">

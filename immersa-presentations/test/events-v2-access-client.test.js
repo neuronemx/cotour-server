@@ -250,3 +250,12 @@ test('stale socket state cannot reach a controller after reconnect or close', as
   h.client.close(); h.sockets[1].deliver('events:live:state', { revision: 999 });
   assert.deepEqual(delivered, [{ name: 'events:live:state', value: { revision: 1 } }]);
 });
+
+
+test('AV transport validates exact payloads, nested drawing, bounded controls and retired socket reactions',async()=>{
+ const events=[],sent=[],h=harness({onEvent:n=>events.push(n),commandHandler:(n,p,ack)=>{sent.push(n);ack({ok:true});}});await h.client.start(token);
+ const commands=[['snapshot',{}],['control',{action:'select',resourceId:'x'.repeat(120),loop:false}],['control',{action:'select_playlist',playlistId:'list',loop:true}],['control',{action:'volume',volume:.4}],...['play','pause','stop','fade-stop'].map(action=>['control',{action,type:'audio',playbackId:otherId}]),['control',{action:'seek',type:'video',playbackId:otherId,position:3}],['control',{action:'loop',type:'video',playbackId:otherId,loop:true}],['audio_react',{action:'next',enabled:true}],['audio_react',{action:'set',reaction:11,enabled:true}],['overlay',{messageText:'<img>',messageVisible:true}],['draw',{slideIndex:0,points:[{x:0,y:0},{x:1,y:1}],width:.009,ttl:4200}],['react',{emoji:'❤️'}],['ended',{type:'audio',playbackId:otherId}],['playlist_advance',{type:'video',playbackId:otherId}],['clear_message',{}],['clear_screen',{}]];
+ for(const [a,p]of commands){assert.equal((await h.client.command('events:av:'+a,p)).ok,true);await assert.rejects(h.client.command('events:av:'+a,{...p,role:'STAGE'}),{code:'INVALID_COMMAND'});}
+ for(const [a,p]of [['control',{action:'select',resourceId:'https://bad',loop:false}],['control',{action:'volume',volume:NaN}],['control',{action:'seek',type:'audio',playbackId:otherId,position:-1}],['draw',{slideIndex:0,points:[{x:0,y:0},{x:1,y:1,actorId:otherId}],width:.009,ttl:4200}],['overlay',{messageText:'x'.repeat(2001)}],['audio_react',{action:'set',reaction:12,enabled:true}],['react',{emoji:'😀'}]])await assert.rejects(h.client.command('events:av:'+a,p),{code:'INVALID_COMMAND'});
+ const old=h.sockets[0];old.deliver('events:av:state',{});old.deliver('events:av:reaction',{});h.client.close();old.deliver('events:av:reaction',{});assert.deepEqual(events,['events:av:state','events:av:reaction']);assert.equal(sent.length,commands.length);
+});

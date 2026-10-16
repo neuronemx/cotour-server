@@ -36,7 +36,7 @@ function createEventConsolePages({ enabled = () => false } = {}) {
   const router = express.Router();
   router.use('/console', (_req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" });
+      'Content-Security-Policy': "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js; style-src 'self'; media-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" });
     if (!enabled()) return res.status(404).json({ code: 'EVENTS_V2_DISABLED' });
     next();
   });

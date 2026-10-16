@@ -21,6 +21,8 @@ test('console pages are generic, flag-gated and isolated from legacy paths and p
     assert.equal(page.status, 200); assert.equal(page.headers.get('cache-control'), 'no-store');
     assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
     assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    assert.match(page.headers.get('content-security-policy'), /media-src 'self'; img-src 'self'/);
+    assert.equal(page.headers.get('content-security-policy').includes('unsafe-inline'),false);
     const body = await page.text(); assert.match(body, /Verificando acceso/); assert.match(body, /access-client\.js/);
     assert.equal(body.includes('join_presentation'), false); assert.equal(body.includes(e), false); assert.equal(body.includes(g), false);
   }
