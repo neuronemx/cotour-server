@@ -49,3 +49,5 @@ dialog::backdrop { background: #000a; }
 #knowledge-results p { line-height: 1.5; }
 
 #raffle-options{display:grid;gap:.75rem}#raffle-options button[aria-pressed="true"]{outline:3px solid currentColor}#raffle-name{width:100%;max-width:24rem;font-size:1rem}#raffle-receipt,#raffle-winner{overflow-wrap:anywhere;font-size:1.25rem}#raffle-catalog,#raffle-key{max-width:100%}
+
+#game-board{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#10172b;border-radius:1rem}#game-board[hidden]{display:none}#game-catalog label{display:flex;gap:.65rem;align-items:center}#game-inputs button{touch-action:none;user-select:none;min-width:6rem;min-height:5rem}#game-inputs button:active{background:#315bdd}#time-screen-output{font-size:clamp(2rem,10vw,7rem);font-variant-numeric:tabular-nums;display:block;text-align:center}#time-screen-output[hidden]{display:none}#time-duration input{width:5rem}#time-speaker-output{font-variant-numeric:tabular-nums;font-size:2rem}#game-team-names input{max-width:16rem}

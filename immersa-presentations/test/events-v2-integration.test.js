@@ -50,6 +50,7 @@ const { consoleSuite } = require('./helpers/events-v2-console-suite');
 const { consoleControlsSuite } = require('./helpers/events-v2-console-controls-suite');
 const { consolePollsSuite } = require('./helpers/events-v2-console-polls-suite');
 const { consoleQnaSuite } = require('./helpers/events-v2-console-qna-suite');
+const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
 
@@ -354,4 +355,5 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await consoleQnaSuite(t, fixtures);
   await consoleKnowledgeSuite(t, fixtures);
   await consoleRaffleSuite(t, fixtures);
+  await consoleGameTimeSuite(t, fixtures);
 });
