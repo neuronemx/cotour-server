@@ -50,7 +50,7 @@ async function consoleSlidesSuite(t,f){
   let url=attendee.snapshot().slide.url;const before=f.imageOpens();await sql("UPDATE event_activities SET access_level='PAID' WHERE id=?",[activity]);assert.equal((await image(attendee,url)).status,403);assert.equal(f.imageOpens(),before);await sql("UPDATE event_activities SET access_level='FREE' WHERE id=?",[activity]);
   const data=preparations.get(liveId);data.presenterLanguage='es';assert.equal((await image(stage,stage.snapshot().slide.url)).status,403);data.presenterLanguage='en';
   await grants.revoke(admin,o1,a,attendee.access.getState().context.grantId);await f.grantSockets.reviewAll();await until(()=>attendee.access.getState().status==='denied','revoke');assert.equal(attendee.snapshot(),null);assert.ok([401,403].includes((await image(attendee,url)).status));assert.equal(f.imageOpens(),before);
-  url=player.snapshot().slide.url;assert.equal(await stage.live.operate('finish'),true);await until(()=>player.snapshot()===null,'finish');assert.equal((await image(player,url)).status,403);assert.equal(f.imageOpens(),before);
+  url=player.snapshot().slide.url;assert.equal(stage.access.getState().status,'ready');await stage.live.operate('finish');await until(()=>player.snapshot()===null,'finish');const ended=await sql('SELECT status,ended_at FROM event_live_sessions WHERE id=?',[liveId]);assert.equal(ended[0].status,'FINISHED');assert.ok(ended[0].ended_at);assert.equal(stage.commands.filter(n=>n==='events:lifecycle:finish').length,1);assert.equal((await image(player,url)).status,403);assert.equal(f.imageOpens(),before);
  });
  }finally{close();}
 }
