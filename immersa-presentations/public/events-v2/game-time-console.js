@@ -4,7 +4,7 @@
 })(typeof window === 'object' ? window : this, function () {
   'use strict';
   const integer = v => Number.isSafeInteger(v) && v >= 0;
-  const number = v => Number.isFinite(v) && Math.abs(v) <= 1e12;
+  const number = v => Number.isFinite(v) && Math.abs(v) <= Number.MAX_SAFE_INTEGER;
   const uuid = v => typeof v === 'string' && /^[a-f0-9-]{36}$/i.test(v);
   const text = (v, max) => typeof v === 'string' && v.trim() && v.length <= max;
   const kinds = ['STAGE', 'SPEAKER', 'PLAYER', 'PARTICIPANT'];
@@ -12,7 +12,7 @@
   const check = value => { if (!value) throw Object.assign(new Error('INVALID_GAME_TIME_RESPONSE'), { code: 'INVALID_GAME_TIME_RESPONSE' }); };
   const freeze = Object.freeze;
   function numeric(source, fields) {
-    check(source && fields.every(k => number(source[k])));
+    check(source && fields.every(k => number(source[k]) && Math.abs(source[k]) <= 10));
     return freeze(Object.fromEntries(fields.map(k => [k, source[k]])));
   }
   function teams(source) {

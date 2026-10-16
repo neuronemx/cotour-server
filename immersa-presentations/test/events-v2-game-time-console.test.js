@@ -69,3 +69,9 @@ test('finish and unavailable preparation clear controls, while lower Time timest
  const h=await harness('SPEAKER');await h.timer.operate('start',{target:'screen',mode:'clock'});const older=await h.raw('time');h.clock(101000);await h.push('time');h.timer.receive('events:time:state',older);assert.equal(h.timer.getState().snapshot.serverNow,101000);
  for(const c of [h.game,h.timer]){c.updateLive({status:'finished',snapshot:null});assert.equal(c.getState().snapshot,null);assert.deepEqual(c.emergencyActions(),[]);}
 });
+
+test('current epoch timestamps are valid for Time and automatic game transitions while geometry stays bounded',async()=>{
+ const h=await harness();const epoch=1792114591266;h.clock(epoch);await h.push('time');assert.equal(h.timer.getState().status,'ready');assert.equal(h.timer.getState().snapshot.serverNow,epoch);
+ await h.game.operate('configure',{selected:['breakout','pong']});await h.game.operate('start_queue');await h.game.operate('start');h.clock(epoch+4001);await h.command('tick',{});h.clock(epoch+5002);await h.command('tick',{});await h.push();assert.equal(h.game.getState().status,'ready');assert.ok(h.game.getState().snapshot.queue.transition_at_ms>epoch);
+ const bad=await h.raw('game');bad.game.ball.x=1e9;h.game.receive('events:game:state',bad);assert.equal(h.game.getState().status,'unavailable');
+});
