@@ -154,6 +154,13 @@ function resolveLocalMediaUrl(resource) {
 function resolveAudiovisualMediaUrl(resource) {
   return resource?.source === "local" ? resolveLocalMediaUrl(resource) : resource?.media_url || "";
 }
+function isWebMAudiovisualResource(resource) {
+  const file = resource?.source === "local" ? localLibrary.files.get(String(resource.id || "")) : null;
+  const path = String(resource?.media_url || "").split(/[?#]/, 1)[0];
+  return file
+    ? /\.webm$/i.test(file.name || "") || /^video\/webm(?:;|$)/i.test(file.type || "")
+    : /\.webm$/i.test(path);
+}
 async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
@@ -296,6 +303,8 @@ function applyVideoState(state) {
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
     const token = ++videoTransitionToken;
     incoming.pause();
+    // Blob URLs have no extension; inspect the original local file for WebM alpha.
+    incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
     incoming.dataset.resourceId = nextId;
     incoming.src = mediaUrl;
     incoming.currentTime = 0;
