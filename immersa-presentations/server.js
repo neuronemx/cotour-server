@@ -1083,7 +1083,7 @@ app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
   grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository, deckPreparations: eventDeckPreparations,
-  enabled: process.env.IMMERSA_EVENTS_V2_ENABLED === "true"
+  enabled: eventGrantsEnabled
 }));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {
   const deckId = String(req.params.deckId || "");
