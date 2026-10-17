@@ -244,24 +244,23 @@ async function normalizeRenderedImages(sourceDir, targetDir, withMetadata = fals
   return normalized;
 }
 
-async function renderPdf(pdfPath, outputDir, prefix, width, quality) {
+async function renderPdf(pdfPath, outputDir, prefix, width, quality, boundDimensions = false) {
   await fs.promises.mkdir(outputDir, { recursive: true });
   await execFileAsync('pdftoppm', [
     '-jpeg',
     '-r', '150',
-    '-scale-to-x', String(width),
-    '-scale-to-y', '-1',
+    ...(boundDimensions ? ['-scale-to', String(width)] : ['-scale-to-x', String(width), '-scale-to-y', '-1']),
     '-jpegopt', 'quality=' + quality,
     pdfPath,
     path.join(outputDir, prefix)
   ], { timeout: 120000 });
 }
 
-async function convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType, sourceFilename, titlePrefix, ratio }) {
+async function convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType, sourceFilename, titlePrefix, ratio, workRoot = DATA_TMP_DIR, boundDimensions = false }) {
   await assertPdftoppm();
   // Input PDFs for locale variants live under DATA_TMP_DIR too. A unique
   // rendering directory must never overlap the staged Deck or its source.
-  const workDir = path.join(DATA_TMP_DIR, 'pdf-render-' + crypto.randomUUID());
+  const workDir = path.join(workRoot, 'pdf-render-' + crypto.randomUUID());
   const fullRawDir = path.join(workDir, 'full');
   const thumbRawDir = path.join(workDir, 'thumbs');
   const slidesDir = path.join(deckDir, 'slides');
@@ -273,8 +272,8 @@ async function convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType, sour
     await fs.promises.mkdir(slidesDir, { recursive: true });
     await fs.promises.mkdir(thumbsDir, { recursive: true });
 
-    await renderPdf(pdfPath, fullRawDir, 'slide', 1920, 85);
-    await renderPdf(pdfPath, thumbRawDir, 'slide', 320, 75);
+    await renderPdf(pdfPath, fullRawDir, 'slide', 1920, 85, boundDimensions);
+    await renderPdf(pdfPath, thumbRawDir, 'slide', 320, 75, boundDimensions);
 
     const slideFiles = await normalizeRenderedImages(fullRawDir, slidesDir, true);
     const thumbFiles = await normalizeRenderedImages(thumbRawDir, thumbsDir);
@@ -323,8 +322,8 @@ async function convertDeckPptx({ deckDir, pptxPath, manifest }) {
   return convertPdfToSlides({ deckDir, pdfPath: path.join(pdfDir, pdfFiles[0]), manifest, sourceType: 'pptx', sourceFilename: 'original.pptx', titlePrefix: 'Slide', ratio: '16:9' });
 }
 
-async function convertDeckPdf({ deckDir, pdfPath, manifest }) {
-  return convertPdfToSlides({ deckDir, pdfPath, manifest, sourceType: 'pdf', sourceFilename: 'original.pdf', titlePrefix: 'Pagina', ratio: 'mixed' });
+async function convertDeckPdf({ deckDir, pdfPath, manifest, workRoot, boundDimensions }) {
+  return convertPdfToSlides({ deckDir, pdfPath, manifest, workRoot, boundDimensions, sourceType: 'pdf', sourceFilename: 'original.pdf', titlePrefix: 'Pagina', ratio: 'mixed' });
 }
 
 async function directorySizeBytes(directory) {

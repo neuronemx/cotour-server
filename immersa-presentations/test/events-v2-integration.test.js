@@ -57,6 +57,8 @@ const {consoleAVSuite}=require('./helpers/events-v2-console-av-suite');
 const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
+const { EventDeckPreparationService } = require('../events-v2/deck-preparation-service');
+const { deckPreparationSuite } = require('./helpers/events-v2-deck-preparation-suite');
 const { decksSuite } = require('./helpers/events-v2-decks-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
@@ -144,7 +146,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
   const reports = new EventReportsRepository({ domain, enabled: () => domainEnabled && grantEnabled });
-  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets, reports });
+  const deckPreparations = new EventDeckPreparationService({ domain, root: path.join(localDir, "private-decks"), enabled: () => domainEnabled && grantEnabled });
+  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: true, grants, grantSockets, reports, deckPreparations });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
   app.get('/api/access-links/:access_token', links.resolveAccessLink);
@@ -240,6 +243,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await sql('INSERT INTO event_public_qrs (id,event_workspace_id,public_id,audience_level) VALUES (?,?,?,?)', [crypto.randomUUID(), a, publicId, 'FREE']);
 
   await decksSuite(t, { request, sql, domain, ids, o1, o2, a, b, c, boundary, perimeterDataDir, perimeterPublicDir,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
+  await deckPreparationSuite(t, { request, sql, domain, ids, cookies, base, o1, a, b, deckPreparations,
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await t.test('migrations re-run; recover when the last migration already partially created tables', async () => {
