@@ -5,6 +5,7 @@ const { attachEventReports } = require('./reports-http');
 const { attachDeckPreparationRoutes } = require('./deck-preparation-http');
 const { EventActivityDeckRepository } = require('./activity-deck-repository');
 const { EventDeckRepository } = require('./deck-repository');
+const { EventDeckConfigurationService } = require('./deck-configuration');
 
 function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null }) {
   const router = express.Router();
@@ -58,6 +59,17 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     router.post(eventPath + '/decks/:deckId/versions', requireOrigin, handle((req, actor) => decks.createVersion(actor, ...args(req), req.params.deckId), [], 201));
   }
   attachDeckPreparationRoutes(router, deckPreparations, eventPath);
+  if (deckPreparations) {
+    const configurations = new EventDeckConfigurationService({ preparations: deckPreparations });
+    const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId,
+      deckId: req.params.deckId, versionId: req.params.versionId });
+    const configPath = eventPath + '/decks/:deckId/versions/:versionId/configuration';
+    const noQuery = req => { if (Object.keys(req.query).length) throw new EventAccessError('INVALID_FIELDS', 400); };
+    router.get(configPath, handle((req, actor) => { noQuery(req); return configurations.get(actor, scope(req)); }));
+    router.post(configPath, requireOrigin, handle((req, actor) => {
+      noQuery(req); return configurations.create(actor, scope(req), req.body);
+    }, ['slides', 'polls', 'knowledge', 'raffles', 'games'], 201));
+  }
   if (repository) {
     const bindings = new EventActivityDeckRepository({ domain: repository,
       enabled: () => typeof enabled === 'function' ? enabled() : enabled });

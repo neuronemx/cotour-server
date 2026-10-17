@@ -57,6 +57,7 @@ const {consoleAVSuite}=require('./helpers/events-v2-console-av-suite');
 const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
+const { configurationSuite } = require('./helpers/events-v2-configuration-suite');
 const { activityDeckSuite } = require('./helpers/events-v2-activity-deck-suite');
 const { EventDeckPreparationService } = require('../events-v2/deck-preparation-service');
 const { deckPreparationSuite } = require('./helpers/events-v2-deck-preparation-suite');
@@ -138,7 +139,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
-  app.use(express.json());
+  app.use(express.json({ limit: '2mb' })); // Match server transport; authored configuration has its own smaller bound.
   app.use(boundary.httpMiddleware());
   app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createEventSlidesRouter({grants,slides:slidesRuntime,enabled:()=>domainEnabled&&grantEnabled}));
@@ -250,6 +251,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await activityDeckSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, c, runtime, lifecycle, grants,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
+  await configurationSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations,
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await t.test('migrations re-run; recover when the last migration already partially created tables', async () => {
