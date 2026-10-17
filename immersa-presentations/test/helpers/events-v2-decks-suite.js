@@ -113,12 +113,13 @@ async function decksSuite(t, f) {
 
   await t.test('version insert failure rolls back the new Deck and does not report success or expose SQL', async () => {
     const before = (await sql('SELECT COUNT(*) AS n FROM event_decks'))[0].n;
-    await sql("CREATE TRIGGER reject_event_draft BEFORE INSERT ON event_deck_versions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='PRIVATE_INSERT_FAILURE'");
+    // MySQL does not accept CREATE TRIGGER through prepared statements.
+    await domain.pool.query("CREATE TRIGGER reject_event_draft BEFORE INSERT ON event_deck_versions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='PRIVATE_INSERT_FAILURE'");
     try {
       const result = await request('producer', 'POST', route(), { title: 'must roll back' });
       assert.equal(result.status, 503); assert.deepEqual(result.body, { code: 'AUTHORIZATION_UNAVAILABLE' });
       assert.equal((await sql('SELECT COUNT(*) AS n FROM event_decks'))[0].n, before);
-    } finally { await sql('DROP TRIGGER reject_event_draft'); }
+    } finally { await domain.pool.query('DROP TRIGGER reject_event_draft'); }
   });
 
   await t.test('Deck metadata migration is repeatable with existing data and records audited creation', async () => {
