@@ -1,6 +1,20 @@
 const { sameOrigin } = require('./grant-http');
 const { createLiveSocketAdapter } = require('./live-sockets');
 
+function sameOriginHandshake(socket) {
+  const headers = socket.handshake.headers;
+  const site = headers['sec-fetch-site'];
+  if (site !== undefined && site !== 'same-origin') return false;
+  if (headers.origin !== undefined) return sameOrigin(headers.origin, headers.host);
+  // Same-origin XHR polling starts with a GET that browsers send without
+  // Origin. Accept only its browser-controlled Fetch Metadata tuple. A
+  // missing/foreign Origin on WebSocket, a navigation or a generic HTTP
+  // client still fails closed; the short DB session is always checked next.
+  return socket.request.method === 'GET' && socket.handshake.query.transport === 'polling'
+    && site === 'same-origin' && headers['sec-fetch-mode'] === 'cors'
+    && headers['sec-fetch-dest'] === 'empty';
+}
+
 function createEventGrantSockets({ io, grants, enabled = () => false, reviewIntervalMs = 5000, runtime = null, polls = null, qna = null, knowledge = null, raffles = null, games = null, time = null, av = null, slides = null, lifecycle = null }) {
   const namespace = io.of('/events-v2');
   const credentials = new WeakMap();
@@ -25,7 +39,7 @@ function createEventGrantSockets({ io, grants, enabled = () => false, reviewInte
   }
   namespace.use(async (socket, next) => {
     try {
-      if (!enabled() || !grants || !sameOrigin(socket.handshake.headers.origin, socket.handshake.headers.host)) throw accessError();
+      if (!enabled() || !grants || !sameOriginHandshake(socket)) throw accessError();
       // Explicit allowlist: client roles, participant IDs and room names cannot
       // influence identity. A raw long-link secret is not a socket credential.
       const { eventId, grantId, sessionToken } = socket.handshake.auth || {};

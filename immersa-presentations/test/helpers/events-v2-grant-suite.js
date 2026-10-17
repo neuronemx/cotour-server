@@ -13,9 +13,9 @@ async function grantSuite(t, f) {
     request(actor, 'POST', adminPath + '/grants', { kind, purpose, ...fields });
   const exchange = token => request(null, 'POST', access + '/exchange', { eventId: a, token });
   const window = async date => { assert.equal((await request('admin1', 'PUT', adminPath + '/operational-window', { endsAt: date.toISOString() })).status, 200); };
-  function socket(auth, errorExpected = false) {
+  function socket(auth, errorExpected = false, options = {}) {
     return new Promise((resolve, reject) => {
-      const client = clientSocket(base + '/events-v2', { auth, extraHeaders: { origin: base }, transports: ['websocket'], forceNew: true, reconnection: false });
+      const client = clientSocket(base + '/events-v2', { auth, extraHeaders: { origin: base }, transports: ['websocket'], forceNew: true, reconnection: false, ...options });
       activeClients.add(client);
       const timer = setTimeout(() => { client.close(); reject(new Error('grant socket timeout')); }, 3000);
       client.once('connect_error', () => { clearTimeout(timer); client.close(); errorExpected ? resolve(client) : reject(new Error('unexpected denial')); });
@@ -92,6 +92,23 @@ async function grantSuite(t, f) {
     const disconnect = disconnected(connected.client);
     assert.equal((await ack(connected.client, 'events:context:get', { eventId: b })).ok, false);
     await disconnect;
+  });
+
+  await t.test('same-origin browser polling without Origin authorizes the real SQL session and reconnects to the same actor', async () => {
+    const options = { transports: ['polling'], upgrade: false, extraHeaders: {
+      'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'empty'
+    } };
+    const before = (await sql('SELECT COUNT(*) n FROM event_participants'))[0].n;
+    for (let i = 0; i < 2; i++) {
+      const connected = await socket(auth(session), false, options);
+      assert.equal(connected.context.actorId, grant.grantId);
+      assert.equal(connected.context.eventId, a);
+      connected.client.close();
+    }
+    await socket({ ...auth(session), eventId: b }, true, options);
+    await socket(auth(session), true, { ...options, extraHeaders: {} });
+    await socket(auth(session), true, { ...options, extraHeaders: { ...options.extraHeaders, 'sec-fetch-site': 'same-site' } });
+    assert.equal((await sql('SELECT COUNT(*) n FROM event_participants'))[0].n, before);
   });
 
   await t.test('reconnect and browser renewal preserve actor and expiry; no extra participant or live state', async () => {
