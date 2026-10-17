@@ -139,7 +139,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   t.after(() => grantSockets.close());
   let createdRuntimeStates = 0;
   app.all('/api/auth/*', bridge.handler);
-  app.use(express.json());
+  app.use(express.json({ limit: '2mb' })); // Match server transport; authored configuration has its own smaller bound.
   app.use(boundary.httpMiddleware());
   app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createEventSlidesRouter({grants,slides:slidesRuntime,enabled:()=>domainEnabled&&grantEnabled}));
