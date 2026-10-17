@@ -18,7 +18,9 @@ async function consoleTargets(grants, db, context) {
   }
   const rows = await grants.rows(db, `SELECT a.id AS activityId, a.event_stage_id AS stageId, a.title,
     a.access_level AS accessLevel, a.status AS activityStatus, a.deck_id, a.deck_check_status,
-    s.name AS stageTitle, l.id AS liveSessionId
+    s.name AS stageTitle, l.id AS liveSessionId,
+    EXISTS(SELECT 1 FROM event_activity_deck_bindings b
+      WHERE b.event_id=a.event_workspace_id AND b.activity_id=a.id) AS has_version_binding
     FROM event_activities a JOIN event_stages s ON s.id=a.event_stage_id AND s.event_workspace_id=a.event_workspace_id AND s.active=1
     LEFT JOIN event_live_sessions l ON l.event_activity_id=a.id AND l.event_stage_id=a.event_stage_id
       AND l.event_workspace_id=a.event_workspace_id AND l.status='LIVE' AND l.ended_at IS NULL
@@ -29,7 +31,7 @@ async function consoleTargets(grants, db, context) {
     title: row.title, stageTitle: row.stageTitle, accessLevel: row.accessLevel,
     liveSessionId: row.liveSessionId || null, status: row.liveSessionId ? 'LIVE' : row.activityStatus,
     canStart: context.kind === 'STAGE' && context.purpose === 'live' && !occupied && row.activityStatus === 'SCHEDULED'
-      && Boolean(row.deck_id) && row.deck_check_status === 'DECK_CHECK' }));
+      && !row.has_version_binding && Boolean(row.deck_id) && row.deck_check_status === 'DECK_CHECK' }));
 }
 
 function createEventConsolePages({ enabled = () => false } = {}) {
@@ -67,4 +69,4 @@ function attachEventConsoleContext(router, grants, handle, browserToken) {
   }));
 }
 
-module.exports = { createEventConsolePages, attachEventConsoleContext, CONSOLE_KINDS };
+module.exports = { createEventConsolePages, attachEventConsoleContext, CONSOLE_KINDS, consoleTargets };

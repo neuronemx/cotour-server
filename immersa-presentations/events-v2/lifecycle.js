@@ -18,7 +18,8 @@ class EventLifecycle {
   }
   async activity(context, db, activityId) {
     if (!isId(activityId)) fail('INVALID_INPUT', 400);
-    const [rows] = await db.execute(`SELECT a.* FROM event_activities a
+    const [rows] = await db.execute(`SELECT a.*, EXISTS(SELECT 1 FROM event_activity_deck_bindings b
+        WHERE b.event_id=a.event_workspace_id AND b.activity_id=a.id) AS has_version_binding FROM event_activities a
       JOIN event_stages s ON s.id=a.event_stage_id AND s.event_workspace_id=a.event_workspace_id AND s.active=1
       WHERE a.id=? AND a.event_workspace_id=? AND a.event_stage_id=? FOR UPDATE`, [activityId, context.eventId, context.stageId]);
     if (!rows[0]) fail('RESOURCE_NOT_FOUND', 404);
@@ -55,7 +56,7 @@ class EventLifecycle {
         const activity = await this.activity(context, db, activityId);
         const [active] = await db.execute("SELECT id FROM event_live_sessions WHERE event_stage_id=? AND status='LIVE' FOR UPDATE", [context.stageId]);
         if (active.length || activity.status !== 'SCHEDULED') fail('STAGE_ALREADY_LIVE');
-        if (!activity.deck_id || activity.deck_check_status !== 'DECK_CHECK') fail('CONTENT_NOT_PREPARED', 403);
+        if (activity.has_version_binding || !activity.deck_id || activity.deck_check_status !== 'DECK_CHECK') fail('CONTENT_NOT_PREPARED', 403);
         const now = this.grants.now();
         await db.execute(`INSERT INTO event_live_sessions (id,event_workspace_id,event_activity_id,event_stage_id,deck_id,started_at)
           VALUES (?,?,?,?,?,?)`, [id, context.eventId, activity.id, context.stageId, activity.deck_id, now]);

@@ -6,7 +6,7 @@ const { EventLiveRuntime, executionKey } = require('../events-v2/live-runtime');
 
 function fixture() {
   const eventId = crypto.randomUUID(), stageId = crypto.randomUUID(), activityId = crypto.randomUUID(), liveId = crypto.randomUUID();
-  let committed = true, active = false, reads = 0, clear = 0;
+  let committed = true, active = false, reads = 0, clear = 0, binding = false;
   const context = { eventId, stageId, organizationId: crypto.randomUUID(), actorId: 'stage-grant', kind: 'STAGE', purpose: 'live' };
   const credentials = { eventId, grantId: crypto.randomUUID() }, now = new Date();
   const runtime = new EventLiveRuntime(), engine = { states: new Map(), timers: new Map(), witnesses: new Map(), clearTimeoutFn: () => clear++ };
@@ -14,7 +14,7 @@ function fixture() {
   const row = { id: liveId, event_workspace_id: eventId, event_stage_id: stageId, event_activity_id: activityId, deck_id: 'private', status: 'LIVE', started_at: now, ended_at: null };
   const db = { execute: async sql => {
     reads++;
-    if (sql.includes('SELECT a.*')) return [[{ id: activityId, status: 'SCHEDULED', deck_id: 'private', deck_check_status: 'DECK_CHECK' }]];
+    if (sql.includes('SELECT a.*')) return [[{ id: activityId, status: 'SCHEDULED', deck_id: 'private', deck_check_status: 'DECK_CHECK', has_version_binding: binding ? 1 : 0 }]];
     if (sql.includes('SELECT l.*')) return [[row]];
     if (sql.startsWith('SELECT id')) return [active ? [{ id: liveId }] : []];
     return [{ affectedRows: 1 }];
@@ -23,7 +23,7 @@ function fixture() {
   const authorize = async operation => { const result = await operation(context, db); if (!committed) throw new Error('COMMIT_FAILED'); return result; };
   const lifecycle = new EventLifecycle({ grants, runtime, engines: [engine] });
   return { lifecycle, credentials, context, runtime, engine, row, activityId, liveId, authorize, reads: () => reads, clears: () => clear,
-    failCommit: () => { committed = false; }, active: () => { active = true; } };
+    bind: () => { binding = true; }, failCommit: () => { committed = false; }, active: () => { active = true; } };
 }
 
 test('Lifecycle start installs a private initial state only after commit, and never returns an uncommitted execution', async () => {
@@ -64,4 +64,12 @@ test('An occupied Stage conflicts without preparing a second run; repeated finis
   f.row.status = 'FINISHED'; f.row.ended_at = new Date(f.row.started_at.getTime() + 1000);
   const result = await f.lifecycle.finish(f.credentials, f.liveId, f.authorize);
   assert.equal(result.endedAt, f.row.ended_at.toISOString()); assert.equal(result.startedAt, f.row.started_at.toISOString());
+});
+
+
+test('A versioned binding or unlink tombstone cannot inherit legacy Deck Check or an injected ready reader', async () => {
+  const f = fixture(); f.bind(); let prepared = 0;
+  f.runtime.prepared = async () => { prepared++; return {}; };
+  await assert.rejects(f.lifecycle.start(f.credentials, f.activityId, f.authorize), { code: 'CONTENT_NOT_PREPARED' });
+  assert.equal(prepared, 0); assert.equal(f.runtime.states.size, 0);
 });

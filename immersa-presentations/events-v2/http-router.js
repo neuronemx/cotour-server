@@ -3,13 +3,14 @@ const { EventAccessError, accountActor, assertFields } = require('./authorizatio
 const { requireOrigin } = require('./grant-http');
 const { attachEventReports } = require('./reports-http');
 const { attachDeckPreparationRoutes } = require('./deck-preparation-http');
+const { EventActivityDeckRepository } = require('./activity-deck-repository');
 const { EventDeckRepository } = require('./deck-repository');
 
 function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null }) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
-    if (!enabled) return res.status(404).json({ code: 'EVENTS_V2_DISABLED' });
+    if (!(typeof enabled === 'function' ? enabled() : enabled)) return res.status(404).json({ code: 'EVENTS_V2_DISABLED' });
     if (!repository) return res.status(503).json({ code: 'AUTHORIZATION_UNAVAILABLE' });
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       const origin = req.headers.origin;
@@ -57,6 +58,20 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     router.post(eventPath + '/decks/:deckId/versions', requireOrigin, handle((req, actor) => decks.createVersion(actor, ...args(req), req.params.deckId), [], 201));
   }
   attachDeckPreparationRoutes(router, deckPreparations, eventPath);
+  if (repository) {
+    const bindings = new EventActivityDeckRepository({ domain: repository,
+      enabled: () => typeof enabled === 'function' ? enabled() : enabled });
+    const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId, activityId: req.params.activityId });
+    const bindingPath = eventPath + '/activities/:activityId/deck-binding';
+    router.get(bindingPath, handle((req, actor) => bindings.get(actor, scope(req))));
+    const noQuery = req => { if (Object.keys(req.query).length) throw new EventAccessError('INVALID_FIELDS', 400); };
+    router.put(bindingPath, requireOrigin, handle((req, actor) => {
+      noQuery(req); return bindings.set(actor, scope(req), req.body);
+    }, ['deckId', 'versionId', 'expectedRevision']));
+    router.delete(bindingPath, requireOrigin, handle((req, actor) => {
+      noQuery(req); return bindings.set(actor, scope(req), req.body, true);
+    }, ['expectedRevision']));
+  }
   attachEventReports(router, reports, eventPath);
   router.get(eventPath, handle((req, actor) => repository.getEvent(actor, req.params.orgId, req.params.eventId)));
   router.patch(eventPath, handle((req, actor) => repository.updateEvent(actor, req.params.orgId, req.params.eventId, req.body.title), ['title']));

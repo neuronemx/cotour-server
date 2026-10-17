@@ -33,3 +33,15 @@ test('console pages are generic, flag-gated and isolated from legacy paths and p
   assert.equal(await (await fetch(base + '/events-v2/access-client.js')).text(), 'PUBLIC_SCRIPT_SENTINEL');
   assert.equal(await (await fetch(base + '/speaker')).text(), 'LEGACY_SPEAKER_SENTINEL');
 });
+
+
+test('Stage start readiness rejects version bindings including cleared tombstones despite legacy approval', async () => {
+  const { consoleTargets } = require('../events-v2/console-http');
+  const ready = { activityId: 'activity', stageId: 'stage', title: 'Prepared', stageTitle: 'Stage',
+    accessLevel: 'FREE', activityStatus: 'SCHEDULED', liveSessionId: null, deck_id: 'legacy', deck_check_status: 'DECK_CHECK' };
+  const context = { eventId: 'event', kind: 'STAGE', purpose: 'live' };
+  for (const has_version_binding of [0, 1]) {
+    const targets = await consoleTargets({ rows: async () => [{ ...ready, has_version_binding }] }, {}, context);
+    assert.equal(targets[0].canStart, has_version_binding === 0);
+  }
+});
