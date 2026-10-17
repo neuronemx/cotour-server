@@ -159,6 +159,13 @@ function resolveLocalMediaUrl(resource) {
 function resolveAudiovisualMediaUrl(resource) {
   return resource?.source === "local" ? resolveLocalMediaUrl(resource) : resource?.media_url || "";
 }
+function isWebMAudiovisualResource(resource) {
+  const file = resource?.source === "local" ? localLibrary.files.get(String(resource.id || "")) : null;
+  const path = String(resource?.media_url || "").split(/[?#]/, 1)[0];
+  return file
+    ? /\.webm$/i.test(file.name || "") || /^video\/webm(?:;|$)/i.test(file.type || "")
+    : /\.webm$/i.test(path);
+}
 async function scanAndPublishLocalLibrary() {
   if (!localLibrary.directoryHandle || localLibrary.scanning) return;
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
@@ -328,6 +335,8 @@ function applyVideoState(state) {
     incoming.pause();
     incoming.classList.add("is-hiding");
     incoming.classList.remove("is-visible");
+    // Blob URLs have no extension; inspect the original local file for WebM alpha.
+    incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
     incoming.dataset.resourceId = nextId;
     incoming.src = mediaUrl;
     incoming.load();
@@ -351,7 +360,7 @@ function applyVideoState(state) {
     screenRoot.classList.add("has-audiovisual-video");
     scheduleVideoPlaylistAdvance(incoming);
     if (current === incoming) return;
-    // Keep the previous picture under the incoming dissolve until it is opaque.
+    // Keep the previous picture under the incoming dissolve until it completes.
     window.setTimeout(() => {
       if (token !== videoTransitionToken || activeVideoSlot !== incomingIndex) return;
       current.classList.add("is-hiding");
