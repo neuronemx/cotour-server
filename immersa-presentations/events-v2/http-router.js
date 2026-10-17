@@ -53,6 +53,14 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
   router.delete(eventPath + '/members/:userId', handle(revalidate((req, actor) => repository.setEventMember(actor, req.params.orgId, req.params.eventId, req.params.userId, null))));
   router.get(eventPath + '/activities/:activityId', handle((req, actor) => repository.getActivity(actor, req.params.orgId, req.params.eventId, req.params.activityId)));
   if (grants) {
+    router.put(eventPath + '/access-state', requireOrigin, handle(async (req, actor) => {
+      if (Object.keys(req.query).length) throw new EventAccessError('INVALID_INPUT', 400);
+      const result = await grants.setAccessEnabled(actor, req.params.orgId, req.params.eventId, req.body.enabled);
+      // No disconnect before commit: a failed suspension leaves valid access
+      // intact. Persisted revocation also protects other instances/restarts.
+      if (!result.enabled) grantSockets?.disconnectEvent(result.eventId);
+      return result;
+    }, ['enabled']));
     router.put(eventPath + '/operational-window', requireOrigin, handle(async (req, actor) => {
       const result = await grants.setWindow(actor, req.params.orgId, req.params.eventId, req.body.endsAt);
       await grantSockets?.reviewAll();

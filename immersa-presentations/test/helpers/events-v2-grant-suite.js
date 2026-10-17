@@ -13,9 +13,9 @@ async function grantSuite(t, f) {
     request(actor, 'POST', adminPath + '/grants', { kind, purpose, ...fields });
   const exchange = token => request(null, 'POST', access + '/exchange', { eventId: a, token });
   const window = async date => { assert.equal((await request('admin1', 'PUT', adminPath + '/operational-window', { endsAt: date.toISOString() })).status, 200); };
-  function socket(auth, errorExpected = false) {
+  function socket(auth, errorExpected = false, options = {}) {
     return new Promise((resolve, reject) => {
-      const client = clientSocket(base + '/events-v2', { auth, extraHeaders: { origin: base }, transports: ['websocket'], forceNew: true, reconnection: false });
+      const client = clientSocket(base + '/events-v2', { auth, extraHeaders: { origin: base }, transports: ['websocket'], forceNew: true, reconnection: false, ...options });
       activeClients.add(client);
       const timer = setTimeout(() => { client.close(); reject(new Error('grant socket timeout')); }, 3000);
       client.once('connect_error', () => { clearTimeout(timer); client.close(); errorExpected ? resolve(client) : reject(new Error('unexpected denial')); });
@@ -92,6 +92,23 @@ async function grantSuite(t, f) {
     const disconnect = disconnected(connected.client);
     assert.equal((await ack(connected.client, 'events:context:get', { eventId: b })).ok, false);
     await disconnect;
+  });
+
+  await t.test('same-origin browser polling without Origin authorizes the real SQL session and reconnects to the same actor', async () => {
+    const options = { transports: ['polling'], upgrade: false, extraHeaders: {
+      'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'empty'
+    } };
+    const before = (await sql('SELECT COUNT(*) n FROM event_participants'))[0].n;
+    for (let i = 0; i < 2; i++) {
+      const connected = await socket(auth(session), false, options);
+      assert.equal(connected.context.actorId, grant.grantId);
+      assert.equal(connected.context.eventId, a);
+      connected.client.close();
+    }
+    await socket({ ...auth(session), eventId: b }, true, options);
+    await socket(auth(session), true, { ...options, extraHeaders: {} });
+    await socket(auth(session), true, { ...options, extraHeaders: { ...options.extraHeaders, 'sec-fetch-site': 'same-site' } });
+    assert.equal((await sql('SELECT COUNT(*) n FROM event_participants'))[0].n, before);
   });
 
   await t.test('reconnect and browser renewal preserve actor and expiry; no extra participant or live state', async () => {
@@ -215,6 +232,103 @@ async function grantSuite(t, f) {
     await socket(auth(s), true);
     f.setEnabled(true);
     assert.equal(grantSockets.namespace.sockets.size, 0);
+  });
+
+  await t.test('emergency access changes require current Event Admin, strict origin and exact input; denials leave credentials untouched', async () => {
+    // Earlier revocation coverage deliberately removed this event membership.
+    // Restore an explicit Producer so the 403 exercises capability denial.
+    assert.equal((await request('admin1', 'PUT', `${adminPath}/members/${ids.get('dual')}`, { roles: ['PRODUCER'] })).status, 200);
+    const state = async () => ({
+      event: await sql('SELECT enabled, authz_version FROM event_v2_contexts WHERE event_id=?', [a]),
+      grants: await sql('SELECT id, revoked_at, authz_version FROM event_access_grants WHERE event_id=? ORDER BY id', [a]),
+      sessions: await sql('SELECT s.* FROM event_grant_sessions s JOIN event_access_grants g ON g.id=s.grant_id WHERE g.event_id=? ORDER BY s.token_hash', [a])
+    });
+    const before = await state(), endpoint = adminPath + '/access-state';
+    for (const [actor, path, body, headers, expected] of [
+      [null, endpoint, { enabled: false }, {}, 401],
+      ['platform', endpoint, { enabled: false }, {}, 404],
+      ['dual', endpoint, { enabled: false }, {}, 403],
+      ['admin2', endpoint, { enabled: false }, {}, 404],
+      ['admin1', endpoint.replace('/events/' + a, '/events/' + b).replace(o1, f.o2), { enabled: false }, {}, 404],
+      ['admin1', endpoint, { enabled: false }, { origin: 'https://attacker.test' }, 403],
+      ['admin1', endpoint, { enabled: false }, { origin: '' }, 403],
+      ['admin1', endpoint, { enabled: 'false' }, {}, 400],
+      ['admin1', endpoint, { enabled: false, eventId: b }, {}, 400],
+      ['admin1', endpoint + '?eventId=' + b, { enabled: false }, {}, 400],
+      ['admin1', endpoint, {}, {}, 400]
+    ]) assert.equal((await request(actor, 'PUT', path, body, headers)).status, expected, actor + ' ' + path);
+    assert.deepEqual(await state(), before);
+  });
+
+  await t.test('failed emergency suspension rolls back event, grants and sessions and does not disconnect valid sockets', async () => {
+    const g = (await issue()).body, session = (await exchange(g.token)).body;
+    const connected = await socket(auth(session)), audit = domain.audit;
+    domain.audit = async function(db, actor, action, ...rest) {
+      if (action === 'event.access.suspend') throw new Error('TEST_SUSPENSION_AUDIT_FAILURE');
+      return audit.call(this, db, actor, action, ...rest);
+    };
+    try { assert.equal((await request('admin1', 'PUT', adminPath + '/access-state', { enabled: false })).status, 503); }
+    finally { domain.audit = audit; }
+    assert.equal((await sql('SELECT enabled FROM event_v2_contexts WHERE event_id=?', [a]))[0].enabled, 1);
+    assert.equal((await sql('SELECT revoked_at FROM event_access_grants WHERE id=?', [g.grantId]))[0].revoked_at, null);
+    assert.equal((await exchange(g.token)).status, 200);
+    assert.equal((await ack(connected.client, 'events:context:get')).ok, true);
+    connected.client.close();
+  });
+
+  await t.test('persistent emergency suspension revokes every actor and short session only in its event; resume and restart cannot revive old credentials', async () => {
+    const issued = [];
+    for (const [kind, scope, purpose] of [['STAGE', { stageId: stageA }, 'live'], ['SPEAKER', { activityId: activityA }, 'live'],
+      ['PLAYER', { liveSessionId: liveA }, 'player'], ['VENUE', {}, 'live'], ['MODERATOR', {}, 'live']]) {
+      const response = await issue(kind, scope, 'admin1', purpose); assert.equal(response.status, 201); issued.push(response.body);
+    }
+    const registration = await request(null, 'POST', '/api/events-v2/public/' + publicId + '/participants', { name: 'Emergency fixture' });
+    assert.equal(registration.status, 201);
+    const oldSessions = [registration.body];
+    for (const g of issued) { const response = await exchange(g.token); assert.equal(response.status, 200); oldSessions.push(response.body); }
+    const oldSession = (await exchange(issued[0].token)).body, connected = await socket(auth(oldSession));
+    const bPath = `/api/events-v2/organizations/${o1}/events/${b}`;
+    assert.equal((await request('admin1', 'PUT', bPath + '/operational-window', { endsAt: new Date(f.now().getTime() + 86400000).toISOString() })).status, 200);
+    const other = await request('admin1', 'POST', bPath + '/grants', { kind: 'STAGE', purpose: 'live', stageId: stageB }); assert.equal(other.status, 201);
+    const otherSession = await request(null, 'POST', access + '/exchange', { eventId: b, token: other.body.token }); assert.equal(otherSession.status, 200);
+    const otherConnected = await socket(auth(otherSession.body));
+    const disconnectedA = disconnected(connected.client);
+    assert.deepEqual((await request('admin1', 'PUT', adminPath + '/access-state', { enabled: false })).body, { eventId: a, enabled: false });
+    await disconnectedA;
+    assert.equal((await sql('SELECT COUNT(*) n FROM event_access_grants WHERE event_id=? AND revoked_at IS NULL', [a]))[0].n, 0);
+    assert.equal((await sql('SELECT COUNT(*) n FROM event_grant_sessions s JOIN event_access_grants g ON g.id=s.grant_id WHERE g.event_id=?', [a]))[0].n, 0);
+    assert.equal((await issue()).status, 404);
+    assert.notEqual((await request(null, 'POST', '/api/events-v2/public/' + publicId + '/participants', { name: 'Denied' })).status, 201);
+    assert.equal((await ack(otherConnected.client, 'events:context:get')).ok, true);
+    assert.equal((await request('dual', 'PUT', adminPath + '/access-state', { enabled: true })).status, 403);
+    assert.equal((await request('admin1', 'PUT', adminPath + '/access-state', { enabled: true })).status, 200);
+    const reconstructed = new EventGrantRepository(domain, { now: f.now });
+    for (const g of issued) { assert.equal((await exchange(g.token)).status, 401); await assert.rejects(reconstructed.exchange(a, g.token), { statusCode: 401 }); }
+    await assert.rejects(reconstructed.withSession(auth(oldSession)), { statusCode: 401 });
+    let callbacks = 0;
+    for (const session of oldSessions) await assert.rejects(reconstructed.withSession(auth(session), () => { callbacks++; }), { statusCode: 401 });
+    await assert.rejects(reconstructed.withBrowser({ eventId: a, grantId: issued[0].grantId, token: issued[0].token }, () => { callbacks++; }), { statusCode: 401 });
+    assert.equal(callbacks, 0, 'revoked credentials never reach a read or mutation callback');
+    await socket(auth(oldSession), true);
+    const participant = registration.body.context;
+    const participantCookie = registration.headers.get('set-cookie').split(';')[0];
+    assert.equal((await request(null, 'GET', `${access}/${a}/${participant.grantId}/context`, undefined, { cookie: participantCookie })).status, 401);
+    f.setEnabled(false); await grantSockets.reviewAll(); f.setEnabled(true);
+    assert.equal((await exchange(issued[0].token)).status, 401);
+    assert.equal((await request(null, 'POST', access + '/exchange', { eventId: b, token: other.body.token })).status, 200);
+    const fresh = (await issue()).body; assert.equal((await exchange(fresh.token)).status, 200);
+    assert.equal((await sql("SELECT COUNT(*) n FROM event_security_audit WHERE event_id=? AND action='event.access.suspend' AND outcome='ALLOWED'", [a]))[0].n, 1);
+    otherConnected.client.close();
+  });
+
+  await t.test('concurrent grant issuance and emergency suspension serialize: no credential remains usable after suspension commits', async () => {
+    const [issued, suspended] = await Promise.all([issue(), request('admin1', 'PUT', adminPath + '/access-state', { enabled: false })]);
+    assert.equal(suspended.status, 200);
+    assert.ok([201, 404].includes(issued.status));
+    if (issued.status === 201) assert.equal((await exchange(issued.body.token)).status, 401);
+    assert.equal((await sql('SELECT COUNT(*) n FROM event_access_grants WHERE event_id=? AND revoked_at IS NULL', [a]))[0].n, 0);
+    assert.equal((await request('admin1', 'PUT', adminPath + '/access-state', { enabled: true })).status, 200);
+    if (issued.status === 201) assert.equal((await exchange(issued.body.token)).status, 401);
   });
 }
 module.exports = { grantSuite };

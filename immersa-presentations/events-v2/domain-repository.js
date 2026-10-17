@@ -48,14 +48,14 @@ class EventDomainRepository {
     return org;
   }
 
-  async event(db, organizationId, eventId, actor, capability = 'event.read') {
+  async event(db, organizationId, eventId, actor, capability = 'event.read', { allowDisabled = false } = {}) {
     await this.organization(db, organizationId, actor);
     const event = (await this.rows(db, `SELECT c.event_id, c.organization_id, c.authz_version,
       h.slug, h.title, h.timezone, h.status FROM event_v2_contexts c
       JOIN event_hubs h ON h.workspace_id = c.event_id
       JOIN event_memberships m ON m.event_id = c.event_id AND m.organization_id = c.organization_id
-      WHERE c.event_id = ? AND c.organization_id = ? AND c.enabled = 1
-        AND m.user_id = ? AND m.active = 1 FOR UPDATE`, [eventId, organizationId, actor]))[0];
+      WHERE c.event_id = ? AND c.organization_id = ? AND (c.enabled = 1 OR ? = 1)
+        AND m.user_id = ? AND m.active = 1 FOR UPDATE`, [eventId, organizationId, allowDisabled ? 1 : 0, actor]))[0];
     if (!event) throw missing();
     const roles = (await this.rows(db, 'SELECT role FROM event_member_roles WHERE event_id = ? AND user_id = ?', [eventId, actor])).map(row => row.role);
     requireCapability({ roles }, capability);
