@@ -17,7 +17,7 @@ test("Screen live text wraps safely without exposing the Público link action", 
   assert.doesNotMatch(css, /\.message-go/);
   assert.match(css, /\.message \{[\s\S]*?max-height: min\(76vh, 640px\);[\s\S]*?overflow: auto;/);
   assert.match(css, /\.message-copy \{[\s\S]*?overflow-wrap: anywhere;/);
-  assert.match(html, /screen\.css\?v=25/);
+  assert.match(html, /screen\.css\?v=26/);
   assert.match(html, /screen\.js\?v=\d+/);
 });
 

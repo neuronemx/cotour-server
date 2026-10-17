@@ -115,6 +115,7 @@
   will-change:opacity;
 }
 .audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-webm { background:transparent; }
 .audiovisual-screen-layer .audiovisual-video-slot.is-hiding { opacity:0; transition:none; }
 
 
