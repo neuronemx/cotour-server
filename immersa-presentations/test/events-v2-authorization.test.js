@@ -4,6 +4,10 @@ const { requireCapability, assertFields, accountActor } = require('../events-v2/
 
 test('v2 preparation never grants membership delegation or implicit live control', () => {
   requireCapability({ roles: ['PRODUCER'] }, 'event.configure');
+  for (const role of ['ADMIN', 'PRODUCER']) requireCapability({ roles: [role] }, 'content.prepare');
+  for (const role of ['STAGE', 'SPEAKER', 'PLAYER', 'PARTICIPANT']) {
+    assert.throws(() => requireCapability({ roles: [role] }, 'content.prepare'), { statusCode: 403 });
+  }
   assert.throws(() => requireCapability({ roles: ['PRODUCER'] }, 'event.members.manage'), { statusCode: 403 });
   for (const roles of [['ADMIN'], ['PRODUCER'], ['ADMIN', 'PRODUCER'], ['stage'], []]) {
     assert.throws(() => requireCapability({ roles }, 'live.control'), { statusCode: 403 });

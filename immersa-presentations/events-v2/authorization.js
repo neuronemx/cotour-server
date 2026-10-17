@@ -7,8 +7,8 @@ class EventAccessError extends Error {
 }
 
 const ROLE_CAPABILITIES = Object.freeze({
-  ADMIN: Object.freeze(['event.read', 'event.configure', 'event.members.manage', 'event.metrics.read', 'event.metrics.export']),
-  PRODUCER: Object.freeze(['event.read', 'event.configure'])
+  ADMIN: Object.freeze(['event.read', 'event.configure', 'event.members.manage', 'event.metrics.read', 'event.metrics.export', 'content.prepare']),
+  PRODUCER: Object.freeze(['event.read', 'event.configure', 'content.prepare'])
 });
 
 function requireCapability(context, capability) {

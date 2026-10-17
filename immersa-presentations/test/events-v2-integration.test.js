@@ -57,6 +57,7 @@ const {consoleAVSuite}=require('./helpers/events-v2-console-av-suite');
 const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
+const { decksSuite } = require('./helpers/events-v2-decks-suite');
 
 const databaseUrl = process.env.IMMERSA_EVENTS_V2_TEST_DATABASE_URL;
 
@@ -237,6 +238,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await sql('INSERT INTO event_live_sessions (id,event_workspace_id,event_stage_id,event_activity_id,deck_id) VALUES (?,?,?,?,?)', [liveA, a, stageA, activityA, 'v2-private-deck']);
   const publicId = 'p_evt_v2_private_test';
   await sql('INSERT INTO event_public_qrs (id,event_workspace_id,public_id,audience_level) VALUES (?,?,?,?)', [crypto.randomUUID(), a, publicId, 'FREE']);
+
+  await decksSuite(t, { request, sql, domain, ids, o1, o2, a, b, c, boundary, perimeterDataDir, perimeterPublicDir,
+    setDomainEnabled: value => { domainEnabled = value; } });
 
   await t.test('migrations re-run; recover when the last migration already partially created tables', async () => {
     assert.deepEqual((await runMigrations(pool)).executed, []);

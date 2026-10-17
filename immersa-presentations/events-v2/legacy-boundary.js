@@ -20,8 +20,10 @@ class LegacyEventBoundary {
       qr: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_public_qrs r ON r.event_workspace_id = c.event_id WHERE r.public_id = ?', [id]],
       assignment: ['SELECT c.event_id FROM event_v2_contexts c JOIN event_activities a ON a.event_workspace_id = c.event_id JOIN event_activity_speaker_assignments r ON r.event_activity_id = a.id WHERE r.id = ?', [id]],
       deck: [`SELECT c.event_id FROM event_v2_contexts c WHERE EXISTS
-        (SELECT 1 FROM event_activities a WHERE a.event_workspace_id = c.event_id AND (a.deck_id = ? OR a.pending_deck_id = ?))
-        OR EXISTS (SELECT 1 FROM event_live_sessions l WHERE l.event_workspace_id = c.event_id AND l.deck_id = ?)`, [id, id, id]]
+        (SELECT 1 FROM event_decks d WHERE d.event_id = c.event_id AND d.id = LOWER(?))
+        OR EXISTS (SELECT 1 FROM event_deck_versions v WHERE v.event_id = c.event_id AND v.id = LOWER(?))
+        OR EXISTS (SELECT 1 FROM event_activities a WHERE a.event_workspace_id = c.event_id AND (a.deck_id = ? OR a.pending_deck_id = ?))
+        OR EXISTS (SELECT 1 FROM event_live_sessions l WHERE l.event_workspace_id = c.event_id AND l.deck_id = ?)`, [id, id, id, id, id]]
     };
     const selector = selectors[kind];
     if (!selector) throw new Error('Unknown legacy resource kind');

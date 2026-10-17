@@ -2,6 +2,7 @@ const express = require('express');
 const { EventAccessError, accountActor, assertFields } = require('./authorization');
 const { requireOrigin } = require('./grant-http');
 const { attachEventReports } = require('./reports-http');
+const { EventDeckRepository } = require('./deck-repository');
 
 function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null }) {
   const router = express.Router();
@@ -46,6 +47,14 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
   router.post('/organizations/:orgId/events', handle((req, actor) => repository.createEvent(actor, req.params.orgId, req.body), ['title', 'slug', 'timezone'], 201));
   router.get('/organizations/:orgId/events', handle((req, actor) => repository.listEvents(actor, req.params.orgId)));
   const eventPath = '/organizations/:orgId/events/:eventId';
+  const decks = repository && new EventDeckRepository(repository);
+  if (decks) {
+    const args = req => [req.params.orgId, req.params.eventId];
+    router.get(eventPath + '/decks', handle((req, actor) => decks.list(actor, ...args(req))));
+    router.post(eventPath + '/decks', requireOrigin, handle((req, actor) => decks.create(actor, ...args(req), req.body.title), ['title'], 201));
+    router.get(eventPath + '/decks/:deckId', handle((req, actor) => decks.get(actor, ...args(req), req.params.deckId)));
+    router.post(eventPath + '/decks/:deckId/versions', requireOrigin, handle((req, actor) => decks.createVersion(actor, ...args(req), req.params.deckId), [], 201));
+  }
   attachEventReports(router, reports, eventPath);
   router.get(eventPath, handle((req, actor) => repository.getEvent(actor, req.params.orgId, req.params.eventId)));
   router.patch(eventPath, handle((req, actor) => repository.updateEvent(actor, req.params.orgId, req.params.eventId, req.body.title), ['title']));
