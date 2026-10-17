@@ -57,6 +57,7 @@ const {consoleAVSuite}=require('./helpers/events-v2-console-av-suite');
 const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
+const { configurationSuite } = require('./helpers/events-v2-configuration-suite');
 const { activityDeckSuite } = require('./helpers/events-v2-activity-deck-suite');
 const { EventDeckPreparationService } = require('../events-v2/deck-preparation-service');
 const { deckPreparationSuite } = require('./helpers/events-v2-deck-preparation-suite');
@@ -250,6 +251,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await activityDeckSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, c, runtime, lifecycle, grants,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
+  await configurationSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations,
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await t.test('migrations re-run; recover when the last migration already partially created tables', async () => {
