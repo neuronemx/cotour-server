@@ -218,6 +218,9 @@ async function grantSuite(t, f) {
   });
 
   await t.test('emergency access changes require current Event Admin, strict origin and exact input; denials leave credentials untouched', async () => {
+    // Earlier revocation coverage deliberately removed this event membership.
+    // Restore an explicit Producer so the 403 exercises capability denial.
+    assert.equal((await request('admin1', 'PUT', `${adminPath}/members/${ids.get('dual')}`, { roles: ['PRODUCER'] })).status, 200);
     const state = async () => ({
       event: await sql('SELECT enabled, authz_version FROM event_v2_contexts WHERE event_id=?', [a]),
       grants: await sql('SELECT id, revoked_at, authz_version FROM event_access_grants WHERE event_id=? ORDER BY id', [a]),
