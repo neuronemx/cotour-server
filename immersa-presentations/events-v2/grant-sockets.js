@@ -87,6 +87,7 @@ function createEventGrantSockets({ io, grants, enabled = () => false, reviewInte
     namespace,
     reviewAll,
     finishLive(eventId, liveId) { live?.finishLive(eventId, liveId); },
+    disconnectEvent(eventId) { for (const socket of namespace.sockets.values()) if (socket.data.eventContext?.eventId === eventId) disconnect(socket); },
     disconnectGrant(grantId) { for (const socket of namespace.sockets.values()) if (socket.data.eventContext?.grantId === grantId) disconnect(socket); },
     close() { av?.close(); games?.close(); raffles?.close(); knowledge?.close(); clearInterval(timer); for (const socket of namespace.sockets.values()) disconnect(socket); }
   };

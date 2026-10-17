@@ -250,6 +250,26 @@ class EventGrantRepository {
     });
   }
 
+  async setAccessEnabled(actor, orgId, eventId, enabled) {
+    if (typeof enabled !== 'boolean') throw new EventAccessError('INVALID_INPUT', 400);
+    return this.domain.transaction(actor, 'event.access.change', async db => {
+      // Recovery still requires current explicit Event Admin membership. Only
+      // this operation can authorize a disabled event; normal access stays shut.
+      await this.domain.event(db, orgId, eventId, actor, 'event.members.manage', { allowDisabled: true });
+      await db.execute('UPDATE event_v2_contexts SET enabled = ?, authz_version = authz_version + 1 WHERE event_id = ?', [enabled, eventId]);
+      if (!enabled) {
+        // The organization lock serializes this with admission, issuance and
+        // every authorized command. Resuming never resurrects these credentials.
+        await db.execute(`UPDATE event_access_grants SET revoked_at = ?, authz_version = authz_version + 1
+          WHERE event_id = ? AND revoked_at IS NULL`, [this.now(), eventId]);
+        await db.execute(`DELETE s FROM event_grant_sessions s
+          JOIN event_access_grants g ON g.id = s.grant_id WHERE g.event_id = ?`, [eventId]);
+      }
+      await this.domain.audit(db, actor, enabled ? 'event.access.resume' : 'event.access.suspend', orgId, eventId, eventId);
+      return { eventId, enabled };
+    });
+  }
+
   async revoke(actor, orgId, eventId, grantId) {
     return this.domain.transaction(actor, 'grant.revoke', async db => {
       await this.domain.event(db, orgId, eventId, actor, 'event.members.manage');
