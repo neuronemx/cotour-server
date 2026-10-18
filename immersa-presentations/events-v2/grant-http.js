@@ -62,7 +62,7 @@ function createGrantAccessRouter({ grants, lifecycle = null, grantSockets = null
     setGrantCookie(res, req.params.grantId, token);
     return session;
   }, []));
-  attachEventConsoleContext(router, grants, handle, browserToken);
+  attachEventConsoleContext(router, grants, handle, browserToken, lifecycle);
   router.post('/public/:publicId/participants', requireOrigin, handle(async (req, res) => {
     const registration = await grants.register(req.params.publicId, req.body.name);
     setGrantCookie(res, registration.grantId, registration.token);

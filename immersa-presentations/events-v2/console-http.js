@@ -5,7 +5,7 @@ const { isId } = require('./grant-repository');
 
 const CONSOLE_KINDS = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
 
-async function consoleTargets(grants, db, context) {
+async function consoleTargets(grants, db, context, content = null) {
   if (context.kind === 'SPEAKER' && context.purpose !== 'live') return [];
   const where = ['a.event_workspace_id=?', "a.access_level IN ('FREE','PAID')", "a.status IN ('SCHEDULED','LIVE')"];
   const params = [context.eventId];
@@ -27,11 +27,25 @@ async function consoleTargets(grants, db, context) {
     WHERE ${where.join(' AND ')} ORDER BY s.sort_order,a.scheduled_starts_at,a.title,l.id LIMIT 501`, params);
   if (rows.length > 500) throw new EventAccessError('CONSOLE_TARGET_LIMIT', 409);
   const occupied = rows.some(row => row.liveSessionId);
-  return rows.map(row => ({ eventId: context.eventId, activityId: row.activityId, stageId: row.stageId,
+  const targets = rows.map(row => ({ eventId: context.eventId, activityId: row.activityId, stageId: row.stageId,
     title: row.title, stageTitle: row.stageTitle, accessLevel: row.accessLevel,
     liveSessionId: row.liveSessionId || null, status: row.liveSessionId ? 'LIVE' : row.activityStatus,
     canStart: context.kind === 'STAGE' && context.purpose === 'live' && !occupied && row.activityStatus === 'SCHEDULED'
-      && !row.has_version_binding && Boolean(row.deck_id) && row.deck_check_status === 'DECK_CHECK' }));
+      && !content && !row.has_version_binding && Boolean(row.deck_id) && row.deck_check_status === 'DECK_CHECK' }));
+  if (content && context.kind === 'STAGE' && context.purpose === 'live' && !occupied) {
+    for (const [index, row] of rows.entries()) {
+      if (row.activityStatus !== 'SCHEDULED') continue;
+      try {
+        // Readiness checks the immutable approval metadata. Start separately
+        // verifies every file and reauthorizes before publishing a session.
+        await content.candidate(db, context, { id: row.activityId });
+        targets[index].canStart = true;
+      } catch (error) {
+        if (!(error instanceof EventAccessError) || ![403, 409].includes(error.statusCode)) throw error;
+      }
+    }
+  }
+  return targets;
 }
 
 function createEventConsolePages({ enabled = () => false } = {}) {
@@ -53,7 +67,7 @@ function createEventConsolePages({ enabled = () => false } = {}) {
   return router;
 }
 
-function attachEventConsoleContext(router, grants, handle, browserToken) {
+function attachEventConsoleContext(router, grants, handle, browserToken, lifecycle = null) {
   router.get('/access/:eventId/:grantId/console/:view', handle(async req => {
     if (Object.keys(req.query).length) throw new EventAccessError('INVALID_INPUT', 400);
     if (req.headers['sec-fetch-site'] === 'cross-site') throw new EventAccessError('ORIGIN_DENIED');
@@ -64,7 +78,7 @@ function attachEventConsoleContext(router, grants, handle, browserToken) {
       const rows = await grants.rows(db, 'SELECT title FROM event_hubs WHERE workspace_id = ?', [context.eventId]);
       if (!rows[0]) throw new EventAccessError('RESOURCE_NOT_FOUND', 404);
       return { context, event: { eventId: context.eventId, title: rows[0].title }, view: req.params.view,
-        targets: await consoleTargets(grants, db, context) };
+        targets: await consoleTargets(grants, db, context, lifecycle?.content) };
     });
   }));
 }

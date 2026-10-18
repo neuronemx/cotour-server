@@ -73,3 +73,15 @@ test('A versioned binding or unlink tombstone cannot inherit legacy Deck Check o
   await assert.rejects(f.lifecycle.start(f.credentials, f.activityId, f.authorize), { code: 'CONTENT_NOT_PREPARED' });
   assert.equal(prepared, 0); assert.equal(f.runtime.states.size, 0);
 });
+
+test('approved start verifies outside authorization, reauthorizes and releases its slot on every failure',async()=>{
+ for(const mode of ['success','verify','pin','commit','revoke']){
+  const f=fixture();f.bind();let inTransaction=false,released=0,verifications=0,pins=0,authorizations=0;
+  const ticket={scope:{deckId:'approved'}};
+  f.lifecycle.content={checks:{acquire:()=>()=>released++},candidate:async()=>ticket,verify:async()=>{assert.equal(inTransaction,false);verifications++;if(mode==='verify')throw new Error('VERIFY');},pin:async()=>{pins++;if(mode==='pin')throw new Error('PIN');}};
+  const authorize=async op=>{authorizations++;if(mode==='revoke'&&authorizations===2)throw new Error('REVOKED');inTransaction=true;try{const v=await f.authorize(op);if(mode==='commit'&&authorizations===2)throw new Error('COMMIT');return v;}finally{inTransaction=false;}};
+  if(mode==='success'){assert.equal((await f.lifecycle.start(f.credentials,f.activityId,authorize)).status,'LIVE');assert.equal(f.runtime.states.size,1);assert.equal(pins,1);}
+  else{await assert.rejects(f.lifecycle.start(f.credentials,f.activityId,authorize));assert.equal(f.runtime.states.size,0);}
+  assert.equal(verifications,1);assert.equal(released,1);
+ }
+});
