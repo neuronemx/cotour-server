@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.ImmersaEventRaffleConsole = factory();
-})(typeof window === 'object' ? window : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./interaction-images'));
+  else root.ImmersaEventRaffleConsole = factory(root.ImmersaEventInteractionImages);
+})(typeof window === 'object' ? window : this, function (images) {
   'use strict';
   const text = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
   const id = v => text(v, 120);
@@ -23,9 +23,9 @@
     const token = v => text(v, 96) && v.trim() === v;
     const check = v => { if (!v) throw fail('INVALID_RAFFLE_RESPONSE'); };
     const date = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
-    const options = rows => {
+    const options = (rows,runId) => {
       check(Array.isArray(rows) && rows.length <= 20); const seen = new Set();
-      return Object.freeze(rows.map(o => { check(o && token(o.id) && text(o.label,500) && !seen.has(o.id) && !['asset','thumbnail','thumb','image'].some(k => o[k])); seen.add(o.id); return Object.freeze({id:o.id,label:o.label}); }));
+      return Object.freeze(rows.map(o => { check(o && token(o.id) && text(o.label,500) && !seen.has(o.id) && !['asset','thumbnail','thumb'].some(k => o[k])); seen.add(o.id); const out={id:o.id,label:o.label};if(o.image!==undefined){check(runId);const image=images?.scoped(o.image,grant.context,liveId,'raffle',runId);check(image);out.image=image;}return Object.freeze(out); }));
     };
     const winner = w => { check(w && text(w.name,120) && text(w.label,500) && (w.ticketNumber === null || integer(w.ticketNumber) && w.ticketNumber > 0)); return Object.freeze({name:w.name,label:w.label,ticketNumber:w.ticketNumber}); };
     function normalize(value) {
@@ -38,13 +38,13 @@
       else {
         check(Array.isArray(value.available) && value.available.length <= 500); const seen = new Set();
         out.available=Object.freeze(value.available.map(row=>{ check(row && token(row.id) && text(row.title,240) && ['free','poll','visual_key'].includes(row.mode) && !seen.has(row.id)); seen.add(row.id);
-          return Object.freeze({id:row.id,title:row.title,mode:row.mode,...(row.mode==='visual_key'?{keyOptions:options(row.keyOptions)}:{})}); }));
+          return Object.freeze({id:row.id,title:row.title,mode:row.mode,...(row.mode==='visual_key'?{keyOptions:options(row.keyOptions,operator?'catalog':null)}:{})}); }));
       }
       if (operator) { check(integer(value.previousWinnerCount) && Array.isArray(value.winners)); out.previousWinnerCount=value.previousWinnerCount; out.winners=Object.freeze(value.winners.slice(-100).map(winner)); }
       if (value.active === null) return Object.freeze(out);
       const r=value.active; check(r && r.type==='raffle' && uuid(r.id) && r.id===value.raffleRunId && ['free','poll','visual_key'].includes(r.mode)
         && ['collecting','entries_closed','drawing','winner'].includes(r.state) && text(r.title,240) && text(r.prompt,2000) && [2,3,4].includes(r.ticketDigits));
-      const active={id:r.id,mode:r.mode,state:r.state,title:r.title,prompt:r.prompt,ticketDigits:r.ticketDigits,options:options(r.options)};
+      const active={id:r.id,mode:r.mode,state:r.state,title:r.title,prompt:r.prompt,ticketDigits:r.ticketDigits,options:options(r.options,r.id)};
       for (const key of ['createdAt','entriesClosedAt','drawingAt','revealAt','winnerSelectedAt']) { check(r[key]===null || date(r[key])); active[key]=r[key]; }
       check(r.countdownRemainingMs===null || Number.isFinite(r.countdownRemainingMs) && r.countdownRemainingMs>=0); active.countdownRemainingMs=r.countdownRemainingMs;
       if (publicView) {
@@ -54,7 +54,7 @@
       } else {
         active.winner = r.state==='winner' && r.winner ? winner(r.winner) : null;
         if (kind==='PLAYER') { check(typeof r.hasWinner==='boolean' && r.hasWinner===Boolean(active.winner)); active.displayOption=null;
-          if (r.state==='collecting' && r.mode==='visual_key') { const rows=options([r.displayOption]); check(rows[0].id===r.displayOptionId); active.displayOption=rows[0]; }
+          if (r.state==='collecting' && r.mode==='visual_key') { const rows=options([r.displayOption],r.id); check(rows[0].id===r.displayOptionId); active.displayOption=rows[0]; }
         } else {
           check(integer(r.entryCount) && integer(r.eligibleCount)); active.entryCount=r.entryCount; active.eligibleCount=r.eligibleCount;
           active.pollResults=null;

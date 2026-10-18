@@ -1,3 +1,4 @@
+const {createProductionPages}=require('./events-v2/production-http');
 const {EventInteractionImages}=require('./events-v2/interaction-images');
 const {createEventInteractionImageRouter}=require('./events-v2/interaction-images-http');
 const audiovisualState = require('./audiovisual-state');
@@ -1099,6 +1100,7 @@ app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
+app.use("/events-v2",createProductionPages({enabled:eventGrantsEnabled,requireAccount:betterAuthCompatibilityBridge.requirePageAuth()}));
 app.use("/events-v2", createEventConsolePages({ enabled: eventGrantsEnabled }));
 app.use('/api/events-v2',createEventInteractionImageRouter({grants:eventGrantRepository,images:eventInteractionImages,knowledge:eventKnowledgeRuntime,raffles:eventRaffleRuntime,enabled:eventGrantsEnabled}));
 app.use("/api/events-v2", createEventSlidesRouter({ grants: eventGrantRepository, slides: eventSlidesRuntime, enabled: eventGrantsEnabled }));

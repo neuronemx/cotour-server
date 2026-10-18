@@ -105,3 +105,10 @@ test('forged own participant, image references and malformed states fail closed,
   const image = player.raw(); image.execution.currentQuestion.image = { url: '/decks/private.png' }; player.controller.receive('events:knowledge:state', image); assert.equal(player.controller.getState().status, 'unavailable');
   const unavailable = harness('STAGE', 'contest', () => ({ ok: false, code: 'KNOWLEDGE_CONTENT_NOT_PREPARED' })); unavailable.ready(); await settle(); assert.equal(unavailable.controller.getState().snapshot, null);
 });
+
+test('typed question images survive normalization only for the bound event/live/grant/run',async()=>{
+ const grantId='00000000-0000-4000-8000-000000000009',h=harness('PLAYER');h.admit();engine.startExecution(h.run(),1000000);h.advance(4800);
+ h.controller.updateAccess({status:'ready',generation:1,context:{kind:'PLAYER',eventId,grantId}});h.controller.updateLive({status:'live',snapshot:{eventId,liveSessionId:liveId}});await settle();
+ const value=h.raw(),image={url:'/api/events-v2/live/'+eventId+'/'+liveId+'/'+grantId+'/interaction-images/knowledge/'+value.execution.executionId+'/'+other,width:64,height:32};value.execution.currentQuestion.image=image;h.controller.receive('events:knowledge:state',value);assert.deepEqual(h.controller.getState().snapshot.execution.currentQuestion.image,image);assert.equal(h.controller.getState().snapshot.execution.currentQuestion.options,undefined);
+ for(const url of [image.url.replace(grantId,participantId),image.url.replace(liveId,participantId),image.url.replace(value.execution.executionId,participantId),image.url+'?token=x']){const bad=structuredClone(value);bad.execution.currentQuestion.image.url=url;h.controller.receive('events:knowledge:state',bad);assert.equal(h.controller.getState().snapshot,null);}
+});
