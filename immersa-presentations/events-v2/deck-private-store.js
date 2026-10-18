@@ -110,6 +110,33 @@ class EventDeckPrivateStore {
     return { json, digest: digest(json), slideCount: slides.length };
   }
 
+  async verify(row) {
+    try {
+      const dir=this.directory(row),raw=await this.read(dir,'manifest.json',2*1024*1024);
+      if(digest(raw)!==row.manifestDigest || digest(row.manifestJson)!==row.manifestDigest) fail();
+      const m=JSON.parse(raw);
+      if(m.schema!==1 || ['eventId','deckId','versionId','attemptId'].some(k=>m[k]!==row[k])
+        || !Number.isSafeInteger(row.slideCount) || row.slideCount<1 || row.slideCount>MAX_PAGES
+        || !Array.isArray(m.slides) || m.slides.length!==row.slideCount
+        || m.source?.size!==row.sourceSize || m.source?.sha256!==row.sourceSha256) fail();
+      const original=await this.read(dir,'original.pdf',MAX_SOURCE_BYTES);
+      if(original.length!==row.sourceSize || digest(original)!==row.sourceSha256) fail();
+      let output=0;
+      for(const [i,slide] of m.slides.entries()) {
+        const id='slide-'+String(i+1).padStart(3,'0'); if(slide?.id!==id) fail();
+        for(const [variant,folder] of [['full','slides'],['thumb','thumbs']]) {
+          const asset=slide[variant];
+          if(asset?.file!==`${folder}/${id}.jpg` || !Number.isSafeInteger(asset.size)
+            || asset.size<1 || asset.size>MAX_IMAGE_BYTES || !/^[a-f0-9]{64}$/.test(asset.sha256 || '')) fail();
+          const bytes=await this.read(dir,asset.file,MAX_IMAGE_BYTES);
+          if(bytes.length!==asset.size || digest(bytes)!==asset.sha256) fail();
+          output+=bytes.length; if(output>MAX_OUTPUT_BYTES) fail();
+        }
+      }
+      return {slides:row.slideCount,files:2+2*row.slideCount,bytes:raw.length+original.length+output};
+    } catch(e) { if(e instanceof EventAccessError) throw e; fail(); }
+  }
+
   async image(row, slideId, variant) {
     if (!/^slide-\d{3}$/.test(slideId) || !['full', 'thumb'].includes(variant)) throw new EventAccessError('RESOURCE_NOT_FOUND', 404);
     try {

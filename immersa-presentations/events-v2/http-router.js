@@ -6,6 +6,7 @@ const { attachDeckPreparationRoutes } = require('./deck-preparation-http');
 const { EventActivityDeckRepository } = require('./activity-deck-repository');
 const { EventDeckRepository } = require('./deck-repository');
 const { attachMediaRoutes } = require('./media-http');
+const { EventDeckCheckService } = require('./deck-check-service');
 const { EventDeckConfigurationService } = require('./deck-configuration');
 
 function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null, deckTranslations = null, media = null, images = null }) {
@@ -68,6 +69,10 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId,
       deckId: req.params.deckId, versionId: req.params.versionId });
     const configPath = eventPath + '/decks/:deckId/versions/:versionId/configuration';
+    const checks=new EventDeckCheckService({configurations});
+    const checkPath=eventPath+'/decks/:deckId/versions/:versionId/deck-check';
+    router.get(checkPath,handle((req,actor)=>{ if(Object.keys(req.query).length) throw new EventAccessError('INVALID_FIELDS',400); return checks.get(actor,scope(req)); }));
+    router.post(checkPath,requireOrigin,handle((req,actor)=>{ if(Object.keys(req.query).length) throw new EventAccessError('INVALID_FIELDS',400); return checks.approve(actor,scope(req),req.body.configurationDigest); },['configurationDigest'],201));
     const noQuery = req => { if (Object.keys(req.query).length) throw new EventAccessError('INVALID_FIELDS', 400); };
     router.get(configPath, handle((req, actor) => { noQuery(req); return configurations.get(actor, scope(req)); }));
     router.post(configPath, requireOrigin, handle((req, actor) => {

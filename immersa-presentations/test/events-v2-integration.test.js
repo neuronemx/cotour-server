@@ -268,6 +268,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await require('./helpers/events-v2-image-suite').imageSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations, images, media,
     setDomainEnabled: value => { domainEnabled = value; } });
 
+  await require('./helpers/events-v2-check-suite').checkSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations, deckTranslations, media, images,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
   await englishSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations, deckTranslations,
     setDomainEnabled: value => { domainEnabled = value; } });
 
