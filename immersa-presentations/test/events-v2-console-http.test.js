@@ -45,3 +45,14 @@ test('Stage start readiness rejects version bindings including cleared tombstone
     assert.equal(targets[0].canStart, has_version_binding === 0);
   }
 });
+
+test('Stage readiness uses the approved reader without leaking content or swallowing outages', async()=>{
+ const {consoleTargets}=require('../events-v2/console-http'),{EventAccessError}=require('../events-v2/authorization');
+ const row={activityId:'activity',activityStatus:'SCHEDULED',deck_id:'legacy',deck_check_status:'DECK_CHECK'},context={kind:'STAGE',purpose:'live',eventId:'event'};
+ const grants={rows:async()=>[row]};let calls=0;
+ const content={candidate:async()=>{calls++;return{privateNotes:'PRIVATE'};}};
+ assert.equal((await consoleTargets(grants,{},context,content))[0].canStart,true);assert.equal(calls,1);
+ content.candidate=async()=>{throw new EventAccessError('CONTENT_NOT_PREPARED');};const denied=await consoleTargets(grants,{},context,content);assert.equal(denied[0].canStart,false);assert.equal(JSON.stringify(denied).includes('PRIVATE'),false);
+ content.candidate=async()=>{throw new Error('DB_UNAVAILABLE');};await assert.rejects(consoleTargets(grants,{},context,content),/DB_UNAVAILABLE/);
+ content.candidate=async()=>{throw new EventAccessError('EVENTS_V2_DISABLED',404);};await assert.rejects(consoleTargets(grants,{},context,content),{code:'EVENTS_V2_DISABLED'});
+});

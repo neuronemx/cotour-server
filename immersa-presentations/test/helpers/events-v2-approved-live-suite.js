@@ -35,8 +35,8 @@ async function approvedLiveSuite(t,f){
  try{
   await t.test('approved start rejects legacy approval, an unapproved version, unsupported image adapters and corrupted source',async()=>{
    stage=await issue('STAGE',{stageId});assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');
-   deck=await prepare();await bind(deck);assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');assert.equal(await count(),0);
-   approval=await approve(deck);const rich=await prepare(true);await approve(rich);await bind(rich);assert.equal((await start(stage)).body.code,'CONTENT_RUNTIME_NOT_READY');assert.equal(await count(),0);await bind(deck);
+   deck=await prepare();await bind(deck);assert.equal((await request(null,'GET',access(stage)+'/console/stage',undefined,{cookie:stage.cookie})).body.targets[0].canStart,false);assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');assert.equal(await count(),0);
+   approval=await approve(deck);const rich=await prepare(true);await approve(rich);await bind(rich);assert.equal((await start(stage)).body.code,'CONTENT_RUNTIME_NOT_READY');assert.equal(await count(),0);await bind(deck);assert.equal((await request(null,'GET',access(stage)+'/console/stage',undefined,{cookie:stage.cookie})).body.targets[0].canStart,true);
    const row=await prep.row(domain.pool,scope(deck));await damage(path.join(prep.store.directory(row),'original.pdf'),async()=>{assert.notEqual((await start(stage)).status,201);assert.equal(await count(),0);});
   });
   await t.test('start reauthorizes after long verification and releases admission after revoke, flag, rebind and audit failure',async()=>{
