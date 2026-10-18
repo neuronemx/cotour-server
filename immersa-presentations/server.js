@@ -1,3 +1,5 @@
+const {EventInteractionImages}=require('./events-v2/interaction-images');
+const {createEventInteractionImageRouter}=require('./events-v2/interaction-images-http');
 const audiovisualState = require('./audiovisual-state');
 const path = require("path");
 const fs = require("fs");
@@ -204,16 +206,17 @@ const eventImages = eventDeckPreparations ? new EventImageService({
   preparations: eventDeckPreparations, admission: eventMedia, root: path.join(DATA_DIR, "events-v2-private", "images"),
   forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
 }) : null;
-const eventApprovedContent = eventDeckPreparations ? new EventApprovedContent({ checks: new EventDeckCheckService({
+const eventApprovedContent = eventDeckPreparations ? new EventApprovedContent({ interactionImages:true, checks: new EventDeckCheckService({
   configurations: new EventDeckConfigurationService({ preparations: eventDeckPreparations, translations: eventDeckTranslations, media: eventMedia, images: eventImages })
 }) }) : null;
+const eventInteractionImages = eventApprovedContent ? new EventInteractionImages({content:eventApprovedContent}) : null;
 const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled,
   readPreparation: (live,db) => eventApprovedContent?.readPreparation(live,db) });
 const eventPollRuntime = new EventPollRuntime({ liveRuntime: eventLiveRuntime, readPolls: (p,db) => eventApprovedContent.catalog(p,db,"polls") });
 const eventQnaRuntime = new EventQnaRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool });
-const eventKnowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool, polls: eventPollRuntime, readKnowledge: (p,db) => eventApprovedContent.catalog(p,db,"knowledge") });
+const eventKnowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool, polls: eventPollRuntime, projectImages:(...args)=>eventInteractionImages.knowledge(...args), readKnowledge: (p,db) => eventApprovedContent.catalog(p,db,"knowledge") });
 eventPollRuntime.knowledge = eventKnowledgeRuntime;
-const eventRaffleRuntime = new EventRaffleRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, readRaffles: (p,db) => eventApprovedContent.catalog(p,db,"raffles") });
+const eventRaffleRuntime = new EventRaffleRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, projectImages:(...args)=>eventInteractionImages.raffle(...args), readRaffles: (p,db) => eventApprovedContent.catalog(p,db,"raffles") });
 eventPollRuntime.raffles = eventRaffleRuntime;
 eventKnowledgeRuntime.raffles = eventRaffleRuntime;
 const eventGameRuntime = new EventGameRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, readGames: (p,db) => eventApprovedContent.catalog(p,db,"games") });
@@ -1097,6 +1100,7 @@ app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler)
 app.use(express.json({ limit: "2mb" }));
 if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
 app.use("/events-v2", createEventConsolePages({ enabled: eventGrantsEnabled }));
+app.use('/api/events-v2',createEventInteractionImageRouter({grants:eventGrantRepository,images:eventInteractionImages,knowledge:eventKnowledgeRuntime,raffles:eventRaffleRuntime,enabled:eventGrantsEnabled}));
 app.use("/api/events-v2", createEventSlidesRouter({ grants: eventGrantRepository, slides: eventSlidesRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventAssetRouter({ grants: eventGrantRepository, av: eventAVRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, lifecycle: eventLifecycle, grantSockets: eventGrantSockets, enabled: eventGrantsEnabled }));

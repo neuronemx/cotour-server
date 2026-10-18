@@ -14,14 +14,15 @@ function jpegSize(b){
  }fail();
 }
 class EventApprovedContent {
- constructor({checks}){this.checks=checks;this.configurations=checks.configurations;this.preparations=checks.preparations;this.cache=new Map();}
+ constructor({checks,interactionImages=false}){this.interactionImages=interactionImages;this.checks=checks;this.configurations=checks.configurations;this.preparations=checks.preparations;this.cache=new Map();}
  async version(db,scope){
   const snapshot=await this.checks.snapshot(db,scope),row=await this.checks.row(db,scope);if(!row)fail();
   this.checks.stored(row,snapshot);
   const {configuration}=await this.configurations.read(db,scope);
   // Image-bearing interactions need a typed delivery adapter, rather than
   // being silently normalized into text by the established engines.
-  if(snapshot.images.length)fail('CONTENT_RUNTIME_NOT_READY');
+  // Admission is enabled only with the server-installed typed adapter.
+  if(snapshot.images.length&&!this.interactionImages)fail('CONTENT_RUNTIME_NOT_READY');
   return{snapshot,row,configuration};
  }
  async candidate(db,context,activity){
@@ -85,6 +86,14 @@ class EventApprovedContent {
   const service=m[1]==='es'?this.preparations:this.configurations.translations,row=m[1]==='es'?c.snapshot.spanish:c.snapshot.english;
   const bytes=await service.store.image(row,m[2],m[3]);if(bytes.length!==resource.size||digest(bytes)!==resource.sha256)fail();
   return{verified:true,size:bytes.length,sha256:resource.sha256,contentType:resource.contentType,open:async(start,end)=>Readable.from([bytes.subarray(start,end+1)])};
+ }
+ async imageResources(live,db){const c=await this.load(live,db);return c.snapshot.images.map(row=>this.configurations.images.metadata(row));}
+ async readInteractionImage(live,id,db){
+  const c=await this.load(live,db),row=c.snapshot.images.find(row=>row.id===id);if(!row)fail();
+  const service=this.configurations.images,metadata=service.metadata(row),handle=await service.store.verified(row),parts=[];
+  try{for await(const chunk of handle.createReadStream({start:0,end:row.size-1,autoClose:false}))parts.push(chunk);}finally{await handle.close();}
+  const bytes=Buffer.concat(parts);if(bytes.length!==row.size||digest(bytes)!==row.sha256)fail();this.preparations.checkEnabled();
+  return{verified:true,size:row.size,sha256:row.sha256,contentType:metadata.contentType,open:async(start,end)=>Readable.from([bytes.subarray(start,end+1)])};
  }
  async readAsset(live,resource,db){
   const c=await this.load(live,db),row=c.snapshot.media.find(r=>r.id===resource.assetId);

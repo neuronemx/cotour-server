@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.ImmersaEventKnowledgePage = factory();
-})(typeof window === 'object' ? window : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./interaction-images'));
+  else root.ImmersaEventKnowledgePage = factory(root.ImmersaEventInteractionImages);
+})(typeof window === 'object' ? window : this, function (images) {
   'use strict';
   const labels = { LOBBY: 'Esperando participantes', COUNTDOWN: 'Preparados para comenzar', ACTIVE: 'Actividad en curso', PROCESSING: 'Procesando resultados…',
     PROCESSING_ERROR: 'No se pudo completar el procesamiento.', RESULTS_READY: 'Resultados listos para publicar', RESULTS_VISIBLE: 'Resultados publicados', CLOSED: 'Actividad cerrada', CANCELLED: 'Actividad cancelada' };
@@ -62,6 +62,7 @@
       index = Math.max(0, Math.min(index, qs.length - 1));
       const q = publicView ? qs[index] : r?.currentQuestion;
       $('knowledge-question').textContent = usable && q ? translated(q.prompt,q.en?.prompt||q.promptEn) : '';
+      images.render(document,$('knowledge-image'),usable?q?.image:null);
       $('knowledge-progress').textContent = p && r.questionCount ? (r.category === 'assessment' && qs.length ? index + 1 : (r.questionIndex ?? 0) + 1) + '/' + r.questionCount : '';
       const nextSignature = usable && publicView && p && q ? JSON.stringify([r.executionId,q.id,q.options,english,q.en]) : null;
       if (signature !== nextSignature) {

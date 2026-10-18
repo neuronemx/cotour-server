@@ -1,3 +1,4 @@
+const {imageBindings}=require('./interaction-images');
 const crypto = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const engine = require('../knowledge-activity-engine');
@@ -24,7 +25,8 @@ function normalizeKnowledge(definitions) {
     const questionIds = new Set();
     for (const question of definition.questions) {
       // Private image delivery belongs to the prepared asset boundary, not the
-      // historical /decks URL. This increment accepts text definitions only.
+      // historical /decks URL. The engine keeps text; the Events adapter
+      // resolves private image references onto authorized role DTOs.
       if (!question || !token(question.id) || questionIds.has(question.id) || !bounded(question.prompt, 2000)
         || question.image || !Array.isArray(question.options) || question.options.length < 2 || question.options.length > 6) throw error('KNOWLEDGE_CONTENT_NOT_PREPARED');
       questionIds.add(question.id);
@@ -47,9 +49,9 @@ function nextDeadline(run) {
 }
 
 class EventKnowledgeRuntime {
-  constructor({ liveRuntime, pool, polls = null, readKnowledge = async () => null, now = Date.now,
+  constructor({ liveRuntime, pool, polls = null, readKnowledge = async () => null, projectImages = null, now = Date.now,
     random = Math.random, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
-    this.live = liveRuntime; this.pool = pool; this.raffles = null; this.polls = polls; this.readKnowledge = readKnowledge;
+    this.live = liveRuntime; this.pool = pool; this.raffles = null; this.polls = polls; this.readKnowledge = readKnowledge; this.projectImages = projectImages;
     this.now = now; this.random = random; this.setTimeoutFn = setTimeoutFn; this.clearTimeoutFn = clearTimeoutFn;
     this.timers = new Map(); this.witnesses = new Map(); this.witnessSequence = 0; this.notify = async () => {};
   }
@@ -64,7 +66,9 @@ class EventKnowledgeRuntime {
     const catalog = await this.readKnowledge(prepared, db);
     if (!catalog || ['eventId', 'liveSessionId', 'deckId', 'versionId'].some(field => catalog[field] !== prepared[field])) throw error('KNOWLEDGE_CONTENT_NOT_PREPARED');
     const definitions = normalizeKnowledge(catalog.knowledge);
-    const digest = crypto.createHash('sha256').update(JSON.stringify(definitions)).digest('hex');
+    const bindings = imageBindings(catalog.knowledge,'knowledge');
+    if(bindings.length&&!this.projectImages)throw error('INTERACTION_IMAGE_NOT_PREPARED');
+    const digest = crypto.createHash('sha256').update(JSON.stringify(bindings.length?{definitions,images:bindings}:definitions)).digest('hex');
     const [rows] = await db.execute('SELECT * FROM event_v2_knowledge_sessions WHERE id = ?', [liveId]);
     const record = rows[0];
     if (record && (record.stage_id !== prepared.stageId || record.activity_id !== prepared.activityId
@@ -72,7 +76,7 @@ class EventKnowledgeRuntime {
     const run = record?.latest_execution_id ? await this.repository(db).loadExecution(record.latest_execution_id) : null;
     if (record?.latest_execution_id && (!run || run.presentationSessionId !== liveId || run.sourceSessionId !== key || run.deckId !== prepared.deckId
       || !isDeepStrictEqual(run.definition, definitions.find(item => item.id === run.definitionId)))) throw error('CONTENT_VERSION_CHANGED');
-    return { prepared, key, record, definitions, digest, run };
+    return { prepared, key, record, definitions, digest, run, imageBindings:bindings };
   }
   async hasActive(context, db, liveId, preparedLive) {
     const { run } = await this.scope(context, db, liveId, preparedLive);
@@ -177,7 +181,7 @@ class EventKnowledgeRuntime {
     handle?.unref?.(); this.timers.set(key, handle);
   }
   async projection(context, db, liveId, preparedLive, tabId = '') {
-    const { run, definitions } = await this.scope(context, db, liveId, preparedLive);
+    const scoped = await this.scope(context, db, liveId, preparedLive), { run, definitions } = scoped;
     const snapshot = { eventId: context.eventId, liveSessionId: liveId, execution: null };
     if (controls(context)) snapshot.available = definitions.map(({ id, title, category }) => ({ id, title, category }));
     if (context.kind === 'PARTICIPANT') snapshot.displayName = await this.participantName(context, db);
@@ -186,7 +190,7 @@ class EventKnowledgeRuntime {
     // participant serializer is always bound to the server's participant ID.
     const view = context.kind === 'PARTICIPANT' ? 'audience' : context.kind === 'PLAYER' ? 'screen' : 'stage';
     snapshot.execution = engine.stateForRole(run, { role: view, participantId: context.participantId, tabId, nowMs: this.now() });
-    return snapshot;
+    return this.projectImages ? this.projectImages(context,db,scoped,snapshot) : snapshot;
   }
   close() { for (const handle of this.timers.values()) this.clearTimeoutFn(handle); this.timers.clear(); this.witnesses.clear(); }
 }
