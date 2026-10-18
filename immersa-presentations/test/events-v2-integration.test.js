@@ -1,3 +1,4 @@
+const {createProductionPages}=require('../events-v2/production-http');
 const {EventInteractionImages}=require('../events-v2/interaction-images');
 const {createEventInteractionImageRouter}=require('../events-v2/interaction-images-http');
 const {EventApprovedContent}=require('../events-v2/approved-content');
@@ -149,6 +150,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   app.all('/api/auth/*', bridge.handler);
   app.use(express.json({ limit: '2mb' })); // Match server transport; authored configuration has its own smaller bound.
   app.use(boundary.httpMiddleware());
+  app.use('/events-v2',createProductionPages({enabled:()=>domainEnabled&&grantEnabled,requireAccount:bridge.requirePageAuth()}));
   app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createEventSlidesRouter({grants,slides:slidesRuntime,enabled:()=>domainEnabled&&grantEnabled}));
   app.use('/api/events-v2', createGrantAccessRouter({ grants, lifecycle, grantSockets, enabled: () => domainEnabled && grantEnabled }));
@@ -257,6 +259,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   await sql('INSERT INTO event_live_sessions (id,event_workspace_id,event_stage_id,event_activity_id,deck_id) VALUES (?,?,?,?,?)', [liveA, a, stageA, activityA, 'v2-private-deck']);
   const publicId = 'p_evt_v2_private_test';
   await sql('INSERT INTO event_public_qrs (id,event_workspace_id,public_id,audience_level) VALUES (?,?,?,?)', [crypto.randomUUID(), a, publicId, 'FREE']);
+
+  await require('./helpers/events-v2-production-suite').productionSuite(t,{request,sql,domain,base,cookies,ids,o1,a,b,stageB,publicId,setDomainEnabled:value=>{domainEnabled=value;}});
 
   await decksSuite(t, { request, sql, domain, ids, o1, o2, a, b, c, boundary, perimeterDataDir, perimeterPublicDir,
     setDomainEnabled: value => { domainEnabled = value; } });

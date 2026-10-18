@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.ImmersaEventKnowledgeConsole = factory();
-})(typeof window === 'object' ? window : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./interaction-images'));
+  else root.ImmersaEventKnowledgeConsole = factory(root.ImmersaEventInteractionImages);
+})(typeof window === 'object' ? window : this, function (images) {
   'use strict';
   const id = v => typeof v === 'string' && /^[a-f0-9-]{36}$/i.test(v);
   const text = (v, max) => typeof v === 'string' && v.length <= max;
@@ -12,10 +12,11 @@
   const fail = () => { throw Object.assign(new Error('INVALID_KNOWLEDGE_RESPONSE'), { code: 'INVALID_KNOWLEDGE_RESPONSE' }); };
   const check = ok => { if (!ok) fail(); };
   const freeze = Object.freeze;
-  function question(q, options = true) {
+  function question(q, options = true, imageFor = () => null) {
     if (q === null) return null;
-    check(q && token(q.id) && text(q.prompt, 2000) && q.prompt.trim() && !q.image);
+    check(q && token(q.id) && text(q.prompt, 2000) && q.prompt.trim());
     const out = { id: q.id, prompt: q.prompt };
+    if(q.image!==undefined&&q.image!==null){const image=imageFor(q.image);check(image);out.image=image;}
     if (options) {
       check(Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 6);
       const seen = new Set(); out.options = freeze(q.options.map(o => {
@@ -63,6 +64,7 @@
       check(r && id(r.executionId) && ['contest','assessment'].includes(r.category) && text(r.title, 240)
         && ['LOBBY','COUNTDOWN','ACTIVE','PROCESSING','PROCESSING_ERROR','RESULTS_READY','RESULTS_VISIBLE','CANCELLED','CLOSED'].includes(r.state)
         && [null,'QUESTION_ACTIVE','REVEAL'].includes(r.substate) && integer(r.revision) && date(r.serverNow) && typeof r.resultsVisible === 'boolean');
+      const imageFor=image=>images?.scoped(image,grant.context,liveId,'knowledge',r.executionId);
       const run = { executionId: r.executionId, category: r.category, title: r.title, titleEn: text(r.titleEn, 240) ? r.titleEn : '',
         state: r.state, substate: r.substate, revision: r.revision, serverNow: r.serverNow, resultsVisible: r.resultsVisible };
       check((r.category === 'contest' && r.state === 'ACTIVE' ? ['QUESTION_ACTIVE','REVEAL'].includes(r.substate) : r.substate === null)
@@ -89,9 +91,9 @@
             check(a && token(a.questionId) && token(a.optionId) && !seen.has(a.questionId)); seen.add(a.questionId);
             return freeze({ questionId: a.questionId, optionId: a.optionId });
           }));
-          run.currentQuestion = r.category === 'contest' && r.state === 'ACTIVE' ? question(r.currentQuestion) : null;
+          run.currentQuestion = r.category === 'contest' && r.state === 'ACTIVE' ? question(r.currentQuestion,true,imageFor) : null;
           check(Array.isArray(r.questions) && r.questions.length <= 100 && r.questions.every(Boolean));
-          run.questions = r.category === 'assessment' && r.state === 'ACTIVE' && !p.submittedAt ? freeze(r.questions.map(q => question(q))) : freeze([]);
+          run.questions = r.category === 'assessment' && r.state === 'ACTIVE' && !p.submittedAt ? freeze(r.questions.map(q => question(q,true,imageFor))) : freeze([]);
           check(new Set(run.questions.map(q => q.id)).size === run.questions.length);
           run.reveal = null;
           if (r.category === 'contest' && r.state === 'ACTIVE' && r.substate === 'REVEAL' && r.reveal) {
@@ -123,7 +125,7 @@
         for (const key of ['participantCount','effectiveParticipantCount','submittedCount','questionCount']) { check(integer(r[key])); run[key] = r[key]; }
         check(run.questionCount > 0 && run.questionCount <= 100 && Number.isSafeInteger(r.questionIndex) && r.questionIndex >= -1 && r.questionIndex < run.questionCount);
         run.questionIndex = r.questionIndex;
-        run.currentQuestion = r.category === 'contest' && r.state === 'ACTIVE' ? question(r.currentQuestion, kind !== 'PLAYER') : null;
+        run.currentQuestion = r.category === 'contest' && r.state === 'ACTIVE' ? question(r.currentQuestion, kind !== 'PLAYER',imageFor) : null;
         run.reveal = null; run.top10 = freeze([]); run.result = null;
         if (kind === 'PLAYER') {
           if (r.category === 'contest' && r.state === 'ACTIVE' && r.substate === 'REVEAL' && r.reveal) {

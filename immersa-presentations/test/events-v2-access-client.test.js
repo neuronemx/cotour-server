@@ -261,3 +261,12 @@ test('AV transport validates exact payloads, nested drawing, bounded controls an
 });
 
 test('slide transport allows only a personal ES/EN read and rejects caller-supplied paths, roles or navigation',async()=>{const sent=[],h=harness({commandHandler:(name,payload,ack)=>{sent.push({name,payload});ack({ok:true});}});await h.client.start(token);for(const language of ['es','en'])assert.equal((await h.client.command('events:slides:snapshot',{language})).ok,true);for(const input of [{},{language:'fr'},{language:'en',url:'/public/image'},{language:'es',role:'STAGE'},{language:'en',slideIndex:2}])await assert.rejects(h.client.command('events:slides:snapshot',input),{code:'INVALID_COMMAND'});assert.equal(sent.length,2);h.client.close();});
+
+
+test('Stage activity hint is erased with the token and cannot change grant authority or other views',()=>{
+ const selected='00000000-0000-4000-8000-000000000098',clean=[];
+ const link=consumeLink(new URL('https://show.example'+path+'#token='+token+'&activity='+selected),{replaceState:(...args)=>clean.push(args)});
+ assert.deepEqual(link.binding,binding);assert.equal(link.activityId,selected);assert.deepEqual(clean,[[null,'',path]]);
+ for(const suffix of ['&activity=bad','&activity='+selected+'&activity='+selected])assert.throws(()=>consumeLink(new URL('https://show.example'+path+'#token='+token+suffix),{replaceState(){}}));
+ assert.throws(()=>consumeLink(new URL('https://show.example'+path.replace('/stage/','/speaker/')+'#token='+token+'&activity='+selected),{replaceState(){}}));
+});

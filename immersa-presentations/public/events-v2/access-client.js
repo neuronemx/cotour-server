@@ -18,9 +18,11 @@
     if (!match || search) throw failure('INVALID_ACCESS_LINK');
     const view = match[1].toLowerCase();
     const params = new URLSearchParams(hash.replace(/^#/, ''));
-    if ([...params.keys()].some(key => key !== 'token') || params.getAll('token').length > 1
+    if ([...params.keys()].some(key => key !== 'token' && key !== 'activity') || params.getAll('token').length > 1
+      || params.getAll('activity').length > 1 || (params.has('activity') && (view !== 'stage' || !id(params.get('activity'))))
       || (hash && !secret(params.get('token')))) throw failure('INVALID_ACCESS_LINK');
-    return { binding: Object.freeze({ view, eventId: match[2].toLowerCase(), grantId: match[3].toLowerCase() }), token: params.get('token') || null };
+    return { binding: Object.freeze({ view, eventId: match[2].toLowerCase(), grantId: match[3].toLowerCase() }), token: params.get('token') || null,
+      activityId: params.get('activity')?.toLowerCase() || null };
   }
 
   function createClient({ binding, fetch, io, onState = () => {}, onEvent = () => {}, now = Date.now,

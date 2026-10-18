@@ -1,3 +1,4 @@
+const {attachProductionRoutes}=require('./production-http');
 const express = require('express');
 const { EventAccessError, accountActor, assertFields } = require('./authorization');
 const { requireOrigin } = require('./grant-http');
@@ -43,6 +44,7 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     await grantSockets?.reviewAll();
     return result;
   };
+  attachProductionRoutes(router,{repository,handle,requirePlatformAdmin});
   router.post('/platform/organizations', requirePlatformAdmin, handle((req, actor) => repository.createOrganization(actor, req.body), ['name', 'adminUserId', 'createEventsEnabled'], 201));
   router.patch('/platform/organizations/:orgId', requirePlatformAdmin, handle((req, actor) => repository.setCreationEnabled(actor, req.params.orgId, req.body.createEventsEnabled), ['createEventsEnabled']));
   router.get('/organizations', handle((_req, actor) => repository.listOrganizations(actor)));
