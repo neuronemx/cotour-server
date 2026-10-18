@@ -57,6 +57,8 @@ const {consoleAVSuite}=require('./helpers/events-v2-console-av-suite');
 const { consoleGameTimeSuite } = require('./helpers/events-v2-console-game-time-suite');
 const { consoleRaffleSuite } = require('./helpers/events-v2-console-raffle-suite');
 const { consoleKnowledgeSuite } = require('./helpers/events-v2-console-knowledge-suite');
+const { EventMediaService } = require('../events-v2/media-service');
+const { mediaSuite } = require('./helpers/events-v2-media-suite');
 const { configurationSuite } = require('./helpers/events-v2-configuration-suite');
 const { activityDeckSuite } = require('./helpers/events-v2-activity-deck-suite');
 const { EventDeckPreparationService } = require('../events-v2/deck-preparation-service');
@@ -149,7 +151,8 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
   const reports = new EventReportsRepository({ domain, enabled: () => domainEnabled && grantEnabled });
   const deckPreparations = new EventDeckPreparationService({ domain, root: path.join(localDir, "private-decks"), enabled: () => domainEnabled && grantEnabled });
-  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: () => domainEnabled && grantEnabled, grants, grantSockets, reports, deckPreparations });
+  const media = new EventMediaService({ preparations: deckPreparations, root: path.join(localDir,"private-media") });
+  const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: () => domainEnabled && grantEnabled, grants, grantSockets, reports, deckPreparations, media });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
   app.get('/api/access-links/:access_token', links.resolveAccessLink);
@@ -254,6 +257,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await configurationSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
+  await mediaSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, media, deckPreparations,
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await t.test('migrations re-run; recover when the last migration already partially created tables', async () => {
