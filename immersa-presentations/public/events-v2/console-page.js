@@ -55,7 +55,7 @@
     $('function').textContent = names[link.binding.view];
     client = window.ImmersaEventAccess.createClient({ binding: link.binding, fetch: window.fetch.bind(window), io: window.io,
       onState: renderAccess, onEvent: (name, value) => { live.receive(name, value); poll.receive(name, value); qna.receive(name, value); knowledge.receive(name, value); raffle.receive(name, value); game.receive(name, value); time.receive(name, value); av.receive(name,value); } });
-    live = window.ImmersaEventLiveConsole.createController({ access: client, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); knowledge?.updateLive(state); raffle?.updateLive(state); game?.updateLive(state); time?.updateLive(state); av?.updateLive(state); slides?.updateLive(state); } });
+    live = window.ImmersaEventLiveConsole.createController({ access: client, preferredActivityId: link.activityId, onState: state => { renderOperation(state); poll?.updateLive(state); qna?.updateLive(state); knowledge?.updateLive(state); raffle?.updateLive(state); game?.updateLive(state); time?.updateLive(state); av?.updateLive(state); slides?.updateLive(state); } });
     poll = window.ImmersaEventPollConsole.createController({ access: client, onState: state => { pollView?.render(state); emergency?.render(); } });
     pollView = window.ImmersaEventPollPage.createView({ document, controller: poll, getLanguage:language });
     qna = window.ImmersaEventQnaConsole.createController({ access: client, onState: state => { qnaView?.render(state); emergency?.render(); } });

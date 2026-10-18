@@ -77,3 +77,14 @@ test('missing preparation creates no usable live projection or command fallback;
   assert.equal(await h.controller.operate('next'), false); assert.equal(await h.controller.operate('legacy_join'), false);
   assert.deepEqual(h.sent.map(item => item.name), ['events:live:join']);
 });
+
+
+test('Production activity hint selects only an authorized Stage target and never starts automatically',async()=>{
+ const scheduled={...target,liveSessionId:null,status:'SCHEDULED',canStart:true},sent=[];
+ for(const preferredActivityId of [activity,other]){
+  const controller=createController({preferredActivityId,access:{command:async(name,payload)=>{sent.push({name,payload});return{ok:false};},resume:async()=>{}}});
+  controller.updateAccess({status:'ready',generation:1,targets:[scheduled],context:{eventId:event,stageId:stage,kind:'STAGE',purpose:'live'}});await settle();
+  assert.equal(controller.getState().target?.activityId,preferredActivityId===activity?activity:undefined);assert.equal(sent.length,0);
+  if(preferredActivityId===activity){await controller.operate('start');assert.deepEqual(sent.pop(),{name:'events:lifecycle:start',payload:{activityId:activity}});}
+ }
+});

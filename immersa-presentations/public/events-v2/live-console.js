@@ -5,7 +5,7 @@
   'use strict';
   const error = code => Object.assign(new Error(code), { code });
   const targetKey = item => item.activityId + ':' + (item.liveSessionId || 'scheduled');
-  function createController({ access, onState = () => {} }) {
+  function createController({ access, onState = () => {}, preferredActivityId = null }) {
     let grant = null, generation = -1, selectedActivity = null, selectedLive = null;
     let bound = null, attempted = null, snapshot = null, pending = false, sequence = 0, finished = null;
     let state = Object.freeze({ status: 'waiting', targets: [], target: null, snapshot: null, pending: false, code: null });
@@ -62,6 +62,10 @@
       // of a prior start; only a read/join is recovered on the fresh socket.
       const target = selected();
       if (target) { selectedActivity = target.activityId; selectedLive = target.liveSessionId; }
+      else if (value.context.kind === 'STAGE' && preferredActivityId && value.targets.some(t => t.activityId === preferredActivityId)) {
+        const preferred = value.targets.find(t => t.activityId === preferredActivityId);
+        selectedActivity = preferred.activityId; selectedLive = preferred.liveSessionId;
+      }
       else if (['SPEAKER', 'PLAYER'].includes(value.context.kind) && value.targets.length === 1) {
         selectedActivity = value.targets[0].activityId; selectedLive = value.targets[0].liveSessionId;
       } else { selectedActivity = selectedLive = null; }

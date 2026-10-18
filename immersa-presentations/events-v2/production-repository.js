@@ -2,6 +2,15 @@ const crypto = require('node:crypto');
 const {EventAccessError,textField,requireCapability}=require('./authorization');
 const {isId}=require('./grant-repository');
 const fail=(code,status=400)=>{throw new EventAccessError(code,status);};
+function schedule(start=null,duration=60){
+ if(!Number.isSafeInteger(duration)||duration<5||duration>480)fail('INVALID_ACTIVITY_DURATION');
+ if(start===null)return{scheduledStartsAt:null,scheduledEndsAt:null,durationMinutes:duration};
+ // Transport is an explicit UTC instant; never interpret a server-local time.
+ if(typeof start!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(start))fail('INVALID_ACTIVITY_START');
+ const date=new Date(start);
+ if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,19)!==start.slice(0,19)||date.getUTCFullYear()<2000||date.getUTCFullYear()>9998)fail('INVALID_ACTIVITY_START');
+ return{scheduledStartsAt:date,scheduledEndsAt:new Date(date.getTime()+duration*60000),durationMinutes:duration};
+}
 class EventProductionRepository {
  constructor(domain){this.domain=domain;}
  async authorized(db,actor,org,event){const c=await this.domain.event(db,org,event,actor,'event.configure');requireCapability(c,'content.prepare');return c;}
@@ -9,11 +18,12 @@ class EventProductionRepository {
   const context=await this.authorized(db,actor,org,event),rows=(q,v=[event])=>this.domain.rows(db,q,v);
   const stages=await rows('SELECT id,name FROM event_stages WHERE event_workspace_id=? AND active=1 ORDER BY sort_order,name LIMIT 501');
   const activities=await rows(`SELECT a.id,a.title,a.event_stage_id AS stageId,a.access_level AS accessLevel,a.status,
+   a.scheduled_starts_at AS scheduledStartsAt,a.scheduled_ends_at AS scheduledEndsAt,a.duration_minutes AS durationMinutes,
    b.deck_id AS deckId,b.version_id AS versionId,b.revision AS bindingRevision,l.id AS liveSessionId
    FROM event_activities a JOIN event_stages s ON s.id=a.event_stage_id AND s.event_workspace_id=a.event_workspace_id AND s.active=1
    LEFT JOIN event_activity_deck_bindings b ON b.activity_id=a.id AND b.event_id=a.event_workspace_id
    LEFT JOIN event_live_sessions l ON l.event_activity_id=a.id AND l.event_workspace_id=a.event_workspace_id AND l.event_stage_id=a.event_stage_id AND l.status='LIVE' AND l.ended_at IS NULL
-   WHERE a.event_workspace_id=? ORDER BY a.created_at,a.id LIMIT 501`);
+   WHERE a.event_workspace_id=? ORDER BY a.scheduled_starts_at IS NULL,a.scheduled_starts_at,a.created_at,a.id LIMIT 501`);
   const versions=await rows(`SELECT d.id AS deckId,d.title,v.id AS versionId,v.version_number AS number,
    p.status AS preparationStatus,p.slide_count AS slideCount,c.configuration_digest AS configurationDigest,
    k.approval_digest AS approvalDigest FROM event_decks d JOIN event_deck_versions v ON v.deck_id=d.id AND v.event_id=d.event_id
@@ -29,10 +39,32 @@ class EventProductionRepository {
  async stage(actor,org,event,name){name=textField(name,120);return this.domain.transaction(actor,'stage.create',async db=>{
   await this.authorized(db,actor,org,event);const id=crypto.randomUUID();await db.execute('INSERT INTO event_stages (id,event_workspace_id,name) VALUES (?,?,?)',[id,event,name]);await this.domain.audit(db,actor,'stage.create',org,event,id);return{id,name};
  });}
- async activity(actor,org,event,{title,stageId,accessLevel}){title=textField(title);if(!isId(stageId)||!['FREE','PAID'].includes(accessLevel))fail('INVALID_INPUT');return this.domain.transaction(actor,'activity.create',async db=>{
+ async available(db,event,stageId,s,exclude=null){
+  if(!s.scheduledStartsAt)return;
+  const rows=await this.domain.rows(db,`SELECT id FROM event_activities WHERE event_workspace_id=? AND event_stage_id=?
+   AND scheduled_starts_at IS NOT NULL AND scheduled_starts_at<?
+   AND COALESCE(scheduled_ends_at,DATE_ADD(scheduled_starts_at,INTERVAL duration_minutes MINUTE))>?
+   AND (? IS NULL OR id<>?) LIMIT 1 FOR UPDATE`,[event,stageId,s.scheduledEndsAt,s.scheduledStartsAt,exclude,exclude]);
+  if(rows.length)fail('STAGE_SCHEDULE_CONFLICT',409);
+ }
+ async activity(actor,org,event,{title,stageId,accessLevel,scheduledStartsAt=null,durationMinutes=60}){title=textField(title);if(!isId(stageId)||!['FREE','PAID'].includes(accessLevel))fail('INVALID_INPUT');const s=schedule(scheduledStartsAt,durationMinutes);return this.domain.transaction(actor,'activity.create',async db=>{
   await this.authorized(db,actor,org,event);const rows=await this.domain.rows(db,'SELECT id FROM event_stages WHERE id=? AND event_workspace_id=? AND active=1 FOR UPDATE',[stageId,event]);if(!rows[0])fail('RESOURCE_NOT_FOUND',404);
-  const id=crypto.randomUUID();await db.execute('INSERT INTO event_activities (id,event_workspace_id,event_stage_id,title,access_level) VALUES (?,?,?,?,?)',[id,event,stageId,title,accessLevel]);await this.domain.audit(db,actor,'activity.create',org,event,id);return{id,title,stageId,accessLevel};
+  await this.available(db,event,stageId,s);
+  const id=crypto.randomUUID();await db.execute('INSERT INTO event_activities (id,event_workspace_id,event_stage_id,title,access_level,scheduled_starts_at,scheduled_ends_at,duration_minutes) VALUES (?,?,?,?,?,?,?,?)',[id,event,stageId,title,accessLevel,s.scheduledStartsAt,s.scheduledEndsAt,s.durationMinutes]);await this.domain.audit(db,actor,'activity.create',org,event,id);return{id,title,stageId,accessLevel,...s};
  });}
+ async setSchedule(actor,org,event,activityId,{scheduledStartsAt,durationMinutes}){
+  if(!isId(activityId)||scheduledStartsAt===undefined||durationMinutes===undefined)fail('INVALID_INPUT');const s=schedule(scheduledStartsAt,durationMinutes);
+  return this.domain.transaction(actor,'activity.schedule',async db=>{
+   await this.authorized(db,actor,org,event);
+   const rows=await this.domain.rows(db,`SELECT a.event_stage_id AS stageId,a.status FROM event_activities a
+    JOIN event_stages t ON t.id=a.event_stage_id AND t.event_workspace_id=a.event_workspace_id AND t.active=1
+    WHERE a.id=? AND a.event_workspace_id=? FOR UPDATE`,[activityId,event]);
+   if(!rows[0])fail('RESOURCE_NOT_FOUND',404);if(rows[0].status!=='SCHEDULED')fail('ACTIVITY_NOT_EDITABLE',409);
+   await this.available(db,event,rows[0].stageId,s,activityId);
+   await db.execute('UPDATE event_activities SET scheduled_starts_at=?,scheduled_ends_at=?,duration_minutes=? WHERE id=? AND event_workspace_id=?',[s.scheduledStartsAt,s.scheduledEndsAt,s.durationMinutes,activityId,event]);
+   await this.domain.audit(db,actor,'activity.schedule',org,event,activityId);return{id:activityId,...s};
+  });
+ }
  async publicAccess(actor,org,event,level){if(!['FREE','PAID'].includes(level))fail('INVALID_INPUT');return this.domain.transaction(actor,'public.access.create',async db=>{
   await this.authorized(db,actor,org,event);const rows=await this.domain.rows(db,'SELECT public_id AS publicId,active FROM event_public_qrs WHERE event_workspace_id=? AND audience_level=? FOR UPDATE',[event,level]);
   if(rows[0]){if(!rows[0].active)fail('PUBLIC_ACCESS_DISABLED',409);return{publicId:rows[0].publicId,audienceLevel:level};}

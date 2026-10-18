@@ -7,7 +7,8 @@ function attachProductionRoutes(router,{repository,handle,requirePlatformAdmin})
  router.post('/platform/pilot-organization',requirePlatformAdmin,requireOrigin,handle((req,actor)=>repository.createOrganization(actor,{name:req.body.name,adminUserId:actor,createEventsEnabled:true}),['name'],201));
  router.get(root+'/production',handle((req,actor)=>production.snapshot(actor,...args(req))));
  router.post(root+'/stages',requireOrigin,handle((req,actor)=>production.stage(actor,...args(req),req.body.name),['name'],201));
- router.post(root+'/activities',requireOrigin,handle((req,actor)=>production.activity(actor,...args(req),req.body),['title','stageId','accessLevel'],201));
+ router.post(root+'/activities',requireOrigin,handle((req,actor)=>production.activity(actor,...args(req),req.body),['title','stageId','accessLevel','scheduledStartsAt','durationMinutes'],201));
+ router.put(root+'/activities/:activityId/schedule',requireOrigin,handle((req,actor)=>production.setSchedule(actor,...args(req),req.params.activityId,req.body),['scheduledStartsAt','durationMinutes']));
  router.post(root+'/public-access',requireOrigin,handle((req,actor)=>production.publicAccess(actor,...args(req),req.body.audienceLevel),['audienceLevel'],201));
 }
 function createProductionPages({enabled,requireAccount}){
