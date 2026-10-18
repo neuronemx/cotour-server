@@ -8,7 +8,7 @@ const { EventDeckRepository } = require('./deck-repository');
 const { attachMediaRoutes } = require('./media-http');
 const { EventDeckConfigurationService } = require('./deck-configuration');
 
-function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null, media = null }) {
+function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null, deckTranslations = null, media = null }) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -60,9 +60,10 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     router.post(eventPath + '/decks/:deckId/versions', requireOrigin, handle((req, actor) => decks.createVersion(actor, ...args(req), req.params.deckId), [], 201));
   }
   attachDeckPreparationRoutes(router, deckPreparations, eventPath);
+  attachDeckPreparationRoutes(router, deckTranslations, eventPath);
   attachMediaRoutes(router, media, eventPath);
   if (deckPreparations) {
-    const configurations = new EventDeckConfigurationService({ preparations: deckPreparations, media });
+    const configurations = new EventDeckConfigurationService({ preparations: deckPreparations, translations: deckTranslations, media });
     const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId,
       deckId: req.params.deckId, versionId: req.params.versionId });
     const configPath = eventPath + '/decks/:deckId/versions/:versionId/configuration';
@@ -70,7 +71,7 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
     router.get(configPath, handle((req, actor) => { noQuery(req); return configurations.get(actor, scope(req)); }));
     router.post(configPath, requireOrigin, handle((req, actor) => {
       noQuery(req); return configurations.create(actor, scope(req), req.body);
-    }, ['slides', 'polls', 'knowledge', 'raffles', 'games', 'audiovisual'], 201));
+    }, ['slides', 'polls', 'knowledge', 'raffles', 'games', 'audiovisual', 'language'], 201));
   }
   if (repository) {
     const bindings = new EventActivityDeckRepository({ domain: repository,

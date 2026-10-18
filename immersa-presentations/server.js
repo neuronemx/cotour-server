@@ -188,6 +188,11 @@ const eventDeckPreparations = eventDomainRepository ? new EventDeckPreparationSe
   root: path.join(DATA_DIR, "events-v2-private", "decks"),
   forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
 }) : null;
+const eventDeckTranslations = eventDeckPreparations ? new EventDeckPreparationService({
+  domain: eventDomainRepository, enabled: eventGrantsEnabled, basePreparations: eventDeckPreparations,
+  root: path.join(DATA_DIR, "events-v2-private", "translations"),
+  forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
+}) : null;
 const eventMedia = eventDeckPreparations ? new EventMediaService({
   preparations: eventDeckPreparations, root: path.join(DATA_DIR, "events-v2-private", "media"),
   forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
@@ -1087,7 +1092,7 @@ app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
-  grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository, deckPreparations: eventDeckPreparations, media: eventMedia,
+  grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository, deckPreparations: eventDeckPreparations, deckTranslations: eventDeckTranslations, media: eventMedia,
   enabled: eventGrantsEnabled
 }));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {

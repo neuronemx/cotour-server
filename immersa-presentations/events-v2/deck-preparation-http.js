@@ -5,7 +5,7 @@ const { MAX_SOURCE_BYTES } = require('./deck-private-store');
 
 function attachDeckPreparationRoutes(router, service, eventPath) {
   if (!service) return;
-  const versionPath = eventPath + '/decks/:deckId/versions/:versionId';
+  const versionPath = eventPath + '/decks/:deckId/versions/:versionId' + (service.base ? '/translations/en' : '');
   const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId,
     deckId: req.params.deckId, versionId: req.params.versionId });
   const errorReply = (res, error) => {
