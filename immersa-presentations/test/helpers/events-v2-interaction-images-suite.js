@@ -64,7 +64,7 @@ async function interactionImagesSuite(t,f){
    const revoked=await issue('STAGE',{stageId:stages[0]});await grants.revoke(ids.get('admin1'),o1,a,revoked.context.grantId);assert.equal((await bytes(revoked,firstURL.replace(participant.context.grantId,revoked.context.grantId))).status,401);
   });
   await t.test('question changes and a separate live cannot reuse an old public image URL',async()=>{
-   clock+=5000+engine.REVEAL_MS+1;await op('knowledge','tick');const q=(await snap('knowledge',participant)).execution.currentQuestion;assert.equal(q.id,'q-next');assert.equal((await bytes(participant,firstURL)).status,403);assert.deepEqual((await bytes(participant,q.image.url)).bytes,assets[1].bytes);
+   clock+=5001;await op('knowledge','tick');assert.equal((await snap('knowledge',participant)).execution.substate,'REVEAL');clock+=engine.REVEAL_MS+1;await op('knowledge','tick');const q=(await snap('knowledge',participant)).execution.currentQuestion;assert.equal(q.id,'q-next');assert.equal((await bytes(participant,firstURL)).status,403);assert.deepEqual((await bytes(participant,q.image.url)).bytes,assets[1].bytes);
    const other=await snap('knowledge',secondStage,liveIds[1]);assert.equal(other.execution,null);await control('cancel');
   });
   await t.test('assessment images follow own assigned questions and become unavailable after submission; Player sees no assessment images',async()=>{
