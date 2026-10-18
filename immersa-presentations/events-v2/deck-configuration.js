@@ -41,7 +41,7 @@ function integer(value, min, max) {
 // input allowlists prevent silently accepting legacy URLs, assets or runtime
 // state. Binary media and translated slide images need private upload first.
 function normalizeConfiguration(input, slideCount) {
-  fields(input, ['slides', 'polls', 'knowledge', 'raffles', 'games', 'audiovisual'], ['slides', 'polls', 'knowledge', 'raffles', 'games']);
+  fields(input, ['slides', 'polls', 'knowledge', 'raffles', 'games', 'audiovisual', 'language'], ['slides', 'polls', 'knowledge', 'raffles', 'games']);
   let raw;
   try { raw = JSON.stringify(input); } catch (_) { invalid(); }
   if (Buffer.byteLength(raw) > MAX_CONFIGURATION_BYTES) throw new EventAccessError('CONFIGURATION_TOO_LARGE', 413);
@@ -83,8 +83,9 @@ function normalizeConfiguration(input, slideCount) {
   const slides = input.slides.map((s, index) => {
     fields(s, ['id', 'notes', 'pollIds', 'knowledgeIds', 'raffleIds', 'gameIds'], ['id', 'notes']);
     if (s.id !== 'slide-' + String(index + 1).padStart(3, '0')) invalid();
-    fields(s.notes, ['es'], ['es']); string(s.notes.es, 8000);
-    const out = { id: s.id, notes: { es: s.notes.es } };
+    fields(s.notes, ['es','en'], ['es']); string(s.notes.es, 8000);
+    if (Object.hasOwn(s.notes,'en')) string(s.notes.en,8000);
+    const out = { id: s.id, notes: { es: s.notes.es, ...(Object.hasOwn(s.notes,'en') ? {en:s.notes.en} : {}) } };
     for (const [field, name] of [['pollIds', 'polls'], ['knowledgeIds', 'knowledge'], ['raffleIds', 'raffles'], ['gameIds', 'games']]) {
       const ids = s[field] ?? []; array(ids, catalogs[name].length);
       if (new Set(ids).size !== ids.length || ids.some(id => !catalogs[name].some(item => item.id === id))) invalid();
@@ -105,11 +106,18 @@ function normalizeConfiguration(input, slideCount) {
     }
     audiovisual=structuredClone(a);
   }
-  return { slides, ...catalogs, ...(audiovisual ? {audiovisual}: {}) };
+  let language;
+  if (input.language !== undefined) {
+    fields(input.language,['englishEnabled','presenterLanguage'],['englishEnabled','presenterLanguage']);
+    const l=input.language;
+    if(typeof l.englishEnabled!=='boolean'||!['es','en'].includes(l.presenterLanguage)||(!l.englishEnabled&&l.presenterLanguage!=='es'))invalid();
+    language={englishEnabled:l.englishEnabled,presenterLanguage:l.presenterLanguage};
+  }
+  return { slides, ...catalogs, ...(audiovisual ? {audiovisual}: {}), ...(language ? {language}: {}) };
 }
 
 class EventDeckConfigurationService {
-  constructor({ preparations, media = null }) { this.preparations = preparations; this.domain = preparations.domain; this.media = media; }
+  constructor({ preparations, media = null, translations = null }) { this.preparations = preparations; this.domain = preparations.domain; this.media = media; this.translations = translations; }
   async source(db, scope) {
     const row = await this.preparations.row(db, scope);
     if (!row || row.status !== 'CONVERTED') throw new EventAccessError('PREPARATION_NOT_READY', 409);
@@ -124,6 +132,20 @@ class EventDeckConfigurationService {
     }
     return row;
   }
+  async englishSource(db, scope, source) {
+    if (!this.translations) throw new EventAccessError('TRANSLATION_NOT_READY',409);
+    const row=await this.translations.row(db,scope);
+    if (!row || row.status!=='CONVERTED') throw new EventAccessError('TRANSLATION_NOT_READY',409);
+    let manifest;try { manifest=JSON.parse(row.manifestJson); } catch (_) { integrity(); }
+    if (!manifest || digest(row.manifestJson)!==row.manifestDigest || row.baseManifestDigest!==source.manifestDigest
+      || row.slideCount!==source.slideCount || manifest.schema!==1 || !Array.isArray(manifest.slides)
+      || manifest.slides.length!==row.slideCount || manifest.source?.size!==row.sourceSize || manifest.source?.sha256!==row.sourceSha256
+      || ['eventId','deckId','versionId','attemptId'].some(k=>manifest[k]!==row[k])
+      || manifest.slides.some((s,i)=>s?.id!=='slide-'+String(i+1).padStart(3,'0'))) integrity();
+    return {language:'en',manifestDigest:row.manifestDigest,baseManifestDigest:row.baseManifestDigest,
+      sourceSize:row.sourceSize,sourceSha256:row.sourceSha256,slideCount:row.slideCount};
+  }
+
   async row(db, scope) {
     const [rows] = await db.execute(`SELECT source_manifest_digest AS sourceDigest,
       configuration_digest AS configurationDigest, configuration_json AS configurationJson
@@ -145,7 +167,9 @@ class EventDeckConfigurationService {
     return this.domain.transaction(actor, 'deck.configuration.read', async db => {
       await this.preparations.scoped(db, actor, scope);
       const row = await this.row(db, scope);
-      const result = row ? this.view(row, await this.source(db, scope), scope) : { status: 'NOT_CONFIGURED' };
+      const source = row ? await this.source(db,scope) : null;
+      const result = row ? this.view(row, source, scope) : { status: 'NOT_CONFIGURED' };
+      if (result.configuration?.englishSource && JSON.stringify(await this.englishSource(db,scope,source))!==JSON.stringify(result.configuration.englishSource)) integrity();
       this.preparations.checkEnabled(); return result;
     });
   }
@@ -155,6 +179,9 @@ class EventDeckConfigurationService {
       await this.preparations.scoped(db, actor, scope);
       if (await this.row(db, scope)) throw new EventAccessError('VERSION_CONFIGURATION_EXISTS', 409);
       const source = await this.source(db, scope), normalized = normalizeConfiguration(input, source.slideCount);
+      if (normalized.language?.englishEnabled || normalized.slides.some(s=>Object.hasOwn(s.notes,'en'))) {
+        normalized.englishSource=await this.englishSource(db,scope,source);
+      }
       if (normalized.audiovisual) {
         if(!this.media)throw new EventAccessError('MEDIA_UNAVAILABLE',503);
         normalized.av=await this.media.catalog(db,scope,normalized.audiovisual);delete normalized.audiovisual;

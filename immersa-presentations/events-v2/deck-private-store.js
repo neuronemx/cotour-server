@@ -73,13 +73,14 @@ class EventDeckPrivateStore {
     return count;
   }
 
-  async prepare(scope, bytes) {
+  async prepare(scope, bytes, { expectedSlideCount = null } = {}) {
     const dir = this.directory(scope);
     await this.directories(path.dirname(dir), true);
     await fs.mkdir(dir, { mode: 0o700 }); // Exclusive attempt; never overwrite.
     const sourcePath = path.join(dir, 'original.pdf');
     await fs.writeFile(sourcePath, bytes, { flag: 'wx', mode: 0o600 });
     const count = await this.pageCount(sourcePath);
+    if (expectedSlideCount !== null && count !== expectedSlideCount) throw new EventAccessError('LOCALE_SLIDE_COUNT_MISMATCH', 422);
     const converted = await this.convert({ deckDir: dir, pdfPath: sourcePath, manifest: {}, workRoot: dir, boundDimensions: true });
     if (!Array.isArray(converted?.slides) || converted.slides.length !== count) fail();
     let total = 0;

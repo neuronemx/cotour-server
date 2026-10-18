@@ -1,8 +1,9 @@
 // Minimal valid vector PDF, no external assets or user content.
-function pdfFixture(pages = 2) {
+function pdfFixture(pages = 2, rgb = null) {
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>',
     `<< /Type /Pages /Kids [${Array.from({length: pages}, (_, i) => `${i + 3} 0 R`).join(' ')}] /Count ${pages} >>`,
-    ...Array.from({length: pages}, () => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 344] /Resources << >> >>')];
+    ...Array.from({length: pages}, () => `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 344] /Resources << >> ${rgb ? '/Contents '+(pages+3)+' 0 R ' : ''}>>`)];
+  if(rgb){const stream=rgb.join(' ')+' rg 0 0 612 344 re f\n';objects.push(`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}endstream`);}
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
   objects.forEach((object, i) => { offsets.push(Buffer.byteLength(pdf)); pdf += `${i + 1} 0 obj\n${object}\nendobj\n`; });

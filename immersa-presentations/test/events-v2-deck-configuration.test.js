@@ -16,7 +16,7 @@ test('authored text catalogs reuse runtime normalization and preserve private no
 });
 test('configuration rejects paths, runtime state, unsupported binary media and translated slide images at every input boundary', () => {
   const edits = [x => { x.av = []; }, x => { x.approved = true; }, x => { x.slides[0].full = '/decks/public'; },
-    x => { x.slides[0].notes.en = 'unsupported'; }, x => { x.polls[0].source = 'personal'; }, x => { x.polls[0].options[0].image = '/private'; },
+    x => { x.slides[0].notes.fr = 'unsupported'; }, x => { x.polls[0].source = 'personal'; }, x => { x.polls[0].options[0].image = '/private'; },
     x => { x.knowledge[0].questions[0].image = { url: '/decks/other' }; }, x => { x.knowledge[0].createdAt = 'forged'; },
     x => { x.raffles[0].options = [{ id: 'a', label: 'A', image: 'https://foreign' }]; }, x => { x.games[0].state = {}; }];
   for (const edit of edits) { const input = configurationFixture(); edit(input); assert.throws(() => normalizeConfiguration(input, 2), { code: 'INVALID_CONFIGURATION' }); }
