@@ -62,7 +62,7 @@ async function approvedLiveSuite(t,f){
    const registration=await request(null,'POST',`/api/events-v2/public/${f.publicId}/participants`,{name:'Approved reader attendee'});assert.equal(registration.status,201);participant={...registration.body,cookie:cookie(registration)};sessions.push(participant);
    const controller=await browser(stage,(c,db)=>slidesRuntime.projection(c,db,liveId));assert.equal(controller.prompter.current.text,'Apuntador privado.\nSegunda línea.');slideUrl=controller.slide.url;
    const publicView=await browser(participant,(c,db)=>slidesRuntime.projection(c,db,liveId,undefined,'en'));assert.equal(publicView.language,'en');assert.equal(publicView.prompter,undefined);assert.equal(JSON.stringify(publicView).includes('Private'),false);assert.equal((await bytes(participant,publicView.slide.url)).status,200);
-   for(const [engine,method]of [[pollRuntime,'prepared'],[knowledgeRuntime,'scope'],[raffleRuntime,'prepared'],[gameRuntime,'prepared']])await browser(stage,(c,db)=>engine[method](c,db,liveId));
+   for(const [engine,method]of [[pollRuntime,'prepared'],[knowledgeRuntime,'scope'],[raffleRuntime,'scope'],[gameRuntime,'prepared']])await browser(stage,(c,db)=>engine[method](c,db,liveId));
    const projection=await browser(stage,(c,db)=>av.projection(c,db,liveId));assert.equal(projection.available.length,1);assetUrl=projection.available[0].assetUrl;
    const restarted=new EventApprovedContent({checks});const result=await browser(stage,async(c,db)=>restarted.readPreparation(await runtime.resolve(c,db,liveId),db));assert.equal(result.versionId,deck.version.id);
   });
