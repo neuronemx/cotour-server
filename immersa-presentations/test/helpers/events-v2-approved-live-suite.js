@@ -5,7 +5,7 @@ async function approvedLiveSuite(t,f){
  const {request,sql,domain,ids,base,o1,a,b,deckPreparations:prep,deckTranslations:english,media,images,runtime,lifecycle,grants,slidesRuntime,AV:av,pollRuntime,knowledgeRuntime,raffleRuntime,gameRuntime}=f;
  const stageId=crypto.randomUUID(),activity=crypto.randomUUID(),own=[],sessions=[],lives=[];
  const configs=new EventDeckConfigurationService({preparations:prep,translations:english,media,images}),checks=new EventDeckCheckService({configurations:configs}),content=new EventApprovedContent({checks});
- const saved=[];function replace(object,key,value){saved.push(()=>{object[key]=value;});object[key]=value;}
+ const saved=[];function replace(object,key,value){const previous=object[key];saved.push(()=>{object[key]=previous;});object[key]=value;}
  replace(lifecycle,'content',content);replace(runtime,'readPreparation',content.readPreparation.bind(content));
  for(const [engine,key,name]of [[pollRuntime,'readPolls','polls'],[knowledgeRuntime,'readKnowledge','knowledge'],[raffleRuntime,'readRaffles','raffles'],[gameRuntime,'readGames','games']])replace(engine,key,(live,db)=>content.catalog(live,db,name));
  for(const [engine,key]of [[slidesRuntime,'readSlides'],[slidesRuntime,'readImage'],[av,'readAV'],[av,'readAsset']])replace(engine,key,content[key].bind(content));
