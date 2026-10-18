@@ -44,6 +44,7 @@ const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const { EventDomainRepository } = require("./events-v2/domain-repository");
+const { EventMediaService } = require("./events-v2/media-service");
 const { EventDeckPreparationService } = require("./events-v2/deck-preparation-service");
 const { createEventDomainRouter } = require("./events-v2/http-router");
 const { LegacyEventBoundary } = require("./events-v2/legacy-boundary");
@@ -185,6 +186,10 @@ const eventGrantsEnabled = () => process.env.IMMERSA_EVENTS_V2_ENABLED === "true
 const eventDeckPreparations = eventDomainRepository ? new EventDeckPreparationService({
   domain: eventDomainRepository, enabled: eventGrantsEnabled,
   root: path.join(DATA_DIR, "events-v2-private", "decks"),
+  forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
+}) : null;
+const eventMedia = eventDeckPreparations ? new EventMediaService({
+  preparations: eventDeckPreparations, root: path.join(DATA_DIR, "events-v2-private", "media"),
   forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
 }) : null;
 const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled });
@@ -1082,7 +1087,7 @@ app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository
 app.use("/api/events-v2", createEventDomainRouter({
   repository: eventDomainRepository, requireAccount: betterAuthCompatibilityBridge.requireApiAuth(),
   requirePlatformAdmin: requireImmersaAdmin,
-  grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository, deckPreparations: eventDeckPreparations,
+  grants: eventGrantRepository, grantSockets: eventGrantSockets, reports: eventReportsRepository, deckPreparations: eventDeckPreparations, media: eventMedia,
   enabled: eventGrantsEnabled
 }));
 app.use("/decks/:deckId/locales/en", async (req, res, next) => {

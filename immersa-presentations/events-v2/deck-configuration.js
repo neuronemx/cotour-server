@@ -3,6 +3,7 @@ const { normalizePolls } = require('./poll-runtime');
 const { normalizeKnowledge } = require('./knowledge-runtime');
 const { normalizeRaffles } = require('./raffle-runtime');
 const { normalizeGames } = require('./game-runtime');
+const { isId } = require('./grant-repository');
 const { digest } = require('./deck-private-store');
 const MAX_CONFIGURATION_BYTES = 1024 * 1024;
 const invalid = () => { throw new EventAccessError('INVALID_CONFIGURATION', 400); };
@@ -40,7 +41,7 @@ function integer(value, min, max) {
 // input allowlists prevent silently accepting legacy URLs, assets or runtime
 // state. Binary media and translated slide images need private upload first.
 function normalizeConfiguration(input, slideCount) {
-  fields(input, ['slides', 'polls', 'knowledge', 'raffles', 'games'], ['slides', 'polls', 'knowledge', 'raffles', 'games']);
+  fields(input, ['slides', 'polls', 'knowledge', 'raffles', 'games', 'audiovisual'], ['slides', 'polls', 'knowledge', 'raffles', 'games']);
   let raw;
   try { raw = JSON.stringify(input); } catch (_) { invalid(); }
   if (Buffer.byteLength(raw) > MAX_CONFIGURATION_BYTES) throw new EventAccessError('CONFIGURATION_TOO_LARGE', 413);
@@ -91,11 +92,24 @@ function normalizeConfiguration(input, slideCount) {
     }
     return out;
   });
-  return { slides, ...catalogs };
+  let audiovisual;
+  if (input.audiovisual !== undefined) {
+    fields(input.audiovisual,['assetIds','playlists'],['assetIds','playlists']);
+    const a=input.audiovisual;array(a.assetIds,200);array(a.playlists,100);
+    if(a.assetIds.some(id=>!isId(id))||new Set(a.assetIds).size!==a.assetIds.length)invalid();
+    const seen=new Set();
+    for(const p of a.playlists){fields(p,['id','name','type','resourceIds'],['id','name','type','resourceIds']);
+      string(p.id,120);string(p.name,120);array(p.resourceIds,200);
+      if(!/^[a-zA-Z0-9_-]{1,120}$/.test(p.id)||seen.has(p.id)||!p.name.trim()||!['audio','video'].includes(p.type)
+        ||!p.resourceIds.length||new Set(p.resourceIds).size!==p.resourceIds.length||p.resourceIds.some(id=>!a.assetIds.includes(id)))invalid();seen.add(p.id);
+    }
+    audiovisual=structuredClone(a);
+  }
+  return { slides, ...catalogs, ...(audiovisual ? {audiovisual}: {}) };
 }
 
 class EventDeckConfigurationService {
-  constructor({ preparations }) { this.preparations = preparations; this.domain = preparations.domain; }
+  constructor({ preparations, media = null }) { this.preparations = preparations; this.domain = preparations.domain; this.media = media; }
   async source(db, scope) {
     const row = await this.preparations.row(db, scope);
     if (!row || row.status !== 'CONVERTED') throw new EventAccessError('PREPARATION_NOT_READY', 409);
@@ -141,6 +155,10 @@ class EventDeckConfigurationService {
       await this.preparations.scoped(db, actor, scope);
       if (await this.row(db, scope)) throw new EventAccessError('VERSION_CONFIGURATION_EXISTS', 409);
       const source = await this.source(db, scope), normalized = normalizeConfiguration(input, source.slideCount);
+      if (normalized.audiovisual) {
+        if(!this.media)throw new EventAccessError('MEDIA_UNAVAILABLE',503);
+        normalized.av=await this.media.catalog(db,scope,normalized.audiovisual);delete normalized.audiovisual;
+      }
       const configuration = { schema: 1, eventId: scope.eventId, deckId: scope.deckId, versionId: scope.versionId,
         sourceManifestDigest: source.manifestDigest, slideCount: source.slideCount, ...normalized };
       const json = JSON.stringify(configuration);

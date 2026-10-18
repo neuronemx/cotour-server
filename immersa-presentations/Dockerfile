@@ -8,6 +8,7 @@ RUN apt-get update \
     ca-certificates \
     libreoffice \
     poppler-utils \
+    ffmpeg \
     fonts-dejavu \
     fonts-liberation \
   && rm -rf /var/lib/apt/lists/*
