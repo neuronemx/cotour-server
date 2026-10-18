@@ -16,7 +16,7 @@ async function englishSuite(t,f){
    deck=await create();other=await create(b);assert.equal((await upload(trans())).body.code,'PREPARATION_NOT_READY');
    esMeta=await spanish(deck.version);assert.deepEqual((await request('producer','GET',trans()+'/preparation')).body,{status:'NOT_UPLOADED',language:'en'});
    const r=await upload(trans());assert.equal(r.status,201,JSON.stringify(r.body));enMeta=r.body;assert.equal(enMeta.language,'en');assert.equal(enMeta.status,'CONVERTED');assert.equal(enMeta.baseManifestDigest,esMeta.manifestDigest);assert.equal(enMeta.slideCount,2);
-   const english=await image(),spanish=await image(url());assert.equal(english.status,200);assert.equal(english.headers.get('cache-control'),'no-store');assert.equal(english.headers.get('x-content-type-options'),'nosniff');assert.notDeepEqual(english.bytes,spanish.bytes);
+   const english=await image(),spanishPreview=await image(url());assert.equal(english.status,200);assert.equal(english.headers.get('cache-control'),'no-store');assert.equal(english.headers.get('x-content-type-options'),'nosniff');assert.notDeepEqual(english.bytes,spanishPreview.bytes);
    const row=await en.row(domain.pool,scope(deck.version));assert.equal(crypto.createHash('sha256').update(english.bytes).digest('hex'),JSON.parse(row.manifestJson).slides[0].full.sha256);
    assert.deepEqual(await es.get(ids.get('producer'),scope(deck.version)),esMeta);assert.equal((await sql('SELECT status FROM event_deck_versions WHERE id=?',[deck.version.id]))[0].status,'DRAFT');
   });
