@@ -9,8 +9,8 @@ const view = row => Object.freeze({ eventId: row.event_workspace_id, liveSession
   startedAt: row.started_at.toISOString(), endedAt: row.ended_at?.toISOString() || null });
 
 class EventLifecycle {
-  constructor({ grants, runtime, engines = [] }) {
-    this.grants = grants; this.runtime = runtime; this.engines = engines;
+  constructor({ grants, runtime, engines = [], content = null }) {
+    this.grants = grants; this.runtime = runtime; this.engines = engines; this.content = content;
   }
   check(context) {
     if (!this.runtime.enabled()) fail('EVENTS_V2_DISABLED', 404);
@@ -50,16 +50,28 @@ class EventLifecycle {
     // Serialize installation against finish/commands for this new execution.
     // The organization lock prevents competing starts on the same Stage.
     const id = crypto.randomUUID();
-    return this.runtime.serial(executionKey(credentials.eventId, id), async () => {
+    let ticket,release;
+    try {
+      if(this.content){
+        ticket=await authorize(async(context,db)=>{
+          this.check(context);const activity=await this.activity(context,db,activityId);
+          const [active]=await db.execute("SELECT id FROM event_live_sessions WHERE event_stage_id=? AND status='LIVE' FOR UPDATE",[context.stageId]);
+          if(active.length||activity.status!=='SCHEDULED')fail('STAGE_ALREADY_LIVE');
+          return this.content.candidate(db,context,activity);
+        });
+        release=this.content.checks.acquire();await this.content.verify(ticket);
+      }
+    return await this.runtime.serial(executionKey(credentials.eventId, id), async () => {
       const candidate = await authorize(async (context, db) => {
         this.check(context);
         const activity = await this.activity(context, db, activityId);
         const [active] = await db.execute("SELECT id FROM event_live_sessions WHERE event_stage_id=? AND status='LIVE' FOR UPDATE", [context.stageId]);
         if (active.length || activity.status !== 'SCHEDULED') fail('STAGE_ALREADY_LIVE');
-        if (activity.has_version_binding || !activity.deck_id || activity.deck_check_status !== 'DECK_CHECK') fail('CONTENT_NOT_PREPARED', 403);
+        if (!this.content && (activity.has_version_binding || !activity.deck_id || activity.deck_check_status !== 'DECK_CHECK')) fail('CONTENT_NOT_PREPARED', 403);
         const now = this.grants.now();
         await db.execute(`INSERT INTO event_live_sessions (id,event_workspace_id,event_activity_id,event_stage_id,deck_id,started_at)
-          VALUES (?,?,?,?,?,?)`, [id, context.eventId, activity.id, context.stageId, activity.deck_id, now]);
+          VALUES (?,?,?,?,?,?)`, [id, context.eventId, activity.id, context.stageId, ticket?.scope.deckId || activity.deck_id, now]);
+        if(this.content)await this.content.pin(db,context,activity,ticket,id);
         // Private preparation is checked on the same connection. Missing
         // Phase 2 reader rolls the candidate back; no personal/pending fallback.
         const prepared = await this.runtime.prepared(context, db, id);
@@ -73,6 +85,7 @@ class EventLifecycle {
       this.runtime.states.set(executionKey(candidate.result.eventId, candidate.result.liveSessionId), candidate.state);
       return candidate.result;
     });
+    } finally {release?.();}
   }
   discard(key) {
     this.runtime.states.delete(key);

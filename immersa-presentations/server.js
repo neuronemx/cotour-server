@@ -44,6 +44,9 @@ const { createResendEmailSender } = require("./auth/resend-email");
 const { createBillingRuntime } = require("./billing/runtime");
 const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const { EventDomainRepository } = require("./events-v2/domain-repository");
+const { EventDeckConfigurationService } = require("./events-v2/deck-configuration");
+const { EventDeckCheckService } = require("./events-v2/deck-check-service");
+const { EventApprovedContent } = require("./events-v2/approved-content");
 const { EventMediaService, EventImageService } = require("./events-v2/media-service");
 const { EventDeckPreparationService } = require("./events-v2/deck-preparation-service");
 const { createEventDomainRouter } = require("./events-v2/http-router");
@@ -201,21 +204,25 @@ const eventImages = eventDeckPreparations ? new EventImageService({
   preparations: eventDeckPreparations, admission: eventMedia, root: path.join(DATA_DIR, "events-v2-private", "images"),
   forbiddenRoots: [PUBLIC_DIR, DATA_DECKS_DIR, DATA_PROFILES_DIR, DATA_EVENT_HUBS_DIR]
 }) : null;
-const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled });
-const eventPollRuntime = new EventPollRuntime({ liveRuntime: eventLiveRuntime });
+const eventApprovedContent = eventDeckPreparations ? new EventApprovedContent({ checks: new EventDeckCheckService({
+  configurations: new EventDeckConfigurationService({ preparations: eventDeckPreparations, translations: eventDeckTranslations, media: eventMedia, images: eventImages })
+}) }) : null;
+const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled,
+  readPreparation: (live,db) => eventApprovedContent?.readPreparation(live,db) });
+const eventPollRuntime = new EventPollRuntime({ liveRuntime: eventLiveRuntime, readPolls: (p,db) => eventApprovedContent.catalog(p,db,"polls") });
 const eventQnaRuntime = new EventQnaRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool });
-const eventKnowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool, polls: eventPollRuntime });
+const eventKnowledgeRuntime = new EventKnowledgeRuntime({ liveRuntime: eventLiveRuntime, pool: lifecyclePool, polls: eventPollRuntime, readKnowledge: (p,db) => eventApprovedContent.catalog(p,db,"knowledge") });
 eventPollRuntime.knowledge = eventKnowledgeRuntime;
-const eventRaffleRuntime = new EventRaffleRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime });
+const eventRaffleRuntime = new EventRaffleRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, readRaffles: (p,db) => eventApprovedContent.catalog(p,db,"raffles") });
 eventPollRuntime.raffles = eventRaffleRuntime;
 eventKnowledgeRuntime.raffles = eventRaffleRuntime;
-const eventGameRuntime = new EventGameRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime });
+const eventGameRuntime = new EventGameRuntime({ liveRuntime: eventLiveRuntime, polls: eventPollRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, readGames: (p,db) => eventApprovedContent.catalog(p,db,"games") });
 eventPollRuntime.games = eventGameRuntime; eventKnowledgeRuntime.games = eventGameRuntime; eventRaffleRuntime.games = eventGameRuntime;
 const eventTimeRuntime = new EventTimeRuntime({ liveRuntime: eventLiveRuntime });
-const eventSlidesRuntime = new EventSlidesRuntime({ liveRuntime: eventLiveRuntime });
-const eventAVRuntime = new EventAVRuntime({ liveRuntime: eventLiveRuntime });
+const eventSlidesRuntime = new EventSlidesRuntime({ liveRuntime: eventLiveRuntime, readSlides:(p,db)=>eventApprovedContent.readSlides(p,db), readImage:(p,r,db)=>eventApprovedContent.readImage(p,r,db) });
+const eventAVRuntime = new EventAVRuntime({ liveRuntime: eventLiveRuntime, readAV:(p,db)=>eventApprovedContent.readAV(p,db), readAsset:(p,r,db)=>eventApprovedContent.readAsset(p,r,db) });
 const eventReportsRepository = eventDomainRepository ? new EventReportsRepository({ domain: eventDomainRepository, enabled: eventGrantsEnabled }) : null;
-const eventLifecycle = eventGrantRepository ? new EventLifecycle({ grants: eventGrantRepository, runtime: eventLiveRuntime,
+const eventLifecycle = eventGrantRepository ? new EventLifecycle({ grants: eventGrantRepository, runtime: eventLiveRuntime, content: eventApprovedContent,
   engines: [eventPollRuntime, eventKnowledgeRuntime, eventRaffleRuntime, eventGameRuntime, eventTimeRuntime, eventAVRuntime] }) : null;
 const eventGrantSockets = createEventGrantSockets({ io, grants: eventGrantRepository, enabled: eventGrantsEnabled, runtime: eventLiveRuntime, polls: eventPollRuntime, qna: eventQnaRuntime, knowledge: eventKnowledgeRuntime, raffles: eventRaffleRuntime, games: eventGameRuntime, time: eventTimeRuntime, av: eventAVRuntime, slides: eventSlidesRuntime, lifecycle: eventLifecycle });
 const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(lifecyclePool) : null;
