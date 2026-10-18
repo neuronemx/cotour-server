@@ -151,7 +151,6 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   app.use(boundary.httpMiddleware());
   app.use('/events-v2', createEventConsolePages({ enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createEventSlidesRouter({grants,slides:slidesRuntime,enabled:()=>domainEnabled&&grantEnabled}));
-  app.use('/api/events-v2', createEventAssetRouter({ grants, av: avRuntime, enabled: () => domainEnabled && grantEnabled }));
   app.use('/api/events-v2', createGrantAccessRouter({ grants, lifecycle, grantSockets, enabled: () => domainEnabled && grantEnabled }));
   const platformGuard = (req, res, next) => req.accountContext?.user?.email === 'platform@events-v2.test'
     ? next() : res.status(403).json({ code: 'PLATFORM_PERMISSION_DENIED' });
@@ -163,6 +162,7 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const interactionImageContent=new EventApprovedContent({interactionImages:true,checks:new EventDeckCheckService({configurations:new EventDeckConfigurationService({preparations:deckPreparations,translations:deckTranslations,media,images})})});
   const interactionImages=new EventInteractionImages({content:interactionImageContent});
   app.use('/api/events-v2',createEventInteractionImageRouter({grants,images:interactionImages,knowledge:knowledgeRuntime,raffles:raffleRuntime,enabled:()=>domainEnabled&&grantEnabled}));
+  app.use('/api/events-v2', createEventAssetRouter({ grants, av: avRuntime, enabled: () => domainEnabled && grantEnabled }));
   const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: () => domainEnabled && grantEnabled, grants, grantSockets, reports, deckPreparations, deckTranslations, media, images });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
