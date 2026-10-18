@@ -32,9 +32,12 @@ async function approvedLiveSuite(t,f){
  await sql('INSERT INTO event_stages (id,event_workspace_id,name) VALUES (?,?,?)',[stageId,a,'Approved runtime']);
  await sql("INSERT INTO event_activities (id,event_workspace_id,event_stage_id,title,deck_id,deck_check_status,access_level) VALUES (?,?,?,?,?,'DECK_CHECK','FREE')",[activity,a,stageId,'Approved runtime','legacy-sentinel']);
  let deck,stage,liveId,participant,slideUrl,assetUrl,approval;
+ assert.equal((await sql('SELECT COUNT(*) n FROM event_operational_windows WHERE event_id=?',[a]))[0].n,0);
+ await grants.setWindow(ids.get('admin1'),o1,a,new Date(grants.now().getTime()+3600000).toISOString());
  try{
+  stage=await issue('STAGE',{stageId});
   await t.test('approved start rejects legacy approval, an unapproved version, unsupported image adapters and corrupted source',async()=>{
-   stage=await issue('STAGE',{stageId});assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');
+   assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');
    deck=await prepare();await bind(deck);assert.equal((await request(null,'GET',access(stage)+'/console/stage',undefined,{cookie:stage.cookie})).body.targets[0].canStart,false);assert.equal((await start(stage)).body.code,'CONTENT_NOT_PREPARED');assert.equal(await count(),0);
    approval=await approve(deck);const rich=await prepare(true);await approve(rich);await bind(rich);assert.equal((await start(stage)).body.code,'CONTENT_RUNTIME_NOT_READY');assert.equal(await count(),0);await bind(deck);assert.equal((await request(null,'GET',access(stage)+'/console/stage',undefined,{cookie:stage.cookie})).body.targets[0].canStart,true);
    const row=await prep.row(domain.pool,scope(deck));await damage(path.join(prep.store.directory(row),'original.pdf'),async()=>{assert.notEqual((await start(stage)).status,201);assert.equal(await count(),0);});
@@ -43,7 +46,7 @@ async function approvedLiveSuite(t,f){
    const other=await prepare();await approve(other);
    for(const mode of ['revoke','flag','rebind']){const session=await issue('STAGE',{stageId}),original=content.verify.bind(content);let enter,release;const entered=new Promise(r=>enter=r),gate=new Promise(r=>release=r);
     content.verify=async c=>{await original(c);enter();await gate;};const pending=start(session);
-    try{await entered;if(mode==='revoke')await grants.revoke(ids.get('admin1'),o1,a,session.context.grantId);if(mode==='flag')f.setDomainEnabled(false);if(mode==='rebind')await bind(other);
+    try{await Promise.race([entered,pending.then(r=>{throw new Error('Start returned before verification gate: '+JSON.stringify(r));})]);if(mode==='revoke')await grants.revoke(ids.get('admin1'),o1,a,session.context.grantId);if(mode==='flag')f.setDomainEnabled(false);if(mode==='rebind')await bind(other);
      release();assert.notEqual((await pending).status,201);assert.equal(await count(),0);
     }finally{release();content.verify=original;await pending;f.setDomainEnabled(true);if(mode==='rebind')await bind(deck);}
     assert.equal(checks.running,0);
@@ -53,7 +56,7 @@ async function approvedLiveSuite(t,f){
   });
   await t.test('bounded concurrent starts install one committed session pinned to version, binding revision and DeckCheck',async()=>{
    const original=content.verify.bind(content);let enter,release;const entered=new Promise(r=>enter=r),gate=new Promise(r=>release=r);content.verify=async c=>{await original(c);enter();await gate;};const pending=start(stage);
-   try{await entered;assert.equal((await start(stage)).body.code,'DECK_CHECK_BUSY');release();const r=await pending;assert.equal(r.status,201,JSON.stringify(r.body));liveId=r.body.liveSessionId;lives.push(liveId);}finally{release();content.verify=original;await pending;}
+   try{await Promise.race([entered,pending.then(r=>{throw new Error('Start returned before verification gate: '+JSON.stringify(r));})]);assert.equal((await start(stage)).body.code,'DECK_CHECK_BUSY');release();const r=await pending;assert.equal(r.status,201,JSON.stringify(r.body));liveId=r.body.liveSessionId;lives.push(liveId);}finally{release();content.verify=original;await pending;}
    assert.equal((await start(stage)).body.code,'STAGE_ALREADY_LIVE');assert.equal(await count(),1);
    const [pin]=await sql('SELECT * FROM event_live_content WHERE live_session_id=?',[liveId]);assert.equal(pin.version_id,deck.version.id);assert.equal(pin.deck_id,deck.id);assert.equal(pin.approval_digest,approval.approvalDigest);assert.ok(pin.binding_revision>0);
    assert.equal((await sql('SELECT deck_id FROM event_live_sessions WHERE id=?',[liveId]))[0].deck_id,deck.id);
@@ -91,7 +94,7 @@ async function approvedLiveSuite(t,f){
    assert.equal((await sql("SELECT COUNT(*) n FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_live_sessions' AND INDEX_NAME='uq_event_live_v2_scope' AND NON_UNIQUE=0"))[0].n,2);
   });
  }finally{
-  f.setDomainEnabled(true);await domain.pool.query('DROP TRIGGER IF EXISTS reject_approved_live_audit');
+  f.setDomainEnabled(true);await sql('DELETE FROM event_operational_windows WHERE event_id=?',[a]);await domain.pool.query('DROP TRIGGER IF EXISTS reject_approved_live_audit');
   for(const s of sessions){await sql('DELETE FROM event_grant_sessions WHERE grant_id=?',[s.context.grantId]);await sql('DELETE FROM event_access_grants WHERE id=?',[s.context.grantId]);}
   for(const id of lives){lifecycle.discard(`evt:${a}:live:${id}`);await sql('DELETE FROM event_live_content WHERE live_session_id=?',[id]);}
   await sql('DELETE FROM event_live_sessions WHERE event_stage_id=?',[stageId]);await sql('DELETE FROM event_activity_deck_bindings WHERE activity_id=?',[activity]);await sql('DELETE FROM event_activities WHERE id=?',[activity]);await sql('DELETE FROM event_stages WHERE id=?',[stageId]);
