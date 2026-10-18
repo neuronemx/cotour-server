@@ -69,7 +69,7 @@ async function probeMedia(file, expected) {
     videoCodec: video?.codec_name || null, audioCodec: audio?.codec_name || null, alphaMetadata: video?.tags?.alpha_mode === '1' };
 }
 class EventMediaPrivateStore extends EventDeckPrivateStore {
-  constructor(options) { super(options); this.probe = options.probe || probeMedia; }
+  constructor(options) { super(options); this.probe = options.probe || probeMedia; this.maxBytes = MAX_MEDIA_BYTES; }
   directory(scope) { return super.directory({ ...scope, attemptId: scope.id }); }
   async verified(row) {
     let handle;
@@ -78,7 +78,7 @@ class EventMediaPrivateStore extends EventDeckPrivateStore {
       await this.directories(path.dirname(file));
       handle = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
       const before = await handle.stat();
-      if (!before.isFile() || before.nlink !== 1 || before.size !== row.size || before.size < 1 || before.size > MAX_MEDIA_BYTES) fail();
+      if (!before.isFile() || before.nlink !== 1 || before.size !== row.size || before.size < 1 || before.size > this.maxBytes) fail();
       const hash = crypto.createHash('sha256');
       for await (const chunk of handle.createReadStream({ start: 0, end: before.size - 1, autoClose: false })) hash.update(chunk);
       const after = await handle.stat();

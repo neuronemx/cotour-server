@@ -8,7 +8,7 @@ const { EventDeckRepository } = require('./deck-repository');
 const { attachMediaRoutes } = require('./media-http');
 const { EventDeckConfigurationService } = require('./deck-configuration');
 
-function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null, deckTranslations = null, media = null }) {
+function createEventDomainRouter({ repository, requireAccount, requirePlatformAdmin, enabled = false, grants = null, grantSockets = null, reports = null, deckPreparations = null, deckTranslations = null, media = null, images = null }) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -62,8 +62,9 @@ function createEventDomainRouter({ repository, requireAccount, requirePlatformAd
   attachDeckPreparationRoutes(router, deckPreparations, eventPath);
   attachDeckPreparationRoutes(router, deckTranslations, eventPath);
   attachMediaRoutes(router, media, eventPath);
+  attachMediaRoutes(router, images, eventPath);
   if (deckPreparations) {
-    const configurations = new EventDeckConfigurationService({ preparations: deckPreparations, translations: deckTranslations, media });
+    const configurations = new EventDeckConfigurationService({ preparations: deckPreparations, translations: deckTranslations, media, images });
     const scope = req => ({ organizationId: req.params.orgId, eventId: req.params.eventId,
       deckId: req.params.deckId, versionId: req.params.versionId });
     const configPath = eventPath + '/decks/:deckId/versions/:versionId/configuration';

@@ -25,11 +25,12 @@ function translation(value, options) {
     for (const label of Object.values(value.options)) string(label, 500);
   }
 }
-function options(list, max, correct = false) {
+function options(list, max, correct = false, images = false) {
   array(list, max);
   for (const o of list) {
-    fields(o, correct ? ['id', 'label', 'correct'] : ['id', 'label'], ['id', 'label']);
+    fields(o, [ 'id', 'label', ...(correct ? ['correct'] : []), ...(images ? ['imageAssetId'] : []) ], ['id', 'label']);
     string(o.id, 120); string(o.label, 500);
+    if (o.imageAssetId !== undefined && !isId(o.imageAssetId)) invalid();
     if (o.correct !== undefined && typeof o.correct !== 'boolean') invalid();
   }
 }
@@ -61,14 +62,17 @@ function normalizeConfiguration(input, slideCount) {
     if (k.durationSeconds !== undefined) { if (k.category !== 'assessment') invalid(); integer(k.durationSeconds, 30, 10800); }
     array(k.questions, 100);
     for (const q of k.questions) {
-      fields(q, ['id', 'prompt', 'options', 'correctOptionId', 'en'], ['id', 'prompt', 'options']);
-      string(q.id, 96); string(q.prompt, 2000); options(q.options, 6, true); translation(q.en, q.options);
+      fields(q, ['id', 'prompt', 'options', 'correctOptionId', 'en', 'imageAssetId'], ['id', 'prompt', 'options']);
+      string(q.id, 96); string(q.prompt, 2000);
+      if (q.imageAssetId !== undefined && !isId(q.imageAssetId)) invalid();
+      options(q.options, 6, true); translation(q.en, q.options);
       if (q.correctOptionId !== undefined) string(q.correctOptionId, 96);
     }
   }
   for (const r of input.raffles) {
     fields(r, ['id', 'mode', 'title', 'prompt', 'options', 'entryKey'], ['id', 'mode', 'title', 'prompt', 'options']);
-    string(r.id, 96); string(r.title, 240); string(r.prompt, 2000); options(r.options, 20);
+    string(r.id, 96); string(r.title, 240); string(r.prompt, 2000); options(r.options, 20, false, true);
+    if (r.options.some(o => o.imageAssetId !== undefined) && r.mode !== 'visual_key') invalid();
     if (r.entryKey !== undefined) { string(r.entryKey, 96); if (r.mode !== 'visual_key' && r.entryKey !== '') invalid(); }
   }
   for (const g of input.games) { fields(g, ['id', 'durationMs'], ['id', 'durationMs']); }
@@ -76,6 +80,12 @@ function normalizeConfiguration(input, slideCount) {
   try { catalogs = { polls: normalizePolls(input.polls), knowledge: normalizeKnowledge(input.knowledge),
     raffles: normalizeRaffles(input.raffles), games: normalizeGames(input.games) }; }
   catch (_) { invalid(); }
+  for (const [i, k] of input.knowledge.entries()) for (const [j, q] of k.questions.entries()) {
+    if (q.imageAssetId !== undefined) catalogs.knowledge[i].questions[j].imageAssetId = q.imageAssetId;
+  }
+  for (const [i, r] of input.raffles.entries()) for (const [j, o] of r.options.entries()) {
+    if (o.imageAssetId !== undefined) catalogs.raffles[i].options[j].imageAssetId = o.imageAssetId;
+  }
   const seen = new Set();
   for (const rows of Object.values(catalogs)) for (const item of rows) {
     if (seen.has(item.id)) invalid(); seen.add(item.id);
@@ -117,7 +127,7 @@ function normalizeConfiguration(input, slideCount) {
 }
 
 class EventDeckConfigurationService {
-  constructor({ preparations, media = null, translations = null }) { this.preparations = preparations; this.domain = preparations.domain; this.media = media; this.translations = translations; }
+  constructor({ preparations, media = null, translations = null, images = null }) { this.preparations = preparations; this.domain = preparations.domain; this.media = media; this.translations = translations; this.images = images; }
   async source(db, scope) {
     const row = await this.preparations.row(db, scope);
     if (!row || row.status !== 'CONVERTED') throw new EventAccessError('PREPARATION_NOT_READY', 409);
@@ -146,6 +156,14 @@ class EventDeckConfigurationService {
       sourceSize:row.sourceSize,sourceSha256:row.sourceSha256,slideCount:row.slideCount};
   }
 
+  imageIds(configuration) {
+    return [...new Set([...(configuration.knowledge || []).flatMap(k=>k.questions.map(q=>q.imageAssetId)),
+      ...(configuration.raffles || []).flatMap(r=>r.options.map(o=>o.imageAssetId))].filter(Boolean))].sort();
+  }
+  async imageSources(db,scope,ids) {
+    if (!this.images) throw new EventAccessError('IMAGE_NOT_READY',409);
+    return this.images.descriptors(db,scope,ids);
+  }
   async row(db, scope) {
     const [rows] = await db.execute(`SELECT source_manifest_digest AS sourceDigest,
       configuration_digest AS configurationDigest, configuration_json AS configurationJson
@@ -170,6 +188,11 @@ class EventDeckConfigurationService {
       const source = row ? await this.source(db,scope) : null;
       const result = row ? this.view(row, source, scope) : { status: 'NOT_CONFIGURED' };
       if (result.configuration?.englishSource && JSON.stringify(await this.englishSource(db,scope,source))!==JSON.stringify(result.configuration.englishSource)) integrity();
+      if (result.configuration) {
+        const ids=this.imageIds(result.configuration);
+        if (ids.length && JSON.stringify(await this.imageSources(db,scope,ids)) !== JSON.stringify(result.configuration.images)) integrity();
+        if (!ids.length && result.configuration.images !== undefined) integrity();
+      }
       this.preparations.checkEnabled(); return result;
     });
   }
@@ -182,6 +205,8 @@ class EventDeckConfigurationService {
       if (normalized.language?.englishEnabled || normalized.slides.some(s=>Object.hasOwn(s.notes,'en'))) {
         normalized.englishSource=await this.englishSource(db,scope,source);
       }
+      const imageIds=this.imageIds(normalized);
+      if (imageIds.length) normalized.images=await this.imageSources(db,scope,imageIds);
       if (normalized.audiovisual) {
         if(!this.media)throw new EventAccessError('MEDIA_UNAVAILABLE',503);
         normalized.av=await this.media.catalog(db,scope,normalized.audiovisual);delete normalized.audiovisual;
