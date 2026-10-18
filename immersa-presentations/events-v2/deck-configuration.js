@@ -181,19 +181,22 @@ class EventDeckConfigurationService {
       || ['eventId', 'deckId', 'versionId'].some(k => configuration[k] !== scope[k])) integrity();
     return { status: 'CONFIGURED_PENDING_DECK_CHECK', configurationDigest: row.configurationDigest, configuration };
   }
+  async read(db,scope) {
+    const row = await this.row(db, scope);
+    const source = row ? await this.source(db,scope) : null;
+    const result = row ? this.view(row, source, scope) : { status: 'NOT_CONFIGURED' };
+    if (result.configuration?.englishSource && JSON.stringify(await this.englishSource(db,scope,source))!==JSON.stringify(result.configuration.englishSource)) integrity();
+    if (result.configuration) {
+      const ids=this.imageIds(result.configuration);
+      if (ids.length && JSON.stringify(await this.imageSources(db,scope,ids)) !== JSON.stringify(result.configuration.images)) integrity();
+      if (!ids.length && result.configuration.images !== undefined) integrity();
+    }
+    this.preparations.checkEnabled(); return result;
+  }
   async get(actor, scope) {
     return this.domain.transaction(actor, 'deck.configuration.read', async db => {
       await this.preparations.scoped(db, actor, scope);
-      const row = await this.row(db, scope);
-      const source = row ? await this.source(db,scope) : null;
-      const result = row ? this.view(row, source, scope) : { status: 'NOT_CONFIGURED' };
-      if (result.configuration?.englishSource && JSON.stringify(await this.englishSource(db,scope,source))!==JSON.stringify(result.configuration.englishSource)) integrity();
-      if (result.configuration) {
-        const ids=this.imageIds(result.configuration);
-        if (ids.length && JSON.stringify(await this.imageSources(db,scope,ids)) !== JSON.stringify(result.configuration.images)) integrity();
-        if (!ids.length && result.configuration.images !== undefined) integrity();
-      }
-      this.preparations.checkEnabled(); return result;
+      return this.read(db,scope);
     });
   }
   async create(actor, scope, input) {
