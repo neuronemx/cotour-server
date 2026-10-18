@@ -1,3 +1,4 @@
+const {imageBindings}=require('./interaction-images');
 const crypto = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { RaffleStore, RAFFLE_STATES, RAFFLE_MODES, countdownRemainingMs } = require('../raffle-store');
@@ -58,9 +59,9 @@ function unpack(raw, key, random, now) {
 function publicWinner(entry) { return entry ? { name: entry.name, label: entry.label, ticketNumber: entry.ticketNumber || null } : null; }
 
 class EventRaffleRuntime {
-  constructor({ liveRuntime, polls = null, knowledge = null, readRaffles = async () => null, now = Date.now,
+  constructor({ liveRuntime, polls = null, knowledge = null, readRaffles = async () => null, projectImages = null, now = Date.now,
     random = null, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
-    this.live = liveRuntime; this.polls = polls; this.knowledge = knowledge; this.readRaffles = readRaffles;
+    this.live = liveRuntime; this.polls = polls; this.knowledge = knowledge; this.readRaffles = readRaffles; this.projectImages = projectImages;
     this.now = now; this.random = random; this.setTimeoutFn = setTimeoutFn; this.clearTimeoutFn = clearTimeoutFn;
     this.connected = async () => []; this.notify = async () => {};
     this.timers = new Map(); this.witnesses = new Map(); this.sequence = 0;
@@ -71,7 +72,10 @@ class EventRaffleRuntime {
     if (!live || ['eventId', 'liveSessionId', 'stageId', 'activityId', 'deckId', 'versionId', 'slideCount'].some(field => live[field] !== prepared[field])) throw error('CONTENT_VERSION_CHANGED');
     const catalog = await this.readRaffles(prepared, db);
     if (!catalog || ['eventId', 'liveSessionId', 'deckId', 'versionId'].some(field => catalog[field] !== prepared[field])) throw error('RAFFLE_CONTENT_NOT_PREPARED');
-    const definitions = normalizeRaffles(catalog.raffles), digest = crypto.createHash('sha256').update(JSON.stringify(definitions)).digest('hex');
+    const definitions = normalizeRaffles(catalog.raffles);
+    const bindings = imageBindings(catalog.raffles,'raffle');
+    if(bindings.length&&!this.projectImages)throw error('INTERACTION_IMAGE_NOT_PREPARED');
+    const digest = crypto.createHash('sha256').update(JSON.stringify(bindings.length?{definitions,images:bindings}:definitions)).digest('hex');
     const [rows] = await db.execute('SELECT * FROM event_v2_raffle_sessions WHERE id = ?', [liveId]);
     const record = rows[0];
     if (record && (record.stage_id !== prepared.stageId || record.activity_id !== prepared.activityId || record.deck_id !== prepared.deckId
@@ -83,7 +87,7 @@ class EventRaffleRuntime {
       if (!source || ['mode', 'title', 'prompt'].some(field => active[field] !== source[field]) || !isDeepStrictEqual(active.options, source.options)
         || (active.mode === 'visual_key' && !source.options.some(option => option.id === active.entryKey))) throw error('CONTENT_VERSION_CHANGED');
     }
-    return { prepared, key, record, definitions, digest, body, store };
+    return { prepared, key, record, definitions, digest, body, store, imageBindings:bindings };
   }
   async hasActive(context, db, liveId, preparedLive) {
     const { key, store } = await this.scope(context, db, liveId, preparedLive);
@@ -186,7 +190,7 @@ class EventRaffleRuntime {
     handle?.unref?.(); this.timers.set(key, handle);
   }
   async projection(context, db, liveId, preparedLive) {
-    const { key, record, body, store, definitions } = await this.scope(context, db, liveId, preparedLive);
+    const scoped = await this.scope(context, db, liveId, preparedLive), { key, record, body, store, definitions } = scoped;
     const snapshot = { eventId: context.eventId, liveSessionId: liveId, raffleRunId: body.latestRunId, revision: Number(record?.revision || 0) };
     let state;
     if (context.kind === 'PARTICIPANT') { state = store.getAudienceState(key, context.participantId); snapshot.displayName = await this.name(context, db); }
@@ -200,7 +204,7 @@ class EventRaffleRuntime {
     if (state.active) state.active.countdownRemainingMs = countdownRemainingMs(store.getActive(key), this.now());
     if (controls(context)) snapshot.available = definitions.map(({ id, title, mode, options }) => ({ id, title, mode,
       ...(mode === 'visual_key' ? { keyOptions: options } : {}) }));
-    return { ...snapshot, ...state };
+    const out={ ...snapshot, ...state };return this.projectImages ? this.projectImages(context,db,scoped,out) : out;
   }
   close() { for (const handle of this.timers.values()) this.clearTimeoutFn(handle); this.timers.clear(); this.witnesses.clear(); }
 }

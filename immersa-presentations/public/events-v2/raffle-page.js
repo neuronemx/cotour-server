@@ -1,4 +1,4 @@
-(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.ImmersaEventRafflePage=factory();})(typeof window==='object'?window:this,function(){
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./interaction-images'));else root.ImmersaEventRafflePage=factory(root.ImmersaEventInteractionImages);})(typeof window==='object'?window:this,function(images){
   'use strict';
   const labels={collecting:'Participación abierta',entries_closed:'Participación cerrada',drawing:'Sorteando…',winner:'Ganador revelado'};
   const actions={close_entries:'Cerrar participación',draw:'Sortear',reveal:'Revelar ganador',close:'Cerrar sorteo',reset_winners:'Reiniciar ganadores'};
@@ -22,6 +22,7 @@
       const definition=s?.available?.find(row=>row.id===$('raffle-catalog').value);$('raffle-key').replaceChildren();
       if(operator&&definition?.keyOptions)for(const row of definition.keyOptions){const o=document.createElement('option');o.value=row.id;o.textContent=row.label;$('raffle-key').append(o);}
       $('raffle-key').value=definition?.keyOptions?.some(row=>row.id===oldKey)?oldKey:definition?.keyOptions?.[0]?.id||'';
+      images.render(document,$('raffle-key-image'),usable&&operator?definition?.keyOptions?.find(row=>row.id===$('raffle-key').value)?.image:null);
       $('raffle-key-controls').hidden=!operator||!definition?.keyOptions||Boolean(r);
       for(const id of ['raffle-catalog','raffle-open','raffle-key','raffle-configure-key'])$(id).disabled=!usable||state.pending||Boolean(r)||!definition;
       const enabled=controller.availableActions();for(const action of Object.keys(actions)){$('raffle-'+action).hidden=!operator||!enabled.includes(action);$('raffle-'+action).disabled=state.pending;}
@@ -30,15 +31,15 @@
       if(!collecting){$('raffle-name').value='';savedName=null;}else if(savedName===null||$('raffle-name').value===savedName){$('raffle-name').value=s.displayName;savedName=s.displayName;}
       $('raffle-name').disabled=state.pending;$('raffle-name').required=r?.mode==='free';$('raffle-enter').hidden=!collecting||r.mode!=='free';$('raffle-enter').disabled=state.pending;
       const sig=collecting?JSON.stringify([r.id,r.mode,r.options]):null;
-      if(signature!==sig){signature=sig;buttons=[];$('raffle-options').replaceChildren();if(collecting)for(const row of r.options){const button=document.createElement('button');button.type='button';button.textContent=row.label;button.addEventListener('click',()=>controller.operate(r.mode==='poll'?'submit_poll_response':'enter',{optionId:row.id,name:$('raffle-name').value}));buttons.push({id:row.id,button});$('raffle-options').append(button);}}
+      if(signature!==sig){signature=sig;buttons=[];$('raffle-options').replaceChildren();if(collecting)for(const row of r.options){const button=document.createElement('button');button.type='button';button.textContent=row.label;images.append(document,button,row.image);button.addEventListener('click',()=>controller.operate(r.mode==='poll'?'submit_poll_response':'enter',{optionId:row.id,name:$('raffle-name').value}));buttons.push({id:row.id,button});$('raffle-options').append(button);}}
       for(const row of buttons){row.button.disabled=state.pending||r.mode!=='visual_key'&&Boolean(r.ownEntry);row.button.setAttribute('aria-pressed',String((r.ownEntry?.selectedOptionId||r.ownSelection?.selectedOptionId)===row.id));}
       const entry=publicView?r?.ownEntry:null,selection=publicView?r?.ownSelection:null;
       $('raffle-receipt').textContent=entry?'Estás participando… · '+String(entry.ticketNumber).padStart(r.ticketDigits,'0')+' · Mucha suerte':selection?(r.state==='collecting'?'Selección guardada.':r.state==='entries_closed'||r.state==='drawing'?'Tu selección no participa en este sorteo.':'Selección registrada.') :'';
       $('raffle-winner').textContent=usable&&r?.state==='winner'?publicView?r.isWinner?'Ganaste':'El ganador ya fue revelado.':r.winner?r.winner.name+' · '+String(r.winner.ticketNumber).padStart(r.ticketDigits,'0'):'' :'';
-      $('raffle-display-option').textContent=usable&&state.kind==='PLAYER'?r?.displayOption?.label||'':'';
+      $('raffle-display-option').textContent=usable&&state.kind==='PLAYER'?r?.displayOption?.label||'':'';images.render(document,$('raffle-display-image'),usable&&state.kind==='PLAYER'?r?.displayOption?.image:null);
       if(confirmation&&(!usable||state.pending||confirmation.raffleRunId!==s.raffleRunId||confirmation.expectedRevision!==s.revision)){confirmation=null;if($('raffle-confirm-dialog').open)$('raffle-confirm-dialog').close();}clock();
     }
-    $('raffle-catalog').addEventListener('change',()=>render(state));$('raffle-open').addEventListener('click',()=>controller.operate('open',{definitionId:$('raffle-catalog').value,expectedRevision:state.snapshot?.revision}));
+    $('raffle-catalog').addEventListener('change',()=>render(state));$('raffle-key').addEventListener('change',()=>render(state));$('raffle-open').addEventListener('click',()=>controller.operate('open',{definitionId:$('raffle-catalog').value,expectedRevision:state.snapshot?.revision}));
     $('raffle-configure-key').addEventListener('click',()=>controller.operate('configure_key',{definitionId:$('raffle-catalog').value,optionId:$('raffle-key').value,expectedRevision:state.snapshot?.revision}));
     $('raffle-enter').addEventListener('click',()=>controller.operate('enter',{name:$('raffle-name').value}));
     for(const [action,title] of Object.entries(actions))$('raffle-'+action).addEventListener('click',()=>{if(state.status!=='ready'||state.pending||!controller.availableActions().includes(action))return;confirmation={action,raffleRunId:state.snapshot.raffleRunId,expectedRevision:state.snapshot.revision};$('raffle-confirm-title').textContent='¿'+title+'?';$('raffle-confirm-detail').textContent=action==='reset_winners'?'Los ganadores anteriores volverán a ser elegibles.':'Se aplicará al sorteo actual.';$('raffle-confirm-dialog').showModal();});

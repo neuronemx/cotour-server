@@ -20,6 +20,7 @@
   <script defer src="/events-v2/qna-console.js"></script>
   <script defer src="/events-v2/qna-page.js"></script>
   <script defer src="/events-v2/knowledge-console.js"></script>
+  <script defer src="/events-v2/interaction-images.js"></script>
   <script defer src="/events-v2/knowledge-page.js"></script>
   <script defer src="/events-v2/raffle-console.js"></script>
   <script defer src="/events-v2/raffle-page.js"></script>
@@ -106,7 +107,7 @@
         <p id="knowledge-counts"></p><output id="knowledge-clock" aria-live="off"></output>
         <div id="knowledge-registration" hidden><label id="knowledge-name-label" for="knowledge-name">Tu nombre</label><input id="knowledge-name" type="text" maxlength="120" autocomplete="name"><button id="knowledge-join" type="button">Entrar</button></div>
         <p id="knowledge-tab-status" role="status"></p><button id="knowledge-claim" type="button" hidden>Continuar en esta pestaña</button>
-        <p id="knowledge-progress"></p><h3 id="knowledge-question"></h3><div id="knowledge-options"></div>
+        <p id="knowledge-progress"></p><h3 id="knowledge-question"></h3><div id="knowledge-image" hidden></div><div id="knowledge-options"></div>
         <p id="knowledge-answer-status" role="status"></p>
         <div id="knowledge-assessment-nav" class="controls" hidden><button id="knowledge-prev" type="button">Anterior</button><button id="knowledge-next" type="button">Siguiente</button></div>
         <button id="knowledge-submit" type="button" hidden>Enviar evaluación</button>
@@ -115,9 +116,9 @@
       <section id="raffle-panel" class="panel" hidden>
         <h2>Sorteos</h2><div id="raffle-controls">
           <label>Sorteo <select id="raffle-catalog"></select></label><button id="raffle-open" type="button">Abrir sorteo</button>
-          <div id="raffle-key-controls"><label>Clave visual <select id="raffle-key"></select></label><button id="raffle-configure-key" type="button">Guardar clave</button></div>
+          <div id="raffle-key-controls"><label>Clave visual <select id="raffle-key"></select></label><div id="raffle-key-image" hidden></div><button id="raffle-configure-key" type="button">Guardar clave</button></div>
           <div class="controls"><button id="raffle-close_entries" type="button" hidden>Cerrar participación</button><button id="raffle-draw" type="button" hidden>Sortear</button><button id="raffle-reveal" type="button" hidden>Revelar ganador</button><button id="raffle-close" type="button" hidden>Cerrar sorteo</button><button id="raffle-reset_winners" type="button" hidden>Reiniciar ganadores</button></div></div>
-        <h3 id="raffle-title"></h3><p id="raffle-status" role="status"></p><p id="raffle-prompt"></p><p id="raffle-counts"></p><p id="raffle-clock" role="timer"></p><p id="raffle-display-option"></p>
+        <h3 id="raffle-title"></h3><p id="raffle-status" role="status"></p><p id="raffle-prompt"></p><p id="raffle-counts"></p><p id="raffle-clock" role="timer"></p><p id="raffle-display-option"></p><div id="raffle-display-image" hidden></div>
         <div id="raffle-registration"><label>Tu nombre <input id="raffle-name" maxlength="120" autocomplete="name"></label><button id="raffle-enter" type="button">Participar</button></div>
         <div id="raffle-options" class="controls"></div><p id="raffle-receipt" role="status"></p><p id="raffle-winner" role="status"></p>
       </section>

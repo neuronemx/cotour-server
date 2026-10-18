@@ -1,3 +1,8 @@
+const {EventInteractionImages}=require('../events-v2/interaction-images');
+const {createEventInteractionImageRouter}=require('../events-v2/interaction-images-http');
+const {EventApprovedContent}=require('../events-v2/approved-content');
+const {EventDeckConfigurationService}=require('../events-v2/deck-configuration');
+const {EventDeckCheckService}=require('../events-v2/deck-check-service');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
@@ -155,6 +160,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
   const deckTranslations = new EventDeckPreparationService({ domain, root: path.join(localDir,"private-english"), enabled: () => domainEnabled && grantEnabled, basePreparations: deckPreparations });
   const media = new EventMediaService({ preparations: deckPreparations, root: path.join(localDir,"private-media") });
   const images = new EventImageService({ preparations: deckPreparations, admission: media, root: path.join(localDir,"private-images") });
+  const interactionImageContent=new EventApprovedContent({interactionImages:true,checks:new EventDeckCheckService({configurations:new EventDeckConfigurationService({preparations:deckPreparations,translations:deckTranslations,media,images})})});
+  const interactionImages=new EventInteractionImages({content:interactionImageContent});
+  app.use('/api/events-v2',createEventInteractionImageRouter({grants,images:interactionImages,knowledge:knowledgeRuntime,raffles:raffleRuntime,enabled:()=>domainEnabled&&grantEnabled}));
   const router = createEventDomainRouter({ repository: domain, requireAccount: bridge.requireApiAuth(), requirePlatformAdmin: platformGuard, enabled: () => domainEnabled && grantEnabled, grants, grantSockets, reports, deckPreparations, deckTranslations, media, images });
   app.use('/api/events-v2', (req, res, next) => domainEnabled ? next() : res.status(404).json({ code: 'EVENTS_V2_DISABLED' }), router);
   app.get('/api/admin/event-hubs', async (_req, res) => res.json({ hubs: await legacy.listHubs() }));
@@ -272,6 +280,9 @@ test('Events v2: real Better Auth, SQL, HTTP and Socket.IO isolation', { skip: !
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await require('./helpers/events-v2-approved-live-suite').approvedLiveSuite(t, { request, sql, domain, ids, base, o1, a, b, publicId, deckPreparations, deckTranslations, media, images, runtime, lifecycle, grants, slidesRuntime, AV: avRuntime, pollRuntime, knowledgeRuntime, raffleRuntime, gameRuntime,
+    setDomainEnabled: value => { domainEnabled = value; } });
+
+  await require('./helpers/events-v2-interaction-images-suite').interactionImagesSuite(t, { request, sql, domain, ids, base, o1, a, b, publicId, deckPreparations, images, runtime, lifecycle, grants, slidesRuntime, avRuntime, pollRuntime, knowledgeRuntime, raffleRuntime, gameRuntime, content:interactionImageContent, delivery:interactionImages,
     setDomainEnabled: value => { domainEnabled = value; } });
 
   await englishSuite(t, { request, sql, domain, ids, cookies, base, o1, o2, a, b, deckPreparations, deckTranslations,

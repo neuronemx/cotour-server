@@ -70,3 +70,11 @@ test('Player uses projected text and ranking without a second emergency listener
 });
 
 test('prepared English title/questions/options keep current answer identity and fall back to Spanish',()=>{let language='es';const h=harness('PARTICIPANT',()=>language),r=h.run();r.titleEn='English evaluation';r.questions[0].en={prompt:'English question',options:{a:'English A'}};r.answers=[{questionId:'q2',optionId:'a'}];language='en';h.render({});assert.equal(h.e['knowledge-title'].textContent,'English evaluation');assert.equal(h.e['knowledge-question'].textContent,'English question');assert.equal(h.e['knowledge-options'].children[0].textContent,'English A');assert.equal(h.e['knowledge-options'].children[0]['aria-pressed'],'true');assert.equal(h.e['knowledge-options'].children[1].textContent,'B');h.e['knowledge-next'].fire('click');assert.equal(h.e['knowledge-question'].textContent,'First?');});
+
+test('question images follow assessment navigation and clear on lost authority',()=>{
+ const crypto=require('node:crypto'),h=harness(),r=h.run(),u=()=>crypto.randomUUID();
+ const url=`/api/events-v2/live/${u()}/${u()}/${u()}/interaction-images/knowledge/${u()}/${u()}`;
+ r.questions[0].image={url,width:120,height:80};h.render({});const image=h.e['knowledge-image'].children[0];assert.equal(image.src,url);
+ h.render({});assert.equal(h.e['knowledge-image'].children[0],image);h.e['knowledge-next'].fire('click');assert.equal(h.e['knowledge-image'].hidden,true);
+ h.render({status:'waiting',snapshot:null});assert.equal(h.e['knowledge-image'].children.length,0);
+});
