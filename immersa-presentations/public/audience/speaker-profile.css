@@ -68,3 +68,20 @@
   .speaker-profile-launcher { --speaker-panel-width: min(86vw, 300px); --speaker-panel-height: min(80dvh, 600px); }
 }
 @media (prefers-reduced-motion: reduce) { .speaker-profile-launcher { transition-duration: .01ms; } }
+
+/* Full cards with a preview of the next profile; each card scrolls vertically. */
+.speaker-profile-launcher.is-multiple { --speaker-panel-width: min(90vw, 370px); touch-action: pan-x pan-y; }
+.speaker-profile-panel [hidden] { display: none !important; }
+.speaker-profiles-carousel { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 42px; }
+.speaker-profiles-track { position: relative; display: flex; flex: 1; min-height: 0; gap: 10px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x pan-y; overscroll-behavior-x: contain; }
+.speaker-profiles-track::-webkit-scrollbar { display: none; }
+.speaker-profile-card { flex: 0 0 89%; min-width: 0; height: 100%; box-sizing: border-box; scroll-snap-align: start; border: 1px solid rgba(139,92,246,.22); border-radius: 14px; background: rgba(255,255,255,.025); }
+.speaker-profiles-track.has-one .speaker-profile-card { flex-basis: 100%; }
+.speaker-profile-card:last-child { margin-right: 11%; }
+.speaker-profiles-track.has-one .speaker-profile-card:last-child { margin-right: 0; }
+.speaker-profile-card .speaker-profile-scroll { height: 100%; box-sizing: border-box; padding: 18px 20px; touch-action: pan-x pan-y; }
+.speaker-profile-card .speaker-profile-name, .speaker-profile-card .speaker-profile-role, .speaker-profile-card .speaker-profile-company { overflow-wrap: anywhere; }
+.speaker-profiles-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; color: #bdb4d4; font-size: 12px; }
+.speaker-profiles-nav button { border: 1px solid rgba(139,92,246,.4); border-radius: 9px; background: #231b39; color: #f5f3ff; width: 38px; min-height: 34px; cursor: pointer; }
+.speaker-profiles-nav button:disabled { opacity: .35; cursor: default; }
+.speaker-profiles-track:focus-visible, .speaker-profiles-nav button:focus-visible { outline: 2px solid #b199ff; outline-offset: -2px; }
