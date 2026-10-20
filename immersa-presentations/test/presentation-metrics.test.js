@@ -96,7 +96,8 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
         { id: "run-1", presentation_session_id: "session-1", interaction_id: "poll-1", title: "Encuesta", prompt: "¿A?", launched_at: "2026-08-14T05:10:00.000Z", closed_at: "2026-08-14T05:12:00.000Z", option_id: "a", label: "A", sort_order: 0, response_count: 6 },
         { id: "run-1", presentation_session_id: "session-1", interaction_id: "poll-1", title: "Encuesta", prompt: "¿A?", launched_at: "2026-08-14T05:10:00.000Z", closed_at: "2026-08-14T05:12:00.000Z", option_id: "b", label: "B", sort_order: 1, response_count: 4 }
       ]];
-      return [[{ presentation_session_id: "session-1", questions_received: 7, questions_projected: 3 }]];
+      if (query === 3) return [[{ presentation_session_id: "session-1", questions_received: 7, questions_projected: 3 }]];
+      return [[{ presentation_session_id: "session-1", emoji: "❤️", reaction_count: 100 }, { presentation_session_id: "session-1", emoji: "👏", reaction_count: 17 }]];
     }
   };
   const [session] = await new PresentationMetricsRepository(pool).listDeckSessions("deck-1");
@@ -106,6 +107,7 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
   assert.deepEqual(session.polls[0].options.map((option) => option.count), [6, 4]);
   assert.deepEqual(session.polls[0].options.map((option) => option.percentage), [60, 40]);
   assert.deepEqual(session.qna, { received: 7, projected: 3 });
+  assert.deepEqual(session.reactions, { total: 117, byEmoji: { "❤️": 100, "👏": 17 } });
 });
 
 test("server exposes Speaker basic metrics only through deck ownership and plan capability", () => {
