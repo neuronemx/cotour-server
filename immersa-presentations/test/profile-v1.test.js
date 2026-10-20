@@ -105,7 +105,7 @@ test("Home exposes Mi perfil with the approved fields and Público reuses it in 
   assert.match(server, /app\.get\("\/api\/account\/profile", requireAccount/);
   assert.match(server, /app\.put\("\/api\/account\/profile", requireAccount/);
   assert.match(server, /app\.post\("\/api\/account\/profile\/photo", requireAccount/);
-  assert.match(server, /app\.get\("\/api\/decks\/:deckId\/speaker-profile", profileHandlers\.getDeckSpeakerProfile/);
+  assert.match(server, /legacyProfile:profileHandlers\.getDeckSpeakerProfile/);
   assert.match(home, /id="profileButton"[\s\S]*?<span>Mi perfil<\/span>/);
   assert.match(home, /id="profileDisplayName"[^>]+maxlength="120"/);
   assert.match(home, /id="profilePublicTitle"[^>]*>[\s\S]*?<option>Speaker<\/option>[\s\S]*?<option>Ponente<\/option>[\s\S]*?<option>Presentador<\/option>[\s\S]*?<option>Presentadora<\/option>[\s\S]*?<option>Profesor<\/option>[\s\S]*?<option>Profesora<\/option>[\s\S]*?<option>Facilitador<\/option>[\s\S]*?<option>Facilitadora<\/option>/);
@@ -167,7 +167,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
 test("Speaker profile is included only in Público, not Screen", () => {
   const audience = read("public/audience/index.html");
   const screen = read("public/screen/index.html");
-  assert.match(audience, /speaker-profile\.css\?v=2/);
-  assert.match(audience, /speaker-profile\.js\?v=2/);
+  assert.match(audience, /speaker-profile\.css\?v=3/);
+  assert.match(audience, /speaker-profile\.js\?v=3/);
   assert.doesNotMatch(screen, /speaker-profile|Mi perfil|Acerca de/);
 });

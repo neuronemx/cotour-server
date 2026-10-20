@@ -1,3 +1,5 @@
+const {DeckSpeakersStore, DeckSpeakerError}=require('./deck-speakers');
+const {createDeckSpeakersHttp}=require('./deck-speakers-http');
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
@@ -296,6 +298,17 @@ const brandMentionRuntime = new BrandMentionRuntime({
   },
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
+});
+const deckSpeakersEnabled = () => process.env.IMMERSA_DECK_SPEAKERS_PILOT === "true"
+  && process.env.RAILWAY_ENVIRONMENT_ID === "9ae7d5ba-2954-4c96-818a-ee918310e20d";
+const deckSpeakersStore = new DeckSpeakersStore({
+  root:path.join(DATA_DIR,"deck-speaker-profiles-pilot"),
+  assertDeck:async deckId => { try { await findDeckDir(deckId); } catch (_) { throw new DeckSpeakerError("DECK_NOT_FOUND", "Deck no encontrado.", 404); } },
+  onChange:(deckId,revision) => {
+    if(!deckSpeakersEnabled())return;
+    for(const [roomKey,session] of sessions)if(session.deckId===deckId)
+      io.to(getRoleRoomKey(roomKey,"audience")).emit("speaker-profiles:changed",{deckId,revision});
+  }
 });
 const profileHandlers = createProfileHandlers({
   bridge: betterAuthCompatibilityBridge,
@@ -1786,7 +1799,9 @@ app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
 app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
 app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
-app.get("/api/decks/:deckId/speaker-profile", profileHandlers.getDeckSpeakerProfile);
+app.use(createDeckSpeakersHttp({store:deckSpeakersStore,enabled:deckSpeakersEnabled,
+  owner:[...requireDeckAccount,requireAccountAdjustmentCleared],account:requireAccount,
+  legacyProfile:profileHandlers.getDeckSpeakerProfile}));
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
@@ -1856,6 +1871,7 @@ app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
     if (isSystemDemoDeckId(req.params.deckId)) return res.status(409).json({ error: "El Deck Demo no puede eliminarse" });
     const deckId = await deleteDataDeck(req.params.deckId);
     await betterAuthCompatibilityBridge.unregisterDeck(req, deckId);
+    if(deckSpeakersEnabled())await deckSpeakersStore.removeDeck(deckId).catch(error=>console.warn("Unable to remove pilot Deck profiles",error.code||"UNKNOWN"));
     res.json({ ok: true, deckId });
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -2124,6 +2140,7 @@ io.on("connection", (socket) => {
         if (liveEvent?.event_workspace_id) joinedContext.brandSourceId = `event:${liveEvent.event_workspace_id}`;
       } catch (error) { console.error("Unable to resolve Event Hub brands", error); }
     }
+    if(role==="audience"&&deckSpeakersEnabled())socket.emit("speaker-profiles:changed",{deckId:joinedDeckId});
     emitState(currentRoomKey, session);
     socket.emit("audiovisual:state", session.audiovisual);
     socket.emit("audio-react:state", session.audioReact || (session.audioReact = createAudioReactState()));
