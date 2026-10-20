@@ -1,7 +1,7 @@
 const { randomUUID } = require("node:crypto");
 
 const ALLOWED_REACTIONS = new Set(["❤️", "👏", "🔥"]);
-const SCREEN_LIMIT = 50;
+const SCREEN_LIMIT = 40;
 const SCREEN_LIFETIME_MS = 3100;
 
 class ReactionRuntime {

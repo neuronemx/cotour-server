@@ -28,20 +28,20 @@ test("two audience sockets receive only their own accepted reactions", () => {
   assert.deepEqual(screen.map(p=>p.emoji),['❤️','🔥']);
 });
 
-test("100 valid reactions count and echo to their sender; only 50 fan out to Screen", () => {
+test("100 valid reactions count and echo to their sender; only 40 fan out to Screen", () => {
   const f = fixture();
   for (let i = 0; i < 100; i++) assert.equal(f.react(`aud-${i}`), true);
   assert.equal(f.own.length, 100);
-  assert.equal(f.screen.length, 50);
+  assert.equal(f.screen.length, 40);
   assert.equal(f.runtime.bucket.counts["❤️"], 100);
   assert.equal(f.own.every((event) => event.payload.target === "audience"), true);
   assert.equal(f.screen.every((event) => event.target === "screen"), true);
   f.advance(3099);
   assert.equal(f.react("new"), true);
-  assert.equal(f.screen.length, 50);
+  assert.equal(f.screen.length, 40);
   f.advance(1);
   f.react("next");
-  assert.equal(f.screen.length, 51);
+  assert.equal(f.screen.length, 41);
 });
 
 test("disabled Screen still counts and confirms own reactions", () => {
@@ -122,7 +122,7 @@ test("pending test-mode snapshots cannot leak into a newly started recording", a
   assert.equal(calls.length, 0);
 });
 
-test("Screen DOM never exceeds 50 even if incoming messages arrive in a burst", () => {
+test("Screen DOM never exceeds 40 even if incoming messages arrive in a burst", () => {
   const source = fs.readFileSync(path.join(__dirname, "../public/screen/screen.js"), "utf8");
   const functionSource = source.slice(source.indexOf("function popReaction("), source.indexOf("function initDrawingOverlay("));
   const children = [], timers = [];
@@ -134,8 +134,8 @@ test("Screen DOM never exceeds 50 even if incoming messages arrive in a burst", 
   vm.createContext(context);
   vm.runInContext(functionSource, context);
   for (let i = 0; i < 100; i++) context.popReaction("❤️");
-  assert.equal(children.length, 50);
+  assert.equal(children.length, 40);
   timers.shift()();
   context.popReaction("👏");
-  assert.equal(children.length, 50);
+  assert.equal(children.length, 40);
 });

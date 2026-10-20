@@ -516,7 +516,7 @@ function render(state) {
 }
 function popReaction(emoji) {
   const reactions = document.getElementById("reactions");
-  if (!overlays.showReactions || !reactions || reactions.childElementCount >= 50) return;
+  if (!overlays.showReactions || !reactions || reactions.childElementCount >= 40) return;
   const node = document.createElement("span");
   node.className = "reaction";
   node.textContent = emoji;
