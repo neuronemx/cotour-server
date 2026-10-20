@@ -167,7 +167,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
 test("Speaker profile is included only in Público, not Screen", () => {
   const audience = read("public/audience/index.html");
   const screen = read("public/screen/index.html");
-  assert.match(audience, /speaker-profile\.css\?v=3/);
+  assert.match(audience, /speaker-profile\.css\?v=4/);
   assert.match(audience, /speaker-profile\.js\?v=3/);
   assert.doesNotMatch(screen, /speaker-profile|Mi perfil|Acerca de/);
 });
