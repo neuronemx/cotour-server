@@ -3,7 +3,7 @@
   else root.ImmersaEventAccess = factory(() => root.ImmersaEventAVConsole);
 })(typeof window === 'object' ? window : this, function (getAV) {
   'use strict';
-  const kinds = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
+  const kinds = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', rehearsal: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
   const id = value => typeof value === 'string' && /^[a-f0-9-]{36}$/i.test(value);
   const secret = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
   const failure = (code, retryable = false) => Object.assign(new Error(code), { code, retryable });
@@ -14,7 +14,7 @@
     // never sent in a request URL, retained in history state or persisted.
     history.replaceState(null, '', pathname);
     if (location.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) throw failure('SECURE_ORIGIN_REQUIRED');
-    const match = /^\/events-v2\/console\/(stage|speaker|screen|audience)\/([a-f0-9-]{36})\/([a-f0-9-]{36})\/?$/i.exec(pathname);
+    const match = /^\/events-v2\/console\/(stage|speaker|rehearsal|screen|audience)\/([a-f0-9-]{36})\/([a-f0-9-]{36})\/?$/i.exec(pathname);
     if (!match || search) throw failure('INVALID_ACCESS_LINK');
     const view = match[1].toLowerCase();
     const params = new URLSearchParams(hash.replace(/^#/, ''));
@@ -57,7 +57,7 @@
         || context.kind !== kinds[binding.view] || !id(context.actorId) || !id(context.organizationId)
         || !Number.isFinite(Date.parse(context.expiresAt)) || Date.parse(context.expiresAt) <= now()) throw failure('ACCESS_DENIED');
       const purposes = { STAGE: ['live'], SPEAKER: ['live', 'rehearsal'], PLAYER: ['player'], PARTICIPANT: ['public'] };
-      if (!purposes[context.kind].includes(context.purpose)) throw failure('ACCESS_DENIED');
+      if ((binding.view === 'rehearsal' && context.purpose !== 'rehearsal') || !purposes[context.kind].includes(context.purpose)) throw failure('ACCESS_DENIED');
       const fixed = JSON.stringify(['eventId', 'organizationId', 'grantId', 'actorId', 'kind', 'purpose', 'stageId', 'activityId', 'liveSessionId', 'participantId'].map(key => context[key] || null));
       if (identity !== null && identity !== fixed) throw failure('ACCESS_DENIED');
       return fixed;

@@ -44,3 +44,13 @@ test('Production explains missing approval, binding and expired window instead o
 test('Existing unscheduled activities expose editable start/duration and persist UTC instants',async()=>{
  const h=page();await settle();const form=h.walk(h.elements['activity-list']).find(e=>e.tagName==='FORM');form.elements.scheduledStartsAt.value='2026-11-01T10:00';form.elements.durationMinutes.value='45';form.fire('submit');await settle();const call=h.calls.find(x=>x.url.endsWith('/schedule'));assert.equal(call.method,'PUT');const sent=JSON.parse(call.body);assert.equal(sent.scheduledStartsAt,new Date('2026-11-01T10:00').toISOString());assert.equal(sent.durationMinutes,45);assert.match(h.elements.message.textContent,/Horario actualizado/);
 });
+
+
+test('Production issues a separate rehearsal grant and link without starting a live', async () => {
+  const h=page();await settle();const button=h.find(h.elements['operation-list'],'Generar enlace de ensayo');assert.equal(button.disabled,false);
+  button.fire('click');await settle();assert.equal(h.navigations.length,0);
+  const request=h.calls.find(x=>x.url.endsWith('/grants'));assert.deepEqual(JSON.parse(request.body),{kind:'SPEAKER',purpose:'rehearsal',activityId:activity});
+  const anchor=h.find(h.elements['operation-list'],'Entrar al ensayo privado');
+  const url=new URL(anchor.href,'https://example.test');const link=require('../public/events-v2/access-client').consumeLink(url,{replaceState(){}});
+  assert.equal(link.binding.view,'rehearsal');assert.equal(link.token,token);assert.equal(url.search,'');
+});

@@ -83,6 +83,7 @@ async function approvedLiveSuite(t,f){
    await sql('UPDATE event_live_content SET approval_digest=? WHERE live_session_id=?',['0'.repeat(64),liveId]);try{assert.equal((await bytes(stage,slideUrl)).status,403);}finally{await sql('UPDATE event_live_content SET approval_digest=? WHERE live_session_id=?',[approval.approvalDigest,liveId]);}
    const revoked=await issue('STAGE',{stageId});const revokedURL=slideUrl.replace(stage.context.grantId,revoked.context.grantId);await grants.revoke(ids.get('admin1'),o1,a,revoked.context.grantId);assert.equal((await bytes(revoked,revokedURL)).status,401);
   });
+  await require('./events-v2-rehearsal-suite').rehearsalSuite(t,{...f,content,activity,stage,liveId,deck,prep});
   await t.test('new versions cannot retarget an active session; finish retains its pin and closes all readers',async()=>{
    const v=await request('producer','POST',root+`/decks/${deck.id}/versions`,{});assert.equal(v.status,201);assert.equal((await browser(stage,(c,db)=>runtime.prepared(c,db,liveId))).versionId,deck.version.id);
    const binding=await request('producer','GET',root+`/activities/${activity}/deck-binding`);assert.equal((await request('producer','DELETE',root+`/activities/${activity}/deck-binding`,{expectedRevision:binding.body.revision})).status,409);

@@ -3,7 +3,7 @@ const path = require('node:path');
 const { EventAccessError } = require('./authorization');
 const { isId } = require('./grant-repository');
 
-const CONSOLE_KINDS = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
+const CONSOLE_KINDS = Object.freeze({ stage: 'STAGE', speaker: 'SPEAKER', rehearsal: 'SPEAKER', screen: 'PLAYER', audience: 'PARTICIPANT' });
 
 async function consoleTargets(grants, db, context, content = null) {
   if (context.kind === 'SPEAKER' && context.purpose !== 'live') return [];
@@ -61,7 +61,7 @@ function createEventConsolePages({ enabled = () => false } = {}) {
       || Object.keys(req.query).length) return res.status(404).json({ code: 'RESOURCE_NOT_FOUND' });
     // Generic access shell only. It is outside public/ so static serving cannot
     // bypass the flag. Names, identities and operational state require a grant.
-    res.sendFile(path.join(__dirname, 'console.html'));
+    res.sendFile(path.join(__dirname, req.params.view === 'rehearsal' ? 'rehearsal.html' : 'console.html'));
   });
   router.use('/console', (_req, res) => res.status(404).json({ code: 'RESOURCE_NOT_FOUND' }));
   return router;
@@ -74,7 +74,7 @@ function attachEventConsoleContext(router, grants, handle, browserToken, lifecyc
     if (!Object.hasOwn(CONSOLE_KINDS, req.params.view)) throw new EventAccessError('RESOURCE_NOT_FOUND', 404);
     return grants.withBrowser({ eventId: req.params.eventId, grantId: req.params.grantId,
       token: browserToken(req.headers, req.params.grantId) }, async (context, db) => {
-      if (context.kind !== CONSOLE_KINDS[req.params.view]) throw new EventAccessError('CONSOLE_ACCESS_DENIED');
+      if ((req.params.view === 'rehearsal' && context.purpose !== 'rehearsal') || context.kind !== CONSOLE_KINDS[req.params.view]) throw new EventAccessError('CONSOLE_ACCESS_DENIED');
       const rows = await grants.rows(db, 'SELECT title FROM event_hubs WHERE workspace_id = ?', [context.eventId]);
       if (!rows[0]) throw new EventAccessError('RESOURCE_NOT_FOUND', 404);
       return { context, event: { eventId: context.eventId, title: rows[0].title }, view: req.params.view,

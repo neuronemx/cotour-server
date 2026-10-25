@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Ensayo privado · IMMERSA Eventos</title><link rel="stylesheet" href="/events-v2/rehearsal.css">
+<script defer src="/events-v2/av-console.js"></script><script defer src="/events-v2/access-client.js"></script>
+<script defer src="/socket.io/socket.io.js"></script><script defer src="/events-v2/rehearsal-page.js"></script></head>
+<body><main><header><p class="eyebrow">IMMERSA · Ensayo privado</p><h1 id="event-name">Verificando acceso…</h1>
+<p>Revisa los slides y tu apuntador. Este ensayo no cambia la presentación en vivo ni registra participación.</p></header>
+<p id="status" role="status">Verificando acceso…</p><button id="retry" hidden>Volver a conectar</button>
+<section id="rehearsal" hidden><h2 id="title"></h2><div class="preview"><img id="slide" alt="Slide del ensayo" hidden></div>
+<nav aria-label="Controles del ensayo"><button id="prev">Anterior</button><strong id="position"></strong><button id="next">Siguiente</button>
+<label id="language-label" hidden>Idioma <select id="language"><option value="es">Español</option><option value="en">inglés</option></select></label></nav>
+<aside><h2>Apuntador</h2><p id="notes"></p></aside></section>
+<button id="reset" hidden>Reiniciar ensayo</button><p class="hint">Las interacciones y el audiovisual del ensayo estarán disponibles en una actualización posterior.</p>
+</main></body></html>

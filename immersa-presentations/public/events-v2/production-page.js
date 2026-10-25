@@ -48,6 +48,12 @@
      const holder=el('div');link(holder,'Entrar a '+(kind==='SPEAKER'?'Speaker':'Pantalla'),url);links.append(holder);message('Enlace listo. Pulsa Entrar a '+(kind==='SPEAKER'?'Speaker':'Pantalla')+'.');
     });b.disabled=!a.versionId||!windowReady||(kind==='PLAYER'&&!a.liveSessionId);
    }
+   button(actions,'Generar enlace de ensayo',async()=>{
+    const g=await request(root()+'/grants','POST',{kind:'SPEAKER',purpose:'rehearsal',activityId:a.id});
+    if(!uuid(g.grantId)||!uuid(g.eventId)||typeof g.token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(g.token))throw Error('Respuesta de acceso inválida.');
+    const url='/events-v2/console/rehearsal/'+g.eventId+'/'+g.grantId+'#token='+encodeURIComponent(g.token);g.token=null;
+    link(links,'Entrar al ensayo privado',url);message('Enlace de ensayo listo para compartir con el ponente.');
+   }).disabled=!a.versionId||!windowReady;
    card.append(actions,links);if(!a.liveSessionId)card.append(el('p','Abrir Stage te lleva al control de esta actividad. Pulsa Iniciar presentación. Al volver aquí, pulsa Actualizar para habilitar Pantalla.','hint'));$('operation-list').append(card);
   }
   $('public-links').replaceChildren();for(const p of data.publicAccess){const row=el('div');link(row,p.audienceLevel==='FREE'?'Abrir Público · Libre':'Abrir Público · Preferente','/events-v2/join/'+encodeURIComponent(p.publicId));$('public-links').append(row);}
