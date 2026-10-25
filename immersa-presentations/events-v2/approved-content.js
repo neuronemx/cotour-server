@@ -97,7 +97,10 @@ class EventApprovedContent {
   return{verified:true,size:row.size,sha256:row.sha256,contentType:metadata.contentType,open:async(start,end)=>Readable.from([bytes.subarray(start,end+1)])};
  }
  async readAsset(live,resource,db){
-  const c=await this.load(live,db),row=c.snapshot.media.find(r=>r.id===resource.assetId);
+  return this.preparedAsset(await this.load(live,db),resource);
+ }
+ async preparedAsset(c,resource){
+  const row=c.snapshot.media.find(r=>r.id===resource.assetId);
   if(!row||row.size!==resource.size||row.sha256!==resource.sha256)fail();const service=this.configurations.media,m=service.metadata(row);
   if(m.contentType!==resource.contentType)fail();const checked=await service.store.verified(row);await checked.close();
   return{verified:true,size:row.size,sha256:row.sha256,contentType:m.contentType,open:async(start,end)=>{

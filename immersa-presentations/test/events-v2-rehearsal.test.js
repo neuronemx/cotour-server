@@ -91,3 +91,44 @@ test('language switch preserves private navigation and rejects invalid positions
   for (const slideIndex of [-1, 2, 0.5, '1']) await assert.rejects(f.rehearsal.operate(c, 'go', { expectedRevision: 1, slideIndex }), { code: 'INVALID_INPUT' });
   assert.equal((await f.rehearsal.operate(c)).revision, 1);
 });
+const poll = { id: 'poll-own', type: 'poll', title: 'Own poll', prompt: 'Choose', options: [{ id: 'a', label: 'One' }, { id: 'b', label: 'Two' }] };
+test('private sample poll uses the existing engine, isolates grants and clears results on close/reset without history', async () => {
+  const f = fixture(); f.ticket.configuration = { polls: [poll] };
+  const a = f.credential(), b = f.credential(); let v = await f.rehearsal.operate(a);
+  const command = async input => { v = await f.rehearsal.operate(a, 'poll', { expectedRevision: v.revision, runId: v.runId, pollRunId: v.tools.polls.runId, ...input }); return v; };
+  await command({ command: 'launch', interactionId: poll.id });
+  assert.equal(v.tools.polls.resultsVisible, false); assert.equal(v.tools.polls.active.prompt, 'Choose');
+  assert.equal((await f.rehearsal.operate(b)).tools.polls.active, null);
+  await command({ command: 'respond', optionId: 'a' }); assert.equal(v.tools.polls.responded, true);
+  await command({ command: 'show' }); assert.equal(v.tools.polls.results.totalResponses, 1); assert.equal(v.tools.polls.results.options[0].count, 1);
+  assert.equal(JSON.stringify(v).includes('private-sample'), false);
+  await assert.rejects(command({ command: 'respond', optionId: 'b' }), { code: 'REHEARSAL_SAMPLE_ALREADY_USED' });
+  await command({ command: 'close' }); assert.equal(v.tools.polls.active, null);
+  assert.equal(f.rehearsal.states.get(f.eventId + ':' + a.grantId).poll.sessions.size, 0);
+  await command({ command: 'launch', interactionId: poll.id });
+  v = await f.rehearsal.operate(a, 'reset', { expectedRevision: v.revision }); assert.equal(v.tools.polls.active, null);
+});
+test('sample commands fence stale runs and failed commits never mutate private answers', async () => {
+  const f = fixture(); f.ticket.configuration = { polls: [poll] }; const a = f.credential();
+  let v = await f.rehearsal.operate(a);
+  await assert.rejects(f.rehearsal.operate(a, 'poll', { runId: crypto.randomUUID(), expectedRevision: 0, command: 'launch', interactionId: poll.id }), { code: 'REHEARSAL_EXPIRED' });
+  v = await f.rehearsal.operate(a, 'poll', { runId: v.runId, expectedRevision: 0, command: 'launch', interactionId: poll.id });
+  f.commitFail(true); await assert.rejects(f.rehearsal.operate(a, 'poll', { runId: v.runId, expectedRevision: 1, command: 'respond', pollRunId: v.tools.polls.runId, optionId: 'a' }));
+  f.commitFail(false); v = await f.rehearsal.operate(a); assert.equal(v.tools.polls.responded, false); assert.equal(v.revision, 1);
+  await assert.rejects(f.rehearsal.operate(a, 'poll', { runId: v.runId, expectedRevision: 1, command: 'respond', pollRunId: crypto.randomUUID(), optionId: 'a' }), { code: 'REHEARSAL_POLL_NOT_ACTIVE' });
+});
+test('media admission exposes only selected approved assets and fences expiry, reset, revocation and binding changes', async () => {
+  const f = fixture(), a = f.credential(), assetId = crypto.randomUUID();
+  const r = { id: assetId, assetId, name: 'Selected', type: 'video', duration: 1, size: 5, sha256: 'f'.repeat(64), contentType: 'video/webm' };
+  f.ticket.configuration = { av: { resources: [r], playlists: [], publicId: null } };
+  let reads = 0; f.content.preparedAsset = async () => { reads++; return { verified: true, ...r, open: async () => Readable.from(['own']) }; };
+  const v = await f.rehearsal.operate(a), input = { runId: v.runId, digest: 'a'.repeat(64), assetId };
+  assert.equal(v.tools.media.length, 1); assert.equal(v.tools.media[0].sha256, undefined);
+  await f.rehearsal.media(a, input); assert.equal(reads, 1);
+  for (const wrong of [{ assetId: crypto.randomUUID() }, { digest: 'b'.repeat(64) }]) await assert.rejects(f.rehearsal.media(a, { ...input, ...wrong }), { code: 'REHEARSAL_MEDIA_DENIED' });
+  f.deny(true); await assert.rejects(f.rehearsal.media(a, input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
+  f.ticket.binding.revision++; await assert.rejects(f.rehearsal.media(a, input), { code: 'REHEARSAL_VERSION_CHANGED' });
+  await f.rehearsal.operate(a, 'reset', { expectedRevision: 0 }); await assert.rejects(f.rehearsal.media(a, input), { code: 'REHEARSAL_EXPIRED' });
+  f.advance(1001); const current = f.rehearsal.states.get(f.eventId + ':' + a.grantId); await assert.rejects(f.rehearsal.media(a, { ...input, runId: current.runId }), { code: 'REHEARSAL_EXPIRED' });
+  assert.equal(reads, 1);
+});

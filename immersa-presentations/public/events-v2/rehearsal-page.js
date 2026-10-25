@@ -2,12 +2,14 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let access, binding, snapshot, revision = 0, ready = false, pending = false, generation = 0;
-  let requestController;
+  let requestController, tools;
   function clear() {
+    tools?.clear();
     $('rehearsal').hidden = true; $('slide').hidden = true; $('slide').removeAttribute('src');
     $('notes').textContent = ''; $('position').textContent = '';
   }
   function controls() {
+    tools?.setPending(!ready || pending);
     for (const id of ['prev', 'next', 'language', 'reset']) $(id).disabled = !ready || pending;
     if (snapshot) { $('prev').disabled ||= snapshot.slideIndex === 0; $('next').disabled ||= snapshot.slideIndex + 1 >= snapshot.slideCount; }
   }
@@ -15,7 +17,9 @@
     REHEARSAL_REVISION_CONFLICT: 'El ensayo cambió en otra pestaña. Pulsa Volver a conectar para actualizarlo.',
     CONTENT_NOT_PREPARED: 'Producción debe preparar, aprobar y asociar la versión antes del ensayo.',
     REHEARSAL_EXPIRED: 'El ensayo venció. Pulsa Volver a conectar para abrirlo de nuevo.',
-    REHEARSAL_BUSY: 'No se pudo abrir el ensayo en este momento. Inténtalo de nuevo.' };
+    REHEARSAL_BUSY: 'No se pudo abrir el ensayo en este momento. Inténtalo de nuevo.',
+    REHEARSAL_POLL_ACTIVE: 'Cierra la Encuesta actual antes de abrir otra.',
+    REHEARSAL_SAMPLE_ALREADY_USED: 'La respuesta de prueba ya se usó. Cierra y vuelve a abrir la Encuesta para repetirla.' };
   async function operate(action = 'snapshot', extra = {}) {
     if (!ready || pending) return;
     const epoch = generation; pending = true; controls();
@@ -38,6 +42,7 @@
         || value.slideIndex < 0 || value.slideIndex >= value.slideCount || typeof value.notes !== 'string'
         || image.origin !== window.location.origin || !image.pathname.startsWith(path + '/slides/') || image.search || image.hash) throw new Error('Invalid rehearsal');
       snapshot = value; revision = value.revision;
+      tools.update(value, path);
       $('title').textContent = value.title; $('position').textContent = 'Slide ' + (value.slideIndex + 1) + ' de ' + value.slideCount;
       $('notes').textContent = value.notes || 'Este slide no tiene apuntador.';
       $('language-label').hidden = !value.englishEnabled; $('language').value = value.language;
@@ -54,6 +59,8 @@
   try {
     const link = window.ImmersaEventAccess.consumeLink(window.location, window.history); binding = link.binding;
     if (binding.view !== 'rehearsal') throw new Error('Wrong access');
+    tools = window.ImmersaEventRehearsalTools.create({ document, origin: window.location.origin,
+      sendPoll: input => operate('poll', { runId: snapshot?.runId, ...input }) });
     access = window.ImmersaEventAccess.createClient({ binding, fetch: window.fetch.bind(window), io: window.io, onState(state) {
       generation++; requestController?.abort(); pending = false;
       ready = state.status === 'ready' && state.context?.purpose === 'rehearsal';

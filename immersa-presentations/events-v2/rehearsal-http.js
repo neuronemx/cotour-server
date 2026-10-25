@@ -36,11 +36,36 @@ function createEventRehearsalRouter({ rehearsal, enabled = () => false }) {
   router.post(root, requireOrigin, async (req, res) => {
     try {
       const action = req.body?.action;
-      const fields = ['action', 'expectedRevision', ...(action === 'go' ? ['slideIndex'] : action === 'language' ? ['language'] : [])];
+      const fields = ['action', 'expectedRevision', ...(action === 'go' ? ['slideIndex'] : action === 'language' ? ['language']
+        : action === 'poll' ? ['runId', 'command', ...(req.body.command === 'launch' ? ['interactionId'] : ['pollRunId', ...(req.body.command === 'respond' ? ['optionId'] : [])])] : [])];
       assertFields(req.body, fields);
-      if (!['next', 'prev', 'go', 'reset', 'language'].includes(action)) throw new EventAccessError('INVALID_INPUT', 400);
+      if (!['next', 'prev', 'go', 'reset', 'language', 'poll'].includes(action)
+        || action === 'poll' && (!isId(req.body.runId) || !['launch', 'respond', 'show', 'hide', 'close'].includes(req.body.command)
+          || (req.body.command === 'launch' ? typeof req.body.interactionId !== 'string' : !isId(req.body.pollRunId)))) throw new EventAccessError('INVALID_INPUT', 400);
       res.json(await rehearsal.operate(credentials(req), action, req.body));
     } catch (e) { error(res, e); }
+  });
+  router.get(root + '/media/:runId/:digest/:assetId', async (req, res) => {
+    let size;
+    try {
+      const p = req.params;
+      if (!isId(p.runId) || !/^[a-f0-9]{64}$/.test(p.digest) || !/^[a-zA-Z0-9_-]{1,120}$/.test(p.assetId)) throw new EventAccessError('INVALID_INPUT', 400);
+      const { descriptor, resource } = await rehearsal.media(credentials(req), p);
+      if (!enabled()) throw new EventAccessError('EVENTS_V2_DISABLED', 404);
+      size = resource.size;
+      const etag = '"' + resource.sha256 + '"';
+      res.set({ ETag: etag, 'Accept-Ranges': 'bytes', 'Content-Type': resource.contentType });
+      if (req.headers['if-none-match'] === etag) return res.status(304).end();
+      const range = byteRange(req.method === 'HEAD' || (req.headers['if-range'] && req.headers['if-range'] !== etag) ? null : req.headers.range, size);
+      res.set('Content-Length', String(range.end - range.start + 1));
+      if (range.partial) res.set('Content-Range', `bytes ${range.start}-${range.end}/${size}`);
+      res.status(range.partial ? 206 : 200);
+      if (req.method === 'HEAD') return res.end();
+      const body = await descriptor.open(range.start, range.end);
+      if (!enabled()) { body?.destroy?.(); throw new EventAccessError('EVENTS_V2_DISABLED', 404); }
+      if (!(body instanceof Readable)) throw new EventAccessError('CONTENT_NOT_PREPARED');
+      await pipeline(body, res);
+    } catch (e) { error(res, e, size); }
   });
   router.get(root + '/slides/:runId/:digest/:language/:index/:variant', async (req, res) => {
     let size;
