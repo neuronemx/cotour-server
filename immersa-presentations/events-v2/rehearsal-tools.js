@@ -7,8 +7,11 @@ const fail = code => { throw new EventAccessError(code, 409); };
 const session = 'private-rehearsal', sample = 'private-sample';
 
 function catalogs(candidate) {
+  // Stored catalogs are already normalized and carry publicId:null. Rehearsal
+  // has no public QR; pass only the selected media and playlists to admission.
+  const av = candidate.configuration?.av || { resources: [], playlists: [] };
   return { polls: normalizePolls(candidate.configuration?.polls || []),
-    av: normalizeAV(candidate.configuration?.av || { resources: [], playlists: [] }) };
+    av: normalizeAV({ resources: av.resources, playlists: av.playlists }) };
 }
 function storeFor(previous) {
   const store = new InteractionStore();

@@ -120,7 +120,7 @@ test('sample commands fence stale runs and failed commits never mutate private a
 test('media admission exposes only selected approved assets and fences expiry, reset, revocation and binding changes', async () => {
   const f = fixture(), a = f.credential(), assetId = crypto.randomUUID();
   const r = { id: assetId, assetId, name: 'Selected', type: 'video', duration: 1, size: 5, sha256: 'f'.repeat(64), contentType: 'video/webm' };
-  f.ticket.configuration = { av: { resources: [r], playlists: [] } };
+  f.ticket.configuration = { av: { resources: [r], playlists: [], publicId: null } };
   let reads = 0; f.content.preparedAsset = async () => { reads++; return { verified: true, ...r, open: async () => Readable.from(['own']) }; };
   const v = await f.rehearsal.operate(a), input = { runId: v.runId, digest: 'a'.repeat(64), assetId };
   assert.equal(v.tools.media.length, 1); assert.equal(v.tools.media[0].sha256, undefined);
