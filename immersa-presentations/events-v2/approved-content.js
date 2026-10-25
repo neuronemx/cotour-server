@@ -79,8 +79,9 @@ class EventApprovedContent {
  async readSlides(live,db){const c=await this.load(live,db);return{...live,versionId:c.scope.versionId,...await this.slides(c)};}
  async catalog(live,db,name){const c=await this.load(live,db);return{...live,versionId:c.scope.versionId,[name]:c.configuration[name]||[]};}
  async readAV(live,db){const c=await this.load(live,db),{publicId,...av}=c.configuration.av||{resources:[],playlists:[]};return{...live,versionId:c.scope.versionId,...av,...(publicId?{publicId}:{})};}
- async readImage(live,resource,db){
-  const c=await this.load(live,db),catalog=await this.slides(c),m=/^(es|en)-(slide-\d{3})-(full|thumb)$/.exec(resource.assetId);
+ async readImage(live,resource,db){return this.preparedImage(await this.load(live,db),resource);}
+ async preparedImage(c,resource){
+  const catalog=await this.slides(c),m=/^(es|en)-(slide-\d{3})-(full|thumb)$/.exec(resource.assetId);
   if(!m)fail();const index=Number(m[2].slice(6))-1,expected=catalog.slides[index]?.[m[1]]?.[m[3]];
   if(!expected||JSON.stringify(expected)!==JSON.stringify(resource))fail('CONTENT_VERSION_CHANGED');
   const service=m[1]==='es'?this.preparations:this.configurations.translations,row=m[1]==='es'?c.snapshot.spanish:c.snapshot.english;

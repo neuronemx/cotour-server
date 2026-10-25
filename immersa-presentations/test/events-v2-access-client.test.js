@@ -270,3 +270,12 @@ test('Stage activity hint is erased with the token and cannot change grant autho
  for(const suffix of ['&activity=bad','&activity='+selected+'&activity='+selected])assert.throws(()=>consumeLink(new URL('https://show.example'+path+'#token='+token+suffix),{replaceState(){}}));
  assert.throws(()=>consumeLink(new URL('https://show.example'+path.replace('/stage/','/speaker/')+'#token='+token+'&activity='+selected),{replaceState(){}}));
 });
+
+
+test('rehearsal links erase secrets and activity hints cannot retarget the rehearsal grant', () => {
+  const location = { protocol: 'https:', hostname: 'example.test', pathname: `/events-v2/console/rehearsal/${eventId}/${grantId}`, search: '', hash: '#token=' + token };
+  let cleared = false;
+  const link = consumeLink(location, { replaceState() { cleared = true; } });
+  assert.equal(cleared, true); assert.equal(link.binding.view, 'rehearsal'); assert.equal(link.token, token);
+  assert.throws(() => consumeLink({ ...location, hash: '#token=' + token + '&activity=' + otherId }, { replaceState() {} }), { code: 'INVALID_ACCESS_LINK' });
+});

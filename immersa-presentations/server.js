@@ -49,6 +49,8 @@ const { EventHubRepository, EventHubError } = require("./event-hub/repository");
 const { EventDomainRepository } = require("./events-v2/domain-repository");
 const { EventDeckConfigurationService } = require("./events-v2/deck-configuration");
 const { EventDeckCheckService } = require("./events-v2/deck-check-service");
+const { EventRehearsal } = require("./events-v2/rehearsal");
+const { createEventRehearsalRouter } = require("./events-v2/rehearsal-http");
 const { EventApprovedContent } = require("./events-v2/approved-content");
 const { EventMediaService, EventImageService } = require("./events-v2/media-service");
 const { EventDeckPreparationService } = require("./events-v2/deck-preparation-service");
@@ -210,6 +212,7 @@ const eventImages = eventDeckPreparations ? new EventImageService({
 const eventApprovedContent = eventDeckPreparations ? new EventApprovedContent({ interactionImages:true, checks: new EventDeckCheckService({
   configurations: new EventDeckConfigurationService({ preparations: eventDeckPreparations, translations: eventDeckTranslations, media: eventMedia, images: eventImages })
 }) }) : null;
+const eventRehearsal = eventApprovedContent ? new EventRehearsal({ grants: eventGrantRepository, content: eventApprovedContent, enabled: eventGrantsEnabled }) : null;
 const eventInteractionImages = eventApprovedContent ? new EventInteractionImages({content:eventApprovedContent}) : null;
 const eventLiveRuntime = new EventLiveRuntime({ enabled: eventGrantsEnabled,
   readPreparation: (live,db) => eventApprovedContent?.readPreparation(live,db) });
@@ -1103,6 +1106,7 @@ if (legacyEventBoundary) app.use(legacyEventBoundary.httpMiddleware());
 app.use("/events-v2",createProductionPages({enabled:eventGrantsEnabled,requireAccount:betterAuthCompatibilityBridge.requirePageAuth()}));
 app.use("/events-v2", createEventConsolePages({ enabled: eventGrantsEnabled }));
 app.use('/api/events-v2',createEventInteractionImageRouter({grants:eventGrantRepository,images:eventInteractionImages,knowledge:eventKnowledgeRuntime,raffles:eventRaffleRuntime,enabled:eventGrantsEnabled}));
+app.use("/api/events-v2", createEventRehearsalRouter({ rehearsal: eventRehearsal, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventSlidesRouter({ grants: eventGrantRepository, slides: eventSlidesRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createEventAssetRouter({ grants: eventGrantRepository, av: eventAVRuntime, enabled: eventGrantsEnabled }));
 app.use("/api/events-v2", createGrantAccessRouter({ grants: eventGrantRepository, lifecycle: eventLifecycle, grantSockets: eventGrantSockets, enabled: eventGrantsEnabled }));
