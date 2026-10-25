@@ -80,8 +80,9 @@ async function rehearsalSuite(t, f) {
       const file = path.join(prep.store.directory(row), entry.full.file), original = await fs.readFile(file);
       await fs.chmod(file, 384); await fs.writeFile(file, Buffer.alloc(original.length));
       try {
-        assert.equal((await image(first, url, 'HEAD')).status, 403);
-        assert.equal((await image(first, url, 'GET', { 'if-none-match': '"' + hash + '"' })).status, 403);
+        assert.equal((await image(first, url, 'HEAD')).status, 409);
+        const rejected = await image(first, url, 'GET', { 'if-none-match': '"' + hash + '"' });
+        assert.equal(rejected.status, 409); assert.equal(JSON.parse(rejected.bytes).code, 'PREPARATION_INTEGRITY_FAILED');
       } finally { await fs.writeFile(file, original); await fs.chmod(file, 256); }
       assert.equal((await image(first, url)).status, 200);
     });
