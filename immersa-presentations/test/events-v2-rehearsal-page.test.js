@@ -23,12 +23,13 @@ function page() {
   window.ImmersaEventAccess = { consumeLink: () => ({ binding: { view: 'rehearsal', eventId, grantId }, token: null }), createClient(options) { callback = options.onState; return client; } };
   const value = { mode: 'rehearsal', eventId, activityId, revision: 0, title: '<private title>', notes: '<private notes>',
     slideIndex: 0, slideCount: 2, language: 'es', englishEnabled: true, runId: '00000000-0000-4000-8000-000000000004',
-    tools: { polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
+    tools: { qna: { roundId: null, roundNumber: 0, questionsOpen: false, questions: [], selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 }, polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
     image: { url: `/api/events-v2/rehearsal/${eventId}/${grantId}/slides/own-run`, width: 16, height: 9 } };
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return response ? response() : { ok: true, json: async () => structuredClone(value) }; };
   window.fetch = fetch;
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-tools.js'), 'utf8'), { window, URL, Promise, Set, Number, Error });
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-qna.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-page.js'), 'utf8'),
     { document, window, fetch, URL, AbortController, setTimeout, clearTimeout, queueMicrotask, Number, Error });
   return { elements, document, window, calls, value, ready,
@@ -105,4 +106,54 @@ test('sample poll launch sends only the rehearsal run and options render as text
   assert.equal(preview.children[1].children[0].textContent, '<One>'); assert.equal(preview.children[1].children[1].textContent, 'Dos');
   preview.children[1].children[0].fire('click'); await settle();
   assert.equal(JSON.parse(p.calls.at(-1).options.body).pollRunId, pollRunId);
+});
+function qnaValue() {
+  return { roundId: '00000000-0000-4000-8000-000000000007', roundNumber: 1, questionsOpen: true, questions: [],
+    selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 };
+}
+const sampleQuestion = () => ({ id: '00000000-0000-4000-8000-000000000008', text: '<Private sample>', name: '<Hidden name>',
+  allowNameOnScreen: false, status: 'new', answered: false, createdAt: Date.now() });
+test('Q&A sends only private commands, clears an accepted draft and projects text without an unapproved name', async () => {
+  const p = page(); await settle();
+  p.response(async () => { p.value.tools.qna = qnaValue(); p.value.revision = 1; return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements['qna-open'].fire('click'); await settle();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).options.body), { action: 'qna', expectedRevision: 0, runId: p.value.runId, command: 'open' });
+  p.elements['qna-question'].value = ' <Private sample> '; p.elements['qna-name'].value = '<Hidden name>';
+  p.response(async () => { p.value.tools.qna.questions = [sampleQuestion()]; p.value.tools.qna.cooldownRemainingMs = 10000; p.value.revision = 2; return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements['qna-submit'].fire('click'); await settle();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).options.body), { action: 'qna', expectedRevision: 1, runId: p.value.runId, roundId: p.value.tools.qna.roundId,
+    command: 'submit', question: '<Private sample>', name: '<Hidden name>', allowNameOnScreen: false });
+  assert.equal(p.elements['qna-question'].value, ''); assert.equal(p.elements['qna-name'].value, ''); assert.equal(p.elements['qna-submit'].disabled, true);
+  const card = p.elements['qna-list'].children[0]; assert.equal(card.children[0].textContent, '<Private sample>');
+  p.response(async () => { const q = p.value.tools.qna.questions[0]; q.answered = true; q.status = 'selected'; p.value.tools.qna.selectedQuestionId = q.id;
+    p.value.tools.qna.screen = { visible: true, question: { id: q.id, text: q.text, name: '' } }; return { ok: true, json: async () => structuredClone(p.value) }; });
+  card.children[3].fire('click'); await settle();
+  assert.equal(p.elements['qna-preview'].hidden, false); assert.equal(p.elements['qna-preview'].children[0].textContent, '<Private sample>');
+  assert.equal(p.elements['qna-preview'].children[1].textContent, ''); assert.equal(p.elements['qna-list'].children[0].children[4].disabled, true);
+});
+test('Q&A rejects an invalid local draft without sending it and hides a response that leaks the sample name', async () => {
+  const p = page(); p.value.tools.qna = qnaValue(); await settle();
+  const count = p.calls.length; p.elements['qna-question'].value = '   '; p.elements['qna-submit'].fire('click'); await settle();
+  assert.equal(p.calls.length, count); assert.match(p.elements['qna-status'].textContent, /1000/);
+  const q = sampleQuestion(); q.answered = true; p.value.tools.qna.questions = [q];
+  p.value.tools.qna.screen = { visible: true, question: { id: q.id, text: q.text, name: q.name } };
+  p.ready(); await settle(); assert.equal(p.elements.rehearsal.hidden, true); assert.equal(p.elements['qna-preview'].hidden, true);
+});
+test('lost access erases Q&A questions and drafts, including a late successful submission', async () => {
+  const p = page(); p.value.tools.qna = qnaValue(); await settle(); let finish;
+  p.elements['qna-question'].value = 'Late sample'; p.elements['qna-name'].value = 'Private draft';
+  p.response(() => new Promise(resolve => { finish = resolve; })); p.elements['qna-submit'].fire('click');
+  p.state({ status: 'denied' }); assert.equal(p.elements['qna-question'].value, ''); assert.equal(p.elements['qna-name'].value, '');
+  finish({ ok: true, json: async () => p.value }); await settle();
+  assert.equal(p.elements['qna-tools'].hidden, true); assert.equal(p.elements['qna-preview'].hidden, true); assert.equal(p.elements['qna-list'].children.length, 0);
+});
+test('new rounds remove the old projection and reset also clears an unsent Q&A draft', async () => {
+  const p = page(); const q = sampleQuestion(); q.answered = true;
+  p.value.tools.qna = { ...qnaValue(), questions: [q], screen: { visible: true, question: { id: q.id, text: q.text, name: '' } } }; await settle();
+  p.response(async () => { p.value.tools.qna = { ...qnaValue(), roundId: '00000000-0000-4000-8000-000000000009', roundNumber: 2 }; return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements['qna-round'].fire('click'); await settle(); assert.equal(p.elements['qna-preview'].hidden, true);
+  assert.equal(p.elements['qna-list'].children[0].textContent, 'No hay preguntas de prueba en esta ronda.');
+  p.elements['qna-question'].value = 'Unsent'; p.elements['qna-name'].value = 'Unsent name';
+  p.response(async () => { p.value.runId = '00000000-0000-4000-8000-000000000010'; p.value.tools.qna = { ...qnaValue(), roundId: null, roundNumber: 0, questionsOpen: false }; return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements.reset.fire('click'); await settle(); assert.equal(p.elements['qna-question'].value, ''); assert.equal(p.elements['qna-name'].value, '');
 });

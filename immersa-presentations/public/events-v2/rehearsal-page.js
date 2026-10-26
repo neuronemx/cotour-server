@@ -2,14 +2,16 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let access, binding, snapshot, revision = 0, ready = false, pending = false, generation = 0;
-  let requestController, tools;
+  let requestController, tools, qnaTools;
   function clear() {
     tools?.clear();
+    qnaTools?.clear();
     $('rehearsal').hidden = true; $('slide').hidden = true; $('slide').removeAttribute('src');
     $('notes').textContent = ''; $('position').textContent = '';
   }
   function controls() {
     tools?.setPending(!ready || pending);
+    qnaTools?.setPending(!ready || pending);
     for (const id of ['prev', 'next', 'language', 'reset']) $(id).disabled = !ready || pending;
     if (snapshot) { $('prev').disabled ||= snapshot.slideIndex === 0; $('next').disabled ||= snapshot.slideIndex + 1 >= snapshot.slideCount; }
   }
@@ -19,7 +21,10 @@
     REHEARSAL_EXPIRED: 'El ensayo venció. Pulsa Volver a conectar para abrirlo de nuevo.',
     REHEARSAL_BUSY: 'No se pudo abrir el ensayo en este momento. Inténtalo de nuevo.',
     REHEARSAL_POLL_ACTIVE: 'Cierra la Encuesta actual antes de abrir otra.',
-    REHEARSAL_SAMPLE_ALREADY_USED: 'La respuesta de prueba ya se usó. Cierra y vuelve a abrir la Encuesta para repetirla.' };
+    REHEARSAL_SAMPLE_ALREADY_USED: 'La respuesta de prueba ya se usó. Cierra y vuelve a abrir la Encuesta para repetirla.',
+    REHEARSAL_QNA_CLOSED: 'La recepción de preguntas de prueba está cerrada.',
+    REHEARSAL_QNA_COOLDOWN: 'Espera unos segundos antes de enviar otra pregunta de prueba.',
+    REHEARSAL_QNA_LIMIT: 'La ronda admite hasta 20 preguntas de prueba. Inicia una nueva ronda para continuar.' };
   async function operate(action = 'snapshot', extra = {}) {
     if (!ready || pending) return;
     const epoch = generation; pending = true; controls();
@@ -43,11 +48,13 @@
         || image.origin !== window.location.origin || !image.pathname.startsWith(path + '/slides/') || image.search || image.hash) throw new Error('Invalid rehearsal');
       snapshot = value; revision = value.revision;
       tools.update(value, path);
+      qnaTools.update(value);
       $('title').textContent = value.title; $('position').textContent = 'Slide ' + (value.slideIndex + 1) + ' de ' + value.slideCount;
       $('notes').textContent = value.notes || 'Este slide no tiene apuntador.';
       $('language-label').hidden = !value.englishEnabled; $('language').value = value.language;
       $('slide').src = image.href; $('slide').hidden = false; $('rehearsal').hidden = false;
       $('status').textContent = 'Ensayo privado listo.'; $('reset').hidden = false; $('retry').hidden = true;
+      return true;
     } catch (error) {
       if (epoch !== generation) return;
       clear(); snapshot = null;
@@ -61,6 +68,8 @@
     if (binding.view !== 'rehearsal') throw new Error('Wrong access');
     tools = window.ImmersaEventRehearsalTools.create({ document, origin: window.location.origin,
       sendPoll: input => operate('poll', { runId: snapshot?.runId, ...input }) });
+    qnaTools = window.ImmersaEventRehearsalQna.create({ document,
+      send: input => operate('qna', { runId: snapshot?.runId, ...input }) });
     access = window.ImmersaEventAccess.createClient({ binding, fetch: window.fetch.bind(window), io: window.io, onState(state) {
       generation++; requestController?.abort(); pending = false;
       ready = state.status === 'ready' && state.context?.purpose === 'rehearsal';
