@@ -172,7 +172,7 @@ async function toggleFullscreen() {
       else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
       return;
     }
-    const target = presenterShell || document.documentElement;
+    const target = document.documentElement;
     if (target.requestFullscreen) await target.requestFullscreen();
     else if (target.webkitRequestFullscreen) await target.webkitRequestFullscreen();
   } catch (_error) {

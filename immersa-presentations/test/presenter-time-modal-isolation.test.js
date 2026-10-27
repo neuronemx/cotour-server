@@ -96,3 +96,25 @@ test('closed audiovisual descendants and video previews cannot intercept Tiempo 
   assert.match(css, /\.stream-area\.is-time-open > \.immersa-video-slide,[\s\S]*?iframe \{ pointer-events: none !important;/);
   assert.match(css, /\.time-panel \{\s*position: fixed;\s*z-index: 2147483000;/);
 });
+
+test('fullscreen includes the body-mounted Tiempo panel and still exits normally', async () => {
+  const start = script.indexOf('async function toggleFullscreen()');
+  const end = script.indexOf('\ndocument.getElementById(', start);
+  let entered = 0, exited = 0, updated = 0, active = false;
+  const context = vm.createContext({
+    fullscreenToggle: {},
+    presenterShell: { requestFullscreen() { assert.fail('Speaker-only fullscreen would hide Tiempo'); } },
+    document: {
+      documentElement: { async requestFullscreen() { entered++; active = true; } },
+      async exitFullscreen() { exited++; active = false; }
+    },
+    isFullscreen: () => active,
+    updateFullscreenButton: () => { updated++; }
+  });
+  vm.runInContext(script.slice(start, end), context);
+  await context.toggleFullscreen();
+  assert.equal(entered, 1);
+  await context.toggleFullscreen();
+  assert.equal(exited, 1);
+  assert.equal(updated, 2);
+});
