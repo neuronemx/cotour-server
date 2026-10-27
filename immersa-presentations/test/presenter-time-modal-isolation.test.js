@@ -40,6 +40,7 @@ function harness(mode) {
     window: {}, document: { body, createElement: node },
     presenterShell: node(), streamArea: node(), timeToggle: node(), audiovisualPanel: node(),
     immersaTimePanel: null, immersaTimeState: null, immersaTimeTick: null, interactionPanelOpen: false,
+    speakerTimerState: { running: false },
     socket: { emit: (...args) => commands.push(args) },
     updateImmersaTimeReadouts() {}, syncAudiovisualToggle() {}, ensureAudiovisualUi() {},
     setInteractionPanelOpen() {},
