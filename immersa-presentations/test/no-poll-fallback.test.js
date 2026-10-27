@@ -20,6 +20,6 @@ test("Speaker and Backstage show only polls configured in the Deck", () => {
   assert.doesNotMatch(store, /\|\| interactions\[0\]/);
   assert.match(presenter, /catch \(_error\) \{ interactions = \[\]/);
   assert.match(stage, /catch \(_error\) \{[\s\S]*?interactions = \[\]/);
-  assert.match(presenterHtml, /presenter\.js\?v=81/);
+  assert.match(presenterHtml, /presenter\.js\?v=82/);
   assert.match(stageHtml, /stage\.js\?v=stage-v30/);
 });

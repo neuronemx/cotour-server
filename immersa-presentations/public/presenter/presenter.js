@@ -461,7 +461,10 @@ function toggleAudiovisualPanel() {
   const open = !audiovisualPanel?.classList.contains("is-open");
   audiovisualPanel?.classList.toggle("is-open", open);
   syncAudiovisualToggle();
-  if (open && interactionPanelOpen) setInteractionPanelOpen(false);
+  if (open) {
+    closeImmersaTimePanel();
+    if (interactionPanelOpen) setInteractionPanelOpen(false);
+  }
 }
 
 function defaultImmersaTimeState() {
@@ -531,7 +534,7 @@ function ensureImmersaTimePanel() {
   immersaTimePanel = document.createElement("section");
   immersaTimePanel.className = "time-panel";
   immersaTimePanel.setAttribute("aria-label", "IMMERSA TIME");
-  presenterShell.appendChild(immersaTimePanel);
+  document.body.appendChild(immersaTimePanel);
   return immersaTimePanel;
 }
 function screenTimeControls(timer) {
@@ -583,6 +586,7 @@ function resetSpeakerTimer() {
 function openImmersaTimePanel() {
   ensureImmersaTimePanel();
   renderImmersaTimePanel();
+  streamArea.classList.add("is-time-open");
   immersaTimePanel.classList.add("is-open");
   audiovisualPanel?.classList.remove("is-open");
   if (interactionPanelOpen) setInteractionPanelOpen(false);
@@ -590,6 +594,7 @@ function openImmersaTimePanel() {
   syncImmersaTimeUi();
 }
 function closeImmersaTimePanel() {
+  streamArea.classList.remove("is-time-open");
   immersaTimePanel?.classList.remove("is-open");
   syncImmersaTimeUi();
 }
