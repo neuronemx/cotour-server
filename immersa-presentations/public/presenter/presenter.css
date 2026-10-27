@@ -1391,3 +1391,9 @@ button { border: 0; border-radius: 12px; cursor: pointer; font-family: inherit; 
 @media (max-width: 720px) {
   .time-panel { max-height: calc(100% - 24px); }
 }
+
+/* Speaker session actions, matching Main. */
+.speaker-timer.is-pending { cursor: wait; opacity: .72; }
+.speaker-timer-actions .speaker-timer-finish { color:#ffb7b7; background:rgba(185,42,55,.28); }
+.speaker-timer-actions .speaker-timer-finish:hover { color:#fff; background:#b92a37; }
+.speaker-timer-actions button:disabled { cursor:wait; opacity:.62; }
