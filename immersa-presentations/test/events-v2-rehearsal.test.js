@@ -132,3 +132,24 @@ test('media admission exposes only selected approved assets and fences expiry, r
   f.advance(1001); const current = f.rehearsal.states.get(f.eventId + ':' + a.grantId); await assert.rejects(f.rehearsal.media(a, { ...input, runId: current.runId }), { code: 'REHEARSAL_EXPIRED' });
   assert.equal(reads, 1);
 });
+test('private Q&A remains separate across grants, coexists with a poll and discards all questions on reset', async () => {
+  const f = fixture(); f.ticket.configuration = { polls: [poll] }; const a = f.credential(), b = f.credential();
+  let v = await f.rehearsal.operate(a);
+  const qna = async input => { v = await f.rehearsal.operate(a, 'qna', { expectedRevision: v.revision, runId: v.runId, roundId: v.tools.qna.roundId, ...input }); return v.tools.qna; };
+  await qna({ command: 'open' }); await qna({ command: 'submit', question: 'Own sample', name: 'Private name', allowNameOnScreen: false });
+  const id = v.tools.qna.questions[0].id; await qna({ command: 'project', questionId: id });
+  assert.equal(v.tools.qna.screen.question.name, ''); assert.equal((await f.rehearsal.operate(b)).tools.qna.roundId, null);
+  v = await f.rehearsal.operate(a, 'poll', { expectedRevision: v.revision, runId: v.runId, command: 'launch', interactionId: poll.id });
+  await qna({ command: 'panel_close' }); assert.equal(v.tools.polls.active.id, poll.id);
+  v = await f.rehearsal.operate(a, 'reset', { expectedRevision: v.revision }); assert.equal(v.tools.qna.roundId, null); assert.equal(v.tools.qna.questions.length, 0);
+});
+test('Q&A authorization, revision, run and commit fences apply before publishing questions', async () => {
+  const f = fixture(), a = f.credential(); let v = await f.rehearsal.operate(a);
+  await assert.rejects(f.rehearsal.operate(a, 'qna', { expectedRevision: 0, runId: crypto.randomUUID(), command: 'open' }), { code: 'REHEARSAL_EXPIRED' });
+  v = await f.rehearsal.operate(a, 'qna', { expectedRevision: 0, runId: v.runId, command: 'open' });
+  const input = { expectedRevision: v.revision, runId: v.runId, roundId: v.tools.qna.roundId, command: 'submit', question: 'Should not commit', name: '', allowNameOnScreen: false };
+  f.commitFail(true); await assert.rejects(f.rehearsal.operate(a, 'qna', input)); f.commitFail(false);
+  assert.equal((await f.rehearsal.operate(a)).tools.qna.questions.length, 0);
+  f.deny(true); await assert.rejects(f.rehearsal.operate(a, 'qna', input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
+  f.ticket.binding.revision++; await assert.rejects(f.rehearsal.operate(a, 'qna', input), { code: 'REHEARSAL_VERSION_CHANGED' });
+});

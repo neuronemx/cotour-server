@@ -37,11 +37,17 @@ function createEventRehearsalRouter({ rehearsal, enabled = () => false }) {
     try {
       const action = req.body?.action;
       const fields = ['action', 'expectedRevision', ...(action === 'go' ? ['slideIndex'] : action === 'language' ? ['language']
-        : action === 'poll' ? ['runId', 'command', ...(req.body.command === 'launch' ? ['interactionId'] : ['pollRunId', ...(req.body.command === 'respond' ? ['optionId'] : [])])] : [])];
+        : action === 'poll' ? ['runId', 'command', ...(req.body.command === 'launch' ? ['interactionId'] : ['pollRunId', ...(req.body.command === 'respond' ? ['optionId'] : [])])]
+        : action === 'qna' ? ['runId', 'command', ...(req.body.command === 'open' ? [] : ['roundId']),
+          ...(req.body.command === 'submit' ? ['question', 'name', 'allowNameOnScreen'] : req.body.command === 'set_open' ? ['open']
+            : ['select', 'project', 'delete'].includes(req.body.command) ? ['questionId'] : [])] : [])];
       assertFields(req.body, fields);
-      if (!['next', 'prev', 'go', 'reset', 'language', 'poll'].includes(action)
+      if (!['next', 'prev', 'go', 'reset', 'language', 'poll', 'qna'].includes(action)
         || action === 'poll' && (!isId(req.body.runId) || !['launch', 'respond', 'show', 'hide', 'close'].includes(req.body.command)
-          || (req.body.command === 'launch' ? typeof req.body.interactionId !== 'string' : !isId(req.body.pollRunId)))) throw new EventAccessError('INVALID_INPUT', 400);
+          || (req.body.command === 'launch' ? typeof req.body.interactionId !== 'string' : !isId(req.body.pollRunId)))
+        || action === 'qna' && (!isId(req.body.runId) || !['open', 'set_open', 'submit', 'select', 'project', 'delete', 'new_round', 'panel_close'].includes(req.body.command)
+          || req.body.command !== 'open' && !isId(req.body.roundId)
+          || ['select', 'project', 'delete'].includes(req.body.command) && !isId(req.body.questionId))) throw new EventAccessError('INVALID_INPUT', 400);
       res.json(await rehearsal.operate(credentials(req), action, req.body));
     } catch (e) { error(res, e); }
   });

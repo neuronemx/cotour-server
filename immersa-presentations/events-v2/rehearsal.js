@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const { EventAccessError } = require('./authorization');
 const { isId } = require('./grant-repository');
 const tools = require('./rehearsal-tools');
+const qna = require('./rehearsal-qna');
 
 const fail = (code, status = 403, revision) => { const e = new EventAccessError(code, status); if (Number.isSafeInteger(revision)) e.currentRevision = revision; throw e; };
 const fingerprint = c => [c.scope.deckId, c.scope.versionId, c.binding.revision,
@@ -65,7 +66,7 @@ class EventRehearsal {
         if (verified && verified !== fingerprint(candidate)) fail('REHEARSAL_VERSION_CHANGED', 409);
         const catalog = await this.content.slides(candidate), previous = action === 'reset'
           ? this.states.get(this.key(context)) : this.current(context, candidate);
-        if (!['snapshot', 'next', 'prev', 'go', 'reset', 'language', 'poll'].includes(action)) fail('INVALID_INPUT', 400);
+        if (!['snapshot', 'next', 'prev', 'go', 'reset', 'language', 'poll', 'qna'].includes(action)) fail('INVALID_INPUT', 400);
         if (action !== 'snapshot' && (!Number.isSafeInteger(input.expectedRevision)
           || input.expectedRevision !== (previous?.revision || 0))) fail('REHEARSAL_REVISION_CONFLICT', 409, previous?.revision || 0);
         if (!previous && !verified) fail('REHEARSAL_EXPIRED', 409);
@@ -86,6 +87,10 @@ class EventRehearsal {
           if (input.runId !== next.runId) fail('REHEARSAL_EXPIRED', 409);
           next.poll = tools.operatePoll(previous?.poll, tools.catalogs(candidate).polls, input);
         }
+        if (action === 'qna') {
+          if (input.runId !== next.runId) fail('REHEARSAL_EXPIRED', 409);
+          next.qna = qna.operate(previous?.qna, input, this.grants.now().getTime());
+        }
         if (action !== 'snapshot') next.revision++;
         next.expires = Math.min(Date.parse(context.expiresAt), this.grants.now().getTime() + this.idleMs);
         this.check(context);
@@ -98,7 +103,7 @@ class EventRehearsal {
           revision: next.revision, slideIndex: next.slideIndex, slideCount: catalog.slides.length,
           language: next.language, englishEnabled: catalog.englishEnabled, notes: variant.notes,
           image: { url: root + next.slideIndex + '/full', width: variant.full.width, height: variant.full.height },
-          tools: tools.projection(candidate, next, '/api/events-v2/rehearsal/' + context.eventId + '/' + context.grantId) } };
+          tools: tools.projection(candidate, next, '/api/events-v2/rehearsal/' + context.eventId + '/' + context.grantId, this.grants.now().getTime()) } };
       });
       if (!this.enabled()) fail('EVENTS_V2_DISABLED', 404);
       this.sweep();

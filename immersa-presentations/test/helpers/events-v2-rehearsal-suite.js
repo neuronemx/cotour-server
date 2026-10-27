@@ -8,7 +8,7 @@ const { EventRehearsal } = require('../../events-v2/rehearsal');
 const { createEventRehearsalRouter } = require('../../events-v2/rehearsal-http');
 
 async function rehearsalSuite(t, f) {
-  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime } = f;
+  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime } = f;
   let enabled = true;
   const rehearsal = new EventRehearsal({ grants, content, enabled: () => enabled });
   const app = express(); app.use(express.json()); app.use('/api/events-v2', createEventRehearsalRouter({ rehearsal, enabled: () => enabled }));
@@ -32,7 +32,8 @@ async function rehearsalSuite(t, f) {
   }
   const counts = async () => {
     const out = {};
-    for (const table of ['event_live_sessions', 'event_live_content', 'event_participants', 'event_v2_reaction_counts', 'presentation_reaction_counts'])
+    for (const table of ['event_live_sessions', 'event_live_content', 'event_participants', 'event_v2_reaction_counts', 'presentation_reaction_counts',
+      'event_v2_qna_sessions', 'event_v2_qna_rounds', 'event_v2_qna_questions', 'event_v2_qna_projection', 'presentation_sessions', 'qna_rounds', 'qna_questions'])
       out[table] = Number((await sql('SELECT COUNT(*) n FROM ' + table))[0].n);
     return out;
   };
@@ -141,6 +142,47 @@ async function rehearsalSuite(t, f) {
       assert.equal((await image(first, reset.body.tools.media[0].url)).status, 200);
       await grants.revoke(ids.get('admin1'), o1, a, second.context.grantId);
       assert.equal((await image(second, (await json(first)).body.tools.media[0].url.replace(first.context.grantId, second.context.grantId))).status, 401);
+    });
+    await t.test('private Q&A uses real grant authorization without adding SQL questions, identities, metrics or changing the live Q&A', async () => {
+      const other = await issue(), before = await counts();
+      const liveQna = () => grants.withSession({ eventId: a, grantId: stage.context.grantId, sessionToken: stage.sessionToken }, (c, db) => qnaRuntime.projection(c, db, liveId));
+      const liveBefore = await liveQna(); let current = (await json(first)).body;
+      const command = async input => {
+        const response = await json(first, 'POST', { action: 'qna', expectedRevision: current.revision, runId: current.runId, ...input });
+        assert.equal(response.status, 200, JSON.stringify(response.body)); current = response.body; return current.tools.qna;
+      };
+      await command({ command: 'open' }); const roundId = current.tools.qna.roundId;
+      await command({ command: 'submit', roundId, question: '<Private rehearsal question>', name: 'Private sample', allowNameOnScreen: false });
+      const id = current.tools.qna.questions[0].id;
+      await command({ command: 'select', roundId, questionId: id }); await command({ command: 'project', roundId, questionId: id });
+      assert.equal(current.tools.qna.screen.question.name, ''); assert.equal(current.tools.qna.questions[0].answered, true);
+      assert.equal((await json(other)).body.tools.qna.roundId, null);
+      const body = { action: 'qna', expectedRevision: current.revision, runId: current.runId, roundId };
+      assert.equal((await json(first, 'POST', { ...body, command: 'submit', question: 'Too soon', name: '', allowNameOnScreen: false })).status, 429);
+      assert.equal((await json(first, 'POST', { ...body, command: 'delete', questionId: id })).body.code, 'REHEARSAL_QNA_ALREADY_PROJECTED');
+      assert.equal((await json(first, 'POST', { ...body, command: 'project', questionId: crypto.randomUUID() })).body.code, 'REHEARSAL_QNA_QUESTION_NOT_FOUND');
+      assert.equal((await json(first, 'POST', { ...body, command: 'submit', question: 'Own', name: '', allowNameOnScreen: false, participantId: crypto.randomUUID() })).status, 400);
+      await command({ command: 'panel_close', roundId }); assert.equal(current.tools.qna.screen.visible, false); assert.equal(current.tools.qna.questions.length, 1);
+      await command({ command: 'set_open', roundId, open: false });
+      await command({ command: 'new_round', roundId }); const newRound = current.tools.qna.roundId;
+      assert.notEqual(newRound, roundId); assert.equal(current.tools.qna.questions.length, 0); assert.equal(current.tools.qna.questionsOpen, false);
+      await command({ command: 'set_open', roundId: newRound, open: true });
+      await command({ command: 'submit', roundId: newRound, question: 'Visible sample', name: 'Consenting sample', allowNameOnScreen: true });
+      await command({ command: 'project', roundId: newRound, questionId: current.tools.qna.questions[0].id }); assert.equal(current.tools.qna.screen.question.name, 'Consenting sample');
+      assert.deepEqual(await counts(), before); assert.deepEqual(await liveQna(), liveBefore);
+      const reset = await json(first, 'POST', { action: 'reset', expectedRevision: current.revision }); assert.equal(reset.status, 200);
+      assert.equal(reset.body.tools.qna.roundId, null); assert.equal(reset.body.tools.qna.questions.length, 0);
+      await grants.revoke(ids.get('admin1'), o1, a, other.context.grantId); assert.equal((await json(other)).status, 401);
+    });
+    await t.test('Q&A commands enforce current revisions, purpose, origin, event and private run/round identifiers', async () => {
+      const current = (await json(first)).body, input = { action: 'qna', expectedRevision: current.revision, runId: current.runId, command: 'open' };
+      assert.equal((await json(first, 'POST', input, { origin: 'https://other.example' })).status, 403);
+      assert.equal((await json(first, 'POST', input, {}, root(first).replace(a, b))).status, 401);
+      assert.equal((await json(first, 'POST', { ...input, expectedRevision: current.revision - 1 })).status, 409);
+      assert.equal((await json(first, 'POST', { ...input, runId: crypto.randomUUID() })).body.code, 'REHEARSAL_EXPIRED');
+      const speaker = await issue('live'); assert.equal((await json(speaker, 'POST', input)).status, 403);
+      const opened = await json(first, 'POST', input); assert.equal(opened.status, 200);
+      assert.equal((await json(first, 'POST', { action: 'qna', expectedRevision: opened.body.revision, runId: opened.body.runId, command: 'new_round', roundId: crypto.randomUUID() })).body.code, 'REHEARSAL_QNA_STALE_ROUND');
     });
     await t.test('revocation during verification and flag disable never expose prepared private content', async () => {
       const revoked = await issue(), original = content.verify.bind(content);
