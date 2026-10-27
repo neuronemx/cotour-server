@@ -41,7 +41,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
   assert.match(presenterHtml, /presenter\.css\?v=76/);
-  assert.match(presenterHtml, /presenter\.js\?v=82/);
+  assert.match(presenterHtml, /presenter\.js\?v=83/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
