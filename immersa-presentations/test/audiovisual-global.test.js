@@ -81,3 +81,19 @@ test("React stays disabled in the server even if an older controller asks to ena
   const ctx = { AUDIO_REACT_ENABLED, currentRoomKey: "own", currentRole: "presenter", canControlPresentation: () => true, getSessionByRoomKey: () => session, createAudioReactState: () => ({}), socket: { on: (_event, fn) => { handler = fn; } }, io: { to: () => ({ emit() {} }) }, emitState() {} };
   vm.runInNewContext(source.slice(start, end), ctx); handler({ enabled: true, reaction: 4 }); assert.equal(session.audioReact.enabled, false);
 });
+
+test("Completed fade removes closing cards even when no active card remains; ordinary snapshots preserve the header", () => {
+  const script = read("public/presenter/presenter.js");
+  const start = script.indexOf("function applyAudiovisualState("), end = script.indexOf("\nfunction toggleAudiovisualPanel", start);
+  let closing = true, renders = 0;
+  const channel = { resource: null, status: "stopped", volume: .6 };
+  const ctx = vm.createContext({ audiovisualState: { audio: channel, video: channel }, audiovisualMasterVolume: .6,
+    audiovisualChannel: () => channel, syncAudiovisualGlobalControls() {}, syncAudiovisualToggle() {}, syncAudiovisualDurationTick() {},
+    audiovisualRevealResourceId: null, audiovisualFadeCloseTimer: null, clearTimeout() {}, activeAudiovisualChannels: () => [], audiovisualCardKey: (r) => r.id,
+    audiovisualPanel: { querySelectorAll: () => [], querySelector: () => closing ? {} : null },
+    syncAudiovisualActiveCard() {}, renderAudiovisualPanel() { renders++; }
+  });
+  vm.runInContext(script.slice(start, end), ctx);
+  ctx.applyAudiovisualState({ audio: channel, video: channel }); assert.equal(renders, 1);
+  closing = false; ctx.applyAudiovisualState({ audio: channel, video: channel }); assert.equal(renders, 1);
+});

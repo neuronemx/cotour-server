@@ -496,7 +496,8 @@ function applyAudiovisualState(next = {}) {
   const expectedIds = expected.map((type) => audiovisualCardKey(audiovisualChannel(type).resource));
   const visibleIds = Array.from(audiovisualPanel?.querySelectorAll(".audiovisual-resource.is-active[data-av-resource]") || []).map((card) => card.dataset.avPlaylist ? "playlist:" + String(card.dataset.avPlaylist) : String(card.dataset.avResource));
   const cardsMatchChannels = expectedIds.length === visibleIds.length && expectedIds.every((id) => visibleIds.includes(id));
-  if (cardsMatchChannels) { syncAudiovisualActiveCard(); return; }
+  const hasClosingCards = Boolean(audiovisualPanel?.querySelector(".audiovisual-resource.is-closing"));
+  if (cardsMatchChannels && !hasClosingCards) { syncAudiovisualActiveCard(); return; }
   renderAudiovisualPanel(true);
 }
 function toggleAudiovisualPanel() {
