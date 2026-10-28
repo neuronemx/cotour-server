@@ -61,7 +61,7 @@ let immersaTimeState = null;
 let immersaTimePanel = null;
 let immersaTimeTick = null;
 const speakerTimerState = { running: false, elapsedMs: 0, startedAt: 0 };
-let presentationLifecycleEnabled = planAllows("metrics.basic");
+let presentationLifecycleEnabled = planAllows("presentation.lifecycle");
 let presentationLifecycleState = { available: presentationLifecycleEnabled, mode: "test", startedAt: null };
 let presentationLifecyclePending = false;
 const fullscreenToggle = document.getElementById("fullscreenToggle");
@@ -663,7 +663,7 @@ function rejectPresentationLifecycle(payload = {}) {
 }
 function applyPresentationLifecycleFeature(access = {}) {
   const capabilities = access.capabilities || access.features || {};
-  presentationLifecycleEnabled = capabilities["metrics.basic"] === true;
+  presentationLifecycleEnabled = capabilities["presentation.lifecycle"] === true;
   presentationLifecycleState.available = presentationLifecycleEnabled;
   presentationLifecyclePending = false;
   syncImmersaTimeUi();
