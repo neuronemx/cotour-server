@@ -335,13 +335,16 @@ function audiovisualCards(resources, emptyMessage, options = {}) {
       : String(state.resource?.id || "") === String(item.id) && state.status === "playing");
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">' + (item.type === "video" ? "▶" : "♫") + '</span>';
     const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
-    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
+    const loopControl = item.category === "fx" ? "" : '<button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button>';
+    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button>' + loopControl + '<button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
+    const cueLabel = item.category === "fx" ? '<small class="audiovisual-fx-cue">Avance ' + avEscape(item.fx?.timecode) + ' · ' + avEscape(item.fx?.fps) + ' fps</small>' : "";
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
     const playlistAttribute = isPlaylist ? ' data-av-playlist="' + avEscape(item.playlistId) + '"' : "";
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong><small data-av-duration data-av-resource-id="' + avEscape(item.id) + '"' + playlistAttribute + ' data-av-type="' + avEscape(item.type || "") + '"></small></span>' + controls + '</div>';
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong>' + cueLabel + '<small data-av-duration data-av-resource-id="' + avEscape(item.id) + '"' + playlistAttribute + ' data-av-type="' + avEscape(item.type || "") + '"></small></span>' + controls + '</div>';
   }).join('');
 }
 function audiovisualTabIcon(type) {
+  if (type === "fx") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7z"/></svg>';
   if (type === "react") return '<img src="/presenter/audio-react.svg" alt="">';
   if (type === "video") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5v15L19 12z"/></svg>';
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.1a4.2 4.2 0 1 1-2-3.55V5.2l10-2.1v9.5a4.2 4.2 0 1 1-2-3.55V5.4z"/></svg>';
@@ -351,13 +354,16 @@ const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
-  const type = audiovisualTab === "video" ? "video" : "audio";
+  const isFxTab = audiovisualTab === "fx";
+  const type = audiovisualTab === "video" || isFxTab ? "video" : "audio";
   const state = audiovisualChannel(type);
-  const running = state.resource && ["playing", "fading"].includes(state.status) ? [state.resource] : [];
-  const playlists = buildLocalPlaylistCards(localAudiovisualResources.filter((item) => item.type === type));
-  const localSingles = localAudiovisualResources.filter((item) => item.type === type && !item.playlist?.id);
-  const remote = audiovisualResources.filter((item) => item.type === type);
-  const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; const live = !isReact && ["playing", "fading"].includes(audiovisualChannel(tab).status); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
+  const matchesTab = (item) => item.type === type && (item.category === "fx") === isFxTab;
+  const running = state.resource && matchesTab(state.resource) && ["playing", "fading"].includes(state.status) ? [state.resource] : [];
+  const localItems = localAudiovisualResources.filter(matchesTab);
+  const playlists = isFxTab ? [] : buildLocalPlaylistCards(localItems);
+  const localSingles = localItems.filter((item) => !item.playlist?.id);
+  const remote = audiovisualResources.filter(matchesTab);
+  const tabs = ["audio", "video", "fx", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(11, Number(audioReactState.reaction) || 0));
@@ -367,7 +373,9 @@ function renderAudiovisualPanel(force = false) {
     const playlistsBlock = playlists.length ? '<section class="audiovisual-group"><h3>Playlists</h3><div class="audiovisual-resource-list">' + audiovisualCards(playlists, "", { suppressActive: true }) + '</div></section>' : "";
     const localBlock = localSingles.length ? '<section class="audiovisual-group"><h3>Medios Local</h3><div class="audiovisual-resource-list">' + audiovisualCards(localSingles, "", { suppressActive: true }) + '</div></section>' : "";
     const remoteBlock = remote.length ? '<section class="audiovisual-group"><h3>Medios Immersa</h3><div class="audiovisual-resource-list">' + audiovisualCards(remote, "", { suppressActive: true }) + '</div></section>' : '<p class="audiovisual-empty">No hay medios ' + (type === "audio" ? "de audio" : "de video") + ' seleccionados en Librería.</p>';
-    body = runningBlock + playlistsBlock + localBlock + remoteBlock;
+    body = runningBlock + playlistsBlock + localBlock + (isFxTab
+      ? (localSingles.length ? "" : '<p class="audiovisual-empty">Vincula en Pantalla tu Librería local con la carpeta FX. Cada WebM necesita un TXT del mismo nombre con segundos:cuadros y FPS.</p>')
+      : remoteBlock);
   }
   audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual">' + tabs + '</nav></div><div class="audiovisual-panel-content">' + body + '</div>';
   warmAudiovisualDurations([...audiovisualResources, ...localAudiovisualResources]);

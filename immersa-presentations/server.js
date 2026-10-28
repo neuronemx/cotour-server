@@ -23,6 +23,8 @@ const {
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { listAudiovisualResources } = require("./audiovisual-library");
+const { normalizeCue: normalizeFxCue, isFx: isAudiovisualFx } = require("./public/shared/audiovisual-fx");
+const { createAudiovisualFxRuntime } = require("./audiovisual-fx-runtime");
 const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
@@ -826,6 +828,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     slideCount,
     slideIndex: 0,
     presenterSlideIndex: 0,
+    navigationRevision: 0,
     liveSlideIndex: 0,
     transmissionPaused: false,
     transmissionPausedBy: null,
@@ -866,6 +869,8 @@ function normalizeLocalAudiovisualResources(payload = {}) {
     const playlistName = String(item?.playlist?.name || "").trim().slice(0, 120);
     const playlistOrder = Math.max(0, Math.min(999, Number(item?.playlist?.order) || 0));
     if (!type || !id.startsWith("local:") || !name) return null;
+    const fx = item.category === "fx" && type === "video" ? normalizeFxCue(item.fx) : null;
+    if (item.category === "fx" && (!fx || !duration || fx.seconds >= duration)) return null;
     const playlist = playlistId.startsWith("local-playlist:" + type + ":") && playlistName
       ? { id: playlistId.slice(0, 240), name: playlistName, order: playlistOrder }
       : null;
@@ -876,7 +881,8 @@ function normalizeLocalAudiovisualResources(payload = {}) {
       source: "local",
       thumbnail_url: thumbnailUrl.startsWith("data:image/") && thumbnailUrl.length <= 260000 ? thumbnailUrl : "",
       duration,
-      playlist
+      playlist: fx ? null : playlist,
+      ...(fx ? { category: "fx", fx } : {})
     };
   }).filter(Boolean);
 }
@@ -1040,15 +1046,27 @@ const sessionInactivitySweep = setInterval(() => {
 }, SESSION_INACTIVITY_SWEEP_MS);
 sessionInactivitySweep.unref?.();
 
-async function setPresenterSlide(roomKey, session, nextIndex) {
+async function setPresenterSlide(roomKey, session, nextIndex, options = {}) {
   const requestedIndex = Number.isFinite(nextIndex) ? nextIndex : 0;
   const slideCount = await refreshSessionDeck(session);
   const clampedIndex = clampSlide(session, requestedIndex);
+  if (options.when && !options.when()) return false;
   console.log("[navigate]", roomKey, "requested", requestedIndex, "clamped", clampedIndex, "slideCount", slideCount);
+  if (session.presenterSlideIndex !== clampedIndex) session.navigationRevision = (session.navigationRevision || 0) + 1;
   session.presenterSlideIndex = clampedIndex;
   session.slideIndex = session.presenterSlideIndex;
   if (!session.transmissionPaused) session.liveSlideIndex = session.presenterSlideIndex;
+  return true;
 }
+
+const audiovisualFxRuntime = createAudiovisualFxRuntime({
+  getChannel: (session) => getAudiovisualChannels(session).video,
+  navigate: (context, session, nextIndex, when) => setPresenterSlide(context.roomKey, session, nextIndex, { when }),
+  publish: (context, session) => {
+    io.to(context.roomKey).emit("audiovisual:state", session.audiovisual);
+    emitState(context.roomKey, session);
+  }
+});
 
 const reactionMetricsSweep = setInterval(() => {
   for (const session of sessions.values()) {
@@ -2259,6 +2277,10 @@ io.on("connection", (socket) => {
       const current = channels[type];
       const savedVolume = Number(session.audiovisualVolume);
       const next = { resource, status: "playing", loop: Boolean(payload.loop), volume: Number.isFinite(savedVolume) ? savedVolume : 1, position: 0, startedAt: Date.now(), updatedAt: Date.now(), lastAction: "select" };
+      if (isAudiovisualFx(resource)) {
+        next.loop = false;
+        next.fxPlayback = audiovisualFxRuntime.begin(resource, session);
+      }
       const shouldFade = type === "audio" && current.resource && current.status === "playing" && String(current.resource.id) !== String(resource.id);
       if (shouldFade) {
         const fadingResourceId = String(current.resource.id);
@@ -2315,7 +2337,7 @@ io.on("connection", (socket) => {
       channels[type] = {
         ...current,
         status: nextStatus,
-        loop: action === "loop" ? Boolean(payload.loop) : current.loop,
+        loop: isAudiovisualFx(current.resource) ? false : action === "loop" ? Boolean(payload.loop) : current.loop,
         volume: nextVolume,
         position: nextPosition,
         startedAt: nextStatus === "playing" ? now : null,
@@ -2357,6 +2379,14 @@ io.on("connection", (socket) => {
     io.to(getRoleRoomKey(currentRoomKey, "presenter")).emit("audiovisual:state", session.audiovisual);
   });
 
+  socket.on("audiovisual:fx-cue", (payload = {}) => {
+    if (!currentRoomKey || currentRole !== "screen") return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    void audiovisualFxRuntime.advance({ role: currentRole, roomKey: currentRoomKey, session }, payload)
+      .catch((error) => console.error("Unable to advance FX transition", error));
+  });
+
   function advanceLocalPlaylistChannel(session, channels, type, resourceId, finishOnLast) {
     const channel = channels[type];
     if (!channel?.resource || String(resourceId) !== String(channel.resource.id)) return false;
@@ -2393,6 +2423,7 @@ io.on("connection", (socket) => {
     const type = payload.type === "video" || payload.type === "audio" ? payload.type : "";
     const channel = type ? channels[type] : Object.values(channels).find((item) => String(item.resource?.id || "") === String(payload.resourceId));
     if (!channel?.resource || String(payload.resourceId) !== String(channel.resource.id)) return;
+    if (isAudiovisualFx(channel.resource) && payload.playbackId !== channel.fxPlayback?.id) return;
     if (advanceLocalPlaylistChannel(session, channels, type, payload.resourceId, true)) {
       io.to(currentRoomKey).emit("audiovisual:state", session.audiovisual);
       emitState(currentRoomKey, session);

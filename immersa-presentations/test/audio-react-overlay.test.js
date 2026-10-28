@@ -20,7 +20,7 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.match(screen, /media\.removeAttribute\("crossorigin"\)/);
-  assert.match(html, /\/screen\/screen\.js\?v=22/);
+  assert.match(html, /\/screen\/screen\.js\?v=23/);
   assert.match(screen, /function findLocalReactionLogo\(handle\)/);
   assert.match(screen, /normalizedName === "logo\.svg" \? 0 : normalizedName === "logo\.png" \? 1/);
   assert.match(screen, /setLocalLogo\(localLibrary\.logoUrl \|\| ""\)/);
@@ -40,8 +40,8 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
-  assert.match(presenterHtml, /presenter\.css\?v=77/);
-  assert.match(presenterHtml, /presenter\.js\?v=85/);
+  assert.match(presenterHtml, /presenter\.css\?v=78/);
+  assert.match(presenterHtml, /presenter\.js\?v=86/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
@@ -102,7 +102,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(server, /reaction: nextReaction/);
   assert.match(server, /emit\("audio-react:state", session\.audioReact\)/);
   assert.doesNotMatch(server, /allowed\.has\(String\(resource\.id\)\)/);
-  assert.match(presenter, /\["audio", "video", "react"\]/);
+  assert.match(presenter, /\["audio", "video", "fx", "react"\]/);
   assert.doesNotMatch(presenter, /data-react-next/);
   assert.doesNotMatch(presenter, /data-react-toggle/);
   assert.match(presenter, /Medio corriendo/);
