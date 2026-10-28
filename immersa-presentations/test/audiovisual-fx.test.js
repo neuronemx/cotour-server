@@ -154,7 +154,7 @@ test("Natural end does not lose a reached marker; replay creates a fresh one-sho
 
 test("Beta serves the FX runtime before Screen and preserves the FX category alongside Audio and Video", () => {
   const html = read("public/screen/index.html"), presenter = read("public/presenter/presenter.js");
-  assert.ok(html.indexOf('/shared/audiovisual-fx.js?v=1') < html.indexOf('/screen/screen.js?v=24'));
+  assert.ok(html.indexOf('/shared/audiovisual-fx.js?v=1') < html.indexOf('/screen/screen.js?v=25'));
   assert.match(presenter, /\["audio", "video", "fx"\]/);
   assert.match(read("public/presenter/presenter.css"), /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
