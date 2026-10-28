@@ -127,6 +127,22 @@ test('without a runtime callback Screen remains available and no DB binding is a
   assert.equal(Object.hasOwn(stored[0], 'presentation_session_id'), false);
 });
 
+test('FREE Screen opens without creating a persisted Q&A session while paid Screen retains its binding', async (t) => {
+  for (const paid of [false, true]) {
+    const paths = await fixture(t), calls = [];
+    const handlers = createAccessLinkHandlers({ ...paths,
+      resolveDeckFeatureAccess: async () => ({ plan: paid ? 'SPEAKER' : 'FREE', capabilities: { 'metrics.basic': paid } }),
+      startScreenExecution: async payload => { calls.push(payload); return { presentationSessionId: 'paid-recording' }; }
+    });
+    const res = response();
+    await handlers.openRole('screen', 'screen')(request({ access_token: 'a_abcdefghij' }), res, () => assert.fail('Screen should open'));
+    assert.equal(res.statusCode, 200);
+    assert.equal(calls.length, paid ? 1 : 0);
+    const stored = JSON.parse(await fs.promises.readFile(path.join(paths.dataDir, 'access-links.json'), 'utf8'));
+    assert.equal(stored[0].presentation_session_id, paid ? 'paid-recording' : undefined);
+  }
+});
+
 test('an existing Backstage link stays unavailable to FREE accounts', async (t) => {
   const paths = await fixture(t);
   const storePath = path.join(paths.dataDir, 'access-links.json');

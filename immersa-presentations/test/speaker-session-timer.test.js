@@ -92,15 +92,40 @@ test('Rejected start and finish unlock controls and preserve an ongoing session'
   assert.equal(h.errors.length, 2);
 });
 
-test('Plans without basic Metrics retain their local timer and cannot start or finish a session', () => {
+test('Clients without the lifecycle capability retain their local timer', () => {
   const h = harness(false), c = h.c;
-  c.applyPresentationLifecycleFeature({ capabilities: { 'metrics.basic': false } });
+  c.applyPresentationLifecycleFeature({ capabilities: { 'presentation.lifecycle': false } });
   c.toggleSpeakerTimer(); h.advance(3000); c.toggleSpeakerTimer();
   assert.equal(c.speakerTimeValue(), '00:00:03');
   assert.equal(c.speakerTimerFinish.textContent, 'Restablecer');
   c.finishPresentationFromSpeaker();
   assert.equal(c.speakerTimeValue(), '00:00:00');
   assert.deepEqual(h.commands, []);
+});
+
+test('FREE can start and finish while its metrics capability remains disabled', () => {
+  const h = harness(false), c = h.c;
+  c.applyPresentationLifecycleFeature({ capabilities: { 'presentation.lifecycle': true, 'metrics.basic': false } });
+  c.toggleSpeakerTimer(); h.acknowledgeLive(); c.toggleSpeakerTimer();
+  assert.equal(c.speakerTimerActions.hidden, false);
+  assert.equal(c.speakerTimerFinish.textContent, 'Finalizar');
+  c.finishPresentationFromSpeaker();
+  assert.deepEqual(h.commands, [['presentation:lifecycle:start'], ['presentation:lifecycle:finish']]);
+});
+
+test('FREE completion sends Público directly to the site and saves no completion or metrics record', () => {
+  const completion = fs.readFileSync(path.join(root, 'public/shared/presentation-completion.js'), 'utf8');
+  for (const [role, destination] of Object.entries({ presenter: '/presentacion-finalizada', audience: 'https://www.immersalive.com/', screen: '/presentacion-finalizada' })) {
+    const handlers = new Map(), removed = [], destinations = [], tasks = [];
+    const ctx = vm.createContext({
+      window: { sessionStorage: { setItem() { assert.fail('FREE must not store metrics'); }, removeItem: key => removed.push(key) }, location: { replace: value => destinations.push(value) }, setTimeout: fn => tasks.push(fn) },
+      document: { createElement: () => ({ setAttribute() {}, style: {} }), body: { appendChild() {} } }
+    });
+    vm.runInContext(completion, ctx);
+    ctx.window.ImmersaPresentationCompletion.create({ socket: { on: (event, fn) => handlers.set(event, fn), disconnect() {} }, role });
+    handlers.get('presentation:closed')({ recorded: false, deckId: 'free-test' });
+    tasks[0](); assert.deepEqual(destinations, [destination]); assert.equal(removed.length, 1);
+  }
 });
 
 test('Pausing the Speaker timer never stops or resets the independently running screen countdown', () => {

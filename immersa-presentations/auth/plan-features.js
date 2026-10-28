@@ -4,6 +4,7 @@ const CAPABILITIES = Object.freeze({
   ACCESS_PUBLIC: "access.public",
   ACCESS_SCREEN: "access.screen",
   ACCESS_BACKSTAGE: "access.backstage",
+  PRESENTATION_LIFECYCLE: "presentation.lifecycle",
   POLLS_CONFIGURE: "polls.configure",
   POLLS_RUN: "polls.run",
   QNA_RUN: "qna.run",
@@ -19,10 +20,12 @@ const CAPABILITIES = Object.freeze({
 const MANAGED_CAPABILITIES = Object.freeze(Object.values(CAPABILITIES));
 const PLAN_CAPABILITIES = Object.freeze({
   FREE: Object.freeze([
+    CAPABILITIES.PRESENTATION_LIFECYCLE,
     CAPABILITIES.ACCESS_PUBLIC,
     CAPABILITIES.ACCESS_SCREEN
   ]),
   SPEAKER: Object.freeze([
+    CAPABILITIES.PRESENTATION_LIFECYCLE,
     CAPABILITIES.ACCESS_PUBLIC,
     CAPABILITIES.ACCESS_SCREEN,
     CAPABILITIES.ACCESS_BACKSTAGE,
@@ -90,15 +93,15 @@ function requiredCapabilityForControllerEvent(eventName) {
   if (event.startsWith("games:queue:") || event.startsWith("pong:") || event.startsWith("breakout:") || event === "time:command") {
     return CAPABILITIES.GAMES_RUN;
   }
-  if (event === "presentation:lifecycle:start" || event === "presentation:lifecycle:finish") {
-    return CAPABILITIES.METRICS_BASIC;
+  if (["presentation:lifecycle:start", "presentation:lifecycle:finish", "presentation:lifecycle:request"].includes(event)) {
+    return CAPABILITIES.PRESENTATION_LIFECYCLE;
   }
   return "";
 }
 
 function isPaidControllerEvent(eventName) {
   const capability = requiredCapabilityForControllerEvent(eventName);
-  return Boolean(capability && capability !== CAPABILITIES.METRICS_BASIC);
+  return Boolean(capability && capability !== CAPABILITIES.METRICS_BASIC && capability !== CAPABILITIES.PRESENTATION_LIFECYCLE);
 }
 
 function isPaidMetricsEvent(eventName) {
