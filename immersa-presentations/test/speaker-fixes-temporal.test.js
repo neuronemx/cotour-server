@@ -16,7 +16,7 @@ test("Speaker timer controls the presentation lifecycle without using the old se
   assert.match(script, /socket\.emit\("presentation:lifecycle:start"\)/);
   assert.match(script, /socket\.emit\("presentation:lifecycle:finish"\)/);
   assert.match(script, /socket\.on\("presentation:lifecycle:state", applyPresentationLifecycle\)/);
-  assert.match(script, /presentationLifecycleEnabled = capabilities\["metrics\.basic"\] === true/);
+  assert.match(script, /presentationLifecycleEnabled = capabilities\["presentation\.lifecycle"\] === true/);
   assert.match(html, /id="speakerTimerValue">Iniciar<\/span>/);
   assert.match(html, /id="speakerTimerResume"[^>]*>Continuar<\/button>/);
   assert.doesNotMatch(html, /id="speakerTimerResume"[^>]*data-i18n/);

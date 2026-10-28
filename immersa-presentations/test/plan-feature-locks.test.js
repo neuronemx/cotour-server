@@ -61,9 +61,9 @@ test("controller events resolve to an exact plan capability", () => {
   assert.equal(requiredCapabilityForControllerEvent("slide_next"), "");
 });
 
-test("presentation lifecycle is the basic Metrics capability", () => {
-  assert.equal(isPaidMetricsEvent("presentation:lifecycle:start"), true);
-  assert.equal(isPaidMetricsEvent("presentation:lifecycle:finish"), true);
+test("presentation lifecycle is available independently of basic Metrics", () => {
+  assert.equal(isPaidMetricsEvent("presentation:lifecycle:start"), false);
+  assert.equal(isPaidMetricsEvent("presentation:lifecycle:finish"), false);
   assert.equal(isPaidMetricsEvent("presentation:lifecycle:request"), false);
 });
 

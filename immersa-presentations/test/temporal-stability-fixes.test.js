@@ -58,7 +58,7 @@ test("A running Speaker audiovisual video cannot intercept the Tiempo modal", ()
   assert.match(css, /\.stream-area\.is-time-open > \.immersa-video-slide,[\s\S]*?pointer-events: none !important;/);
   assert.match(css, /\.time-panel \{[\s\S]*?position: fixed;[\s\S]*?z-index: 2147483000;/);
   assert.match(html, /presenter\.css\?v=83/);
-  assert.match(html, /presenter\.js\?v=88/);
+  assert.match(html, /presenter\.js\?v=89/);
 });
 
 test("Audience uses a fixed viewport so Safari keeps the slide centered", () => {

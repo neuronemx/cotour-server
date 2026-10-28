@@ -358,6 +358,12 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
 
   async function bindScreenExecution(accessLink, deck, accessLinks) {
     if (accessLink.role !== 'screen' || typeof startScreenExecution !== 'function') return accessLink;
+    if (typeof resolveDeckFeatureAccess === 'function') {
+      const access = await resolveDeckFeatureAccess(deck.deckId);
+      if (access?.capabilities?.['metrics.basic'] !== true && access?.features?.['metrics.basic'] !== true) {
+        return { ...accessLink, presentation_session_id: null };
+      }
+    }
     const execution = await startScreenExecution({
       deckId: deck.deckId,
       sourceSessionId: accessLink.session_id,
