@@ -29,6 +29,7 @@ let audiovisualState = { audio: { resource: null, status: "stopped", loop: false
 let audioReactState = { enabled: false, reaction: 0 };
 let audiovisualTab = "audio";
 let audiovisualPanel = null;
+let audiovisualMasterVolume = 1;
 let audiovisualLayer = null;
 let audiovisualMedia = null;
 let prompterScripts = {}, prompterOverlay = null, prompterPointerId = null, prompterLastY = 0;
@@ -194,7 +195,37 @@ function clearSelectedInteraction() { selectedInteractionId = ""; }
 async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); prompterScripts=data?.prompter||{}; } catch (_error) { interactions = []; videoSlideIds = new Set(); prompterScripts={}; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
 async function loadAudiovisualResources() { try { const response = await fetch("/api/decks/" + encodeURIComponent(deckId) + "/audiovisual-library", { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load deck library"); const catalog = await response.json(); audiovisualResources = Array.isArray(catalog.resources) ? catalog.resources : []; } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
 function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
-function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Librería Immersa"); presenterShell.appendChild(audiovisualPanel); }
+function ensureAudiovisualUi() {
+  if (audiovisualPanel) return;
+  audiovisualPanel = document.createElement("section");
+  audiovisualPanel.className = "audiovisual-panel";
+  audiovisualPanel.setAttribute("aria-label", "Librería Immersa");
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><label class="av-global-volume">' + avVolumeIcon + '<input data-av-global-volume type="range" min="0" max="100" step="1" value="100" aria-label="Volumen global Audiovisual"><output data-av-global-volume-value>100%</output></label><button class="av-global-stop" data-av-stop-all type="button" title="Detener todo con fade out" aria-label="Detener todo Audiovisual">' + avStopIcon + '</button><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual"></nav></div><div class="audiovisual-panel-content"></div>';
+  presenterShell.appendChild(audiovisualPanel);
+  const volume = audiovisualPanel.querySelector("[data-av-global-volume]");
+  const sendVolume = () => {
+    audiovisualMasterVolume = Number(volume.value) / 100;
+    audiovisualPanel.querySelector("[data-av-global-volume-value]").textContent = volume.value + "%";
+    socket.emit("audiovisual:control", { action: "volume", volume: audiovisualMasterVolume });
+  };
+  volume.addEventListener("input", sendVolume);
+  volume.addEventListener("change", sendVolume);
+  volume.addEventListener("blur", syncAudiovisualGlobalControls);
+  audiovisualPanel.querySelector("[data-av-stop-all]").addEventListener("click", () => socket.emit("audiovisual:control", { action: "stop-all" }));
+  audiovisualPanel.querySelector("[data-av-close]").addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); syncAudiovisualToggle(); });
+  syncAudiovisualGlobalControls();
+}
+function syncAudiovisualGlobalControls() {
+  const volume = audiovisualPanel?.querySelector("[data-av-global-volume]");
+  if (!volume) return;
+  if (document.activeElement !== volume) volume.value = String(Math.round(audiovisualMasterVolume * 100));
+  audiovisualPanel.querySelector("[data-av-global-volume-value]").textContent = volume.value + "%";
+  audiovisualPanel.querySelector("[data-av-stop-all]").disabled = !["audio", "video"].some((type) => {
+    const state = audiovisualChannel(type);
+    return state.resource && state.status !== "stopped";
+  });
+}
+
 const avStopIcon = '<img class="av-control-icon" src="/presenter/player-stop.svg" alt="">';
 const avLoopIcon = '<img class="av-control-icon" src="/presenter/player-loop.svg" alt="">';
 const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume.svg" alt="">';
@@ -305,8 +336,7 @@ function syncAudiovisualActiveCard() {
     if (!card) return;
     matched = true;
     card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(state.loop));
-    const activeBars = Math.max(1, Math.round(Number(state.volume ?? 1) * 5));
-    card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
+
   });
   return matched;
 }
@@ -334,9 +364,9 @@ function audiovisualCards(resources, emptyMessage, options = {}) {
       ? String(state.resource?.playlist?.id || "") === String(item.playlistId || "") && state.status === "playing"
       : String(state.resource?.id || "") === String(item.id) && state.status === "playing");
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">' + (item.type === "video" ? "▶" : "♫") + '</span>';
-    const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
+
     const loopControl = item.category === "fx" ? "" : '<button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button>';
-    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button>' + loopControl + '<button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
+    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button>' + loopControl + '</span>';
     const cueLabel = item.category === "fx" ? '<small class="audiovisual-fx-cue">Avance ' + avEscape(item.fx?.timecode) + ' · ' + avEscape(item.fx?.fps) + ' fps</small>' : "";
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
     const playlistAttribute = isPlaylist ? ' data-av-playlist="' + avEscape(item.playlistId) + '"' : "";
@@ -354,6 +384,7 @@ const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
+  if (audiovisualTab === "react") audiovisualTab = "audio";
   const isFxTab = audiovisualTab === "fx";
   const type = audiovisualTab === "video" || isFxTab ? "video" : "audio";
   const state = audiovisualChannel(type);
@@ -363,7 +394,7 @@ function renderAudiovisualPanel(force = false) {
   const playlists = isFxTab ? [] : buildLocalPlaylistCards(localItems);
   const localSingles = localItems.filter((item) => !item.playlist?.id);
   const remote = audiovisualResources.filter(matchesTab);
-  const tabs = ["audio", "video", "fx", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
+  const tabs = ["audio", "video", "fx"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(11, Number(audioReactState.reaction) || 0));
@@ -377,7 +408,9 @@ function renderAudiovisualPanel(force = false) {
       ? (localSingles.length ? "" : '<p class="audiovisual-empty">Vincula en Pantalla tu Librería local con la carpeta FX. Cada WebM necesita un TXT del mismo nombre con segundos:cuadros y FPS.</p>')
       : remoteBlock);
   }
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual">' + tabs + '</nav></div><div class="audiovisual-panel-content">' + body + '</div>';
+  audiovisualPanel.querySelector(".audiovisual-tabs").innerHTML = tabs;
+  audiovisualPanel.querySelector(".audiovisual-panel-content").innerHTML = body;
+  syncAudiovisualGlobalControls();
   warmAudiovisualDurations([...audiovisualResources, ...localAudiovisualResources]);
   syncAudiovisualDurationTick();
   audiovisualPanel.querySelectorAll("[data-av-tab]").forEach((button) => button.addEventListener("click", () => {
@@ -418,12 +451,7 @@ function renderAudiovisualPanel(force = false) {
     event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); const resourceType = card?.dataset.avType || "audio";
     socket.emit("audiovisual:control", { action: "loop", resourceId: card?.dataset.avResource, type: resourceType, loop: !audiovisualChannel(resourceType).loop });
   }));
-  audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => {
-    event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return;
-    const card = event.currentTarget.closest(".audiovisual-resource");
-    socket.emit("audiovisual:control", { action: "volume", resourceId: card?.dataset.avResource, type: card?.dataset.avType, volume: Number(bar.dataset.avVolumeLevel) / 5 });
-  }));
-  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); syncAudiovisualToggle(); });
+
 }
 let audiovisualFadeCloseTimer = null;
 function applyAudiovisualState(next = {}) {
@@ -432,6 +460,9 @@ function applyAudiovisualState(next = {}) {
   } else if (next.resource?.type === "audio" || next.resource?.type === "video") {
     audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
   }
+  const masterVolume = Number(next.audio?.volume ?? next.video?.volume ?? audiovisualMasterVolume);
+  if (Number.isFinite(masterVolume)) audiovisualMasterVolume = Math.max(0, Math.min(1, masterVolume));
+  syncAudiovisualGlobalControls();
   syncAudiovisualToggle();
   syncAudiovisualDurationTick();
   if (audiovisualRevealResourceId) {
@@ -951,7 +982,7 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
+socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: false, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
 socket.on("time:state", applyImmersaTime);
 socket.on("presentation:lifecycle:state", applyPresentationLifecycle);
 socket.on("presentation:lifecycle:rejected", rejectPresentationLifecycle);

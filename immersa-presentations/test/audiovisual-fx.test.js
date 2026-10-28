@@ -152,9 +152,9 @@ test("Natural end does not lose a reached marker; replay creates a fresh one-sho
   assert.equal(h.session.presenterSlideIndex, 3);
 });
 
-test("Beta serves the FX runtime before Screen and preserves an independent fourth tab", () => {
+test("Beta serves the FX runtime before Screen and preserves the FX category alongside Audio and Video", () => {
   const html = read("public/screen/index.html"), presenter = read("public/presenter/presenter.js");
-  assert.ok(html.indexOf('/shared/audiovisual-fx.js?v=1') < html.indexOf('/screen/screen.js?v=23'));
-  assert.match(presenter, /\["audio", "video", "fx", "react"\]/);
-  assert.match(read("public/presenter/presenter.css"), /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.ok(html.indexOf('/shared/audiovisual-fx.js?v=1') < html.indexOf('/screen/screen.js?v=24'));
+  assert.match(presenter, /\["audio", "video", "fx"\]/);
+  assert.match(read("public/presenter/presenter.css"), /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
