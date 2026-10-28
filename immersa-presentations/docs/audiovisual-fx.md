@@ -27,3 +27,5 @@ La marca debe estar antes del final del video. Un TXT ausente o inválido deja e
 Detener o sustituir el FX antes de la marca cancela su avance. Si navegas manualmente durante el FX, o pausas la transmisión, el FX no añade un salto pendiente. En la última slide no se sale del deck. Varias Pantallas no producen avances duplicados.
 
 Los archivos siguen en la computadora de Pantalla. Público recibe el cambio de slide sincronizado, como en la navegación habitual.
+
+El encabezado de Audiovisual tiene un volumen global, ajustable incluso sin reproducción, y un botón de detener todo con fade out de un segundo. Ese botón desvanece Audio y Video/FX y cancela marcas FX pendientes. Los controles por clip conservan Stop y Loop (FX no usa Loop). React está temporalmente desactivado.

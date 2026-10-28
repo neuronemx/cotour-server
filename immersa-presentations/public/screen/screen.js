@@ -40,6 +40,8 @@ let interactionOverlay = null;
 let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
+let audiovisualAudioFade = null;
+let audiovisualVideoFade = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
 let videoPlaylistAdvanceTimer = null;
@@ -282,6 +284,8 @@ function ensureAudiovisualLayer() {
     video: Array.from(audiovisualLayer.querySelectorAll("video")),
     audio: audiovisualLayer.querySelector("audio")
   };
+  audiovisualAudioFade = window.ImmersaAudiovisualFade.create({ getState: () => audiovisualState.audio, getMedia: () => [audiovisualMedia.audio] });
+  audiovisualVideoFade = window.ImmersaAudiovisualFade.create({ getState: () => audiovisualState.video, getMedia: () => audiovisualMedia.video, video: true });
   audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
   bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
   audiovisualMedia.audio.addEventListener("error", () => {
@@ -321,6 +325,14 @@ function stopVideoSlots() {
 function applyVideoState(state) {
   const resource = state?.resource;
   const slots = audiovisualMedia.video;
+  if (state.status === "fading" && state.fadeOut) {
+    videoTransitionToken += 1;
+    clearVideoPlaylistAdvance();
+    slots.forEach((media) => audiovisualFxMonitors.get(media)?.stop());
+    audiovisualVideoFade?.apply();
+    return;
+  }
+  audiovisualVideoFade?.cancel();
   if (!resource || state.status === "stopped") {
     stopVideoSlots();
     return;
@@ -397,6 +409,12 @@ function applyVideoState(state) {
 function applyAudioState(state) {
   const media = audiovisualMedia.audio;
   const resource = state?.resource;
+  if (state.status === "fading" && state.fadeOut) {
+    audioFadeToken += 1;
+    audiovisualAudioFade?.apply();
+    return;
+  }
+  audiovisualAudioFade?.cancel();
   if (!resource || state.status === "stopped") {
     media.pause(); media.currentTime = 0;
     return;
@@ -438,7 +456,7 @@ function applyAudiovisualState(next = {}) {
   const videoState = audiovisualState.video || emptyAudiovisualChannel();
   const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
   audiovisualLayer.classList.toggle("is-video", hasVideo);
-  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && videoState.status === "playing"));
+  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && ["playing", "fading"].includes(videoState.status)));
 }
 function clearImmersaTimeTick() {
   if (immersaTimeTick) clearTimeout(immersaTimeTick);
@@ -614,7 +632,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
+socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState({ ...(next || {}), enabled: false }); } catch (error) { console.warn("Audio React unavailable.", error); } });
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));

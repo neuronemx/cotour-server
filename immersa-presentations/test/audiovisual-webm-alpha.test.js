@@ -54,7 +54,7 @@ test('Beta playback preserves WebM alpha across pause and restores black when a 
   };
   const slots = [makeMedia(), makeMedia()];
   const context = vm.createContext({ audiovisualMedia: { video: slots }, activeVideoSlot: 0,
-    videoTransitionToken: 0, audiovisualState: { video: {} }, audiovisualFxMonitors: new WeakMap(),
+    videoTransitionToken: 0, audiovisualState: { video: {} }, audiovisualFxMonitors: new WeakMap(), audiovisualVideoFade: null,
     localLibrary: { files: new Map([['alpha', { name: 'overlay.WEBM', type: '' }]]) },
     resolveAudiovisualMediaUrl: (r) => 'blob:' + r.id,
     clearVideoPlaylistAdvance() {}, scheduleVideoPlaylistAdvance() {}, window: { setTimeout() {}, ImmersaAudiovisualFx: require("../public/shared/audiovisual-fx") }, console
@@ -91,5 +91,5 @@ test('Only WebM clears the video background and Screen loads fresh assets', () =
   assert.match(css, /\.audiovisual-video-slot \{[^}]*background:#000/);
   assert.match(css, /\.audiovisual-video-slot\.is-webm \{ background:transparent; \}/);
   assert.match(html, /screen\.css\?v=23/);
-  assert.match(html, /screen\.js\?v=23/);
+  assert.match(html, /screen\.js\?v=24/);
 });
