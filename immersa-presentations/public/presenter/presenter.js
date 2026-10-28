@@ -460,6 +460,9 @@ function applyAudiovisualState(next = {}) {
   } else if (next.resource?.type === "audio" || next.resource?.type === "video") {
     audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
   }
+  const masterVolume = Number(next.audio?.volume ?? next.video?.volume ?? audiovisualMasterVolume);
+  if (Number.isFinite(masterVolume)) audiovisualMasterVolume = Math.max(0, Math.min(1, masterVolume));
+  syncAudiovisualGlobalControls();
   syncAudiovisualToggle();
   syncAudiovisualDurationTick();
   if (audiovisualRevealResourceId) {
@@ -497,9 +500,6 @@ function applyAudiovisualState(next = {}) {
   renderAudiovisualPanel(true);
 }
 function toggleAudiovisualPanel() {
-  const masterVolume = Number(next.audio?.volume ?? next.video?.volume ?? audiovisualMasterVolume);
-  if (Number.isFinite(masterVolume)) audiovisualMasterVolume = Math.max(0, Math.min(1, masterVolume));
-  syncAudiovisualGlobalControls();
   ensureAudiovisualUi();
   const open = !audiovisualPanel?.classList.contains("is-open");
   audiovisualPanel?.classList.toggle("is-open", open);
