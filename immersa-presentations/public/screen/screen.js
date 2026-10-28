@@ -456,6 +456,7 @@ function applyAudiovisualState(next = {}) {
   const videoState = audiovisualState.video || emptyAudiovisualChannel();
   const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
   audiovisualLayer.classList.toggle("is-video", hasVideo);
+  audiovisualLayer.classList.toggle("is-fx", hasVideo && window.ImmersaAudiovisualFx.isFx(videoState.resource));
   screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && ["playing", "fading"].includes(videoState.status)));
 }
 function clearImmersaTimeTick() {
