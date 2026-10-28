@@ -33,6 +33,7 @@ const {
   createPresentationLifecycleRuntime
 } = require("./presentation-lifecycle");
 const { PresentationMetricsRepository, createPresentationMetricsHandlers } = require("./presentation-metrics");
+const { createNonRecordingLifecycle } = require("./non-recording-lifecycle");
 const { ReactionRuntime } = require("./reaction-runtime");
 const { createBrandMentionHandlers } = require("./brand-mentions-api");
 const { BrandMentionRuntime } = require("./brand-mention-runtime");
@@ -272,6 +273,12 @@ async function getStageFeatureAccess(deckId) {
     eventHubStage: stageControl
   };
 }
+
+const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
+  io, getRoleRoomKey,
+  getSession: ({ deckId, sourceSessionId }) => getSessionByRoomKey(getRoomKey(sourceSessionId, deckId)),
+  onFinish: context => { brandMentionRuntime.stop(context.roomKey); }
+});
 
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
@@ -956,6 +963,17 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
   };
   const shutdown = (async () => {
     context.finishReason = "INACTIVITY";
+    const access = await getStageFeatureAccess(context.deckId);
+    if (!canUseFeature(access, CAPABILITIES.METRICS_BASIC)) {
+      const closed = await nonRecordingLifecycleRuntime.finishInactive(context);
+      if (!closed) nonRecordingLifecycleRuntime.emitClosed(context, { reason: "INACTIVITY", deckId: context.deckId, presentationSessionId: null, recorded: false });
+      brandMentionRuntime.stop(roomKey);
+      session.time = createImmersaTimeState();
+      session.lastActivityAt = now;
+      session.inactivityShutdownAt = now;
+      io.to(roomKey).emit("presentation:inactive_shutdown", { reason: "INACTIVITY", inactivityMinutes: Math.round(SESSION_INACTIVITY_MS / 60_000) });
+      return true;
+    }
     const lifecycleResult = await presentationLifecycleRuntime.finishInactive(context);
     const asyncResets = await Promise.allSettled([
       knowledgeActivityRuntime.resetSession(context),
@@ -2064,13 +2082,15 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
-  presentationLifecycleRuntime.attach(socket, () => ({
+  const lifecycleContext = () => ({
     roomKey: currentRoomKey,
     role: currentRole,
     sessionId: currentSessionId,
     deckId: currentDeckId,
     audienceId: currentAudienceId
-  }));
+  });
+  presentationLifecycleRuntime.attach(socket, () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? lifecycleContext() : null);
+  nonRecordingLifecycleRuntime.attach(socket, () => !canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) && canUseFeature(currentFeatureAccess, CAPABILITIES.PRESENTATION_LIFECYCLE) ? lifecycleContext() : null);
 
   socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
@@ -2080,11 +2100,17 @@ io.on("connection", (socket) => {
     currentRole = role;
     currentSessionId = joinedSessionId;
     currentDeckId = joinedDeckId;
+    try {
+      currentFeatureAccess = await getStageFeatureAccess(joinedDeckId);
+    } catch (error) {
+      currentFeatureAccess = featureAccessForPlan("FREE");
+      console.error("Unable to resolve live plan features", error);
+    }
     let session = getSessionByRoomKey(currentRoomKey);
     try {
       if (session && isSessionInactive(session, Date.now(), SESSION_INACTIVITY_MS)) {
         await shutdownInactiveSession(currentRoomKey, session);
-      } else if (!session && qnaRuntime.shutdownSessionIfStale) {
+      } else if (!session && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) && qnaRuntime.shutdownSessionIfStale) {
         const staleResult = await qnaRuntime.shutdownSessionIfStale({
           deckId: joinedDeckId,
           sourceSessionId: joinedSessionId,
@@ -2097,12 +2123,6 @@ io.on("connection", (socket) => {
     }
     session = getSession(joinedSessionId, joinedDeckId);
     touchSession(currentRoomKey);
-    try {
-      currentFeatureAccess = await getStageFeatureAccess(joinedDeckId);
-    } catch (error) {
-      currentFeatureAccess = featureAccessForPlan("FREE");
-      console.error("Unable to resolve live plan features", error);
-    }
     if (role === "presenter" && ["es", "en"].includes(locale)) {
       try {
         const manifest = locale === "en" ? await readManifest(joinedDeckId) : null;
@@ -2215,9 +2235,9 @@ io.on("connection", (socket) => {
       ["game queue", () => gameQueueSockets.sendCurrentState(socket, joinedContext)],
       ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
       ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
-      ["Q&A", () => qnaRuntime.sendCurrentState(socket, joinedContext)],
-      ["knowledge activity", () => knowledgeActivityRuntime.sendCurrentState(socket, joinedContext)],
-      ["presentation lifecycle", () => presentationLifecycleRuntime.sendCurrentState(socket, joinedContext)]
+      ["Q&A", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? qnaRuntime.sendCurrentState(socket, joinedContext) : null],
+      ["knowledge activity", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? knowledgeActivityRuntime.sendCurrentState(socket, joinedContext) : null],
+      ["presentation lifecycle", () => (canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? presentationLifecycleRuntime : nonRecordingLifecycleRuntime).sendCurrentState(socket, joinedContext)]
     ];
     void Promise.allSettled(snapshotJobs.map(([, send]) => Promise.resolve().then(send)))
       .then((results) => {

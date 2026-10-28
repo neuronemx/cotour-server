@@ -14,6 +14,14 @@
     socket.on("presentation:closed", (payload = {}) => {
       if (handled) return;
       handled = true;
+      if (payload.recorded === false) {
+        try { root.sessionStorage.removeItem(STORAGE_KEY); } catch (_error) {}
+        if (role === "screen") showScreenClosure();
+        socket.disconnect?.();
+        const destination = role === "audience" ? "https://www.immersalive.com/" : role === "presenter" ? DESTINATIONS.screen : DESTINATIONS[role];
+        root.setTimeout(() => root.location.replace(destination), role === "screen" ? 1400 : 250);
+        return;
+      }
       const record = { ...payload, role, deckId: payload.deckId || context.deck || context.deckId || null, savedAt: new Date().toISOString() };
       try { root.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(record)); } catch (_error) {}
       if (role === "screen") showScreenClosure();

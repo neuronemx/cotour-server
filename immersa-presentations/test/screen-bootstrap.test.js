@@ -41,5 +41,5 @@ test("core presentation state and knowledge activity recovery cannot be blocked 
   assert.ok(coreStateIndex >= 0);
   assert.ok(snapshotIndex > coreStateIndex);
   assert.match(joinSource, /Promise\.allSettled\(snapshotJobs\.map/);
-  assert.match(joinSource, /\["knowledge activity", \(\) => knowledgeActivityRuntime\.sendCurrentState/);
+  assert.match(joinSource, /\["knowledge activity", \(\) => canUseFeature\(currentFeatureAccess, CAPABILITIES\.METRICS_BASIC\) \? knowledgeActivityRuntime\.sendCurrentState/);
 });
