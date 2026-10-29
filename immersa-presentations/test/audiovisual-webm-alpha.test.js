@@ -90,6 +90,6 @@ test('Only WebM clears the video background and Screen loads fresh assets', () =
   assert.match(css, /\.audiovisual-screen-layer \{[^}]*background:transparent/);
   assert.match(css, /\.audiovisual-video-slot \{[^}]*background:#000/);
   assert.match(css, /\.audiovisual-video-slot\.is-webm \{ background:transparent; \}/);
-  assert.match(html, /screen\.css\?v=24/);
+  assert.match(html, /screen\.css\?v=25/);
   assert.match(html, /screen\.js\?v=25/);
 });
