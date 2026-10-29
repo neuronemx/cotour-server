@@ -23,13 +23,14 @@ function page() {
   window.ImmersaEventAccess = { consumeLink: () => ({ binding: { view: 'rehearsal', eventId, grantId }, token: null }), createClient(options) { callback = options.onState; return client; } };
   const value = { mode: 'rehearsal', eventId, activityId, revision: 0, title: '<private title>', notes: '<private notes>',
     slideIndex: 0, slideCount: 2, language: 'es', englishEnabled: true, runId: '00000000-0000-4000-8000-000000000004',
-    tools: { qna: { roundId: null, roundNumber: 0, questionsOpen: false, questions: [], selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 }, polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
+    tools: { knowledge: { available: [], executionId: null, definitionId: null, screen: null, sample: null, nextDeadlineAt: null }, qna: { roundId: null, roundNumber: 0, questionsOpen: false, questions: [], selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 }, polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
     image: { url: `/api/events-v2/rehearsal/${eventId}/${grantId}/slides/own-run`, width: 16, height: 9 } };
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return response ? response() : { ok: true, json: async () => structuredClone(value) }; };
   window.fetch = fetch;
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-tools.js'), 'utf8'), { window, URL, Promise, Set, Number, Error });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-qna.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-knowledge.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-page.js'), 'utf8'),
     { document, window, fetch, URL, AbortController, setTimeout, clearTimeout, queueMicrotask, Number, Error });
   return { elements, document, window, calls, value, ready,
@@ -156,4 +157,29 @@ test('new rounds remove the old projection and reset also clears an unsent Q&A d
   p.elements['qna-question'].value = 'Unsent'; p.elements['qna-name'].value = 'Unsent name';
   p.response(async () => { p.value.runId = '00000000-0000-4000-8000-000000000010'; p.value.tools.qna = { ...qnaValue(), roundId: null, roundNumber: 0, questionsOpen: false }; return { ok: true, json: async () => structuredClone(p.value) }; });
   p.elements.reset.fire('click'); await settle(); assert.equal(p.elements['qna-question'].value, ''); assert.equal(p.elements['qna-name'].value, '');
+});
+function practice(p, category = 'assessment', state = 'ACTIVE') {
+  const k = require('../events-v2/rehearsal-knowledge'), eng = require('../knowledge-activity-engine');
+  const definition = { id: 'practice', category, title: '<Practice>', identificationMode: 'anonymous', durationSeconds: 30, questionDurationSeconds: 5,
+    questions: [{ id: 'one', prompt: '<Pregunta>', en: { prompt: '<Question>', options: { a: '<First>', b: '<Second>' } }, options: [{ id: 'a', label: '<Primera>', correct: true }, { id: 'b', label: '<Segunda>' }] }] };
+  const candidate = { configuration: { knowledge: [definition] }, snapshot: { bundleDigest: 'a'.repeat(64), images: [] } }, now = Date.now();
+  let run = k.operate(null, k.definitions(candidate), { command: 'open', definitionId: definition.id }, now - eng.COUNTDOWN_MS);
+  if (state === 'ACTIVE') { run = k.operate(run, k.definitions(candidate), { command: 'start', executionId: run.id }, now - eng.COUNTDOWN_MS); run = k.advance(run, now); }
+  p.value.tools.knowledge = k.projection(candidate, run, `/api/events-v2/rehearsal/${eventId}/${grantId}`, p.value.runId, now); return run;
+}
+test('knowledge renders translated sample text, fences poll admission and sends only the private execution and revision', async () => {
+  const p = page(), run = practice(p); p.value.language = 'en'; p.value.tools.polls.available = [{ id: 'poll', title: 'Other' }]; await settle();
+  assert.equal(p.elements['knowledge-preview'].hidden, false); assert.equal(p.elements['poll-catalog'].children[0].disabled, true);
+  const sample = p.elements['knowledge-sample']; assert.equal(sample.children[1].textContent, '<Question>');
+  const first = sample.children[2].children.find(b => b.textContent === '<First>'); assert.ok(first); first.fire('click'); await settle();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).options.body), { action: 'knowledge', expectedRevision: 0, runId: p.value.runId, command: 'answer', executionId: run.id, questionId: 'one', optionId: 'a' });
+  p.state({ status: 'denied' }); assert.equal(p.elements['knowledge-tools'].hidden, true); assert.equal(p.elements['knowledge-sample'].children.length, 0); assert.equal(p.elements['knowledge-preview'].hidden, true);
+});
+test('knowledge catalog opens a private run and a grade arriving before reveal fails closed', async () => {
+  const p = page(), run = practice(p, 'assessment', 'LOBBY'); await settle();
+  p.elements['knowledge-controls'].children[0].fire('click'); await settle();
+  assert.equal(JSON.parse(p.calls.at(-1).options.body).command, 'start');
+  p.value.tools.knowledge.sample.personalResult = { grade: 100 }; p.ready(); await settle();
+  assert.equal(p.elements.rehearsal.hidden, true); assert.equal(p.elements['knowledge-preview'].hidden, true);
+  assert.ok(run.id);
 });

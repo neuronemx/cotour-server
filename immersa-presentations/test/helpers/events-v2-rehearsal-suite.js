@@ -8,7 +8,7 @@ const { EventRehearsal } = require('../../events-v2/rehearsal');
 const { createEventRehearsalRouter } = require('../../events-v2/rehearsal-http');
 
 async function rehearsalSuite(t, f) {
-  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime } = f;
+  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime, knowledgeRuntime } = f;
   let enabled = true;
   const rehearsal = new EventRehearsal({ grants, content, enabled: () => enabled });
   const app = express(); app.use(express.json()); app.use('/api/events-v2', createEventRehearsalRouter({ rehearsal, enabled: () => enabled }));
@@ -33,7 +33,7 @@ async function rehearsalSuite(t, f) {
   const counts = async () => {
     const out = {};
     for (const table of ['event_live_sessions', 'event_live_content', 'event_participants', 'event_v2_reaction_counts', 'presentation_reaction_counts',
-      'event_v2_qna_sessions', 'event_v2_qna_rounds', 'event_v2_qna_questions', 'event_v2_qna_projection', 'presentation_sessions', 'qna_rounds', 'qna_questions'])
+      'event_v2_knowledge_sessions', 'event_v2_knowledge_executions', 'event_v2_knowledge_participants', 'event_v2_knowledge_participant_orders', 'event_v2_knowledge_answers', 'event_v2_knowledge_results', 'event_v2_knowledge_commands', 'event_v2_qna_sessions', 'event_v2_qna_rounds', 'event_v2_qna_questions', 'event_v2_qna_projection', 'presentation_sessions', 'qna_rounds', 'qna_questions'])
       out[table] = Number((await sql('SELECT COUNT(*) n FROM ' + table))[0].n);
     return out;
   };
@@ -116,6 +116,35 @@ async function rehearsalSuite(t, f) {
       await command({ command: 'close', pollRunId }); assert.equal(current.tools.polls.active, null);
       assert.deepEqual(await counts(), before); assert.deepEqual(pollRuntime.states.get('evt:' + a + ':live:' + liveId), liveState);
       assert.equal((await sql('SELECT status FROM event_activities WHERE id=?', [activity]))[0].status, 'LIVE');
+    });
+    await t.test('private Trivia and Assessment commands preserve real SQL knowledge, answers and live state and reject supplied identities', async () => {
+      const before = await counts(), state = structuredClone(runtime.states.get('evt:' + a + ':live:' + liveId));
+      const liveKnowledge = () => grants.withSession({ eventId: a, grantId: stage.context.grantId, sessionToken: stage.sessionToken }, (c, db) => knowledgeRuntime.projection(c, db, liveId));
+      const liveBefore = await liveKnowledge(); let current = (await json(first)).body;
+      const command = async input => {
+        const response = await json(first, 'POST', { action: 'knowledge', expectedRevision: current.revision, runId: current.runId, ...input });
+        assert.equal(response.status, 200, JSON.stringify(response.body)); current = response.body; return current.tools.knowledge;
+      };
+      for (const definitionId of ['quiz-a', 'assessment-practice']) {
+        await command({ command: 'open', definitionId }); const executionId = current.tools.knowledge.executionId;
+        assert.equal((await json(second)).body.tools.knowledge.screen, null);
+        const body = { action: 'knowledge', expectedRevision: current.revision, runId: current.runId, executionId };
+        assert.equal((await json(first, 'POST', { ...body, command: 'answer', questionId: 'q-a', optionId: 'a', participantId: crypto.randomUUID() })).status, 400);
+        assert.equal((await json(first, 'POST', { ...body, command: 'start', nowMs: Date.now() + 999999 })).status, 400);
+        assert.equal((await json(first, 'POST', { ...body, command: 'start', executionId: crypto.randomUUID() })).body.code, 'REHEARSAL_KNOWLEDGE_STALE_EXECUTION');
+        assert.equal((await json(first, 'POST', { action: 'poll', expectedRevision: current.revision, runId: current.runId, command: 'launch', interactionId: 'poll-a' })).body.code, 'REHEARSAL_INTERACTION_BUSY');
+        await command({ command: 'start', executionId }); assert.equal(current.tools.knowledge.screen.state, 'COUNTDOWN');
+        await command({ command: 'finalize', executionId });
+        await new Promise(resolve => setTimeout(resolve, 3100)); current = (await json(first)).body;
+        assert.ok(['RESULTS_READY', 'RESULTS_VISIBLE'].includes(current.tools.knowledge.screen.state));
+        if (definitionId === 'assessment-practice') { assert.equal(current.tools.knowledge.sample.personalResult, null); await command({ command: 'show_results', executionId }); }
+        await command({ command: 'close', executionId }); assert.equal(current.tools.knowledge.screen, null);
+      }
+      await command({ command: 'open', definitionId: 'quiz-a' }); const oldRun = current.runId, oldExecution = current.tools.knowledge.executionId;
+      const reset = await json(first, 'POST', { action: 'reset', expectedRevision: current.revision }); assert.equal(reset.status, 200); current = reset.body;
+      assert.equal(current.tools.knowledge.screen, null);
+      assert.equal((await json(first, 'POST', { action: 'knowledge', expectedRevision: current.revision, runId: oldRun, executionId: oldExecution, command: 'start' })).body.code, 'REHEARSAL_EXPIRED');
+      assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveKnowledge(), liveBefore);
     });
     await t.test('private media verifies real selected bytes before HEAD/304 and denies other runs, grants, events and stale URLs', async () => {
       const current = (await json(first)).body, resource = current.tools.media[0], url = resource.url;

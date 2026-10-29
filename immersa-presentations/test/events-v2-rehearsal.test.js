@@ -153,3 +153,46 @@ test('Q&A authorization, revision, run and commit fences apply before publishing
   f.deny(true); await assert.rejects(f.rehearsal.operate(a, 'qna', input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
   f.ticket.binding.revision++; await assert.rejects(f.rehearsal.operate(a, 'qna', input), { code: 'REHEARSAL_VERSION_CHANGED' });
 });
+const knowledgeDefinition = category => ({ id: category, category, title: 'Practice', identificationMode: 'anonymous', questionDurationSeconds: 5, durationSeconds: 30,
+  questions: [{ id: 'own-question', prompt: 'Pick', options: [{ id: 'a', label: 'A', correct: true }, { id: 'b', label: 'B' }] }] });
+test('knowledge rehearsal excludes polls, keeps Q&A independent and publishes automatic transitions only after authorization commit', async () => {
+  const f = fixture(), a = f.credential(), b = f.credential(); f.rehearsal.idleMs = 60000;
+  f.ticket.configuration = { polls: [poll], knowledge: [knowledgeDefinition('contest'), knowledgeDefinition('assessment')] };
+  let v = await f.rehearsal.operate(a);
+  const op = async (action, input) => { v = await f.rehearsal.operate(a, action, { expectedRevision: v.revision, runId: v.runId, executionId: v.tools.knowledge.executionId, ...input }); return v; };
+  await op('knowledge', { command: 'open', definitionId: 'contest' });
+  assert.equal((await f.rehearsal.operate(b)).tools.knowledge.screen, null);
+  await assert.rejects(op('poll', { command: 'launch', interactionId: poll.id }), { code: 'REHEARSAL_INTERACTION_BUSY' });
+  await op('qna', { command: 'open' }); assert.ok(v.tools.qna.roundId);
+  await op('knowledge', { command: 'start' }); const before = v.revision; f.advance(4700);
+  f.commitFail(true); await assert.rejects(f.rehearsal.operate(a)); f.commitFail(false);
+  assert.equal(f.rehearsal.states.get(f.eventId + ':' + a.grantId).knowledge.state, 'COUNTDOWN');
+  v = await f.rehearsal.operate(a); assert.equal(v.tools.knowledge.screen.state, 'ACTIVE'); assert.equal(v.revision, before + 1);
+  await op('knowledge', { command: 'answer', questionId: 'own-question', optionId: 'a' });
+  await op('knowledge', { command: 'cancel' }); assert.equal(v.tools.knowledge.screen, null); assert.ok(v.tools.qna.roundId);
+  await op('poll', { command: 'launch', interactionId: poll.id });
+  await assert.rejects(op('knowledge', { command: 'open', definitionId: 'assessment' }), { code: 'REHEARSAL_INTERACTION_BUSY' });
+  await op('poll', { command: 'close', pollRunId: v.tools.polls.runId });
+  await op('knowledge', { command: 'open', definitionId: 'assessment' }); const executionId = v.tools.knowledge.executionId, runId = v.runId;
+  await op('reset', {}); assert.equal(v.tools.knowledge.screen, null);
+  await assert.rejects(op('knowledge', { command: 'start', executionId, runId }), { code: 'REHEARSAL_EXPIRED' });
+});
+test('question images reauthorize, verify bytes and deny old executions, hidden questions and tampered bundles', async () => {
+  const f = fixture(), a = f.credential(), assetId = crypto.randomUUID(); f.rehearsal.idleMs = 60000;
+  const def = knowledgeDefinition('assessment'); def.questions[0].imageAssetId = assetId;
+  f.ticket.configuration = { knowledge: [def] }; f.ticket.snapshot.images = [{ id: assetId }];
+  f.content.interactionImageMetadata = () => [{ id: assetId, width: 64, height: 32 }];
+  let reads = 0; f.content.preparedInteractionImage = async () => { reads++; return { verified: true, open() {} }; };
+  let v = await f.rehearsal.operate(a);
+  const op = async input => { v = await f.rehearsal.operate(a, 'knowledge', { expectedRevision: v.revision, runId: v.runId, executionId: v.tools.knowledge.executionId, ...input }); };
+  await op({ command: 'open', definitionId: 'assessment' });
+  const input = { runId: v.runId, executionId: v.tools.knowledge.executionId, digest: 'a'.repeat(64), assetId };
+  await assert.rejects(f.rehearsal.questionImage(a, input), { code: 'REHEARSAL_IMAGE_DENIED' });
+  await op({ command: 'start' }); f.advance(4700); v = await f.rehearsal.operate(a);
+  await f.rehearsal.questionImage(a, input); assert.equal(reads, 1);
+  for (const wrong of [{ executionId: crypto.randomUUID() }, { digest: 'f'.repeat(64) }, { assetId: crypto.randomUUID() }])
+    await assert.rejects(f.rehearsal.questionImage(a, { ...input, ...wrong }), { code: 'REHEARSAL_IMAGE_DENIED' });
+  f.deny(true); await assert.rejects(f.rehearsal.questionImage(a, input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
+  await op({ command: 'answer', questionId: 'own-question', optionId: 'a' }); await op({ command: 'submit' });
+  await assert.rejects(f.rehearsal.questionImage(a, input), { code: 'REHEARSAL_IMAGE_DENIED' }); assert.equal(reads, 1);
+});

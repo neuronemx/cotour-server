@@ -4,6 +4,7 @@ const { normalizePolls } = require('./poll-runtime');
 const { normalizeAV } = require('./av-runtime');
 const { EventAccessError } = require('./authorization');
 const qna = require('./rehearsal-qna');
+const knowledge = require('./rehearsal-knowledge');
 const fail = code => { throw new EventAccessError(code, 409); };
 const session = 'private-rehearsal', sample = 'private-sample';
 
@@ -47,7 +48,7 @@ function operatePoll(previous, definitions, input) {
 function projection(candidate, state, root, now = Date.now()) {
   const { polls, av } = catalogs(candidate), store = storeFor(state.poll), raw = store.getState(session, sample);
   const active = raw.active ? Object.fromEntries(['id', 'title', 'prompt', 'options', 'en'].map(k => [k, structuredClone(raw.active[k])])) : null;
-  return { qna: qna.projection(state.qna, now), polls: { available: polls.map(({ id, title }) => ({ id, title })), runId: state.poll?.runId || null,
+  return { knowledge: knowledge.projection(candidate, state.knowledge, root, state.runId, now), qna: qna.projection(state.qna, now), polls: { available: polls.map(({ id, title }) => ({ id, title })), runId: state.poll?.runId || null,
     active, responded: !!raw.response, resultsVisible: raw.resultsVisible,
     results: raw.resultsVisible ? store.getResults(session) : null },
   media: av.resources.map(({ id, assetId, name, type, duration }) => ({ id, name, type, duration,

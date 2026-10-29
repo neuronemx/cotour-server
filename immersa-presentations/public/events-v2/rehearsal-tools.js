@@ -70,7 +70,7 @@
     function renderPoll() {
       const p = view.tools.polls, language = view.language;
       const translated = (es, en) => language === 'en' && en ? en : es;
-      $('poll-catalog').replaceChildren(...p.available.map(item => button(item.title, () => sendPoll({ command: 'launch', interactionId: item.id }), !!p.active)));
+      $('poll-catalog').replaceChildren(...p.available.map(item => button(item.title, () => sendPoll({ command: 'launch', interactionId: item.id }), !!p.active || !!view.tools.knowledge?.executionId)));
       if (!p.available.length) { const empty = document.createElement('p'); empty.textContent = 'Esta versión no tiene Encuestas.'; $('poll-catalog').replaceChildren(empty); }
       const preview = $('poll-preview'); preview.replaceChildren(); preview.hidden = !p.active;
       if (!p.active) return;
