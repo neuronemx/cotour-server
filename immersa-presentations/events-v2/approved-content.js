@@ -88,9 +88,13 @@ class EventApprovedContent {
   const bytes=await service.store.image(row,m[2],m[3]);if(bytes.length!==resource.size||digest(bytes)!==resource.sha256)fail();
   return{verified:true,size:bytes.length,sha256:resource.sha256,contentType:resource.contentType,open:async(start,end)=>Readable.from([bytes.subarray(start,end+1)])};
  }
- async imageResources(live,db){const c=await this.load(live,db);return c.snapshot.images.map(row=>this.configurations.images.metadata(row));}
+ interactionImageMetadata(c){return c.snapshot.images.map(row=>this.configurations.images.metadata(row));}
+ async imageResources(live,db){return this.interactionImageMetadata(await this.load(live,db));}
  async readInteractionImage(live,id,db){
-  const c=await this.load(live,db),row=c.snapshot.images.find(row=>row.id===id);if(!row)fail();
+  return this.preparedInteractionImage(await this.load(live,db),id);
+ }
+ async preparedInteractionImage(c,id){
+  const row=c.snapshot.images.find(row=>row.id===id);if(!row)fail();
   const service=this.configurations.images,metadata=service.metadata(row),handle=await service.store.verified(row),parts=[];
   try{for await(const chunk of handle.createReadStream({start:0,end:row.size-1,autoClose:false}))parts.push(chunk);}finally{await handle.close();}
   const bytes=Buffer.concat(parts);if(bytes.length!==row.size||digest(bytes)!==row.sha256)fail();this.preparations.checkEnabled();

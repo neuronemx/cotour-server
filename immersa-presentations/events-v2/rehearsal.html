@@ -2,12 +2,12 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
 <title>Ensayo privado · IMMERSA Eventos</title><link rel="stylesheet" href="/events-v2/rehearsal.css">
 <script defer src="/events-v2/av-console.js"></script><script defer src="/events-v2/access-client.js"></script>
-<script defer src="/socket.io/socket.io.js"></script><script defer src="/events-v2/rehearsal-tools.js"></script><script defer src="/events-v2/rehearsal-qna.js"></script><script defer src="/events-v2/rehearsal-page.js"></script></head>
+<script defer src="/socket.io/socket.io.js"></script><script defer src="/events-v2/rehearsal-tools.js"></script><script defer src="/events-v2/rehearsal-qna.js"></script><script defer src="/events-v2/rehearsal-knowledge.js"></script><script defer src="/events-v2/rehearsal-page.js"></script></head>
 <body><main><header><p class="eyebrow">IMMERSA · Ensayo privado</p><h1 id="event-name">Verificando acceso…</h1>
-<p>Practica los slides, tu apuntador, las Encuestas, Q&amp;A y el audiovisual. Este ensayo no cambia la presentación en vivo ni registra participación real.</p></header>
+<p>Practica los slides, tu apuntador, las Encuestas, Q&amp;A, Trivias, Evaluaciones y el audiovisual. Este ensayo no cambia la presentación en vivo ni registra participación real.</p></header>
 <p id="status" role="status">Verificando acceso…</p><button id="retry" hidden>Volver a conectar</button>
 <section id="rehearsal" hidden><h2 id="title"></h2><div class="preview"><img id="slide" alt="Slide del ensayo" hidden>
-<video id="rehearsal-video" controls playsinline preload="metadata" hidden></video><section id="poll-preview" aria-label="Encuesta de ensayo" hidden></section><section id="qna-preview" aria-label="Pregunta Q&A de ensayo" hidden></section></div>
+<video id="rehearsal-video" controls playsinline preload="metadata" hidden></video><section id="poll-preview" aria-label="Encuesta de ensayo" hidden></section><section id="knowledge-preview" aria-label="Trivia o Evaluación de ensayo" hidden></section><section id="qna-preview" aria-label="Pregunta Q&A de ensayo" hidden></section></div>
 <nav aria-label="Controles del ensayo"><button id="prev">Anterior</button><strong id="position"></strong><button id="next">Siguiente</button>
 <label id="language-label" hidden>Idioma <select id="language"><option value="es">Español</option><option value="en">inglés</option></select></label></nav>
 <aside><h2>Apuntador</h2><p id="notes"></p></aside>
@@ -16,11 +16,12 @@
 <label class="loop"><input id="media-loop" type="checkbox"> Repetir medio o lista</label>
 <p id="media-status" role="status"></p><audio id="rehearsal-audio" controls preload="metadata" hidden></audio>
 <div class="catalog"><button id="stop-audio">Detener audio</button><button id="stop-video">Detener video</button></div></section>
+<section id="knowledge-tools" hidden><h2>Trivias y Evaluaciones</h2><p>Practica con una persona de prueba. Las respuestas y resultados se descartan al cerrar o reiniciar.</p><div id="knowledge-catalog" class="catalog"></div><p id="knowledge-clock" role="timer"></p><div id="knowledge-controls" class="catalog"></div><section id="knowledge-sample" aria-label="Respuestas de prueba"></section></section>
 <section id="qna-tools" hidden><h2>Q&amp;A</h2><p>Sólo preguntas de prueba dentro de este ensayo.</p><button id="qna-open">Abrir Q&amp;A del ensayo</button>
 <section id="qna-panel" hidden><p id="qna-intake-status"></p><div class="catalog"><button id="qna-intake">Cerrar recepción de preguntas</button><button id="qna-round">Nueva ronda de prueba</button><button id="qna-hide">Ocultar pregunta proyectada</button></div>
 <label for="qna-question">Pregunta de prueba</label><textarea id="qna-question" maxlength="1000" rows="3"></textarea>
 <label for="qna-name">Nombre de prueba (opcional)</label><input id="qna-name" maxlength="120" autocomplete="off">
 <label class="loop"><input id="qna-name-visible" type="checkbox"> Mostrar este nombre al proyectar en el ensayo</label>
 <button id="qna-submit">Añadir pregunta de prueba</button><p id="qna-cooldown"></p><p id="qna-status" role="status"></p><div id="qna-list"></div></section></section></section>
-<button id="reset" hidden>Reiniciar ensayo</button><p class="hint">Trivias, Evaluaciones, Sorteos y Juegos del ensayo estarán disponibles en una actualización posterior.</p>
+<button id="reset" hidden>Reiniciar ensayo</button><p class="hint">Sorteos del ensayo sigue en preparación. Juegos queda para la siguiente actualización.</p>
 </main></body></html>

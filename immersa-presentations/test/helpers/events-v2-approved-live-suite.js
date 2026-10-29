@@ -14,6 +14,7 @@ async function approvedLiveSuite(t,f){
  async function prepare(rich=false){const r=await request('producer','POST',root+'/decks',{title:'Approved live fixture'});assert.equal(r.status,201);const d=r.body;own.push(d.id);const s=scope(d);
   await prep.upload(ids.get('producer'),s,pdfFixture());await english.upload(ids.get('producer'),s,pdfFixture(2,[0,0,1]));const audio=await media.upload(ids.get('producer'),s,'WAV',wavFixture());
   const input=configurationFixture();input.language={englishEnabled:true,presenterLanguage:'es'};input.slides[0].notes.en='Private English notes';input.audiovisual={assetIds:[audio.id],playlists:[]};
+  input.knowledge.push({id:'assessment-practice',category:'assessment',title:'Evaluación de ensayo',identificationMode:'required_name',durationSeconds:30,questions:[{id:'assessment-question',prompt:'Elige una',options:[{id:'a',label:'Primera',correct:true},{id:'b',label:'Segunda'}]}]});
   if(rich){const image=await images.upload(ids.get('producer'),s,'PNG',await imageFixture());input.knowledge[0].questions[0].imageAssetId=image.id;}
   d.configuration=await configs.create(ids.get('producer'),s,input);d.audio=audio;return d;
  }
