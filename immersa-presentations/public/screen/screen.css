@@ -115,6 +115,7 @@
 }
 .audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
 .audiovisual-screen-layer .audiovisual-video-slot.is-webm { background:transparent; }
+.audiovisual-screen-layer.is-video,
 .audiovisual-screen-layer.is-fx { z-index:10; pointer-events:none; }
 
 
