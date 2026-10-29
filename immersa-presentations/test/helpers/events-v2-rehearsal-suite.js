@@ -9,8 +9,9 @@ const { createEventRehearsalRouter } = require('../../events-v2/rehearsal-http')
 
 async function rehearsalSuite(t, f) {
   const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime, knowledgeRuntime } = f;
-  let enabled = true;
-  const rehearsal = new EventRehearsal({ grants, content, enabled: () => enabled });
+  let enabled = true, clockOffset = 0;
+  const rehearsalGrants = { now: () => new Date(grants.now().getTime() + clockOffset), withBrowser: (...args) => grants.withBrowser(...args) };
+  const rehearsal = new EventRehearsal({ grants: rehearsalGrants, content, enabled: () => enabled });
   const app = express(); app.use(express.json()); app.use('/api/events-v2', createEventRehearsalRouter({ rehearsal, enabled: () => enabled }));
   const server = http.createServer(app); await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + server.address().port, own = [];
@@ -135,7 +136,7 @@ async function rehearsalSuite(t, f) {
         assert.equal((await json(first, 'POST', { action: 'poll', expectedRevision: current.revision, runId: current.runId, command: 'launch', interactionId: 'poll-a' })).body.code, 'REHEARSAL_INTERACTION_BUSY');
         await command({ command: 'start', executionId }); assert.equal(current.tools.knowledge.screen.state, 'COUNTDOWN');
         await command({ command: 'finalize', executionId });
-        await new Promise(resolve => setTimeout(resolve, 3100)); current = (await json(first)).body;
+        clockOffset += 3100; current = (await json(first)).body;
         assert.ok(['RESULTS_READY', 'RESULTS_VISIBLE'].includes(current.tools.knowledge.screen.state));
         if (definitionId === 'assessment-practice') { assert.equal(current.tools.knowledge.sample.personalResult, null); await command({ command: 'show_results', executionId }); }
         await command({ command: 'close', executionId }); assert.equal(current.tools.knowledge.screen, null);
@@ -145,6 +146,7 @@ async function rehearsalSuite(t, f) {
       assert.equal(current.tools.knowledge.screen, null);
       assert.equal((await json(first, 'POST', { action: 'knowledge', expectedRevision: current.revision, runId: oldRun, executionId: oldExecution, command: 'start' })).body.code, 'REHEARSAL_EXPIRED');
       assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveKnowledge(), liveBefore);
+      clockOffset = 0;
     });
     await t.test('private media verifies real selected bytes before HEAD/304 and denies other runs, grants, events and stale URLs', async () => {
       const current = (await json(first)).body, resource = current.tools.media[0], url = resource.url;
