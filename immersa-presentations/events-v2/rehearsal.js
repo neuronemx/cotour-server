@@ -4,6 +4,7 @@ const { isId } = require('./grant-repository');
 const tools = require('./rehearsal-tools');
 const qna = require('./rehearsal-qna');
 const knowledge = require('./rehearsal-knowledge');
+const raffle = require('./rehearsal-raffle');
 
 const fail = (code, status = 403, revision) => { const e = new EventAccessError(code, status); if (Number.isSafeInteger(revision)) e.currentRevision = revision; throw e; };
 const fingerprint = c => [c.scope.deckId, c.scope.versionId, c.binding.revision,
@@ -68,7 +69,7 @@ class EventRehearsal {
         if (verified && verified !== fingerprint(candidate)) fail('REHEARSAL_VERSION_CHANGED', 409);
         const catalog = await this.content.slides(candidate), previous = action === 'reset'
           ? this.states.get(this.key(context)) : this.current(context, candidate);
-        if (!['snapshot', 'next', 'prev', 'go', 'reset', 'language', 'poll', 'qna', 'knowledge'].includes(action)) fail('INVALID_INPUT', 400);
+        if (!['snapshot', 'next', 'prev', 'go', 'reset', 'language', 'poll', 'qna', 'knowledge', 'raffle'].includes(action)) fail('INVALID_INPUT', 400);
         if (action !== 'snapshot' && (!Number.isSafeInteger(input.expectedRevision)
           || input.expectedRevision !== (previous?.revision || 0))) fail('REHEARSAL_REVISION_CONFLICT', 409, previous?.revision || 0);
         if (!previous && !verified) fail('REHEARSAL_EXPIRED', 409);
@@ -79,6 +80,8 @@ class EventRehearsal {
         const now = this.grants.now().getTime();
         const advanced = action === 'reset' ? null : knowledge.advance(previous?.knowledge, now);
         if (advanced) next.knowledge = advanced;
+        const advancedRaffle = action === 'reset' ? null : raffle.advance(previous?.raffle, now);
+        if (advancedRaffle) next.raffle = advancedRaffle;
         if (action === 'go') {
           if (!Number.isSafeInteger(input.slideIndex) || input.slideIndex < 0 || input.slideIndex >= catalog.slides.length) fail('INVALID_INPUT', 400);
           next.slideIndex = input.slideIndex;
@@ -90,7 +93,7 @@ class EventRehearsal {
         }
         if (action === 'poll') {
           if (input.runId !== next.runId) fail('REHEARSAL_EXPIRED', 409);
-          if (input.command === 'launch' && knowledge.active(next.knowledge)) fail('REHEARSAL_INTERACTION_BUSY', 409);
+          if (input.command === 'launch' && (knowledge.active(next.knowledge) || raffle.active(next.raffle))) fail('REHEARSAL_INTERACTION_BUSY', 409);
           next.poll = tools.operatePoll(previous?.poll, tools.catalogs(candidate).polls, input);
         }
         if (action === 'qna') {
@@ -99,10 +102,15 @@ class EventRehearsal {
         }
         if (action === 'knowledge') {
           if (input.runId !== next.runId) fail('REHEARSAL_EXPIRED', 409);
-          if (input.command === 'open' && previous?.poll?.runId) fail('REHEARSAL_INTERACTION_BUSY', 409);
+          if (input.command === 'open' && (previous?.poll?.runId || raffle.active(next.raffle))) fail('REHEARSAL_INTERACTION_BUSY', 409);
           next.knowledge = knowledge.operate(next.knowledge, knowledge.definitions(candidate), input, now);
         }
-        if (action !== 'snapshot' || (advanced && advanced !== previous?.knowledge)) next.revision++;
+        if (action === 'raffle') {
+          if (input.runId !== next.runId) fail('REHEARSAL_EXPIRED', 409);
+          if (input.command === 'open' && (previous?.poll?.runId || knowledge.active(next.knowledge))) fail('REHEARSAL_INTERACTION_BUSY', 409);
+          next.raffle = raffle.operate(next.raffle, raffle.definitions(candidate), input, now);
+        }
+        if (action !== 'snapshot' || (advanced && advanced !== previous?.knowledge) || (advancedRaffle && advancedRaffle !== previous?.raffle)) next.revision++;
         next.expires = Math.min(Date.parse(context.expiresAt), this.grants.now().getTime() + this.idleMs);
         this.check(context);
         const variant = catalog.slides[next.slideIndex][next.language];
@@ -143,6 +151,16 @@ class EventRehearsal {
       const run = knowledge.advance(state.knowledge, this.grants.now().getTime());
       if (candidate.snapshot.bundleDigest !== digest || !run || run.id !== executionId
         || !knowledge.visibleAssetIds(candidate, run, this.grants.now().getTime()).includes(assetId)) fail('REHEARSAL_IMAGE_DENIED');
+      const descriptor = await this.content.preparedInteractionImage(candidate, assetId);
+      if (!descriptor?.verified || typeof descriptor.open !== 'function') fail('CONTENT_NOT_PREPARED');
+      this.check(context); return { descriptor, resource: descriptor };
+    }));
+  }
+  async raffleImage(credentials, { runId, digest, executionId, assetId }) {
+    return this.serial(this.key(credentials), () => this.grants.withBrowser(credentials, async (context, db) => {
+      const candidate = await this.candidate(context, db), state = this.current(context, candidate);
+      if (!state || state.runId !== runId) fail('REHEARSAL_EXPIRED', 409);
+      if (digest !== candidate.snapshot.bundleDigest || !raffle.allowedImage(candidate, state.raffle, executionId, assetId)) fail('REHEARSAL_IMAGE_DENIED');
       const descriptor = await this.content.preparedInteractionImage(candidate, assetId);
       if (!descriptor?.verified || typeof descriptor.open !== 'function') fail('CONTENT_NOT_PREPARED');
       this.check(context); return { descriptor, resource: descriptor };

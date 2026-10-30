@@ -2,11 +2,12 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let access, binding, snapshot, revision = 0, ready = false, pending = false, generation = 0;
-  let requestController, tools, qnaTools, knowledgeTools, refreshTimer;
+  let requestController, tools, qnaTools, knowledgeTools, raffleTools, refreshTimer;
   function clear() {
     clearTimeout(refreshTimer);
     tools?.clear();
     knowledgeTools?.clear();
+    raffleTools?.clear();
     qnaTools?.clear();
     $('rehearsal').hidden = true; $('slide').hidden = true; $('slide').removeAttribute('src');
     $('notes').textContent = ''; $('position').textContent = '';
@@ -15,6 +16,7 @@
     tools?.setPending(!ready || pending);
     qnaTools?.setPending(!ready || pending);
     knowledgeTools?.setPending(!ready || pending);
+    raffleTools?.setPending(!ready || pending);
     for (const id of ['prev', 'next', 'language', 'reset']) $(id).disabled = !ready || pending;
     if (snapshot) { $('prev').disabled ||= snapshot.slideIndex === 0; $('next').disabled ||= snapshot.slideIndex + 1 >= snapshot.slideCount; }
   }
@@ -23,8 +25,12 @@
     CONTENT_NOT_PREPARED: 'Producción debe preparar, aprobar y asociar la versión antes del ensayo.',
     REHEARSAL_EXPIRED: 'El ensayo venció. Pulsa Volver a conectar para abrirlo de nuevo.',
     REHEARSAL_BUSY: 'No se pudo abrir el ensayo en este momento. Inténtalo de nuevo.',
-    REHEARSAL_INTERACTION_BUSY: 'Cierra la Encuesta, Trivia o Evaluación de prueba actual antes de abrir otra.',
+    REHEARSAL_INTERACTION_BUSY: 'Cierra la Encuesta, Trivia, Evaluación o Sorteo de prueba actual antes de abrir otro.',
     REHEARSAL_KNOWLEDGE_STALE_EXECUTION: 'Esta prueba terminó o fue reemplazada. Vuelve a conectar.',
+    REHEARSAL_RAFFLE_NO_ENTRIES: 'Añade participaciones de prueba válidas antes de cerrar.',
+    REHEARSAL_RAFFLE_NO_ELIGIBLE_ENTRIES: 'Las personas de prueba ya ganaron. Reinicia ganadores para practicar otra selección.',
+    REHEARSAL_RAFFLE_LIMIT: 'El ensayo admite hasta 20 personas de prueba. Reinicia el ensayo para descartarlas.',
+    REHEARSAL_RAFFLE_STALE_EXECUTION: 'El Sorteo de prueba cambió. Vuelve a conectar.',
     REHEARSAL_POLL_ACTIVE: 'Cierra la Encuesta actual antes de abrir otra.',
     REHEARSAL_SAMPLE_ALREADY_USED: 'La respuesta de prueba ya se usó. Cierra y vuelve a abrir la Encuesta para repetirla.',
     REHEARSAL_QNA_CLOSED: 'La recepción de preguntas de prueba está cerrada.',
@@ -55,13 +61,16 @@
       tools.update(value, path);
       qnaTools.update(value);
       knowledgeTools.update(value, path);
+      raffleTools.update(value, path);
       $('title').textContent = value.title; $('position').textContent = 'Slide ' + (value.slideIndex + 1) + ' de ' + value.slideCount;
       $('notes').textContent = value.notes || 'Este slide no tiene apuntador.';
       $('language-label').hidden = !value.englishEnabled; $('language').value = value.language;
       $('slide').src = image.href; $('slide').hidden = false; $('rehearsal').hidden = false;
       $('status').textContent = 'Ensayo privado listo.'; $('reset').hidden = false; $('retry').hidden = true;
-      const deadline = value.tools.knowledge.nextDeadlineAt, serverNow = Date.parse(value.tools.knowledge.screen?.serverNow);
-      if (Number.isSafeInteger(deadline) && Number.isFinite(serverNow)) {
+      const deadlines = [[value.tools.knowledge.nextDeadlineAt, Date.parse(value.tools.knowledge.screen?.serverNow)],
+        [value.tools.raffle.nextDeadlineAt, value.tools.raffle.serverNow]].filter(([deadline, now]) => Number.isSafeInteger(deadline) && Number.isFinite(now));
+      if (deadlines.length) {
+        const [deadline, serverNow] = deadlines.sort((a, b) => (a[0] - a[1]) - (b[0] - b[1]))[0];
         refreshTimer = setTimeout(() => { if (epoch === generation && ready && !pending) operate(); }, Math.max(100, Math.min(60000, deadline - serverNow + 50)));
         refreshTimer?.unref?.();
       }
@@ -83,6 +92,8 @@
       send: input => operate('qna', { runId: snapshot?.runId, ...input }) });
     knowledgeTools = window.ImmersaEventRehearsalKnowledge.create({ document,
       send: input => operate('knowledge', { runId: snapshot?.runId, ...input }) });
+    raffleTools = window.ImmersaEventRehearsalRaffle.create({ document,
+      send: input => operate('raffle', { runId: snapshot?.runId, ...input }) });
     access = window.ImmersaEventAccess.createClient({ binding, fetch: window.fetch.bind(window), io: window.io, onState(state) {
       generation++; clearTimeout(refreshTimer); requestController?.abort(); pending = false;
       ready = state.status === 'ready' && state.context?.purpose === 'rehearsal';

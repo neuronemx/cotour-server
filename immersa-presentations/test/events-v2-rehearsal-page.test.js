@@ -23,7 +23,7 @@ function page() {
   window.ImmersaEventAccess = { consumeLink: () => ({ binding: { view: 'rehearsal', eventId, grantId }, token: null }), createClient(options) { callback = options.onState; return client; } };
   const value = { mode: 'rehearsal', eventId, activityId, revision: 0, title: '<private title>', notes: '<private notes>',
     slideIndex: 0, slideCount: 2, language: 'es', englishEnabled: true, runId: '00000000-0000-4000-8000-000000000004',
-    tools: { knowledge: { available: [], executionId: null, definitionId: null, screen: null, sample: null, nextDeadlineAt: null }, qna: { roundId: null, roundNumber: 0, questionsOpen: false, questions: [], selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 }, polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
+    tools: { raffle: { available: [], raffleRunId: null, controller: null, screen: null, samples: [], previousWinnerCount: 0, winners: [], maxSamples: 20, draftDefinitionId: null, draftOptionId: '', nextDeadlineAt: null, serverNow: Date.now() }, knowledge: { available: [], executionId: null, definitionId: null, screen: null, sample: null, nextDeadlineAt: null }, qna: { roundId: null, roundNumber: 0, questionsOpen: false, questions: [], selectedQuestionId: null, screen: { visible: false, question: null }, cooldownRemainingMs: 0, maxQuestions: 20 }, polls: { available: [], runId: null, active: null, responded: false, resultsVisible: false, results: null }, media: [], playlists: [] },
     image: { url: `/api/events-v2/rehearsal/${eventId}/${grantId}/slides/own-run`, width: 16, height: 9 } };
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return response ? response() : { ok: true, json: async () => structuredClone(value) }; };
@@ -31,6 +31,7 @@ function page() {
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-tools.js'), 'utf8'), { window, URL, Promise, Set, Number, Error });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-qna.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-knowledge.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-raffle.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-page.js'), 'utf8'),
     { document, window, fetch, URL, AbortController, setTimeout, clearTimeout, queueMicrotask, Number, Error });
   return { elements, document, window, calls, value, ready,
@@ -182,4 +183,31 @@ test('knowledge catalog opens a private run and a grade arriving before reveal f
   p.value.tools.knowledge.sample.personalResult = { grade: 100 }; p.ready(); await settle();
   assert.equal(p.elements.rehearsal.hidden, true); assert.equal(p.elements['knowledge-preview'].hidden, true);
   assert.ok(run.id);
+});
+function rafflePractice(p) {
+  const r = require('../events-v2/rehearsal-raffle'), candidate = { configuration: { raffles: [{ id: 'own', mode: 'free', title: '<Own raffle>', prompt: 'Participa', options: [] }] }, snapshot: { bundleDigest: 'a'.repeat(64) } };
+  let state;
+  const refresh = () => { p.value.tools.raffle = r.projection(candidate, state, `/api/events-v2/rehearsal/${eventId}/${grantId}`, p.value.runId, Date.now()); };
+  refresh(); return input => { state = r.operate(state, r.definitions(candidate), { raffleRunId: state?.latestRunId, ...input }, Date.now()); refresh(); p.value.revision++; };
+}
+test('raffle opens and admits only a bounded private sample payload, renders names as text and fences competing catalogs', async () => {
+  const p = page(), apply = rafflePractice(p); p.value.tools.polls.available = [{ id: 'poll', title: 'Other poll' }]; await settle();
+  p.response(async () => { apply({ command: 'open', definitionId: 'own' }); return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements['raffle-catalog'].children[0].children[0].fire('click'); await settle();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).options.body), { action: 'raffle', expectedRevision: 0, runId: p.value.runId, command: 'open', definitionId: 'own' });
+  assert.equal(p.elements['raffle-controls'].children[1].disabled, true); assert.equal(p.elements['poll-catalog'].children[0].disabled, true);
+  p.elements['raffle-name'].value = ' <Sample> ';
+  p.response(async () => { apply({ command: 'enter', sampleId: null, name: '<Sample>' }); return { ok: true, json: async () => structuredClone(p.value) }; });
+  p.elements['raffle-enter'].fire('click'); await settle();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).options.body), { action: 'raffle', expectedRevision: 1, runId: p.value.runId,
+    command: 'enter', raffleRunId: p.value.tools.raffle.raffleRunId, sampleId: null, name: '<Sample>' });
+  assert.equal(p.elements['raffle-name'].value, ''); assert.equal(p.elements['raffle-entries'].children[0].textContent, '<Sample> · Boleto 01');
+  assert.equal(p.elements['raffle-controls'].children[1].disabled, false);
+});
+test('lost access erases sample names, choices and previews and cannot reinstall a late accepted raffle sample', async () => {
+  const p = page(), apply = rafflePractice(p); apply({ command: 'open', definitionId: 'own' }); await settle(); let finish;
+  p.elements['raffle-name'].value = 'Late name'; p.response(() => new Promise(resolve => { finish = resolve; })); p.elements['raffle-enter'].fire('click');
+  p.state({ status: 'denied' }); assert.equal(p.elements['raffle-name'].value, ''); assert.equal(p.elements['raffle-preview'].hidden, true);
+  finish({ ok: true, json: async () => p.value }); await settle();
+  assert.equal(p.elements['raffle-tools'].hidden, true); assert.equal(p.elements['raffle-person'].children.length, 0); assert.equal(p.elements['raffle-entries'].children.length, 0);
 });

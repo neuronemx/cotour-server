@@ -8,7 +8,7 @@ const { EventRehearsal } = require('../../events-v2/rehearsal');
 const { createEventRehearsalRouter } = require('../../events-v2/rehearsal-http');
 
 async function rehearsalSuite(t, f) {
-  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime, knowledgeRuntime } = f;
+  const { grants, content, request, sql, ids, o1, a, b, activity, stage, liveId, runtime, deck, prep, media, pollRuntime, qnaRuntime, knowledgeRuntime, raffleRuntime } = f;
   let enabled = true, clockOffset = 0;
   const rehearsalGrants = { now: () => new Date(grants.now().getTime() + clockOffset), withBrowser: (...args) => grants.withBrowser(...args) };
   const rehearsal = new EventRehearsal({ grants: rehearsalGrants, content, enabled: () => enabled });
@@ -34,7 +34,7 @@ async function rehearsalSuite(t, f) {
   const counts = async () => {
     const out = {};
     for (const table of ['event_live_sessions', 'event_live_content', 'event_participants', 'event_v2_reaction_counts', 'presentation_reaction_counts',
-      'event_v2_knowledge_sessions', 'event_v2_knowledge_executions', 'event_v2_knowledge_participants', 'event_v2_knowledge_participant_orders', 'event_v2_knowledge_answers', 'event_v2_knowledge_results', 'event_v2_knowledge_commands', 'event_v2_qna_sessions', 'event_v2_qna_rounds', 'event_v2_qna_questions', 'event_v2_qna_projection', 'presentation_sessions', 'qna_rounds', 'qna_questions'])
+      'event_v2_raffle_sessions', 'event_v2_knowledge_sessions', 'event_v2_knowledge_executions', 'event_v2_knowledge_participants', 'event_v2_knowledge_participant_orders', 'event_v2_knowledge_answers', 'event_v2_knowledge_results', 'event_v2_knowledge_commands', 'event_v2_qna_sessions', 'event_v2_qna_rounds', 'event_v2_qna_questions', 'event_v2_qna_projection', 'presentation_sessions', 'qna_rounds', 'qna_questions'])
       out[table] = Number((await sql('SELECT COUNT(*) n FROM ' + table))[0].n);
     return out;
   };
@@ -146,6 +146,38 @@ async function rehearsalSuite(t, f) {
       assert.equal(current.tools.knowledge.screen, null);
       assert.equal((await json(first, 'POST', { action: 'knowledge', expectedRevision: current.revision, runId: oldRun, executionId: oldExecution, command: 'start' })).body.code, 'REHEARSAL_EXPIRED');
       assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveKnowledge(), liveBefore);
+      clockOffset = 0;
+    });
+    await t.test('free, poll and visual raffle rehearsals use private samples without SQL participation, winner history or changing the live raffle', async () => {
+      const before = await counts(), state = structuredClone(runtime.states.get('evt:' + a + ':live:' + liveId));
+      const liveRaffle = () => grants.withSession({ eventId: a, grantId: stage.context.grantId, sessionToken: stage.sessionToken }, (c, db) => raffleRuntime.projection(c, db, liveId));
+      const liveBefore = await liveRaffle(); let current = (await json(first)).body;
+      const command = async input => {
+        const response = await json(first, 'POST', { action: 'raffle', expectedRevision: current.revision, runId: current.runId, ...input });
+        assert.equal(response.status, 200, JSON.stringify(response.body)); current = response.body; return current.tools.raffle;
+      };
+      for (const definitionId of ['raffle-a', 'raffle-poll', 'raffle-key']) {
+        if (definitionId === 'raffle-key') await command({ command: 'configure_key', definitionId, optionId: 'b' });
+        await command({ command: 'open', definitionId }); const raffleRunId = current.tools.raffle.raffleRunId;
+        const body = { action: 'raffle', expectedRevision: current.revision, runId: current.runId, raffleRunId };
+        assert.equal((await json(first, 'POST', { ...body, command: 'close_entries' })).body.code, 'REHEARSAL_RAFFLE_NO_ENTRIES');
+        assert.equal((await json(first, 'POST', { ...body, command: 'enter', sampleId: null, name: 'Own', participantId: crypto.randomUUID() })).status, 400);
+        assert.equal((await json(first, 'POST', { ...body, command: 'draw', nowMs: Date.now() + 100000 })).status, 400);
+        assert.equal((await json(first, 'POST', { ...body, command: 'enter', sampleId: crypto.randomUUID(), name: 'Foreign' })).body.code, 'REHEARSAL_RAFFLE_SAMPLE_NOT_FOUND');
+        assert.equal((await json(first, 'POST', { action: 'knowledge', expectedRevision: current.revision, runId: current.runId, command: 'open', definitionId: 'quiz-a' })).body.code, 'REHEARSAL_INTERACTION_BUSY');
+        await command({ command: 'enter', raffleRunId, sampleId: null, name: 'Own sample ' + definitionId, ...(definitionId === 'raffle-a' ? {} : { optionId: 'b' }) });
+        assert.equal((await json(second)).body.tools.raffle.samples.length, 0);
+        if (definitionId === 'raffle-key') assert.equal(current.tools.raffle.screen.displayOption.id, 'b');
+        await command({ command: 'close_entries', raffleRunId }); await command({ command: 'draw', raffleRunId });
+        assert.equal(current.tools.raffle.controller.winner, null); assert.equal(current.tools.raffle.screen.winner, undefined);
+        clockOffset += 5000; current = (await json(first)).body;
+        assert.equal(current.tools.raffle.controller.state, 'winner'); assert.equal(current.tools.raffle.screen.winner.name, 'Own sample ' + definitionId);
+        await command({ command: 'close', raffleRunId });
+      }
+      assert.equal(current.tools.raffle.previousWinnerCount, 3);
+      const reset = await json(first, 'POST', { action: 'reset', expectedRevision: current.revision }); assert.equal(reset.status, 200); current = reset.body;
+      assert.equal(current.tools.raffle.samples.length, 0); assert.equal(current.tools.raffle.winners.length, 0);
+      assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveRaffle(), liveBefore);
       clockOffset = 0;
     });
     await t.test('private media verifies real selected bytes before HEAD/304 and denies other runs, grants, events and stale URLs', async () => {
