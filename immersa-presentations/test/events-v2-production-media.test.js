@@ -1,0 +1,14 @@
+const test=require('node:test'),assert=require('node:assert/strict'),editor=require('../public/events-v2/production-media');
+const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),media=(n,type='audio')=>({id:id(n),status:'READY_PENDING_DECK_CHECK',type,name:'Recurso '+n,duration:20,size:100});
+test('Empty selection remains empty across refresh and uploaded resources are never selected implicitly',()=>{
+ const state=editor.create([media(1)]);assert.deepEqual(editor.serialize(state),{assetIds:[],playlists:[]});editor.refresh(state,[media(1),media(2)]);assert.deepEqual(editor.serialize(state),{assetIds:[],playlists:[]});editor.select(state,id(2),true);assert.deepEqual(editor.serialize(state).assetIds,[id(2)]);editor.select(state,id(2),false);assert.deepEqual(editor.serialize(state).assetIds,[]);
+});
+test('Playlist drafts survive refresh; invalid or mixed lists cannot be sealed and references cannot be silently removed',()=>{
+ const state=editor.create([media(1),media(2,'video')]);editor.select(state,id(1),true);const list=editor.addPlaylist(state,'audio');editor.refresh(state,[media(1),media(2,'video'),media(3)]);assert.equal(state.playlists[0],list);assert.throws(()=>editor.serialize(state),/nombre/);list.name='Entrada';list.resourceIds=[id(1)];assert.throws(()=>editor.select(state,id(1),false),/Quita primero/);editor.select(state,id(2),true);list.resourceIds.push(id(2));assert.throws(()=>editor.serialize(state),/mismo tipo/);list.resourceIds=[id(1)];assert.throws(()=>editor.refresh(state,[media(2,'video')]),/no está listo/);assert.equal(state.resources.length,3);
+});
+test('Sealed configuration restores only approved resources and preserves playlist IDs and order without mutation',()=>{
+ const config={av:{resources:[media(1),media(3)],playlists:[{id:'entrance',name:'Entrada',type:'audio',resourceIds:[id(3),id(1)]}]}},original=structuredClone(config),state=editor.create([media(1),media(2),media(3)],config),serialized=editor.serialize(state);assert.deepEqual(serialized.assetIds,[id(1),id(3)]);assert.deepEqual(serialized.playlists[0].resourceIds,[id(3),id(1)]);serialized.playlists[0].resourceIds.reverse();assert.deepEqual(config,original);assert.deepEqual(editor.serialize(state).playlists[0].resourceIds,[id(3),id(1)]);
+});
+test('Malformed, duplicate, failed or unavailable library assets fail closed',()=>{
+ assert.throws(()=>editor.create(null));assert.throws(()=>editor.create([media(1),media(1)]));assert.throws(()=>editor.create([{...media(1),status:'READY'}]));assert.throws(()=>editor.create([{...media(1),duration:NaN}]));const state=editor.create([{id:id(1),status:'FAILED'},{id:id(2),status:'PROCESSING'}]);assert.throws(()=>editor.select(state,id(1),true));assert.throws(()=>editor.select(state,id(2),true));assert.throws(()=>editor.create([media(1)],{av:{resources:[media(3)],playlists:[]}}));
+});

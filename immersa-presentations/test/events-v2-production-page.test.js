@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(require.resolve('../public/events-v2/production-page.js'),'utf8'),html=fs.readFileSync(require.resolve('../events-v2/production.html'),'utf8');
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),org=id(1),event=id(2),activity=id(3),stage=id(4),deck=id(5),version=id(6),grant=id(7),token='a'.repeat(43);
 async function settle(){for(let i=0;i<80;i++)await Promise.resolve();}
-function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedConfiguration=null,englishStatus='NOT_UPLOADED',englishUploadError=null,slides=1}={}){
+function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedConfiguration=null,englishStatus='NOT_UPLOADED',englishUploadError=null,slides=1,media=[],mediaError=false,mediaUploadError=null}={}){
  class E{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.handlers={};this.value='';this.disabled=false;this.hidden=false;this.dataset={};this.classList={toggle(){}};this.isConnected=true;}
   set innerHTML(_){throw Error('Unsafe HTML');}
@@ -28,16 +28,18 @@ function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedC
   if(url.endsWith('/organizations'))value=[{id:org,name:'Own org'}];else if(url.endsWith('/events'))value=[{eventId:event,title:'Own event'}];else if(url.endsWith('/production'))value=structuredClone(data);
   else if(url.endsWith('/translations/en/preparation'))value={status:englishStatus,language:'en',slideCount:slides};
   else if(url.endsWith('/translations/en/source')&&options.method==='POST'){if(englishUploadError){englishStatus='FAILED';return{ok:false,json:async()=>({code:englishUploadError})};}englishStatus='CONVERTED';value={status:'CONVERTED',language:'en',slideCount:slides};}
+  else if(url.endsWith('/media')&&options.method==='GET'){if(mediaError)return{ok:false,json:async()=>({code:'MEDIA_UNAVAILABLE'})};value={media};}
+  else if(url.endsWith('/media')&&options.method==='POST'){if(mediaUploadError)return{ok:false,json:async()=>({code:mediaUploadError})};media.push({id:id(20+media.length),name:options.body.get('name'),type:'audio',status:'READY_PENDING_DECK_CHECK',duration:15,size:1234});value=media.at(-1);}
   else if(url.endsWith('/configuration')&&options.method==='GET')value={configuration:savedConfiguration};
-  else if(url.endsWith('/configuration')&&options.method==='POST'){data.versions[0].configurationDigest='c'.repeat(64);savedConfiguration=JSON.parse(options.body);value={};}
+  else if(url.endsWith('/configuration')&&options.method==='POST'){data.versions[0].configurationDigest='c'.repeat(64);savedConfiguration=JSON.parse(options.body);if(savedConfiguration.audiovisual){savedConfiguration.av={resources:media.filter(m=>savedConfiguration.audiovisual.assetIds.includes(m.id)),playlists:savedConfiguration.audiovisual.playlists};delete savedConfiguration.audiovisual;}value={};}
   else if(url.endsWith('/grants'))value={grantId:grant,eventId:event,token};
   else if(url.endsWith('/deck-binding')){data.activities[0].versionId=version;value={};}
   else if(url.endsWith('/schedule')){const input=JSON.parse(options.body);Object.assign(data.activities[0],input,{scheduledEndsAt:new Date(Date.parse(input.scheduledStartsAt)+input.durationMinutes*60000).toISOString()});value={};}
   else if(url.endsWith('/activities'))value={id:activity};else throw Error('Unexpected request '+url);
   return{ok:true,json:async()=>value};};
- const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location,ImmersaProductionInteractions:require('../public/events-v2/production-interactions')};
+ const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location,ImmersaProductionInteractions:require('../public/events-v2/production-interactions'),ImmersaProductionMedia:require('../public/events-v2/production-media')};
  vm.runInNewContext(source,{document,window,location,history:{replaceState(){}},fetch,FormData,URLSearchParams,Intl,Date,Error});
- return{elements,tabs,data,calls,navigations,setEnglishStatus:v=>englishStatus=v,find:(parent,text)=>walk(parent).find(e=>e.textContent===text),walk,zone};
+ return{elements,tabs,data,calls,navigations,setEnglishStatus:v=>englishStatus=v,setMediaError:v=>mediaError=v,find:(parent,text)=>walk(parent).find(e=>e.textContent===text),walk,zone};
 }
 test('Production opens Stage in one action with the selected activity and fragment-only grant',async()=>{
  const h=page();await settle();const button=h.find(h.elements['operation-list'],'Abrir Stage');assert.equal(button.disabled,false);button.fire('click');await settle();
@@ -108,4 +110,29 @@ test('English processing, malformed status and count mismatch have explicit outc
  const malformed=page({approved:false,englishStatus:'unknown'});await settle();malformed.elements['deck-list'].children[0].fire('click');await settle();assert.equal(malformed.elements['save-configuration'].disabled,true);assert.equal(malformed.elements['prepared-editor'].hidden,true);
  const h=page({approved:false,englishUploadError:'LOCALE_SLIDE_COUNT_MISMATCH'});await settle();h.elements['deck-list'].children[0].fire('click');await settle();h.elements['slide-notes'].value='Apuntes propios';h.elements['english-pdf'].files=[new Blob(['%PDF-fixture'])];h.elements['english-upload-form'].fire('submit');await settle();assert.match(h.elements.message.textContent,/mismo número/);assert.equal(h.elements['slide-notes'].value,'Apuntes propios');assert.equal(h.elements['notes-en-details'].hidden,true);assert.equal(h.elements['save-configuration'].disabled,false);
  h.data.versions.push({...h.data.versions[0],versionId:id(12),number:2});h.elements.refresh.fire('click');await settle();h.elements['deck-list'].children[1].fire('click');await settle();assert.equal(h.elements['slide-notes'].value,'');assert.equal(h.elements['slide-notes-en'].value,'');
+});
+
+const mediaFixture=(n,type='audio')=>({id:id(n),name:(type==='audio'?'Audio ':'Video ')+n,type,status:'READY_PENDING_DECK_CHECK',duration:20,size:1234});
+test('Production uploads privately, preserves notes and incomplete playlist drafts, and requires explicit selection',async()=>{
+ const h=page({approved:false,media:[mediaFixture(20)]});await settle();h.elements['deck-list'].children[0].fire('click');await settle();const e=h.elements,root=e['media-library'];
+ e['slide-notes'].value='Conservar mis apuntes';h.find(root,'Crear playlist de audio').fire('click');
+ e['media-file'].files=[new Blob(['mp3-fixture'],{type:'audio/mpeg'})];e['media-name'].value='Mi audio';e['media-upload-form'].fire('submit');await settle();
+ const call=h.calls.find(c=>c.url.endsWith('/media')&&c.method==='POST');assert.ok(call.body instanceof FormData);assert.equal(call.body.get('name'),'Mi audio');assert.ok(call.body.get('media'));assert.equal(e['slide-notes'].value,'Conservar mis apuntes');assert.ok(h.find(root,'Playlist de audio'));assert.equal(h.find(root,'Incluir Mi audio').children[0].checked,false);
+ h.find(root,'Quitar playlist').fire('click');e['save-configuration'].fire('click');await settle();const sent=JSON.parse(h.calls.find(c=>c.url.endsWith('/configuration')&&c.method==='POST').body);assert.deepEqual(sent.audiovisual,{assetIds:[],playlists:[]});assert.equal(sent.slides[0].notes.es,'Conservar mis apuntes');
+});
+test('Production serializes only selected assets in ordered homogeneous playlists and locks after save',async()=>{
+ const h=page({approved:false,media:[mediaFixture(20),mediaFixture(21),mediaFixture(22,'video')]});await settle();h.elements['deck-list'].children[0].fire('click');await settle();const e=h.elements,root=e['media-library'];
+ const check=label=>{const field=h.find(root,label).children[0];field.checked=true;field.fire('change');};check('Incluir Audio 20');check('Incluir Audio 21');h.find(root,'Crear playlist de audio').fire('click');
+ const name=h.find(root,'Nombre de la playlist').children[0];name.value='Entrada';name.fire('input');check('Agregar Audio 20');check('Agregar Audio 21');assert.equal(h.find(root,'Agregar Video 22'),undefined);h.find(root,'Subir Audio 21').fire('click');
+ const selection=h.find(root,'Incluir Audio 20').children[0];selection.checked=false;selection.fire('change');assert.match(e.message.textContent,/Quita primero/);assert.equal(h.find(root,'Incluir Audio 20').children[0].checked,true);
+ e['save-configuration'].fire('click');await settle();const sent=JSON.parse(h.calls.find(c=>c.method==='POST'&&c.url.endsWith('/configuration')).body);assert.deepEqual(sent.audiovisual.assetIds,[id(20),id(21)]);assert.deepEqual(sent.audiovisual.playlists[0].resourceIds,[id(21),id(20)]);require('../events-v2/deck-configuration').normalizeConfiguration(sent,1);assert.equal(e['media-upload-form'].hidden,true);assert.ok(h.walk(root).filter(x=>x.tagName==='INPUT').every(x=>x.disabled));assert.equal(h.find(root,'Incluir Audio 20').children[0].checked,true);assert.equal(h.find(root,'Nombre de la playlist').children[0].value,'Entrada');
+});
+test('Production fails closed on unavailable or processing media and refresh restores unsaved notes',async()=>{
+ const h=page({approved:false,mediaError:true});await settle();h.elements['deck-list'].children[0].fire('click');await settle();assert.equal(h.elements['save-configuration'].disabled,true);assert.equal(h.elements['refresh-media'].disabled,false);h.elements['slide-notes'].value='Antes de actualizar';h.setMediaError(false);h.elements['refresh-media'].fire('click');await settle();assert.equal(h.elements['save-configuration'].disabled,false);assert.equal(h.elements['slide-notes'].value,'Antes de actualizar');
+ const pending=page({approved:false,media:[{id:id(20),status:'PROCESSING'}]});await settle();pending.elements['deck-list'].children[0].fire('click');await settle();assert.equal(pending.elements['save-configuration'].disabled,true);assert.match(pending.elements['media-status'].textContent,/preparación/);
+ const invalid=page({approved:false,mediaUploadError:'INVALID_MEDIA'});await settle();invalid.elements['deck-list'].children[0].fire('click');await settle();invalid.elements['media-file'].files=[new Blob(['bad'])];invalid.elements['media-name'].value='Archivo';invalid.elements['media-upload-form'].fire('submit');await settle();assert.match(invalid.elements.message.textContent,/compatible/);assert.equal(invalid.elements['save-configuration'].disabled,false);
+});
+test('Production restores sealed catalogs without silently selecting the rest of the library',async()=>{
+ const config={slides:[{id:'slide-001',notes:{es:'Guardado'}}],polls:[],knowledge:[],raffles:[],games:[],av:{resources:[mediaFixture(20)],playlists:[{id:'intro',name:'Entrada',type:'audio',resourceIds:[id(20)]}]}};
+ const h=page({approved:false,savedConfiguration:config,media:[mediaFixture(20),mediaFixture(21)]});await settle();h.elements['deck-list'].children[0].fire('click');await settle();assert.equal(h.find(h.elements['media-library'],'Incluir Audio 20').children[0].checked,true);assert.equal(h.find(h.elements['media-library'],'Incluir Audio 21').children[0].checked,false);assert.equal(h.find(h.elements['media-library'],'Nombre de la playlist').children[0].value,'Entrada');assert.equal(h.elements['save-configuration'].disabled,true);assert.equal(h.elements['media-upload-form'].hidden,true);
 });
