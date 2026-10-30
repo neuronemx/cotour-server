@@ -15,6 +15,7 @@ async function approvedLiveSuite(t,f){
   await prep.upload(ids.get('producer'),s,pdfFixture());await english.upload(ids.get('producer'),s,pdfFixture(2,[0,0,1]));const audio=await media.upload(ids.get('producer'),s,'WAV',wavFixture());
   const input=configurationFixture();input.language={englishEnabled:true,presenterLanguage:'es'};input.slides[0].notes.en='Private English notes';input.audiovisual={assetIds:[audio.id],playlists:[]};
   input.knowledge.push({id:'assessment-practice',category:'assessment',title:'Evaluación de ensayo',identificationMode:'required_name',durationSeconds:30,questions:[{id:'assessment-question',prompt:'Elige una',options:[{id:'a',label:'Primera',correct:true},{id:'b',label:'Segunda'}]}]});
+  input.raffles.push({id:'raffle-poll',mode:'poll',title:'Sorteo por respuesta',prompt:'Elige',options:[{id:'a',label:'Primera'},{id:'b',label:'Segunda'}]},{id:'raffle-key',mode:'visual_key',title:'Sorteo visual',prompt:'Elige la clave',entryKey:'a',options:['a','b','c','d'].map(id=>({id,label:id}))});
   if(rich){const image=await images.upload(ids.get('producer'),s,'PNG',await imageFixture());input.knowledge[0].questions[0].imageAssetId=image.id;}
   d.configuration=await configs.create(ids.get('producer'),s,input);d.audio=audio;return d;
  }

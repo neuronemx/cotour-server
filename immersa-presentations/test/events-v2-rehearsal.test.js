@@ -196,3 +196,41 @@ test('question images reauthorize, verify bytes and deny old executions, hidden 
   await op({ command: 'answer', questionId: 'own-question', optionId: 'a' }); await op({ command: 'submit' });
   await assert.rejects(f.rehearsal.questionImage(a, input), { code: 'REHEARSAL_IMAGE_DENIED' }); assert.equal(reads, 1);
 });
+const raffleDefinition = { id: 'practice-raffle', mode: 'free', title: 'Practice raffle', prompt: 'Participa', options: [] };
+test('raffle practice excludes polls/knowledge, isolates samples by grant and reconciles winners only after authorization commit', async () => {
+  const f = fixture(), a = f.credential(), b = f.credential(); f.rehearsal.idleMs = 60000;
+  f.ticket.configuration = { polls: [poll], knowledge: [knowledgeDefinition('contest')], raffles: [raffleDefinition] };
+  let v = await f.rehearsal.operate(a);
+  const op = async (action, input) => { v = await f.rehearsal.operate(a, action, { expectedRevision: v.revision, runId: v.runId, raffleRunId: v.tools.raffle.raffleRunId, ...input }); return v; };
+  await op('raffle', { command: 'open', definitionId: raffleDefinition.id });
+  await assert.rejects(op('poll', { command: 'launch', interactionId: poll.id }), { code: 'REHEARSAL_INTERACTION_BUSY' });
+  await assert.rejects(op('knowledge', { command: 'open', definitionId: 'contest' }), { code: 'REHEARSAL_INTERACTION_BUSY' });
+  await op('qna', { command: 'open' }); assert.ok(v.tools.qna.roundId);
+  f.commitFail(true); await assert.rejects(op('raffle', { command: 'enter', sampleId: null, name: 'Uncommitted' })); f.commitFail(false);
+  assert.equal((await f.rehearsal.operate(a)).tools.raffle.samples.length, 0);
+  await op('raffle', { command: 'enter', sampleId: null, name: 'One sample' });
+  const other = await f.rehearsal.operate(b); assert.equal(other.tools.raffle.samples.length, 0); assert.equal(other.tools.raffle.controller, null);
+  await op('raffle', { command: 'close_entries' }); await op('raffle', { command: 'draw' });
+  const revision = v.revision; f.advance(5000); f.commitFail(true); await assert.rejects(f.rehearsal.operate(a)); f.commitFail(false);
+  assert.equal(f.rehearsal.states.get(f.eventId + ':' + a.grantId).revision, revision);
+  v = await f.rehearsal.operate(a); assert.equal(v.tools.raffle.screen.winner.name, 'One sample'); assert.equal(v.revision, revision + 1);
+  const oldRun = v.runId, raffleRunId = v.tools.raffle.raffleRunId;
+  await op('reset', {}); assert.equal(v.tools.raffle.samples.length, 0); assert.equal(v.tools.raffle.winners.length, 0); assert.equal(v.tools.qna.roundId, null);
+  await assert.rejects(op('raffle', { command: 'draw', runId: oldRun, raffleRunId }), { code: 'REHEARSAL_EXPIRED' });
+  await op('poll', { command: 'launch', interactionId: poll.id });
+  await assert.rejects(op('raffle', { command: 'open', definitionId: raffleDefinition.id }), { code: 'REHEARSAL_INTERACTION_BUSY' });
+});
+test('private raffle image access rechecks catalog, execution, run, version, authorization and verified bytes', async () => {
+  const f = fixture(), a = f.credential(), assetId = crypto.randomUUID();
+  f.ticket.configuration = { raffles: [{ ...raffleDefinition, mode: 'visual_key', entryKey: 'a', options: ['a', 'b', 'c', 'd'].map(id => ({ id, label: id, ...(id === 'a' ? { imageAssetId: assetId } : {}) })) }] };
+  f.ticket.snapshot.images = [{ id: assetId }]; f.content.interactionImageMetadata = () => [{ id: assetId, width: 64, height: 32 }];
+  let reads = 0; f.content.preparedInteractionImage = async () => { reads++; return { verified: true, open() {} }; };
+  let v = await f.rehearsal.operate(a); const input = { runId: v.runId, digest: 'a'.repeat(64), executionId: 'catalog', assetId };
+  await f.rehearsal.raffleImage(a, input); assert.equal(reads, 1);
+  for (const wrong of [{ assetId: crypto.randomUUID() }, { executionId: crypto.randomUUID() }, { digest: 'f'.repeat(64) }])
+    await assert.rejects(f.rehearsal.raffleImage(a, { ...input, ...wrong }), { code: 'REHEARSAL_IMAGE_DENIED' });
+  f.deny(true); await assert.rejects(f.rehearsal.raffleImage(a, input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
+  v = await f.rehearsal.operate(a, 'reset', { expectedRevision: v.revision });
+  await assert.rejects(f.rehearsal.raffleImage(a, input), { code: 'REHEARSAL_EXPIRED' });
+  f.ticket.binding.revision++; await assert.rejects(f.rehearsal.raffleImage(a, { ...input, runId: v.runId }), { code: 'REHEARSAL_VERSION_CHANGED' }); assert.equal(reads, 1);
+});

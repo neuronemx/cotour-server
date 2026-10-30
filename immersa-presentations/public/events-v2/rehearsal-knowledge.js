@@ -75,7 +75,7 @@
       buttons = []; const k = knowledge, s = k.screen;
       $('knowledge-tools').hidden = false;
       $('knowledge-catalog').replaceChildren(...k.available.map(d => button((d.category === 'contest' ? 'Trivia: ' : 'Evaluación: ')
-        + (view.language === 'en' && d.titleEn ? d.titleEn : d.title), () => send({ command: 'open', definitionId: d.id }), !!s || !!view.tools.polls.active)));
+        + (view.language === 'en' && d.titleEn ? d.titleEn : d.title), () => send({ command: 'open', definitionId: d.id }), !!s || !!view.tools.polls.active || !!view.tools.raffle?.controller)));
       if (!k.available.length) line($('knowledge-catalog'), 'Esta versión no tiene Trivias ni Evaluaciones.');
       const preview = $('knowledge-preview'), control = $('knowledge-controls'), sample = $('knowledge-sample');
       preview.replaceChildren(); control.replaceChildren(); sample.replaceChildren(); preview.hidden = !s;
