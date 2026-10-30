@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(require.resolve('../public/events-v2/production-page.js'),'utf8'),html=fs.readFileSync(require.resolve('../events-v2/production.html'),'utf8');
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),org=id(1),event=id(2),activity=id(3),stage=id(4),deck=id(5),version=id(6),grant=id(7),token='a'.repeat(43);
 async function settle(){for(let i=0;i<80;i++)await Promise.resolve();}
-function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z'}={}){
+function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedConfiguration=null}={}){
  class E{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.handlers={};this.value='';this.disabled=false;this.hidden=false;this.dataset={};this.classList={toggle(){}};this.isConnected=true;}
   set innerHTML(_){throw Error('Unsafe HTML');}
@@ -20,16 +20,18 @@ function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z'}={}){
  const zone=new E(),publicButtons=['FREE','PAID'].map(v=>Object.assign(new E('button'),{dataset:{public:v}}));
  const all=()=>[...Object.values(elements).flatMap(walk),...tabs,...publicButtons];
  const document={getElementById:id=>elements[id],createElement:tag=>new E(tag),querySelectorAll:s=>s==='[data-view]'?tabs:s==='[data-public]'?publicButtons:s==='.schedule-zone'?[zone]:all().filter(e=>['BUTTON','INPUT','SELECT','TEXTAREA'].includes(e.tagName))};
- const data={event:{eventId:event,organizationId:org,title:'Own event',timezone:'America/Mexico_City'},stages:[{id:stage,name:'Main'}],activities:[{id:activity,title:'Own activity',stageId:stage,accessLevel:'FREE',status:'SCHEDULED',versionId:bound?version:null,bindingRevision:bound?1:0,liveSessionId:null,scheduledStartsAt:null,scheduledEndsAt:null,durationMinutes:60}],versions:[{deckId:deck,versionId:version,title:'Own Deck',number:1,preparationStatus:'CONVERTED',slideCount:1,approvalDigest:approved?'b'.repeat(64):null,configurationDigest:null}],endsAt,publicAccess:[]};
+ const data={event:{eventId:event,organizationId:org,title:'Own event',timezone:'America/Mexico_City'},stages:[{id:stage,name:'Main'}],activities:[{id:activity,title:'Own activity',stageId:stage,accessLevel:'FREE',status:'SCHEDULED',versionId:bound?version:null,bindingRevision:bound?1:0,liveSessionId:null,scheduledStartsAt:null,scheduledEndsAt:null,durationMinutes:60}],versions:[{deckId:deck,versionId:version,title:'Own Deck',number:1,preparationStatus:'CONVERTED',slideCount:1,approvalDigest:approved?'b'.repeat(64):null,configurationDigest:savedConfiguration?'c'.repeat(64):null}],endsAt,publicAccess:[]};
  const calls=[],navigations=[];
  const fetch=async(url,options)=>{calls.push({url,...options});let value;
   if(url.endsWith('/organizations'))value=[{id:org,name:'Own org'}];else if(url.endsWith('/events'))value=[{eventId:event,title:'Own event'}];else if(url.endsWith('/production'))value=structuredClone(data);
+  else if(url.endsWith('/configuration')&&options.method==='GET')value={configuration:savedConfiguration};
+  else if(url.endsWith('/configuration')&&options.method==='POST'){data.versions[0].configurationDigest='c'.repeat(64);savedConfiguration=JSON.parse(options.body);value={};}
   else if(url.endsWith('/grants'))value={grantId:grant,eventId:event,token};
   else if(url.endsWith('/deck-binding')){data.activities[0].versionId=version;value={};}
   else if(url.endsWith('/schedule')){const input=JSON.parse(options.body);Object.assign(data.activities[0],input,{scheduledEndsAt:new Date(Date.parse(input.scheduledStartsAt)+input.durationMinutes*60000).toISOString()});value={};}
   else if(url.endsWith('/activities'))value={id:activity};else throw Error('Unexpected request '+url);
   return{ok:true,json:async()=>value};};
- const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location};
+ const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location,ImmersaProductionInteractions:require('../public/events-v2/production-interactions')};
  vm.runInNewContext(source,{document,window,location,history:{replaceState(){}},fetch,FormData,URLSearchParams,Intl,Date,Error});
  return{elements,tabs,data,calls,navigations,find:(parent,text)=>walk(parent).find(e=>e.textContent===text),walk,zone};
 }
@@ -53,4 +55,21 @@ test('Production issues a separate rehearsal grant and link without starting a l
   const anchor=h.find(h.elements['operation-list'],'Entrar al ensayo privado');
   const url=new URL(anchor.href,'https://example.test');const link=require('../public/events-v2/access-client').consumeLink(url,{replaceState(){}});
   assert.equal(link.binding.view,'rehearsal');assert.equal(link.token,token);assert.equal(url.search,'');
+});
+
+test('Production prepares Trivia, Evaluation and Free Raffle and seals all controls after save', async () => {
+ const h=page({approved:false});await settle();h.elements['deck-list'].children[0].fire('click');await settle();
+ const root=h.elements['slide-interactions'];
+ for(const label of ['Agregar Trivia','Agregar Evaluación','Agregar Sorteo Libre']){h.find(root,label).fire('click');await settle();}
+ const cards=root.children.filter(e=>e.className==='interaction-card');assert.equal(cards.length,3);
+ const fill=(label,value,parent)=>{const field=h.find(parent,label).children[0];field.value=value;field.fire(field.tagName==='SELECT'?'change':'input');};
+ cards.forEach((card,i)=>{fill('Título',['Trivia propia','Evaluación propia','Sorteo propio'][i],card);if(i===2){fill('Invitación para participar','Participa aquí',card);return;}fill('Pregunta','¿Qué opción?',card);fill('Opciones, una por línea (2 a 6)','Primera\nSegunda',card);fill('Número de la respuesta correcta','2',card);});
+ h.find(cards[0],'Agregar pregunta').fire('click');assert.ok(h.find(root,'Pregunta 2'));h.find(root,'Quitar pregunta 2').fire('click');
+ h.elements['save-configuration'].fire('click');await settle();
+ const call=h.calls.find(x=>x.url.endsWith('/configuration')&&x.method==='POST');assert.ok(call,h.elements.message.textContent);const config=JSON.parse(call.body);
+ const normalized=require('../events-v2/deck-configuration').normalizeConfiguration(config,1);assert.equal(normalized.knowledge.length,2);assert.equal(normalized.raffles[0].mode,'free');assert.equal(normalized.knowledge[0].questions[0].correctOptionId,'option-2');assert.equal(normalized.slides[0].knowledgeIds.length,2);assert.equal(normalized.slides[0].raffleIds.length,1);
+ assert.equal(h.elements['save-configuration'].disabled,true);assert.ok(h.walk(root).filter(e=>['INPUT','SELECT','TEXTAREA'].includes(e.tagName)).every(e=>e.disabled));assert.equal(h.find(root,'Agregar Trivia'),undefined);
+});
+test('Production validation prevents submitting incomplete questions and does not activate Games',async()=>{
+ const h=page({approved:false});await settle();h.elements['deck-list'].children[0].fire('click');await settle();h.find(h.elements['slide-interactions'],'Agregar Trivia').fire('click');h.elements['save-configuration'].fire('click');await settle();assert.match(h.elements.message.textContent,/título/);assert.equal(h.calls.some(x=>x.method==='POST'&&x.url.endsWith('/configuration')),false);assert.equal(h.find(h.elements['slide-interactions'],'Agregar Juego'),undefined);
 });

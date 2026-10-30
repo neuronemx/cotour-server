@@ -148,7 +148,7 @@ async function rehearsalSuite(t, f) {
       assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveKnowledge(), liveBefore);
       clockOffset = 0;
     });
-    await t.test('free, poll and visual raffle rehearsals use private samples without SQL participation, winner history or changing the live raffle', async () => {
+    await t.test('only free raffle rehearsals use private samples without SQL participation, winner history or changing the live raffle', async () => {
       const before = await counts(), state = structuredClone(runtime.states.get('evt:' + a + ':live:' + liveId));
       const liveRaffle = () => grants.withSession({ eventId: a, grantId: stage.context.grantId, sessionToken: stage.sessionToken }, (c, db) => raffleRuntime.projection(c, db, liveId));
       const liveBefore = await liveRaffle(); let current = (await json(first)).body;
@@ -156,7 +156,13 @@ async function rehearsalSuite(t, f) {
         const response = await json(first, 'POST', { action: 'raffle', expectedRevision: current.revision, runId: current.runId, ...input });
         assert.equal(response.status, 200, JSON.stringify(response.body)); current = response.body; return current.tools.raffle;
       };
-      for (const definitionId of ['raffle-a', 'raffle-poll', 'raffle-key']) {
+      assert.deepEqual(current.tools.raffle.available.map(r => r.id), ['raffle-a']);
+      for (const definitionId of ['raffle-poll', 'raffle-key']) {
+        const denied = await json(first, 'POST', { action: 'raffle', expectedRevision: current.revision, runId: current.runId, command: 'open', definitionId });
+        assert.equal(denied.body.code, 'REHEARSAL_RAFFLE_NOT_FOUND');
+        assert.equal((await json(first)).body.revision, current.revision);
+      }
+      for (const definitionId of ['raffle-a']) {
         if (definitionId === 'raffle-key') await command({ command: 'configure_key', definitionId, optionId: 'b' });
         await command({ command: 'open', definitionId }); const raffleRunId = current.tools.raffle.raffleRunId;
         const body = { action: 'raffle', expectedRevision: current.revision, runId: current.runId, raffleRunId };
@@ -174,7 +180,7 @@ async function rehearsalSuite(t, f) {
         assert.equal(current.tools.raffle.controller.state, 'winner'); assert.equal(current.tools.raffle.screen.winner.name, 'Own sample ' + definitionId);
         await command({ command: 'close', raffleRunId });
       }
-      assert.equal(current.tools.raffle.previousWinnerCount, 3);
+      assert.equal(current.tools.raffle.previousWinnerCount, 1);
       const reset = await json(first, 'POST', { action: 'reset', expectedRevision: current.revision }); assert.equal(reset.status, 200); current = reset.body;
       assert.equal(current.tools.raffle.samples.length, 0); assert.equal(current.tools.raffle.winners.length, 0);
       assert.deepEqual(await counts(), before); assert.deepEqual(runtime.states.get('evt:' + a + ':live:' + liveId), state); assert.deepEqual(await liveRaffle(), liveBefore);
