@@ -16,3 +16,12 @@ test('editor rejects unsupported types, missing correct options, question limits
  for(const seconds of [5,300]){const v=valid('contest');v.seconds=seconds;normalizeConfiguration(editor.append(base(),[[v],[]]),2);}
  for(const seconds of [30,10800]){const v=valid('assessment');v.seconds=seconds;normalizeConfiguration(editor.append(base(),[[],[v]]),2);}
 });
+test('English authoring keeps option identity, allows partial fallback and requires an uploaded PDF',()=>{
+ const v=valid('contest');v.titleEn='Own quiz';Object.assign(v.questions[0],{promptEn:'Own question',optionsEn:'\nSecond translated'});
+ assert.throws(()=>editor.append(base(),[[v],[]]),/PDF en inglés/);
+ const out=normalizeConfiguration(editor.append(base(),[[v],[]],{englishReady:true}),2),q=out.knowledge[0].questions[0];
+ assert.equal(out.knowledge[0].titleEn,'Own quiz');assert.equal(q.en.prompt,'Own question');assert.equal(q.en.options['option-1'],undefined);assert.equal(q.en.options['option-2'],'Second translated');assert.equal(q.correctOptionId,'option-2');
+ const restored=editor.read(out,0)[0];assert.equal(restored.questions[0].optionsEn,'\nSecond translated');assert.equal(restored.titleEn,'Own quiz');
+ assert.equal(editor.translate('','',q.options),undefined);
+ assert.throws(()=>editor.translate('','One\nTwo\nThree',q.options),/mismo orden/);assert.throws(()=>editor.translate('x'.repeat(2001),'',q.options));assert.throws(()=>editor.translate('','x'.repeat(501),q.options));
+});
