@@ -6,6 +6,8 @@ function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedC
  class E{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.handlers={};this.value='';this.disabled=false;this.hidden=false;this.dataset={};this.classList={toggle(){}};this.isConnected=true;}
   set innerHTML(_){throw Error('Unsafe HTML');}
+  set type(v){if(this.tagName==='SELECT')throw TypeError('select.type is read-only');this.inputType=v;}
+  get type(){return this.tagName==='SELECT'?'select-one':this.inputType;}
   append(...items){this.children.push(...items);}
   replaceChildren(...items){const off=x=>{x.isConnected=false;x.children.forEach(off);};this.children.forEach(off);this.children=[];this.append(...items);}
   setAttribute(n,v){this[n]=v;}
