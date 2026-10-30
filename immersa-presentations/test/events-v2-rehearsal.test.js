@@ -220,17 +220,17 @@ test('raffle practice excludes polls/knowledge, isolates samples by grant and re
   await op('poll', { command: 'launch', interactionId: poll.id });
   await assert.rejects(op('raffle', { command: 'open', definitionId: raffleDefinition.id }), { code: 'REHEARSAL_INTERACTION_BUSY' });
 });
-test('private raffle image access rechecks catalog, execution, run, version, authorization and verified bytes', async () => {
+test('deferred raffle images fail closed while still rechecking run, version and authorization', async () => {
   const f = fixture(), a = f.credential(), assetId = crypto.randomUUID();
   f.ticket.configuration = { raffles: [{ ...raffleDefinition, mode: 'visual_key', entryKey: 'a', options: ['a', 'b', 'c', 'd'].map(id => ({ id, label: id, ...(id === 'a' ? { imageAssetId: assetId } : {}) })) }] };
   f.ticket.snapshot.images = [{ id: assetId }]; f.content.interactionImageMetadata = () => [{ id: assetId, width: 64, height: 32 }];
   let reads = 0; f.content.preparedInteractionImage = async () => { reads++; return { verified: true, open() {} }; };
   let v = await f.rehearsal.operate(a); const input = { runId: v.runId, digest: 'a'.repeat(64), executionId: 'catalog', assetId };
-  await f.rehearsal.raffleImage(a, input); assert.equal(reads, 1);
+  await assert.rejects(f.rehearsal.raffleImage(a, input), { code: 'REHEARSAL_IMAGE_DENIED' }); assert.equal(reads, 0);
   for (const wrong of [{ assetId: crypto.randomUUID() }, { executionId: crypto.randomUUID() }, { digest: 'f'.repeat(64) }])
     await assert.rejects(f.rehearsal.raffleImage(a, { ...input, ...wrong }), { code: 'REHEARSAL_IMAGE_DENIED' });
   f.deny(true); await assert.rejects(f.rehearsal.raffleImage(a, input), { code: 'GRANT_ACCESS_DENIED' }); f.deny(false);
   v = await f.rehearsal.operate(a, 'reset', { expectedRevision: v.revision });
   await assert.rejects(f.rehearsal.raffleImage(a, input), { code: 'REHEARSAL_EXPIRED' });
-  f.ticket.binding.revision++; await assert.rejects(f.rehearsal.raffleImage(a, { ...input, runId: v.runId }), { code: 'REHEARSAL_VERSION_CHANGED' }); assert.equal(reads, 1);
+  f.ticket.binding.revision++; await assert.rejects(f.rehearsal.raffleImage(a, { ...input, runId: v.runId }), { code: 'REHEARSAL_VERSION_CHANGED' }); assert.equal(reads, 0);
 });

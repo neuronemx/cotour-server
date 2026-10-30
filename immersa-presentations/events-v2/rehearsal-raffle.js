@@ -5,7 +5,7 @@ const { requiredText } = require('../qna-values');
 const { EventAccessError } = require('./authorization');
 const KEY = 'private-raffle-rehearsal', MAX_SAMPLES = 20;
 const fail = (code, status = 409) => { throw new EventAccessError(code, status); };
-function definitions(candidate) { return normalizeRaffles(candidate.configuration?.raffles || []); }
+function definitions(candidate) { return normalizeRaffles((candidate.configuration?.raffles || []).filter(r => r.mode === 'free')); }
 function storeFor(previous, now) {
   const store = new RaffleStore(Math.random, { now: () => now });
   if (previous) store.sessions = structuredClone(previous.sessions);
@@ -25,7 +25,7 @@ function operate(previous, catalog, input, now) {
   let result;
   if (['open', 'configure_key'].includes(input.command)) {
     const definition = catalog.find(d => d.id === input.definitionId);
-    if (!definition) fail('REHEARSAL_RAFFLE_NOT_FOUND');
+    if (!definition || definition.mode !== 'free') fail('REHEARSAL_RAFFLE_NOT_FOUND');
     if (input.command === 'configure_key') {
       if (definition.mode !== 'visual_key' || !definition.options.some(o => o.id === input.optionId)) fail('INVALID_INPUT', 400);
       result = store.configureVisualKey(KEY, input.optionId); next.draftDefinitionId = definition.id;
@@ -101,10 +101,6 @@ function projection(candidate, previous, root, runId, now) {
     draftDefinitionId: previous?.draftDefinitionId || null, draftOptionId: state.visualKeyDraftEntryKey,
     nextDeadlineAt: raw?.state === 'drawing' ? Date.parse(raw.revealAt) : null, serverNow: now };
 }
-function allowedImage(candidate, previous, executionId, assetId) {
-  const id = executionId === 'catalog' ? null : previous?.latestRunId;
-  if (executionId !== 'catalog' && (!active(previous) || id !== executionId)) return false;
-  return (candidate.configuration?.raffles || []).some(d => d.mode === 'visual_key'
-    && (executionId === 'catalog' || d.id === previous.definitionId) && d.options.some(o => o.imageAssetId === assetId));
-}
+// Visual-key raffles are deferred; no image is exposed through rehearsal.
+function allowedImage() { return false; }
 module.exports = { definitions, active, advance, operate, projection, allowedImage, MAX_SAMPLES };
