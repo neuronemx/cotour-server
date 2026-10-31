@@ -2,7 +2,7 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.ImmersaEventRehearsalTools = factory();
 })(typeof window === 'object' ? window : this, function () {
-  'use strict';
+  'use strict';const Fx=typeof module==='object'&&module.exports?require('./av-fx'):window.ImmersaEventFx,Fade=typeof module==='object'&&module.exports?require('./av-fade'):window.ImmersaEventFade;
   const uuid = x => typeof x === 'string' && /^[a-f0-9-]{36}$/i.test(x);
   const text = (x, max) => typeof x === 'string' && x.length <= max;
   const check = x => { if (!x) throw new Error('INVALID_REHEARSAL_TOOLS'); };
@@ -15,13 +15,14 @@
         && typeof r.duration === 'number' && Number.isFinite(r.duration) && r.duration > 0 && r.duration <= 86400 && typeof r.url === 'string');
       const url = new URL(r.url, origin), start = prefix + '/media/' + view.runId + '/';
       check(url.origin === origin && url.pathname.startsWith(start) && /^[a-f0-9]{64}\/[a-zA-Z0-9_-]{1,120}$/.test(url.pathname.slice(start.length)) && !url.search && !url.hash);
+      if(r.category!==undefined||r.fx!==undefined||r.source!==undefined){const cue=Fx.normalizeCue(r.fx);check(r.category==='fx'&&r.type==='video'&&r.source==='event'&&cue&&cue.seconds===r.fx.seconds&&cue.seconds<=r.duration);}
       ids.add(r.id);
     }
     const lists = new Set();
     for (const list of t.playlists) {
       check(list && text(list.id, 120) && list.id && !lists.has(list.id) && text(list.name, 120) && ['audio', 'video'].includes(list.type)
         && Array.isArray(list.resourceIds) && list.resourceIds.length > 0 && list.resourceIds.length <= 200 && new Set(list.resourceIds).size === list.resourceIds.length
-        && list.resourceIds.every(id => t.media.some(r => r.id === id && r.type === list.type))); lists.add(list.id);
+        && list.resourceIds.every(id => t.media.some(r => r.id === id && r.type === list.type && r.category!=='fx'))); lists.add(list.id);
     }
     check(p && Array.isArray(p.available) && p.available.length <= 500 && typeof p.responded === 'boolean' && typeof p.resultsVisible === 'boolean');
     check(p.available.every(x => x && text(x.id, 120) && x.id && text(x.title, 1000)) && new Set(p.available.map(x => x.id)).size === p.available.length);
@@ -39,9 +40,9 @@
     } else check(p.runId === null && p.results === null && !p.responded && !p.resultsVisible);
     return t;
   }
-  function create({ document, origin, sendPoll }) {
+  function create({ document, origin, sendPoll,sendAdvance=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,requestFrame=fn=>setTimer(fn,16),cancelFrame=clearTimer }) {
     const $ = id => document.getElementById(id);
-    let view = null, pending = false, generation = 0;
+    let view = null, pending = false, generation = 0,serial=0,slideEpoch=0,volume=1;const stopTimers={};
     const playback = { audio: null, video: null };
     const button = (label, action, disabled = false) => {
       const b = document.createElement('button'); b.textContent = label; b.disabled = disabled || pending;
@@ -49,10 +50,10 @@
     };
     function stop(type) {
       const element = $(type === 'video' ? 'rehearsal-video' : 'rehearsal-audio');
-      playback[type] = null; element.pause(); element.removeAttribute('src'); element.load(); element.hidden = true;
+      if(stopTimers[type])clearTimer(stopTimers[type]);delete stopTimers[type];fades[type].cancel();playback[type] = null; element.classList.remove('is-visible');element.pause(); element.removeAttribute('src'); element.load(); element.hidden = true;
     }
     function clear() {
-      generation++; view = null;
+      generation++;cue.stop();view = null;
       for (const type of ['audio', 'video']) stop(type);
       for (const id of ['poll-catalog', 'poll-preview', 'media-catalog']) $(id).replaceChildren();
       $('media-status').textContent = ''; $('tools').hidden = true; $('poll-preview').hidden = true;
@@ -60,8 +61,8 @@
     function play(resource, list = null, index = 0) {
       if (!view || pending) return;
       const element = $(resource.type === 'video' ? 'rehearsal-video' : 'rehearsal-audio'), epoch = generation;
-      stop(resource.type); playback[resource.type] = { resource, list, index, epoch };
-      element.src = new URL(resource.url, origin).href; element.loop = !list && $('media-loop').checked;
+      stop(resource.type); playback[resource.type] = { resource, list, index, epoch,id:String(++serial),slideEpoch,consumed:false };element.volume=volume;element.controls=resource.category!=='fx';element.classList.add('is-visible');if(resource.type==='video'){element.dataset.resourceId=resource.id;element.dataset.fxPlaybackId=playback.video.id;}
+      element.src = new URL(resource.url, origin).href; element.loop = resource.category!=='fx'&&!list && $('media-loop').checked;
       element.hidden = false; $('media-status').textContent = resource.name;
       try { Promise.resolve(element.play()).catch(() => {
         if (epoch === generation && playback[resource.type]?.resource === resource) $('media-status').textContent = 'Pulsa reproducir en el control del medio para continuar.';
@@ -89,15 +90,19 @@
     }
     function renderMedia() {
       const t = view.tools, container = $('media-catalog');
-      container.replaceChildren(...t.media.map(r => button((r.type === 'audio' ? 'Audio: ' : 'Video: ') + r.name, () => play(r))),
+      container.replaceChildren(...t.media.map(r => button((r.category==='fx'?'FX: ':r.type === 'audio' ? 'Audio: ' : 'Video: ') + r.name, () => play(r))),
         ...t.playlists.map(list => button('Lista: ' + list.name, () => play(t.media.find(r => r.id === list.resourceIds[0]), list))));
       if (!t.media.length) { const empty = document.createElement('p'); empty.textContent = 'Esta versión no tiene medios seleccionados.'; container.append(empty); }
     }
     function update(next, prefix) {
       validate(next, prefix, origin);
       if (view?.runId !== next.runId) clear();
-      view = next; $('tools').hidden = false; renderPoll(); renderMedia();
+      if(view&&view.slideIndex!==next.slideIndex)slideEpoch++;view = next; $('tools').hidden = false; renderPoll(); renderMedia();
     }
+    const fades=Object.fromEntries(['audio','video'].map(type=>[type,Fade.create({getState:()=>({status:playback[type]?.fadeOut?'fading':'playing',fadeOut:playback[type]?.fadeOut,volume}),getMedia:()=>[$(type==='video'?'rehearsal-video':'rehearsal-audio')],video:type==='video',now,requestFrame,cancelFrame})]));
+    const video=$('rehearsal-video'),cue=Fx.createCueMonitor({media:video,getPlayback:()=>playback.video&&({resource:playback.video.resource,status:playback.video.fadeOut?'fading':'playing',fxPlayback:{id:playback.video.id,consumed:playback.video.consumed}}),onCue:()=>{const p=playback.video;if(!p||!view||pending)return false;p.consumed=true;if(p.slideEpoch===slideEpoch&&view.slideIndex+1<view.slideCount)sendAdvance();return true;}});
+    $('media-volume').addEventListener('input',()=>{const value=Number($('media-volume').value)/100;if(!Number.isFinite(value))return;volume=Math.max(0,Math.min(1,value));for(const type of ['audio','video'])if(!playback[type]?.fadeOut)$(type==='video'?'rehearsal-video':'rehearsal-audio').volume=volume;});
+    $('media-stop-all').addEventListener('click',()=>{for(const type of ['audio','video']){const p=playback[type];if(!p||p.fadeOut)continue;p.consumed=true;p.fadeOut={id:String(++serial),startedAt:now(),durationMs:1000};fades[type].apply();stopTimers[type]=setTimer(()=>{delete stopTimers[type];if(playback[type]===p)stop(type);},1000);}cue.refresh();});
     for (const type of ['audio', 'video']) {
       const element = $(type === 'video' ? 'rehearsal-video' : 'rehearsal-audio');
       element.addEventListener('ended', () => {

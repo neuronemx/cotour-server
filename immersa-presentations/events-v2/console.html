@@ -8,10 +8,8 @@
   <link rel="stylesheet" href="/events-v2/console.css">
   <script defer src="/events-v2/slides-console.js"></script>
   <script defer src="/events-v2/slides-page.js"></script>
-  <script defer src="/events-v2/av-console.js"></script>
-  <script defer src="/screen/audio-react-three.js"></script>
-  <script defer src="/screen/audio-react-overlay.js"></script>
-  <script defer src="/events-v2/av-page.js"></script>
+  <script defer src="/events-v2/av-fx.js"></script><script defer src="/events-v2/av-console.js"></script>
+  <script defer src="/events-v2/av-fade.js"></script><script defer src="/events-v2/av-page.js"></script>
   <script defer src="/events-v2/access-client.js"></script>
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/events-v2/live-console.js"></script>
@@ -137,10 +135,12 @@
         <button id="time-screen-stop" type="button">Pausar tiempo</button><button id="time-screen-resume" type="button">Continuar tiempo</button><button id="time-screen-reset" type="button">Reiniciar tiempo</button><button id="time-screen-hide" type="button">Ocultar tiempo</button></div></div>
         <div id="time-speaker" hidden><h3>Cronómetro de Speaker</h3><output id="time-speaker-output" role="timer" aria-live="off"></output><div class="controls"><button id="time-speaker-start" type="button">Iniciar cronómetro</button><button id="time-speaker-stop" type="button">Detener cronómetro</button><button id="time-speaker-reset" type="button">Reiniciar cronómetro</button></div></div>
       </section>
-      <section id="av-panel" hidden aria-label="Audiovisual"><h2>Audiovisual</h2><p id="av-status" role="status"></p>
-        <div id="av-operator" hidden><div class="controls"><label>Medio <select id="av-catalog"></select></label><button id="av-select" type="button">Reproducir</button><label>Lista <select id="av-playlists"></select></label><button id="av-select-playlist" type="button">Reproducir lista</button><label>Volumen <input id="av-volume" type="range" min="0" max="100" value="100"></label></div>
-        <div id="av-channel-controls"></div><label>Mensaje <textarea id="av-message" maxlength="2000"></textarea></label><div class="controls"><button id="av-show-message" type="button">Mostrar mensaje</button><button id="av-clear-message" type="button">Borrar mensaje</button><button id="av-clear-screen" type="button">Limpiar overlays</button><button id="av-reactions-toggle" type="button">Reacciones</button></div>
-        <div class="controls"><label>Audio React <select id="av-react-mode"></select></label><button id="av-react-toggle" type="button">Audio React</button><button id="av-react-next" type="button">Siguiente Audio React</button><label><input id="av-drawing-enabled" type="checkbox">Dibujar</label></div><p id="av-counts"></p></div>
+      <section id="av-panel" hidden aria-label="Audiovisual"><p id="av-status" role="status"></p>
+        <div id="av-operator" hidden><button id="av-open" type="button">Audiovisual</button>
+        <dialog id="av-dialog" aria-labelledby="av-title"><header class="av-modal-header"><h2 id="av-title">Audiovisual</h2><label class="av-master-volume">Volumen <input id="av-volume" type="range" min="0" max="100" value="100" aria-label="Volumen global de Audiovisual"></label><button id="av-stop-all" type="button">Stop global</button><button id="av-close" type="button" aria-label="Cerrar Audiovisual">Cerrar</button></header>
+        <div class="av-tabs" role="tablist" aria-label="Categorías de Audiovisual"><button id="av-tab-audio" type="button" role="tab" aria-selected="true">Audio</button><button id="av-tab-video" type="button" role="tab" aria-selected="false">Video</button><button id="av-tab-fx" type="button" role="tab" aria-selected="false">FX</button></div>
+        <div id="av-cards" class="av-media-grid"></div><div id="av-playlist-cards" class="av-playlist-grid"></div><div id="av-channel-controls"></div></dialog>
+        <label>Mensaje <textarea id="av-message" maxlength="2000"></textarea></label><div class="controls"><button id="av-show-message" type="button">Mostrar mensaje</button><button id="av-clear-message" type="button">Borrar mensaje</button><button id="av-clear-screen" type="button">Limpiar overlays</button><button id="av-reactions-toggle" type="button">Reacciones</button><label><input id="av-drawing-enabled" type="checkbox">Dibujar</label></div><p id="av-counts"></p></div>
 
         <button id="av-activate" type="button" hidden>Activar audio y video</button><p id="av-media-status" role="status"></p>
         <div id="av-public-reactions" class="controls" hidden><button id="av-heart" type="button" aria-label="Enviar corazón">❤️</button><button id="av-clap" type="button" aria-label="Enviar aplauso">👏</button><button id="av-fire" type="button" aria-label="Enviar fuego">🔥</button></div><output id="av-own-reaction" aria-live="polite"></output>

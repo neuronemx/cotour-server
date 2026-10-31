@@ -52,7 +52,7 @@ function projection(candidate, state, root, now = Date.now()) {
   return { raffle: raffle.projection(candidate, state.raffle, root, state.runId, now), knowledge: knowledge.projection(candidate, state.knowledge, root, state.runId, now), qna: qna.projection(state.qna, now), polls: { available: polls.map(({ id, title }) => ({ id, title })), runId: state.poll?.runId || null,
     active, responded: !!raw.response, resultsVisible: raw.resultsVisible,
     results: raw.resultsVisible ? store.getResults(session) : null },
-  media: av.resources.map(({ id, assetId, name, type, duration }) => ({ id, name, type, duration,
+  media: av.resources.map(({ id, assetId, name, type, duration, category,fx }) => ({ id, name, type, duration,...(category==='fx'?{category,source:'event',fx:{...fx}}:{}),
     url: root + '/media/' + state.runId + '/' + candidate.snapshot.bundleDigest + '/' + assetId })),
   playlists: av.playlists.map(p => structuredClone(p)) };
 }

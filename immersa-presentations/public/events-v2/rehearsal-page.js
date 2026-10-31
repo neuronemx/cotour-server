@@ -87,7 +87,7 @@
     const link = window.ImmersaEventAccess.consumeLink(window.location, window.history); binding = link.binding;
     if (binding.view !== 'rehearsal') throw new Error('Wrong access');
     tools = window.ImmersaEventRehearsalTools.create({ document, origin: window.location.origin,
-      sendPoll: input => operate('poll', { runId: snapshot?.runId, ...input }) });
+      sendAdvance:()=>operate('next'),sendPoll: input => operate('poll', { runId: snapshot?.runId, ...input }) });
     qnaTools = window.ImmersaEventRehearsalQna.create({ document,
       send: input => operate('qna', { runId: snapshot?.runId, ...input }) });
     knowledgeTools = window.ImmersaEventRehearsalKnowledge.create({ document,

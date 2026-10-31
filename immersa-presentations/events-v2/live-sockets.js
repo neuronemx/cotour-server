@@ -128,7 +128,7 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
         if (!valid(payload, []) || !bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
         await deliver(socket, ack, 'av');
       });
-      for (const command of ['control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance']) handler(`events:av:${command}`, async (payload, ack) => {
+      for (const command of ['control', 'stop_all', 'fx_advance', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance']) handler(`events:av:${command}`, async (payload, ack) => {
         if (!bindings.has(socket)) throw new Error('LIVE_ACCESS_DENIED');
         const result = await av.operate(grants, credentials.get(socket), bindings.get(socket), command, payload);
         // Own echo remains tied to this socket's credential and revalidated
@@ -263,6 +263,6 @@ function createLiveSocketAdapter({ namespace, grants, runtime, polls = null, qna
   }
   if (knowledge) knowledge.notify = fanout;
   if (av) av.notify = fanout;
-  return { attach, review, finishLive, names: [...NAMES, ...(slides ? ['events:slides:snapshot'] : []), ...(lifecycle ? ['events:lifecycle:current', 'events:lifecycle:start', 'events:lifecycle:finish'] : []), ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : []), ...(av ? ['snapshot', 'control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].map(command => `events:av:${command}`) : [])] };
+  return { attach, review, finishLive, names: [...NAMES, ...(slides ? ['events:slides:snapshot'] : []), ...(lifecycle ? ['events:lifecycle:current', 'events:lifecycle:start', 'events:lifecycle:finish'] : []), ...(polls ? ['events:poll:snapshot', ...Object.keys(POLL_COMMANDS)] : []), ...(qna ? ['events:qna:snapshot', ...Object.keys(QNA_COMMANDS)] : []), ...(knowledge ? ['events:knowledge:snapshot', ...Object.keys(KNOWLEDGE_COMMANDS)] : []), ...(raffles ? ['events:raffle:snapshot', ...Object.keys(RAFFLE_COMMANDS)] : []), ...(games ? ['events:game:snapshot', ...Object.keys(GAME_COMMANDS)] : []), ...(time ? ['events:time:snapshot', 'events:time:control'] : []), ...(av ? ['snapshot', 'control', 'stop_all', 'fx_advance', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].map(command => `events:av:${command}`) : [])] };
 }
 module.exports = { createLiveSocketAdapter };
