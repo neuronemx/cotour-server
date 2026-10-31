@@ -88,7 +88,7 @@ class EventAVRuntime {
         } else if(command==='stop_all') {
           if(!fields(payload,[]))throw error('AV_INVALID_COMMAND');changed=false;
           for(const type of ['audio','video']) {const current=state.channels[type];if(!current.resource||current.status==='stopped'||current.fadeOut)continue;
-            state.channels[type]={...current,status:'fading',pendingResource:null,fadeOut:{id:crypto.randomUUID(),startedAt:now,durationMs:1000,wasPaused:current.status==='paused'},fadeAt:now+1000,updatedAt:now,lastAction:'fade-stop-all',...(current.fxPlayback?{fxPlayback:{...current.fxPlayback,consumed:true}}:{})};changed=true;}
+            state.channels[type]={...current,position:current.status==='playing'&&current.startedAt?Math.min(current.resource.duration,current.position+(now-current.startedAt)/1000):current.position,status:'fading',pendingResource:null,fadeOut:{id:crypto.randomUUID(),startedAt:now,durationMs:1000,wasPaused:current.status==='paused'},fadeAt:now+1000,updatedAt:now,lastAction:'fade-stop-all',...(current.fxPlayback?{fxPlayback:{...current.fxPlayback,consumed:true}}:{})};changed=true;}
         } else if(command==='fx_advance') {
           if(!fields(payload,['resourceId','playbackId','mediaTime'])||typeof payload.mediaTime!=='number'||!Number.isFinite(payload.mediaTime))throw error('AV_INVALID_COMMAND');
           const current=state.channels.video,fx=current.fxPlayback;
