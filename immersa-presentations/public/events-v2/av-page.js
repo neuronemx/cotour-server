@@ -12,7 +12,7 @@
     $('cancel').addEventListener('click',closeConfirm);$('confirm').addEventListener('click',()=>{const c=confirmation;closeConfirm();if(c&&c.key===key()&&current())controller.operate(c.action,c.input);});
     for(const [type,e]of Object.entries(media)){e.crossOrigin='use-credentials';e.loop=false;e.addEventListener('error',()=>{if(bindings[type])$('media-status').textContent='No se pudo reproducir el medio preparado.';});}
     const fades=Object.fromEntries(['audio','video'].map(type=>[type,Fade.create({getState:()=>state.snapshot?.channels?.[type]||{},getMedia:()=>[media[type]],video:type==='video',now,requestFrame,cancelFrame})]));
-    function finish(type,b){if(!b||b.endPending||b.endSent||bindings[type]!==b||state.kind!=='PLAYER'||!current())return;b.endPending=true;controller.operate('ended',{type,playbackId:b.id}).then(ok=>{b.endPending=false;b.endSent=ok;if(!ok&&bindings[type]===b)$('media-status').textContent='No se confirmó el final del medio. Actualiza el estado antes de continuar.';});}
+    function finish(type,b){if(!b||b.endPending||b.endSent||bindings[type]!==b||state.kind!=='PLAYER'||!current()||state.snapshot?.channels?.[type]?.status!=='playing')return;b.endPending=true;controller.operate('ended',{type,playbackId:b.id}).then(ok=>{b.endPending=false;b.endSent=ok;if(!ok&&bindings[type]===b)$('media-status').textContent='No se confirmó el final del medio. Actualiza el estado antes de continuar.';});}
     let cuePending=null;
     const cue=Fx.createCueMonitor({media:media.video,getPlayback:()=>state.snapshot?.channels?.video,onCue:input=>{if(!current()||state.kind!=='PLAYER'||cuePending)return false;const b=bindings.video;cuePending=controller.operate('fx_advance',input);Promise.resolve(cuePending).finally(()=>{cuePending=null;if(media.video.ended&&bindings.video===b)finish('video',b);});return true;}});
     function stopMedia(){mediaEpoch++;cue.stop();for(const fade of Object.values(fades))fade.cancel();for(const [type,e]of Object.entries(media)){e.onended=null;e.pause?.();e.removeAttribute?.('src');e.load?.();delete bindings[type];}audioReact?.setState({enabled:false});$('activate').hidden=true;$('media-status').textContent='';}
@@ -25,7 +25,7 @@
         if(changed){e.onended=null;e.src=c.resource.assetUrl;e.load?.();const id=b.id,epoch=mediaEpoch;e.onended=()=>{if(epoch!==mediaEpoch||bindings[type]!==b)return;if(type==='video'&&cuePending)return;finish(type,b);};}
         const target=c.position;e.volume=c.volume;e.loop=false;e.hidden=type==='audio'||c.status==='stopped';if(type==='video'){e.dataset.resourceId=c.resource.id;e.dataset.fxPlaybackId=c.fxPlayback?.id||'';e.classList.toggle('is-visible',!e.hidden);}
         if(changed||Math.abs((e.currentTime||0)-target)>1.25)try{e.currentTime=target;}catch(_){}
-        if(c.status==='playing'||c.status==='fading'&&!c.fadeOut?.wasPaused){if(changed||e.paused)play(type);}else{e.pause?.();if(c.status==='stopped')try{e.currentTime=0;}catch(_){}}
+        if(c.status==='playing'||c.status==='fading'&&!c.fadeOut?.wasPaused){if(e.ended&&!changed){if(type!=='video'||!cuePending)finish(type,b);}else if(changed||e.paused)play(type);}else{e.pause?.();if(c.status==='stopped')try{e.currentTime=0;}catch(_){}}
       }cue.refresh();for(const fade of Object.values(fades))fade.apply();
     }
     const cardNodes=new Map();
