@@ -9,14 +9,15 @@ function attachMediaRoutes(router,service,eventPath) {
   const scope=req=>({organizationId:req.params.orgId,eventId:req.params.eventId,deckId:req.params.deckId,versionId:req.params.versionId});
   const noQuery=req=>{if(Object.keys(req.query).length)throw new EventAccessError('INVALID_FIELDS',400);};
   const reply=(res,e)=>e instanceof EventAccessError?res.status(e.statusCode).json({code:e.code}):res.status(503).json({code:service.code('MEDIA_UNAVAILABLE')});
-  const multipart=multer({storage:multer.memoryStorage(),limits:{fileSize:service.maxBytes,files:1,fields:1,parts:3,fieldNameSize:32,fieldSize:480,headerPairs:32}}).single(service.kind);
+  const multipart=multer({storage:multer.memoryStorage(),limits:{fileSize:service.maxBytes,files:1,fields:service.kind==='media'?3:1,parts:service.kind==='media'?5:3,fieldNameSize:32,fieldSize:480,headerPairs:32}}).single(service.kind);
   router.post(base,requireOrigin,async(req,res)=>{
     let release;
     try {
       noQuery(req);const actor=accountActor(req);await service.authorize(actor,scope(req));release=service.acquireUpload();
       await new Promise((resolve,reject)=>multipart(req,res,e=>e?reject(e):resolve()));
-      if(!req.file||Object.keys(req.body||{}).length!==1||typeof req.body.name!=='string')throw new EventAccessError(service.code('INVALID_MEDIA_UPLOAD'),400);
-      return res.status(201).json(await service.upload(actor,scope(req),req.body.name,req.file.buffer));
+      const fields=Object.keys(req.body||{}),fx=service.kind==='media'&&req.body?.category==='fx';
+      if(!req.file||fields.length!==(fx?3:1)||fields.some(k=>!(fx?['name','category','cue']:['name']).includes(k))||typeof req.body.name!=='string')throw new EventAccessError(service.code('INVALID_MEDIA_UPLOAD'),400);
+      return res.status(201).json(await service.upload(actor,scope(req),req.body.name,req.file.buffer,fx?{category:'fx',cue:req.body.cue}:{}));
     }catch(e){if(e instanceof multer.MulterError)return res.status(e.code==='LIMIT_FILE_SIZE'?413:400).json({code:service.code('INVALID_MEDIA_UPLOAD')});return reply(res,e);}
     finally{release?.();}
   });

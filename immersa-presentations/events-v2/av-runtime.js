@@ -1,5 +1,7 @@
 const crypto = require('node:crypto');
 const engine = require('../audiovisual-state');
+const { normalizeCue } = require('../public/events-v2/av-fx');
+const { applyPresenterSlide } = require('../presentation-navigation');
 const { ReactionRuntime, ALLOWED_REACTIONS, SCREEN_LIFETIME_MS } = require('../reaction-runtime');
 const { controls, scope, error } = require('./time-runtime');
 const { executionKey } = require('./live-runtime');
@@ -19,7 +21,12 @@ function normalizeAV(catalog) {
       || ['media_url', 'url', 'path', 'thumbnail_url'].some(key => Object.hasOwn(item, key)) || item.source === 'local') throw error('AV_CONTENT_NOT_PREPARED');
     seen.add(item.id);
     const normalized = { id: item.id, assetId: item.assetId, name: item.name.trim(), type: item.type, duration: item.duration, size: item.size, sha256: item.sha256, contentType: item.contentType };
-    const binding = JSON.stringify([item.type, item.size, item.sha256, item.contentType]);
+    if(item.category!==undefined || item.fx!==undefined) {
+      const cue=normalizeCue(item.fx);
+      if(item.category!=='fx'||item.type!=='video'||item.contentType!=='video/webm'||!cue||cue.seconds!==item.fx.seconds||cue.seconds>item.duration)throw error('AV_CONTENT_NOT_PREPARED');
+      Object.assign(normalized,{category:'fx',fx:cue});
+    }
+    const binding = JSON.stringify([item.type, item.size, item.sha256, item.contentType,normalized.fx]);
     if (assets.has(item.assetId) && assets.get(item.assetId) !== binding) throw error('AV_CONTENT_NOT_PREPARED'); assets.set(item.assetId, binding);
     return normalized;
   });
@@ -27,7 +34,7 @@ function normalizeAV(catalog) {
   const playlists = catalog.playlists.map(item => {
     if (!item || !token(item.id) || playlistIds.has(item.id) || !bounded(item.name, 120) || !['audio', 'video'].includes(item.type)
       || !Array.isArray(item.resourceIds) || !item.resourceIds.length || item.resourceIds.length > 200 || new Set(item.resourceIds).size !== item.resourceIds.length
-      || item.resourceIds.some(id => !resources.some(resource => resource.id === id && resource.type === item.type))) throw error('AV_CONTENT_NOT_PREPARED');
+      || item.resourceIds.some(id => !resources.some(resource => resource.id === id && resource.type === item.type && resource.category!=='fx'))) throw error('AV_CONTENT_NOT_PREPARED');
     playlistIds.add(item.id); return { id: item.id, name: item.name.trim(), type: item.type, resourceIds: [...item.resourceIds] };
   });
   if (catalog.publicId !== undefined && !token(catalog.publicId)) throw error('AV_CONTENT_NOT_PREPARED');
@@ -63,8 +70,9 @@ class EventAVRuntime {
     return this.live.serial(key, async () => {
       const result = await grants.withSession(credentials, async (context, db) => {
         if (!this.live.enabled()) throw error('LIVE_ACCESS_DENIED');
-        if (command !== 'tick' && (command === 'react' ? context.kind !== 'PARTICIPANT' || !context.participantId : ['ended', 'playlist_advance'].includes(command) ? context.kind !== 'PLAYER' : !controls(context))) throw error('AV_COMMAND_DENIED');
-        if (!['tick', 'control', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].includes(command)) throw error('AV_INVALID_COMMAND');
+        if (command !== 'tick' && (command === 'react' ? context.kind !== 'PARTICIPANT' || !context.participantId : ['ended', 'playlist_advance', 'fx_advance'].includes(command) ? context.kind !== 'PLAYER' : !controls(context))) throw error('AV_COMMAND_DENIED');
+        if (!['tick', 'control', 'stop_all', 'fx_advance', 'audio_react', 'overlay', 'draw', 'clear_message', 'clear_screen', 'react', 'ended', 'playlist_advance'].includes(command)) throw error('AV_INVALID_COMMAND');
+        if(command==='audio_react')throw error('AV_REACT_DISABLED');
         const scoped = await this.prepared(context, db, liveId);
         if (command === 'tick' && !this.states.has(key)) return { candidate: null, kind: context.kind, changed: false };
         const candidate = this.fork(scoped), { state } = candidate; let changed = command !== 'tick';
@@ -73,10 +81,22 @@ class EventAVRuntime {
           for (const type of ['audio', 'video']) {
             const current = state.channels[type];
             if (current.status === 'fading' && current.fadeAt <= now) {
-              state.channels[type] = engine.completeFade(current, now); delete state.channels[type].fadeAt;
+              state.channels[type] = engine.completeFade(current, now); delete state.channels[type].fadeAt;delete state.channels[type].fadeOut;
               changed = true;
             }
           }
+        } else if(command==='stop_all') {
+          if(!fields(payload,[]))throw error('AV_INVALID_COMMAND');changed=false;
+          for(const type of ['audio','video']) {const current=state.channels[type];if(!current.resource||current.status==='stopped'||current.fadeOut)continue;
+            state.channels[type]={...current,position:current.status==='playing'&&current.startedAt?Math.min(current.resource.duration,current.position+(now-current.startedAt)/1000):current.position,status:'fading',pendingResource:null,fadeOut:{id:crypto.randomUUID(),startedAt:now,durationMs:1000,wasPaused:current.status==='paused'},fadeAt:now+1000,updatedAt:now,lastAction:'fade-stop-all',...(current.fxPlayback?{fxPlayback:{...current.fxPlayback,consumed:true}}:{})};changed=true;}
+        } else if(command==='fx_advance') {
+          if(!fields(payload,['resourceId','playbackId','mediaTime'])||typeof payload.mediaTime!=='number'||!Number.isFinite(payload.mediaTime))throw error('AV_INVALID_COMMAND');
+          const current=state.channels.video,fx=current.fxPlayback;
+          if(current.status!=='playing'||current.resource?.category!=='fx'||!fx||fx.id!==payload.playbackId||current.resource.id!==payload.resourceId)throw error('AV_STALE_PLAYBACK');
+          if(payload.mediaTime<current.resource.fx.seconds||payload.mediaTime>current.resource.duration+.1)throw error('AV_FX_CUE_NOT_REACHED');
+          if(fx.consumed)changed=false;
+          else {fx.consumed=true;const live=this.live.states.get(key);
+            if(!live.transmissionPaused&&live.presenterSlideIndex===fx.slideIndex&&live.revision===fx.revision&&live.presenterSlideIndex+1<live.slideCount){const next={...live};applyPresenterSlide(next,live.presenterSlideIndex+1);next.revision++;candidate.liveCandidate=Object.freeze(next);}}
         } else if (command === 'control') {
           const action = payload.action;
           const required = action === 'select' ? ['action', 'resourceId', 'loop'] : action === 'select_playlist' ? ['action', 'playlistId', 'loop']
@@ -87,9 +107,11 @@ class EventAVRuntime {
             const playlist = action === 'select_playlist' ? scoped.definitions.playlists.find(item => item.id === payload.playlistId) : null;
             const resource = scoped.definitions.resources.find(item => item.id === (playlist ? playlist.resourceIds[0] : payload.resourceId));
             if (!resource || (action === 'select_playlist' && !playlist)) throw error('AV_RESOURCE_NOT_FOUND');
+            if(resource.category==='fx'&&payload.loop)throw error('AV_INVALID_COMMAND');
             const next = engine.select(state.channels[resource.type], resource, payload.loop, state.volume, now), playbackId = crypto.randomUUID();
             if (next.pendingResource) { next.pendingResource.playbackId = playbackId; next.pendingResource.playlistId = playlist?.id || null; next.fadeAt = now + 1000; }
-            else { next.playbackId = playbackId; next.playlistId = playlist?.id || null; }
+            else { next.playbackId = playbackId; next.playlistId = playlist?.id || null;
+              if(resource.category==='fx'){const live=this.live.states.get(key);next.fxPlayback={id:playbackId,slideIndex:live.presenterSlideIndex,revision:live.revision,consumed:false};}}
             state.channels[resource.type] = next;
           } else if (action === 'volume') {
             if (typeof payload.volume !== 'number' || !Number.isFinite(payload.volume) || payload.volume < 0 || payload.volume > 1) throw error('AV_INVALID_COMMAND');
@@ -102,12 +124,14 @@ class EventAVRuntime {
             const current = state.channels[payload.type];
             if (!current?.resource || !payload.playbackId || current.playbackId !== payload.playbackId) throw error('AV_STALE_PLAYBACK');
             if (action === 'seek' && (typeof payload.position !== 'number' || !Number.isFinite(payload.position) || payload.position < 0 || payload.position > current.resource.duration)) throw error('AV_INVALID_COMMAND');
+            if(current.resource.category==='fx'&&['seek','loop','pause','play'].includes(action))throw error('AV_INVALID_COMMAND');
             if (action === 'loop' && typeof payload.loop !== 'boolean') throw error('AV_INVALID_COMMAND');
             if (current.status === 'fading' && action !== 'stop') throw error('AV_INVALID_STATE');
             if (action === 'fade-stop' && (payload.type !== 'audio' || current.status !== 'playing')) throw error('AV_INVALID_STATE');
             state.channels[payload.type] = engine.control(current, payload, now); delete state.channels[payload.type].pendingResource;
             if (action === 'fade-stop') state.channels[payload.type].fadeAt = now + 1000;
-            else delete state.channels[payload.type].fadeAt;
+            else {delete state.channels[payload.type].fadeAt;delete state.channels[payload.type].fadeOut;}
+            if(action==='stop'&&current.fxPlayback)state.channels[payload.type].fxPlayback={...current.fxPlayback,consumed:true};
           }
         } else if (['ended', 'playlist_advance'].includes(command)) {
           if (!fields(payload, ['type', 'playbackId']) || !['audio', 'video'].includes(payload.type) || (command === 'playlist_advance' && payload.type !== 'video')) throw error('AV_INVALID_COMMAND');
@@ -158,7 +182,7 @@ class EventAVRuntime {
         return { candidate, changed, kind: context.kind, own: candidate.own[0] || null };
       });
       if (!this.live.enabled()) throw error('LIVE_ACCESS_DENIED');
-      if (result.candidate && result.changed) this.states.set(key, result.candidate);
+      if (result.candidate && result.changed) {this.states.set(key, result.candidate);if(result.candidate.liveCandidate)this.live.states.set(key,result.candidate.liveCandidate);}
       this.schedule(key, grants, credentials, liveId, result.kind);
       return { key, own: result.own || null };
     });
@@ -191,12 +215,12 @@ class EventAVRuntime {
       qrVisible = rows.length > 0;
     }
     snapshot.overlays = { ...state.overlays, qrVisible, publicId: qrVisible ? scoped.definitions.publicId : null };
-    snapshot.audioReact = { ...state.audioReact }; snapshot.channels = {};
-    const resourceDTO = resource => resource ? { id: resource.id, name: resource.name, type: resource.type, duration: resource.duration, assetUrl: this.assetUrl(context, liveId, resource.assetId) } : null;
+    snapshot.audioReact = { ...state.audioReact,enabled:false }; snapshot.channels = {};
+    const resourceDTO = resource => resource ? { id: resource.id, name: resource.name, type: resource.type, duration: resource.duration,...(resource.category==='fx'?{category:'fx',source:'event',fx:{...resource.fx}}:{}), assetUrl: this.assetUrl(context, liveId, resource.assetId) } : null;
     for (const type of ['audio', 'video']) {
       const channel = state.channels[type]; snapshot.channels[type] = { resource: resourceDTO(channel.resource), status: channel.status, loop: channel.loop, volume: channel.volume,
         position: channel.status === 'playing' && channel.startedAt ? Math.min(channel.resource.duration, Math.max(0, channel.position + (now - channel.startedAt) / 1000)) : channel.position,
-        startedAt: channel.startedAt ?? null, updatedAt: channel.updatedAt, playbackId: channel.playbackId || null, fadeAt: channel.fadeAt || null };
+        startedAt: channel.startedAt ?? null, updatedAt: channel.updatedAt, playbackId: channel.playbackId || null, fadeAt: channel.fadeAt || null,...(channel.fadeOut?{fadeOut:{...channel.fadeOut}}:{}),...(channel.fxPlayback?{fxPlayback:{...channel.fxPlayback}}:{}) };
     }
     snapshot.available = scoped.definitions.resources.map(resourceDTO);
     snapshot.playlists = scoped.definitions.playlists.map(item => ({ ...item }));

@@ -3,20 +3,20 @@ const settle = async () => { for (let n = 0; n < 15; n++) await Promise.resolve(
 const eventId = '00000000-0000-4000-8000-000000000001', grantId = '00000000-0000-4000-8000-000000000002', activityId = '00000000-0000-4000-8000-000000000003';
 function page() {
   class Element {
-    constructor() { this.hidden = true; this.disabled = false; this.textContent = ''; this.handlers = {}; this.src = ''; this.children = []; this.checked = false; this.paused = true; this.loads = 0; }
+    constructor() { this.dataset={};this.style={removeProperty:k=>{delete this.style[k];}};this.classList={add(){},remove(){},contains(){return true;}};this.hidden = true; this.disabled = false; this.textContent = ''; this.handlers = {}; this.src = ''; this.children = []; this.checked = false; this.paused = true; this.loads = 0; }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     pause() { this.paused = true; }
     play() { this.paused = false; return Promise.resolve(); }
     load() { this.loads++; }
-    addEventListener(n, f) { this.handlers[n] = f; }
+    addEventListener(n, f) { (this.handlers[n]||=[]).push(f); }
     removeAttribute(name) { delete this[name]; }
-    fire(n) { this.handlers[n]?.({ target: this }); }
+    fire(n) { for(const f of this.handlers[n]||[])f({target:this}); }
   }
   const root = path.join(__dirname, '..'), html = fs.readFileSync(path.join(root, 'events-v2/rehearsal.html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m => [m[1], new Element()]));
-  const document = { createElement: () => new Element(), handlers: {}, getElementById: id => elements[id], addEventListener(n, f) { this.handlers[n] = f; } };
-  const window = { location: { origin: 'https://events.test', reload() {} }, history: { replaceState() {} }, handlers: {}, addEventListener(n, f) { this.handlers[n] = f; } };
+  const document = { createElement: () => new Element(), handlers: {}, getElementById: id => elements[id], addEventListener(n, f) { (this.handlers[n]||=[]).push(f); } };
+  const window = { location: { origin: 'https://events.test', reload() {} }, history: { replaceState() {} }, handlers: {}, addEventListener(n, f) { (this.handlers[n]||=[]).push(f); } };
   let state, callback, response = null;
   const client = { getState: () => state, start() { queueMicrotask(() => ready()); }, resume() { ready(); }, close() {} };
   const ready = () => { state = { status: 'ready', context: { purpose: 'rehearsal', activityId }, eventName: 'Own event' }; callback(state); };
@@ -27,8 +27,8 @@ function page() {
     image: { url: `/api/events-v2/rehearsal/${eventId}/${grantId}/slides/own-run`, width: 16, height: 9 } };
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return response ? response() : { ok: true, json: async () => structuredClone(value) }; };
-  window.fetch = fetch;
-  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-tools.js'), 'utf8'), { window, URL, Promise, Set, Number, Error });
+  window.fetch = fetch;window.ImmersaEventFx=require('../public/events-v2/av-fx');window.ImmersaEventFade=require('../public/events-v2/av-fade');
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-tools.js'), 'utf8'), { window, URL, Promise, Set, Number, Error,setTimeout,clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-qna.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-knowledge.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/events-v2/rehearsal-raffle.js'), 'utf8'), { window, Date, Set, Number, Error, setTimeout, clearTimeout });
@@ -210,4 +210,9 @@ test('lost access erases sample names, choices and previews and cannot reinstall
   p.state({ status: 'denied' }); assert.equal(p.elements['raffle-name'].value, ''); assert.equal(p.elements['raffle-preview'].hidden, true);
   finish({ ok: true, json: async () => p.value }); await settle();
   assert.equal(p.elements['raffle-tools'].hidden, true); assert.equal(p.elements['raffle-person'].children.length, 0); assert.equal(p.elements['raffle-entries'].children.length, 0);
+});
+
+test('Private rehearsal FX advances only its rehearsal once and stop-all cancels the cue while idle volume persists',async()=>{
+ const p=page();await settle();const resource={id:'fx',name:'Transición de prueba',type:'video',source:'event',category:'fx',duration:2,fx:{timecode:'00:01',fps:10,seconds:.1},url:`/api/events-v2/rehearsal/${eventId}/${grantId}/media/${p.value.runId}/${'a'.repeat(64)}/fx`};p.value.tools.media=[resource];p.ready();await settle();p.elements['media-volume'].value='41';p.elements['media-volume'].fire('input');p.elements['media-catalog'].children[0].fire('click');await settle();const video=p.elements['rehearsal-video'];assert.equal(video.volume,.41);assert.equal(video.controls,false);video.currentTime=.2;video.fire('timeupdate');await settle();video.fire('timeupdate');await settle();const next=p.calls.filter(c=>c.options.method==='POST'&&JSON.parse(c.options.body).action==='next');assert.equal(next.length,1);assert.ok(next[0].url.includes('/rehearsal/'));assert.equal(p.calls.some(c=>c.url.includes('/live/')),false);
+ p.elements['media-catalog'].children[0].fire('click');await settle();p.elements['media-stop-all'].fire('click');video.currentTime=.2;video.fire('timeupdate');await settle();assert.equal(p.calls.filter(c=>c.options.method==='POST'&&JSON.parse(c.options.body).action==='next').length,1);p.state({status:'denied'});assert.equal(video.paused,true);assert.equal(video.src,undefined);
 });

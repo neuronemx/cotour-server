@@ -112,7 +112,7 @@
       if (name === 'events:qna:submit' && Object.hasOwn(payload || {}, 'name')) fields[name] = [...fields[name], 'name'];
       if (name.startsWith('events:av:')) {
         const action = name.slice(10);
-        if (!['snapshot','control','audio_react','overlay','draw','clear_message','clear_screen','react','ended','playlist_advance'].includes(action)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
+        if (!['snapshot','control','stop_all','fx_advance','audio_react','overlay','draw','clear_message','clear_screen','react','ended','playlist_advance'].includes(action)) return Promise.reject(failure('COMMAND_NOT_ENABLED'));
         if (!getAV().validCommand(action, payload)) return Promise.reject(failure('INVALID_COMMAND'));
         fields[name] = Object.keys(payload);
       }

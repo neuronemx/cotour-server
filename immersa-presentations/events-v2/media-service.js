@@ -4,6 +4,7 @@ const { isId } = require('./grant-repository');
 const { EventMediaPrivateStore, MAX_MEDIA_BYTES } = require('./media-private-store');
 const { digest } = require('./deck-private-store');
 const { EventImagePrivateStore, MAX_IMAGE_BYTES } = require('./image-private-store');
+const { parseCue } = require('../public/events-v2/av-fx');
 const { normalizeAV } = require('./av-runtime');
 class EventMediaService {
   constructor({ preparations, root, forbiddenRoots, store, imagePreparation = false, admission = null }) {
@@ -54,10 +55,16 @@ class EventMediaService {
       this.preparations.checkEnabled(); return { [this.collection]: media };
     });
   }
-  async upload(actor, scope, name, bytes) {
+  async upload(actor, scope, name, bytes, options = {}) {
     await this.authorize(actor,scope); name = textField(name,120);
     if (/[\x00-\x1f\x7f]/.test(name)) throw new EventAccessError('INVALID_INPUT',400);
     if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > this.maxBytes) throw new EventAccessError(this.code('INVALID_MEDIA_SIZE'),413);
+    let fx;
+    if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(k=>!['category','cue'].includes(k))) throw new EventAccessError('INVALID_MEDIA_UPLOAD',400);
+    if (Object.keys(options).length) {
+      if (this.kind!=='media' || options.category!=='fx' || typeof options.cue!=='string' || Buffer.byteLength(options.cue)>480) throw new EventAccessError('INVALID_FX_CUE',400);
+      try { fx=parseCue(options.cue); } catch (_) { throw new EventAccessError('INVALID_FX_CUE',400); }
+    }
     const id = crypto.randomUUID(), sourceSha = digest(bytes);
     await this.domain.transaction(actor,'deck.'+this.kind+'.reserve',async db => {
       await this.scoped(db,actor,scope,true);
@@ -69,10 +76,11 @@ class EventMediaService {
     });
     try {
       const info = await this.store.prepare({ ...scope,id },bytes);
+      if (fx && (info.type!=='video' || info.contentType!=='video/webm' || fx.seconds>info.duration)) throw new EventAccessError('INVALID_FX_MEDIA',400);
       return await this.domain.transaction(actor,'deck.'+this.kind+'.complete',async db => {
         await this.scoped(db,actor,scope,true);
         const data = { schema:1,id,eventId:scope.eventId,deckId:scope.deckId,versionId:scope.versionId,name,
-          size:bytes.length,sha256:sourceSha,...info },json=JSON.stringify(data);
+          size:bytes.length,sha256:sourceSha,...info,...(fx?{category:'fx',fx}:{}) },json=JSON.stringify(data);
         const [update] = await db.execute(`UPDATE ${this.table} SET status='READY',metadata_json=?,metadata_digest=?,completed_at=CURRENT_TIMESTAMP(3)
           WHERE id=? AND status='PROCESSING'`,[json,digest(json),id]);
         if (update.affectedRows !== 1) throw new EventAccessError(this.code('MEDIA_CONFLICT'),409);
@@ -90,7 +98,7 @@ class EventMediaService {
       const row = all.find(r => r.id === id && r.status === 'READY');
       if (!row) throw new EventAccessError(this.code('MEDIA_NOT_READY'),409);
       const m = this.metadata(row);
-      return { id:m.id,assetId:m.id,name:m.name,type:m.type,duration:m.duration,size:m.size,sha256:m.sha256,contentType:m.contentType };
+      return { id:m.id,assetId:m.id,name:m.name,type:m.type,duration:m.duration,size:m.size,sha256:m.sha256,contentType:m.contentType,...(m.category==='fx'?{category:m.category,fx:m.fx}:{}) };
     });
     try { return normalizeAV({ resources,playlists:input.playlists }); }
     catch (_) { throw new EventAccessError('INVALID_CONFIGURATION',400); }

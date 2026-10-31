@@ -92,10 +92,10 @@ async function avSuite(t, f) {
     reply = await command(player, 'ended', { type: 'video', playbackId: reply.snapshot.channels.video.playbackId }); assert.equal(reply.snapshot.channels.video.resource.id, 'film'); assert.notEqual(reply.snapshot.channels.video.playbackId, old);
     await control(player, 'stop', { type: 'video', playbackId: reply.snapshot.channels.video.playbackId });
   });
-  await t.test('live text, prepared QR, transient slide-bound drawing and twelve Audio React modes coexist with polls/Time', async () => {
+  await t.test('live text, prepared QR and drawing coexist with polls/Time while Audio React stays disabled', async () => {
     const poll = await ack(stage, 'events:poll:launch', { interactionId: 'poll' }); assert.equal(poll.ok, true);
     assert.equal((await command(player, 'overlay', { messageVisible: true, messageText: 'Visita https://immersalive.com', qrVisible: true })).ok, true); assert.equal((await snap(attendee)).overlays.messageText, 'Visita https://immersalive.com'); assert.equal((await snap(attendee)).overlays.publicId, undefined); assert.equal((await snap(player)).overlays.publicId, publicId);
-    assert.equal((await command(player, 'audio_react', { action: 'set', reaction: 11, enabled: true })).ok, true); const next = await command(stage, 'audio_react', { action: 'next', enabled: true }); assert.equal(next.snapshot.audioReact.reaction, 0); assert.equal((await snap(attendee)).audioReact, undefined);
+    assert.equal((await command(player, 'audio_react', { action: 'set', reaction: 11, enabled: true })).code, 'AV_REACT_DISABLED'); assert.equal((await command(stage, 'audio_react', { action: 'next', enabled: true })).code, 'AV_REACT_DISABLED'); assert.equal((await snap(player)).audioReact.enabled, false); assert.equal((await snap(attendee)).audioReact, undefined);
     setClock(4000); const stroke = { slideIndex: 0, points: [{ x: .1, y: .1 }, { x: .8, y: .8 }], width: .01, ttl: 4200 }; assert.equal((await command(player, 'draw', stroke)).ok, true); assert.equal((await snap(attendee)).strokes.length, 1);
     assert.equal((await command(speaker, 'draw', { ...stroke, slideIndex: 1 })).code, 'AV_INVALID_COMMAND'); assert.equal((await command(player, 'draw', stroke)).code, 'AV_DRAW_RATE_LIMITED');
     await ack(stage, 'events:slide:next'); assert.equal((await snap(attendee)).strokes.length, 0); setClock(8300); assert.equal((await snap(player)).strokes.length, 0);

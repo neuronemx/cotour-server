@@ -26,7 +26,7 @@ async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); 
 // browser rendering, secure-cookie behavior and operator acceptance are separate.
 function page(kind = 'STAGE', purpose = 'live') {
   class Element {
-    constructor(id = '') { this.id = id; this.listeners = {}; this.hidden = false; this.disabled = false; this.value = ''; this.open = false; this.children = []; }
+    constructor(id = '') { this.id = id;this.dataset={};this.style={removeProperty:k=>{delete this.style[k];}};this.classList={toggle(){},contains(){return false;}}; this.listeners = {}; this.hidden = false; this.disabled = false; this.value = ''; this.open = false; this.children = []; }
     set innerHTML(_) { throw new Error('Unsafe HTML assignment'); }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     fire(name, event = {}) { for (const fn of this.listeners[name] || []) fn(event); }

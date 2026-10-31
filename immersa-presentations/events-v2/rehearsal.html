@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
 <title>Ensayo privado · IMMERSA Eventos</title><link rel="stylesheet" href="/events-v2/rehearsal.css">
-<script defer src="/events-v2/av-console.js"></script><script defer src="/events-v2/access-client.js"></script>
+<script defer src="/events-v2/av-fx.js"></script><script defer src="/events-v2/av-fade.js"></script><script defer src="/events-v2/av-console.js"></script><script defer src="/events-v2/access-client.js"></script>
 <script defer src="/socket.io/socket.io.js"></script><script defer src="/events-v2/rehearsal-tools.js"></script><script defer src="/events-v2/rehearsal-qna.js"></script><script defer src="/events-v2/rehearsal-knowledge.js"></script><script defer src="/events-v2/rehearsal-raffle.js"></script><script defer src="/events-v2/rehearsal-page.js"></script></head>
 <body><main><header><p class="eyebrow">IMMERSA · Ensayo privado</p><h1 id="event-name">Verificando acceso…</h1>
 <p>Practica los slides, tu apuntador, las Encuestas, Q&amp;A, Trivias, Evaluaciones, Sorteos y el audiovisual. Este ensayo no cambia la presentación en vivo ni registra participación real.</p></header>
@@ -12,7 +12,7 @@
 <label id="language-label" hidden>Idioma <select id="language"><option value="es">Español</option><option value="en">inglés</option></select></label></nav>
 <aside><h2>Apuntador</h2><p id="notes"></p></aside>
 <section id="tools" hidden><h2>Encuestas</h2><div id="poll-catalog" class="catalog"></div>
-<h2>Audiovisual</h2><div id="media-catalog" class="catalog"></div>
+<div class="rehearsal-av-header"><h2>Audiovisual</h2><label>Volumen <input id="media-volume" type="range" min="0" max="100" value="100"></label><button id="media-stop-all">Stop global</button></div><div id="media-catalog" class="catalog"></div>
 <label class="loop"><input id="media-loop" type="checkbox"> Repetir medio o lista</label>
 <p id="media-status" role="status"></p><audio id="rehearsal-audio" controls preload="metadata" hidden></audio>
 <div class="catalog"><button id="stop-audio">Detener audio</button><button id="stop-video">Detener video</button></div></section>

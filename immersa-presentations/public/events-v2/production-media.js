@@ -1,5 +1,5 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.ImmersaProductionMedia=factory();})(typeof window==='undefined'?this:window,function(){
- 'use strict';
+ 'use strict';const fx=typeof module==='object'&&module.exports?require('./av-fx'):window.ImmersaEventFx;
  const id=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
  const ready=m=>m.status==='READY_PENDING_DECK_CHECK';
  function library(rows){
@@ -7,6 +7,7 @@
   const seen=new Set();return rows.map(m=>{
    if(!m||!id(m.id)||seen.has(m.id)||!['READY_PENDING_DECK_CHECK','PROCESSING','FAILED'].includes(m.status))throw Error('No se pudo verificar la biblioteca audiovisual.');seen.add(m.id);
    if(ready(m)&&(typeof m.name!=='string'||!m.name.trim()||m.name.length>120||!['audio','video'].includes(m.type)||!Number.isFinite(m.duration)||m.duration<=0))throw Error('No se pudo verificar un recurso audiovisual.');
+   if(ready(m)&&(m.category!==undefined||m.fx!==undefined)){const cue=fx.normalizeCue(m.fx);if(m.category!=='fx'||m.type!=='video'||m.contentType!=='video/webm'||!cue||cue.seconds!==m.fx.seconds||cue.seconds>m.duration)throw Error('No se pudo verificar el FX.');}
    return {...m};
   });
  }
@@ -23,7 +24,7 @@
   const seen=new Set(),playlists=state.playlists.map(p=>{
    const name=typeof p.name==='string'?p.name.trim():'';
    if(!/^[a-zA-Z0-9_-]{1,120}$/.test(p.id)||seen.has(p.id)||!name||name.length>120||!['audio','video'].includes(p.type)||!Array.isArray(p.resourceIds)||!p.resourceIds.length||p.resourceIds.length>200||new Set(p.resourceIds).size!==p.resourceIds.length)throw Error('Cada playlist necesita nombre y al menos un recurso del mismo tipo.');seen.add(p.id);
-   if(p.resourceIds.some(asset=>!assetIds.includes(asset)||!state.resources.some(m=>m.id===asset&&m.type===p.type)))throw Error('Las playlists sólo admiten recursos seleccionados de su mismo tipo.');
+   if(p.resourceIds.some(asset=>!assetIds.includes(asset)||!state.resources.some(m=>m.id===asset&&m.type===p.type&&m.category!=='fx')))throw Error('Las playlists sólo admiten recursos seleccionados de su mismo tipo.');
    return{id:p.id,name,type:p.type,resourceIds:[...p.resourceIds]};
   });return{assetIds,playlists};
  }
@@ -45,12 +46,12 @@
    if(!state.resources.length)container.append(make('p','Todavía no has subido audio o video a esta versión.','hint'));
    const resources=make('div',undefined,'media-grid');container.append(resources);
    for(const m of state.resources){const card=make('article',undefined,'media-card');resources.append(card);if(!ready(m)){card.append(make('strong',m.status==='PROCESSING'?'Preparando recurso…':'Carga fallida'),make('p',m.status==='PROCESSING'?'Actualiza la biblioteca al terminar.':'Este archivo no se puede seleccionar. Puedes subir otro archivo.','hint'));continue;}
-    input('Incluir '+m.name,state.selected.includes(m.id),card,checked=>{select(state,m.id,checked);render();},'checkbox');card.append(make('p',(m.type==='audio'?'Audio':'Video')+' · '+duration(m.duration)+' · '+(m.size/1048576).toFixed(1)+' MB','hint'));
+    input('Incluir '+m.name,state.selected.includes(m.id),card,checked=>{select(state,m.id,checked);render();},'checkbox');card.append(make('p',(m.category==='fx'?'FX · avance '+m.fx.timecode+' @ '+m.fx.fps+' fps':m.type==='audio'?'Audio':'Video')+' · '+duration(m.duration)+' · '+(m.size/1048576).toFixed(1)+' MB','hint'));
     if(contentUrl){const details=make('details',undefined,'media-preview'),summary=make('summary','Vista previa de '+m.name),player=make(m.type);player.controls=true;player.preload='none';player.src=contentUrl(m.id);if(m.type==='video')player.playsInline=true;details.append(summary,player);details.addEventListener('toggle',()=>{if(!details.open)player.pause?.();});card.append(details);}
    }
    const lists=make('div',undefined,'playlist-list');container.append(lists);
    for(const p of state.playlists){const card=make('article',undefined,'playlist-card');lists.append(card);card.append(make('h4','Playlist de '+(p.type==='audio'?'audio':'video')));input('Nombre de la playlist',p.name,card,value=>{p.name=value;});
-    const available=state.resources.filter(m=>ready(m)&&m.type===p.type&&state.selected.includes(m.id));if(!available.length)card.append(make('p','Selecciona primero recursos de '+(p.type==='audio'?'audio':'video')+' en la biblioteca.','hint'));
+    const available=state.resources.filter(m=>ready(m)&&m.type===p.type&&m.category!=='fx'&&state.selected.includes(m.id));if(!available.length)card.append(make('p','Selecciona primero recursos de '+(p.type==='audio'?'audio':'video')+' en la biblioteca.','hint'));
     for(const m of available)input('Agregar '+m.name,p.resourceIds.includes(m.id),card,checked=>{p.resourceIds=checked?[...p.resourceIds,m.id]:p.resourceIds.filter(x=>x!==m.id);render();},'checkbox');
     const order=make('ol',undefined,'playlist-order');card.append(order);p.resourceIds.forEach((asset,index)=>{const item=make('li'),name=state.resources.find(m=>m.id===asset)?.name||'Recurso no disponible';item.append(make('span',name));button(item,'Subir '+name,()=>{[p.resourceIds[index-1],p.resourceIds[index]]=[p.resourceIds[index],p.resourceIds[index-1]];render();},index===0);button(item,'Bajar '+name,()=>{[p.resourceIds[index+1],p.resourceIds[index]]=[p.resourceIds[index],p.resourceIds[index+1]];render();},index===p.resourceIds.length-1);order.append(item);});
     button(card,'Quitar playlist',()=>{state.playlists=state.playlists.filter(x=>x!==p);render();});
