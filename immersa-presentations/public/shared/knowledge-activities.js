@@ -102,12 +102,12 @@
     if (elapsed < 1000) return "3";
     if (elapsed < 2000) return "2";
     if (elapsed < 3000) return "1";
-    return "¡Inicia!";
+    return global.ImmersaI18n?.t('knowledge.startNow') || '¡Inicia!';
   }
 
   function countdownMarkup(state) {
     const label = countdownLabel(state);
-    const startingClass = label === "¡Inicia!" ? " is-starting" : "";
+    const startingClass = label === (global.ImmersaI18n?.t('knowledge.startNow') || '¡Inicia!') ? " is-starting" : "";
     return '<strong class="knowledge-countdown-value' + startingClass + '" data-knowledge-countdown>'
       + label
       + "</strong>";
@@ -120,18 +120,18 @@
     root?.querySelectorAll?.("[data-knowledge-countdown]").forEach((node) => {
       const label = countdownLabel(state);
       node.textContent = label;
-      node.classList?.toggle("is-starting", label === "¡Inicia!");
+      node.classList?.toggle("is-starting", label === (global.ImmersaI18n?.t('knowledge.startNow') || '¡Inicia!'));
     });
   }
 
   function questionImageMarkup(image, className = "knowledge-question-image", expandable = false) {
     const url = String(image?.url || "");
     if (!url) return "";
-    const imageMarkup = '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="Imagen de la pregunta">';
+    const imageMarkup = '<img class="' + className + '" src="' + escapeHtml(url) + '" alt="' + (global.ImmersaI18n?.t('knowledge.questionImage') || 'Imagen de la pregunta') + '">';
     if (!expandable) return imageMarkup;
-    return '<a class="knowledge-question-image-link" href="' + escapeHtml(url) + '" data-knowledge-image-open aria-label="Abrir imagen de la pregunta en tamaño real">'
+    return '<a class="knowledge-question-image-link" href="' + escapeHtml(url) + '" data-knowledge-image-open aria-label="' + (global.ImmersaI18n?.t('knowledge.openImage') || 'Abrir imagen de la pregunta en tamaño real') + '">'
       + imageMarkup
-      + '<span>Ampliar imagen</span></a>';
+      + '<span>' + (global.ImmersaI18n?.t('knowledge.expandImage') || 'Ampliar imagen') + '</span></a>';
   }
 
   function submissionDateTime(value) {
@@ -199,6 +199,13 @@
 
   function createController({ socket, deckId, role, onAvailabilityChange, onStateChange } = {}) {
     if (!socket?.on || !socket?.emit) throw new Error("A socket is required");
+    const tr = (key, fallback) => global.ImmersaI18n?.t(key) || fallback;
+    const english = () => global.ImmersaI18n?.getLocale() === 'en';
+    const title = () => english() && state?.titleEn?.trim() ? state.titleEn : state?.title;
+    const questionLabel = (question) => {
+      if (!english() || !question?.en?.prompt?.trim() || !question.options?.every((option) => question.en.options?.[option.id]?.trim())) return question?.prompt || '';
+      return question.en.prompt;
+    };
     const hosts = new Set();
     let state = { available: false, execution: null };
     let definitions = { contest: [], assessment: [] };
@@ -208,7 +215,7 @@
 
     function emitNow(eventName, payload) {
       if (socket.connected === false) {
-        rejected = "Sin conexión";
+        rejected = tr('knowledge.offline', 'Sin conexión');
         render();
         return false;
       }
@@ -269,16 +276,16 @@
     function definitionsMarkup(category) {
       const items = definitions[category] || [];
       if (!items.length) {
-        return '<div class="knowledge-empty"><strong>No hay ' + (category === "contest" ? "concursos" : "evaluaciones") + ' configurados</strong><span>Créalo desde Deck → Interacciones.</span></div>';
+        return '<div class="knowledge-empty"><strong>' + tr(category === 'contest' ? 'knowledge.noContests' : 'knowledge.noAssessments', category === 'contest' ? 'No hay concursos configurados' : 'No hay evaluaciones configuradas') + '</strong><span>' + tr('knowledge.createInDeck', 'Créalo desde Deck → Interacciones.') + '</span></div>';
       }
       return '<div class="knowledge-definition-list">' + items.map((item) => {
         const duration = category === "contest"
-          ? item.questionDurationSeconds + " s por pregunta"
+          ? item.questionDurationSeconds + ' ' + tr('knowledge.secondsPerQuestion', 's por pregunta')
           : Math.round(item.durationSeconds / 60) + " min";
         return '<button type="button" class="knowledge-definition knowledge-definition-' + category + '" data-knowledge-open="' + escapeHtml(item.id) + '">'
           + categoryIconMarkup(category)
-          + '<span class="knowledge-definition-copy"><strong>' + escapeHtml(item.title) + '</strong>'
-          + '<small>' + item.questions.length + " preguntas · " + escapeHtml(duration) + "</small></span>"
+          + '<span class="knowledge-definition-copy"><strong>' + escapeHtml(english() && item.titleEn?.trim() ? item.titleEn : item.title) + '</strong>'
+          + '<small>' + item.questions.length + ' ' + tr('knowledge.questions', 'preguntas') + ' · ' + escapeHtml(duration) + "</small></span>"
           + '<span class="knowledge-definition-arrow" aria-hidden="true">→</span>'
           + "</button>";
       }).join("") + "</div>";
@@ -288,7 +295,7 @@
       const result = state.result;
       if (!result) return "";
       const warning = result.excludedResponseCount
-        ? '<p class="knowledge-error">Resultados generados. ' + result.excludedResponseCount + " respuestas no pudieron incluirse.</p>"
+        ? '<p class="knowledge-error">' + tr('knowledge.generated', 'Resultados generados.') + ' ' + result.excludedResponseCount + ' ' + tr('knowledge.excluded', 'respuestas no pudieron incluirse.') + '</p>'
         : "";
       if (state.category === "contest") {
         const rows = Array.isArray(result.top10)
@@ -296,50 +303,50 @@
           : [];
         return warning + (rows.length
           ? '<div class="knowledge-ranking">' + rows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + "</strong></div>").join("") + "</div>"
-          : '<div class="knowledge-empty"><strong>Sin ganadores</strong><span>Nadie respondió correctamente.</span></div>');
+          : '<div class="knowledge-empty"><strong>' + tr('knowledge.noWinners', 'Sin ganadores') + '</strong><span>' + tr('knowledge.noOneCorrect', 'Nadie respondió correctamente.') + '</span></div>');
       }
       const distribution = (result.gradeDistribution || []).map((bucket) =>
         '<div><span>' + escapeHtml(bucket.range) + '</span><strong>' + bucket.count + "</strong></div>"
       ).join("");
       const questions = (result.questionStatistics || []).map((question, index) =>
-        '<div><span>P' + (index + 1) + " · " + escapeHtml(question.prompt) + '</span><strong>' + question.correctPercentage + "%</strong></div>"
+        '<div><span>' + tr('knowledge.questionShort', 'P') + (index + 1) + ' · ' + escapeHtml(questionLabel(state.definitionsSnapshot?.questions?.find((item) => item.id === question.questionId)) || question.prompt) + '</span><strong>' + question.correctPercentage + "%</strong></div>"
       ).join("");
-      return warning + '<div class="knowledge-summary"><strong>' + (result.averageGrade ?? 0) + '</strong><span>Promedio · ' + result.participantCount + ' participantes</span></div><div class="knowledge-stats">' + distribution + questions + "</div>";
+      return warning + '<div class="knowledge-summary"><strong>' + (result.averageGrade ?? 0) + '</strong><span>' + tr('knowledge.average', 'Promedio') + ' · ' + result.participantCount + ' ' + tr('knowledge.participants', 'participantes') + '</span></div><div class="knowledge-stats">' + distribution + questions + "</div>";
     }
 
     function activeMarkup(category) {
       if (state.category !== category) {
-        return '<div class="knowledge-empty"><strong>Hay otra interacción en vivo</strong><span>Puedes consultarla desde la fila superior.</span></div>';
+        return '<div class="knowledge-empty"><strong>' + tr('knowledge.otherLive', 'Hay otra interacción en vivo') + '</strong><span>' + tr('knowledge.otherLiveHint', 'Puedes consultarla desde la fila superior.') + '</span></div>';
       }
       const count = state.effectiveParticipantCount ?? state.participantCount ?? 0;
       const deadline = stateDeadline(state);
       const remaining = secondsUntil(deadline, state.serverNow, state._receivedAt);
       const timer = remaining === null ? "" : timerMarkup(deadline, state);
-      let body = '<header class="knowledge-live-head"><div><span>' + LABELS[category] + ' <em>En vivo</em></span><h2>' + escapeHtml(state.title) + "</h2></div>" + timer + "</header>";
+      let body = '<header class="knowledge-live-head"><div><span>' + tr('knowledge.' + category, LABELS[category]) + ' <em>' + tr('shell.live', 'En vivo') + '</em></span><h2>' + escapeHtml(title()) + "</h2></div>" + timer + "</header>";
 
       if (state.state === "LOBBY") {
         const lobbyCount = state.participantCount || 0;
-        body += '<div class="knowledge-metric"><strong>' + lobbyCount + "</strong><span>" + (lobbyCount === 1 ? "persona lista" : "personas listas") + "</span></div>"
-          + (lobbyCount ? "" : '<p class="knowledge-lobby-hint">Espera a que alguien pulse Entrar.</p>')
-          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start" ' + (lobbyCount ? "" : "disabled") + '>Iniciar</button><button data-knowledge-command="cancel">Cancelar</button></div>';
+        body += '<div class="knowledge-metric"><strong>' + lobbyCount + '</strong><span>' + tr(lobbyCount === 1 ? 'knowledge.readyOne' : 'knowledge.readyMany', lobbyCount === 1 ? 'persona lista' : 'personas listas') + '</span></div>'
+          + (lobbyCount ? "" : '<p class="knowledge-lobby-hint">' + tr('knowledge.waitJoin', 'Espera a que alguien pulse Entrar.') + '</p>')
+          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="start" ' + (lobbyCount ? "" : "disabled") + '>' + tr('knowledge.start', 'Iniciar') + '</button><button data-knowledge-command="cancel">' + tr('live.cancel', 'Cancelar') + '</button></div>';
       } else if (state.state === "COUNTDOWN") {
         body += '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
       } else if (state.state === "ACTIVE") {
         if (category === "contest") {
-          body += '<div class="knowledge-question-progress"><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + "</span><strong>" + escapeHtml(state.currentQuestion?.prompt || "Preparando pregunta…") + "</strong>" + questionImageMarkup(state.currentQuestion?.image) + "</div>";
+          body += '<div class="knowledge-question-progress"><span>' + tr('knowledge.question', 'Pregunta') + ' ' + (state.questionIndex + 1) + ' ' + tr('knowledge.of', 'de') + ' ' + state.questionCount + '</span><strong>' + escapeHtml(questionLabel(state.currentQuestion) || tr('knowledge.preparingQuestion', 'Preparando pregunta…')) + '</strong>' + questionImageMarkup(state.currentQuestion?.image) + '</div>';
         } else {
-          body += '<div class="knowledge-metric"><strong>' + (state.submittedCount || 0) + '</strong><span>entregaron · ' + count + " participantes</span></div>";
+          body += '<div class="knowledge-metric"><strong>' + (state.submittedCount || 0) + '</strong><span>' + tr('knowledge.delivered', 'entregaron') + ' · ' + count + ' ' + tr('knowledge.participants', 'participantes') + '</span></div>';
         }
-        body += '<div class="knowledge-actions"><button data-knowledge-command="finalize">Finalizar actividad</button></div>';
+        body += '<div class="knowledge-actions"><button data-knowledge-command="finalize">' + tr('knowledge.finishActivity', 'Finalizar actividad') + '</button></div>';
       } else if (state.state === "PROCESSING") {
-        body += '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Procesando resultados…</strong><small>Las respuestas ya están guardadas.</small></div>';
+        body += '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>' + tr('knowledge.processingResults', 'Procesando resultados…') + '</strong><small>' + tr('knowledge.answersSaved', 'Las respuestas ya están guardadas.') + '</small></div>';
       } else if (state.state === "PROCESSING_ERROR") {
-        body += '<div class="knowledge-empty"><strong>No pudimos terminar de calcular los resultados</strong><span>Las respuestas están guardadas.</span></div>'
-          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="retry_processing">Reintentar procesamiento</button><button data-knowledge-command="force_results">Forzar resultados</button></div>';
+        body += '<div class="knowledge-empty"><strong>' + tr('knowledge.processingFailed', 'No pudimos terminar de calcular los resultados') + '</strong><span>' + tr('knowledge.answersSafe', 'Las respuestas están guardadas.') + '</span></div>'
+          + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="retry_processing">' + tr('knowledge.retry', 'Reintentar procesamiento') + '</button><button data-knowledge-command="force_results">' + tr('knowledge.force', 'Forzar resultados') + '</button></div>';
       } else if (state.state === "RESULTS_READY") {
-        body += resultMarkup() + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="show_results">Mostrar resultados</button><button data-knowledge-command="close">Cerrar</button></div>';
+        body += resultMarkup() + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="show_results">' + tr('knowledge.showResults', 'Mostrar resultados') + '</button><button data-knowledge-command="close">' + tr('knowledge.close', 'Cerrar') + '</button></div>';
       } else if (state.state === "RESULTS_VISIBLE") {
-        body += resultMarkup() + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="close">Cerrar resultados</button></div>';
+        body += resultMarkup() + '<div class="knowledge-actions"><button class="primary" data-knowledge-command="close">' + tr('knowledge.closeResults', 'Cerrar resultados') + '</button></div>';
       }
       if (rejected) body += '<p class="knowledge-error" role="alert">' + escapeHtml(rejected) + "</p>";
       return body;
@@ -359,10 +366,10 @@
           const intent = button.dataset.knowledgeCommand;
           if ((intent === "finalize" || intent === "force_results")
             && !global.confirm(intent === "force_results"
-              ? "Immersa reconstruirá los resultados con las respuestas guardadas. ¿Continuar?"
-              : "¿Finalizar la actividad ahora? No podrá reabrirse.")) return;
+              ? tr('knowledge.forceConfirm', 'Immersa reconstruirá los resultados con las respuestas guardadas. ¿Continuar?')
+              : tr('knowledge.finishConfirm', '¿Finalizar la actividad ahora? No podrá reabrirse.'))) return;
           if (intent === "close" && state.category === "assessment" && state.state === "RESULTS_READY"
-            && !global.confirm("¿Cerrar la evaluación sin mostrar las calificaciones?")) return;
+            && !global.confirm(tr('knowledge.closeConfirm', '¿Cerrar la evaluación sin mostrar las calificaciones?'))) return;
           emitCommand(intent);
         });
       });
@@ -383,8 +390,9 @@
     socket.on("interaction:execution:state", setState);
     socket.on("interaction:execution:opened", setState);
     socket.on("interaction:execution:progress", setState);
+    global.addEventListener?.('immersa:locale-change', render);
     socket.on("interaction:knowledge:rejected", (payload = {}) => {
-      rejected = payload.message || "No se pudo completar la acción";
+      rejected = english() ? tr('knowledge.actionFailed', 'No se pudo completar la acción') : (payload.message || tr('knowledge.actionFailed', 'No se pudo completar la acción'));
       render();
     });
 
@@ -406,13 +414,15 @@
       },
       destroy() {
         global.clearInterval(repaintTimer);
+        global.removeEventListener?.('immersa:locale-change', render);
         hosts.clear();
       }
     };
   }
 
-  function createAudience({ socket, root, onSnapshotAvailabilityChange } = {}) {
+  function createAudience({ socket, root, onSnapshotAvailabilityChange, getLocale = () => 'es' } = {}) {
     if (!socket?.on || !root) throw new Error("A socket and root are required");
+    const tr = (key) => global.ImmersaI18n?.t(key) || key;
     const currentTabId = tabId();
     const audienceAudio = createAudienceKnowledgeAudio();
     let state = null;
@@ -423,6 +433,13 @@
     let imageViewerGestureCleanup = null;
     let assessmentSwipe = null;
     const pendingKey = "immersaKnowledgePendingAnswer";
+    function localizedQuestion(question) {
+      if (getLocale() !== 'en' || !question?.en?.prompt?.trim()) return question;
+      const labels = question.en.options || {};
+      if (!question.options?.every((option) => String(labels[option.id] || '').trim())) return question;
+      return { ...question, prompt: question.en.prompt, options: question.options.map((option) => ({ ...option, label: labels[option.id] })) };
+    }
+    function localizedTitle() { return getLocale() === 'en' && state?.titleEn?.trim() ? state.titleEn : state?.title; }
 
     function flashQuestion() {
       root.classList.remove("is-question-flash");
@@ -589,9 +606,9 @@
       viewer.className = "knowledge-image-viewer";
       viewer.setAttribute("role", "dialog");
       viewer.setAttribute("aria-modal", "true");
-      viewer.setAttribute("aria-label", "Imagen de la pregunta ampliada");
-      viewer.innerHTML = '<button type="button" class="knowledge-image-viewer-close" data-knowledge-image-close aria-label="Cerrar imagen ampliada">Cerrar</button>'
-        + '<div class="knowledge-image-viewer-canvas"><img src="' + escapeHtml(url) + '" alt="Imagen de la pregunta ampliada"></div>';
+      viewer.setAttribute("aria-label", tr('knowledge.imageZoom'));
+      viewer.innerHTML = '<button type="button" class="knowledge-image-viewer-close" data-knowledge-image-close aria-label="' + tr('knowledge.closeImage') + '">' + tr('knowledge.close') + '</button>'
+        + '<div class="knowledge-image-viewer-canvas"><img src="' + escapeHtml(url) + '" alt="' + tr('knowledge.imageZoom') + '"></div>';
       imageViewer = viewer;
       imageViewerTrigger = trigger || null;
       global.document.body?.appendChild?.(viewer);
@@ -603,31 +620,31 @@
     }
 
     function registrationMarkup() {
-      if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>La actividad ya comenzó</strong><span>Espera la siguiente interacción.</span></div>';
+      if (!state.registrationOpen) return '<div class="knowledge-empty"><strong>' + tr('knowledge.closed') + '</strong><span>' + tr('knowledge.waitNext') + '</span></div>';
       const mode = state.identificationMode || "anonymous";
-      const input = mode === "anonymous" ? "" : '<label>Nombre' + (mode === "optional_name" ? " (opcional)" : "") + '<input data-knowledge-name maxlength="120" autocomplete="name" ' + (mode === "required_name" ? "required" : "") + "></label>";
+      const input = mode === "anonymous" ? "" : '<label>' + tr('knowledge.name') + (mode === "optional_name" ? ' ' + tr('knowledge.optional') : "") + '<input data-knowledge-name maxlength="120" autocomplete="name" ' + (mode === "required_name" ? "required" : "") + "></label>";
       const categoryLabel = state.category === "contest"
         ? ""
-        : "<span>" + LABELS[state.category] + "</span>";
-      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy">' + categoryLabel + "<h2>" + escapeHtml(state.title) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>Entrar</button></div>';
+        : "<span>" + tr('knowledge.' + state.category) + "</span>";
+      return '<div class="knowledge-audience-card knowledge-registration-card"><div class="knowledge-registration-copy">' + categoryLabel + "<h2>" + escapeHtml(localizedTitle()) + "</h2></div>" + input + '<button class="primary" data-knowledge-join>' + tr('knowledge.join') + '</button></div>';
     }
 
     function contestMarkup() {
-      const question = state.currentQuestion;
+      const question = localizedQuestion(state.currentQuestion);
       if (!question) {
         if (state.state === "COUNTDOWN") return '<div class="knowledge-countdown">' + countdownMarkup(state) + "</div>";
-        if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>Estamos terminando de preparar los resultados…</strong></div>';
+        if (state.state === "PROCESSING" || state.state === "PROCESSING_ERROR") return '<div class="knowledge-processing"><span class="knowledge-spinner"></span><strong>' + tr('knowledge.processing') + '</strong></div>';
         if (state.personalResult) {
           const detail = (state.personalResult.answers || []).map((answer) => {
             const correct = answer.status === "correct";
-            return '<div class="knowledge-result-detail ' + (correct ? "correct" : "incorrect") + '"><span><strong>' + escapeHtml(answer.prompt) + '</strong><small>' + escapeHtml(answer.selectedLabel || "Omitida") + '</small></span><i class="knowledge-result-mark" role="img" aria-label="' + (correct ? "Correcta" : "Incorrecta") + '">' + (correct ? "✓" : "×") + "</i></div>";
+            return '<div class="knowledge-result-detail ' + (correct ? "correct" : "incorrect") + '"><span><strong>' + escapeHtml(getLocale() === 'en' && answer.en?.prompt ? answer.en.prompt : answer.prompt) + '</strong><small>' + escapeHtml((getLocale() === 'en' && answer.en?.prompt ? answer.en.selectedLabel : answer.selectedLabel) || tr('knowledge.omitted')) + '</small></span><i class="knowledge-result-mark" role="img" aria-label="' + tr(correct ? 'knowledge.correct' : 'knowledge.incorrect') + '">' + (correct ? "✓" : "×") + "</i></div>";
           }).join("");
           const qualified = state.personalResult.correctCount > 0;
-          const position = qualified ? "#" + (state.personalResult.position || "—") : "Sin posición";
+          const position = qualified ? "#" + (state.personalResult.position || "—") : tr('knowledge.noPosition');
           const time = qualified ? " · " + (state.personalResult.correctTimeMs / 1000).toFixed(2) + " s" : "";
-          return '<section class="knowledge-audience-results"><div class="knowledge-personal-result"><strong>' + position + '</strong><span>' + state.personalResult.correctCount + " de " + state.personalResult.totalQuestions + " correctas" + time + '</span></div><div class="knowledge-result-details">' + detail + "</div></section>";
+          return '<section class="knowledge-audience-results"><div class="knowledge-personal-result"><strong>' + position + '</strong><span>' + state.personalResult.correctCount + ' ' + tr('knowledge.of') + ' ' + state.personalResult.totalQuestions + ' ' + tr('knowledge.correctAnswers') + time + '</span></div><div class="knowledge-result-details">' + detail + "</div></section>";
         }
-        return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando la siguiente pregunta…</span></div>";
+        return '<div class="knowledge-empty"><strong>' + escapeHtml(localizedTitle()) + '</strong><span>' + tr('knowledge.waitQuestion') + '</span></div>';
       }
       const confirmed = answerMap().get(question.id);
       const pending = readPending();
@@ -647,10 +664,10 @@
       const contestTimer = state.substate === "REVEAL"
         ? ""
         : '<i aria-hidden="true">·</i>' + timerMarkup(state.questionDeadlineAt, state, "knowledge-contest-hud-timer");
-      const hudLabel = "Pregunta " + questionNumber + " de " + questionCount
-        + (state.substate === "REVEAL" ? ", respuesta revelada" : ", tiempo restante");
+      const hudLabel = tr('knowledge.question') + ' ' + questionNumber + ' ' + tr('knowledge.of') + ' ' + questionCount
+        + ', ' + tr(state.substate === 'REVEAL' ? 'knowledge.revealed' : 'knowledge.timeRemaining');
       return '<div class="knowledge-audience-card knowledge-contest-card"><div class="knowledge-contest-hud" role="status" aria-label="' + hudLabel + '"><span>' + questionNumber + "/" + questionCount + "</span>" + contestTimer + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + "</div>"
-        + (confirmed ? "<p>Respuesta enviada</p>" : pending ? "<p>Respuesta guardada. Esperando conexión…</p>" : "")
+        + (confirmed ? '<p>' + tr('knowledge.answerSent') + '</p>' : pending ? '<p>' + tr('knowledge.answerOffline') + '</p>' : "")
         + "</div>";
     }
 
@@ -661,25 +678,25 @@
         const submittedAt = state.submissionReceipt?.submittedAt || state.submittedAt || state.participant?.submittedAt;
         const grade = Number(state.submissionReceipt?.grade ?? state.personalResult?.grade);
         const gradeMarkup = Number.isFinite(grade)
-          ? '<div class="knowledge-submission-grade"><strong>' + escapeHtml(grade) + '</strong><span>Calificación / 100</span></div>'
+          ? '<div class="knowledge-submission-grade"><strong>' + escapeHtml(grade) + '</strong><span>' + tr('knowledge.grade') + ' / 100</span></div>'
           : "";
-        return '<section class="knowledge-audience-card knowledge-submission-receipt"><span class="knowledge-submission-kicker">Evaluación entregada</span><h2>' + escapeHtml(state.title) + "</h2>" + gradeMarkup + "<dl>"
-          + '<div><dt>Nombre</dt><dd>' + escapeHtml(state.participant?.label || "Participante") + '</dd></div>'
-          + '<div><dt>Respuestas</dt><dd>' + answeredCount + "/" + totalQuestions + '</dd></div>'
-          + '<div><dt>Fecha y hora</dt><dd>' + escapeHtml(submissionDateTime(submittedAt)) + '</dd></div>'
+        return '<section class="knowledge-audience-card knowledge-submission-receipt"><span class="knowledge-submission-kicker">' + tr('knowledge.submitted') + '</span><h2>' + escapeHtml(localizedTitle()) + "</h2>" + gradeMarkup + "<dl>"
+          + '<div><dt>' + tr('knowledge.name') + '</dt><dd>' + escapeHtml(state.participant?.label || tr('knowledge.participant')) + '</dd></div>'
+          + '<div><dt>' + tr('knowledge.answers') + '</dt><dd>' + answeredCount + "/" + totalQuestions + '</dd></div>'
+          + '<div><dt>' + tr('knowledge.dateTime') + '</dt><dd>' + escapeHtml(submissionDateTime(submittedAt)) + '</dd></div>'
           + "</dl></section>";
       }
-      if (state.personalResult) return '<div class="knowledge-personal-result"><strong>' + state.personalResult.grade + '</strong><span>Calificación</span></div>';
+      if (state.personalResult) return '<div class="knowledge-personal-result"><strong>' + state.personalResult.grade + '</strong><span>' + tr('knowledge.grade') + '</span></div>';
       const questions = state.questions || [];
-      if (!questions.length) return '<div class="knowledge-empty"><strong>' + escapeHtml(state.title) + "</strong><span>Esperando el inicio…</span></div>";
+      if (!questions.length) return '<div class="knowledge-empty"><strong>' + escapeHtml(localizedTitle()) + '</strong><span>' + tr('knowledge.waitStart') + '</span></div>';
       selectedAssessmentIndex = Math.max(0, Math.min(questions.length - 1, selectedAssessmentIndex));
-      const question = questions[selectedAssessmentIndex];
+      const question = localizedQuestion(questions[selectedAssessmentIndex]);
       const confirmed = answerMap().get(question.id);
       const options = question.options.map((option) =>
         '<button type="button" data-knowledge-answer="' + escapeHtml(option.id) + '" class="' + (confirmed === option.id ? "is-selected" : "") + '">' + escapeHtml(option.label) + "</button>"
       ).join("");
       const readyToSubmit = questions.length > 0 && answerMap().size === questions.length;
-      return '<div class="knowledge-audience-card knowledge-assessment-card"><div class="knowledge-assessment-hud" role="status" aria-label="Pregunta ' + (selectedAssessmentIndex + 1) + " de " + questions.length + ', tiempo restante"><span>' + (selectedAssessmentIndex + 1) + "/" + questions.length + '</span><i aria-hidden="true">·</i>' + timerMarkup(state.deadlineAt, state, "knowledge-assessment-hud-timer") + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>Anterior</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>Siguiente</button></div><button class="primary knowledge-assessment-submit' + (readyToSubmit ? " is-ready" : "") + '" data-knowledge-submit>Entregar evaluación</button></div>';
+      return '<div class="knowledge-audience-card knowledge-assessment-card"><div class="knowledge-assessment-hud" role="status" aria-label="' + tr('knowledge.question') + ' ' + (selectedAssessmentIndex + 1) + ' ' + tr('knowledge.of') + ' ' + questions.length + ', ' + tr('knowledge.timeRemaining') + '"><span>' + (selectedAssessmentIndex + 1) + "/" + questions.length + '</span><i aria-hidden="true">·</i>' + timerMarkup(state.deadlineAt, state, "knowledge-assessment-hud-timer") + '</div><h2>' + escapeHtml(question.prompt) + '</h2>' + questionImageMarkup(question.image, "knowledge-question-image", true) + '<div class="knowledge-options">' + options + '</div><div class="knowledge-assessment-nav"><button data-knowledge-prev ' + (selectedAssessmentIndex === 0 ? "disabled" : "") + '>' + tr('knowledge.previous') + '</button><button data-knowledge-next ' + (selectedAssessmentIndex === questions.length - 1 ? "disabled" : "") + '>' + tr('knowledge.next') + '</button></div><button class="primary knowledge-assessment-submit' + (readyToSubmit ? " is-ready" : "") + '" data-knowledge-submit>' + tr('knowledge.submitAssessment') + '</button></div>';
     }
 
     function moveAssessmentQuestion(direction) {
@@ -724,7 +741,7 @@
       root.hidden = false;
       if (!state.participant) root.innerHTML = registrationMarkup();
       else if (state.participant.activeTabId && state.participant.activeTabId !== currentTabId) {
-        root.innerHTML = '<div class="knowledge-audience-card"><h2>La actividad está abierta en otra pestaña</h2><button class="primary" data-knowledge-claim>Usar esta pestaña</button></div>';
+        root.innerHTML = '<div class="knowledge-audience-card"><h2>' + tr('knowledge.otherTab') + '</h2><button class="primary" data-knowledge-claim>' + tr('knowledge.useTab') + '</button></div>';
       } else root.innerHTML = state.category === "contest" ? contestMarkup() : assessmentMarkup();
       root.classList?.toggle?.("is-assessment-question", Boolean(root.querySelector(".knowledge-assessment-card")));
       root.classList?.toggle?.("is-contest-question", Boolean(root.querySelector(".knowledge-contest-card")));
@@ -754,7 +771,7 @@
       root.querySelector("[data-knowledge-next]")?.addEventListener("click", () => moveAssessmentQuestion(1));
       attachAssessmentSwipe(root.querySelector(".knowledge-assessment-card"));
       root.querySelector("[data-knowledge-submit]")?.addEventListener("click", () => {
-        if (global.confirm("¿Entregar la evaluación? Ya no podrás cambiar tus respuestas.")) {
+        if (global.confirm(tr('knowledge.submitConfirm'))) {
           emitNow("interaction:participant:submit_evaluation", { tabId: currentTabId });
         }
       });
@@ -1048,7 +1065,8 @@
     return { sync };
   }
 
-  function createScreen({ socket, root } = {}) {
+  function createScreen({ socket, root, getLocale = () => 'es' } = {}) {
+    const tr = (key) => global.ImmersaI18n?.t(key) || key;
     let state = null;
     let questionFlashTimer = null;
     const contestAudio = createScreenContestAudio();
@@ -1071,25 +1089,27 @@
         return;
       }
       root.hidden = false;
+      const english = getLocale() === 'en';
+      const title = english && state.titleEn?.trim() ? state.titleEn : state.title;
       const deadline = stateDeadline(state);
       if (state.state === "RESULTS_VISIBLE" && state.category === "contest") {
         const rows = (state.top10 || []).filter((row) => row.correctCount > 0);
         const winners = rows.filter((row) => row.position === 1);
-        const winnerTitle = winners.length > 1 ? "¡Tenemos ganadores!" : "¡Tenemos ganador!";
+        const winnerTitle = winners.length > 1 ? tr('knowledge.winners') : tr('knowledge.winner');
         const winnerMarkup = winners.length
-          ? '<div class="knowledge-winners">' + winners.map((row) => '<article><b>#1</b><div><span>' + winnerTitle + '</span><h1>' + escapeHtml(row.label) + '</h1><p>' + row.correctCount + " de " + row.totalQuestions + " correctas · " + formatContestSeconds(row.correctTimeMs) + "</p></div></article>").join("") + "</div>"
-          : '<div class="knowledge-no-winner"><span>Resultados</span><h1>No hubo respuestas correctas</h1></div>';
+          ? '<div class="knowledge-winners">' + winners.map((row) => '<article><b>#1</b><div><span>' + winnerTitle + '</span><h1>' + escapeHtml(row.label) + '</h1><p>' + row.correctCount + ' ' + tr('knowledge.of') + ' ' + row.totalQuestions + ' ' + tr('knowledge.correctAnswers') + ' · ' + formatContestSeconds(row.correctTimeMs) + "</p></div></article>").join("") + "</div>"
+          : '<div class="knowledge-no-winner"><span>' + tr('knowledge.results') + '</span><h1>' + tr('knowledge.noCorrect') + '</h1></div>';
         const remainingRows = rows.filter((row) => row.position !== 1);
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-results">' + winnerMarkup
           + (remainingRows.length ? '<div class="knowledge-ranking">' + remainingRows.map((row) => '<div><b>' + row.position + '</b><span>' + escapeHtml(row.label) + '</span><strong>' + row.correctCount + "/" + row.totalQuestions + " · " + formatContestSeconds(row.correctTimeMs) + "</strong></div>").join("") + "</div>" : "")
           + "</section>";
       } else if (["contest", "assessment"].includes(state.category) && ["LOBBY", "COUNTDOWN"].includes(state.state)) {
         const readyCount = state.participantCount || 0;
-        const readyLabel = readyCount === 1 ? "persona lista" : "personas listas";
+        const readyLabel = readyCount === 1 ? tr('knowledge.readyOne') : tr('knowledge.readyMany');
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-intro-state">'
           + '<div class="knowledge-screen-presence"><strong>' + readyCount + '</strong><span>' + readyLabel + "</span></div>"
           + '<div class="knowledge-screen-identity">' + categoryIconMarkup(state.category, "knowledge-screen-activity-icon")
-          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
+          + '<h1>' + escapeHtml(title) + "</h1></div>"
           + (state.state === "COUNTDOWN"
             ? '<div class="knowledge-screen-countdown">' + countdownMarkup(state) + "</div>"
             : "")
@@ -1097,44 +1117,44 @@
       } else if (state.category === "contest" && state.currentQuestion) {
         const hasImage = Boolean(state.currentQuestion.image?.url);
         if (state.substate === "REVEAL" && state.reveal?.correctLabel) {
-          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-reveal"><div class="knowledge-screen-correct-answer"><strong>' + escapeHtml(state.reveal.correctLabel) + "</strong></div>"
+          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-reveal"><div class="knowledge-screen-correct-answer"><strong>' + escapeHtml((english && state.reveal.correctLabelEn || state.reveal.correctLabel)) + "</strong></div>"
             + revealProgressMarkup(state) + "</section>";
         } else {
-          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-question' + (hasImage ? " has-question-image" : "") + '"><header><span>Pregunta ' + (state.questionIndex + 1) + " de " + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(state.currentQuestion.prompt) + "</h1>" + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + "</section>";
+          root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-question' + (hasImage ? " has-question-image" : "") + '"><header><span>' + (english ? 'Question ' : 'Pregunta ') + (state.questionIndex + 1) + (english ? ' of ' : ' de ') + state.questionCount + '</span>' + timerMarkup(deadline, state) + '</header><h1>' + escapeHtml(english && state.currentQuestion.promptEn?.trim() ? state.currentQuestion.promptEn : state.currentQuestion.prompt) + "</h1>" + questionImageMarkup(state.currentQuestion.image, "knowledge-screen-question-image") + "</section>";
         }
       } else if (state.category === "assessment" && state.state === "ACTIVE") {
         const participantCount = state.participantCount || 0;
-        const participantLabel = participantCount === 1 ? "participante" : "participantes";
+        const participantLabel = participantCount === 1 ? tr('knowledge.participant') : tr('knowledge.participants');
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-assessment-state">'
           + '<div class="knowledge-screen-presence"><strong>' + participantCount + '</strong><span>' + participantLabel + "</span></div>"
           + '<div class="knowledge-screen-identity">' + categoryIconMarkup("assessment", "knowledge-screen-activity-icon")
-          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
-          + '<div class="knowledge-screen-assessment-progress"><span>Evaluación en curso</span>'
+          + '<h1>' + escapeHtml(title) + "</h1></div>"
+          + '<div class="knowledge-screen-assessment-progress"><span>' + tr('knowledge.assessmentInProgress') + '</span>'
           + timerMarkup(deadline, state, "knowledge-screen-assessment-timer")
-          + '<p><strong>' + (state.submittedCount || 0) + "</strong> de " + participantCount + " entregaron</p></div>"
+          + '<p><strong>' + (state.submittedCount || 0) + '</strong> ' + tr('knowledge.of') + ' ' + participantCount + ' ' + tr('knowledge.delivered') + '</p></div>'
           + "</section>";
       } else if (state.category === "assessment" && ["PROCESSING", "PROCESSING_ERROR", "RESULTS_READY", "RESULTS_VISIBLE"].includes(state.state)) {
         const finishedCount = state.submittedCount || 0;
         const assessmentMessage = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
-          ? "Calculando resultados…"
-          : "Evaluación finalizada";
+          ? tr('knowledge.calculating')
+          : tr('knowledge.assessmentFinished');
         root.innerHTML = '<section class="knowledge-screen-card knowledge-screen-assessment-state knowledge-screen-assessment-finished">'
           + '<div class="knowledge-screen-identity">' + categoryIconMarkup("assessment", "knowledge-screen-activity-icon")
-          + '<h1>' + escapeHtml(state.title) + "</h1></div>"
+          + '<h1>' + escapeHtml(title) + "</h1></div>"
           + '<div class="knowledge-screen-assessment-progress"><strong class="knowledge-screen-assessment-message">'
-          + escapeHtml(assessmentMessage) + '</strong><p><strong>' + finishedCount + "</strong> entregas</p></div>"
+          + escapeHtml(assessmentMessage) + '</strong><p><strong>' + finishedCount + '</strong> ' + tr('knowledge.deliveries') + '</p></div>'
           + "</section>";
       } else {
         const message = state.state === "PROCESSING" || state.state === "PROCESSING_ERROR"
-          ? "Estamos calculando los resultados…"
-          : state.title;
+          ? tr('knowledge.calculatingLong')
+          : title;
         const count = ["LOBBY", "COUNTDOWN"].includes(state.state)
           ? state.participantCount || 0
           : state.effectiveParticipantCount || 0;
         const countLabel = ["LOBBY", "COUNTDOWN"].includes(state.state)
-          ? (count === 1 ? "persona lista" : "personas listas")
-          : (count === 1 ? "participante" : "participantes");
-        root.innerHTML = '<section class="knowledge-screen-card"><span>' + LABELS[state.category] + "</span><h1>"
+          ? (count === 1 ? tr('knowledge.readyOne') : tr('knowledge.readyMany'))
+          : (count === 1 ? tr('knowledge.participant') : tr('knowledge.participants'));
+        root.innerHTML = '<section class="knowledge-screen-card"><span>' + tr('knowledge.' + state.category) + "</span><h1>"
           + (state.state === "COUNTDOWN" ? countdownMarkup(state) : escapeHtml(message))
           + '</h1><p>' + count + " " + countLabel + "</p></section>";
       }

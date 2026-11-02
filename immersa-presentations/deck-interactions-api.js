@@ -75,6 +75,8 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       throw error;
     }
     const settings = item?.settings || {};
+    const english = item?.en && typeof item.en === "object" ? item.en : {};
+    const englishOptions = english.options && typeof english.options === "object" ? english.options : {};
     return {
       id: String(item?.id || "int_" + Date.now() + "_" + index).trim(),
       slide_id: item?.slide_id ? String(item.slide_id) : null,
@@ -82,6 +84,10 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
       title: String(item?.title || prompt).trim() || prompt,
       prompt,
       options,
+      en: {
+        prompt: String(english.prompt || "").trim().slice(0, 1000),
+        options: Object.fromEntries(options.map((option) => [option.id, String(englishOptions[option.id] || "").trim().slice(0, 500)]).filter(([, label]) => label))
+      },
       settings: {
         allow_multiple: Boolean(settings.allow_multiple),
         anonymous: typeof settings.anonymous === "boolean" ? settings.anonymous : true,
@@ -325,9 +331,14 @@ function createDeckInteractionHandlers({ dataDecksDir, staticDecksDir }) {
     const source = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
     return Object.entries(source).reduce((result, [slideId, value]) => {
       if (!slideIds.includes(slideId)) return result;
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const es = String(value.es || '').replace(/\r\n?/g, '\n').trim();
+        const en = String(value.en || '').replace(/\r\n?/g, '\n').trim();
+        if (es || en) result[slideId] = { es, en };
+        return result;
+      }
       const text = String(value || "").replace(/\r\n?/g, "\n").trim();
-      if (!text) return result;
-      result[slideId] = text;
+      if (text) result[slideId] = text;
       return result;
     }, {});
   }
