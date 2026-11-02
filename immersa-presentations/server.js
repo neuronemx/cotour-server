@@ -23,6 +23,7 @@ const {
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
+const { requireLocaleWriteOrigin } = require("./deck-locale-http");
 const { listAudiovisualResources } = require("./audiovisual-library");
 const { normalizeCue: normalizeFxCue, isFx: isAudiovisualFx } = require("./public/shared/audiovisual-fx");
 const { createAudiovisualFxRuntime } = require("./audiovisual-fx-runtime");
@@ -1909,7 +1910,7 @@ app.post(
     }
   })
 );
-app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantUploadHandler({
     onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck)
@@ -1921,10 +1922,10 @@ app.get("/api/decks/:deckId/locales", ...requireDeckAccount,
       res.json({ baseLocale: "es", en: manifest.locales?.en || null });
     } catch (_error) { res.status(404).json({ error: "Deck no encontrado" }); }
   });
-app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantMutationHandler("toggle", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
-app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantMutationHandler("delete", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
 app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
