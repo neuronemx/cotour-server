@@ -160,6 +160,36 @@
     return Number(state?.presenterSlideIndex ?? state?.slideIndex ?? 0);
   }
 
+  function waitForSlideImage(image, source) {
+    let settled = false;
+    let checking = false;
+    let finish;
+    const ready = new Promise((resolve) => { finish = resolve; });
+    const matches = () => image?.getAttribute('src') === source;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      image?.removeEventListener('load', check);
+      image?.removeEventListener('error', failed);
+      finish(value);
+    };
+    async function check() {
+      if (settled || checking || !matches() || !image.complete || !image.naturalWidth) return;
+      checking = true;
+      try { await image.decode?.(); } catch (_error) {}
+      checking = false;
+      if (!settled && matches() && image.complete && image.naturalWidth) settle(true);
+    }
+    function failed() { if (matches()) settle(false); }
+    if (!image || !source) settle(false);
+    else {
+      image.addEventListener('load', check);
+      image.addEventListener('error', failed);
+      check();
+    }
+    return { ready, cancel: () => settle(false) };
+  }
+
   function loadStyle(document) {
     if (!document || document.querySelector('link[data-video-slide-runtime]')) return;
     const link = document.createElement('link');
@@ -206,6 +236,7 @@
     let lastAppliedRevision = null;
     let lastInitializedIndex = -1;
     let presenterControlJoined = false;
+    let slideHandoff = null;
 
     const controlSocket = options.controlSocket || mainSocket;
 
@@ -650,6 +681,36 @@
       removeUnlock(true);
     }
 
+    function cancelSlideHandoff() {
+      slideHandoff?.cancel();
+      slideHandoff = null;
+    }
+
+    function handoffToSlide(index) {
+      const image = slideElement();
+      const source = image?.dataset.presentationSlideSource;
+      const visiblePlayer = (video && !video.hidden) || (youtubeHost && !youtubeHost.hidden);
+      if (role !== 'screen' || !visiblePlayer || !source || image.dataset.presentationSlideIndex !== String(index)) {
+        cancelSlideHandoff();
+        hidePlayers();
+        return;
+      }
+      if (slideHandoff?.index === index && slideHandoff.source === source) return;
+      cancelSlideHandoff();
+      stopPlaybackTicker();
+      video?.pause();
+      youtubePlayer?.pauseVideo?.();
+      image.style.visibility = 'hidden';
+      const wait = waitForSlideImage(image, source);
+      const pending = { ...wait, index, source };
+      slideHandoff = pending;
+      wait.ready.then(() => {
+        if (slideHandoff !== pending || activeIndex !== index || isVideoSlide(activeItem)) return;
+        slideHandoff = null;
+        hidePlayers();
+      });
+    }
+
     function ensureControls() {
       if (controls || (role !== 'presenter' && role !== 'stage')) return controls;
       const host = hostElement();
@@ -793,11 +854,13 @@
       if (!isVideoSlide(item)) {
         screenForcedMuted = false;
         lastReportedPlayback = '';
-        hidePlayers();
+        handoffToSlide(index);
         if (controls) controls.hidden = true;
         if (changed) lastInitializedIndex = -1;
         return;
       }
+
+      cancelSlideHandoff();
 
       patchPoster(index, item);
       syncControls(state, item, index);
@@ -895,6 +958,7 @@
     formatMediaTime,
     remainingMediaTime,
     currentIndex,
+    waitForSlideImage,
     createRuntime,
     autoMount
   };
