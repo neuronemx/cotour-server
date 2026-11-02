@@ -52,6 +52,7 @@ const deckTransitionOptions = document.getElementById("deckTransitionOptions");
 const deckTransitionStatus = document.getElementById("deckTransitionStatus");
 const detailRename = document.getElementById("detailRename");
 const detailReplace = document.getElementById("detailReplace");
+const detailLanguage = document.getElementById("detailLanguage");
 const detailDemoAdmin = document.getElementById("detailDemoAdmin");
 const detailDemoPlan = document.getElementById("detailDemoPlan");
 const detailDemoPublish = document.getElementById("detailDemoPublish");
@@ -77,9 +78,11 @@ function roleLabel(role) {
 
 function applyProfilePublicTitle(value) {
   profilePublicTitle = String(value || labels.speaker).trim() || labels.speaker;
-  document.querySelectorAll(".detail-role-action.role-speaker").forEach((button) => {
-    if (!button.disabled) button.textContent = profilePublicTitle;
-    button.title = "Abrir como " + profilePublicTitle;
+  document.querySelectorAll(".detail-role-action.role-speaker").forEach((action) => {
+    const label = action.querySelector(".detail-role-label");
+    if (label) label.textContent = profilePublicTitle;
+    else if (!action.disabled) action.textContent = profilePublicTitle;
+    action.title = action.classList.contains("speaker-locale-actions") ? "Elegir idioma de " + profilePublicTitle : "Abrir como " + profilePublicTitle;
   });
 }
 
@@ -535,30 +538,40 @@ async function copyText(value) {
   return false;
 }
 
-async function copyRoleLink(role, deck, button) {
+function localizedSpeakerUrl(url, locale) {
+  const localized = new URL(url, window.location.origin);
+  localized.searchParams.set("locale", locale === "en" ? "en" : "es");
+  return localized.toString();
+}
+
+async function copyRoleLink(role, deck, button, locale = "es") {
   const label = roleLabel(role);
-  const original = button.textContent;
+  const original = button.innerHTML;
+  const flagOnly = button.classList.contains("speaker-locale-choice");
   button.disabled = true;
-  button.textContent = role === "speaker" ? "Abriendo" : "Generando";
+  button.setAttribute("aria-busy", "true");
+  if (!flagOnly) button.textContent = role === "speaker" ? "Abriendo" : "Generando";
 
   try {
-    const url = await createAccessLink(role, deck);
+    const accessLink = await createAccessLink(role, deck);
+    const url = role === "speaker" ? localizedSpeakerUrl(accessLink, locale) : accessLink;
     if (role === "speaker") {
       window.location.assign(url);
-      button.textContent = "Acceso abierto";
+      if (!flagOnly) button.textContent = "Acceso abierto";
     } else {
       const copied = await copyText(url);
       button.textContent = copied ? "Link copiado" : "Link listo";
       button.classList.add("copied");
     }
   } catch (error) {
-    button.textContent = role === "speaker" ? "No se pudo abrir" : "No se pudo copiar";
+    if (!flagOnly) button.textContent = role === "speaker" ? "No se pudo abrir" : "No se pudo copiar";
     console.error("No se pudo preparar el acceso " + label + ":", error);
   } finally {
     window.setTimeout(() => {
-      button.textContent = original;
+      button.innerHTML = original;
       button.classList.remove("copied");
       button.disabled = false;
+      button.removeAttribute("aria-busy");
     }, 1600);
   }
 }
@@ -998,19 +1011,63 @@ function renderDetailActions(deck) {
   roles
     .filter((role) => role !== "stage" || capabilityEnabled("access.backstage") || deck?.systemDemo)
     .forEach((role) => {
+    const label = roleLabel(role);
+    if (role === "speaker" && deck?.locales?.en?.active === true) {
+      const group = document.createElement("div");
+      group.className = "detail-role-action role-speaker speaker-locale-actions";
+      group.title = "Elegir idioma de " + label;
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", label + ": elegir idioma");
+      const text = document.createElement("span");
+      text.className = "detail-role-label";
+      text.textContent = label;
+      group.appendChild(text);
+      const choices = document.createElement("span");
+      choices.className = "speaker-locale-choices";
+      [{ locale: "es", flag: "mex", label: "Español" }, { locale: "en", flag: "usa", label: "inglés" }].forEach((choice) => {
+        const localeButton = document.createElement("button");
+        localeButton.type = "button";
+        localeButton.className = "speaker-locale-choice";
+        localeButton.title = "Abrir " + label + " en " + choice.label;
+        localeButton.setAttribute("aria-label", localeButton.title);
+        localeButton.innerHTML = '<img src="/shared/flags/' + choice.flag + '.png" alt="" aria-hidden="true">';
+        localeButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          copyRoleLink(role, deck, event.currentTarget, choice.locale);
+        });
+        choices.appendChild(localeButton);
+      });
+      group.appendChild(choices);
+      detailActions.appendChild(group);
+      return;
+    }
     const button = document.createElement("button");
     button.type = "button";
     button.className = "detail-role-action role-" + role;
-    const label = roleLabel(role);
-    button.textContent = label;
+    const text = document.createElement("span");
+    text.className = "detail-role-label";
+    text.textContent = label;
+    button.appendChild(text);
     button.title = role === "speaker" ? "Abrir como " + label : "Copiar link de " + label;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      copyRoleLink(role, deck, event.currentTarget);
+      copyRoleLink(role, deck, event.currentTarget, "es");
     });
     detailActions.appendChild(button);
     });
 }
+
+document.addEventListener("immersa:deck-locale-updated", (event) => {
+  const deckId = String(event.detail?.deckId || "");
+  if (!deckId) return;
+  const variant = event.detail?.variant || null;
+  const index = decks.findIndex((deck) => String(deck.deckId) === deckId);
+  if (index >= 0) decks[index] = { ...decks[index], locales: { ...(decks[index].locales || {}), en: variant } };
+  if (detailDeck && String(detailDeck.deckId) === deckId) {
+    detailDeck = { ...detailDeck, locales: { ...(detailDeck.locales || {}), en: variant } };
+    renderDetailActions(detailDeck);
+  }
+});
 
 function syncDeckTransitionEditor(deck) {
   if (!deckTransitionSettings || !deckTransitionOptions) return;
@@ -1088,7 +1145,13 @@ function openDeckModal(deck) {
   if (detailReplace) {
     detailReplace.hidden = isPublishedDemo || adjustmentRequired;
     const label = detailReplace.querySelector("span");
-    if (label) label.textContent = deck.missing ? "Subir presentación" : "Sustituir";
+    if (label) label.textContent = deck.missing ? "Subir" : "Reemplazar";
+  }
+  if (detailLanguage) {
+    const languageEnabled = capabilityEnabled("multilanguage.manage") && !deck.missing && !deck.immutable && !deck.systemDemo && !adjustmentRequired;
+    detailLanguage.hidden = Boolean(deck.systemDemo) || adjustmentRequired;
+    detailLanguage.disabled = !languageEnabled;
+    detailLanguage.title = languageEnabled ? "Gestionar versión en inglés" : "Disponible en planes SPEAKER";
   }
   if (detailDemoAdmin) detailDemoAdmin.hidden = !isMaster || Boolean(deck.missing);
   loadDetailSlideNavigation(deck);

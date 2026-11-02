@@ -6,7 +6,7 @@ const express = require("express");
 const http = require("http");
 const { execFile } = require("child_process");
 const { Server } = require("socket.io");
-const { createUploadHandler, createDeckReplacementHandler } = require("./pdf-upload-support");
+const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -22,6 +22,7 @@ const {
   isSessionInactive
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
+const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
 const { listAudiovisualResources } = require("./audiovisual-library");
 const { normalizeCue: normalizeFxCue, isFx: isAudiovisualFx } = require("./public/shared/audiovisual-fx");
 const { createAudiovisualFxRuntime } = require("./audiovisual-fx-runtime");
@@ -490,6 +491,7 @@ function manifestSummary(manifest, manifestStats = null) {
     demoRole: manifest.systemDemo?.role || systemDemoRole(manifest.deckId),
     immutable: manifest.systemDemo?.role === "published",
     publishedAt: manifest.systemDemo?.publishedAt || "",
+    locales: manifest.locales || null,
     ...manifestTimestamps(manifest, manifestStats)
   };
 }
@@ -830,6 +832,7 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     slideIndex: 0,
     presenterSlideIndex: 0,
     navigationRevision: 0,
+    operationalLocale: "es",
     liveSlideIndex: 0,
     transmissionPaused: false,
     transmissionPausedBy: null,
@@ -912,7 +915,8 @@ function getConnectedAudience(roomKey) {
     audienceId,
     joinedAt: audience.joinedAt,
     name: audience.name || "",
-    label: audience.label || audience.name || ""
+    label: audience.label || audience.name || "",
+    locale: audience.locale || "es"
   }));
 }
 
@@ -938,6 +942,7 @@ function publicState(session) {
     slideIndex: session.slideIndex,
     presenterSlideIndex: session.presenterSlideIndex,
     liveSlideIndex: session.liveSlideIndex,
+    operationalLocale: session.operationalLocale || "es",
     slideCount: session.slideCount,
     transmissionPaused: session.transmissionPaused,
     transmissionPausedBy: session.transmissionPausedBy,
@@ -1118,6 +1123,19 @@ app.post("/api/billing/webhooks/stripe", express.raw({ type: "application/json",
 app.all("/api/auth/*", betterAuthCompatibilityBridge.handler);
 app.get("/api/auth-spike/session", betterAuthCompatibilityBridge.sessionHandler);
 app.use(express.json({ limit: "2mb" }));
+app.use("/decks/:deckId/locales/en", async (req, res, next) => {
+  const deckId = String(req.params.deckId || "");
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(deckId)) return res.sendStatus(404);
+  try {
+    const access = await betterAuthCompatibilityBridge.getDeckFeatureAccess(deckId);
+    if (!canUseFeature(access, CAPABILITIES.MULTILANGUAGE_MANAGE)) return res.sendStatus(404);
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(DATA_DECKS_DIR, deckId, "manifest.json"), "utf8"));
+    if (manifest.locales?.en?.active !== true) return res.sendStatus(404);
+    return next();
+  } catch (_error) {
+    return res.sendStatus(404);
+  }
+});
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
@@ -1891,6 +1909,24 @@ app.post(
     }
   })
 );
+app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantUploadHandler({
+    onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck)
+  }));
+app.get("/api/decks/:deckId/locales", ...requireDeckAccount,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE), async (req, res) => {
+    try {
+      const manifest = JSON.parse(await fs.promises.readFile(path.join(await findDeckDir(req.params.deckId), "manifest.json"), "utf8"));
+      res.json({ baseLocale: "es", en: manifest.locales?.en || null });
+    } catch (_error) { res.status(404).json({ error: "Deck no encontrado" }); }
+  });
+app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("toggle", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
+app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
+  requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
+  createLocaleVariantMutationHandler("delete", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
 app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
   try {
     res.json(await markDeckAssociationsReviewed(req.params.deckId));
@@ -2098,7 +2134,7 @@ io.on("connection", (socket) => {
   presentationLifecycleRuntime.attach(socket, () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? lifecycleContext() : null);
   nonRecordingLifecycleRuntime.attach(socket, () => !canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) && canUseFeature(currentFeatureAccess, CAPABILITIES.PRESENTATION_LIFECYCLE) ? lifecycleContext() : null);
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -2129,6 +2165,22 @@ io.on("connection", (socket) => {
     }
     session = getSession(joinedSessionId, joinedDeckId);
     touchSession(currentRoomKey);
+    if (role === "presenter" && ["es", "en"].includes(locale)) {
+      try {
+        const manifest = locale === "en" ? await readManifest(joinedDeckId) : null;
+        const validation = validateOperationalLocale(locale, currentFeatureAccess, manifest);
+        if (validation.ok) session.operationalLocale = validation.locale;
+        else socket.emit("presentation:locale_rejected", { code: validation.code });
+      } catch (_error) {
+        socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" });
+      }
+    }
+    if (session.operationalLocale === "en") {
+      try {
+        const manifest = await readManifest(joinedDeckId);
+        session.operationalLocale = resolveOperationalLocale(session.operationalLocale, currentFeatureAccess, manifest);
+      } catch (_error) { session.operationalLocale = "es"; }
+    }
     socket.emit("plan:features", currentFeatureAccess);
     if (currentFeatureAccess.adjustmentRequired) {
       socket.emit("plan:adjustment_required", {
@@ -2179,7 +2231,8 @@ io.on("connection", (socket) => {
         audienceId: requestedAudienceId,
         socketId: socket.id,
         audienceName,
-        label
+        label,
+        locale: locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es"
       });
       socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
@@ -2216,7 +2269,7 @@ io.on("connection", (socket) => {
     } else if (role === "audience" && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)) {
       void presentationMetricsRepository?.recordAudienceConnection(
         joinedContext,
-        { audienceId: currentAudienceId },
+        { audienceId: currentAudienceId, locale: session.audience.get(currentAudienceId)?.locale },
         session.audience.size
       ).catch((error) => console.error("Unable to persist presentation attendance", error));
     }
@@ -2485,6 +2538,33 @@ io.on("connection", (socket) => {
     if (!session || !canNavigatePresentation(currentRole, session)) return;
     await setPresenterSlide(currentRoomKey, session, Number(slideIndex));
     emitState(currentRoomKey, session);
+  });
+
+  socket.on("presentation:set_locale", async ({ locale } = {}) => {
+    if (!currentRoomKey || !["presenter", "stage"].includes(currentRole)) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (!session) return;
+    try {
+      const access = await getStageFeatureAccess(currentDeckId);
+      const manifest = locale === "en" ? await readManifest(currentDeckId) : null;
+      const validation = validateOperationalLocale(locale, access, manifest);
+      if (!validation.ok) return socket.emit("presentation:locale_rejected", { code: validation.code });
+      session.operationalLocale = validation.locale;
+      emitState(currentRoomKey, session);
+    } catch (_error) { socket.emit("presentation:locale_rejected", { code: "LOCALE_NOT_READY" }); }
+  });
+
+  socket.on("presentation:set_audience_locale", ({ locale } = {}) => {
+    if (currentRole !== "audience" || !currentRoomKey || !currentAudienceId) return;
+    const session = getSessionByRoomKey(currentRoomKey);
+    const audience = session?.audience?.get(currentAudienceId);
+    if (!audience || audience.socketId !== socket.id) return;
+    audience.locale = locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es";
+    void presentationMetricsRepository?.recordAudienceConnection(
+      { deckId: currentDeckId, sessionId: currentSessionId },
+      { audienceId: currentAudienceId, locale: audience.locale },
+      session.audience.size
+    ).catch((error) => console.error("Unable to persist audience locale", error));
   });
 
   socket.on("reaction", (payload) => {

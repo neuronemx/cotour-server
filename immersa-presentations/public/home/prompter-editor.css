@@ -14,3 +14,6 @@
   line-height:1;
   aspect-ratio:1 / 1;
 }
+.prompter-en-extra { margin-top: 14px; padding: 12px; border: 1px dashed #9d82dc; border-radius: 12px; color: #6b45ab; background: #f4efff; }
+.prompter-en-extra[hidden] { display: none; }
+.prompter-en-extra textarea { width: 100%; box-sizing: border-box; background: #fff; }
