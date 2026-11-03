@@ -36,23 +36,25 @@ function harness() {
   function start() { select('one'); slots[1].fire('canplay'); return slots[1]; }
   return { context, slots, timers, scheduled, select, state, timer, start, fades: () => fades };
 }
-test('outgoing picture remains fully visible until incoming opacity reaches one, in both slot directions', () => {
+test('incoming starts opaque underneath while only outgoing fades, in both slot directions', () => {
   const h = harness(); let outgoing = h.start();
   for (const id of ['two', 'three']) {
     h.select(id); const incoming = h.slots.find(m => m !== outgoing);
     assert.equal(outgoing.classList.contains('is-swap-base'), true);
     assert.equal(outgoing.classList.contains('is-visible'), true);
     assert.equal(incoming.classList.contains('is-visible'), false);
-    incoming.fire('canplay'); incoming.opacity = .5; h.timer();
-    assert.equal(outgoing.classList.contains('is-visible'), true, 'half-opacity incoming must never uncover the slide');
-    assert.equal(incoming.classList.contains('is-swap-top'), true);
-    incoming.opacity = 1; incoming.fire('transitionend');
+    incoming.fire('canplay'); outgoing.opacity = .5; h.timer();
+    assert.equal(incoming.classList.contains('is-visible'), true);
+    assert.equal(incoming.classList.contains('is-swap-base'), true, 'incoming must have no opacity transition');
+    assert.equal(outgoing.classList.contains('is-swap-top'), true);
+    assert.equal(outgoing.paused, false, 'outgoing stays decoded while fading');
+    outgoing.opacity = 0; outgoing.fire('transitionend');
     assert.equal(outgoing.classList.contains('is-visible'), false); assert.equal(outgoing.paused, true);
     assert.equal(incoming.classList.contains('is-visible'), true); outgoing = incoming;
   }
 });
 test('a paused or ended outgoing clip keeps its last frame while the next clip loads', () => {
-  for (const kind of ['paused', 'ended']) { const h = harness(), old = h.start(); old.paused = true; old.ended = kind === 'ended'; h.select('two'); h.slots[0].fire('canplay'); assert.equal(old.classList.contains('is-visible'), true); }
+  for (const kind of ['paused', 'ended']) { const h = harness(), old = h.start(); old.paused = true; old.ended = kind === 'ended'; h.select('two'); assert.equal(old.classList.contains('is-visible'), true); h.slots[0].fire('canplay'); assert.equal(old.classList.contains('is-swap-top'), true); assert.equal(h.slots[0].classList.contains('is-swap-base'), true); }
 });
 test('rapid third selection promotes its current picture before reusing the other slot', () => {
   const h = harness(); h.start(); h.select('two'); h.slots[0].fire('canplay'); h.slots[0].opacity = .2;
@@ -71,7 +73,7 @@ test('stop during loading cancels reveal and clears both swap roles', () => {
 });
 test('global fade invalidates pending cleanup and retains both layers for the shared fade', () => {
   const h = harness(); h.start(); h.select('two'); h.slots[0].fire('canplay'); h.state('fading'); h.timer();
-  assert.equal(h.fades(), 1); assert.ok(h.slots.every(m => m.classList.contains('is-visible')));
+  assert.equal(h.fades(), 1); assert.equal(h.slots[0].classList.contains('is-visible'), true); assert.equal(h.slots[1].classList.contains('is-swap-top'), true);
   h.state('stopped'); assert.ok(h.slots.every(m => m.paused && !m.classList.contains('is-visible')));
 });
 test('playlist scheduling still starts only after the selected clip can play', () => {

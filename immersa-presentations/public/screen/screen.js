@@ -329,13 +329,13 @@ function stopVideoSlots() {
     media.classList.remove("is-swap-top");
   });
 }
-function finishAudiovisualVideoSwap(outgoing, incoming, token) {
+function finishAudiovisualVideoSwap(outgoing, token) {
   let timer = null, finished = false;
   const finish = () => {
     if (finished) return;
     if (token !== videoTransitionToken) { dispose(); return; }
-    const opacity = Number(window.getComputedStyle?.(incoming)?.opacity ?? 1);
-    if (opacity < .999) { timer = window.setTimeout(finish, 50); return; }
+    const opacity = Number(window.getComputedStyle?.(outgoing)?.opacity ?? 0);
+    if (opacity > .001) { timer = window.setTimeout(finish, 50); return; }
     dispose();
     outgoing.classList.remove("is-visible");
     void outgoing.offsetWidth;
@@ -349,9 +349,9 @@ function finishAudiovisualVideoSwap(outgoing, incoming, token) {
   function dispose() {
     finished = true;
     if (timer !== null) window.clearTimeout?.(timer);
-    incoming.removeEventListener?.("transitionend", onEnd);
+    outgoing.removeEventListener?.("transitionend", onEnd);
   }
-  incoming.addEventListener("transitionend", onEnd);
+  outgoing.addEventListener("transitionend", onEnd);
   timer = window.setTimeout(finish, 550);
 }
 function applyVideoState(state) {
@@ -394,7 +394,7 @@ function applyVideoState(state) {
     incoming.classList.remove("is-swap-base");
     incoming.classList.remove("is-swap-top");
     void incoming.offsetWidth;
-    incoming.classList.add("is-swap-top");
+    incoming.classList.add(hasCurrentVideo ? "is-swap-base" : "is-swap-top");
     // Blob URLs have no extension; inspect the original local file for WebM alpha.
     incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
     incoming.dataset.resourceId = nextId;
@@ -407,6 +407,11 @@ function applyVideoState(state) {
     const begin = () => {
       if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || String(audiovisualState.video?.resource?.id || "") !== nextId || audiovisualState.video?.status !== "playing") return;
       incoming.play().catch(() => {});
+      if (hasCurrentVideo) {
+        current.classList.remove("is-swap-base");
+        current.classList.add("is-swap-top");
+        void current.offsetWidth;
+      }
       void incoming.offsetWidth;
       incoming.classList.add("is-visible");
       if (!hasCurrentVideo) {
@@ -416,10 +421,11 @@ function applyVideoState(state) {
         audiovisualFxMonitors.get(incoming)?.refresh();
         return;
       }
+      current.classList.remove("is-visible");
       activeVideoSlot = incomingIndex;
       scheduleVideoPlaylistAdvance(incoming);
       audiovisualFxMonitors.get(incoming)?.refresh();
-      finishAudiovisualVideoSwap(current, incoming, token);
+      finishAudiovisualVideoSwap(current, token);
     };
     incoming.addEventListener("canplay", begin, { once: true });
     incoming.load();
