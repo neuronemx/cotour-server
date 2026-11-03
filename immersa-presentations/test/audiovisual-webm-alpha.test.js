@@ -75,7 +75,7 @@ test('Beta playback preserves WebM alpha across pause and restores black when a 
   apply('alpha');
   assert.equal(slots[1].paused, false);
   apply('mp4-a'); slots[0].canplay();
-  assert.equal(slots[1].classList.contains('is-visible'), false);
+  assert.equal(slots[1].classList.contains('is-visible'), true, 'outgoing alpha stays visible below the incoming opaque clip until it covers the frame');
   apply('mp4-b');
   assert.equal(slots[1].classList.contains('is-webm'), false);
   slots[1].canplay();
@@ -90,6 +90,6 @@ test('Only WebM clears the video background and Screen loads fresh assets', () =
   assert.match(css, /\.audiovisual-screen-layer \{[^}]*background:transparent/);
   assert.match(css, /\.audiovisual-video-slot \{[^}]*background:#000/);
   assert.match(css, /\.audiovisual-video-slot\.is-webm \{ background:transparent; \}/);
-  assert.match(html, /screen\.css\?v=25/);
-  assert.match(html, /screen\.js\?v=2026110201/);
+  assert.match(html, /screen\.css\?v=26/);
+  assert.match(html, /screen\.js\?v=2026110301/);
 });

@@ -114,6 +114,9 @@
   will-change:opacity;
 }
 .audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-base { z-index:1; transition:none; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-base.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-top { z-index:2; }
 .audiovisual-screen-layer .audiovisual-video-slot.is-webm { background:transparent; }
 .audiovisual-screen-layer.is-video,
 .audiovisual-screen-layer.is-fx { z-index:10; pointer-events:none; }
