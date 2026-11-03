@@ -4,7 +4,9 @@
   else root.ImmersaAudiovisualFade = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
-  function create({ getState, getMedia, video = false, now = () => performance.now(), requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame }) {
+  // Audio must keep fading while Screen is hidden/occluded and animation frames stop.
+  // Use the same short timer for both channels, including the soundtrack of Video/FX.
+  function create({ getState, getMedia, video = false, now = () => performance.now(), requestFrame = (callback) => setTimeout(callback, 16), cancelFrame = clearTimeout }) {
     let id = null, frame = null, started = 0;
     function cancel() {
       if (frame !== null) cancelFrame(frame);
