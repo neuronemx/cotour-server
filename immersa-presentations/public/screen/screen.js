@@ -325,7 +325,34 @@ function stopVideoSlots() {
     media.pause();
     media.currentTime = 0;
     media.classList.remove("is-visible");
+    media.classList.remove("is-swap-base");
+    media.classList.remove("is-swap-top");
   });
+}
+function finishAudiovisualVideoSwap(outgoing, incoming, token) {
+  let timer = null, finished = false;
+  const finish = () => {
+    if (finished) return;
+    if (token !== videoTransitionToken) { dispose(); return; }
+    const opacity = Number(window.getComputedStyle?.(incoming)?.opacity ?? 1);
+    if (opacity < .999) { timer = window.setTimeout(finish, 50); return; }
+    dispose();
+    outgoing.classList.remove("is-visible");
+    void outgoing.offsetWidth;
+    outgoing.classList.remove("is-swap-base");
+    outgoing.pause();
+    outgoing.currentTime = 0;
+    outgoing.removeAttribute("src");
+    outgoing.load();
+  };
+  const onEnd = (event) => { if (event.propertyName === "opacity") finish(); };
+  function dispose() {
+    finished = true;
+    if (timer !== null) window.clearTimeout?.(timer);
+    incoming.removeEventListener?.("transitionend", onEnd);
+  }
+  incoming.addEventListener("transitionend", onEnd);
+  timer = window.setTimeout(finish, 550);
 }
 function applyVideoState(state) {
   const resource = state?.resource;
@@ -355,7 +382,19 @@ function applyVideoState(state) {
     const mediaUrl = resolveAudiovisualMediaUrl(resource);
     if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
     const token = ++videoTransitionToken;
+    const hasCurrentVideo = Boolean(currentId && current.classList.contains("is-visible"));
+    if (hasCurrentVideo) {
+      // Commit the current picture before reusing the other slot on rapid selections.
+      current.classList.remove("is-swap-top");
+      current.classList.add("is-swap-base");
+      void current.offsetWidth;
+    }
     incoming.pause();
+    incoming.classList.remove("is-visible");
+    incoming.classList.remove("is-swap-base");
+    incoming.classList.remove("is-swap-top");
+    void incoming.offsetWidth;
+    incoming.classList.add("is-swap-top");
     // Blob URLs have no extension; inspect the original local file for WebM alpha.
     incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
     incoming.dataset.resourceId = nextId;
@@ -366,9 +405,9 @@ function applyVideoState(state) {
     incoming.volume = volume;
     incoming.classList.remove("is-visible");
     const begin = () => {
-      if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || audiovisualState.video?.status !== "playing") return;
+      if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || String(audiovisualState.video?.resource?.id || "") !== nextId || audiovisualState.video?.status !== "playing") return;
       incoming.play().catch(() => {});
-      const hasCurrentVideo = Boolean(currentId && !current.paused);
+      void incoming.offsetWidth;
       incoming.classList.add("is-visible");
       if (!hasCurrentVideo) {
         current.classList.remove("is-visible");
@@ -377,17 +416,10 @@ function applyVideoState(state) {
         audiovisualFxMonitors.get(incoming)?.refresh();
         return;
       }
-      current.classList.remove("is-visible");
       activeVideoSlot = incomingIndex;
       scheduleVideoPlaylistAdvance(incoming);
       audiovisualFxMonitors.get(incoming)?.refresh();
-      window.setTimeout(() => {
-        if (token !== videoTransitionToken) return;
-        current.pause();
-        current.currentTime = 0;
-        current.removeAttribute("src");
-        current.load();
-      }, 500);
+      finishAudiovisualVideoSwap(current, incoming, token);
     };
     incoming.addEventListener("canplay", begin, { once: true });
     incoming.load();
