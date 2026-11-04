@@ -276,7 +276,7 @@ test("Speaker uses sibling stable renderers for polls and raffles", () => {
   assert.match(presenter, /let pollsRenderer = null;[\s\S]+let raffleRenderer = null;/);
   assert.match(presenter, /pollsRenderer = document\.createElement\("div"\);[\s\S]+pollsRenderer\.className = "interaction-polls-renderer"/);
   assert.match(presenter, /raffleRenderer = document\.createElement\("div"\);[\s\S]+raffleRenderer\.className = "interaction-raffle-renderer"/);
-  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer\)/);
+  assert.match(presenter, /interactionShell\.getContentRoot\(\)\.append\(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer, selfieRenderer\)/);
   assert.match(presenter, /raffleController\.mountHost\(\{ role: "presenter", root: raffleRenderer, isActive: \(\) => interactionShell\.getView\(\) === "raffles" \}\)/);
   assert.doesNotMatch(presenter, /root: interactionShell\.getContentRoot\(\)/);
   assert.match(presenter, /pollsRenderer\.hidden = interactionShell\.getView\(\) !== "polls"/);
@@ -293,7 +293,7 @@ test("Speaker returns home only on real interaction close events", () => {
   assert.match(presenter, /shell\.setTitleVisible\?\.\(true\)/);
   assert.match(presenter, /eventName === "raffle:closed"\) returnInteractionsHome\(\)/);
   assert.match(presenter, /socket\.on\("interaction:closed", \(\) => \{[\s\S]+returnInteractionsHome\(\); \}\)/);
-  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : knowledgeActivityView\(\) \|\| "home"\); \}/);
+  assert.match(presenter, /function activeInteractionView\(\) \{ return activeInteraction \? "polls" : \(raffleController\?\.getState\?\.\(\)\.active \? "raffles" : knowledgeActivityView\(\) \|\| \(selfieActive \? "selfie" : "home"\)\); \}/);
 });
 
 

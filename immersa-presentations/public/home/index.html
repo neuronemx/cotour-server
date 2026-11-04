@@ -52,6 +52,7 @@
   <link rel="stylesheet" href="/home/deck-management-shell.css?v=2026110101">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
   <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=1">
+  <link rel="stylesheet" href="/shared/selfie.css?v=1">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -128,6 +129,7 @@
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
         <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
+        <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><span aria-hidden="true">📷</span><span>Selfie</span></button>
         <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
@@ -153,6 +155,17 @@
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
         <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
+        <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
+          <div id="selfieEditor" class="selfie-editor">
+            <h3>Selfie</h3><p>Usa expresiones, productos o imágenes relacionadas con tu presentación. Cada participante recibirá una imagen al lanzar Selfie desde Speaker.</p>
+            <p data-selfie-source></p>
+            <label>Al subir imágenes<select><option value="replace">Sustituir la colección</option><option value="append">Agregar a la colección</option></select></label>
+            <label>Subir imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+            <p>Hasta 20 imágenes. PNG, JPG o WebP de máximo 5 MB y 4096 × 4096 px. Recomendado: verticales de 1080 × 1920 px.</p>
+            <div class="selfie-editor-actions"><button type="button" data-selfie-reset>Usar colección predeterminada</button><button type="button" data-selfie-refresh>Actualizar lista</button></div>
+            <p role="status" aria-live="polite"></p><div class="selfie-editor-grid" data-selfie-images></div>
+          </div>
+        </section>
         <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
           <div id="deckSpeakersEditor" class="deck-speakers-editor">
             <div class="deck-speakers-toolbar"><label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label><button type="button" data-speakers-refresh>Actualizar lista</button></div>
@@ -316,5 +329,6 @@
   <script src="/home/locales-editor.js?v=4"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
+  <script src="/home/selfie-editor.js?v=1"></script>
 </body>
 </html>

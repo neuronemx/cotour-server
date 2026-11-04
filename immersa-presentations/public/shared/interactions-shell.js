@@ -3,7 +3,7 @@
   else root.ImmersaInteractionsShell = factory(root);
 })(typeof window !== "undefined" ? window : globalThis, function (global) {
   const tr = (key, fallback) => global.ImmersaI18n?.t(key) || fallback;
-  const VIEWS = new Set(["home", "polls", "qna", "assessments", "raffles", "contests", "games"]);
+  const VIEWS = new Set(["home", "polls", "qna", "assessments", "raffles", "contests", "games", "selfie"]);
   const APPROVED_CATEGORY_ICONS = {
     polls: {
       viewBox: "0 0 24 24",
@@ -30,6 +30,7 @@
       viewBox: "0 0 24 24",
       paths: ["M8 21l8 0", "M12 17l0 4", "M7 4l10 0", "M17 4v8a5 5 0 0 1 -10 0v-8", "M3 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0", "M17 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"]
     },
+    selfie: { viewBox: "0 0 24 24", paths: ["M3 7h4l2-3h6l2 3h4v13H3z", "M16 13a4 4 0 1 1-8 0a4 4 0 0 1 8 0"] },
     games: {
       viewBox: "0 0 24 24",
       paths: ["M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4", "M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4", "M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4", "M14 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"]
@@ -51,7 +52,8 @@
       categories: [
         { id: "raffles", label: "Sorteos", enabled: true },
         { id: "contests", label: "Trivias", enabled: true },
-        { id: "games", label: "Juegos", enabled: true }
+        { id: "games", label: "Juegos", enabled: true },
+        { id: "selfie", label: "Selfie", enabled: true }
       ]
     }
   ];
@@ -107,6 +109,7 @@
   }
 
   function create(options = {}) {
+    const categories = CATEGORIES.filter(category => category.id !== "selfie" || options.categoryVisibility?.selfie === true);
     const root = options.root;
     if (!root || !root.ownerDocument) throw new Error("ImmersaInteractionsShell requires a root element");
     const documentRef = root.ownerDocument;
@@ -117,7 +120,7 @@
     let titleVisible = true;
     let destroyed = false;
     const listeners = [];
-    const buttons = new Map(CATEGORIES.map((category) => [category.id, []]));
+    const buttons = new Map(categories.map((category) => [category.id, []]));
 
     const container = createElement(documentRef, "section", "interactions-native-shell");
     container.setAttribute("aria-label", tr('live.interactions', 'Interacciones'));
@@ -135,7 +138,7 @@
       groupNode.dataset.interactionsGroup = group.id;
       groupNode.appendChild(createElement(documentRef, "p", "interactions-shell-group-label", tr('shell.' + group.id, group.label)));
       const row = createElement(documentRef, "div", "interactions-shell-group-row");
-      group.categories.forEach((category) => {
+      group.categories.filter(category => categories.includes(category)).forEach((category) => {
         const button = createCategoryButton(documentRef, category, "expanded");
         row.appendChild(button);
         buttons.get(category.id).push(button);
@@ -147,7 +150,7 @@
 
     const compact = createElement(documentRef, "div", "interactions-shell-compact");
     compact.setAttribute("aria-label", tr('shell.categories', 'Categorías de interacciones'));
-    CATEGORIES.forEach((category) => {
+    categories.forEach((category) => {
       const button = createCategoryButton(documentRef, category, "compact");
       compact.appendChild(button);
       buttons.get(category.id).push(button);
@@ -241,7 +244,7 @@
         const node = home.querySelector?.('[data-interactions-group="' + group.id + '"] .interactions-shell-group-label');
         if (node) node.textContent = tr('shell.' + group.id, group.label);
       });
-      CATEGORIES.forEach((category) => buttons.get(category.id)?.forEach((button) => {
+      categories.forEach((category) => buttons.get(category.id)?.forEach((button) => {
         const label = button.querySelector?.('.interactions-shell-category-label');
         const live = button.querySelector?.('.interactions-shell-live-label');
         if (label) label.textContent = tr('shell.' + category.id, category.label);
@@ -268,8 +271,8 @@
     listen(closeButton, "click", () => { options.onRequestClose?.(); });
     if (global.addEventListener) listen(global, 'immersa:locale-change', localizeShell);
 
-    CATEGORIES.forEach((category) => {
-      const visible = options.categoryVisibility?.[category.id] !== false;
+    categories.forEach((category) => {
+      const visible = category.id === "selfie" ? options.categoryVisibility?.selfie === true : options.categoryVisibility?.[category.id] !== false;
       const enabled = options.categoryEnabled?.[category.id] ?? category.enabled;
       setCategoryVisible(category.id, visible);
       setCategoryEnabled(category.id, enabled);

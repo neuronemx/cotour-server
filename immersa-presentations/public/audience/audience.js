@@ -4,6 +4,7 @@ const eventLiveReturnKey = "immersa:event-live-return";
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
+window.ImmersaSelfieAudience?.create({ socket });
 window.ImmersaPresentationCompletion?.create({ socket, role: "audience", context: publicOpenContext });
 let knowledgeActivityAudience = null;
 let manifest = null;
