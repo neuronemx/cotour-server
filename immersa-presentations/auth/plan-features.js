@@ -91,6 +91,7 @@ function requiredCapabilityForControllerEvent(eventName) {
   if (event.startsWith("interaction:execution:") || event.startsWith("interaction:participant:")) {
     return CAPABILITIES.TRIVIA_RUN;
   }
+  if (event === "selfie:start") return CAPABILITIES.POLLS_RUN;
   if (event.startsWith("interaction:")) return CAPABILITIES.POLLS_RUN;
   if (event.startsWith("games:queue:") || event.startsWith("pong:") || event.startsWith("breakout:") || event === "time:command") {
     return CAPABILITIES.GAMES_RUN;

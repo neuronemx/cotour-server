@@ -21,6 +21,8 @@ let interactions = [];
 let videoSlideIds = new Set();
 let selectedInteractionId = "";
 let activeInteraction = null;
+let selfieActive = false;
+let selfieRenderer = null;
 let interactionResults = null;
 let interactionResultsVisible = false;
 let currentState = null;
@@ -785,6 +787,7 @@ function ensureInteractionsShell() {
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
     categoryEnabled: {
+      selfie: planAllows("polls.run"),
       polls: planAllows("polls.run"),
       qna: planAllows("qna.run"),
       assessments: planAllows("assessments.run"),
@@ -793,6 +796,7 @@ function ensureInteractionsShell() {
       games: !isPublishedDemo && planAllows("games.run")
     },
     categoryVisibility: {
+      selfie: true,
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
       contests: knowledgeActivitiesAvailable
@@ -805,6 +809,7 @@ function ensureInteractionsShell() {
         qnaControls?.open();
         return;
       }
+      if (view === "selfie") renderSelfiePanel();
       if (view === "polls") renderInteractionPanel();
       if (view === "raffles") renderRafflePanel();
       if (view === "assessments" || view === "contests") syncRendererVisibility();
@@ -822,7 +827,10 @@ function ensureInteractionsShell() {
   contestRenderer = document.createElement("div");
   contestRenderer.className = "interaction-knowledge-renderer";
   contestRenderer.dataset.interactionsView = "contests";
-  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer);
+  selfieRenderer = document.createElement('div');
+  selfieRenderer.dataset.interactionsView = 'selfie';
+  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer, selfieRenderer);
+  renderSelfiePanel();
   if (raffleController?.mountHost) {
     raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: raffleRenderer, isActive: () => interactionShell.getView() === "raffles" });
   }
@@ -835,7 +843,7 @@ function knowledgeActivityView() {
   const category = knowledgeActivityController?.getState?.().category;
   return category === "contest" ? "contests" : category === "assessment" ? "assessments" : "";
 }
-function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : knowledgeActivityView() || "home"); }
+function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : knowledgeActivityView() || (selfieActive ? "selfie" : "home")); }
 function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active || knowledgeActivityView()); }
 function resetInactiveRaffleDraft() { if (hasActiveInteractionShellLock()) return false; return raffleController?.resetLocalSetup?.() || false; }
 function syncRendererVisibility() {
@@ -843,6 +851,7 @@ function syncRendererVisibility() {
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
   if (raffleRenderer) raffleRenderer.hidden = interactionShell.getView() !== "raffles";
   if (assessmentRenderer) assessmentRenderer.hidden = interactionShell.getView() !== "assessments";
+  if (selfieRenderer) selfieRenderer.hidden = interactionShell.getView() !== "selfie";
   if (contestRenderer) contestRenderer.hidden = interactionShell.getView() !== "contests";
 }
 function returnInteractionsHome() {
@@ -864,12 +873,33 @@ function syncInteractionShellState() {
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || shell.getView();
   shell.setLocked(locked);
   shell.setCloseVisible(!locked);
-  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (qnaQuestionsOpen ? "qna" : ""));
-  if (activePoll || activeRaffle || shell.getView() === "home") shell.setView(activeInteractionView());
+  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (selfieActive ? "selfie" : (qnaQuestionsOpen ? "qna" : "")));
+  if (activePoll || activeRaffle || selfieActive || shell.getView() === "home") shell.setView(activeInteractionView());
   shell.setTitleVisible?.(true);
   syncRendererVisibility();
   if (locked && !interactionPanelOpen) setInteractionPanelOpen(true);
 }
+function renderSelfiePanel() {
+  if (!selfieRenderer) return;
+  selfieRenderer.innerHTML = '<div class="interaction-panel-heading"><h2>Selfie</h2><p>' + (selfieActive ? 'Pide al público que muestre sus celulares. Después puede imitar la imagen que le tocó.' : 'Cada participante recibirá una imagen de la colección de este Deck. Puedes cambiarla en Home → Deck → Selfie.') + '</p></div><p>Cuando estén listos, reproduce el disparo de PING desde Audiovisual.</p><div class="interaction-panel-actions"><button class="primary" data-selfie-action>' + (selfieActive ? 'Cerrar Selfie' : 'Lanzar Selfie') + '</button></div><p data-selfie-status role="status"></p>';
+  selfieRenderer.querySelector('[data-selfie-action]').addEventListener('click', event => {
+    event.currentTarget.disabled = true;
+    socket.emit(selfieActive ? 'selfie:close' : 'selfie:start');
+  });
+}
+socket.on('selfie:state', state => {
+  const wasActive = selfieActive;
+  selfieActive = Boolean(state?.active);
+  if (!selfieActive && !wasActive && !interactionShell) return;
+  renderSelfiePanel();
+  syncInteractionShellState();
+  if (wasActive && !selfieActive) returnInteractionsHome();
+});
+socket.on('selfie:rejected', state => {
+  renderSelfiePanel();
+  const status = selfieRenderer?.querySelector('[data-selfie-status]');
+  if (status) status.textContent = state.reason === 'active_interaction_exists' ? 'Cierra la interacción activa antes de lanzar Selfie.' : 'No se pudo iniciar Selfie. Intenta de nuevo.';
+});
 function renderRafflePanel() {
   const shell = ensureInteractionsShell();
   if (!shell) return;
@@ -955,6 +985,7 @@ function renderInteractionPanel() {
   ensureInteractionsShell();
   syncInteractionShellState();
   const shell = interactionShell;
+  if (selfieActive || shell.getView() === "selfie") { renderSelfiePanel(); return; }
   const panel = pollsRenderer;
   const active = activeInteraction || null;
   const hasInteractions = interactions.length > 0;

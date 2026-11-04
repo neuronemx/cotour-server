@@ -1,5 +1,7 @@
 const {DeckSpeakersStore, DeckSpeakerError}=require('./deck-speakers');
 const {createDeckSpeakersHttp}=require('./deck-speakers-http');
+const { createSelfieRuntime } = require('./selfie-runtime');
+const { createSelfieCollectionStore, createSelfieCollectionHttp } = require('./selfie-collection');
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
@@ -96,6 +98,9 @@ const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
+const selfieCollectionStore = createSelfieCollectionStore({ findDeckDir });
+const selfieRuntime = createSelfieRuntime({ io, coordinator: activeInteractionCoordinator,
+  loadCollection: deckId => selfieCollectionStore.read(deckId), getRoleRoomKey, getConnectedAudience });
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 let presentationMetricsRepository = null;
@@ -205,6 +210,7 @@ const presentationLifecycleRuntime = lifecyclePool
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
         raffleSockets.resetSession(context);
+        selfieRuntime.resetSession(context);
         gameQueueSockets.resetSession(context);
       },
       preserveAutomaticStart: async (context) => (
@@ -247,6 +253,7 @@ const presentationLifecycleRuntime = lifecyclePool
         await knowledgeActivityRuntime.resetSession(context);
         interactionSockets.resetSession(context);
         raffleSockets.resetSession(context);
+        selfieRuntime.resetSession(context);
         gameQueueSockets.resetSession(context);
         await qnaRuntime.resetSessionState?.({
           deckId: context.deckId,
@@ -283,7 +290,7 @@ async function getStageFeatureAccess(deckId) {
 const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   io, getRoleRoomKey,
   getSession: ({ deckId, sourceSessionId }) => getSessionByRoomKey(getRoomKey(sourceSessionId, deckId)),
-  onFinish: context => { brandMentionRuntime.stop(context.roomKey); }
+  onFinish: context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); }
 });
 
 const accessLinkHandlers = createAccessLinkHandlers({
@@ -1007,6 +1014,7 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
     });
     interactionSockets.resetSession(context);
     raffleSockets.resetSession(context);
+    selfieRuntime.resetSession(context);
     gameQueueSockets.resetSession(context);
     brandMentionRuntime.stop(roomKey);
 
@@ -1875,6 +1883,8 @@ app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deleteP
 app.use(createDeckSpeakersHttp({store:deckSpeakersStore,enabled:deckSpeakersEnabled,
   owner:[...requireDeckAccount,requireAccountAdjustmentCleared],account:requireAccount,
   legacyProfile:profileHandlers.getDeckSpeakerProfile}));
+app.use(createSelfieCollectionHttp({ store: selfieCollectionStore,
+  owner: [...requireDeckAccount, requireAccountAdjustmentCleared] }));
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.put("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
 app.get("/api/decks/:deckId/interactions", deckInteractionHandlers.getInteractions);
@@ -2111,6 +2121,10 @@ io.on("connection", (socket) => {
     deckId: currentDeckId,
     audienceId: currentAudienceId
   }));
+  selfieRuntime.attach(socket, () => ({
+    roomKey: currentRoomKey, role: currentRole, sessionId: currentSessionId,
+    deckId: currentDeckId, audienceId: currentAudienceId
+  }));
   qnaRuntime.attach(socket, () => ({
     roomKey: currentRoomKey,
     role: currentRole,
@@ -2279,6 +2293,7 @@ io.on("connection", (socket) => {
       ["game queue", () => gameQueueSockets.sendCurrentState(socket, joinedContext)],
       ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
       ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
+      ["selfie", () => selfieRuntime.sendCurrentState(socket, joinedContext)],
       ["Q&A", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? qnaRuntime.sendCurrentState(socket, joinedContext) : null],
       ["knowledge activity", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? knowledgeActivityRuntime.sendCurrentState(socket, joinedContext) : null],
       ["presentation lifecycle", () => (canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? presentationLifecycleRuntime : nonRecordingLifecycleRuntime).sendCurrentState(socket, joinedContext)]
