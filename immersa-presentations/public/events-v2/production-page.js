@@ -31,7 +31,7 @@
  async function bindActivity(a,v,clear=false){
   if(!editableActivity(a))throw Error('Sólo puedes cambiar el Deck antes de iniciar la actividad.');if(!clear&&!v?.approvalDigest)throw Error('Aprueba primero la versión con Deck Check en Decks.');
   try{await request(root()+'/activities/'+a.id+'/deck-binding',clear?'DELETE':'PUT',clear?{expectedRevision:a.bindingRevision||0}:{deckId:v.deckId,versionId:v.versionId,expectedRevision:a.bindingRevision||0});}
-  catch(error){if(error.code==='BINDING_REVISION_CONFLICT'){await refresh();throw Error('La asociación cambió en otra ventana. Ya actualizamos el estado: revísalo antes de volver a intentarlo.');}throw error;}
+  catch(error){if(['BINDING_REVISION_CONFLICT','ACTIVITY_NOT_EDITABLE'].includes(error.code)){await refresh();throw Error(error.code==='BINDING_REVISION_CONFLICT'?'La asociación cambió en otra ventana. Ya actualizamos el estado: revísalo antes de volver a intentarlo.':'La actividad ya inició o dejó de estar pendiente. Ya actualizamos su estado; no se cambió su Deck.');}throw error;}
   await refresh();message(clear?'Deck retirado de '+a.title+'. La versión sigue disponible en el evento.':'Versión '+v.number+' de '+v.title+' asociada a '+a.title+'. Las demás actividades conservan su Deck.');
  }
  function renderDecks(){
