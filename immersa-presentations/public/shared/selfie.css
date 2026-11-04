@@ -13,3 +13,9 @@ body.selfie-active{overflow:hidden}
 .selfie-editor-grid img{width:100%;aspect-ratio:9/16;object-fit:contain;background:#111;border-radius:10px}
 .selfie-editor-grid button{width:100%}
 .selfie-editor [role=status]{min-height:1.4em}
+
+.selfie-ping-admin{margin:0 20px 20px;border:1px solid #c6c1dc;border-radius:12px}
+.selfie-ping-admin[hidden]{display:none}
+.selfie-ping-admin summary{padding:16px;cursor:pointer;font-weight:600}
+.selfie-upload{padding:16px;border:1px dashed #9386c5;border-radius:12px}
+.selfie-hint{font-size:.85rem;opacity:.75;margin:0}
