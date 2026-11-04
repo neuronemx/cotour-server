@@ -52,7 +52,7 @@
   <link rel="stylesheet" href="/home/deck-management-shell.css?v=2026110101">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
   <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=1">
-  <link rel="stylesheet" href="/shared/selfie.css?v=1">
+  <link rel="stylesheet" href="/shared/selfie.css?v=2">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -157,14 +157,26 @@
         <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
           <div id="selfieEditor" class="selfie-editor">
-            <h3>Selfie</h3><p>Usa expresiones, productos o imágenes relacionadas con tu presentación. Cada participante recibirá una imagen al lanzar Selfie desde Speaker.</p>
-            <p data-selfie-source></p>
-            <label>Al subir imágenes<select><option value="replace">Sustituir la colección</option><option value="append">Agregar a la colección</option></select></label>
-            <label>Subir imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
-            <p>Hasta 20 imágenes. PNG, JPG o WebP de máximo 5 MB y 4096 × 4096 px. Recomendado: verticales de 1080 × 1920 px.</p>
-            <div class="selfie-editor-actions"><button type="button" data-selfie-reset>Usar colección predeterminada</button><button type="button" data-selfie-refresh>Actualizar lista</button></div>
-            <p role="status" aria-live="polite"></p><div class="selfie-editor-grid" data-selfie-images></div>
+            <h3>Selfie</h3><p data-selfie-source></p>
+            <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+            <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
+            <div class="selfie-editor-grid" data-selfie-images></div>
+            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+            <p role="status" aria-live="polite"></p>
           </div>
+          <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
+            <summary>Administrar colección PING · IMMERSA</summary>
+            <div id="pingSelfieEditor" class="selfie-editor">
+              <h3>Colección predeterminada de PING</h3>
+              <p>Los cambios se aplican a todos los Decks que usan PING, a partir de la próxima Selfie. Las colecciones propias de cada Deck se conservan.</p>
+              <p data-selfie-source></p>
+              <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+              <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
+              <div class="selfie-editor-grid" data-selfie-images></div>
+              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+              <p role="status" aria-live="polite"></p>
+            </div>
+          </details>
         </section>
         <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
           <div id="deckSpeakersEditor" class="deck-speakers-editor">
@@ -329,6 +341,6 @@
   <script src="/home/locales-editor.js?v=4"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
-  <script src="/home/selfie-editor.js?v=1"></script>
+  <script src="/home/selfie-editor.js?v=2"></script>
 </body>
 </html>

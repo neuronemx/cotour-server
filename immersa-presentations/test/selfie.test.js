@@ -98,3 +98,46 @@ test('collection HTTP validates uploads, persists revisions, rejects stale edits
   assert.deepEqual(await fs.readFile(imagePath),png);
   await assert.rejects(store.read('../escape'));
 });
+
+test('seven global PING images are inherited automatically; custom Decks stay independent', async t => {
+  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'selfie-ping-'));
+  t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+  const pingDir=path.join(dir,'ping');await fs.mkdir(pingDir);
+  const ping=createSelfieCollectionStore({findDeckDir:async()=>pingDir,assetPrefix:()=>'/selfie/ping/assets/'});
+  const makeDeckStore=()=>createSelfieCollectionStore({findDeckDir:async id=>{const p=path.join(dir,id);await fs.mkdir(p,{recursive:true});return p;},defaultStore:ping});
+  const decks=makeDeckStore();
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQ0AAAAASUVORK5CYII=','base64');
+  const file={buffer:png,originalname:'ping.png',mimetype:'image/png'};
+  const global=await ping.upload('ping',0,Array(7).fill(file),false);
+  assert.equal(global.images.length,7);assert.equal(global.provisional,false);
+  const inherited=await decks.read('deck-a');
+  assert.equal(inherited.custom,false);assert.equal(inherited.provisional,false);assert.deepEqual(inherited.images,global.images);
+  const custom=await decks.upload('deck-b',0,[file],false);
+  assert.equal(custom.images.length,1);assert.equal(custom.custom,true);
+  const updated=await ping.upload('ping',1,[file],false);
+  assert.equal((await decks.read('deck-a')).images.length,8);
+  assert.deepEqual((await decks.read('deck-b')).images,custom.images);
+  assert.deepEqual((await makeDeckStore().read('deck-a')).images,updated.images);
+  const cleared=await decks.remove('deck-b',1,custom.images[0].url);
+  assert.equal(cleared.custom,false);assert.deepEqual(cleared.images,updated.images);
+  await assert.rejects(ping.upload('ping',2,Array(21).fill(file),true));
+});
+
+test('PING global endpoints require administrator and same origin', async t => {
+  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ping-admin-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+  const store=createSelfieCollectionStore({findDeckDir:async()=>dir,assetPrefix:()=>'/selfie/ping/assets/'});
+  const app=express();app.use(express.json());
+  const admin=(req,res,next)=>req.headers.authorization==='admin'?next():res.sendStatus(403);
+  app.use(createSelfieCollectionHttp({store,owner:[admin],base:'/api/admin/selfie/ping',collectionId:()=> 'ping'}));
+  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>server.close());
+  const origin='http://127.0.0.1:'+server.address().port,url=origin+'/api/admin/selfie/ping';
+  assert.equal((await fetch(url)).status,403);
+  assert.equal((await fetch(url,{headers:{authorization:'owner'}})).status,403);
+  assert.equal((await fetch(url,{headers:{authorization:'admin'}})).status,200);
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQ0AAAAASUVORK5CYII=','base64');
+  function body(){const b=new FormData();b.append('revision','0');b.append('replace','false');b.append('images',new Blob([png],{type:'image/png'}),'ping.png');return b;}
+  assert.equal((await fetch(url,{method:'POST',headers:{authorization:'owner',origin},body:body()})).status,403);
+  assert.equal((await fetch(url,{method:'POST',headers:{authorization:'admin',origin:'https://other.test'},body:body()})).status,403);
+  const response=await fetch(url,{method:'POST',headers:{authorization:'admin',origin},body:body()});assert.equal(response.status,200);
+  const saved=await response.json();assert.match(saved.images[0].url,/^\/selfie\/ping\/assets\//);
+});

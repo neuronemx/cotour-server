@@ -98,7 +98,12 @@ const controllerRoles = new Set(["presenter", "stage"]);
 const interactionStore = new InteractionStore();
 const raffleStore = new RaffleStore();
 const activeInteractionCoordinator = new ActiveInteractionCoordinator({ interactionStore, raffleStore });
-const selfieCollectionStore = createSelfieCollectionStore({ findDeckDir });
+const pingCollectionDir = path.join(DATA_DIR, 'selfie-ping');
+const pingCollectionStore = createSelfieCollectionStore({
+  findDeckDir: async () => { await fs.promises.mkdir(pingCollectionDir, { recursive: true }); return pingCollectionDir; },
+  assetPrefix: () => '/selfie/ping/assets/'
+});
+const selfieCollectionStore = createSelfieCollectionStore({ findDeckDir, defaultStore: pingCollectionStore });
 const selfieRuntime = createSelfieRuntime({ io, coordinator: activeInteractionCoordinator,
   loadCollection: deckId => selfieCollectionStore.read(deckId), getRoleRoomKey, getConnectedAudience });
 const gameQueueStore = new GameQueueStore();
@@ -1145,6 +1150,7 @@ app.use("/decks/:deckId/locales/en", async (req, res, next) => {
     return res.sendStatus(404);
   }
 });
+app.use("/selfie/ping/assets", express.static(path.join(pingCollectionDir, "selfie-assets"), { immutable: true, maxAge: "1y" }));
 app.use("/decks", express.static(DATA_DECKS_DIR));
 app.use("/profile-images", express.static(DATA_PROFILES_DIR, { immutable: true, maxAge: "1y" }));
 app.get("/auth", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "auth", "index.html")));
@@ -1883,6 +1889,8 @@ app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deleteP
 app.use(createDeckSpeakersHttp({store:deckSpeakersStore,enabled:deckSpeakersEnabled,
   owner:[...requireDeckAccount,requireAccountAdjustmentCleared],account:requireAccount,
   legacyProfile:profileHandlers.getDeckSpeakerProfile}));
+app.use(createSelfieCollectionHttp({ store: pingCollectionStore,
+  base: '/api/admin/selfie/ping', collectionId: () => 'ping', owner: [requireAccount, requireImmersaAdmin] }));
 app.use(createSelfieCollectionHttp({ store: selfieCollectionStore,
   owner: [...requireDeckAccount, requireAccountAdjustmentCleared] }));
 app.get("/api/demo-session/decks/:deckId/slide-visibility", requireControllerDeck, handleDemoSessionSlideVisibility);
