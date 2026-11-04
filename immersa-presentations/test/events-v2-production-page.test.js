@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(require.resolve('../public/events-v2/production-page.js'),'utf8'),html=fs.readFileSync(require.resolve('../events-v2/production.html'),'utf8');
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),org=id(1),event=id(2),activity=id(3),stage=id(4),deck=id(5),version=id(6),grant=id(7),token='a'.repeat(43);
 async function settle(){for(let i=0;i<80;i++)await Promise.resolve();}
-function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedConfiguration=null,englishStatus='NOT_UPLOADED',englishUploadError=null,slides=1,media=[],mediaError=false,mediaUploadError=null}={}){
+function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedConfiguration=null,englishStatus='NOT_UPLOADED',englishUploadError=null,slides=1,media=[],mediaError=false,mediaUploadError=null,images=[],imageError=false,imageUploadError=null}={}){
  class E{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.handlers={};this.value='';this.disabled=false;this.hidden=false;this.dataset={};this.classList={toggle(){}};this.isConnected=true;}
   set innerHTML(_){throw Error('Unsafe HTML');}
@@ -28,6 +28,8 @@ function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedC
   if(url.endsWith('/organizations'))value=[{id:org,name:'Own org'}];else if(url.endsWith('/events'))value=[{eventId:event,title:'Own event'}];else if(url.endsWith('/production'))value=structuredClone(data);
   else if(url.endsWith('/translations/en/preparation'))value={status:englishStatus,language:'en',slideCount:slides};
   else if(url.endsWith('/translations/en/source')&&options.method==='POST'){if(englishUploadError){englishStatus='FAILED';return{ok:false,json:async()=>({code:englishUploadError})};}englishStatus='CONVERTED';value={status:'CONVERTED',language:'en',slideCount:slides};}
+  else if(url.endsWith('/images')&&options.method==='GET'){if(imageError)return{ok:false,json:async()=>({code:'IMAGE_UNAVAILABLE'})};value={images};}
+  else if(url.endsWith('/images')&&options.method==='POST'){if(imageUploadError)return{ok:false,json:async()=>({code:imageUploadError})};images.push(imageFixture(40+images.length,options.body.get('name')));value=images.at(-1);}
   else if(url.endsWith('/media')&&options.method==='GET'){if(mediaError)return{ok:false,json:async()=>({code:'MEDIA_UNAVAILABLE'})};value={media};}
   else if(url.endsWith('/media')&&options.method==='POST'){if(mediaUploadError)return{ok:false,json:async()=>({code:mediaUploadError})};media.push({id:id(20+media.length),name:options.body.get('name'),type:options.body.get('category')==='fx'?'video':'audio',status:'READY_PENDING_DECK_CHECK',duration:15,size:1234,...(options.body.get('category')==='fx'?{category:'fx',contentType:'video/webm',fx:require('../public/events-v2/av-fx').parseCue(options.body.get('cue'))}:{})});value=media.at(-1);}
   else if(url.endsWith('/configuration')&&options.method==='GET')value={configuration:savedConfiguration};
@@ -37,9 +39,9 @@ function page({approved=true,bound=true,endsAt='2099-01-01T00:00:00.000Z',savedC
   else if(url.endsWith('/schedule')){const input=JSON.parse(options.body);Object.assign(data.activities[0],input,{scheduledEndsAt:new Date(Date.parse(input.scheduledStartsAt)+input.durationMinutes*60000).toISOString()});value={};}
   else if(url.endsWith('/activities'))value={id:activity};else throw Error('Unexpected request '+url);
   return{ok:true,json:async()=>value};};
- const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location,ImmersaProductionInteractions:require('../public/events-v2/production-interactions'),ImmersaProductionMedia:require('../public/events-v2/production-media'),ImmersaEventFx:require('../public/events-v2/av-fx')};
+ const location={pathname:'/events-v2/production',search:'',assign:url=>navigations.push(url)},window={location,ImmersaProductionInteractions:require('../public/events-v2/production-interactions'),ImmersaProductionMedia:require('../public/events-v2/production-media'),ImmersaProductionImages:require('../public/events-v2/production-images'),ImmersaEventFx:require('../public/events-v2/av-fx')};
  vm.runInNewContext(source,{document,window,location,history:{replaceState(){}},fetch,FormData,URLSearchParams,Intl,Date,Error});
- return{elements,tabs,data,calls,navigations,setEnglishStatus:v=>englishStatus=v,setMediaError:v=>mediaError=v,find:(parent,text)=>walk(parent).find(e=>e.textContent===text),walk,zone};
+ return{elements,tabs,data,calls,navigations,setEnglishStatus:v=>englishStatus=v,setMediaError:v=>mediaError=v,setImageError:v=>imageError=v,find:(parent,text)=>walk(parent).find(e=>e.textContent===text),walk,zone};
 }
 test('Production opens Stage in one action with the selected activity and fragment-only grant',async()=>{
  const h=page();await settle();const button=h.find(h.elements['operation-list'],'Abrir Stage');assert.equal(button.disabled,false);button.fire('click');await settle();
@@ -138,3 +140,34 @@ test('Production restores sealed catalogs without silently selecting the rest of
 });
 
 test('Production FX category requires a TXT, posts its cue without trusting MIME and preserves prepared notes',async()=>{const h=page({approved:false});await settle();h.elements['deck-list'].children[0].fire('click');await settle();const e=h.elements;e['slide-notes'].value='No perder notas';e['media-category'].value='fx';e['media-category'].fire('change');assert.equal(e['media-cue-label'].hidden,false);e['media-file'].files=[new Blob(['webm'])];e['media-name'].value='Transición';e['media-cue'].files=[new File(['03:15\nFPS=30'],'transition.txt')];e['media-upload-form'].fire('submit');await new Promise(r=>setImmediate(r));await settle();const call=h.calls.find(c=>c.method==='POST'&&c.url.endsWith('/media'));assert.ok(call,e.message.textContent);assert.equal(call.body.get('category'),'fx');assert.equal(call.body.get('cue'),'03:15\nFPS=30');assert.equal(e['slide-notes'].value,'No perder notas');assert.ok(h.find(e['media-library'],'Incluir Transición'));});
+
+function imageFixture(n,name='Imagen '+n){return{id:id(n),name,status:'READY_PENDING_DECK_CHECK',type:'image',contentType:'image/png',width:64,height:32,size:1234};}
+function fillQuestion(h,root){const fill=(label,value)=>{const f=h.find(root,label).children[0];f.value=value;f.fire('input');};fill('Título','Trivia de imágenes');fill('Pregunta','¿Qué ves?');fill('Opciones, una por línea (2 a 6)','Uno\nDos');}
+test('Production image upload keeps drafts and playlists, never auto assigns, and explicit question selection survives navigation and sealing',async()=>{
+ const h=page({approved:false,slides:2,englishStatus:'CONVERTED',images:[imageFixture(40)]});await settle();const e=h.elements;e['deck-list'].children[0].fire('click');await settle();
+ h.find(e['slide-interactions'],'Agregar Trivia').fire('click');fillQuestion(h,e['slide-interactions']);e['slide-notes'].value='Conservar notas';e['slide-notes-en'].value='Keep notes';h.find(e['media-library'],'Crear playlist de audio').fire('click');
+ e['image-file'].files=[new File(['fixture'],'pregunta.png')];e['image-name'].value='Mi diagrama';e['image-upload-form'].fire('submit');await settle();
+ const upload=h.calls.find(c=>c.url.endsWith('/images')&&c.method==='POST');assert.ok(upload.body instanceof FormData);assert.equal(upload.body.get('name'),'Mi diagrama');assert.ok(upload.body.get('image'));assert.equal(e['slide-notes'].value,'Conservar notas');assert.equal(e['slide-notes-en'].value,'Keep notes');assert.ok(h.find(e['media-library'],'Playlist de audio'));
+ let select=h.find(e['slide-interactions'],'Imagen de la pregunta (opcional)').children[0];assert.equal(select.value,'');select.value=id(41);select.fire('change');
+ let preview=h.walk(e['slide-interactions']).find(x=>x.className==='question-image-preview');assert.ok(preview.src.endsWith('/versions/'+version+'/images/'+id(41)+'/content'));assert.equal(preview.referrerPolicy,'no-referrer');
+ e.thumbnails.children[1].fire('click');e.thumbnails.children[0].fire('click');assert.equal(h.find(e['slide-interactions'],'Imagen de la pregunta (opcional)').children[0].value,id(41));
+ e['refresh-images'].fire('click');await settle();assert.equal(h.find(e['slide-interactions'],'Imagen de la pregunta (opcional)').children[0].value,id(41));assert.equal(h.find(e['slide-interactions'],'Pregunta').children[0].value,'¿Qué ves?');
+ h.find(e['media-library'],'Quitar playlist').fire('click');e['save-configuration'].fire('click');await settle();
+ const sent=JSON.parse(h.calls.find(c=>c.url.endsWith('/configuration')&&c.method==='POST').body);assert.equal(sent.knowledge[0].questions[0].imageAssetId,id(41));assert.equal(sent.images,undefined);assert.equal(sent.slides[0].notes.en,'Keep notes');assert.deepEqual(sent.audiovisual.assetIds,[]);require('../events-v2/deck-configuration').normalizeConfiguration(sent,2);
+ assert.equal(e['image-upload-form'].hidden,true);assert.equal(h.find(e['slide-interactions'],'Imagen de la pregunta (opcional)').children[0].disabled,true);assert.ok(h.walk(e['slide-interactions']).some(x=>x.className==='question-image-preview'));
+});
+test('Removing a question image affects only the draft, never deletes or silently selects library files',async()=>{
+ const h=page({approved:false,images:[imageFixture(40)]});await settle();h.elements['deck-list'].children[0].fire('click');await settle();const root=h.elements['slide-interactions'];h.find(root,'Agregar Evaluación').fire('click');fillQuestion(h,root);
+ let field=h.find(root,'Imagen de la pregunta (opcional)').children[0];field.value=id(40);field.fire('change');field=h.find(root,'Imagen de la pregunta (opcional)').children[0];field.value='';field.fire('change');assert.equal(h.walk(root).some(x=>x.className==='question-image-preview'),false);
+ h.elements['save-configuration'].fire('click');await settle();const sent=JSON.parse(h.calls.find(c=>c.url.endsWith('/configuration')&&c.method==='POST').body);assert.equal(Object.hasOwn(sent.knowledge[0].questions[0],'imageAssetId'),false);assert.equal(h.calls.some(c=>c.method==='DELETE'),false);
+});
+test('Image library failures and pending metadata block save and explicit refresh recovers without losing drafts',async()=>{
+ const h=page({approved:false,imageError:true});await settle();const e=h.elements;e['deck-list'].children[0].fire('click');await settle();assert.equal(e['save-configuration'].disabled,true);assert.equal(e['refresh-images'].disabled,false);e['slide-notes'].value='Conservar';h.setImageError(false);e['refresh-images'].fire('click');await settle();assert.equal(e['save-configuration'].disabled,false);assert.equal(e['slide-notes'].value,'Conservar');
+ for(const images of [[{id:id(40),status:'PROCESSING'}],[{...imageFixture(40),contentType:'image/svg+xml'}]]){const h=page({approved:false,images});await settle();h.elements['deck-list'].children[0].fire('click');await settle();assert.equal(h.elements['save-configuration'].disabled,true);}
+ const failed=page({approved:false,images:[{id:id(40),status:'FAILED'}]});await settle();failed.elements['deck-list'].children[0].fire('click');await settle();failed.find(failed.elements['slide-interactions'],'Agregar Trivia').fire('click');assert.equal(failed.find(failed.elements['slide-interactions'],'Imagen de la pregunta (opcional)').children[0].children.length,1);
+});
+test('Missing referenced images cannot silently disappear during a library refresh; invalid uploads are not retried',async()=>{
+ const images=[imageFixture(40)],h=page({approved:false,images,imageUploadError:'INVALID_IMAGE'});await settle();const e=h.elements;e['deck-list'].children[0].fire('click');await settle();const root=e['slide-interactions'];h.find(root,'Agregar Trivia').fire('click');fillQuestion(h,root);const select=h.find(root,'Imagen de la pregunta (opcional)').children[0];select.value=id(40);select.fire('change');images.splice(0);e['refresh-images'].fire('click');await settle();
+ assert.equal(h.find(root,'Imagen de la pregunta (opcional)').children[0].value,id(40));e['save-configuration'].fire('click');await settle();assert.match(e.message.textContent,/imagen.*no está lista/);assert.equal(h.calls.some(c=>c.method==='POST'&&c.url.endsWith('/configuration')),false);
+ e['image-file'].files=[new File(['bad'],'bad.svg')];e['image-name'].value='No válido';e['image-upload-form'].fire('submit');await settle();assert.match(e.message.textContent,/estática PNG/);assert.equal(h.calls.filter(c=>c.method==='POST'&&c.url.endsWith('/images')).length,1);assert.equal(h.find(root,'Pregunta').children[0].value,'¿Qué ves?');
+});
