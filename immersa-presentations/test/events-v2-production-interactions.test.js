@@ -25,3 +25,10 @@ test('English authoring keeps option identity, allows partial fallback and requi
  assert.equal(editor.translate('','',q.options),undefined);
  assert.throws(()=>editor.translate('','One\nTwo\nThree',q.options),/mismo orden/);assert.throws(()=>editor.translate('x'.repeat(2001),'',q.options));assert.throws(()=>editor.translate('','x'.repeat(501),q.options));
 });
+
+test('question images round trip explicitly, allow reuse and reject missing or unready assets without mutating input',()=>{
+ const id=require('node:crypto').randomUUID(),image={id,status:'READY_PENDING_DECK_CHECK'},v=valid('contest');v.questions[0].imageAssetId=id;v.questions.push({...v.questions[0],prompt:'Segunda'});
+ const before=structuredClone(v);for(const images of [[],[{id,status:'PROCESSING'}],[{id,status:'FAILED'}]])assert.throws(()=>editor.append(base(),[[v],[]],{images}),/imagen/);
+ const out=normalizeConfiguration(editor.append(base(),[[v],[]],{images:[image]}),2);assert.deepEqual(v,before);assert.deepEqual(out.knowledge[0].questions.map(q=>q.imageAssetId),[id,id]);assert.equal(editor.read(out,0)[0].questions[0].imageAssetId,id);
+ v.questions.forEach(q=>q.imageAssetId='');const clean=editor.append(base(),[[v],[]],{images:[image]});assert.equal(Object.hasOwn(clean.knowledge[0].questions[0],'imageAssetId'),false);assert.equal(clean.images,undefined);
+});
