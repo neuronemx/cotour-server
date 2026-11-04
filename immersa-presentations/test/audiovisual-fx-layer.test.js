@@ -38,7 +38,7 @@ test("Audiovisual Video and FX retain their visible layer through playback/fade 
 });
 
 
-test("Audiovisual Video and FX share foreground priority above linked slide video while Time stays above both", () => {
+test("Video and FX stay above linked video, reactions above all video, and Time above reactions", () => {
   const css = fs.readFileSync(path.join(__dirname, "../public/screen/screen.css"), "utf8");
   const linkedCss = fs.readFileSync(path.join(__dirname, "../public/shared/video-slide-runtime.css"), "utf8");
   const foreground = css.match(/\.audiovisual-screen-layer\.is-video,\s*\.audiovisual-screen-layer\.is-fx\s*\{([^}]+)\}/);
@@ -46,7 +46,12 @@ test("Audiovisual Video and FX share foreground priority above linked slide vide
   const z = Number(foreground[1].match(/z-index:\s*(\d+)/)[1]);
   const linkedZ = Number(linkedCss.match(/\.immersa-video-slide,\s*\.immersa-youtube-slide\s*\{[^}]*z-index:\s*(\d+)/)[1]);
   const timeZ = Number(css.match(/\.time-overlay\s*\{[^}]*z-index:\s*(\d+)/)[1]);
+  const reactionLayer = css.match(/\.reactions\s*\{([^}]+)\}/)[1];
+  const reactionZ = Number(reactionLayer.match(/z-index:\s*(\d+)/)[1]);
   assert.ok(z > linkedZ, "Audiovisual must remain visible over linked slide video");
+  assert.ok(reactionZ > z, "Reactions must remain visible above Audiovisual Video and FX");
+  assert.ok(timeZ > reactionZ, "Time retains priority above reactions");
+  assert.match(reactionLayer, /pointer-events:\s*none/);
   assert.ok(timeZ > z, "Time must retain its priority");
   assert.match(foreground[1], /pointer-events:\s*none/);
 });
