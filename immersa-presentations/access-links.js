@@ -392,13 +392,11 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return { accessLink };
   }
 
-  async function resolveRoleCookie(cookieHeader, role) {
-    const payload = parseRoleAccessCookie(cookieHeader, role);
-    if (!payload || payload.role !== role) return null;
-    const { accessLink, error } = await findActiveAccessLink(payload.access_token);
-    if (error || accessLink.role !== role || accessLink.session_id !== payload.session_id) return null;
+  async function resolveRoleLink(token, role) {
+    const { accessLink, error } = await findActiveAccessLink(token);
+    if (error || accessLink.role !== role) return null;
     const deck = await findDeckForAccessLink(accessLink, deckDirs);
-    return deck?.deckId === payload.deckId ? { accessLink, deck } : null;
+    return deck ? { accessLink, deck } : null;
   }
 
   async function findActivePublicAudienceLink(publicId) {
@@ -698,7 +696,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleCookie };
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink };
 }
 
 module.exports = {

@@ -1,7 +1,7 @@
 const { createHmac, randomUUID } = require("node:crypto");
 
 const ROLES = ["speaker", "screen", "stage"];
-const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=1"><script src="/live-camera/pilot.js?v=1" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=1"><script src="/live-camera/pilot.js?v=2" defer></script>';
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;
@@ -103,7 +103,9 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   }
 
   async function authorizedLink(socket, role) {
-    const resolved = await accessLinks.resolveRoleCookie(socket.handshake.headers.cookie, role);
+    const token = socket.handshake.auth?.accessToken;
+    if (token !== pilot.links[role]) return false;
+    const resolved = await accessLinks.resolveRoleLink(token, role);
     return matchesPilotLink(pilot, resolved?.accessLink, resolved?.deck);
   }
 
@@ -117,12 +119,14 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
         currentEvent(), authorizedLink(attempt.speaker, "speaker"), authorizedLink(attempt.screen, "screen")
       ]);
       if (active !== attempt) return;
-      if (live?.id !== attempt.eventLiveSessionId || !speakerAllowed || !screenAllowed) return stop(attempt, "event");
+      if (!speakerAllowed) return stop(attempt, "speaker-access");
+      if (!screenAllowed) return stop(attempt, "screen-access");
+      if (live?.id !== attempt.eventLiveSessionId) return stop(attempt, "event");
       if (!canProject()) return stop(attempt, "production");
       attempt.expiresAt = Date.now() + LEASE_MS;
       for (const peer of [attempt.speaker, attempt.screen]) peer.emit("live:lease", { id: attempt.id, duration: LEASE_MS });
     } catch {
-      stop(attempt, "event");
+      stop(attempt, "service");
     } finally {
       attempt.checking = false;
     }
@@ -169,9 +173,9 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
           currentEvent(), authorizedLink(socket, role), authorizedLink(receiver, "screen")
         ]);
         if (pending !== reservation) return;
-        if (!live || !speakerAllowed || !screenAllowed) {
-          return ack({ ok: false, reason: "event" });
-        }
+        if (!speakerAllowed) return ack({ ok: false, reason: "speaker-access" });
+        if (!screenAllowed) return ack({ ok: false, reason: "screen-access" });
+        if (!live) return ack({ ok: false, reason: "event" });
         if (!socket.connected || receiver !== screen || !receiver.connected) return ack({ ok: false, reason: "busy" });
         if (!canProject()) return ack({ ok: false, reason: "production" });
         const attempt = {
@@ -187,7 +191,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
         publishStatus();
         return ack({ ok: true });
       } catch {
-        if (pending === reservation) ack({ ok: false, reason: "event" });
+        if (pending === reservation) ack({ ok: false, reason: "service" });
       } finally {
         clearTimeout(expires);
         if (pending === reservation) pending = null;

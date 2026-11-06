@@ -31,6 +31,7 @@ test("camera assets are gated by the pilot and the exact role link", () => {
 });
 
 test("only authenticated participants in the configured live event can negotiate one video source", async t => {
+  t.mock.timers.enable({ apis: ["Date"] });
   const broadcasts = [];
   const channel = {
     use(fn) { this.authorize = fn; },
@@ -39,19 +40,24 @@ test("only authenticated participants in the configured live event can negotiate
   };
   const namespace = { of: name => { assert.equal(name, "/live-camera"); return channel; } };
   let live = null;
+  let serviceUnavailable = false;
+  const revoked = new Set();
   attachLiveCamera(namespace, {
     pilot: configure(),
-    accessLinks: { resolveRoleCookie: async (cookie, role) => cookie === role ? roleAccess(role) : null },
+    accessLinks: { resolveRoleLink: async (token, role) => token === config.links[role] && !revoked.has(role) ? roleAccess(role) : null },
     eventHub: {
-      getStageControlForDeck: async () => ({ eventWorkspaceId: config.eventWorkspaceId, activityId: config.activityId, stageId: "stage-a", liveSessionId: live?.id }),
+      getStageControlForDeck: async () => {
+        if (serviceUnavailable) throw new Error("Event Hub unavailable");
+        return { eventWorkspaceId: config.eventWorkspaceId, activityId: config.activityId, stageId: "stage-a", liveSessionId: live?.id };
+      },
       getLiveSession: async () => live,
       authorizeStageOperation: async () => {}
     }
   });
-  async function open(role, cookie = role, origin = config.origin) {
+  async function open(role, accessToken = config.links[role], origin = config.origin) {
     const handlers = new Map();
     const socket = {
-      handshake: { auth: { role }, headers: { origin, cookie } }, data: {}, connected: true, messages: [],
+      handshake: { auth: { role, accessToken }, headers: { origin } }, data: {}, connected: true, messages: [],
       on: (event, handler) => handlers.set(event, handler),
       emit(event, payload) { this.messages.push([event, payload]); },
       receive: (event, payload) => handlers.get(event)(payload),
@@ -64,8 +70,9 @@ test("only authenticated participants in the configured live event can negotiate
     return socket;
   }
 
-  assert.ok(await open("screen", "speaker") instanceof Error);
-  assert.ok(await open("speaker", "speaker", "https://elsewhere.test") instanceof Error);
+  assert.ok(await open("screen", config.links.speaker) instanceof Error);
+  assert.ok(await open("speaker", "a_individ001") instanceof Error);
+  assert.ok(await open("speaker", config.links.speaker, "https://elsewhere.test") instanceof Error);
   assert.ok(await open("audience") instanceof Error);
 
   const screen = await open("screen");
@@ -92,4 +99,23 @@ test("only authenticated participants in the configured live event can negotiate
   assert.equal(broadcasts.at(-1)[1].phase, "live");
   await stage.receive("live:stop", { id });
   assert.deepEqual(broadcasts.at(-1)[1], { phase: "idle", id: null, screenReady: true, reason: "stage" });
+
+  for (const elapsed of [30_000, 60_000, 31_000]) {
+    t.mock.timers.tick(elapsed);
+    assert.deepEqual(await start(speaker), { ok: true });
+    const newId = broadcasts.at(-1)[1].id;
+    screen.receive("live:ready", newId);
+    assert.equal(broadcasts.at(-1)[1].phase, "live");
+    await speaker.receive("live:stop", { id: newId });
+    assert.equal(broadcasts.at(-1)[1].reason, "stopped");
+  }
+
+  revoked.add("speaker");
+  assert.deepEqual(await start(speaker), { ok: false, reason: "speaker-access" });
+  revoked.delete("speaker");
+  revoked.add("screen");
+  assert.deepEqual(await start(speaker), { ok: false, reason: "screen-access" });
+  revoked.delete("screen");
+  serviceUnavailable = true;
+  assert.deepEqual(await start(speaker), { ok: false, reason: "service" });
 });
