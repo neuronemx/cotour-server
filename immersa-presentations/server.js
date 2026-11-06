@@ -10,6 +10,7 @@ const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
+const { readLiveCameraPilot, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
@@ -298,13 +299,26 @@ const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   onFinish: context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); }
 });
 
+const liveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: getStageFeatureAccess
+  resolveDeckFeatureAccess: getStageFeatureAccess,
+  rolePageAssets: liveCameraPilot ? context => liveCameraPageAssets(liveCameraPilot, context) : null,
+  privateRoleTokens: liveCameraPilot ? new Set([liveCameraPilot.links.screen, liveCameraPilot.links.stage]) : null
+});
+attachLiveCamera(io, {
+  pilot: liveCameraPilot,
+  accessLinks: accessLinkHandlers,
+  eventHub: eventHubRepository,
+  canProject: () => {
+    const room = getRoomKey(liveCameraPilot.sessionId, liveCameraPilot.deckId);
+    const video = getSessionByRoomKey(room)?.audiovisual?.video;
+    return !video?.resource || video.status === "stopped";
+  }
 });
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
