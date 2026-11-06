@@ -156,6 +156,16 @@
       if (socket.connected && status.phase === "live" && status.id) socket.emit("live:stop", { id: status.id });
     });
   } else {
+    const slide = host.querySelector("#slide");
+    if (slide) {
+      const updateSlideAspect = () => {
+        if (slide.naturalWidth && slide.naturalHeight) {
+          slide.style.setProperty("--live-camera-slide-aspect", slide.naturalWidth / slide.naturalHeight);
+        }
+      };
+      slide.addEventListener("load", updateSlideAspect);
+      updateSlideAspect();
+    }
     video = document.createElement("video");
     video.className = "live-camera-program";
     video.muted = true;

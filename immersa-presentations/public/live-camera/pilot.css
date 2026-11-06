@@ -258,8 +258,10 @@
 @media (orientation: landscape) {
   #screen.live-camera-portrait {
     --live-camera-screen-gap: clamp(8px, 1.25vw, 28px);
-    --live-camera-screen-height: calc(100% - 2 * var(--live-camera-screen-gap));
-    --live-camera-screen-width: min(42vw, calc((100vh - 2 * var(--live-camera-screen-gap)) * var(--live-camera-aspect)));
+    --live-camera-screen-height: calc(100vh - 2 * var(--live-camera-screen-gap));
+    --live-camera-screen-width: min(42vw, calc(var(--live-camera-screen-height) * var(--live-camera-aspect)));
+    --live-camera-slide-width: calc(100vw - var(--live-camera-screen-width) - 3 * var(--live-camera-screen-gap));
+    --live-camera-corner-radius: clamp(8px, 1vw, 20px);
     background: radial-gradient(ellipse at 70% 50%, #171f2d, #090d14 76%);
   }
 
@@ -269,17 +271,21 @@
 
   #screen.live-camera-portrait > #slide,
   #screen.live-camera-portrait > .immersa-slide-outgoing {
+    /* Clip the contained image at its visible bounds, including letterboxed slides. */
+    --live-camera-slide-inset-y: max(0px, calc((var(--live-camera-screen-height) - var(--live-camera-slide-width) / var(--live-camera-slide-aspect)) / 2));
+    --live-camera-slide-inset-x: max(0px, calc((var(--live-camera-slide-width) - var(--live-camera-screen-height) * var(--live-camera-slide-aspect)) / 2));
     position: absolute;
     inset: var(--live-camera-screen-gap) auto auto var(--live-camera-screen-gap) !important;
-    width: calc(100% - var(--live-camera-screen-width) - 3 * var(--live-camera-screen-gap)) !important;
+    width: var(--live-camera-slide-width) !important;
     height: var(--live-camera-screen-height) !important;
+    clip-path: inset(var(--live-camera-slide-inset-y) var(--live-camera-slide-inset-x) round var(--live-camera-corner-radius));
   }
 
   #screen.live-camera-portrait > .live-camera-program {
     inset: var(--live-camera-screen-gap) var(--live-camera-screen-gap) auto auto;
     width: var(--live-camera-screen-width);
     height: var(--live-camera-screen-height);
-    border-radius: clamp(8px, 1vw, 20px);
+    border-radius: var(--live-camera-corner-radius);
     box-shadow: 0 8px 32px rgba(0, 0, 0, .32);
   }
 }
