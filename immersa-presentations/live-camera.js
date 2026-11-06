@@ -1,7 +1,7 @@
 const { createHmac, randomUUID } = require("node:crypto");
 
 const ROLES = ["speaker", "screen", "stage"];
-const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=4"><script src="/live-camera/pilot.js?v=5" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=4"><script src="/live-camera/pilot.js?v=6" defer></script>';
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;
@@ -183,7 +183,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
           speaker: socket, screen: receiver, signalCounts: { speaker: 0, screen: 0 }
         };
         active = attempt;
-        attempt.startTimeout = setTimeout(() => stop(attempt, "timeout"), START_TIMEOUT_MS);
+        attempt.startTimeout = setTimeout(() => stop(attempt, attempt.screenConnected ? "video" : "network"), START_TIMEOUT_MS);
         attempt.leaseTimer = setInterval(() => void renew(attempt), 1000);
         for (const peer of [receiver, socket]) {
           peer.emit("live:prepare", { id: attempt.id, rtc: rtcConfiguration(pilot), duration: LEASE_MS });
@@ -207,6 +207,11 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
       if (body) (role === "speaker" ? attempt.screen : attempt.speaker).emit("live:signal", { id: attempt.id, ...body });
     });
 
+    socket.on("live:connected", id => {
+      const attempt = active;
+      if (attempt?.id === id && attempt.screen === socket && attempt.phase === "starting") attempt.screenConnected = true;
+    });
+
     socket.on("live:ready", id => {
       const attempt = active;
       if (!attempt || attempt.id !== id || attempt.screen !== socket || attempt.phase !== "starting") return;
@@ -227,7 +232,9 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
       const attempt = active;
       if (!attempt || message?.id !== attempt.id) return;
       if (attempt.speaker === socket || attempt.screen === socket) {
-        const reason = ["signal", "production", "camera"].includes(message.reason) ? message.reason : "stopped";
+        const allowedReasons = ["signal", "production", "camera"];
+        if (attempt.phase === "starting") allowedReasons.push("network", "video");
+        const reason = allowedReasons.includes(message.reason) ? message.reason : "stopped";
         return stop(attempt, reason);
       }
       if (role !== "stage") return;

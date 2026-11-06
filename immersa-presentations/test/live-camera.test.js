@@ -31,7 +31,7 @@ test("camera assets are gated by the pilot and the exact role link", () => {
 });
 
 test("only authenticated participants in the configured live event can negotiate one video source", async t => {
-  t.mock.timers.enable({ apis: ["Date"] });
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"] });
   const broadcasts = [];
   const channel = {
     use(fn) { this.authorize = fn; },
@@ -118,6 +118,18 @@ test("only authenticated participants in the configured live event can negotiate
     await speaker.receive("live:stop", { id: newId });
     assert.equal(broadcasts.at(-1)[1].reason, "stopped");
   }
+
+  assert.deepEqual(await start(speaker), { ok: true });
+  const disconnectedId = broadcasts.at(-1)[1].id;
+  speaker.receive("live:connected", disconnectedId);
+  screen.receive("live:connected", "stale-id");
+  t.mock.timers.tick(15_000);
+  assert.equal(broadcasts.at(-1)[1].reason, "network");
+
+  assert.deepEqual(await start(speaker), { ok: true });
+  screen.receive("live:connected", broadcasts.at(-1)[1].id);
+  t.mock.timers.tick(15_000);
+  assert.equal(broadcasts.at(-1)[1].reason, "video");
 
   revoked.add("speaker");
   assert.deepEqual(await start(speaker), { ok: false, reason: "speaker-access" });

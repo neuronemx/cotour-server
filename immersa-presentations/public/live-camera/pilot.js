@@ -15,7 +15,9 @@
     production: "Pantalla está reproduciendo otro video",
     signal: "Se perdió la señal",
     stage: "Stage finalizó LIVE",
-    timeout: "Pantalla no recibió video a tiempo",
+    timeout: "LIVE tardó demasiado en iniciar. Intenta de nuevo.",
+    network: "No se pudo conectar con Pantalla. Revisa que ambos equipos estén en la misma red.",
+    video: "Pantalla no pudo reproducir el video de LIVE.",
     stopped: "LIVE finalizado"
   };
 
@@ -329,14 +331,41 @@
     return Boolean(host.querySelector(".audiovisual-screen-layer.is-video, .immersa-video-slide:not([hidden]), .immersa-youtube-slide:not([hidden])"));
   }
 
-  function watchFrame(current) {
+  function confirmFrame(current) {
     if (attempt !== current) return;
     current.lastFrame = performance.now();
     if (!current.firstFrame) {
       current.firstFrame = true;
       socket.emit("live:ready", current.id);
     }
-    if (video.requestVideoFrameCallback) current.frameRequest = video.requestVideoFrameCallback(() => watchFrame(current));
+  }
+
+  function watchFrame(current) {
+    current.frameRequest = video.requestVideoFrameCallback(() => {
+      if (attempt !== current) return;
+      current.receivedFrameCallback = true;
+      confirmFrame(current);
+      watchFrame(current);
+    });
+  }
+
+  async function checkDecodedFrames(current) {
+    if (!current.receiver?.getStats || current.checkingFrames) return;
+    current.checkingFrames = true;
+    try {
+      const stats = await current.receiver.getStats();
+      if (attempt !== current || current.receivedFrameCallback) return;
+      for (const report of stats.values()) {
+        if (report.type === "inbound-rtp" && report.framesDecoded > (current.decodedFrames.get(report.id) || 0)) {
+          current.decodedFrames.set(report.id, report.framesDecoded);
+          confirmFrame(current);
+        }
+      }
+    } catch {
+      // Frame callbacks still work when playback statistics are unavailable.
+    } finally {
+      current.checkingFrames = false;
+    }
   }
 
   async function setUp({ id, rtc, duration }) {
@@ -354,14 +383,18 @@
     }
     const current = {
       id, peer, candidates: [], signals: Promise.resolve(), deadline: performance.now() + duration,
-      firstFrame: false, mediaTime: -1, switchUntil: 0
+      firstFrame: false, lastFrame: -Infinity, decodedFrames: new Map(), mediaTime: -1, switchUntil: 0
     };
     attempt = current;
     peer.onicecandidate = ({ candidate }) => {
       if (candidate && attempt === current) socket.emit("live:signal", { id, candidate: candidate.toJSON() });
     };
     peer.onconnectionstatechange = () => {
-      if (attempt === current && peer.connectionState === "failed") finishLocal("signal");
+      if (attempt !== current) return;
+      if (role === "screen" && peer.connectionState === "connected" && !current.firstFrame) socket.emit("live:connected", id);
+      if (peer.connectionState === "failed") {
+        finishLocal(!isOnAir() && peer.iceConnectionState === "failed" ? "network" : "signal");
+      }
     };
     current.watchdog = setInterval(() => {
       if (attempt !== current) return;
@@ -369,19 +402,24 @@
       if (now >= current.deadline) return finishLocal("signal");
       if (role !== "screen") return;
       if (videoInProduction()) return finishLocal("production");
-      if (!video.requestVideoFrameCallback && video.readyState >= 2 && video.currentTime !== current.mediaTime) {
-        current.mediaTime = video.currentTime;
-        watchFrame(current);
+      if (video.readyState >= 2 && video.videoWidth && !video.paused) {
+        if (video.requestVideoFrameCallback) {
+          if (!current.receivedFrameCallback) void checkDecodedFrames(current);
+        } else if (video.currentTime !== current.mediaTime) {
+          current.mediaTime = video.currentTime;
+          confirmFrame(current);
+        }
       }
       if (current.firstFrame && now >= current.switchUntil && now - current.lastFrame > 2000) finishLocal("signal");
     }, 200);
 
     if (role === "screen") {
-      peer.ontrack = ({ track }) => {
+      peer.ontrack = ({ track, receiver }) => {
         if (attempt !== current || track.kind !== "video") return;
+        current.receiver = receiver;
         video.srcObject = new MediaStream([track]);
-        if (video.requestVideoFrameCallback) current.frameRequest = video.requestVideoFrameCallback(() => watchFrame(current));
-        video.play().catch(() => { if (attempt === current) finishLocal("signal"); });
+        if (video.requestVideoFrameCallback) watchFrame(current);
+        video.play().catch(() => { if (attempt === current) finishLocal("video"); });
       };
       render();
       return;
