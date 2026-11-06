@@ -7,6 +7,7 @@
   const copy = {
     busy: "Pantalla ocupada o sin conexión",
     camera: "Cámara no disponible",
+    "camera-switch": "No se pudo cambiar de cámara. Seguimos al aire con la anterior.",
     event: "Stage debe iniciar la conferencia",
     "speaker-access": "El enlace de Speaker LIVE ya no es válido. Abre el enlace desde Event Hub.",
     "screen-access": "El enlace de Pantalla LIVE ya no es válido. Abre el enlace desde Event Hub.",
@@ -29,6 +30,10 @@
   let toggle;
   let facingMode = "environment";
   let cameraButtons;
+  let monitorBar;
+  let cameraPicker;
+  let monitorFeed;
+  let switchStatus;
   let reopen;
   let send;
   let actions;
@@ -58,9 +63,9 @@
     panel.id = "live-camera-monitor";
     panel.className = "live-camera-panel";
     panel.hidden = true;
-    panel.setAttribute("aria-labelledby", "live-camera-preview-title");
+    panel.setAttribute("aria-label", "Monitor LIVE");
     panel.innerHTML = `<div class="live-camera-monitor-bar">
-      <h2 id="live-camera-preview-title">Preview</h2>
+      <h2>Preview</h2>
       <div class="live-camera-camera-picker" role="group" aria-label="Cámara">
         <button type="button" data-facing="environment" aria-pressed="true">Trasera</button>
         <button type="button" data-facing="user" aria-pressed="false">Frontal</button>
@@ -69,7 +74,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
     </div>
-    <div class="live-camera-monitor-feed"><video muted autoplay playsinline aria-label="Preview de cámara"></video></div>
+    <div class="live-camera-monitor-feed">
+      <video muted autoplay playsinline aria-label="Preview de cámara"></video>
+      <p class="live-camera-switch-status" role="status" hidden></p>
+    </div>
     <div class="live-camera-monitor-actions">
       <p role="status"></p>
       <button type="button" data-action="capture">Abrir cámara</button>
@@ -77,9 +85,13 @@
     </div>`;
     shell.append(panel);
     video = panel.querySelector("video");
+    monitorBar = panel.querySelector(".live-camera-monitor-bar");
+    cameraPicker = panel.querySelector(".live-camera-camera-picker");
+    monitorFeed = panel.querySelector(".live-camera-monitor-feed");
+    switchStatus = panel.querySelector(".live-camera-switch-status");
     cameraButtons = panel.querySelectorAll("[data-facing]");
     reopen = panel.querySelector('[data-action="capture"]');
-    label = panel.querySelector("p");
+    label = panel.querySelector(".live-camera-monitor-actions p");
     send = panel.querySelector('[data-action="send"]');
     actions = panel.querySelector(".live-camera-monitor-actions");
     const close = panel.querySelector(".live-camera-close");
@@ -106,8 +118,10 @@
     });
     for (const button of cameraButtons) {
       button.addEventListener("click", () => {
-        if (facingMode === button.dataset.facing) return;
-        facingMode = button.dataset.facing;
+        const nextFacing = button.dataset.facing;
+        if (capturing || sending || facingMode === nextFacing) return;
+        if (isOnAir()) return void switchCamera(nextFacing);
+        facingMode = nextFacing;
         void capture();
       });
     }
@@ -148,28 +162,44 @@
     video.autoplay = true;
     video.playsInline = true;
     video.setAttribute("aria-label", "Cámara LIVE");
+    video.addEventListener("resize", render);
     host.append(video);
+  }
+
+  function isOnAir() {
+    return Boolean(attempt && status.phase === "live" && status.id === attempt.id);
   }
 
   function render() {
     if (role === "speaker") {
-      const onAir = Boolean(attempt && status.phase === "live" && status.id === attempt.id);
+      const onAir = isOnAir();
       toggle.hidden = !socket.connected;
       toggle.textContent = onAir ? "Cortar LIVE" : panel.hidden ? "LIVE" : "CERRAR";
       toggle.classList.toggle("is-live", onAir);
-      label.textContent = notice || (attempt || sending ? "Conectando con Pantalla…"
+      label.textContent = onAir ? "" : notice || (attempt || sending ? "Conectando con Pantalla…"
         : capturing ? "Abriendo cámara…" : status.screenReady ? "" : "Esperando Pantalla");
       for (const button of cameraButtons) {
-        button.disabled = Boolean(attempt || sending);
+        button.disabled = capturing || sending || Boolean(attempt && !onAir);
         button.setAttribute("aria-pressed", String(button.dataset.facing === facingMode));
       }
       reopen.hidden = Boolean(stream || capturing || sending);
       send.disabled = !stream || capturing || sending || !socket.connected || !status.screenReady || status.phase !== "idle";
       actions.hidden = onAir;
+      panel.classList.toggle("is-on-air", onAir);
+      monitorBar.hidden = onAir;
+      if (onAir && cameraPicker.parentElement !== monitorFeed) monitorFeed.append(cameraPicker);
+      else if (!onAir && cameraPicker.parentElement !== monitorBar) monitorBar.insertBefore(cameraPicker, monitorBar.lastElementChild);
+      switchStatus.textContent = onAir ? (capturing ? "Cambiando cámara…" : notice) : "";
+      switchStatus.hidden = !switchStatus.textContent;
     } else if (role === "stage") {
       toggle.hidden = !socket.connected || status.phase !== "live" || !status.id;
     } else {
-      video.classList.toggle("is-live", Boolean(attempt?.firstFrame && status.phase === "live" && status.id === attempt.id));
+      const projecting = Boolean(attempt?.firstFrame && isOnAir());
+      const portrait = projecting && video.videoWidth > 0 && video.videoHeight > video.videoWidth;
+      video.classList.toggle("is-live", projecting);
+      host.classList.toggle("live-camera-portrait", portrait);
+      if (portrait) host.style.setProperty("--live-camera-aspect", video.videoWidth / video.videoHeight);
+      else host.style.removeProperty("--live-camera-aspect");
     }
   }
 
@@ -181,6 +211,23 @@
     video.srcObject = null;
   }
 
+  function openCamera(facing) {
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+      audio: false
+    });
+  }
+
+  function showCamera(next) {
+    const track = next.getVideoTracks()[0];
+    stream = next;
+    track.addEventListener("ended", () => {
+      if (stream === next) finishLocal("camera");
+    });
+    video.srcObject = next;
+    return video.play();
+  }
+
   async function capture() {
     releaseCamera();
     const version = captureVersion;
@@ -188,20 +235,12 @@
     capturing = true;
     render();
     try {
-      const next = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
-        audio: false
-      });
+      const next = await openCamera(facingMode);
       if (version !== captureVersion) {
         next.getTracks().forEach(track => track.stop());
         return;
       }
-      stream = next;
-      stream.getVideoTracks()[0].addEventListener("ended", () => {
-        if (stream === next) finishLocal("camera");
-      });
-      video.srcObject = stream;
-      await video.play();
+      await showCamera(next);
     } catch {
       if (version !== captureVersion) return;
       releaseCamera();
@@ -209,6 +248,51 @@
     }
     if (version === captureVersion) capturing = false;
     render();
+  }
+
+  async function switchCamera(nextFacing) {
+    const current = attempt;
+    const version = ++captureVersion;
+    const previousFacing = facingMode;
+    capturing = true;
+    notice = "";
+    render();
+    socket.emit("live:camera-switch", { id: current.id, switching: true });
+    stream?.getTracks().forEach(track => track.stop());
+
+    async function replaceCamera(facing) {
+      const next = await openCamera(facing);
+      try {
+        if (version !== captureVersion) return false;
+        const track = next.getVideoTracks()[0];
+        const actualFacing = track?.getSettings().facingMode;
+        if (!track || (actualFacing && actualFacing !== facing)) throw new Error("Camera unavailable");
+        await current.sender.replaceTrack(track);
+        if (version !== captureVersion) return false;
+        facingMode = facing;
+        void showCamera(next).catch(() => {});
+        return true;
+      } finally {
+        if (stream !== next) next.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    try {
+      await replaceCamera(nextFacing);
+    } catch {
+      if (version !== captureVersion) return;
+      try {
+        if (await replaceCamera(previousFacing)) notice = copy["camera-switch"];
+      } catch {
+        if (version === captureVersion) finishLocal("camera");
+      }
+    } finally {
+      if (version === captureVersion) {
+        capturing = false;
+        socket.emit("live:camera-switch", { id: current.id, switching: false });
+        render();
+      }
+    }
   }
 
   function teardown() {
@@ -260,7 +344,7 @@
     }
     const current = {
       id, peer, candidates: [], signals: Promise.resolve(), deadline: performance.now() + duration,
-      firstFrame: false, mediaTime: -1
+      firstFrame: false, mediaTime: -1, switchUntil: 0
     };
     attempt = current;
     peer.onicecandidate = ({ candidate }) => {
@@ -279,7 +363,7 @@
         current.mediaTime = video.currentTime;
         watchFrame(current);
       }
-      if (current.firstFrame && now - current.lastFrame > 2000) finishLocal("signal");
+      if (current.firstFrame && now >= current.switchUntil && now - current.lastFrame > 2000) finishLocal("signal");
     }, 200);
 
     if (role === "screen") {
@@ -294,9 +378,9 @@
     }
 
     try {
-      peer.addTransceiver(stream.getVideoTracks()[0], {
+      current.sender = peer.addTransceiver(stream.getVideoTracks()[0], {
         direction: "sendonly", streams: [stream], sendEncodings: [{ maxBitrate: 1800000 }]
-      });
+      }).sender;
       await peer.setLocalDescription(await peer.createOffer());
       if (attempt === current) socket.emit("live:signal", { id, description: peer.localDescription.toJSON() });
     } catch {
@@ -338,6 +422,12 @@
   });
   socket.on("live:lease", ({ id, duration }) => {
     if (attempt?.id === id) attempt.deadline = performance.now() + duration;
+  });
+  socket.on("live:camera-switch", ({ id, switching }) => {
+    if (role !== "screen" || attempt?.id !== id || !isOnAir()) return;
+    const now = performance.now();
+    if (!switching) attempt.switchUntil = Math.min(attempt.switchUntil, now + 2000);
+    else if (now - attempt.lastFrame <= 2000) attempt.switchUntil = now + 6500;
   });
   socket.on("connect", render);
   socket.on("disconnect", () => {

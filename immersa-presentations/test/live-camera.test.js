@@ -97,6 +97,15 @@ test("only authenticated participants in the configured live event can negotiate
 
   screen.receive("live:ready", id);
   assert.equal(broadcasts.at(-1)[1].phase, "live");
+  otherSpeaker.receive("live:camera-switch", { id, switching: true });
+  speaker.receive("live:camera-switch", { id: "stale", switching: true });
+  speaker.receive("live:camera-switch", { id, switching: true });
+  speaker.receive("live:camera-switch", { id, switching: false });
+  assert.deepEqual(screen.messages.filter(([event]) => event === "live:camera-switch"), [
+    ["live:camera-switch", { id, switching: true }],
+    ["live:camera-switch", { id, switching: false }]
+  ]);
+  assert.equal(stage.messages.length, 0);
   await stage.receive("live:stop", { id });
   assert.deepEqual(broadcasts.at(-1)[1], { phase: "idle", id: null, screenReady: true, reason: "stage" });
 

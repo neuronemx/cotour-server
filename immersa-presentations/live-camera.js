@@ -1,7 +1,7 @@
 const { createHmac, randomUUID } = require("node:crypto");
 
 const ROLES = ["speaker", "screen", "stage"];
-const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=2"><script src="/live-camera/pilot.js?v=3" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=3"><script src="/live-camera/pilot.js?v=4" defer></script>';
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;
@@ -214,6 +214,13 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
       attempt.phase = "live";
       clearTimeout(attempt.startTimeout);
       publishStatus();
+    });
+
+    socket.on("live:camera-switch", message => {
+      const attempt = active;
+      if (!attempt || attempt.phase !== "live" || attempt.speaker !== socket
+        || message?.id !== attempt.id || typeof message.switching !== "boolean") return;
+      attempt.screen.emit("live:camera-switch", { id: attempt.id, switching: message.switching });
     });
 
     socket.on("live:stop", async message => {

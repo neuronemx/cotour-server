@@ -157,11 +157,43 @@
 }
 
 .live-camera-monitor-feed {
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   border-radius: 11px;
   background: #050407;
+}
+
+.live-camera-panel.is-on-air {
+  grid-template-rows: minmax(0, 1fr);
+  padding: .25rem;
+  background: #050407;
+}
+
+.live-camera-monitor-feed .live-camera-camera-picker,
+.live-camera-switch-status {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.live-camera-monitor-feed .live-camera-camera-picker {
+  top: .5rem;
+  background: rgba(14, 10, 22, .88);
+}
+
+.live-camera-switch-status {
+  top: 3.25rem;
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  margin: 0;
+  padding: .35rem .55rem;
+  border-radius: 8px;
+  background: rgba(14, 10, 22, .9);
+  font-size: .8rem;
+  text-align: center;
+  pointer-events: none;
 }
 
 .live-camera-monitor-feed video {
@@ -221,6 +253,35 @@
 
 .live-camera-program.is-live {
   opacity: 1;
+}
+
+@media (orientation: landscape) {
+  #screen.live-camera-portrait {
+    --live-camera-screen-gap: clamp(8px, 1.25vw, 28px);
+    --live-camera-screen-height: calc(100% - 2 * var(--live-camera-screen-gap));
+    --live-camera-screen-width: min(42vw, calc((100vh - 2 * var(--live-camera-screen-gap)) * var(--live-camera-aspect)));
+    background: radial-gradient(ellipse at 70% 50%, #171f2d, #090d14 76%);
+  }
+
+  #screen.live-camera-portrait::before {
+    opacity: 0;
+  }
+
+  #screen.live-camera-portrait > #slide,
+  #screen.live-camera-portrait > .immersa-slide-outgoing {
+    position: absolute;
+    inset: var(--live-camera-screen-gap) auto auto var(--live-camera-screen-gap) !important;
+    width: calc(100% - var(--live-camera-screen-width) - 3 * var(--live-camera-screen-gap)) !important;
+    height: var(--live-camera-screen-height) !important;
+  }
+
+  #screen.live-camera-portrait > .live-camera-program {
+    inset: var(--live-camera-screen-gap) var(--live-camera-screen-gap) auto auto;
+    width: var(--live-camera-screen-width);
+    height: var(--live-camera-screen-height);
+    border-radius: clamp(8px, 1vw, 20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .32);
+  }
 }
 
 .live-camera-toggle[hidden],
