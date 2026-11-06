@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
@@ -299,7 +300,10 @@ const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   onFinish: context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); }
 });
 
-const liveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
+const manualLiveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
+const liveCameraSetup = manualLiveCameraPilot ? null : createLiveCameraSetup({ env: process.env, dataDir: DATA_DIR, eventHub: eventHubRepository });
+let liveCameraPilot = null;
+const privateLiveCameraTokens = new Set();
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
@@ -307,19 +311,26 @@ const accessLinkHandlers = createAccessLinkHandlers({
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
   resolveDeckFeatureAccess: getStageFeatureAccess,
-  rolePageAssets: liveCameraPilot ? context => liveCameraPageAssets(liveCameraPilot, context) : null,
-  privateRoleTokens: liveCameraPilot ? new Set([liveCameraPilot.links.screen, liveCameraPilot.links.stage]) : null
+  rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context),
+  privateRoleTokens: privateLiveCameraTokens
 });
-attachLiveCamera(io, {
-  pilot: liveCameraPilot,
-  accessLinks: accessLinkHandlers,
-  eventHub: eventHubRepository,
-  canProject: () => {
-    const room = getRoomKey(liveCameraPilot.sessionId, liveCameraPilot.deckId);
-    const video = getSessionByRoomKey(room)?.audiovisual?.video;
-    return !video?.resource || video.status === "stopped";
-  }
-});
+function enableLiveCamera(pilot) {
+  if (!pilot || liveCameraPilot) return;
+  liveCameraPilot = pilot;
+  privateLiveCameraTokens.add(pilot.links.screen);
+  privateLiveCameraTokens.add(pilot.links.stage);
+  attachLiveCamera(io, {
+    pilot,
+    accessLinks: accessLinkHandlers,
+    eventHub: eventHubRepository,
+    canProject: () => {
+      const room = getRoomKey(pilot.sessionId, pilot.deckId);
+      const video = getSessionByRoomKey(room)?.audiovisual?.video;
+      return !video?.resource || video.status === "stopped";
+    }
+  });
+}
+enableLiveCamera(manualLiveCameraPilot || liveCameraSetup?.getPilot());
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
   runtime: knowledgeActivityRuntime
@@ -1253,10 +1264,21 @@ app.get("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req
 app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    return res.json(await eventHubRepository.getHub(req.params.workspaceId));
+    const hub = await eventHubRepository.getHub(req.params.workspaceId);
+    return res.json(liveCameraSetup?.available(hub) ? { ...hub, liveCameraPilotAvailable: true } : hub);
   } catch (error) {
     return sendEventHubError(res, error);
   }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/live-camera-pilot", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!liveCameraSetup) return res.status(404).json({ error: "Piloto LIVE no disponible" });
+  if (req.get("origin") !== liveCameraSetup.origin) return res.status(403).json({ error: "Origen de solicitud no permitido" });
+  try {
+    const pilot = await liveCameraSetup.enroll({ ...req.params, accessLinks: accessLinkHandlers });
+    enableLiveCamera(pilot);
+    res.set("Cache-Control", "no-store");
+    return res.json({ urls: pilotRoleUrls(pilot) });
+  } catch (error) { return sendEventHubError(res, error); }
 });
 function eventBrandRequest(handler) {
   return async (req, res, next) => {

@@ -4,6 +4,12 @@ El piloto necesita una conferencia activa de Event Hub y una sola instancia del 
 
 ## Configuración
 
+### Desde Event Hub
+
+La rama `agent/immersa-live-v1-prototype` permite que un administrador seleccione una única actividad en vivo en el servicio `immersa-presentations` de Railway Beta. En Event Hub, abrir el **Deck Check** de la actividad y pulsar **Preparar LIVE**. El botón crea tres enlaces dedicados para esa actividad. Abrir primero **Pantalla LIVE**, luego **Speaker LIVE** y **Stage LIVE**. Volver a pulsar el botón para recuperar los mismos enlaces. Esta modalidad usa la conexión directa y guarda la selección en el volumen de Beta. Para retirar el piloto de Beta, desplegar la rama normal de Beta. En otros despliegues puede habilitarse explícitamente para un slug mediante `IMMERSA_LIVE_CAMERA_SETUP_EVENT_SLUG` e `IMMERSA_LIVE_CAMERA_SETUP_ORIGIN`.
+
+### Configuración manual
+
 El piloto inicia apagado. Para ensayarlo en un entorno autorizado, configurar `IMMERSA_LIVE_CAMERA_PILOT` con el siguiente objeto JSON. Usar un Deck y tres enlaces vigentes de rol dedicados al ensayo. El enlace de Stage debe tener permiso de operador para ese escenario. Entregar los enlaces directamente a cada rol. Mantener los tokens y la clave de TURN en la configuración privada del servidor.
 
 ```json

@@ -233,12 +233,53 @@ function renderActivitySpeakers(speakers) {
     activitySpeakerList.appendChild(item);
   }
 }
+function renderLiveCameraSetup(activity) {
+  if (!currentHub?.liveCameraPilotAvailable || !(activity.deck_id || activity.pending_deck_id)) return;
+  const workspaceId = currentHub.workspace_id;
+  const panel = document.createElement("div");
+  const button = document.createElement("button");
+  const status = document.createElement("p");
+  status.setAttribute("role", "status");
+  button.type = "button";
+  button.textContent = "Preparar LIVE";
+  panel.append(button, status);
+  activityDeckCheckActions.append(panel);
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "Preparando los enlaces del piloto…";
+    try {
+      const endpoint = `/api/admin/event-hubs/${encodeURIComponent(workspaceId)}/activities/${encodeURIComponent(activity.id)}/live-camera-pilot`;
+      const response = await fetch(endpoint, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "No se pudo preparar LIVE");
+      status.textContent = "Usa estos enlaces para probar LIVE. Abre primero Pantalla.";
+      const links = document.createElement("ul");
+      for (const [role, label] of [["screen", "Pantalla LIVE"], ["speaker", "Speaker LIVE"], ["stage", "Stage LIVE"]]) {
+        const row = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = result.urls[role];
+        link.textContent = label;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        row.append(link);
+        links.append(row);
+      }
+      panel.append(links);
+      button.hidden = true;
+    } catch (error) {
+      status.textContent = error.message;
+      button.disabled = false;
+    }
+  });
+}
+
 function renderDeckCheck(activity) {
   const linked = (activity.speakers || []).filter((speaker) => speaker.invitation?.status === "LINKED");
   const status = activity.deck_check_status || "PENDING";
   activityDeckCheckActions.replaceChildren();
   activityDeckCheck.hidden = activeActivityTool !== "deck";
   if (activityDeckCheck.hidden) return;
+  renderLiveCameraSetup(activity);
   if (status === "DECK_CHECK") {
     activityDeckCheckStatus.textContent = "Deck Check aprobado. Esta es la versión comprobada para la actividad.";
     const openStage = document.createElement("button");
