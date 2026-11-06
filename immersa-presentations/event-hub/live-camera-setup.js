@@ -17,16 +17,23 @@ function createLiveCameraSetup({ env, dataDir, eventHub }) {
   } catch {
     return null;
   }
+  const turnUrls = env.IMMERSA_LIVE_CAMERA_SETUP_TURN_URLS?.trim().split(/\s*,\s*/);
   const file = path.join(dataDir, "live-camera-pilot.json");
   let pending = null;
   let pilot = null;
 
   function parse(config) {
     if (!config?.slug || (slug && config.slug !== slug) || config.origin !== origin) return null;
-    return readLiveCameraPilot({
-      IMMERSA_LIVE_CAMERA_PILOT: JSON.stringify(config),
+    const read = options => readLiveCameraPilot({
+      IMMERSA_LIVE_CAMERA_PILOT: JSON.stringify(options),
       IMMERSA_LIVE_CAMERA_TURN_SECRET: env.IMMERSA_LIVE_CAMERA_TURN_SECRET
     });
+    if (turnUrls?.[0]) {
+      const withRelay = read({ ...config, turnUrls });
+      if (withRelay) return withRelay;
+      console.warn("Invalid Event Hub LIVE TURN configuration; using the saved pilot configuration");
+    }
+    return read(config);
   }
 
   try {

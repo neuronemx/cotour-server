@@ -58,6 +58,18 @@ test("Event Hub enrollment restricts LIVE to one activity and reloads its dedica
   assert.deepEqual(restarted.getPilot(), pilot);
   assert.equal(await restarted.enroll(input), restarted.getPilot());
   assert.equal(created.length, 3);
+  const relayEnv = {
+    ...env,
+    IMMERSA_LIVE_CAMERA_SETUP_TURN_URLS: "turn:turn.example.test:3478?transport=udp, turns:turn.example.test:443?transport=tcp",
+    IMMERSA_LIVE_CAMERA_TURN_SECRET: "relay-test-secret"
+  };
+  const relay = createLiveCameraSetup({ env: relayEnv, dataDir, eventHub });
+  assert.deepEqual(relay.getPilot().turnUrls, ["turn:turn.example.test:3478?transport=udp", "turns:turn.example.test:443?transport=tcp"]);
+  assert.deepEqual(pilotRoleUrls(relay.getPilot()), pilotRoleUrls(pilot));
+  assert.equal(await relay.enroll(input), relay.getPilot());
+  assert.equal(created.length, 3);
+  const afterRollback = createLiveCameraSetup({ env, dataDir, eventHub });
+  assert.deepEqual(afterRollback.getPilot(), pilot);
   const differentScope = createLiveCameraSetup({ env: { ...env, IMMERSA_LIVE_CAMERA_SETUP_EVENT_SLUG: "other-event" }, dataDir, eventHub });
   assert.equal(differentScope.getPilot(), null);
 

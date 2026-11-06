@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHmac } = require("node:crypto");
 const { readLiveCameraPilot, liveCameraPageAssets, attachLiveCamera } = require("../live-camera");
 
 const config = {
@@ -42,8 +43,13 @@ test("only authenticated participants in the configured live event can negotiate
   let live = null;
   let serviceUnavailable = false;
   const revoked = new Set();
+  const turnUrls = ["turns:turn.example.test:443?transport=tcp"];
+  const turnSecret = "relay-test-secret";
   attachLiveCamera(namespace, {
-    pilot: configure(),
+    pilot: readLiveCameraPilot({
+      IMMERSA_LIVE_CAMERA_PILOT: JSON.stringify({ ...config, turnUrls }),
+      IMMERSA_LIVE_CAMERA_TURN_SECRET: turnSecret
+    }),
     accessLinks: { resolveRoleLink: async (token, role) => token === config.links[role] && !revoked.has(role) ? roleAccess(role) : null },
     eventHub: {
       getStageControlForDeck: async () => {
@@ -76,6 +82,8 @@ test("only authenticated participants in the configured live event can negotiate
   assert.ok(await open("audience") instanceof Error);
 
   const screen = await open("screen");
+  const secondScreen = await open("screen");
+  assert.equal(secondScreen.connected, false);
   const speaker = await open("speaker");
   const otherSpeaker = await open("speaker");
   const stage = await open("stage");
@@ -87,6 +95,15 @@ test("only authenticated participants in the configured live event can negotiate
   assert.deepEqual(await start(otherSpeaker), { ok: false, reason: "busy" });
   assert.deepEqual(await starting, { ok: true });
   const id = screen.messages.find(([event]) => event === "live:prepare")[1].id;
+  for (const socket of [speaker, screen]) {
+    const { rtc } = socket.messages.find(([event]) => event === "live:prepare")[1];
+    assert.equal(rtc.iceTransportPolicy, "all");
+    const [{ urls, username, credential }] = rtc.iceServers;
+    assert.deepEqual(urls, turnUrls);
+    assert.equal(Number(username.split(":")[0]), Math.floor(Date.now() / 1000 + 600));
+    assert.equal(credential, createHmac("sha1", turnSecret).update(username).digest("base64"));
+  }
+  assert.equal(secondScreen.messages.length, 0);
   const signal = sdp => ({ id, description: { type: "offer", sdp } });
   speaker.receive("live:signal", signal("v=0\r\nm=video 9\r\nm=audio 9\r\n"));
   otherSpeaker.receive("live:signal", signal("v=0\r\nm=video 9\r\n"));
