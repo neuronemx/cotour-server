@@ -1,4 +1,63 @@
-.live-camera-toggle, .live-camera-panel button, .live-camera-stage button {
+.presenter-shell {
+  --live-camera-header-height: 58px;
+  --live-camera-gap: .5rem;
+  --live-camera-top: max(.65rem, env(safe-area-inset-top));
+  --live-camera-left: max(.75rem, env(safe-area-inset-left));
+  --live-camera-right: max(.75rem, env(safe-area-inset-right));
+}
+
+.live-camera-speaker-header {
+  position: absolute;
+  z-index: 9;
+  top: .65rem;
+  inset-inline: .75rem;
+  min-height: var(--live-camera-header-height);
+  display: flex;
+  align-items: center;
+  gap: var(--live-camera-gap);
+}
+
+.live-camera-speaker-header .brand-lockup,
+.live-camera-speaker-header .speaker-timer-stack,
+.live-camera-speaker-header .top-actions {
+  position: relative;
+  inset: auto;
+}
+
+.live-camera-speaker-header .brand-lockup,
+.live-camera-speaker-header .speaker-timer {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.live-camera-speaker-header .speaker-timer-actions {
+  position: absolute;
+  top: calc(100% + .3rem);
+  left: 0;
+}
+
+.live-camera-speaker-header .top-actions {
+  margin-inline-start: auto;
+  gap: var(--live-camera-gap);
+}
+
+.live-camera-monitor-open::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: #08060c;
+}
+
+.live-camera-monitor-open .live-camera-speaker-header {
+  position: fixed;
+  z-index: 101;
+  top: var(--live-camera-top);
+  left: var(--live-camera-left);
+  right: var(--live-camera-right);
+}
+
+.live-camera-toggle, .live-camera-panel button, .live-camera-stage {
   color: #fff;
   background: #442072;
   border: 1px solid #9064be;
@@ -8,11 +67,19 @@
   cursor: pointer;
 }
 
-.live-camera-toggle.is-live, .live-camera-panel button[data-action="close"], .live-camera-stage button {
-  background: #971b46;
+.live-camera-toggle, .live-camera-stage {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: .875rem;
+  font-weight: 750;
 }
 
-.live-camera-panel button:disabled, .live-camera-stage button:disabled {
+.live-camera-toggle.is-live, .live-camera-stage {
+  background: #971b46;
+  border-color: #d2537f;
+}
+
+.live-camera-panel button:disabled {
   opacity: .5;
   cursor: default;
 }
@@ -20,39 +87,124 @@
 .live-camera-panel {
   position: fixed;
   z-index: 100;
-  right: .75rem;
+  top: calc(var(--live-camera-top) + var(--live-camera-header-height) + var(--live-camera-gap));
+  left: var(--live-camera-left);
+  right: var(--live-camera-right);
   bottom: max(.75rem, env(safe-area-inset-bottom));
-  width: min(360px, calc(100vw - 1.5rem));
-  max-height: 90dvh;
-  overflow: auto;
-  padding: 1rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: .5rem;
+  padding: .65rem;
   background: #171022;
   color: #fff;
   border: 1px solid #7959a4;
-  border-radius: 14px;
+  border-radius: 18px;
 }
 
-.live-camera-panel video {
+.live-camera-monitor-bar {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .4rem;
+}
+
+.live-camera-monitor-bar h2 {
+  margin: 0;
+  padding-inline-start: .2rem;
+  font-size: 1rem;
+}
+
+.live-camera-camera-picker {
+  display: flex;
+  justify-self: center;
+  gap: .2rem;
+  padding: .15rem;
+  border: 1px solid #614d7b;
+  border-radius: 10px;
+  background: #0e0a16;
+}
+
+.live-camera-camera-picker button {
+  padding: .48rem .62rem;
+  background: transparent;
+  border-color: transparent;
+  font-size: .8rem;
+}
+
+.live-camera-camera-picker button[aria-pressed="true"] {
+  background: #523284;
+  border-color: #8663ba;
+}
+
+.live-camera-panel .live-camera-close {
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: #251a36;
+  border-color: #614d7b;
+}
+
+.live-camera-close svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.live-camera-monitor-feed {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  background: #050407;
+}
+
+.live-camera-monitor-feed video {
   display: block;
   width: 100%;
-  max-height: 40dvh;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: contain;
-  background: #0b0811;
 }
 
-.live-camera-panel label, .live-camera-panel div {
+.live-camera-monitor-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: .5rem;
-  margin-top: .75rem;
+  justify-content: flex-end;
+  gap: .45rem;
 }
 
-.live-camera-stage {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
+.live-camera-monitor-actions p {
+  margin: 0 auto 0 0;
+  font-size: .82rem;
+  color: #e8ddf8;
+}
+
+.live-camera-monitor-actions p:empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .presenter-shell { --live-camera-header-height: 46px; }
+}
+
+@media (max-width: 390px), (max-height: 640px) {
+  .presenter-shell { --live-camera-header-height: 42px; --live-camera-gap: .3rem; }
+  .live-camera-toggle { padding-inline: .48rem; font-size: .75rem; }
+}
+
+@media (max-width: 360px) {
+  .live-camera-speaker-header .brand-lockup { width: 36px; height: 36px; padding: 4px; }
+  .live-camera-speaker-header .brand-mark { width: 28px; height: 28px; }
+  .live-camera-speaker-header .speaker-timer { gap: .25rem; padding-inline: .42rem; font-size: .82rem; }
+  .live-camera-speaker-header .audience-stat { gap: .3rem; padding-inline: .45rem; }
+  .live-camera-toggle { padding-inline: .4rem; font-size: .72rem; }
+  .live-camera-camera-picker button { padding-inline: .5rem; }
 }
 
 .live-camera-program {
@@ -71,6 +223,9 @@
   opacity: 1;
 }
 
-.live-camera-toggle[hidden], .live-camera-panel[hidden], .live-camera-stage[hidden] {
+.live-camera-toggle[hidden],
+.live-camera-panel[hidden],
+.live-camera-panel [hidden],
+.live-camera-stage[hidden] {
   display: none;
 }

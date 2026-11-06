@@ -27,48 +27,95 @@
   let notice = "";
   let panel;
   let toggle;
-  let camera;
+  let facingMode = "environment";
+  let cameraButtons;
   let reopen;
   let send;
-  let close;
+  let actions;
   let label;
   let video;
+  let setMonitorOpen;
 
   if (role === "speaker") {
+    const streamArea = host.closest(".stream-area");
+    const shell = streamArea?.closest(".presenter-shell");
+    if (!shell) return;
+    const header = document.createElement("header");
+    header.className = "live-camera-speaker-header";
+    header.append(streamArea.querySelector(".brand-lockup"), streamArea.querySelector(".speaker-timer-stack"), host);
+    streamArea.prepend(header);
+
     toggle = document.createElement("button");
     toggle.className = "live-camera-toggle";
     toggle.type = "button";
     toggle.textContent = "LIVE";
     toggle.hidden = true;
     toggle.setAttribute("aria-expanded", "false");
-    host.append(toggle);
+    toggle.setAttribute("aria-controls", "live-camera-monitor");
+    host.prepend(toggle);
 
     panel = document.createElement("section");
+    panel.id = "live-camera-monitor";
     panel.className = "live-camera-panel";
     panel.hidden = true;
-    panel.setAttribute("aria-label", "IMMERSA LIVE");
-    panel.innerHTML = `<p role="status">Previsualización privada</p>
-      <video muted autoplay playsinline aria-label="Previsualización privada"></video>
-      <label>Cámara <select><option value="environment">Trasera</option><option value="user">Frontal</option></select></label>
-      <div><button type="button" data-action="capture">Abrir cámara</button>
+    panel.setAttribute("aria-labelledby", "live-camera-preview-title");
+    panel.innerHTML = `<div class="live-camera-monitor-bar">
+      <h2 id="live-camera-preview-title">Preview</h2>
+      <div class="live-camera-camera-picker" role="group" aria-label="Cámara">
+        <button type="button" data-facing="environment" aria-pressed="true">Trasera</button>
+        <button type="button" data-facing="user" aria-pressed="false">Frontal</button>
+      </div>
+      <button type="button" class="live-camera-close" aria-label="Cerrar cámara" title="Cerrar cámara">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="live-camera-monitor-feed"><video muted autoplay playsinline aria-label="Preview de cámara"></video></div>
+    <div class="live-camera-monitor-actions">
+      <p role="status"></p>
+      <button type="button" data-action="capture">Abrir cámara</button>
       <button type="button" data-action="send">Enviar a Pantalla</button>
-      <button type="button" data-action="close">Cerrar cámara</button></div>`;
-    (host.closest(".presenter-shell") || document.body).append(panel);
+    </div>`;
+    shell.append(panel);
     video = panel.querySelector("video");
-    camera = panel.querySelector("select");
+    cameraButtons = panel.querySelectorAll("[data-facing]");
     reopen = panel.querySelector('[data-action="capture"]');
     label = panel.querySelector("p");
     send = panel.querySelector('[data-action="send"]');
-    close = panel.querySelector('[data-action="close"]');
+    actions = panel.querySelector(".live-camera-monitor-actions");
+    const close = panel.querySelector(".live-camera-close");
+    const inertControls = new Set();
+    setMonitorOpen = open => {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      shell.classList.toggle("live-camera-monitor-open", open);
+      if (!open) {
+        for (const element of inertControls) element.inert = false;
+        inertControls.clear();
+        return;
+      }
+      for (const element of [...shell.children, ...streamArea.children]) {
+        if (element === streamArea || element === header || element === panel || element.inert) continue;
+        element.inert = true;
+        inertControls.add(element);
+      }
+    };
     toggle.addEventListener("click", () => {
       if (!panel.hidden) return finishLocal("stopped", true);
-      panel.hidden = false;
-      toggle.setAttribute("aria-expanded", "true");
+      setMonitorOpen(true);
       void capture();
     });
-    camera.addEventListener("change", () => void capture());
+    for (const button of cameraButtons) {
+      button.addEventListener("click", () => {
+        if (facingMode === button.dataset.facing) return;
+        facingMode = button.dataset.facing;
+        void capture();
+      });
+    }
     reopen.addEventListener("click", () => void capture());
-    close.addEventListener("click", () => finishLocal("stopped", true));
+    close.addEventListener("click", () => {
+      finishLocal("stopped", true);
+      toggle.focus();
+    });
     send.addEventListener("click", () => {
       if (!stream || !socket.connected || status.phase !== "idle" || sending) return;
       sending = true;
@@ -85,15 +132,14 @@
       });
     });
   } else if (role === "stage") {
-    panel = document.createElement("div");
-    panel.className = "live-camera-stage";
-    panel.hidden = true;
-    panel.innerHTML = '<span role="status"></span><button type="button">Cortar LIVE</button>';
-    label = panel.querySelector("span");
-    close = panel.querySelector("button");
-    host.append(panel);
-    close.addEventListener("click", () => {
-      if (socket.connected && status.id) socket.emit("live:stop", { id: status.id });
+    toggle = document.createElement("button");
+    toggle.className = "live-camera-stage";
+    toggle.type = "button";
+    toggle.hidden = true;
+    toggle.textContent = "Cortar LIVE";
+    host.prepend(toggle);
+    toggle.addEventListener("click", () => {
+      if (socket.connected && status.phase === "live" && status.id) socket.emit("live:stop", { id: status.id });
     });
   } else {
     video = document.createElement("video");
@@ -107,20 +153,21 @@
 
   function render() {
     if (role === "speaker") {
+      const onAir = Boolean(attempt && status.phase === "live" && status.id === attempt.id);
       toggle.hidden = !socket.connected;
-      toggle.classList.toggle("is-live", Boolean(attempt && status.phase === "live"));
-      label.textContent = notice || (attempt && status.phase === "live" ? "En vivo en Pantalla"
-        : attempt || sending ? "Conectando con Pantalla…"
-        : capturing ? "Abriendo cámara…" : status.screenReady ? "Previsualización privada" : "Esperando Pantalla");
-      camera.disabled = Boolean(attempt || sending);
+      toggle.textContent = onAir ? "Cortar LIVE" : panel.hidden ? "LIVE" : "CERRAR";
+      toggle.classList.toggle("is-live", onAir);
+      label.textContent = notice || (attempt || sending ? "Conectando con Pantalla…"
+        : capturing ? "Abriendo cámara…" : status.screenReady ? "" : "Esperando Pantalla");
+      for (const button of cameraButtons) {
+        button.disabled = Boolean(attempt || sending);
+        button.setAttribute("aria-pressed", String(button.dataset.facing === facingMode));
+      }
       reopen.hidden = Boolean(stream || capturing || sending);
       send.disabled = !stream || capturing || sending || !socket.connected || !status.screenReady || status.phase !== "idle";
-      close.textContent = attempt || sending ? "Finalizar LIVE" : "Cerrar cámara";
+      actions.hidden = onAir;
     } else if (role === "stage") {
-      panel.hidden = !socket.connected;
-      close.disabled = !status.id;
-      const phase = status.phase === "live" ? "En vivo" : status.phase === "starting" ? "Conectando" : "En espera";
-      label.textContent = "LIVE · " + phase + (notice ? " · " + notice : "");
+      toggle.hidden = !socket.connected || status.phase !== "live" || !status.id;
     } else {
       video.classList.toggle("is-live", Boolean(attempt?.firstFrame && status.phase === "live" && status.id === attempt.id));
     }
@@ -142,7 +189,7 @@
     render();
     try {
       const next = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: camera.value }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
         audio: false
       });
       if (version !== captureVersion) {
@@ -180,10 +227,7 @@
     if (attempt && socket.connected) socket.emit("live:stop", { id: attempt.id, reason });
     teardown();
     notice = copy[reason] || "";
-    if (closePanel && panel) {
-      panel.hidden = true;
-      toggle.setAttribute("aria-expanded", "false");
-    }
+    if (closePanel) setMonitorOpen(false);
     render();
   }
 
@@ -288,8 +332,6 @@
     status = next;
     if (attempt && next.id !== attempt.id) {
       teardown();
-      notice = copy[next.reason] || "";
-    } else if (role === "stage") {
       notice = copy[next.reason] || "";
     }
     render();
