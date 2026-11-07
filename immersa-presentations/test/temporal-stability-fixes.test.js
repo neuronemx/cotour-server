@@ -17,7 +17,7 @@ test("Screen live text wraps safely without exposing the Público link action", 
   assert.doesNotMatch(css, /\.message-go/);
   assert.match(css, /\.message \{[\s\S]*?max-height: min\(76vh, 640px\);[\s\S]*?overflow: auto;/);
   assert.match(css, /\.message-copy \{[\s\S]*?overflow-wrap: anywhere;/);
-  assert.match(html, /screen\.css\?v=26/);
+  assert.match(html, /screen\.css\?v=2026110702/);
   assert.match(html, /screen\.js\?v=\d+/);
 });
 
@@ -40,7 +40,7 @@ test("Público recognizes http, https, and www links without HTML injection", ()
   assert.match(css, /\.live-message-go \{[\s\S]*?position: static;[\s\S]*?width: auto;[\s\S]*?min-height: 24px;[\s\S]*?font: 800 10px\/1[\s\S]*?pointer-events: auto;/);
   assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\)[\s\S]*?\.live-message\.has-link \{ padding: 8px 8px 8px 12px; \}[\s\S]*?\.live-message-go \{ min-height: 22px;/);
   assert.match(html, /audience\.css\?v=29/);
-  assert.match(html, /audience\.js\?v=21/);
+  assert.match(html, /audience\.js\?v=2026110701/);
 });
 
 test("A running Speaker audiovisual video cannot intercept the Tiempo modal", () => {
@@ -57,8 +57,8 @@ test("A running Speaker audiovisual video cannot intercept the Tiempo modal", ()
   assert.match(css, /\.time-panel\.is-open \{[\s\S]*?pointer-events: auto;/);
   assert.match(css, /\.stream-area\.is-time-open > \.immersa-video-slide,[\s\S]*?pointer-events: none !important;/);
   assert.match(css, /\.time-panel \{[\s\S]*?position: fixed;[\s\S]*?z-index: 2147483000;/);
-  assert.match(html, /presenter\.css\?v=83/);
-  assert.match(html, /presenter\.js\?v=89/);
+  assert.match(html, /presenter\.css\?v=2026110702/);
+  assert.match(html, /presenter\.js\?v=2026110702/);
 });
 
 test("Audience uses a fixed viewport so Safari keeps the slide centered", () => {

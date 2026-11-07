@@ -178,8 +178,9 @@ function presentationOpenResponse(accessLink, manifest, deck) {
   };
 }
 
-function findRelatedAccessLink(accessLinks, sessionId, role) {
-  return accessLinks.find((link) => link.session_id === sessionId && link.role === role && link.active !== false) || null;
+function findRelatedAccessLink(accessLinks, sessionId, role, privateRoleTokens) {
+  return accessLinks.find((link) => link.session_id === sessionId && link.role === role && link.active !== false
+    && !privateRoleTokens?.has(link.access_token)) || null;
 }
 
 function nextUniqueAccessToken(accessLinks) {
@@ -345,7 +346,7 @@ function injectPublicAudienceContext(html, accessLink, deck, presentationSession
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, rolePageAssets = null, privateRoleTokens = null }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
@@ -389,6 +390,13 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     if (!accessLink) return { status: 404, error: 'Access link not found' };
     if (accessLink.active === false) return { status: 403, error: 'Access link inactive' };
     return { accessLink };
+  }
+
+  async function resolveRoleLink(token, role) {
+    const { accessLink, error } = await findActiveAccessLink(token);
+    if (error || accessLink.role !== role) return null;
+    const deck = await findDeckForAccessLink(accessLink, deckDirs);
+    return deck ? { accessLink, deck } : null;
   }
 
   async function findActivePublicAudienceLink(publicId) {
@@ -539,16 +547,22 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
         if (audienceResult.changed) await saveAccessLinks(storePath, accessLinks);
         const relatedLinks = {
           audience: audienceResult.accessLink,
-          screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen'),
+          screen: findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'screen', privateRoleTokens),
           stage: featureAccess.capabilities?.['access.backstage'] === true
-            ? findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage')
+            ? findRelatedAccessLink(accessLinks, result.accessLink.session_id, 'stage', privateRoleTokens)
             : null
         };
         const html = await fs.promises.readFile(roleIndexPath(publicDir, route), 'utf8');
         const context = relatedRoleContext(req, activeAccessLink, deck, relatedLinks, featureAccess);
+        const assets = rolePageAssets?.({ req, accessLink: activeAccessLink, deck });
 
         res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName(requiredRole), createRoleAccessValue({ accessLink: activeAccessLink, deck, route }), req));
-        return res.type('html').send(injectRoleContext(html, context));
+        const page = injectRoleContext(html, context);
+        if (assets) {
+          res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Referrer-Policy', 'no-referrer');
+        }
+        return res.type('html').send(assets ? page.replace('</body>', assets + '\n</body>') : page);
       } catch (error) {
         console.error('Unable to open role experience', error);
         return res.status(500).json({ error: 'Unable to open role experience' });
@@ -682,7 +696,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck };
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink };
 }
 
 module.exports = {

@@ -45,7 +45,7 @@
 .qr-pattern canvas, .qr-pattern img { display: block; width: 100%; height: auto; }
 .qr-fallback { padding: 10px; color: #111; font-size: 11px; line-height: 1.25; text-align: center; word-break: break-all; }
 .qr strong { font-size: 28px; } .qr span { font-size: 16px; line-height: 1.35; word-break: break-all; color: #333; }
-.reactions { pointer-events: none; position: fixed; z-index: 4; inset: 0; overflow: hidden; }
+.reactions { pointer-events: none; position: fixed; z-index: 11; inset: 0; overflow: hidden; }
 .reaction { position: absolute; bottom: 42px; left: 50%; font-size: 54px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); animation: rise 3s ease-out forwards; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 0) scale(.8); } 12% { opacity: 1; } to { opacity: 0; transform: translate(calc(-50% + var(--x)), -62vh) scale(1.45); } }
 .qna-screen-overlay { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; padding: 7vh 7vw; pointer-events: none; background: radial-gradient(circle at 50% 50%, rgba(3,8,16,.24), rgba(0,0,0,.58) 72%); }
@@ -115,8 +115,12 @@
   will-change:opacity;
 }
 .audiovisual-screen-layer .audiovisual-video-slot.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-base { z-index:1; transition:none; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-base.is-visible { opacity:1; }
+.audiovisual-screen-layer .audiovisual-video-slot.is-swap-top { z-index:2; }
 .audiovisual-screen-layer .audiovisual-video-slot.is-webm { background:transparent; }
-.audiovisual-screen-layer .audiovisual-video-slot.is-hiding { opacity:0; transition:none; }
+.audiovisual-screen-layer.is-video,
+.audiovisual-screen-layer.is-fx { z-index:10; pointer-events:none; }
 
 
 /* IMMERSA TIME is the visual layer above every Screen surface. */

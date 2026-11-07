@@ -21,6 +21,8 @@ let interactions = [];
 let videoSlideIds = new Set();
 let selectedInteractionId = "";
 let activeInteraction = null;
+let selfieActive = false;
+let selfieRenderer = null;
 let interactionResults = null;
 let interactionResultsVisible = false;
 let currentState = null;
@@ -30,9 +32,10 @@ let drawingMode = false;
 let audiovisualResources = [];
 let localAudiovisualResources = [];
 let audiovisualState = { audio: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 }, video: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 } };
-let audioReactState = { enabled: false, reaction: 0 };
+let audioReactState = { available: false, enabled: false, reaction: 0 };
 let audiovisualTab = "audio";
 let audiovisualPanel = null;
+let audiovisualMasterVolume = 1;
 let audiovisualLayer = null;
 let audiovisualMedia = null;
 let prompterScripts = {}, prompterOverlay = null, prompterPointerId = null, prompterLastY = 0;
@@ -225,7 +228,37 @@ function clearSelectedInteraction() { selectedInteractionId = ""; }
 async function loadInteractions() { try { const res = await fetch("/decks/" + deckId + "/interactions.json", { cache: "no-store" }); if (!res.ok) throw new Error("No interactions"); const data = await res.json(); interactions = normalizeInteractionList(data); videoSlideIds = new Set((Array.isArray(data?.videos) ? data.videos : []).map((video) => String(video?.slide_id || "")).filter(Boolean)); prompterScripts=data?.prompter||{}; } catch (_error) { interactions = []; videoSlideIds = new Set(); prompterScripts={}; } clearSelectedInteraction(); renderInteractionPanel(); void loadAudiovisualResources(); }
 async function loadAudiovisualResources() { try { const response = await fetch("/api/decks/" + encodeURIComponent(deckId) + "/audiovisual-library", { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load deck library"); const catalog = await response.json(); audiovisualResources = Array.isArray(catalog.resources) ? catalog.resources : []; } catch (_error) { audiovisualResources = []; } renderAudiovisualPanel(); }
 function avEscape(value) { const node = document.createElement("span"); node.textContent = String(value || ""); return node.innerHTML; }
-function ensureAudiovisualUi() { if (audiovisualPanel) return; audiovisualPanel = document.createElement("section"); audiovisualPanel.className = "audiovisual-panel"; audiovisualPanel.setAttribute("aria-label", "Librería Immersa"); presenterShell.appendChild(audiovisualPanel); }
+function ensureAudiovisualUi() {
+  if (audiovisualPanel) return;
+  audiovisualPanel = document.createElement("section");
+  audiovisualPanel.className = "audiovisual-panel";
+  audiovisualPanel.setAttribute("aria-label", "Librería Immersa");
+  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><label class="av-global-volume">' + avVolumeIcon + '<input data-av-global-volume type="range" min="0" max="100" step="1" value="100" aria-label="Volumen global Audiovisual"><output data-av-global-volume-value>100%</output></label><button class="av-global-stop" data-av-stop-all type="button" title="Detener todo con fade out" aria-label="Detener todo Audiovisual">' + avStopIcon + '</button><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual"></nav></div><div class="audiovisual-panel-content"></div>';
+  presenterShell.appendChild(audiovisualPanel);
+  const volume = audiovisualPanel.querySelector("[data-av-global-volume]");
+  const sendVolume = () => {
+    audiovisualMasterVolume = Number(volume.value) / 100;
+    audiovisualPanel.querySelector("[data-av-global-volume-value]").textContent = volume.value + "%";
+    socket.emit("audiovisual:control", { action: "volume", volume: audiovisualMasterVolume });
+  };
+  volume.addEventListener("input", sendVolume);
+  volume.addEventListener("change", sendVolume);
+  volume.addEventListener("blur", syncAudiovisualGlobalControls);
+  audiovisualPanel.querySelector("[data-av-stop-all]").addEventListener("click", () => socket.emit("audiovisual:control", { action: "stop-all" }));
+  audiovisualPanel.querySelector("[data-av-close]").addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); syncAudiovisualToggle(); });
+  syncAudiovisualGlobalControls();
+}
+function syncAudiovisualGlobalControls() {
+  const volume = audiovisualPanel?.querySelector("[data-av-global-volume]");
+  if (!volume) return;
+  if (document.activeElement !== volume) volume.value = String(Math.round(audiovisualMasterVolume * 100));
+  audiovisualPanel.querySelector("[data-av-global-volume-value]").textContent = volume.value + "%";
+  audiovisualPanel.querySelector("[data-av-stop-all]").disabled = !["audio", "video"].some((type) => {
+    const state = audiovisualChannel(type);
+    return state.resource && state.status !== "stopped";
+  });
+}
+
 const avStopIcon = '<img class="av-control-icon" src="/presenter/player-stop.svg" alt="">';
 const avLoopIcon = '<img class="av-control-icon" src="/presenter/player-loop.svg" alt="">';
 const avVolumeIcon = '<img class="av-control-icon" src="/presenter/player-volume.svg" alt="">';
@@ -336,8 +369,7 @@ function syncAudiovisualActiveCard() {
     if (!card) return;
     matched = true;
     card.querySelector("[data-av-loop]")?.classList.toggle("is-active", Boolean(state.loop));
-    const activeBars = Math.max(1, Math.round(Number(state.volume ?? 1) * 5));
-    card.querySelectorAll("[data-av-volume-level]").forEach((bar) => bar.classList.toggle("is-on", Number(bar.dataset.avVolumeLevel) <= activeBars));
+
   });
   return matched;
 }
@@ -365,14 +397,17 @@ function audiovisualCards(resources, emptyMessage, options = {}) {
       ? String(state.resource?.playlist?.id || "") === String(item.playlistId || "") && state.status === "playing"
       : String(state.resource?.id || "") === String(item.id) && state.status === "playing");
     const mediaIcon = item.thumbnail_url ? '<img src="' + item.thumbnail_url + '" alt="">' : '<span class="av-icon">' + (item.type === "video" ? "▶" : "♫") + '</span>';
-    const volumeBars = [1,2,3,4,5].map(function(level) { return '<i data-av-volume-level="' + level + '" class="' + (level <= Math.max(1, Math.round(state.volume * 5)) ? 'is-on' : '') + '"></i>'; }).join("");
-    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button><button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button><button class="av-volume-control" data-av-volume title="Volumen">' + volumeBars + '</button></span>';
+
+    const loopControl = item.category === "fx" ? "" : '<button data-av-loop class="' + (state.loop ? 'is-active' : '') + '" title="Loop">' + avLoopIcon + '</button>';
+    const controls = '<span class="audiovisual-inline-controls" data-av-type="' + item.type + '"><button data-av-stop title="Detener">' + avStopIcon + '</button>' + loopControl + '</span>';
+    const cueLabel = item.category === "fx" ? '<small class="audiovisual-fx-cue">Avance ' + avEscape(item.fx?.timecode) + ' · ' + avEscape(item.fx?.fps) + ' fps</small>' : "";
     const revealing = active && audiovisualRevealResourceId === String(item.id) && Date.now() < audiovisualRevealUntil;
     const playlistAttribute = isPlaylist ? ' data-av-playlist="' + avEscape(item.playlistId) + '"' : "";
-    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong><small data-av-duration data-av-resource-id="' + avEscape(item.id) + '"' + playlistAttribute + ' data-av-type="' + avEscape(item.type || "") + '"></small></span>' + controls + '</div>';
+    return '<div class="audiovisual-resource is-' + avEscape(item.type || "audio") + ' ' + (active ? 'is-active' + (revealing ? ' is-revealing' : '') : '') + '" data-av-resource="' + item.id + '"' + playlistAttribute + ' data-av-type="' + item.type + '" role="button" tabindex="0">' + mediaIcon + '<span class="audiovisual-resource-label"><strong>' + avEscape(item.name) + '</strong>' + cueLabel + '<small data-av-duration data-av-resource-id="' + avEscape(item.id) + '"' + playlistAttribute + ' data-av-type="' + avEscape(item.type || "") + '"></small></span>' + controls + '</div>';
   }).join('');
 }
 function audiovisualTabIcon(type) {
+  if (type === "fx") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7z"/></svg>';
   if (type === "react") return '<img src="/presenter/audio-react.svg" alt="">';
   if (type === "video") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5v15L19 12z"/></svg>';
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.1a4.2 4.2 0 1 1-2-3.55V5.2l10-2.1v9.5a4.2 4.2 0 1 1-2-3.55V5.4z"/></svg>';
@@ -382,13 +417,18 @@ const audioReactThumbnails = audioReactNames.map((_, index) => "/presenter/audio
 function renderAudiovisualPanel(force = false) {
   if (!force && audiovisualRevealResourceId) return;
   ensureAudiovisualUi();
-  const type = audiovisualTab === "video" ? "video" : "audio";
+  if (audiovisualTab === "react") audiovisualTab = "audio";
+  const isFxTab = audiovisualTab === "fx";
+  const type = audiovisualTab === "video" || isFxTab ? "video" : "audio";
   const state = audiovisualChannel(type);
-  const running = state.resource && ["playing", "fading"].includes(state.status) ? [state.resource] : [];
-  const playlists = buildLocalPlaylistCards(localAudiovisualResources.filter((item) => item.type === type));
-  const localSingles = localAudiovisualResources.filter((item) => item.type === type && !item.playlist?.id);
-  const remote = audiovisualResources.filter((item) => item.type === type);
-  const tabs = ["audio", "video", "react"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : "React"; const live = !isReact && ["playing", "fading"].includes(audiovisualChannel(tab).status); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
+  const matchesTab = (item) => item.type === type && (item.category === "fx") === isFxTab;
+  const running = state.resource && matchesTab(state.resource) && ["playing", "fading"].includes(state.status) ? [state.resource] : [];
+  const localItems = localAudiovisualResources.filter(matchesTab);
+  const playlists = isFxTab ? [] : buildLocalPlaylistCards(localItems);
+  const localSingles = localItems.filter((item) => !item.playlist?.id);
+  const remote = audiovisualResources.filter(matchesTab);
+  const tabTypes = audioReactState.available ? ["audio", "video", "fx", "react"] : ["audio", "video", "fx"];
+  const tabs = tabTypes.map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(11, Number(audioReactState.reaction) || 0));
@@ -398,9 +438,13 @@ function renderAudiovisualPanel(force = false) {
     const playlistsBlock = playlists.length ? '<section class="audiovisual-group"><h3>Playlists</h3><div class="audiovisual-resource-list">' + audiovisualCards(playlists, "", { suppressActive: true }) + '</div></section>' : "";
     const localBlock = localSingles.length ? '<section class="audiovisual-group"><h3>Medios Local</h3><div class="audiovisual-resource-list">' + audiovisualCards(localSingles, "", { suppressActive: true }) + '</div></section>' : "";
     const remoteBlock = remote.length ? '<section class="audiovisual-group"><h3>Medios Immersa</h3><div class="audiovisual-resource-list">' + audiovisualCards(remote, "", { suppressActive: true }) + '</div></section>' : '<p class="audiovisual-empty">No hay medios ' + (type === "audio" ? "de audio" : "de video") + ' seleccionados en Librería.</p>';
-    body = runningBlock + playlistsBlock + localBlock + remoteBlock;
+    body = runningBlock + playlistsBlock + localBlock + (isFxTab
+      ? (localSingles.length ? "" : '<p class="audiovisual-empty">Vincula en Pantalla tu Librería local con la carpeta FX. Cada WebM necesita un TXT del mismo nombre con segundos:cuadros y FPS.</p>')
+      : remoteBlock);
   }
-  audiovisualPanel.innerHTML = '<div class="audiovisual-panel-sticky"><div class="audiovisual-panel-head"><h2>Audiovisual</h2><button data-av-close aria-label="Cerrar Audiovisual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div><nav class="audiovisual-tabs" aria-label="Audiovisual">' + tabs + '</nav></div><div class="audiovisual-panel-content">' + body + '</div>';
+  audiovisualPanel.querySelector(".audiovisual-tabs").innerHTML = tabs;
+  audiovisualPanel.querySelector(".audiovisual-panel-content").innerHTML = body;
+  syncAudiovisualGlobalControls();
   warmAudiovisualDurations([...audiovisualResources, ...localAudiovisualResources]);
   syncAudiovisualDurationTick();
   audiovisualPanel.querySelectorAll("[data-av-tab]").forEach((button) => button.addEventListener("click", () => {
@@ -441,12 +485,7 @@ function renderAudiovisualPanel(force = false) {
     event.stopPropagation(); const card = event.currentTarget.closest(".audiovisual-resource"); const resourceType = card?.dataset.avType || "audio";
     socket.emit("audiovisual:control", { action: "loop", resourceId: card?.dataset.avResource, type: resourceType, loop: !audiovisualChannel(resourceType).loop });
   }));
-  audiovisualPanel.querySelectorAll("[data-av-volume]").forEach((control) => control.addEventListener("click", (event) => {
-    event.stopPropagation(); const bar = event.target.closest("[data-av-volume-level]"); if (!bar) return;
-    const card = event.currentTarget.closest(".audiovisual-resource");
-    socket.emit("audiovisual:control", { action: "volume", resourceId: card?.dataset.avResource, type: card?.dataset.avType, volume: Number(bar.dataset.avVolumeLevel) / 5 });
-  }));
-  audiovisualPanel.querySelector("[data-av-close]")?.addEventListener("click", () => { audiovisualPanel.classList.remove("is-open"); syncAudiovisualToggle(); });
+
 }
 let audiovisualFadeCloseTimer = null;
 function applyAudiovisualState(next = {}) {
@@ -455,6 +494,9 @@ function applyAudiovisualState(next = {}) {
   } else if (next.resource?.type === "audio" || next.resource?.type === "video") {
     audiovisualState = { ...audiovisualState, [next.resource.type]: { ...audiovisualChannel(next.resource.type), ...next } };
   }
+  const masterVolume = Number(next.audio?.volume ?? next.video?.volume ?? audiovisualMasterVolume);
+  if (Number.isFinite(masterVolume)) audiovisualMasterVolume = Math.max(0, Math.min(1, masterVolume));
+  syncAudiovisualGlobalControls();
   syncAudiovisualToggle();
   syncAudiovisualDurationTick();
   if (audiovisualRevealResourceId) {
@@ -488,7 +530,8 @@ function applyAudiovisualState(next = {}) {
   const expectedIds = expected.map((type) => audiovisualCardKey(audiovisualChannel(type).resource));
   const visibleIds = Array.from(audiovisualPanel?.querySelectorAll(".audiovisual-resource.is-active[data-av-resource]") || []).map((card) => card.dataset.avPlaylist ? "playlist:" + String(card.dataset.avPlaylist) : String(card.dataset.avResource));
   const cardsMatchChannels = expectedIds.length === visibleIds.length && expectedIds.every((id) => visibleIds.includes(id));
-  if (cardsMatchChannels) { syncAudiovisualActiveCard(); return; }
+  const hasClosingCards = Boolean(audiovisualPanel?.querySelector(".audiovisual-resource.is-closing"));
+  if (cardsMatchChannels && !hasClosingCards) { syncAudiovisualActiveCard(); return; }
   renderAudiovisualPanel(true);
 }
 function toggleAudiovisualPanel() {
@@ -751,7 +794,7 @@ function ensureInteractionPanel() {
   if (interactionPanel) return interactionPanel;
   interactionPanel = document.createElement("section");
   interactionPanel.className = "interaction-panel";
-  interactionPanel.setAttribute("aria-label", "Interacciones");
+  interactionPanel.setAttribute("aria-label", window.ImmersaI18n.t("shell.activities"));
   interactionShellMount = document.createElement("div");
   interactionShellMount.className = "interactions-shell-mount";
   interactionPanel.appendChild(interactionShellMount);
@@ -764,14 +807,15 @@ function ensureInteractionsShell() {
   interactionShell = window.ImmersaInteractionsShell.create({
     root: interactionShellMount,
     categoryEnabled: {
+      selfie: planAllows("polls.run"),
       polls: planAllows("polls.run"),
       qna: planAllows("qna.run"),
       assessments: planAllows("assessments.run"),
       raffles: planAllows("raffles.run"),
-      contests: planAllows("trivia.run"),
-      games: !isPublishedDemo && planAllows("games.run")
+      contests: planAllows("trivia.run")
     },
     categoryVisibility: {
+      selfie: true,
       qna: qnaAvailable,
       assessments: knowledgeActivitiesAvailable,
       contests: knowledgeActivitiesAvailable
@@ -784,6 +828,7 @@ function ensureInteractionsShell() {
         qnaControls?.open();
         return;
       }
+      if (view === "selfie") renderSelfiePanel();
       if (view === "polls") renderInteractionPanel();
       if (view === "raffles") renderRafflePanel();
       if (view === "assessments" || view === "contests") syncRendererVisibility();
@@ -801,7 +846,10 @@ function ensureInteractionsShell() {
   contestRenderer = document.createElement("div");
   contestRenderer.className = "interaction-knowledge-renderer";
   contestRenderer.dataset.interactionsView = "contests";
-  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer);
+  selfieRenderer = document.createElement('div');
+  selfieRenderer.dataset.interactionsView = 'selfie';
+  interactionShell.getContentRoot().append(pollsRenderer, raffleRenderer, assessmentRenderer, contestRenderer, selfieRenderer);
+  renderSelfiePanel();
   if (raffleController?.mountHost) {
     raffleHostRegistration = raffleController.mountHost({ role: "presenter", root: raffleRenderer, isActive: () => interactionShell.getView() === "raffles" });
   }
@@ -814,7 +862,7 @@ function knowledgeActivityView() {
   const category = knowledgeActivityController?.getState?.().category;
   return category === "contest" ? "contests" : category === "assessment" ? "assessments" : "";
 }
-function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : knowledgeActivityView() || "home"); }
+function activeInteractionView() { return activeInteraction ? "polls" : (raffleController?.getState?.().active ? "raffles" : knowledgeActivityView() || (selfieActive ? "selfie" : "home")); }
 function hasActiveInteractionShellLock() { return Boolean(activeInteraction || raffleController?.getState?.().active || knowledgeActivityView()); }
 function resetInactiveRaffleDraft() { if (hasActiveInteractionShellLock()) return false; return raffleController?.resetLocalSetup?.() || false; }
 function syncRendererVisibility() {
@@ -822,6 +870,7 @@ function syncRendererVisibility() {
   if (pollsRenderer) pollsRenderer.hidden = interactionShell.getView() !== "polls";
   if (raffleRenderer) raffleRenderer.hidden = interactionShell.getView() !== "raffles";
   if (assessmentRenderer) assessmentRenderer.hidden = interactionShell.getView() !== "assessments";
+  if (selfieRenderer) selfieRenderer.hidden = interactionShell.getView() !== "selfie";
   if (contestRenderer) contestRenderer.hidden = interactionShell.getView() !== "contests";
 }
 function returnInteractionsHome() {
@@ -843,12 +892,38 @@ function syncInteractionShellState() {
   const view = activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || shell.getView();
   shell.setLocked(locked);
   shell.setCloseVisible(!locked);
-  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (qnaQuestionsOpen ? "qna" : ""));
-  if (activePoll || activeRaffle || shell.getView() === "home") shell.setView(activeInteractionView());
+  shell.setLiveView?.(activePoll ? "polls" : activeRaffle ? "raffles" : activeKnowledge || (selfieActive ? "selfie" : (qnaQuestionsOpen ? "qna" : "")));
+  if (activePoll || activeRaffle || selfieActive || shell.getView() === "home") shell.setView(activeInteractionView());
   shell.setTitleVisible?.(true);
   syncRendererVisibility();
   if (locked && !interactionPanelOpen) setInteractionPanelOpen(true);
 }
+function renderSelfiePanel() {
+  if (!selfieRenderer) return;
+  const { t } = window.ImmersaI18n;
+  selfieRenderer.innerHTML = '<div class="interaction-panel-heading"><h2></h2><p></p></div><div class="interaction-panel-actions"><button type="button" class="primary" data-selfie-action></button></div><p data-selfie-status role="status"></p>';
+  selfieRenderer.querySelector('h2').textContent = t('shell.selfie');
+  selfieRenderer.querySelector('.interaction-panel-heading p').textContent = t(selfieActive ? 'cards.active' : 'cards.ready');
+  selfieRenderer.querySelector('[data-selfie-action]').textContent = t(selfieActive ? 'cards.close' : 'cards.launch');
+  selfieRenderer.querySelector('[data-selfie-action]').addEventListener('click', event => {
+    event.currentTarget.disabled = true;
+    socket.emit(selfieActive ? 'selfie:close' : 'selfie:start');
+  });
+}
+window.addEventListener('immersa:locale-change', renderSelfiePanel);
+socket.on('selfie:state', state => {
+  const wasActive = selfieActive;
+  selfieActive = Boolean(state?.active);
+  if (!selfieActive && !wasActive && !interactionShell) return;
+  renderSelfiePanel();
+  syncInteractionShellState();
+  if (wasActive && !selfieActive) returnInteractionsHome();
+});
+socket.on('selfie:rejected', state => {
+  renderSelfiePanel();
+  const status = selfieRenderer?.querySelector('[data-selfie-status]');
+  if (status) status.textContent = window.ImmersaI18n.t(state?.reason === 'active_interaction_exists' ? 'cards.busy' : 'cards.error');
+});
 function renderRafflePanel() {
   const shell = ensureInteractionsShell();
   if (!shell) return;
@@ -882,7 +957,8 @@ function syncInteractionToggleVisualState() {
     interactionToggle.classList.toggle("is-special-active", visuallyActive);
     interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen));
     interactionToggle.setAttribute("aria-pressed", String(visuallyActive));
-    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : qnaQuestionsOpen ? "Interacciones · Preguntas abiertas" : "Interacciones";
+    const { t } = window.ImmersaI18n;
+    interactionToggle.title = t(interactionPanelOpen ? "shell.closeActivities" : qnaQuestionsOpen ? "shell.activitiesQuestionsOpen" : "shell.activities");
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
   }
 }
@@ -893,15 +969,14 @@ function ensureInteractionToggle() {
     interactionToggle.disabled = true;
     interactionToggle.classList.add("is-plan-locked");
     interactionToggle.setAttribute("aria-disabled", "true");
-    interactionToggle.title = "Interacciones · Disponible en planes de pago";
+    interactionToggle.title = window.ImmersaI18n.t("shell.activitiesLocked");
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
     return interactionToggle;
   }
   interactionToggle.addEventListener("click", toggleInteractionPanel);
   interactionToggle.setAttribute("aria-expanded", "false");
   interactionToggle.setAttribute("aria-pressed", "false");
-  interactionToggle.title = "Interacciones";
-  interactionToggle.setAttribute("aria-label", "Interacciones");
+  syncInteractionToggleVisualState();
   return interactionToggle;
 }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
@@ -939,6 +1014,7 @@ function renderInteractionPanel() {
   ensureInteractionsShell();
   syncInteractionShellState();
   const shell = interactionShell;
+  if (selfieActive || shell.getView() === "selfie") { renderSelfiePanel(); return; }
   const panel = pollsRenderer;
   const active = activeInteraction || null;
   const hasInteractions = interactions.length > 0;
@@ -990,7 +1066,12 @@ socket.on("overlay_update", (overlays) => {
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
+socket.on("audio-react:state", (next = {}) => {
+  const available = next.available === true;
+  audioReactState = { available, enabled: available && next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) };
+  if (!available && audiovisualTab === "react") audiovisualTab = "audio";
+  renderAudiovisualPanel(true);
+});
 socket.on("time:state", applyImmersaTime);
 socket.on("presentation:lifecycle:state", applyPresentationLifecycle);
 socket.on("presentation:lifecycle:rejected", rejectPresentationLifecycle);

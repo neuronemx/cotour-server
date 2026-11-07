@@ -26,7 +26,7 @@ test("Speaker and Stage expose Q&A immediately when the plan allows it", async (
   assert.match(presenterScript, /qnaControls\?\.open\(\)/);
   assert.match(presenterScript, /qnaQuestionsOpen = Boolean\(state\?\.questionsOpen\)/);
   assert.match(presenterScript, /interactionPanelOpen \|\| qnaQuestionsOpen/);
-  assert.match(presenterScript, /Interacciones · Preguntas abiertas/);
+  assert.match(presenterScript, /shell\.activitiesQuestionsOpen/);
   assert.match(stageScript, /role: "stage"/);
   assert.match(stageScript, /qnaAvailable = planAllows\("qna\.run"\)/);
   assert.match(stageScript, /launcher: false/);

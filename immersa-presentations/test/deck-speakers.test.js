@@ -1,0 +1,140 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const http = require('node:http');
+const express = require('express');
+const {DeckSpeakersStore, DeckSpeakerError} = require('../deck-speakers');
+const {createDeckSpeakersHttp} = require('../deck-speakers-http');
+const profile = (displayName, active = false) => ({displayName,active,publicTitle:'Panelista',bio:'Acerca de ' + displayName,websiteUrl:'https://example.com'});
+async function fixture(t) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(),'deck-speakers-'));
+  t.after(() => fs.rm(root,{recursive:true,force:true}));
+  const notifications = [];
+  const options = {root,assertDeck:async id => { if (!['deck-a','deck-b'].includes(id)) throw new DeckSpeakerError('DECK_NOT_FOUND','Deck no encontrado.',404); },onChange:(...args) => notifications.push(args)};
+  return {root,options,notifications,store:new DeckSpeakersStore(options)};
+}
+test('Deck profiles persist across restart, support arbitrary counts and preserve manual order', async t => {
+  const {store,options,notifications} = await fixture(t);
+  let config = await store.setEnabled('deck-a',{enabled:true,expectedRevision:0});
+  for (let i=0;i<13;i++) config = await store.save('deck-a',null,{...profile('Ponente ' + i,i % 2 === 0),expectedRevision:config.revision});
+  const ids = config.profiles.map(p=>p.id).reverse();
+  config = await store.reorder('deck-a',{profileIds:ids,expectedRevision:config.revision});
+  const restored = await new DeckSpeakersStore(options).read('deck-a');
+  assert.deepEqual(restored.profiles.map(p=>p.id),ids);
+  assert.equal(restored.revision,15);
+  const dto = store.public(restored);
+  assert.deepEqual(dto.profiles.map(p=>p.displayName),['Ponente 12','Ponente 10','Ponente 8','Ponente 6','Ponente 4','Ponente 2','Ponente 0']);
+  assert.equal(dto.profile.id,ids[0]);
+  assert.equal(JSON.stringify(dto).includes('"active"'),false);
+  assert.equal(notifications.length,15);
+  assert.deepEqual(await store.read('deck-b'),{schema:1,deckId:'deck-b',enabled:false,revision:0,profiles:[]});
+});
+test('All profiles off hides the multi-profile launcher without falling back to personal data', async t => {
+  const {store} = await fixture(t);
+  let config = await store.save('deck-a',null,{...profile('Ana',true),expectedRevision:0});
+  config = await store.setEnabled('deck-a',{enabled:true,expectedRevision:config.revision});
+  const id=config.profiles[0].id;
+  config = await store.setActive('deck-a',id,{active:false,expectedRevision:config.revision});
+  assert.equal(store.public(await store.read('deck-a')).available,false);
+  assert.equal(config.profiles[0].displayName,'Ana');
+  assert.equal(config.profiles.length,1);
+  config = await store.setActive('deck-a',id,{active:true,expectedRevision:config.revision});
+  assert.equal(store.public(await store.read('deck-a')).profiles[0].displayName,'Ana');
+});
+test('Concurrent editors reject stale writes and invalid orders without losing committed content', async t => {
+  const {store,notifications} = await fixture(t);
+  const outcomes = await Promise.allSettled([store.save('deck-a',null,{...profile('Uno'),expectedRevision:0}),store.save('deck-a',null,{...profile('Dos'),expectedRevision:0})]);
+  assert.equal(outcomes.filter(p=>p.status==='fulfilled').length,1);
+  assert.equal(outcomes.find(p=>p.status==='rejected').reason.statusCode,409);
+  await assert.rejects(store.reorder('deck-a',{expectedRevision:1,profileIds:[]}),{code:'INVALID_ORDER'});
+  assert.equal((await store.read('deck-a')).profiles.length,1); assert.equal(notifications.length,1);
+});
+test('Draft, disabled and replaced photos remain private; owner previews work', async t => {
+  const {store} = await fixture(t);
+  let config = await store.save('deck-a',null,{...profile('Foto'),expectedRevision:0}), id=config.profiles[0].id;
+  config = await store.setPhoto('deck-a',id,config.revision,Buffer.from('fixture'),'.png');
+  const old = (await store.read('deck-a')).profiles[0].photoKey;
+  assert.equal(await fs.readFile(await store.photo('deck-a',id,old,true),'utf8'),'fixture');
+  await assert.rejects(store.photo('deck-a',id,old),{statusCode:404});
+  config = await store.setEnabled('deck-a',{enabled:true,expectedRevision:config.revision});
+  await assert.rejects(store.photo('deck-a',id,old),{statusCode:404});
+  config = await store.setActive('deck-a',id,{active:true,expectedRevision:config.revision});
+  assert.ok(await store.photo('deck-a',id,old));
+  config = await store.setPhoto('deck-a',id,config.revision,Buffer.from('replacement'),'.webp');
+  await assert.rejects(store.photo('deck-a',id,old),{statusCode:404});
+  assert.match(config.profiles[0].photoUrl,/\/speakers\/.+\/photo\//);
+  assert.match(store.public(await store.read('deck-a')).profiles[0].photoUrl,/\/speaker-photos\//);
+  await store.removeDeck('deck-a');
+  assert.equal((await store.read('deck-a')).revision,0);
+});
+test('Traversal, unexpected fields, unsafe links and corrupt storage cannot publish data', async t => {
+  const {store,root} = await fixture(t);
+  await assert.rejects(store.read('../private'),{code:'INVALID_DECK_ID'});
+  await assert.rejects(store.read('missing'),{statusCode:404});
+  assert.throws(()=>store.save('deck-a',null,{...profile('X'),email:'secret',expectedRevision:0}),{code:'INVALID_FIELDS'});
+  assert.throws(()=>store.save('deck-a',null,{...profile('X'),websiteUrl:'javascript:alert(1)',expectedRevision:0}));
+  await fs.mkdir(path.join(root,'deck-a')); await fs.writeFile(path.join(root,'deck-a/profiles.json'),'{broken');
+  await assert.rejects(store.read('deck-a'),{code:'INVALID_PROFILE_CONFIG'});
+});
+async function httpFixture(t) {
+  const f=await fixture(t); let enabled=true;
+  const account=(req,res,next)=>req.headers['x-test-account'] ? next() : res.sendStatus(401);
+  const owner=[account,(req,res,next)=>req.params.deckId==='deck-a' && req.headers['x-test-account']==='owner' ? next() : res.sendStatus(404)];
+  const app=express(); app.use(express.json());
+  app.use(createDeckSpeakersHttp({store:f.store,enabled:()=>enabled,account,owner,legacyProfile:(_req,res)=>res.json({available:true,profile:{displayName:'Personal'}})}));
+  const server=http.createServer(app); await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const origin='http://127.0.0.1:'+server.address().port;
+  const request=(url,options={})=>fetch(origin+url,{...options,headers:{'x-test-account':'owner','Content-Type':'application/json',Origin:origin,...options.headers}});
+  return {...f,request,setEnabled:value=>{enabled=value;},origin};
+}
+test('HTTP pilot gate preserves legacy profile and blocks all editor/photo operations when off', async t => {
+  const {request,setEnabled}=await httpFixture(t); setEnabled(false);
+  assert.deepEqual(await (await request('/api/deck-speaker-profiles/capability')).json(),{enabled:false});
+  assert.equal((await request('/api/decks/deck-a/speakers')).status,404);
+  assert.equal((await request('/api/decks/deck-a/speaker-photos/x/y')).status,404);
+  assert.equal((await (await request('/api/decks/deck-a/speaker-profile')).json()).profile.displayName,'Personal');
+});
+test('HTTP owner checks, CSRF and revisions protect profiles and drafts', async t => {
+  const {request}=await httpFixture(t),base='/api/decks/deck-a/speakers';
+  assert.equal((await request(base,{headers:{'x-test-account':''}})).status,401);
+  assert.equal((await request(base,{headers:{'x-test-account':'stranger'}})).status,404);
+  assert.equal((await request('/api/decks/deck-b/speakers')).status,404);
+  assert.equal((await request(base,{method:'POST',headers:{Origin:'https://evil.example'},body:JSON.stringify({...profile('CSRF'),expectedRevision:0})})).status,403);
+  let response=await request(base,{method:'POST',body:JSON.stringify({...profile('Borrador'),expectedRevision:0})});
+  assert.equal(response.status,201); let config=await response.json();
+  assert.equal((await (await request('/api/decks/deck-a/speaker-profile')).json()).profile.displayName,'Personal');
+  response=await request(base+'/settings',{method:'PUT',body:JSON.stringify({enabled:true,expectedRevision:config.revision})}); config=await response.json();
+  const dto=await (await request('/api/decks/deck-a/speaker-profile')).json();
+  assert.equal(dto.mode,'multiple'); assert.equal(dto.available,false); assert.equal(dto.profile,null);
+  assert.equal(JSON.stringify(dto).includes('Borrador'),false);
+  response=await request(base+'/'+config.profiles[0].id+'/active',{method:'PUT',body:JSON.stringify({active:true,expectedRevision:config.revision})});
+  assert.equal(response.status,200);
+  response=await request(base+'/settings',{method:'PUT',body:JSON.stringify({enabled:false,expectedRevision:config.revision})}); assert.equal(response.status,409);
+  response=await request('/api/decks/deck-a/speaker-profile'); assert.equal(response.headers.get('cache-control'),'no-store');
+  assert.equal((await response.json()).profiles[0].displayName,'Borrador');
+});
+test('HTTP photo upload validates bytes and denies inactive public URLs', async t => {
+  const {request,origin}=await httpFixture(t),base='/api/decks/deck-a/speakers';
+  let config=await (await request(base,{method:'POST',body:JSON.stringify({...profile('Con foto'),expectedRevision:0})})).json();
+  const id=config.profiles[0].id;
+  const upload=async(bytes,type,name)=>{
+    const body=new FormData();body.append('photo',new Blob([bytes],{type}),name);body.append('expectedRevision',String(config.revision));
+    return fetch(origin+base+'/'+id+'/photo',{method:'POST',headers:{Origin:origin,'x-test-account':'owner'},body});
+  };
+  assert.equal((await upload('<svg/>','image/svg+xml','bad.svg')).status,400);
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64');
+  const result=await upload(png,'image/png','photo.png');assert.equal(result.status,200);config=await result.json();
+  const ownerUrl=config.profiles[0].photoUrl;
+  assert.equal((await request(ownerUrl)).status,200);
+  assert.equal((await request(ownerUrl,{headers:{'x-test-account':'stranger'}})).status,404);
+  const anonymousUrl=ownerUrl.replace('/speakers/','/speaker-photos/').replace('/photo/','/');
+  assert.equal((await request(anonymousUrl)).status,404);
+  config=await (await request(base+'/settings',{method:'PUT',body:JSON.stringify({enabled:true,expectedRevision:config.revision})})).json();
+  config=await (await request(base+'/'+id+'/active',{method:'PUT',body:JSON.stringify({active:true,expectedRevision:config.revision})})).json();
+  const publicPhoto=await request(anonymousUrl); assert.equal(publicPhoto.status,200); assert.equal(publicPhoto.headers.get('cache-control'),'no-store');
+  await request(base+'/'+id+'/active',{method:'PUT',body:JSON.stringify({active:false,expectedRevision:config.revision})});
+  assert.equal((await request(anonymousUrl)).status,404);
+});

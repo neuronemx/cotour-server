@@ -51,6 +51,8 @@
   </style>
   <link rel="stylesheet" href="/home/deck-management-shell.css?v=30">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
+  <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=1">
+  <link rel="stylesheet" href="/shared/selfie.css?v=2">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -127,6 +129,8 @@
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
         <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
+        <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
+        <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
       <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
@@ -151,6 +155,52 @@
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
         <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
+        <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
+          <div id="selfieEditor" class="selfie-editor">
+            <h3>Tarjetas</h3><p data-selfie-source></p>
+            <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+            <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
+            <div class="selfie-editor-grid" data-selfie-images></div>
+            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+            <p role="status" aria-live="polite"></p>
+          </div>
+          <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
+            <summary>Administrar colección PING · IMMERSA</summary>
+            <div id="pingSelfieEditor" class="selfie-editor">
+              <h3>Colección predeterminada de PING</h3>
+              <p>Los cambios se aplican a todos los Decks que usan PING, en la próxima ronda de Tarjetas. Las colecciones propias de cada Deck se conservan.</p>
+              <p data-selfie-source></p>
+              <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+              <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
+              <div class="selfie-editor-grid" data-selfie-images></div>
+              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+              <p role="status" aria-live="polite"></p>
+            </div>
+          </details>
+        </section>
+        <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
+          <div id="deckSpeakersEditor" class="deck-speakers-editor">
+            <div class="deck-speakers-toolbar"><label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label><button type="button" data-speakers-refresh>Actualizar lista</button></div>
+            <p data-speakers-summary>Agrega, ordena y enciende los perfiles que quieres mostrar.</p>
+            <p data-speakers-status role="status" aria-live="polite"></p>
+            <div data-speakers-list></div>
+            <p><button type="button" data-speakers-new>Agregar ponente</button></p>
+            <form>
+              <h3 class="deck-speakers-wide" data-speakers-heading>Nuevo ponente</h3>
+              <label>Nombre completo<input name="displayName" maxlength="120" required autocomplete="off"></label>
+              <label>Etiqueta pública<select name="publicTitle"><option>Speaker</option></select></label>
+              <label>Cargo<input name="roleTitle" maxlength="120"></label>
+              <label>Empresa u organización<input name="company" maxlength="120"></label>
+              <label class="deck-speakers-wide">Acerca de<textarea name="bio" maxlength="600"></textarea></label>
+              <label>Sitio web (HTTPS)<input name="websiteUrl" maxlength="500" placeholder="https://ejemplo.com"></label>
+              <label>LinkedIn (HTTPS)<input name="linkedinUrl" maxlength="500" placeholder="https://linkedin.com/in/…"></label>
+              <label>Instagram (HTTPS)<input name="instagramUrl" maxlength="500" placeholder="https://instagram.com/…"></label>
+              <label>Foto<input name="photo" type="file" accept="image/png,image/jpeg,image/webp"><span data-speakers-photo-hint>Guarda el perfil para agregar su foto. Se creará apagado.</span><img data-speakers-photo alt="" hidden></label>
+              <div class="deck-speakers-wide"><button type="submit">Guardar perfil</button></div>
+            </form>
+            <p>Los perfiles encendidos aparecen como tarjetas deslizables. Puedes cambiar el orden y encenderlos o apagarlos durante la presentación; Público recibe los cambios sin recargar.</p>
+          </div>
+        </section>
         <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
           <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
           <section id="basicMetrics" class="basic-metrics" aria-labelledby="basicMetricsTitle" hidden>
@@ -288,7 +338,9 @@
   <script src="/home/deck-management-shell.js?v=17"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=4"></script>
+  <script src="/home/deck-speakers-editor.js?v=1"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
+  <script src="/home/selfie-editor.js?v=3"></script>
 </body>
 </html>

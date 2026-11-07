@@ -14,23 +14,17 @@ test("Screen keeps the slide visible until the selected video paints its first f
 
   assert.match(source, /requestVideoFrameCallback/);
   assert.match(source, /addEventListener\("playing", \(\) => requestAnimationFrame\(reveal\)/);
-  assert.match(source, /incoming\.classList\.add\("is-hiding"\)[\s\S]*revealVideoOnFirstFrame[\s\S]*incoming\.play\(\)/);
+  assert.match(source, /if \(isCurrentSelection\(\)\) revealVideoOnFirstFrame\(incoming, reveal\)/);
   assert.match(css, /\.audiovisual-screen-layer \{[^}]*background:transparent/);
   assert.match(css, /\.audiovisual-video-slot \{[\s\S]*background:#000;[\s\S]*transition:opacity \.18s ease/);
   assert.match(css, /\.audiovisual-video-slot\.is-webm \{ background:transparent; \}/);
   assert.match(html, /\/screen\/screen\.js\?v=\d+/);
 });
 
-test("Screen removes video synchronously on stop or natural end", async () => {
-  const [source, css] = await Promise.all([
-    fs.readFile(path.join(root, "public/screen/screen.js"), "utf8"),
-    fs.readFile(path.join(root, "public/screen/screen.css"), "utf8")
-  ]);
-
-  assert.match(source, /media\.addEventListener\("ended",[\s\S]*hideVideoLayerImmediately\(\)[\s\S]*socket\.emit\("audiovisual:ended"/);
-  assert.match(source, /function stopVideoSlots\(\) \{\s*hideVideoLayerImmediately\(\)/);
-  assert.match(source, /audiovisualLayer\?\.classList\.remove\("is-video"\)/);
-  assert.match(css, /\.audiovisual-video-slot\.is-hiding \{ opacity:0; transition:none; \}/);
+test("Screen clears ordinary videos at EOF and retains the last frame for playlist handoffs", async () => {
+  const source = await fs.readFile(path.join(root, "public/screen/screen.js"), "utf8");
+  assert.match(source, /!resource\.playlist && !window\.ImmersaAudiovisualFx\.isFx\(resource\)[\s\S]*?audiovisualLayer\.classList\.remove\("is-video"\)/);
+  assert.match(source, /if \(!resource \|\| state\.status === "stopped"\) \{\s*stopVideoSlots\(\)/);
 });
 
 test("Plans modal uses the viewport below the measured fixed header", async () => {
@@ -53,10 +47,14 @@ test("Video lifecycle waits for a frame, cancels stale loads, and can replay aft
   const source = await fs.readFile(path.join(root, "public/screen/screen.js"), "utf8");
   const makeMedia = () => {
     const classes = new Set();
+    const events = new Map();
     return { dataset: {}, style: {}, currentTime: 0, paused: true, frames: [],
       classList: { add: (v) => classes.add(v), remove: (v) => classes.delete(v), contains: (v) => classes.has(v),
         toggle: (v, enabled) => enabled ? classes.add(v) : classes.delete(v) },
       pause() { this.paused = true; }, play() { this.paused = false; return Promise.resolve(); }, load() {},
+      addEventListener(name, cb) { events.set(name, cb); },
+      removeEventListener(name) { events.delete(name); },
+      canplay() { const cb = events.get("canplay"); events.delete("canplay"); cb?.(); },
       requestVideoFrameCallback(cb) { this.frames.push(cb); }
     };
   };
@@ -70,13 +68,15 @@ test("Video lifecycle waits for a frame, cancels stale loads, and can replay aft
     clearVideoPlaylistAdvance() {}, scheduleVideoPlaylistAdvance() {},
     resolveAudiovisualMediaUrl: (r) => r.id + ".mp4", console,
     localLibrary: { files: new Map() },
-    window: { setTimeout() {} }
+    audiovisualFxMonitors: new WeakMap(), audiovisualVideoFade: null,
+    window: { ImmersaAudiovisualFx: { isFx: () => false }, setTimeout() {} }
   });
   vm.runInContext(source.slice(source.indexOf("function isWebMAudiovisualResource("), source.indexOf("async function scanAndPublishLocalLibrary(")), context);
-  vm.runInContext(source.slice(source.indexOf("function hideVideoLayerImmediately()"), source.indexOf("function applyAudioState(state)")), context);
+  vm.runInContext(source.slice(source.indexOf("function stopVideoSlots()"), source.indexOf("function applyAudioState(state)")), context);
   const apply = (status, id = "a", resource = {}) => {
     context.audiovisualState.video = { resource: { id, ...resource }, status, lastAction: "play", position: 0 };
     context.applyVideoState(context.audiovisualState.video);
+    slots.forEach((slot) => slot.canplay());
   };
   apply("playing");
   assert.equal(slots[1].classList.contains("is-visible"), false);

@@ -45,9 +45,12 @@ let lastInteractionResults = null;
 let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
+let audiovisualAudioFade = null;
+let audiovisualVideoFade = null;
 let activeVideoSlot = 0;
 let videoTransitionToken = 0;
 let videoPlaylistAdvanceTimer = null;
+const audiovisualFxMonitors = new WeakMap();
 const localLibrary = { directoryHandle: null, resources: [], files: new Map(), objectUrls: new Map(), logoUrl: "", scanning: false };
 const localVideoExtensions = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const localAudioExtensions = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
@@ -125,17 +128,34 @@ function setLocalReactionLogo(file) {
   localLibrary.logoUrl = file ? URL.createObjectURL(file) : "";
   window.ImmersaAudioReact?.setLocalLogo(localLibrary.logoUrl || "");
 }
-async function collectLocalFiles(handle, prefix = "") {
+async function collectLocalFiles(handle, prefix = "", issues = [], fxFolder = String(handle.name || "").toLowerCase() === "fx") {
   const entries = [];
-  for await (const [name, entry] of handle.entries()) {
-    if (entry.kind === "directory") entries.push(...await collectLocalFiles(entry, prefix + name + "/"));
+  const children = [];
+  for await (const child of handle.entries()) children.push(child);
+  for (const [name, entry] of children) {
+    if (entry.kind === "directory") entries.push(...await collectLocalFiles(entry, prefix + name + "/", issues, fxFolder || name.toLowerCase() === "fx"));
     else if (entry.kind === "file") {
       const extension = String(name).split(".").pop().toLowerCase();
+      if (fxFolder && extension !== "webm") continue;
       const type = localVideoExtensions.has(extension) ? "video" : localAudioExtensions.has(extension) ? "audio" : "";
       if (type) {
         const relativePath = prefix + name;
         const folder = prefix.replace(/\/$/, "");
-        entries.push({ file: await entry.getFile(), type, relativePath, folder });
+        let fx = null;
+        if (fxFolder) {
+          try {
+            const txtName = name.replace(/\.webm$/i, ".txt").toLowerCase();
+            const candidates = children.filter(([childName, child]) => child.kind === "file" && childName.toLowerCase() === txtName);
+            if (candidates.length !== 1) throw new Error("falta un TXT con el mismo nombre");
+            const txt = await candidates[0][1].getFile();
+            if (txt.size > 1024) throw new Error("TXT demasiado grande");
+            fx = window.ImmersaAudiovisualFx.parseCue(await txt.text());
+          } catch (error) {
+            issues.push(relativePath + ": " + error.message);
+            continue;
+          }
+        }
+        entries.push({ file: await entry.getFile(), type, relativePath, folder, fx });
       }
     }
   }
@@ -171,30 +191,36 @@ async function scanAndPublishLocalLibrary() {
   localLibrary.scanning = true; setLocalLibraryStatus("Actualizando Librería local…");
   try {
     const logoFile = await findLocalReactionLogo(localLibrary.directoryHandle);
-    const files = (await collectLocalFiles(localLibrary.directoryHandle)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
+    const issues = [];
+    const files = (await collectLocalFiles(localLibrary.directoryHandle, "", issues)).sort((a, b) => (a.type === b.type ? a.relativePath.localeCompare(b.relativePath, "es", { numeric: true, sensitivity: "base" }) : a.type === "video" ? -1 : 1)).slice(0, 100);
     const playlistIndexes = new Map();
     clearLocalObjectUrls(); localLibrary.files.clear();
     setLocalReactionLogo(logoFile);
     const resources = [];
     for (const entry of files) {
       const id = localResourceId(entry.relativePath, entry.file, entry.type);
-      const playlistKey = entry.folder ? entry.type + "|" + entry.folder : "";
+      const playlistKey = entry.folder && !entry.fx ? entry.type + "|" + entry.folder : "";
       const playlistIndex = playlistKey ? (playlistIndexes.get(playlistKey) || 0) : 0;
       if (playlistKey) playlistIndexes.set(playlistKey, playlistIndex + 1);
-      const playlist = entry.folder ? {
+      const playlist = playlistKey ? {
         id: localPlaylistId(entry.folder, entry.type),
         name: entry.folder.split("/").filter(Boolean).pop() || entry.folder,
         order: playlistIndex
       } : null;
-      localLibrary.files.set(id, entry.file);
       const mediaDetails = entry.type === "video"
         ? await makeLocalVideoThumbnail(entry.file)
         : { thumbnail: "", duration: await readLocalAudioDuration(entry.file) };
-      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: mediaDetails.thumbnail, duration: mediaDetails.duration, playlist });
+      if (entry.fx && (!mediaDetails.duration || entry.fx.seconds >= mediaDetails.duration)) {
+        issues.push(entry.relativePath + ": la marca debe estar antes del final del WebM");
+        continue;
+      }
+      localLibrary.files.set(id, entry.file);
+      resources.push({ id, type: entry.type, source: "local", name: entry.file.name.replace(/\.[^.]+$/, ""), thumbnail_url: mediaDetails.thumbnail, duration: mediaDetails.duration, playlist, ...(entry.fx ? { category: "fx", fx: entry.fx } : {}) });
     }
     localLibrary.resources = resources;
     socket.emit("local-library:publish", { resources });
-    setLocalLibraryStatus(resources.length ? "Librería local · " + resources.length + " recursos" : "Librería local vacía");
+    setLocalLibraryStatus((resources.length ? "Librería local · " + resources.length + " recursos" : "Librería local vacía") + (issues.length ? " · " + issues.length + " FX por corregir (TXT o duración)" : ""));
+    if (localLibraryStatus) localLibraryStatus.title = issues.join("\n");
   } catch (error) {
     console.error("Unable to scan local library", error);
     setLocalLibraryStatus("No se pudo actualizar la carpeta");
@@ -237,15 +263,28 @@ function scheduleVideoPlaylistAdvance(media) {
   }, delay);
 }
 function bindAudiovisualMediaEvents(type, media) {
+  if (type === "video") audiovisualFxMonitors.set(media, window.ImmersaAudiovisualFx.createCueMonitor({
+    media,
+    getPlayback: () => media === audiovisualMedia?.video?.[activeVideoSlot] ? audiovisualState.video : null,
+    onCue: (payload) => {
+      if (!socket.connected) return false;
+      socket.emit("audiovisual:fx-cue", payload);
+      return true;
+    }
+  }));
   media.addEventListener("loadedmetadata", () => {
     if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
   });
   media.addEventListener("ended", () => {
     if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) {
       clearVideoPlaylistAdvance();
-      hideVideoLayerImmediately();
+      const resource = audiovisualState.video?.resource;
+      if (resource && media.dataset.resourceId === String(resource.id) && !resource.playlist && !window.ImmersaAudiovisualFx.isFx(resource)) {
+        audiovisualLayer.classList.remove("is-video");
+        screenRoot.classList.remove("has-audiovisual-video");
+      }
     }
-    socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type });
+    socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type, playbackId: media.dataset.fxPlaybackId });
   });
 }
 function ensureAudiovisualLayer() {
@@ -257,6 +296,8 @@ function ensureAudiovisualLayer() {
     video: Array.from(audiovisualLayer.querySelectorAll("video")),
     audio: audiovisualLayer.querySelector("audio")
   };
+  audiovisualAudioFade = window.ImmersaAudiovisualFade.create({ getState: () => audiovisualState.audio, getMedia: () => [audiovisualMedia.audio] });
+  audiovisualVideoFade = window.ImmersaAudiovisualFade.create({ getState: () => audiovisualState.video, getMedia: () => audiovisualMedia.video, video: true });
   audiovisualMedia.video.forEach((media) => bindAudiovisualMediaEvents("video", media));
   bindAudiovisualMediaEvents("audio", audiovisualMedia.audio);
   audiovisualMedia.audio.addEventListener("error", () => {
@@ -283,96 +324,171 @@ function ensureAudiovisualLayer() {
     console.warn("Audio React could not initialize; media playback continues.", error);
   }
 }
-function hideVideoLayerImmediately() {
+function stopVideoSlots() {
   videoTransitionToken += 1;
   clearVideoPlaylistAdvance();
   (audiovisualMedia?.video || []).forEach((media) => {
-    media.classList.add("is-hiding");
-    media.classList.remove("is-visible");
+    audiovisualFxMonitors.get(media)?.stop();
     media.pause();
-  });
-  audiovisualLayer?.classList.remove("is-video");
-  screenRoot.classList.remove("has-audiovisual-video");
-}
-function stopVideoSlots() {
-  hideVideoLayerImmediately();
-  (audiovisualMedia?.video || []).forEach((media) => {
     media.currentTime = 0;
+    media.classList.remove("is-visible");
+    media.classList.remove("is-swap-base");
+    media.classList.remove("is-swap-top");
   });
 }
-function revealVideoOnFirstFrame(media, token, resourceId, onReveal) {
-  let revealed = false;
-  const reveal = () => {
-    if (revealed || token !== videoTransitionToken || media.dataset.resourceId !== resourceId || audiovisualState.video?.status !== "playing") return;
-    revealed = true;
-    media.classList.remove("is-hiding");
-    media.classList.add("is-visible");
-    onReveal();
+function finishAudiovisualVideoSwap(outgoing, token) {
+  let timer = null, finished = false;
+  const finish = () => {
+    if (finished) return;
+    if (token !== videoTransitionToken) { dispose(); return; }
+    const opacity = Number(window.getComputedStyle?.(outgoing)?.opacity ?? 0);
+    if (opacity > .001) { timer = window.setTimeout(finish, 50); return; }
+    dispose();
+    outgoing.classList.remove("is-visible");
+    void outgoing.offsetWidth;
+    outgoing.classList.remove("is-swap-base");
+    outgoing.pause();
+    outgoing.currentTime = 0;
+    outgoing.removeAttribute("src");
+    outgoing.load();
   };
-  if (typeof media.requestVideoFrameCallback === "function") {
-    media.requestVideoFrameCallback(reveal);
-  } else {
-    media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
+  const onEnd = (event) => { if (event.propertyName === "opacity") finish(); };
+  function dispose() {
+    finished = true;
+    if (timer !== null) window.clearTimeout?.(timer);
+    outgoing.removeEventListener?.("transitionend", onEnd);
   }
+  outgoing.addEventListener("transitionend", onEnd);
+  timer = window.setTimeout(finish, 550);
+}
+function revealVideoOnFirstFrame(media, reveal) {
+  if (typeof media.requestVideoFrameCallback === "function") media.requestVideoFrameCallback(reveal);
+  else media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
+  media.play().catch(() => {});
 }
 function applyVideoState(state) {
   const resource = state?.resource;
   const slots = audiovisualMedia.video;
+  if (state.status === "fading" && state.fadeOut) {
+    videoTransitionToken += 1;
+    clearVideoPlaylistAdvance();
+    slots.forEach((media) => audiovisualFxMonitors.get(media)?.stop());
+    audiovisualVideoFade?.apply();
+    return;
+  }
+  audiovisualVideoFade?.cancel();
   if (!resource || state.status === "stopped") {
     stopVideoSlots();
     return;
   }
-  const nextId = String(resource.id || "");
   const current = slots[activeVideoSlot];
-  let incomingIndex = slots.findIndex((media) => media.dataset.resourceId === nextId);
-  if (incomingIndex < 0) incomingIndex = 1 - activeVideoSlot;
-  const incoming = slots[incomingIndex];
-  const token = ++videoTransitionToken;
-  clearVideoPlaylistAdvance();
-  if (incoming.dataset.resourceId !== nextId) {
-    const mediaUrl = resolveAudiovisualMediaUrl(resource);
-    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
-    incoming.pause();
-    incoming.classList.add("is-hiding");
-    incoming.classList.remove("is-visible");
-    // Blob URLs have no extension; inspect the original local file for WebM alpha.
-    incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
-    incoming.dataset.resourceId = nextId;
-    incoming.src = mediaUrl;
-    incoming.load();
-  }
-  incoming.loop = Boolean(state.loop && !resource.playlist);
-  incoming.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
-  const shouldSynchronizePosition = ["seek", "play", "pause"].includes(state.lastAction);
-  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(incoming.currentTime - Number(state.position)) > 1.2) incoming.currentTime = Number(state.position);
-  if (state.status !== "playing") {
+  const currentId = String(current.dataset.resourceId || "");
+  const nextId = String(resource.id || "");
+  const isFx = window.ImmersaAudiovisualFx.isFx(resource);
+  const nextPlaybackId = isFx ? String(state.fxPlayback?.id || "") : "";
+  const volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  if (state.status === "paused" && currentId !== nextId) {
+    videoTransitionToken += 1;
+    clearVideoPlaylistAdvance();
     slots.forEach((media) => media.pause());
     return;
   }
-  if (incoming.classList.contains("is-visible")) {
-    incoming.play().catch(() => {});
-    scheduleVideoPlaylistAdvance(incoming);
+  if (currentId !== nextId) {
+    clearVideoPlaylistAdvance();
+    const incomingIndex = 1 - activeVideoSlot;
+    const incoming = slots[incomingIndex];
+    const mediaUrl = resolveAudiovisualMediaUrl(resource);
+    if (!mediaUrl) { console.warn("Local media is not available on this Screen", resource.id); return; }
+    const token = ++videoTransitionToken;
+    const hasCurrentVideo = Boolean(currentId && current.classList.contains("is-visible"));
+    if (hasCurrentVideo) {
+      // Commit the current picture before reusing the other slot on rapid selections.
+      current.classList.remove("is-swap-top");
+      current.classList.add("is-swap-base");
+      void current.offsetWidth;
+    }
+    incoming.pause();
+    incoming.classList.remove("is-visible");
+    incoming.classList.remove("is-swap-base");
+    incoming.classList.remove("is-swap-top");
+    void incoming.offsetWidth;
+    incoming.classList.add(hasCurrentVideo ? "is-swap-base" : "is-swap-top");
+    // Blob URLs have no extension; inspect the original local file for WebM alpha.
+    incoming.classList.toggle("is-webm", isWebMAudiovisualResource(resource));
+    incoming.dataset.resourceId = nextId;
+    incoming.dataset.fxPlaybackId = nextPlaybackId;
+    incoming.src = mediaUrl;
+    incoming.currentTime = 0;
+    incoming.loop = Boolean(state.loop && !resource?.playlist && !isFx);
+    incoming.volume = volume;
+    incoming.classList.remove("is-visible");
+    const isCurrentSelection = () => token === videoTransitionToken && incoming.dataset.resourceId === nextId && String(audiovisualState.video?.resource?.id || "") === nextId && audiovisualState.video?.status === "playing";
+    const reveal = () => {
+      if (!isCurrentSelection()) return;
+      if (hasCurrentVideo) {
+        current.classList.remove("is-swap-base");
+        current.classList.add("is-swap-top");
+        void current.offsetWidth;
+      }
+      void incoming.offsetWidth;
+      incoming.classList.add("is-visible");
+      if (!hasCurrentVideo) {
+        current.classList.remove("is-visible");
+        activeVideoSlot = incomingIndex;
+        scheduleVideoPlaylistAdvance(incoming);
+        audiovisualFxMonitors.get(incoming)?.refresh();
+        return;
+      }
+      current.classList.remove("is-visible");
+      activeVideoSlot = incomingIndex;
+      scheduleVideoPlaylistAdvance(incoming);
+      audiovisualFxMonitors.get(incoming)?.refresh();
+      finishAudiovisualVideoSwap(current, token);
+    };
+    const begin = () => {
+      if (isCurrentSelection()) revealVideoOnFirstFrame(incoming, reveal);
+    };
+    incoming.addEventListener("canplay", begin, { once: true });
+    incoming.load();
     return;
   }
-  revealVideoOnFirstFrame(incoming, token, nextId, () => {
-    slots.forEach((media) => { media.style.zIndex = media === incoming ? "1" : "0"; });
-    activeVideoSlot = incomingIndex;
-    screenRoot.classList.add("has-audiovisual-video");
-    scheduleVideoPlaylistAdvance(incoming);
-    if (current === incoming) return;
-    // Keep the previous picture under the incoming dissolve until it completes.
-    window.setTimeout(() => {
-      if (token !== videoTransitionToken || activeVideoSlot !== incomingIndex) return;
-      current.classList.add("is-hiding");
-      current.classList.remove("is-visible");
-      current.pause();
-    }, 180);
-  });
-  incoming.play().catch(() => {});
+  const freshFxPlayback = isFx && current.dataset.fxPlaybackId !== nextPlaybackId;
+  current.dataset.fxPlaybackId = nextPlaybackId;
+  if (freshFxPlayback) current.currentTime = 0;
+  current.loop = Boolean(state.loop && !resource?.playlist && !isFx);
+  current.volume = volume;
+  const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
+  if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(current.currentTime - Number(state.position)) > 1.2) current.currentTime = Number(state.position);
+  if (state.status === "playing") {
+    const onPlaying = () => {
+      current.classList.add("is-visible");
+      scheduleVideoPlaylistAdvance(current);
+      audiovisualFxMonitors.get(current)?.refresh();
+    };
+    if (current.classList.contains("is-visible")) {
+      current.play().catch(() => {});
+      onPlaying();
+    } else {
+      const token = ++videoTransitionToken;
+      revealVideoOnFirstFrame(current, () => {
+        if (token === videoTransitionToken && audiovisualState.video?.status === "playing") onPlaying();
+      });
+    }
+  } else {
+    clearVideoPlaylistAdvance();
+    current.pause();
+    audiovisualFxMonitors.get(current)?.refresh();
+  }
 }
 function applyAudioState(state) {
   const media = audiovisualMedia.audio;
   const resource = state?.resource;
+  if (state.status === "fading" && state.fadeOut) {
+    audioFadeToken += 1;
+    audiovisualAudioFade?.apply();
+    return;
+  }
+  audiovisualAudioFade?.cancel();
   if (!resource || state.status === "stopped") {
     media.pause(); media.currentTime = 0;
     return;
@@ -414,7 +530,8 @@ function applyAudiovisualState(next = {}) {
   const videoState = audiovisualState.video || emptyAudiovisualChannel();
   const hasVideo = Boolean(videoState.resource && videoState.status !== "stopped");
   audiovisualLayer.classList.toggle("is-video", hasVideo);
-  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.status === "playing" && audiovisualMedia.video[activeVideoSlot].classList.contains("is-visible")));
+  audiovisualLayer.classList.toggle("is-fx", hasVideo && window.ImmersaAudiovisualFx.isFx(videoState.resource));
+  screenRoot.classList.toggle("has-audiovisual-video", Boolean(videoState.resource && ["playing", "fading"].includes(videoState.status)));
 }
 function clearImmersaTimeTick() {
   if (immersaTimeTick) clearTimeout(immersaTimeTick);
@@ -558,6 +675,8 @@ function render(state) {
   const changed = index !== previousIndex;
   currentSlideIndex = index;
   const src = "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(item.src).replace(/^\/+/, "");
+  slide.dataset.presentationSlideIndex = String(index);
+  slide.dataset.presentationSlideSource = src;
   if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex);
   else slide.src = src;
   window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map((slideIndex) => "/decks/" + encodeURIComponent(deckId) + "/" + (operationalLocale === 'en' ? 'locales/en/' : '') + String(manifest.slides[slideIndex].src).replace(/^\/+/, "")));
