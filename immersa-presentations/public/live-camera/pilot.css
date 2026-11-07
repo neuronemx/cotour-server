@@ -240,19 +240,38 @@
 }
 
 .live-camera-program {
+  --live-camera-program-width: 100vw;
+  --live-camera-program-height: 100vh;
   position: absolute;
   inset: 0;
   z-index: 10;
   width: 100%;
   height: 100%;
   opacity: 0;
-  object-fit: contain;
+  overflow: hidden;
   background: #000;
   pointer-events: none;
 }
 
 .live-camera-program.is-live {
   opacity: 1;
+}
+
+.live-camera-program > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.live-camera-sticker {
+  --live-camera-sticker-inset: calc(14 * min(100vw / 1920, 100vh / 1080));
+  position: absolute;
+  /* Offset from the visible video, including any letterboxing. */
+  top: calc(var(--live-camera-sticker-inset) + max(0px, (100% - var(--live-camera-program-width) / var(--live-camera-aspect, 1)) / 2));
+  right: calc(var(--live-camera-sticker-inset) + max(0px, (100% - var(--live-camera-program-height) * var(--live-camera-aspect, 1)) / 2));
+  width: calc(114 * min(100vw / 1920, 100vh / 1080));
+  height: calc(43 * min(100vw / 1920, 100vh / 1080));
 }
 
 @media (orientation: landscape) {
@@ -283,8 +302,10 @@
 
   #screen.live-camera-portrait > .live-camera-program {
     inset: var(--live-camera-screen-gap) var(--live-camera-screen-gap) auto auto;
-    width: var(--live-camera-screen-width);
-    height: var(--live-camera-screen-height);
+    --live-camera-program-width: var(--live-camera-screen-width);
+    --live-camera-program-height: var(--live-camera-screen-height);
+    width: var(--live-camera-program-width);
+    height: var(--live-camera-program-height);
     border-radius: var(--live-camera-corner-radius);
     box-shadow: 0 8px 32px rgba(0, 0, 0, .32);
   }

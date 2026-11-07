@@ -17,9 +17,14 @@ test("Pantalla can go live with decoded video when Chrome does not call the fram
   const video = {
     readyState: 0, videoWidth: 0, paused: true,
     requestVideoFrameCallback: () => 1,
-    classList: { toggle() {} },
     setAttribute() {}, addEventListener() {},
     async play() { this.paused = false; }
+  };
+  const sticker = {};
+  let projecting = false;
+  const program = {
+    append(...children) { assert.deepEqual(children, [video, sticker]); },
+    classList: { toggle: (name, visible) => { if (name === "is-live") projecting = visible; } }
   };
   const host = {
     querySelector: () => null, append() {},
@@ -32,7 +37,7 @@ test("Pantalla can go live with decoded video when Chrome does not call the fram
   };
   runInNewContext(client, {
     window: { IMMERSA_ROLE_OPEN: { role: "screen", access_token: "test" } },
-    document: { querySelector: () => host, createElement: () => video },
+    document: { querySelector: () => host, createElement: tag => ({ div: program, video, img: sticker })[tag] },
     io: () => socket,
     performance: { now: () => now },
     setInterval: callback => { tick = callback; },
@@ -44,6 +49,8 @@ test("Pantalla can go live with decoded video when Chrome does not call the fram
     }
   });
 
+  assert.equal(sticker.src, "/live-camera/live-sticker.png");
+  assert.equal(projecting, false);
   handlers.get("live:prepare")({ id: "attempt", rtc: {}, duration: 3500 });
   peer.connectionState = "connected";
   peer.onconnectionstatechange();
@@ -63,10 +70,13 @@ test("Pantalla can go live with decoded video when Chrome does not call the fram
   tick();
   await flushStats();
   assert.deepEqual(events.at(-1), ["live:ready", "attempt"]);
+  assert.equal(projecting, false);
   handlers.get("live:status")({ id: "attempt", phase: "live" });
+  assert.equal(projecting, true);
 
   now = 2400;
   tick();
   assert.equal(events.at(-1)[0], "live:stop");
   assert.equal(events.at(-1)[1].reason, "signal");
+  assert.equal(projecting, false);
 });

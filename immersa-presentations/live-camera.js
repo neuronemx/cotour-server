@@ -1,7 +1,7 @@
 const { createHmac, randomUUID } = require("node:crypto");
 
 const ROLES = ["speaker", "screen", "stage"];
-const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=4"><script src="/live-camera/pilot.js?v=6" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=5"><script src="/live-camera/pilot.js?v=7" defer></script>';
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;

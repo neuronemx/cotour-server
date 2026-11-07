@@ -41,6 +41,7 @@
   let actions;
   let label;
   let video;
+  let program;
   let setMonitorOpen;
 
   if (role === "speaker") {
@@ -168,14 +169,21 @@
       slide.addEventListener("load", updateSlideAspect);
       updateSlideAspect();
     }
+    program = document.createElement("div");
+    program.className = "live-camera-program";
+    const sticker = document.createElement("img");
+    sticker.className = "live-camera-sticker";
+    sticker.src = "/live-camera/live-sticker.png";
+    sticker.alt = "";
+
     video = document.createElement("video");
-    video.className = "live-camera-program";
     video.muted = true;
     video.autoplay = true;
     video.playsInline = true;
     video.setAttribute("aria-label", "Cámara LIVE");
     video.addEventListener("resize", render);
-    host.append(video);
+    program.append(video, sticker);
+    host.append(program);
   }
 
   function isOnAir() {
@@ -208,10 +216,11 @@
     } else {
       const projecting = Boolean(attempt?.firstFrame && isOnAir());
       const portrait = projecting && video.videoWidth > 0 && video.videoHeight > video.videoWidth;
-      video.classList.toggle("is-live", projecting);
+      program.classList.toggle("is-live", projecting);
       host.classList.toggle("live-camera-portrait", portrait);
-      if (portrait) host.style.setProperty("--live-camera-aspect", video.videoWidth / video.videoHeight);
-      else host.style.removeProperty("--live-camera-aspect");
+      if (projecting && video.videoWidth && video.videoHeight) {
+        host.style.setProperty("--live-camera-aspect", video.videoWidth / video.videoHeight);
+      } else host.style.removeProperty("--live-camera-aspect");
     }
   }
 
