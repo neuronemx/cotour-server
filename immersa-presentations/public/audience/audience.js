@@ -4,7 +4,6 @@ const eventLiveReturnKey = "immersa:event-live-return";
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
-window.ImmersaSelfieAudience?.create({ socket });
 window.ImmersaPresentationCompletion?.create({ socket, role: "audience", context: publicOpenContext });
 let knowledgeActivityAudience = null;
 let manifest = null;
@@ -108,6 +107,18 @@ const raffleViewportRuntime = createRaffleViewportRuntime({ viewer, window, docu
 
 const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
+window.ImmersaSelfieAudience?.create({ socket, viewport, download: document.getElementById("cardDownload") });
+const brandMark = viewer.querySelector(".brand-mark");
+if (brandMark) {
+  const retryBrandMark = () => {
+    brandMark.removeEventListener("error", retryBrandMark);
+    const url = new URL(brandMark.src);
+    url.searchParams.set("retry", "1");
+    brandMark.src = url.href;
+  };
+  if (brandMark.complete && !brandMark.naturalWidth) retryBrandMark();
+  else brandMark.addEventListener("error", retryBrandMark);
+}
 const snapshot = document.getElementById("snapshot");
 const fullscreen = document.getElementById("fullscreen");
 const audienceLocaleToggle = document.getElementById("audienceLocaleToggle");

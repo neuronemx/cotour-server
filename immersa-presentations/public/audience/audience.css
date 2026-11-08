@@ -86,7 +86,10 @@ button { border: 0; border-radius: 999px; cursor: pointer; font-family: inherit;
 .audience-qr-pattern.is-fallback { font-size: 11px; line-height: 1.3; word-break: break-all; }
 .audience-qr-panel strong { font: 700 14px Poppins, Inter, sans-serif; }
 .top-actions > .snapshot[hidden],
-.top-actions > .snapshot[aria-hidden="true"] { display: none !important; }
+.top-actions > .snapshot[aria-hidden="true"],
+.top-actions > .card-download[hidden],
+.audience:has(.selfie-audience:not([hidden])) .snapshot { display: none !important; }
+.card-download svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .qna-open {
   position: fixed; z-index: 6; left: 50%; bottom: max(86px, calc(76px + env(safe-area-inset-bottom))); transform: translateX(-50%);
   min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; padding: 8px 22px 8px 12px;

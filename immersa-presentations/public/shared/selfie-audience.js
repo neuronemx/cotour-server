@@ -1,6 +1,6 @@
 (function (root) {
   root.ImmersaSelfieAudience = {
-    create({ socket }) {
+    create({ socket, viewport, download }) {
       const overlay = document.createElement('section');
       overlay.className = 'selfie-audience';
       overlay.hidden = true;
@@ -13,18 +13,25 @@
       retry.setAttribute('aria-label', 'Volver a cargar imagen');
       retry.hidden = true;
       overlay.append(image, status, retry);
-      document.body.appendChild(overlay);
+      viewport.appendChild(overlay);
       const localize = () => {
         overlay.setAttribute('aria-label', root.ImmersaI18n?.t('shell.selfie') || 'Tarjetas');
         image.alt = root.ImmersaI18n?.t('cards.assigned') || 'Tu tarjeta';
+        download.title = root.ImmersaI18n?.t('cards.download') || 'Descargar tarjeta';
+        download.setAttribute('aria-label', download.title);
       };
       localize();
       root.addEventListener('immersa:locale-change', localize);
       let url = '';
       let roundId = '';
       let loading = false;
+      function clearDownload() {
+        download.hidden = true;
+        download.removeAttribute('href');
+      }
       function load() {
         loading = true;
+        clearDownload();
         image.hidden = true;
         status.hidden = false;
         status.textContent = '…';
@@ -32,23 +39,37 @@
         image.src = url;
       }
       image.addEventListener('load', () => {
+        if (!url) return;
         loading = false;
         image.hidden = false;
         status.hidden = true;
         retry.hidden = true;
+        const extension = new URL(image.src).pathname.match(/\.(png|jpe?g|webp|svg)$/i)?.[0] || '';
+        download.href = image.src;
+        download.download = 'immersa-tarjeta' + extension;
+        download.hidden = false;
       });
       image.addEventListener('error', () => {
+        if (!url) return;
         loading = false;
+        clearDownload();
         image.hidden = true;
         status.hidden = false;
         status.textContent = '↻';
         retry.hidden = false;
       });
+      retry.addEventListener('pointerdown', event => event.stopPropagation());
       retry.addEventListener('click', load);
       socket.on('selfie:state', state => {
         overlay.hidden = !state?.active;
-        document.body.classList.toggle('selfie-active', Boolean(state?.active));
-        if (!state?.active) { url = ''; roundId = ''; image.removeAttribute('src'); return; }
+        if (!state?.active) {
+          url = '';
+          roundId = '';
+          loading = false;
+          clearDownload();
+          image.removeAttribute('src');
+          return;
+        }
         const nextUrl = state.image?.url || '';
         if (url === nextUrl && roundId === state.roundId && (loading || image.naturalWidth > 0)) return;
         url = nextUrl;
