@@ -186,7 +186,7 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   const linkIcon = path.join(__dirname, "..", "public/audience/external-link.png");
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
 
-  assert.match(audienceHtml, /brand-mention\.css\?v=6/);
+  assert.match(audienceHtml, /brand-mention\.css\?v=7/);
   assert.match(audienceHtml, /brand-mention\.js\?v=5/);
   assert.doesNotMatch(screenHtml, /brand-mention/i);
   assert.match(client, /target = "_blank"/);
@@ -207,7 +207,8 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   assert.match(css, /translate3d\(-50%, calc\(-100% - 24px\), 0\)/);
   assert.match(css, /\.brand-mention-host\.is-exiting/);
   assert.match(css, /transition: opacity \.72s ease-in-out/);
-  assert.match(css, /-webkit-line-clamp: 2/);
+  assert.match(css, /\.brand-mention-card-pitch \{[^}]*overflow-wrap: anywhere/);
+  assert.doesNotMatch(css, /\.brand-mention-card-pitch \{[^}]*(line-clamp|overflow:\s*hidden)/);
   assert.match(css, /\.brand-mention-card-logo \{[\s\S]*?align-self: stretch/);
   assert.match(css, /z-index: 50/);
   assert.match(css, /background: var\(--brand-logo-surface, #fff\)/);
