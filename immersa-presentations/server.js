@@ -361,8 +361,10 @@ const brandMentionRuntime = new BrandMentionRuntime({
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
+const deckSpeakersPilotEnvironmentId = process.env.IMMERSA_DECK_SPEAKERS_PILOT_ENVIRONMENT_ID
+  || "9ae7d5ba-2954-4c96-818a-ee918310e20d";
 const deckSpeakersEnabled = () => process.env.IMMERSA_DECK_SPEAKERS_PILOT === "true"
-  && process.env.RAILWAY_ENVIRONMENT_ID === "9ae7d5ba-2954-4c96-818a-ee918310e20d";
+  && process.env.RAILWAY_ENVIRONMENT_ID === deckSpeakersPilotEnvironmentId;
 const deckSpeakersStore = new DeckSpeakersStore({
   root:path.join(DATA_DIR,"deck-speaker-profiles-pilot"),
   assertDeck:async deckId => { try { await findDeckDir(deckId); } catch (_) { throw new DeckSpeakerError("DECK_NOT_FOUND", "Deck no encontrado.", 404); } },
