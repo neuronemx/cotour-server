@@ -51,8 +51,8 @@
   </style>
   <link rel="stylesheet" href="/home/deck-management-shell.css?v=30">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
-  <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=1">
-  <link rel="stylesheet" href="/shared/selfie.css?v=2">
+  <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=2">
+  <link rel="stylesheet" href="/shared/selfie.css?v=4">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -161,7 +161,7 @@
             <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
             <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
             <div class="selfie-editor-grid" data-selfie-images></div>
-            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button></div>
             <p role="status" aria-live="polite"></p>
           </div>
           <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
@@ -173,14 +173,14 @@
               <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
               <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
               <div class="selfie-editor-grid" data-selfie-images></div>
-              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button></div>
               <p role="status" aria-live="polite"></p>
             </div>
           </details>
         </section>
         <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
           <div id="deckSpeakersEditor" class="deck-speakers-editor">
-            <div class="deck-speakers-toolbar"><label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label><button type="button" data-speakers-refresh>Actualizar lista</button></div>
+            <label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label>
             <p data-speakers-summary>Agrega, ordena y enciende los perfiles que quieres mostrar.</p>
             <p data-speakers-status role="status" aria-live="polite"></p>
             <div data-speakers-list></div>
@@ -338,9 +338,9 @@
   <script src="/home/deck-management-shell.js?v=17"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=4"></script>
-  <script src="/home/deck-speakers-editor.js?v=1"></script>
+  <script src="/home/deck-speakers-editor.js?v=2"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
-  <script src="/home/selfie-editor.js?v=3"></script>
+  <script src="/home/selfie-editor.js?v=4"></script>
 </body>
 </html>

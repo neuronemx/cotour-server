@@ -4,8 +4,9 @@
 .selfie-audience img[hidden],.selfie-audience p[hidden],.selfie-audience button[hidden]{display:none}
 .selfie-audience p{color:white;font-size:2rem}
 .selfie-audience button{position:absolute;top:calc(50% + 2rem);font-size:2rem;padding:12px 24px;background:#fff;color:#111;border:0;border-radius:12px}
-.selfie-editor{padding:20px;display:grid;gap:16px}
+.selfie-editor{padding:20px;display:grid;gap:16px;color:var(--ink)}
 .selfie-editor-actions{display:flex;gap:10px;flex-wrap:wrap}
+.selfie-editor button,.selfie-editor input{color:inherit}
 .selfie-editor label{display:grid;gap:6px}
 .selfie-editor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px}
 .selfie-editor-grid figure{margin:0;display:grid;gap:6px}
@@ -13,8 +14,8 @@
 .selfie-editor-grid button{width:100%}
 .selfie-editor [role=status]{min-height:1.4em}
 
-.selfie-ping-admin{margin:0 20px 20px;border:1px solid #c6c1dc;border-radius:12px}
+.selfie-ping-admin{margin:0 20px 20px;border:1px solid #c6c1dc;border-radius:12px;color:var(--ink)}
 .selfie-ping-admin[hidden]{display:none}
 .selfie-ping-admin summary{padding:16px;cursor:pointer;font-weight:600}
 .selfie-upload{padding:16px;border:1px dashed #9386c5;border-radius:12px}
-.selfie-hint{font-size:.85rem;opacity:.75;margin:0}
+.selfie-hint{font-size:.85rem;color:var(--ink-soft);margin:0}
