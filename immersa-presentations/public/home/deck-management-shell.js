@@ -7,6 +7,7 @@
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
   const participationTab = tabs.find((tab) => tab.dataset.deckTab === "participation");
+  const brandsTab = tabs.find((tab) => tab.dataset.deckTab === "brands");
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
   const rail = modal.querySelector('.deck-detail-tabs');
@@ -162,6 +163,11 @@
       launchers.replaceChildren();
       original(deck);
       distributeActions();
+      if (brandsTab) {
+        const available = Boolean(actionSource.querySelector(".role-audience") && launchers.querySelector(moduleDetails.brands.selector));
+        brandsTab.disabled = !available;
+        brandsTab.setAttribute("aria-disabled", String(!available));
+      }
     };
     window.renderDetailActions.__deckManagementShellPatched = true;
   }

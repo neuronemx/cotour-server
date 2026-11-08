@@ -10,14 +10,15 @@ test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
   assert.match(html, /deck-management-shell\.css\?v=30/);
-  assert.match(html, /deck-management-shell\.js\?v=17/);
+  assert.match(html, /deck-management-shell\.js\?v=18/);
   assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
   assert.doesNotMatch(html, /id="detailDelete"/);
   assert.match(html, /data-deck-panel="metrics"[\s\S]+id="qnaHistory"/);
-  assert.doesNotMatch(html, /data-deck-tab="brands"|data-deck-panel="brands"|<span>Marcas<\/span>/);
+  assert.match(html, /aria-controls="deckPanelBrands" data-deck-tab="brands"[^>]*>[\s\S]*?<span>Marcas<\/span>/);
+  assert.match(html, /id="deckPanelBrands"[^>]*aria-labelledby="deckTabBrands" data-deck-panel="brands"[^>]*>[\s\S]*?data-deck-editor-host="brands"/);
   assert.match(html, /data-deck-panel="metrics"[\s\S]*?<h3>Métricas<\/h3>[\s\S]*?Consulta la participación y los resultados de esta presentación\./);
   assert.doesNotMatch(html, /deck-detail-kicker/);
   assert.doesNotMatch(html, /Enlaces de presentación/);

@@ -131,6 +131,7 @@
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
         <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
         <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
+        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Marcas</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
       <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
@@ -153,6 +154,9 @@
         </section>
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
+        </section>
+        <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
+          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
         </section>
         <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
@@ -335,7 +339,7 @@
   <script src="/home/prompter-editor.js?v=5"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=6"></script>
-  <script src="/home/deck-management-shell.js?v=17"></script>
+  <script src="/home/deck-management-shell.js?v=18"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=4"></script>
   <script src="/home/deck-speakers-editor.js?v=2"></script>
