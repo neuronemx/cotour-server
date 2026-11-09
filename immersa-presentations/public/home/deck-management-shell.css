@@ -2,14 +2,14 @@
 
 .deck-detail-modal {
   width: min(1120px, 100%);
-  height: min(600px, calc(100dvh - 108px));
+  height: min(640px, calc(100dvh - 108px));
   max-height: none;
   display: grid;
   grid-template-areas: "preview header" "preview tabs" "preview content";
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   overflow: hidden;
-  border-radius: 26px;
+  border-radius: 0 26px 26px 26px;
 }
 
 .deck-detail-header {
@@ -25,7 +25,6 @@
 .deck-detail-preview {
   grid-area: preview;
   min-width: 0;
-  padding: 28px;
   overflow: auto;
   background: var(--grad-soft);
   border-inline-end: 1px solid var(--line);
@@ -34,9 +33,8 @@
 .deck-preview-toggle { display: none; }
 .deck-detail-preview .deck-detail-hero {
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 0;
   background: #11152d;
-  box-shadow: var(--shadow-sm);
 }
 .deck-detail-preview .deck-detail-thumb { width: 100%; aspect-ratio: 16 / 9; }
 
@@ -44,7 +42,6 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-top: 10px;
 }
 .deck-preview-navigation:has(.deck-detail-slide-strip[hidden]) { display: none; }
 .deck-detail-slide-strip {
@@ -75,10 +72,17 @@
 .deck-detail-slide-arrow:hover:not(:disabled) { background: #fff; }
 .deck-detail-slide-arrow:disabled { opacity: .36; cursor: default; }
 
-.deck-detail-video-action {
-  display: inline-flex;
+.deck-preview-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+.deck-preview-tools:has(#detailVideoAction[hidden]):has(#deckTransitionSettings[hidden]) { display: none; }
+.deck-detail-video-action,
+.deck-detail-preview #deckTransitionOptions {
   min-height: 36px;
-  margin-top: 8px;
   padding: 0 12px;
   align-items: center;
   gap: 7px;
@@ -88,6 +92,7 @@
   background: #fff;
   font: 700 12px var(--font-display);
 }
+.deck-detail-video-action { display: inline-flex; }
 .deck-detail-video-action[hidden] { display: none; }
 .deck-detail-video-action:hover,
 .deck-detail-video-action[aria-expanded="true"] { background: #eeecfb; }
@@ -593,10 +598,9 @@
   .deck-preview-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
   .deck-preview-toggle[aria-expanded="true"] svg { rotate: 180deg; }
   .deck-preview-toggle[aria-expanded="false"] + .deck-preview-content { display: none; }
-  .deck-preview-content { max-height: 43dvh; overflow: auto; padding: 0 14px 14px; }
-  .deck-detail-preview .deck-detail-hero { width: min(100%, calc(47dvh * 16 / 9)); margin-inline: auto; }
+  .deck-preview-content { max-height: 43dvh; overflow: auto; }
   .deck-detail-slide-thumb { flex-basis: 80px; width: 80px; }
-  .deck-detail-video-action { min-height: 44px; }
+  .deck-detail-video-action, .deck-detail-preview #deckTransitionOptions { min-height: 44px; }
   .deck-preview-content:has(.deck-prompter:not([hidden])) { max-height: min(63dvh, calc(100dvh - 210px)); }
   .deck-detail-modal .deck-detail-actions { gap: 9px; grid-auto-rows: 45px; }
   .deck-detail-modal .detail-role-action { height: 45px; min-height: 0; padding-right: 9px; padding-left: 36px; font-size: 11.5px; }
@@ -619,26 +623,14 @@
 
 
 .deck-detail-preview .deck-transition-settings {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 3;
-  margin: 0;
+  display: block;
+  margin: 0 0 0 auto;
   padding: 0;
   background: transparent;
 }
-.deck-transition-settings[hidden] { display: none; }
-.deck-detail-preview #deckTransitionOptions {
-  width: auto;
-  max-width: none;
-  min-height: 34px;
-  padding: 4px 7px;
-  border-radius: 8px;
-  color: #fff;
-  border-color: rgba(255, 255, 255, .48);
-  background: #17172b;
-  color-scheme: dark;
-}
+.deck-detail-preview .deck-transition-settings[hidden] { display: none; }
+.deck-detail-preview #deckTransitionOptions { cursor: pointer; }
+.deck-detail-preview #deckTransitionOptions:hover:not(:disabled) { background: #eeecfb; }
 .deck-detail-preview .deck-transition-status.is-error { margin-top: 4px; }
 .deck-detail-preview .deck-transition-status:not(.is-error) {
   position: absolute;
@@ -650,11 +642,4 @@
   white-space: nowrap;
 }
 
-@media (min-width: 851px) {
-  .deck-detail-preview { container-type: size; }
-  .deck-preview-content:has(.deck-prompter:not([hidden])) .deck-detail-hero {
-    width: min(100%, max(180px, calc((100cqh - 275px) * 16 / 9)));
-    margin-inline: auto;
-  }
-}
 .deck-detail-preview .deck-transition-status:empty { display: none; }

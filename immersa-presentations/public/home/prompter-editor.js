@@ -30,8 +30,19 @@
     updateCount();
   }
 
+  function confirmBrowserExit(event) {
+    event.preventDefault();
+    event.returnValue = true;
+  }
+
+  function syncExitGuard() {
+    if (drafts.size || busy) window.addEventListener("beforeunload", confirmBrowserExit);
+    else window.removeEventListener("beforeunload", confirmBrowserExit);
+  }
+
   function syncControls() {
     esField.disabled = enField.disabled = save.disabled = clear.disabled = busy || !notes;
+    syncExitGuard();
   }
 
   function renderSlide() {
@@ -53,9 +64,11 @@
     openVersion++;
     deckVersion++;
     notes = null;
+    deck = null;
     slide = null;
     busy = false;
     drafts.clear();
+    syncExitGuard();
     setOpen(false);
   }
 
@@ -127,16 +140,35 @@
   }
 
   function rememberDraft() {
-    drafts.set(slide.slideId, { es: esField.value, en: enField.value });
-    status.textContent = "Cambios sin guardar.";
+    const saved = notes?.[slide.slideId];
+    const originalEs = typeof saved === "object" && saved ? saved.es || "" : saved || "";
+    const originalEn = saved?.en || "";
+    const es = esField.value;
+    const en = enField.value;
+    const changed = es.trim() !== originalEs.trim() || en.trim() !== originalEn.trim();
+    if (changed) drafts.set(slide.slideId, { es, en });
+    else drafts.delete(slide.slideId);
+    status.textContent = changed ? "Cambios sin guardar." : "";
+    syncExitGuard();
     updateCount();
   }
 
   document.addEventListener("immersa:deck-detail-open", event => {
-    reset();
-    deck = event.detail?.deck || null;
+    const nextDeck = event.detail?.deck || null;
+    if (!deck || deck.deckId !== nextDeck?.deckId) reset();
+    deck = nextDeck;
     canManageEnglish = event.detail?.capabilities?.["multilanguage.manage"] === true;
     syncEnglish();
+  });
+  document.addEventListener("immersa:deck-detail-before-close", event => {
+    if (busy) {
+      event.preventDefault();
+      window.alert("El Apuntador se está guardando. Espera a que termine antes de salir.");
+    } else if (drafts.size && !window.confirm(
+      "Tienes cambios de Apuntador sin guardar. ¿Quieres salir del Deck y descartarlos?"
+    )) {
+      event.preventDefault();
+    }
   });
   document.addEventListener("immersa:deck-detail-close", reset);
   document.addEventListener("immersa:deck-locale-updated", event => {

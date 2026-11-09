@@ -609,7 +609,7 @@ async function copyRoleLink(role, deck, button, locale = "es") {
 async function deleteDeck(deck) {
   const title = niceTitle(deck.title || deck.deckId || "esta presentación");
   const confirmed = window.confirm('¿Eliminar "' + title + '"?\n\nEsta acción no se puede deshacer.');
-  if (!confirmed) return;
+  if (!confirmed || (detailDeck?.deckId === deck.deckId && !canLeaveDeck())) return;
 
   try {
     const res = await fetch("/api/decks/" + encodeURIComponent(deck.deckId), { method: "DELETE" });
@@ -623,7 +623,7 @@ async function deleteDeck(deck) {
     }
 
     decks = decks.filter((item) => item.deckId !== deck.deckId);
-    if (detailDeck?.deckId === deck.deckId) closeDeckModal();
+    if (detailDeck?.deckId === deck.deckId) closeDeckModal({ discardDrafts: true });
     activeDeck = decks[0]?.deckId || null;
     renderAll();
     await loadPlanUsage();
@@ -1159,6 +1159,7 @@ async function saveDeckTransition(transition) {
 
 function openDeckModal(deck) {
   if (!deckDetailModal || !deck) return;
+  if (detailDeck && detailDeck.deckId !== deck.deckId && !canLeaveDeck()) return;
   detailDeck = deck;
   if (replacementReview) replacementReview.hidden = !deck.associationsReviewRequired;
   activeDeck = deck.deckId;
@@ -1203,8 +1204,13 @@ function openDeckModal(deck) {
   window.setTimeout(() => closeDeckDetail?.focus(), 20);
 }
 
-function closeDeckModal() {
-  if (!deckDetailModal) return;
+function canLeaveDeck() {
+  return document.dispatchEvent(new CustomEvent("immersa:deck-detail-before-close", { cancelable: true }));
+}
+
+function closeDeckModal({ discardDrafts = false } = {}) {
+  if (!deckDetailModal || deckDetailModal.hidden) return true;
+  if (!discardDrafts && !canLeaveDeck()) return false;
   detailSlidesRequestId += 1;
   if (detailSlideStrip) {
     detailSlideStrip.hidden = true;
@@ -1219,6 +1225,7 @@ function closeDeckModal() {
   document.dispatchEvent(new CustomEvent("immersa:deck-detail-close"));
   detailDeck = null;
   if (!nameModal || nameModal.hidden) document.body.classList.remove("modal-open");
+  return true;
 }
 
 async function replaceDeckFile(file) {
@@ -1235,14 +1242,13 @@ async function replaceDeckFile(file) {
     : "Sustituiremos las slides de “" + (deck.title || "esta presentación") + "”.\n\n" +
       "Se conservarán Interacciones, Videos, enlaces y configuración. Las etiquetas de nivel deberán revisarse antes de volver a publicar."
   );
-  if (!accepted) {
+  if (!accepted || !closeDeckModal()) {
     replacementFile.value = "";
     return;
   }
 
   const formData = new FormData();
   formData.append("pptx", file);
-  closeDeckModal();
   startConversionProgress();
   setConversionOverlay(true, {
     state: "loading",
