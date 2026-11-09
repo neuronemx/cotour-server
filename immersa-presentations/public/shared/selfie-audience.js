@@ -47,6 +47,7 @@
       image.addEventListener('load', () => {
         if (!url) return;
         loading = false;
+        image.style.setProperty('--card-aspect', (image.naturalWidth / image.naturalHeight) || 1);
         image.hidden = false;
         status.hidden = true;
         retry.hidden = true;
