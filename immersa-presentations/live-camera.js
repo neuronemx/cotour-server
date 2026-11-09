@@ -1,45 +1,65 @@
 const { createHmac, randomUUID } = require("node:crypto");
 
 const ROLES = ["speaker", "screen", "stage"];
-const ASSETS = '<link rel="stylesheet" href="/live-camera/pilot.css?v=5"><script src="/live-camera/pilot.js?v=7" defer></script>';
+const DEMO_ROLES = ["speaker", "screen"];
+const DEMO_NAMESPACE = "/live-camera-demo";
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;
 
-function readLiveCameraPilot(env = process.env) {
-  if (!env.IMMERSA_LIVE_CAMERA_PILOT) return null;
+function readLiveCameraConfig(json, turnSecret, demo) {
+  if (!json) return null;
   try {
-    const pilot = JSON.parse(env.IMMERSA_LIVE_CAMERA_PILOT);
+    const pilot = JSON.parse(json);
     const origin = new URL(pilot.origin);
     const local = origin.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname);
     const stunUrls = pilot.stunUrls ?? [];
     const turnUrls = pilot.turnUrls ?? [];
-    const turnSecret = env.IMMERSA_LIVE_CAMERA_TURN_SECRET;
+    const hasDeckId = typeof pilot.deckId === "string" && Boolean(pilot.deckId.trim());
+    const hasDeckTitle = typeof pilot.deckTitle === "string" && Boolean(pilot.deckTitle.trim());
     if ((!local && origin.protocol !== "https:") || origin.origin !== pilot.origin
-      || ![pilot.eventWorkspaceId, pilot.activityId, pilot.deckId, pilot.sessionId].every(value => typeof value === "string" && value.trim())
-      || !ROLES.every(role => ACCESS_TOKEN.test(pilot.links?.[role] || ""))
-      || new Set(ROLES.map(role => pilot.links[role])).size !== ROLES.length
+      || (demo ? hasDeckId === hasDeckTitle : !hasDeckId)
       || !Array.isArray(stunUrls) || !stunUrls.every(url => typeof url === "string" && /^stuns?:\S+$/.test(url))
       || !Array.isArray(turnUrls) || !turnUrls.every(url => typeof url === "string" && /^turns?:\S+$/.test(url))
       || ((turnUrls.length || pilot.forceRelay) && (!turnUrls.length || !turnSecret))) return null;
-    return { ...pilot, stunUrls, turnUrls, turnSecret };
+    if (!demo && (
+      ![pilot.eventWorkspaceId, pilot.activityId, pilot.sessionId].every(value => typeof value === "string" && value.trim())
+      || !ROLES.every(role => ACCESS_TOKEN.test(pilot.links?.[role] || ""))
+      || new Set(ROLES.map(role => pilot.links[role])).size !== ROLES.length
+    )) return null;
+    return { ...pilot, stunUrls, turnUrls, turnSecret, demo };
   } catch {
     return null;
   }
 }
 
-function matchesPilotLink(pilot, accessLink, deck) {
-  return Boolean(pilot && accessLink && ROLES.includes(accessLink.role)
-    && accessLink.access_token === pilot.links[accessLink.role]
-    && accessLink.session_id === pilot.sessionId && deck?.deckId === pilot.deckId);
+function readLiveCameraPilot(env = process.env) {
+  return readLiveCameraConfig(env.IMMERSA_LIVE_CAMERA_PILOT, env.IMMERSA_LIVE_CAMERA_TURN_SECRET, false);
 }
 
-function liveCameraPageAssets(pilot, { req, accessLink, deck }) {
-  if (!matchesPilotLink(pilot, accessLink, deck)) return null;
-  if (req.query.session && req.query.session !== pilot.sessionId) return null;
+function readLiveCameraDemo(env = process.env) {
+  return readLiveCameraConfig(env.IMMERSA_LIVE_CAMERA_DEMO, env.IMMERSA_LIVE_CAMERA_TURN_SECRET, true);
+}
+
+function matchesLiveCameraLink(pilot, accessLink, deck, isEventLink) {
+  if (!pilot || !accessLink || deck?.deckId !== pilot.deckId) return false;
+  if (pilot.demo) {
+    return DEMO_ROLES.includes(accessLink.role)
+      && Boolean(accessLink.session_id) && accessLink.session_id === deck.session_id
+      && !isEventLink(accessLink.access_token);
+  }
+  return ROLES.includes(accessLink.role)
+    && accessLink.access_token === pilot.links[accessLink.role]
+    && accessLink.session_id === pilot.sessionId;
+}
+
+function liveCameraPageAssets(pilot, { req, accessLink, deck }, isEventLink = () => false) {
+  if (!matchesLiveCameraLink(pilot, accessLink, deck, isEventLink)) return null;
+  if (req.query.session && req.query.session !== accessLink.session_id) return null;
   if (req.query.deck && req.query.deck !== pilot.deckId) return null;
-  if (req.query.eventActivityId && req.query.eventActivityId !== pilot.activityId) return null;
-  return ASSETS;
+  if (req.query.eventActivityId && (pilot.demo || req.query.eventActivityId !== pilot.activityId)) return null;
+  const namespace = pilot.demo ? ` data-live-camera-namespace="${DEMO_NAMESPACE}"` : "";
+  return `<link rel="stylesheet" href="/live-camera/pilot.css?v=5"><script src="/live-camera/pilot.js?v=8"${namespace} defer></script>`;
 }
 
 function rtcConfiguration(pilot) {
@@ -70,9 +90,10 @@ function signalBody(role, message) {
   return null;
 }
 
-function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () => true }) {
-  if (!pilot || !eventHub) return;
-  const channel = io.of("/live-camera");
+function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () => true, isEventLink = () => false }) {
+  if (!pilot || (!pilot.demo && !eventHub)) return;
+  const roles = pilot.demo ? DEMO_ROLES : ROLES;
+  const channel = io.of(pilot.demo ? DEMO_NAMESPACE : "/live-camera");
   let screen = null;
   let active = null;
   let pending = null;
@@ -94,6 +115,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   }
 
   async function currentEvent() {
+    if (pilot.demo) return null;
     const control = await eventHub.getStageControlForDeck(pilot.deckId, pilot.activityId);
     if (!control?.liveSessionId || control.eventWorkspaceId !== pilot.eventWorkspaceId || control.activityId !== pilot.activityId) return null;
     const live = await eventHub.getLiveSession(control.liveSessionId);
@@ -104,9 +126,10 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
 
   async function authorizedLink(socket, role) {
     const token = socket.handshake.auth?.accessToken;
-    if (token !== pilot.links[role]) return false;
+    if (pilot.demo ? !ACCESS_TOKEN.test(token || "") : token !== pilot.links[role]) return null;
     const resolved = await accessLinks.resolveRoleLink(token, role);
-    return matchesPilotLink(pilot, resolved?.accessLink, resolved?.deck);
+    return matchesLiveCameraLink(pilot, resolved?.accessLink, resolved?.deck, isEventLink)
+      ? resolved.accessLink : null;
   }
 
   async function renew(attempt) {
@@ -115,14 +138,14 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     if (attempt.checking) return;
     attempt.checking = true;
     try {
-      const [live, speakerAllowed, screenAllowed] = await Promise.all([
+      const [live, speakerLink, screenLink] = await Promise.all([
         currentEvent(), authorizedLink(attempt.speaker, "speaker"), authorizedLink(attempt.screen, "screen")
       ]);
       if (active !== attempt) return;
-      if (!speakerAllowed) return stop(attempt, "speaker-access");
-      if (!screenAllowed) return stop(attempt, "screen-access");
-      if (live?.id !== attempt.eventLiveSessionId) return stop(attempt, "event");
-      if (!canProject()) return stop(attempt, "production");
+      if (speakerLink?.session_id !== attempt.sessionId) return stop(attempt, "speaker-access");
+      if (screenLink?.session_id !== attempt.sessionId) return stop(attempt, "screen-access");
+      if (!pilot.demo && live?.id !== attempt.eventLiveSessionId) return stop(attempt, "event");
+      if (!canProject(attempt.sessionId)) return stop(attempt, "production");
       attempt.expiresAt = Date.now() + LEASE_MS;
       for (const peer of [attempt.speaker, attempt.screen]) peer.emit("live:lease", { id: attempt.id, duration: LEASE_MS });
     } catch {
@@ -136,7 +159,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     const role = socket.handshake.auth?.role;
     const denied = new Error("LIVE no disponible");
     try {
-      if (!ROLES.includes(role) || socket.handshake.headers.origin !== pilot.origin || !await authorizedLink(socket, role)) return next(denied);
+      if (!roles.includes(role) || socket.handshake.headers.origin !== pilot.origin || !await authorizedLink(socket, role)) return next(denied);
       if (role === "stage") {
         const control = await eventHub.getStageControlForDeck(pilot.deckId, pilot.activityId);
         if (control?.eventWorkspaceId !== pilot.eventWorkspaceId) return next(denied);
@@ -169,17 +192,18 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
       }, 5000);
       const receiver = screen;
       try {
-        const [live, speakerAllowed, screenAllowed] = await Promise.all([
+        const [live, speakerLink, screenLink] = await Promise.all([
           currentEvent(), authorizedLink(socket, role), authorizedLink(receiver, "screen")
         ]);
         if (pending !== reservation) return;
-        if (!speakerAllowed) return ack({ ok: false, reason: "speaker-access" });
-        if (!screenAllowed) return ack({ ok: false, reason: "screen-access" });
-        if (!live) return ack({ ok: false, reason: "event" });
+        if (!speakerLink) return ack({ ok: false, reason: "speaker-access" });
+        if (!screenLink || speakerLink.session_id !== screenLink.session_id) return ack({ ok: false, reason: "screen-access" });
+        if (!pilot.demo && !live) return ack({ ok: false, reason: "event" });
         if (!socket.connected || receiver !== screen || !receiver.connected) return ack({ ok: false, reason: "busy" });
-        if (!canProject()) return ack({ ok: false, reason: "production" });
+        if (!canProject(speakerLink.session_id)) return ack({ ok: false, reason: "production" });
         const attempt = {
-          id: randomUUID(), eventLiveSessionId: live.id, phase: "starting", expiresAt: Date.now() + LEASE_MS,
+          id: randomUUID(), eventLiveSessionId: live?.id, sessionId: speakerLink.session_id,
+          phase: "starting", expiresAt: Date.now() + LEASE_MS,
           speaker: socket, screen: receiver, signalCounts: { speaker: 0, screen: 0 }
         };
         active = attempt;
@@ -215,7 +239,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     socket.on("live:ready", id => {
       const attempt = active;
       if (!attempt || attempt.id !== id || attempt.screen !== socket || attempt.phase !== "starting") return;
-      if (!canProject()) return stop(attempt, "production");
+      if (!canProject(attempt.sessionId)) return stop(attempt, "production");
       attempt.phase = "live";
       clearTimeout(attempt.startTimeout);
       publishStatus();
@@ -258,4 +282,4 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   });
 }
 
-module.exports = { readLiveCameraPilot, liveCameraPageAssets, attachLiveCamera };
+module.exports = { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera };

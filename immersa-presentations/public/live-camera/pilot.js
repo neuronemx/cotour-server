@@ -3,14 +3,15 @@
   const host = document.querySelector({ speaker: ".top-actions", stage: ".stage-toolbar", screen: "#screen" }[role]);
   if (!host || !accessToken || !["speaker", "stage", "screen"].includes(role)) return;
 
-  const socket = io("/live-camera", { auth: { role, accessToken }, transports: ["websocket"], forceNew: true });
+  const demo = document.currentScript?.dataset?.liveCameraNamespace === "/live-camera-demo";
+  const socket = io(demo ? "/live-camera-demo" : "/live-camera", { auth: { role, accessToken }, transports: ["websocket"], forceNew: true });
   const copy = {
     busy: "Pantalla ocupada o sin conexión",
     camera: "Cámara no disponible",
     "camera-switch": "No se pudo cambiar de cámara. Seguimos al aire con la anterior.",
     event: "Stage debe iniciar la conferencia",
-    "speaker-access": "El enlace de Speaker LIVE ya no es válido. Abre el enlace desde Event Hub.",
-    "screen-access": "El enlace de Pantalla LIVE ya no es válido. Abre el enlace desde Event Hub.",
+    "speaker-access": "El enlace de Speaker LIVE ya no es válido. " + (demo ? "Abre Speaker desde el Deck." : "Abre el enlace desde Event Hub."),
+    "screen-access": "El enlace de Pantalla LIVE ya no es válido. " + (demo ? "Abre Pantalla desde el Deck." : "Abre el enlace desde Event Hub."),
     service: "No se pudo comprobar el estado de LIVE. Intenta de nuevo.",
     production: "Pantalla está reproduciendo otro video",
     signal: "Se perdió la señal",

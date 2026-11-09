@@ -10,7 +10,7 @@ const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
-const { readLiveCameraPilot, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -305,7 +305,9 @@ const liveCameraEnabled = process.env.IMMERSA_LIVE_CAMERA_ENABLED !== "false";
 const manualLiveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
 const liveCameraSetup = manualLiveCameraPilot ? null : createLiveCameraSetup({ env: process.env, dataDir: DATA_DIR, eventHub: eventHubRepository });
 let liveCameraPilot = null;
+let liveCameraDemo = null;
 const privateLiveCameraTokens = new Set();
+const isEventLiveCameraLink = token => Object.values(liveCameraPilot?.links || {}).includes(token);
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
@@ -313,27 +315,52 @@ const accessLinkHandlers = createAccessLinkHandlers({
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
   resolveDeckFeatureAccess: getStageFeatureAccess,
-  rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context),
+  rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context)
+    || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
   privateRoleTokens: privateLiveCameraTokens
 });
+function attachDeckLiveCamera(pilot) {
+  if (!pilot) return;
+  attachLiveCamera(io, {
+    pilot,
+    accessLinks: accessLinkHandlers,
+    eventHub: eventHubRepository,
+    isEventLink: isEventLiveCameraLink,
+    canProject: sessionId => {
+      const room = getRoomKey(sessionId, pilot.deckId);
+      const video = getSessionByRoomKey(room)?.audiovisual?.video;
+      return !video?.resource || video.status === "stopped";
+    }
+  });
+}
 function enableLiveCamera(pilot) {
   if (!pilot || liveCameraPilot) return;
   privateLiveCameraTokens.add(pilot.links.screen);
   privateLiveCameraTokens.add(pilot.links.stage);
   if (!liveCameraEnabled) return;
   liveCameraPilot = pilot;
-  attachLiveCamera(io, {
-    pilot,
-    accessLinks: accessLinkHandlers,
-    eventHub: eventHubRepository,
-    canProject: () => {
-      const room = getRoomKey(pilot.sessionId, pilot.deckId);
-      const video = getSessionByRoomKey(room)?.audiovisual?.video;
-      return !video?.resource || video.status === "stopped";
-    }
-  });
+  attachDeckLiveCamera(pilot);
 }
 enableLiveCamera(manualLiveCameraPilot || liveCameraSetup?.getPilot());
+async function enableLiveCameraDemo(config) {
+  if (!config) return;
+  let { deckId } = config;
+  if (!deckId) {
+    const decks = await readDecksFrom(DATA_DECKS_DIR, new Set(), new Set());
+    const matches = decks.filter(deck => deck.title === config.deckTitle);
+    if (matches.length !== 1) {
+      console.warn("[live-camera] Demo inactive. Expected one Deck with the configured title, found", matches.length);
+      return;
+    }
+    deckId = matches[0].deckId;
+  }
+  liveCameraDemo = { ...config, deckId };
+  attachDeckLiveCamera(liveCameraDemo);
+  console.log("[live-camera] Demo enabled for Deck", deckId);
+}
+if (liveCameraEnabled) {
+  enableLiveCameraDemo(readLiveCameraDemo()).catch(error => console.error("[live-camera] Unable to enable demo", error.code || error.name));
+}
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
   runtime: knowledgeActivityRuntime
