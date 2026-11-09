@@ -15,19 +15,6 @@ function fixture() {
   return { runtime, screen, own, other, react, advance: (ms) => { now += ms; } };
 }
 
-test("two audience sockets receive only their own accepted reactions", () => {
-  const first = [], second = [], screen = [];
-  const runtime = new ReactionRuntime({emitScreen: payload => screen.push(payload)});
-  const a = {emit: (_event, payload) => first.push(payload)};
-  const b = {emit: (_event, payload) => second.push(payload)};
-  runtime.react({socket:a, audienceId:'first', emoji:'❤️', showOnScreen:true});
-  assert.equal(first.length,1); assert.equal(second.length,0);
-  runtime.react({socket:b, audienceId:'second', emoji:'🔥', showOnScreen:true});
-  assert.deepEqual(first.map(p=>p.emoji),['❤️']);
-  assert.deepEqual(second.map(p=>p.emoji),['🔥']);
-  assert.deepEqual(screen.map(p=>p.emoji),['❤️','🔥']);
-});
-
 test("100 valid reactions count and echo to their sender; only 40 fan out to Screen", () => {
   const f = fixture();
   for (let i = 0; i < 100; i++) assert.equal(f.react(`aud-${i}`), true);

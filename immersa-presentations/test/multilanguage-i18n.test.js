@@ -21,7 +21,7 @@ test('operational roles load translations and apply locale changes to live label
   for (const role of ['presenter', 'screen', 'stage']) {
     const html = read(`${role}/index.html`);
     const runtime = read(`${role}/${role}.js`);
-    assert.match(html, /shared\/i18n\.js\?v=2/);
+    assert.match(html, /shared\/i18n\.js\?v=(?:2|2026110701)"/);
     assert.match(runtime, /ImmersaI18n\?\.setLocale\(operationalLocale\)/);
   }
   const label = { dataset: { i18n: 'live.actions' }, textContent: '' };

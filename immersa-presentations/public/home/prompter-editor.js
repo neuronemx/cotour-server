@@ -1,4 +1,34 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    let endedOnBackdrop = false;
+    let pointerId = null;
+    function reset() {
+      startedOnBackdrop = false;
+      endedOnBackdrop = false;
+      pointerId = null;
+    }
+    // Capture the full gesture, including fields moved into Deck Home panels.
+    document.addEventListener("pointerdown", (event) => {
+      reset();
+      if (event.button !== 0 || event.isPrimary === false) return;
+      startedOnBackdrop = event.target === backdrop;
+      pointerId = event.pointerId;
+    }, true);
+    document.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointerId) return;
+      endedOnBackdrop = event.target === backdrop;
+    }, true);
+    document.addEventListener("pointercancel", reset, true);
+    window.addEventListener("blur", reset);
+    backdrop.addEventListener("click", (event) => {
+      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+      reset();
+      if (dismiss) onDismiss();
+    });
+  }
+
   const modal = document.getElementById('prompterModal');
   const esField = document.getElementById('prompterModalText');
   const enField = document.getElementById('prompterModalEnglish');
@@ -73,5 +103,5 @@
   document.getElementById('prompterModalSave')?.addEventListener('click', () => persist(false));
   document.getElementById('prompterModalDelete')?.addEventListener('click', () => persist(true));
   document.getElementById('prompterModalClose')?.addEventListener('click', close);
-  modal?.addEventListener('click', (event) => { if (event.target === modal) close(); });
+  bindBackdropDismissal(modal, close);
 })();

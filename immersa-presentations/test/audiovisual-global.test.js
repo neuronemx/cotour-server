@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { createAudiovisualGlobalRuntime, AUDIO_REACT_ENABLED } = require("../audiovisual-global-runtime");
+const { createAudiovisualGlobalRuntime } = require("../audiovisual-global-runtime");
 const { createAudiovisualFxRuntime } = require("../audiovisual-fx-runtime");
 const { create } = require("../public/shared/audiovisual-fade");
 const read = (p) => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
@@ -75,10 +75,9 @@ test("Frame fade respects mute and volume changes, fades visible pictures and ne
   fade.cancel(); assert.equal(visible.style.opacity, "");
 });
 test("React stays disabled in the server even if an older controller asks to enable it", () => {
-  assert.equal(AUDIO_REACT_ENABLED, false);
   const source = read("server.js"), start = source.indexOf('socket.on("audio-react:control"'), end = source.indexOf('socket.on("audiovisual:metadata"', start);
-  let handler; const session = { audioReact: { enabled: true, reaction: 2 } };
-  const ctx = { AUDIO_REACT_ENABLED, currentRoomKey: "own", currentRole: "presenter", canControlPresentation: () => true, getSessionByRoomKey: () => session, createAudioReactState: () => ({}), socket: { on: (_event, fn) => { handler = fn; } }, io: { to: () => ({ emit() {} }) }, emitState() {} };
+  let handler; const session = { audioReact: { available: false, enabled: false, reaction: 2 } };
+  const ctx = { AUDIO_REACT_AVAILABLE: false, currentRoomKey: "own", currentRole: "presenter", canControlPresentation: () => true, getSessionByRoomKey: () => session, createAudioReactState: () => ({}), socket: { on: (_event, fn) => { handler = fn; } }, io: { to: () => ({ emit() {} }) }, emitState() {} };
   vm.runInNewContext(source.slice(start, end), ctx); handler({ enabled: true, reaction: 4 }); assert.equal(session.audioReact.enabled, false);
 });
 

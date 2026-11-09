@@ -7,7 +7,29 @@
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
   const participationTab = tabs.find((tab) => tab.dataset.deckTab === "participation");
+  const brandsTab = tabs.find((tab) => tab.dataset.deckTab === "brands");
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
+
+  const rail = modal.querySelector('.deck-detail-tabs');
+  const more = document.getElementById('deckTabsMore');
+  function syncMore() {
+    if (!rail || !more) return;
+    const mobile = window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
+    more.hidden = !mobile || rail.scrollWidth <= rail.clientWidth + 1;
+    more.style.top = (Math.max(rail.offsetTop, shell.scrollTop) + (rail.offsetHeight - 34) / 2) + 'px';
+    const returning = rail.scrollLeft > 2;
+    more.classList.toggle('is-returning', returning);
+    more.setAttribute('aria-label', returning ? 'Volver a las primeras secciones' : 'Más secciones del deck');
+    more.title = returning ? 'Regresar' : 'Más secciones';
+  }
+  more?.addEventListener('click', () => {
+    rail.scrollTo({ left: rail.scrollLeft > 2 ? 0 : rail.scrollWidth, behavior: 'smooth' });
+  });
+  rail?.addEventListener('scroll', syncMore, { passive: true });
+  shell.addEventListener('scroll', syncMore, { passive: true });
+  window.addEventListener('resize', syncMore);
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMore).observe(rail);
+  document.addEventListener('immersa:deck-detail-open', () => requestAnimationFrame(syncMore));
 
   const moduleDetails = {
     participation: {
@@ -71,6 +93,7 @@
       });
     }
     if (moduleDetails[name]) mountEditor(name);
+    requestAnimationFrame(syncMore);
   }
 
   function syncDemoMasterTabs(deck) {
@@ -140,6 +163,11 @@
       launchers.replaceChildren();
       original(deck);
       distributeActions();
+      if (brandsTab) {
+        const available = Boolean(actionSource.querySelector(".role-audience") && launchers.querySelector(moduleDetails.brands.selector));
+        brandsTab.disabled = !available;
+        brandsTab.setAttribute("aria-disabled", String(!available));
+      }
     };
     window.renderDetailActions.__deckManagementShellPatched = true;
   }

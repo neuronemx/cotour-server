@@ -1,4 +1,34 @@
 (function initializeProfileEditor() {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    let endedOnBackdrop = false;
+    let pointerId = null;
+    function reset() {
+      startedOnBackdrop = false;
+      endedOnBackdrop = false;
+      pointerId = null;
+    }
+    // Capture the full gesture, including fields moved into Deck Home panels.
+    document.addEventListener("pointerdown", (event) => {
+      reset();
+      if (event.button !== 0 || event.isPrimary === false) return;
+      startedOnBackdrop = event.target === backdrop;
+      pointerId = event.pointerId;
+    }, true);
+    document.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointerId) return;
+      endedOnBackdrop = event.target === backdrop;
+    }, true);
+    document.addEventListener("pointercancel", reset, true);
+    window.addEventListener("blur", reset);
+    backdrop.addEventListener("click", (event) => {
+      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+      reset();
+      if (dismiss) onDismiss();
+    });
+  }
+
   const modal = document.getElementById("profileModal");
   const openButton = document.getElementById("profileButton");
   const closeButton = document.getElementById("profileClose");
@@ -203,7 +233,7 @@
   photoSelect.addEventListener("click", selectPhoto);
   avatarButton.addEventListener("click", selectPhoto);
   photoInput.addEventListener("change", previewPhoto);
-  modal.addEventListener("click", (event) => { if (event.target === modal) closeProfile(); });
+  bindBackdropDismissal(modal, closeProfile);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) closeProfile(); });
   avatarImage.addEventListener("error", () => showPhoto(""));
   loadProfile({ silent: true }).catch(() => {});

@@ -1,4 +1,34 @@
 (() => {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    let endedOnBackdrop = false;
+    let pointerId = null;
+    function reset() {
+      startedOnBackdrop = false;
+      endedOnBackdrop = false;
+      pointerId = null;
+    }
+    // Capture the full gesture, including fields moved into Deck Home panels.
+    document.addEventListener("pointerdown", (event) => {
+      reset();
+      if (event.button !== 0 || event.isPrimary === false) return;
+      startedOnBackdrop = event.target === backdrop;
+      pointerId = event.pointerId;
+    }, true);
+    document.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointerId) return;
+      endedOnBackdrop = event.target === backdrop;
+    }, true);
+    document.addEventListener("pointercancel", reset, true);
+    window.addEventListener("blur", reset);
+    backdrop.addEventListener("click", (event) => {
+      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+      reset();
+      if (dismiss) onDismiss();
+    });
+  }
+
   const openButton = document.getElementById("billingOpen");
   const modal = document.getElementById("billingModal");
   const closeButton = document.getElementById("billingClose");
@@ -35,6 +65,12 @@
   let invoices = [];
   let pendingPlanChange = null;
   let paymentMethodUpdated = false;
+
+  function syncBillingViewport() {
+    if (!modal) return;
+    const headerBottom = document.querySelector(".stage-header")?.getBoundingClientRect().bottom || 0;
+    modal.style.setProperty("--billing-header-offset", Math.max(0, Math.ceil(headerBottom)) + "px");
+  }
 
   const money = (centavos) => new Intl.NumberFormat(currency === "usd" ? "en-US" : "es-MX", {
     style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0
@@ -518,6 +554,7 @@
 
   async function open() {
     closePlanChangeConfirmation();
+    syncBillingViewport();
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
@@ -543,10 +580,11 @@
   }
 
   window.setInterval(updatePassCountdown, 60 * 1000);
+  window.addEventListener("resize", () => { if (!modal?.hidden) syncBillingViewport(); });
 
   openButton?.addEventListener("click", open);
   closeButton?.addEventListener("click", close);
-  modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
+  bindBackdropDismissal(modal, close);
   intervalButtons.forEach((button) => button.addEventListener("click", () => {
     closePlanChangeConfirmation();
     interval = button.dataset.billingInterval;

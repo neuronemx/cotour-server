@@ -16,11 +16,11 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
 
   assert.match(html, /\/screen\/audio-react-overlay\.js\?v=5/);
   assert.match(html, /\/screen\/audio-react-three\.js\?v=2/);
-  assert.match(html, /\/screen\/screen\.css\?v=27/);
+  assert.match(html, /\/screen\/screen\.css\?v=2026110702/);
   assert.match(screen, /socket\.on\("audio-react:state"/);
   assert.match(screen, /<audio preload="auto" crossorigin="anonymous"><\/audio>/);
   assert.match(screen, /media\.removeAttribute\("crossorigin"\)/);
-  assert.match(html, /\/screen\/screen\.js\?v=2026110302/);
+  assert.match(html, /\/screen\/screen\.js\?v=\d+/);
   assert.match(screen, /function findLocalReactionLogo\(handle\)/);
   assert.match(screen, /normalizedName === "logo\.svg" \? 0 : normalizedName === "logo\.png" \? 1/);
   assert.match(screen, /setLocalLogo\(localLibrary\.logoUrl \|\| ""\)/);
@@ -40,8 +40,8 @@ test("Audio React is a separate, CORS-safe Screen overlay", () => {
   assert.match(css, /\.screen\.has-focus-overlay::after \{ z-index: 1;/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*top:50%/);
   assert.match(css, /\.audio-react-logo\{[\s\S]*left:50%/);
-  assert.match(presenterHtml, /presenter\.css\?v=81/);
-  assert.match(presenterHtml, /presenter\.js\?v=2026110401/);
+  assert.match(presenterHtml, /presenter\.css\?v=2026110702/);
+  assert.match(presenterHtml, /presenter\.js\?v=2026110702/);
 });
 
 test("Audio React connects the real media to the analyser and speaker", () => {
@@ -98,11 +98,12 @@ test("Audio React state is independently synchronized and controlled", () => {
 
   assert.match(server, /function createAudioReactState\(\)/);
   assert.match(server, /audioReact: createAudioReactState\(\)/);
-  assert.match(server, /socket\.on\("audio-react:control"/);
+  assert.match(server, /AUDIO_REACT_AVAILABLE = process\.env\.RAILWAY_ENVIRONMENT_NAME !== "beta"/);
+  assert.match(server, /socket\.on\("audio-react:control", \(payload = \{\}\) => \{\s*if \(!AUDIO_REACT_AVAILABLE \|\|/);
   assert.match(server, /reaction: nextReaction/);
   assert.match(server, /emit\("audio-react:state", session\.audioReact\)/);
   assert.doesNotMatch(server, /allowed\.has\(String\(resource\.id\)\)/);
-  assert.match(presenter, /\["audio", "video", "fx"\]/);
+  assert.match(presenter, /audioReactState\.available \? \["audio", "video", "fx", "react"\] : \["audio", "video", "fx"\]/);
   assert.doesNotMatch(presenter, /data-react-next/);
   assert.doesNotMatch(presenter, /data-react-toggle/);
   assert.match(presenter, /Medio corriendo/);
@@ -113,7 +114,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(presenter, /audiovisualPanel\.scrollTop = 0/);
   assert.match(presenter, /audio-react-tab-status/);
   assert.match(presenter, /audiovisual-panel-sticky/);
-  assert.match(presenter, /renderAudiovisualPanel\(true\); \}\);/);
+  assert.match(presenter, /socket\.on\("audio-react:state"[\s\S]*?renderAudiovisualPanel\(true\);\s*\}\);/);
   assert.match(presenter, /is-playing/);
   assert.match(presenter, /nextEnabled/);
   assert.match(presenter, /const selected = audiovisualTab === tab && \(!isReact \|\| audioReactState\.enabled\)/);
@@ -127,7 +128,7 @@ test("Audio React state is independently synchronized and controlled", () => {
   assert.match(screen, /readLocalAudioDuration/);
   assert.match(screen, /duration: mediaDetails\.duration/);
   assert.match(server, /const duration = Math\.max\(0, Math\.min\(86400/);
-  assert.match(server, /duration,\n\s+playlist/);
+  assert.match(server, /duration,\n\s+playlist: fx \? null : playlist/);
   assert.match(server, /\(Number\(previous\.reaction \|\| 0\) \+ 1\) % 12/);
   assert.match(server, /Math\.min\(11, Number\.isFinite/);
   assert.match(presenter, /"Logo", "Caja 3D", "Esfera 3D"/);

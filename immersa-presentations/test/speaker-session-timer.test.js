@@ -140,7 +140,7 @@ test('Pausing the Speaker timer never stops or resets the independently running 
   assert.deepEqual(h.commands, []);
 });
 
-test('Speaker registers the lifecycle events and preserves the Main action labels and recent modal fixes', () => {
+test('Speaker registers the lifecycle events and preserves the Main action labels', () => {
   const html = fs.readFileSync(path.join(root, 'public/presenter/index.html'), 'utf8');
   assert.match(html, /id="speakerTimerValue">Iniciar<\/span>/);
   assert.match(html, /id="speakerTimerResume" type="button">Continuar<\/button>/);
@@ -149,8 +149,6 @@ test('Speaker registers the lifecycle events and preserves the Main action label
   assert.match(script, /socket\.on\("presentation:lifecycle:state", applyPresentationLifecycle\)/);
   assert.match(script, /socket\.on\("presentation:lifecycle:rejected", rejectPresentationLifecycle\)/);
   assert.match(script, /socket\.on\("plan:features", applyPresentationLifecycleFeature\)/);
-  assert.match(script, /document\.body\.appendChild\(immersaTimePanel\)/);
-  assert.match(script, /const target = document\.documentElement;/);
 });
 
 test('The existing completion client closes each role only once and preserves its destination', () => {

@@ -13,6 +13,7 @@ function harness() {
       addEventListener(name, fn, options = {}) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add({ fn, once: options.once }); },
       removeEventListener(name, fn) { for (const entry of listeners.get(name) || []) if (entry.fn === fn) listeners.get(name).delete(entry); },
       fire(name) { for (const entry of [...(listeners.get(name) || [])]) { if (entry.once) listeners.get(name).delete(entry); entry.fn({ propertyName: 'opacity' }); } },
+      requestVideoFrameCallback(callback) { callback(); },
       pause() { this.paused = true; }, play() { this.paused = false; return Promise.resolve(); }, load() {},
       removeAttribute(name) { if (name === 'src') { this.src = ''; this.removed++; } }
     };

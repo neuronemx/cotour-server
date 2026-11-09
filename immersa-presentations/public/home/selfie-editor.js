@@ -8,7 +8,6 @@
   const message = text => { status.textContent = text; };
   function controls() {
     panel.querySelectorAll('input,select,button').forEach(node => { node.disabled = busy || !config; });
-    panel.querySelector('[data-selfie-refresh]').disabled = busy || !deckId;
   }
   function render() {
     list.replaceChildren();
@@ -34,15 +33,22 @@
     const mine = epoch; busy = true; controls(); message(method === 'GET' ? 'Cargando…' : 'Guardando…');
     try {
       const multipart = body instanceof FormData;
-      const response = await fetch((globalCollection ? '/api/admin/selfie/ping' : '/api/decks/' + encodeURIComponent(deckId) + '/selfie') + suffix, {
-        method, credentials: 'same-origin', cache: 'no-store',
+      const base = globalCollection ? '/api/admin/selfie/ping' : '/api/decks/' + encodeURIComponent(deckId) + '/selfie';
+      const options = { credentials: 'same-origin', cache: 'no-store' };
+      let response = await fetch(base + suffix, {
+        ...options, method,
         ...(body ? { body: multipart ? body : JSON.stringify(body), ...(multipart ? {} : { headers: { 'Content-Type': 'application/json' } }) } : {})
       });
+      if (mine !== epoch) return;
+      const conflict = method !== 'GET' && response.status === 409;
+      if (conflict) response = await fetch(base, options);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'No se pudo guardar.');
       if (mine !== epoch) return;
-      config = data; render(); message(method === 'GET' ? '' : 'Guardado. La colección se usará en la próxima Selfie.');
-      if (globalCollection && method !== 'GET') document.dispatchEvent(new CustomEvent('immersa:ping-collection-updated'));
+      config = data; render();
+      if (conflict) message('La colección cambió en otra ventana. Ya está al día. Revisa la lista y vuelve a intentar.');
+      else message(method === 'GET' ? '' : 'Guardado. La colección se usará en la próxima ronda de Tarjetas.');
+      if (globalCollection && method !== 'GET' && !conflict) document.dispatchEvent(new CustomEvent('immersa:ping-collection-updated'));
     } catch (error) { if (mine === epoch) message(error.message); }
     finally { if (mine === epoch) { busy = false; input.value = ''; controls(); } }
   }
@@ -58,7 +64,6 @@
     request('POST', '', body);
   });
   panel.querySelector('[data-selfie-reset]').addEventListener('click', () => request('DELETE', '', { revision: config.revision }));
-  panel.querySelector('[data-selfie-refresh]').addEventListener('click', () => request());
   function clear() { epoch++; busy = false; config = null; deckId = ''; list.replaceChildren(); message(''); input.value = ''; controls(); }
   if (!globalCollection) document.addEventListener('immersa:deck-detail-open', event => {
     clear(); deckId = event.detail?.deck?.missing ? '' : String(event.detail?.deck?.deckId || '');

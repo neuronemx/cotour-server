@@ -339,11 +339,18 @@ test("hidden interaction categories cannot remain visible as dead buttons", () =
   assert.match(css, /\[data-interactions-category\]\[hidden\][\s\S]*display: none !important/);
 });
 
- test("Selfie is opt-in and uses the same renderer and live state navigation", () => {
+test("Cards replace Games in the expanded and compact Speaker activity menus", () => {
   const {root, document} = setup();
   const shell = Shell.create({root, categoryVisibility:{selfie:true}});
   const renderer = document.createElement('div'); renderer.dataset.interactionsView = 'selfie';
   shell.getContentRoot().appendChild(renderer);
+  const buttons = root.querySelectorAll("[data-interactions-category]");
+  assert.equal(root.querySelector(".interactions-shell-title").textContent, "Actividades");
+  assert.equal(buttons.length, 12);
+  assert.equal(category(root, "games"), undefined);
+  assert.equal(shell.setView("games"), false);
+  assert.deepEqual(buttons.filter((button) => button.dataset.interactionsCategory === "selfie")
+    .map((button) => button.querySelector(".interactions-shell-category-label").textContent), ["Tarjetas", "Tarjetas"]);
   category(root, 'selfie').click();
   assert.equal(shell.getView(), 'selfie'); assert.equal(renderer.hidden, false);
   shell.setLiveView('selfie'); assert.equal(shell.getLiveView(), 'selfie');

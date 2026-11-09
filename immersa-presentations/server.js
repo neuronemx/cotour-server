@@ -10,6 +10,8 @@ const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
+const { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
 const { RaffleStore, createRaffleSocketHandlers } = require("./raffle-store");
@@ -25,11 +27,10 @@ const {
 } = require("./session-inactivity");
 const { createDeckInteractionHandlers } = require("./deck-interactions-api");
 const { resolveOperationalLocale, validateOperationalLocale } = require("./deck-locale-runtime");
-const { requireLocaleWriteOrigin } = require("./deck-locale-http");
 const { listAudiovisualResources } = require("./audiovisual-library");
 const { normalizeCue: normalizeFxCue, isFx: isAudiovisualFx } = require("./public/shared/audiovisual-fx");
 const { createAudiovisualFxRuntime } = require("./audiovisual-fx-runtime");
-const { createAudiovisualGlobalRuntime, AUDIO_REACT_ENABLED } = require("./audiovisual-global-runtime");
+const { createAudiovisualGlobalRuntime } = require("./audiovisual-global-runtime");
 const { createImmersaTimeState, applyCommand: applyImmersaTimeCommand, snapshot: immersaTimeSnapshot } = require("./immersa-time-runtime");
 const { createQnaRuntime } = require("./qna-runtime");
 const { createQnaHistoryHandlers } = require("./qna-export");
@@ -78,6 +79,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const AUDIO_REACT_AVAILABLE = process.env.RAILWAY_ENVIRONMENT_NAME !== "beta"
+  && process.env.IMMERSA_AUDIO_REACT_ENABLED !== "false";
 const AUTO_START_AUDIENCE_THRESHOLD = 5;
 const SESSION_INACTIVITY_MS = resolveSessionInactivityMs();
 const SESSION_INACTIVITY_SWEEP_MS = Math.min(60_000, Math.max(5_000, Math.round(SESSION_INACTIVITY_MS / 12)));
@@ -298,14 +301,66 @@ const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   onFinish: context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); }
 });
 
+const liveCameraEnabled = process.env.IMMERSA_LIVE_CAMERA_ENABLED !== "false";
+const manualLiveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
+const liveCameraSetup = manualLiveCameraPilot ? null : createLiveCameraSetup({ env: process.env, dataDir: DATA_DIR, eventHub: eventHubRepository });
+let liveCameraPilot = null;
+let liveCameraDemo = null;
+const privateLiveCameraTokens = new Set();
+const isEventLiveCameraLink = token => Object.values(liveCameraPilot?.links || {}).includes(token);
 const accessLinkHandlers = createAccessLinkHandlers({
   dataDir: DATA_DIR,
   staticDecksDir: STATIC_DECKS_DIR,
   dataDecksDir: DATA_DECKS_DIR,
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
-  resolveDeckFeatureAccess: getStageFeatureAccess
+  resolveDeckFeatureAccess: getStageFeatureAccess,
+  rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context)
+    || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
+  privateRoleTokens: privateLiveCameraTokens
 });
+function attachDeckLiveCamera(pilot) {
+  if (!pilot) return;
+  attachLiveCamera(io, {
+    pilot,
+    accessLinks: accessLinkHandlers,
+    eventHub: eventHubRepository,
+    isEventLink: isEventLiveCameraLink,
+    canProject: sessionId => {
+      const room = getRoomKey(sessionId, pilot.deckId);
+      const video = getSessionByRoomKey(room)?.audiovisual?.video;
+      return !video?.resource || video.status === "stopped";
+    }
+  });
+}
+function enableLiveCamera(pilot) {
+  if (!pilot || liveCameraPilot) return;
+  privateLiveCameraTokens.add(pilot.links.screen);
+  privateLiveCameraTokens.add(pilot.links.stage);
+  if (!liveCameraEnabled) return;
+  liveCameraPilot = pilot;
+  attachDeckLiveCamera(pilot);
+}
+enableLiveCamera(manualLiveCameraPilot || liveCameraSetup?.getPilot());
+async function enableLiveCameraDemo(config) {
+  if (!config) return;
+  let { deckId } = config;
+  if (!deckId) {
+    const decks = await readDecksFrom(DATA_DECKS_DIR, new Set(), new Set());
+    const matches = decks.filter(deck => deck.title === config.deckTitle);
+    if (matches.length !== 1) {
+      console.warn("[live-camera] Demo inactive. Expected one Deck with the configured title, found", matches.length);
+      return;
+    }
+    deckId = matches[0].deckId;
+  }
+  liveCameraDemo = { ...config, deckId };
+  attachDeckLiveCamera(liveCameraDemo);
+  console.log("[live-camera] Demo enabled for Deck", deckId);
+}
+if (liveCameraEnabled) {
+  enableLiveCameraDemo(readLiveCameraDemo()).catch(error => console.error("[live-camera] Unable to enable demo", error.code || error.name));
+}
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
   runtime: knowledgeActivityRuntime
@@ -333,8 +388,10 @@ const brandMentionRuntime = new BrandMentionRuntime({
   coordinator: activeInteractionCoordinator,
   getRoleRoomKey
 });
+const deckSpeakersPilotEnvironmentId = process.env.IMMERSA_DECK_SPEAKERS_PILOT_ENVIRONMENT_ID
+  || "9ae7d5ba-2954-4c96-818a-ee918310e20d";
 const deckSpeakersEnabled = () => process.env.IMMERSA_DECK_SPEAKERS_PILOT === "true"
-  && process.env.RAILWAY_ENVIRONMENT_ID === "9ae7d5ba-2954-4c96-818a-ee918310e20d";
+  && process.env.RAILWAY_ENVIRONMENT_ID === deckSpeakersPilotEnvironmentId;
 const deckSpeakersStore = new DeckSpeakersStore({
   root:path.join(DATA_DIR,"deck-speaker-profiles-pilot"),
   assertDeck:async deckId => { try { await findDeckDir(deckId); } catch (_) { throw new DeckSpeakerError("DECK_NOT_FOUND", "Deck no encontrado.", 404); } },
@@ -827,7 +884,7 @@ function createAudiovisualChannels() {
   return { audio: emptyAudiovisualChannel(), video: emptyAudiovisualChannel() };
 }
 function createAudioReactState() {
-  return { enabled: false, reaction: 0, updatedAt: Date.now() };
+  return { available: AUDIO_REACT_AVAILABLE, enabled: false, reaction: 0, updatedAt: Date.now() };
 }
 function getAudiovisualChannels(session) {
   const existing = session?.audiovisual;
@@ -845,8 +902,8 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     slideIndex: 0,
     presenterSlideIndex: 0,
     navigationRevision: 0,
-    operationalLocale: "es",
     liveSlideIndex: 0,
+    operationalLocale: "es",
     transmissionPaused: false,
     transmissionPausedBy: null,
     presenterConnected: false,
@@ -1239,10 +1296,21 @@ app.get("/api/admin/event-hubs", requireAccount, requireImmersaAdmin, async (req
 app.get("/api/admin/event-hubs/:workspaceId", requireAccount, requireImmersaAdmin, async (req, res) => {
   if (!eventHubRepository) return eventHubUnavailable(res);
   try {
-    return res.json(await eventHubRepository.getHub(req.params.workspaceId));
+    const hub = await eventHubRepository.getHub(req.params.workspaceId);
+    return res.json(liveCameraEnabled && liveCameraSetup?.available(hub) ? { ...hub, liveCameraPilotAvailable: true } : hub);
   } catch (error) {
     return sendEventHubError(res, error);
   }
+});
+app.post("/api/admin/event-hubs/:workspaceId/activities/:activityId/live-camera-pilot", requireAccount, requireImmersaAdmin, async (req, res) => {
+  if (!liveCameraEnabled || !liveCameraSetup) return res.status(404).json({ error: "Piloto LIVE no disponible" });
+  if (req.get("origin") !== liveCameraSetup.origin) return res.status(403).json({ error: "Origen de solicitud no permitido" });
+  try {
+    const pilot = await liveCameraSetup.enroll({ ...req.params, accessLinks: accessLinkHandlers });
+    enableLiveCamera(pilot);
+    res.set("Cache-Control", "no-store");
+    return res.json({ urls: pilotRoleUrls(pilot) });
+  } catch (error) { return sendEventHubError(res, error); }
 });
 function eventBrandRequest(handler) {
   return async (req, res, next) => {
@@ -1928,7 +1996,7 @@ app.post(
     }
   })
 );
-app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
+app.post("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantUploadHandler({
     onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck)
@@ -1940,10 +2008,10 @@ app.get("/api/decks/:deckId/locales", ...requireDeckAccount,
       res.json({ baseLocale: "es", en: manifest.locales?.en || null });
     } catch (_error) { res.status(404).json({ error: "Deck no encontrado" }); }
   });
-app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
+app.patch("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantMutationHandler("toggle", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
-app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireLocaleWriteOrigin, requireAccountAdjustmentCleared,
+app.delete("/api/decks/:deckId/locales/en", ...requireDeckAccount, requireAccountAdjustmentCleared,
   requireDeckFeature(CAPABILITIES.MULTILANGUAGE_MANAGE),
   createLocaleVariantMutationHandler("delete", { onDeckChanged: ({ req, deck }) => betterAuthCompatibilityBridge.replaceDeckSource(req, deck) }));
 app.post("/api/decks/:deckId/replacement-review", ...requireDeckAccount, requireAccountAdjustmentCleared, async (req, res) => {
@@ -2431,7 +2499,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("audio-react:control", (payload = {}) => {
-    if (!currentRoomKey || !canControlPresentation(currentRole)) return;
+    if (!AUDIO_REACT_AVAILABLE || !currentRoomKey || !canControlPresentation(currentRole)) return;
     const session = getSessionByRoomKey(currentRoomKey);
     if (!session) return;
     const previous = session.audioReact || createAudioReactState();
@@ -2440,7 +2508,8 @@ io.on("connection", (socket) => {
       ? (Number(previous.reaction || 0) + 1) % 12
       : Math.max(0, Math.min(11, Number.isFinite(Number(payload.reaction)) ? Math.floor(Number(payload.reaction)) : Number(previous.reaction || 0)));
     session.audioReact = {
-      enabled: AUDIO_REACT_ENABLED && (typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true),
+      available: AUDIO_REACT_AVAILABLE,
+      enabled: typeof payload.enabled === "boolean" ? payload.enabled : previous.enabled === true,
       reaction: nextReaction,
       updatedAt: Date.now()
     };

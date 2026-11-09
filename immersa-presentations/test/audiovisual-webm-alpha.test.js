@@ -46,6 +46,7 @@ test('Beta playback preserves WebM alpha across pause and restores black when a 
       dataset: {}, style: {}, currentTime: 0, paused: true,
       classList: { add: (v) => classes.add(v), remove: (v) => classes.delete(v), contains: (v) => classes.has(v),
         toggle: (v, enabled) => enabled ? classes.add(v) : classes.delete(v) },
+      requestVideoFrameCallback(callback) { callback(); },
       pause() { this.paused = true; }, play() { this.paused = false; return Promise.resolve(); },
       load() {}, removeAttribute() {},
       addEventListener(event, cb) { listeners.set(event, cb); },
@@ -91,6 +92,6 @@ test('Only WebM clears the video background and Screen loads fresh assets', () =
   assert.match(css, /\.audiovisual-screen-layer \{[^}]*background:transparent/);
   assert.match(css, /\.audiovisual-video-slot \{[^}]*background:#000/);
   assert.match(css, /\.audiovisual-video-slot\.is-webm \{ background:transparent; \}/);
-  assert.match(html, /screen\.css\?v=27/);
-  assert.match(html, /screen\.js\?v=2026110302/);
+  assert.match(html, /screen\.css\?v=2026110702/);
+  assert.match(html, /screen\.js\?v=2026110702/);
 });

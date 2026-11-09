@@ -50,7 +50,8 @@ test("all live roles animate slide changes from the Deck manifest", () => {
   });
 });
 
-test("Público centers Texto en vivo", () => {
+test("Público keeps Texto en vivo centered except below landscape slides on portrait mobile", () => {
   const css = read("public/audience/audience.css");
   assert.match(css, /\.live-message \{[^}]*top: 50%;[^}]*transform: translate\(-50%, -50%\)/);
+  assert.match(css, /@media \(orientation: portrait\) and \(max-width: 520px\)[\s\S]*?\.slide-viewport:not\(\.portrait-slide\) ~ \.live-message \{[\s\S]*?top: calc\(50% \+ 28\.125vw \+ 12px\);[\s\S]*?transform: translateX\(-50%\);/);
 });

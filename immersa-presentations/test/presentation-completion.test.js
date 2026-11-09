@@ -27,11 +27,12 @@ test("Speaker completion shows the promised basic summary and Metrics CTA", () =
   assert.match(speaker, /SPEAKER PRO/);
   assert.match(speaker, /Logo-Immersa\.png\?v=2/);
   assert.doesNotMatch(speaker, /brand-mark/);
+  assert.doesNotMatch(speaker, /beneficios y cupones|próximas campañas/);
   assert.match(read("public/home/home.js"), /requestedTab === "metrics"/);
 });
 
-test("Público completion links to the public website and signup opens create mode", () => {
-  assert.match(read("public/completion/audience.html"), /href="https:\/\/www\.immersalive\.com"/);
+test("Público completion invites registration and signup opens create mode", () => {
+  assert.match(read("public/completion/audience.html"), /\/auth\?mode=signup/);
   assert.match(read("public/auth/auth.js"), /mode"\) === "signup"\) setCreateMode\(true\)/);
 });
 
@@ -44,4 +45,3 @@ test("server exposes distinct completion landings and inactivity uses unified cl
   assert.match(server, /finishInactive\(context\)/);
   assert.match(server, /emitClosed\(context, await presentationCompletionFor/);
 });
-

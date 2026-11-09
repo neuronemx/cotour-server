@@ -96,16 +96,11 @@
 }
 
 .brand-mention-card-pitch {
-  display: -webkit-box;
   min-height: 2.36em;
-  overflow: hidden;
   color: rgba(255, 255, 255, .84);
   font: 400 clamp(10px, calc(3vw - 1px), 13px)/1.18 Inter, sans-serif;
   white-space: normal;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
 }
 
 .brand-mention-card-link {

@@ -1,4 +1,34 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    let endedOnBackdrop = false;
+    let pointerId = null;
+    function reset() {
+      startedOnBackdrop = false;
+      endedOnBackdrop = false;
+      pointerId = null;
+    }
+    // Capture the full gesture, including fields moved into Deck Home panels.
+    document.addEventListener("pointerdown", (event) => {
+      reset();
+      if (event.button !== 0 || event.isPrimary === false) return;
+      startedOnBackdrop = event.target === backdrop;
+      pointerId = event.pointerId;
+    }, true);
+    document.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointerId) return;
+      endedOnBackdrop = event.target === backdrop;
+    }, true);
+    document.addEventListener("pointercancel", reset, true);
+    window.addEventListener("blur", reset);
+    backdrop.addEventListener("click", (event) => {
+      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+      reset();
+      if (dismiss) onDismiss();
+    });
+  }
+
   const MAX_LOGO_BYTES = 5 * 1024 * 1024;
   const ALLOWED_LOGO_EXTENSIONS = /\.(?:png|jpe?g|webp)$/i;
   let currentDeck = null;
@@ -32,9 +62,7 @@
     bodyNode = modal.querySelector(".brand-mentions-body");
     statusNode = modal.querySelector(".brand-mentions-status");
     modal.querySelector(".brand-mentions-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 

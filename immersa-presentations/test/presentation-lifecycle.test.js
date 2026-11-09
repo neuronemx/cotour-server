@@ -339,11 +339,12 @@ test("finalization closes Speaker, Backstage, Pantalla and Público", async () =
   assert.deepEqual(io.events.find(({ event }) => event === "presentation:closed").payload, completion);
 });
 
-test("the lifecycle slider is mounted on Backstage with basic Metrics and remains hidden from Speaker", () => {
+test("Backstage keeps its lifecycle slider while Speaker uses the Timer capsule", () => {
   const root = path.join(__dirname, "..");
   const control = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle-control.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "public/shared/presentation-lifecycle.css"), "utf8");
   const presenter = fs.readFileSync(path.join(root, "public/presenter/index.html"), "utf8");
+  const presenterScript = fs.readFileSync(path.join(root, "public/presenter/presenter.js"), "utf8");
   const stage = fs.readFileSync(path.join(root, "public/stage/index.html"), "utf8");
   const stageScript = fs.readFileSync(path.join(root, "public/stage/stage.js"), "utf8");
 
@@ -352,6 +353,10 @@ test("the lifecycle slider is mounted on Backstage with basic Metrics and remain
   assert.match(control, /presentation:lifecycle:\$\{action\}/);
   assert.match(styles, /\.presenter-lifecycle-host[\s\S]*left: 80px/);
   assert.doesNotMatch(presenter, /presentationLifecycle/);
+  assert.match(presenter, /id="speakerTimerValue">Iniciar<\/span>/);
+  assert.match(presenterScript, /socket\.emit\("presentation:lifecycle:start"\)/);
+  assert.match(presenterScript, /socket\.emit\("presentation:lifecycle:finish"\)/);
+  assert.match(presenterScript, /socket\.on\("presentation:lifecycle:state", applyPresentationLifecycle\)/);
   assert.match(stage, /stage-brand[\s\S]*presentationLifecycle/);
   assert.match(stageScript, /syncPresentationLifecycleFeature\(planAllows\("metrics\.basic"\)\)/);
   assert.match(stageScript, /presentationLifecycleControl\?\.destroy\?\.\(\)/);

@@ -7,6 +7,36 @@ let activeDeck = null;
 let detailDeck = null;
 let planUsage = null;
 
+function bindBackdropDismissal(backdrop, onDismiss) {
+  if (!backdrop) return;
+  let startedOnBackdrop = false;
+  let endedOnBackdrop = false;
+  let pointerId = null;
+  function reset() {
+    startedOnBackdrop = false;
+    endedOnBackdrop = false;
+    pointerId = null;
+  }
+  // Capture the full gesture, including fields moved into Deck Home panels.
+  document.addEventListener("pointerdown", (event) => {
+    reset();
+    if (event.button !== 0 || event.isPrimary === false) return;
+    startedOnBackdrop = event.target === backdrop;
+    pointerId = event.pointerId;
+  }, true);
+  document.addEventListener("pointerup", (event) => {
+    if (event.pointerId !== pointerId) return;
+    endedOnBackdrop = event.target === backdrop;
+  }, true);
+  document.addEventListener("pointercancel", reset, true);
+  window.addEventListener("blur", reset);
+  backdrop.addEventListener("click", (event) => {
+    const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+    reset();
+    if (dismiss) onDismiss();
+  });
+}
+
 const deckList = document.getElementById("deckList");
 const deckNotice = document.getElementById("deckNotice");
 const uploadForm = document.getElementById("uploadForm");
@@ -1074,12 +1104,8 @@ function syncDeckTransitionEditor(deck) {
   const editable = Boolean(deck && !deck.systemDemo && !deck.missing && !planUsage?.pendingDowngrade?.adjustmentRequired);
   deckTransitionSettings.hidden = !editable;
   const selected = String(deck?.slideTransition || "flash");
-  deckTransitionOptions.querySelectorAll("[data-deck-transition]").forEach((button) => {
-    const active = button.dataset.deckTransition === selected;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-checked", String(active));
-    button.disabled = !editable;
-  });
+  deckTransitionOptions.value = selected;
+  deckTransitionOptions.disabled = !editable;
   if (deckTransitionStatus) {
     deckTransitionStatus.textContent = "";
     deckTransitionStatus.classList.remove("is-error");
@@ -1089,7 +1115,7 @@ function syncDeckTransitionEditor(deck) {
 async function saveDeckTransition(transition) {
   const deck = detailDeck;
   if (!deck || deck.systemDemo || deck.missing || !deckTransitionOptions) return;
-  const buttons = [...deckTransitionOptions.querySelectorAll("[data-deck-transition]")];
+  const buttons = [deckTransitionOptions];
   buttons.forEach((button) => { button.disabled = true; });
   if (deckTransitionStatus) {
     deckTransitionStatus.textContent = "Guardando…";
@@ -1327,9 +1353,7 @@ if (cancelName) {
 }
 
 if (nameModal) {
-  nameModal.addEventListener("click", (event) => {
-    if (event.target === nameModal) closeNameModal(false);
-  });
+  bindBackdropDismissal(nameModal, () => closeNameModal(false));
 }
 
 if (closeDeckDetail) {
@@ -1337,15 +1361,11 @@ if (closeDeckDetail) {
 }
 
 if (deckDetailModal) {
-  deckDetailModal.addEventListener("click", (event) => {
-    if (event.target === deckDetailModal) closeDeckModal();
-  });
+  bindBackdropDismissal(deckDetailModal, closeDeckModal);
 }
 
-deckTransitionOptions?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-deck-transition]");
-  if (!button || button.disabled || button.classList.contains("is-active")) return;
-  saveDeckTransition(button.dataset.deckTransition);
+deckTransitionOptions?.addEventListener("change", () => {
+  if (!deckTransitionOptions.disabled) saveDeckTransition(deckTransitionOptions.value);
 });
 
 detailPreviousSlide?.addEventListener("click", () => selectDetailSlide((detailSlideNavigation?.index || 0) - 1));

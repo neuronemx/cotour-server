@@ -40,17 +40,17 @@ on:
         default: "60000"
         type: string
       slides_per_user:
-        description: Audience journey only: slides each user downloads (0 disables)
+        description: "Audience journey only: slides each user downloads (0 disables)"
         required: true
         default: "0"
         type: string
       slide_interval_ms:
-        description: Audience journey only: milliseconds between slide downloads
+        description: "Audience journey only: milliseconds between slide downloads"
         required: true
         default: "1000"
         type: string
       qna_burst_after_ms:
-        description: Audience journey only: milliseconds after test start for one Q&A burst (0 disables)
+        description: "Audience journey only: milliseconds after test start for one Q&A burst (0 disables)"
         required: true
         default: "0"
         type: string

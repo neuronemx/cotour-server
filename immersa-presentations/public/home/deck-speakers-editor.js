@@ -18,7 +18,6 @@
   function controls() {
     panel.querySelectorAll('button, input, select, textarea').forEach(node => { node.disabled = busy || !config; });
     photo.disabled = busy || !config || !selectedId;
-    panel.querySelector('[data-speakers-refresh]').disabled = busy || !deckId;
     list.querySelectorAll('[data-boundary="true"]').forEach(node => { node.disabled = true; });
     panel.setAttribute('aria-busy', String(busy));
   }
@@ -60,15 +59,15 @@
       : 'Este Deck muestra tu perfil personal. Activa esta opción para usar su propia lista de ponentes.';
     controls();
   }
-  async function load() {
-    if (!allowed || !deckId || busy) return;
+  async function load(conflictMessage = '') {
+    if (!allowed || !deckId) return;
     const mine = epoch, request = ++readEpoch;
     message('Cargando ponentes…');
     try {
       const data = await api(base());
       if (mine !== epoch || request !== readEpoch) return;
       config = data; render();
-      message('Lista actualizada. Los cambios guardados se envían a Público automáticamente.');
+      message(conflictMessage, Boolean(conflictMessage));
     } catch (error) { if (mine === epoch && request === readEpoch) message(error.message, true); }
     controls();
   }
@@ -82,7 +81,12 @@
       message('Guardado. Público se actualiza automáticamente, sin recargar la presentación.');
     } catch (error) {
       if (mine === epoch) {
-        message(error.code === 'PROFILE_REVISION_CONFLICT' ? error.message + ' Usa “Actualizar lista”; tus campos permanecen aquí.' : error.message, true);
+        if (error.code === 'PROFILE_REVISION_CONFLICT') {
+          await load('La lista cambió en otra ventana. Ya está al día. Revisa los cambios y vuelve a guardar.');
+        } else {
+          message(error.message, true);
+        }
+        if (mine !== epoch) return;
         enabled.checked = config.enabled;
       }
     } finally { if (mine === epoch) { busy = false; controls(); } }
@@ -93,7 +97,6 @@
     [ids[index],ids[other]] = [ids[other],ids[index]]; mutate('/order','PUT',{profileIds:ids});
   }
   enabled.addEventListener('change', () => mutate('/settings','PUT',{enabled:enabled.checked}));
-  panel.querySelector('[data-speakers-refresh]').addEventListener('click', load);
   panel.querySelector('[data-speakers-new]').addEventListener('click', () => { resetForm(); form.elements.displayName.focus(); });
   form.addEventListener('submit', event => {
     event.preventDefault(); if (!config || !form.reportValidity()) return;
@@ -116,7 +119,14 @@
       config = data; render(); const profile = data.profiles.find(p => p.id === selectedId);
       preview.src = profile.photoUrl; preview.alt = 'Foto de ' + profile.displayName; preview.hidden = false;
       message('Foto guardada. Público se actualiza automáticamente.');
-    } catch (error) { if (mine === epoch) message(error.message, true); }
+    } catch (error) {
+      if (mine !== epoch) return;
+      if (error.code === 'PROFILE_REVISION_CONFLICT') {
+        await load('La lista cambió en otra ventana. Ya está al día. Vuelve a seleccionar la foto.');
+      } else {
+        message(error.message, true);
+      }
+    }
     finally { if (mine === epoch) { busy = false; photo.value = ''; controls(); } }
   });
   preview.addEventListener('error', () => { preview.hidden = true; });

@@ -1,5 +1,4 @@
 const { randomUUID } = require("node:crypto");
-const AUDIO_REACT_ENABLED = false;
 const FADE_MS = 1000;
 
 function createAudiovisualGlobalRuntime({ getChannels, publish, setTimer = setTimeout, now = Date.now, createId = randomUUID }) {
@@ -48,4 +47,4 @@ function createAudiovisualGlobalRuntime({ getChannels, publish, setTimer = setTi
   }
   return { setVolume, stopAll };
 }
-module.exports = { createAudiovisualGlobalRuntime, AUDIO_REACT_ENABLED, FADE_MS };
+module.exports = { createAudiovisualGlobalRuntime, FADE_MS };

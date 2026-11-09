@@ -214,9 +214,9 @@ test("Home and every live surface render Demo plan metadata outside slide artwor
   assert.match(presenter, /deckHomeLink\.href = "\/home\?deck=" \+ encodeURIComponent\(deckId\)/);
   assert.match(home, /window\.location\.assign\(url\)/);
   assert.doesNotMatch(home, /window\.open\("about:blank", "_blank"\)/);
-  assert.match(presenter, /games: !isPublishedDemo && planAllows\("games\.run"\)/);
+  assert.match(presenter, /selfie: planAllows\("polls\.run"\)/);
   for (const target of ["presenter/presenter.js", "stage/stage.js", "screen/screen.js", "audience/audience.js"]) {
     assert.match(fs.readFileSync(path.join(appDir, "public", target), "utf8"), /ImmersaDemoPlanBadge\?\.update/);
   }
-  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=2026110401/);
+  assert.match(fs.readFileSync(path.join(appDir, "public", "presenter", "index.html"), "utf8"), /interactions-shell\.js\?v=2026110701/);
 });

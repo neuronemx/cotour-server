@@ -439,7 +439,8 @@ test("Stage modal relies on the shell close button and has an accessible dialog 
   assert.doesNotMatch(css, /\.stage-actions-close/);
   assert.match(stage, /role="dialog" aria-modal="true" aria-label="Interacciones"/);
   assert.match(shell, /"interactions-shell-close"/);
-  assert.match(shell, /title\.textContent = tr\('live\.interactions', 'Interacciones'\)/);
+  assert.match(shell, /const modalTitle = \(\) => showCards \? tr\('shell\.activities', 'Actividades'\) : tr\('live\.interactions', 'Interacciones'\)/);
+  assert.match(shell, /title\.textContent = modalTitle\(\)/);
   assert.doesNotMatch(shell, /title\.textContent = view === "polls" \? "Encuestas"/);
 });
 
@@ -456,7 +457,7 @@ test("slide scrims are scoped to the slide layer in Speaker and Stage", () => {
   const css = readProjectFile("public/shared/interactions.css");
   assert.doesNotMatch(css, /presenter-shell\.interaction-panel-open::before/);
   assert.equal((speakerHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
-  assert.match(speakerHtml, /class="stream-area"[\s\S]+<img id="slide"[^>]* alt="Lámina actual">[\s\S]*?<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="reactions"/);
+  assert.match(speakerHtml, /class="stream-area"[\s\S]+<img id="slide"[^>]* alt="Lámina actual">[\s\S]*?<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="presenterQr"/);
   assert.equal((stageHtml.match(/class="interaction-slide-scrim"/g) || []).length, 1);
   assert.match(stageHtml, /<div class="screen-frame">[\s\S]+<img id="slide"[^>]* alt="Slide en vivo">[\s\S]*?<div class="interaction-slide-scrim" aria-hidden="true"><\/div>\s+<div id="stageLiveText"/);
   assert.doesNotMatch(stageHtml, /stage-actions-backdrop/);
@@ -494,6 +495,7 @@ test("Stage modal no longer renders a fullscreen visual backdrop and syncs body 
 });
 
 test("slide overlays and controls stay above the scoped interaction scrim", () => {
+  const speakerHtml = readProjectFile("public/presenter/index.html");
   const stageCss = readProjectFile("public/stage/stage.css");
   const presenterCss = readProjectFile("public/presenter/presenter.css");
   const sharedCss = readProjectFile("public/shared/interactions.css");
@@ -501,7 +503,7 @@ test("slide overlays and controls stay above the scoped interaction scrim", () =
   assert.match(stageCss, /\.live-text-overlay \{[\s\S]+z-index: 5;/);
   assert.match(stageCss, /\.stage-qr-overlay \{[\s\S]+z-index: 6;/);
   assert.match(stageCss, /\.main-controls \{[\s\S]+z-index: 7;/);
-  assert.match(presenterCss, /\.reaction-layer \{[\s\S]+z-index: 3;/);
+  assert.doesNotMatch(speakerHtml, /id="reactions"|id="localReactions"/);
   assert.match(presenterCss, /\.main-controls \{[\s\S]+z-index: 7;/);
   assert.match(presenterCss, /\.top-actions \{[\s\S]+z-index: 8;/);
   assert.doesNotMatch(sharedCss, /presenter-shell\.interaction-panel-open::before|\.presenter-shell\s*\{[\s\S]+backdrop-filter|\.stage-shell\s*\{[\s\S]+backdrop-filter|\.stream-area\s*\{[\s\S]+backdrop-filter|\.screen-frame\s*\{[\s\S]+backdrop-filter/);

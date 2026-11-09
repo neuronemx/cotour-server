@@ -1,4 +1,34 @@
 (function () {
+  function bindBackdropDismissal(backdrop, onDismiss) {
+    if (!backdrop) return;
+    let startedOnBackdrop = false;
+    let endedOnBackdrop = false;
+    let pointerId = null;
+    function reset() {
+      startedOnBackdrop = false;
+      endedOnBackdrop = false;
+      pointerId = null;
+    }
+    // Capture the full gesture, including fields moved into Deck Home panels.
+    document.addEventListener("pointerdown", (event) => {
+      reset();
+      if (event.button !== 0 || event.isPrimary === false) return;
+      startedOnBackdrop = event.target === backdrop;
+      pointerId = event.pointerId;
+    }, true);
+    document.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointerId) return;
+      endedOnBackdrop = event.target === backdrop;
+    }, true);
+    document.addEventListener("pointercancel", reset, true);
+    window.addEventListener("blur", reset);
+    backdrop.addEventListener("click", (event) => {
+      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
+      reset();
+      if (dismiss) onDismiss();
+    });
+  }
+
   const MAX_OPTIONS = 6;
   const MIN_OPTIONS = 2;
   const optionLetters = "abcdefghijklmnopqrstuvwxyz";
@@ -107,9 +137,7 @@
     listNode = modal.querySelector(".interactions-list");
     statusNode = modal.querySelector(".interactions-status");
     modal.querySelector(".interactions-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) closeModal();
-    });
+    bindBackdropDismissal(modal, closeModal);
     return modal;
   }
 

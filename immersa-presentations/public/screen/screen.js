@@ -20,7 +20,6 @@ let englishManifest = null;
 let operationalLocale = 'es';
 let pendingPresentationState = null;
 let manifestRetryTimer = null;
-let lastInteractionResults = null;
 const screenRoot = document.getElementById("screen");
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const localLibraryPicker = document.getElementById("localLibraryPicker");
@@ -42,6 +41,7 @@ let overlays = normalizeOverlayState();
 let currentSlideIndex = 0;
 let drawingOverlay = null;
 let interactionOverlay = null;
+let lastInteractionResults = null;
 let audiovisualState = { audio: { resource: null, status: "stopped" }, video: { resource: null, status: "stopped" } };
 let audiovisualLayer = null;
 let audiovisualMedia = null;
@@ -276,7 +276,14 @@ function bindAudiovisualMediaEvents(type, media) {
     if (media.dataset.resourceId && Number.isFinite(media.duration)) socket.emit("audiovisual:metadata", { resourceId: media.dataset.resourceId, type, duration: media.duration });
   });
   media.addEventListener("ended", () => {
-    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) clearVideoPlaylistAdvance();
+    if (type === "video" && media === audiovisualMedia?.video?.[activeVideoSlot]) {
+      clearVideoPlaylistAdvance();
+      const resource = audiovisualState.video?.resource;
+      if (resource && media.dataset.resourceId === String(resource.id) && !resource.playlist && !window.ImmersaAudiovisualFx.isFx(resource)) {
+        audiovisualLayer.classList.remove("is-video");
+        screenRoot.classList.remove("has-audiovisual-video");
+      }
+    }
     socket.emit("audiovisual:ended", { resourceId: media.dataset.resourceId, type, playbackId: media.dataset.fxPlaybackId });
   });
 }
@@ -354,6 +361,11 @@ function finishAudiovisualVideoSwap(outgoing, token) {
   outgoing.addEventListener("transitionend", onEnd);
   timer = window.setTimeout(finish, 550);
 }
+function revealVideoOnFirstFrame(media, reveal) {
+  if (typeof media.requestVideoFrameCallback === "function") media.requestVideoFrameCallback(reveal);
+  else media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
+  media.play().catch(() => {});
+}
 function applyVideoState(state) {
   const resource = state?.resource;
   const slots = audiovisualMedia.video;
@@ -375,6 +387,12 @@ function applyVideoState(state) {
   const isFx = window.ImmersaAudiovisualFx.isFx(resource);
   const nextPlaybackId = isFx ? String(state.fxPlayback?.id || "") : "";
   const volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
+  if (state.status === "paused" && currentId !== nextId) {
+    videoTransitionToken += 1;
+    clearVideoPlaylistAdvance();
+    slots.forEach((media) => media.pause());
+    return;
+  }
   if (currentId !== nextId) {
     clearVideoPlaylistAdvance();
     const incomingIndex = 1 - activeVideoSlot;
@@ -404,9 +422,9 @@ function applyVideoState(state) {
     incoming.loop = Boolean(state.loop && !resource?.playlist && !isFx);
     incoming.volume = volume;
     incoming.classList.remove("is-visible");
-    const begin = () => {
-      if (token !== videoTransitionToken || incoming.dataset.resourceId !== nextId || String(audiovisualState.video?.resource?.id || "") !== nextId || audiovisualState.video?.status !== "playing") return;
-      incoming.play().catch(() => {});
+    const isCurrentSelection = () => token === videoTransitionToken && incoming.dataset.resourceId === nextId && String(audiovisualState.video?.resource?.id || "") === nextId && audiovisualState.video?.status === "playing";
+    const reveal = () => {
+      if (!isCurrentSelection()) return;
       if (hasCurrentVideo) {
         current.classList.remove("is-swap-base");
         current.classList.add("is-swap-top");
@@ -427,6 +445,9 @@ function applyVideoState(state) {
       audiovisualFxMonitors.get(incoming)?.refresh();
       finishAudiovisualVideoSwap(current, token);
     };
+    const begin = () => {
+      if (isCurrentSelection()) revealVideoOnFirstFrame(incoming, reveal);
+    };
     incoming.addEventListener("canplay", begin, { once: true });
     incoming.load();
     return;
@@ -439,10 +460,20 @@ function applyVideoState(state) {
   const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
   if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(current.currentTime - Number(state.position)) > 1.2) current.currentTime = Number(state.position);
   if (state.status === "playing") {
-    current.classList.add("is-visible");
-    current.play().catch(() => {});
-    scheduleVideoPlaylistAdvance(current);
-    audiovisualFxMonitors.get(current)?.refresh();
+    const onPlaying = () => {
+      current.classList.add("is-visible");
+      scheduleVideoPlaylistAdvance(current);
+      audiovisualFxMonitors.get(current)?.refresh();
+    };
+    if (current.classList.contains("is-visible")) {
+      current.play().catch(() => {});
+      onPlaying();
+    } else {
+      const token = ++videoTransitionToken;
+      revealVideoOnFirstFrame(current, () => {
+        if (token === videoTransitionToken && audiovisualState.video?.status === "playing") onPlaying();
+      });
+    }
   } else {
     clearVideoPlaylistAdvance();
     current.pause();
@@ -609,7 +640,21 @@ function syncScreenFocus() {
   const resultsVisible = Boolean(interactionOverlay && !interactionOverlay.classList.contains("interaction-hidden"));
   screenRoot.classList.toggle("has-focus-overlay", messageVisible || resultsVisible);
 }
-function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); message.textContent = overlays.messageText || ""; message.classList.toggle("hidden", !overlays.messageVisible || !overlays.messageText); syncScreenFocus(); }
+function renderLiveMessage() {
+  const text = String(overlays.messageText || "");
+  const visible = Boolean(overlays.messageVisible && text);
+  message.replaceChildren();
+  if (!visible) {
+    message.classList.add("hidden");
+    return;
+  }
+  const copy = document.createElement("span");
+  copy.className = "message-copy";
+  copy.textContent = text;
+  message.appendChild(copy);
+  message.classList.remove("hidden");
+}
+function applyOverlays(next) { overlays = normalizeOverlayState({ ...overlays, ...next }); if (overlays.audienceUrl !== activeAudienceUrl) { activeAudienceUrl = overlays.audienceUrl || ""; makeQrPattern(activeAudienceUrl); } qr.classList.toggle("hidden", !overlays.showAudienceQr || !activeAudienceUrl); renderLiveMessage(); syncScreenFocus(); }
 function render(state) {
   pendingPresentationState = state;
   applyOverlays(state?.overlays || {});
@@ -695,7 +740,7 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState({ ...(next || {}), enabled: false }); } catch (error) { console.warn("Audio React unavailable.", error); } });
+socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);
 socket.on("clear_overlays", () => applyOverlays({ qrVisible: false, showAudienceQr: false, messageVisible: false, messageText: "" }));

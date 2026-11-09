@@ -27,11 +27,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=68&ui=3">
-  <link rel="stylesheet" href="/home/billing.css?v=8">
-  <link rel="stylesheet" href="/home/interactions-editor.css?v=2026110101">
+  <link rel="stylesheet" href="/home/home.css?v=71&ui=3">
+  <link rel="stylesheet" href="/home/billing.css?v=10">
+  <link rel="stylesheet" href="/home/interactions-editor.css?v=9">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
-  <link rel="stylesheet" href="/home/basic-metrics.css?v=2026110101">
+  <link rel="stylesheet" href="/home/basic-metrics.css?v=2">
   <link rel="stylesheet" href="/home/video-editor.css?v=109">
   <link rel="stylesheet" href="/home/audiovisual-editor.css?v=25">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
@@ -49,10 +49,10 @@
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=2026110101">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=30">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
-  <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=1">
-  <link rel="stylesheet" href="/shared/selfie.css?v=2">
+  <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=2">
+  <link rel="stylesheet" href="/shared/selfie.css?v=4">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -129,22 +129,23 @@
         <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
         <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
         <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
-        <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><span aria-hidden="true">📷</span><span>Selfie</span></button>
+        <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
         <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
+        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Marcas</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
+      <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
       <div class="deck-detail-content">
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
           <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
-            <div class="deck-transition-copy"><strong id="deckTransitionTitle">Transición de slides</strong><span>Se aplicará a todo el deck</span></div>
-            <div id="deckTransitionOptions" class="deck-transition-options" role="radiogroup" aria-label="Transición global del Deck">
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="none"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="8.5" height="14" rx="2"/><rect x="13.5" y="5" width="8.5" height="14" rx="2"/><path d="M12 4v16"/></svg><span>Sin transición</span></button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="dissolve"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="is-dashed" cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/></svg><span>Disolvencia</span></button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="wipe"><svg viewBox="0 0 24 24" aria-hidden="true"><rect class="is-dashed" x="2" y="5" width="9" height="14" rx="2"/><rect x="13" y="5" width="9" height="14" rx="2"/><path d="M9.5 12H14M12 9.8l2.2 2.2-2.2 2.2"/></svg><span>Wipe</span></button>
-              <button type="button" role="radio" aria-checked="false" data-deck-transition="flash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg><span>Flash</span></button>
-            </div>
+            <div class="deck-transition-row"><label id="deckTransitionTitle" for="deckTransitionOptions">Transición slides</label><select id="deckTransitionOptions" aria-label="Transición global del Deck">
+              <option value="none" data-deck-transition="none">Sin transición</option>
+              <option value="dissolve" data-deck-transition="dissolve">Disolvencia</option>
+              <option value="wipe" data-deck-transition="wipe">Wipe</option>
+              <option value="flash" data-deck-transition="flash">Flash</option>
+            </select></div>
             <p id="deckTransitionStatus" class="deck-transition-status" role="status" aria-live="polite"></p>
           </section>
         </section>
@@ -154,33 +155,36 @@
         <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
           <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
         </section>
+        <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
+          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
+        </section>
         <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
           <div id="selfieEditor" class="selfie-editor">
-            <h3>Selfie</h3><p data-selfie-source></p>
+            <h3>Tarjetas</h3><p data-selfie-source></p>
             <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
             <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
             <div class="selfie-editor-grid" data-selfie-images></div>
-            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button></div>
             <p role="status" aria-live="polite"></p>
           </div>
           <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
             <summary>Administrar colección PING · IMMERSA</summary>
             <div id="pingSelfieEditor" class="selfie-editor">
               <h3>Colección predeterminada de PING</h3>
-              <p>Los cambios se aplican a todos los Decks que usan PING, a partir de la próxima Selfie. Las colecciones propias de cada Deck se conservan.</p>
+              <p>Los cambios se aplican a todos los Decks que usan PING, en la próxima ronda de Tarjetas. Las colecciones propias de cada Deck se conservan.</p>
               <p data-selfie-source></p>
               <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
               <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
               <div class="selfie-editor-grid" data-selfie-images></div>
-              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button><button type="button" data-selfie-refresh>Actualizar</button></div>
+              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button></div>
               <p role="status" aria-live="polite"></p>
             </div>
           </details>
         </section>
         <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
           <div id="deckSpeakersEditor" class="deck-speakers-editor">
-            <div class="deck-speakers-toolbar"><label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label><button type="button" data-speakers-refresh>Actualizar lista</button></div>
+            <label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label>
             <p data-speakers-summary>Agrega, ordena y enciende los perfiles que quieres mostrar.</p>
             <p data-speakers-status role="status" aria-live="polite"></p>
             <div data-speakers-list></div>
@@ -321,26 +325,26 @@
     <section class="conversion-card" role="status" aria-live="polite" aria-label="Convirtiendo presentación"><div class="conversion-orb" aria-hidden="true"></div><div class="conversion-copy"><strong id="conversionTitle">Convirtiendo tu presentación</strong><span id="conversionMessage">Preparando slides y archivos para Immersa.</span></div><div class="conversion-progress" aria-label="Progreso de conversión"><div class="conversion-percent"><span id="conversionPercent">0%</span></div><div class="conversion-bar"><span id="conversionBarFill"></span></div></div></section>
   </div>
   <script src="/home/home-account.js?v=3"></script>
-  <script src="/home/event-invitations.js?v=6"></script>
-  <script src="/home/billing.js?v=13"></script>
-  <script src="/home/profile-editor.js?v=6"></script>
-  <script src="/home/home.js?v=2026110101"></script>
-  <script src="/home/basic-metrics.js?v=2026110101"></script>
+  <script src="/home/event-invitations.js?v=8"></script>
+  <script src="/home/billing.js?v=16"></script>
+  <script src="/home/profile-editor.js?v=8"></script>
+  <script src="/home/home.js?v=77&ui=3"></script>
+  <script src="/home/basic-metrics.js?v=2"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
-  <script src="/home/interactions-editor.js?v=2026110101"></script>
-  <script src="/home/video-editor.js?v=113"></script>
+  <script src="/home/interactions-editor.js?v=12"></script>
+  <script src="/home/video-editor.js?v=115"></script>
   <script src="/home/audiovisual-editor.js?v=24"></script>
-  <link rel="stylesheet" href="/home/prompter-editor.css?v=2026110101">
-  <script src="/home/prompter-editor.js?v=2026110101"></script>
+  <link rel="stylesheet" href="/home/prompter-editor.css?v=2">
+  <script src="/home/prompter-editor.js?v=5"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
-  <script src="/home/brand-mentions-editor.js?v=4"></script>
-  <script src="/home/deck-management-shell.js?v=12"></script>
-  <script src="/home/deck-speakers-editor.js?v=1"></script>
+  <script src="/home/brand-mentions-editor.js?v=6"></script>
+  <script src="/home/deck-management-shell.js?v=18"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=4"></script>
+  <script src="/home/deck-speakers-editor.js?v=2"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
-  <script src="/home/selfie-editor.js?v=2"></script>
+  <script src="/home/selfie-editor.js?v=4"></script>
 </body>
 </html>

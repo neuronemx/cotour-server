@@ -32,7 +32,7 @@ let drawingMode = false;
 let audiovisualResources = [];
 let localAudiovisualResources = [];
 let audiovisualState = { audio: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 }, video: { resource: null, status: "stopped", loop: false, volume: 1, position: 0 } };
-let audioReactState = { enabled: false, reaction: 0 };
+let audioReactState = { available: false, enabled: false, reaction: 0 };
 let audiovisualTab = "audio";
 let audiovisualPanel = null;
 let audiovisualMasterVolume = 1;
@@ -48,7 +48,6 @@ const audience = document.getElementById("audience");
 const prevSlide = document.getElementById("prev");
 const nextSlide = document.getElementById("next");
 const playPause = document.getElementById("playPause");
-const localReactions = document.getElementById("localReactions");
 const audienceQr = document.getElementById("audienceQr");
 const presenterQr = document.getElementById("presenterQr");
 const presenterQrPattern = document.getElementById("presenterQrPattern");
@@ -74,6 +73,20 @@ let presentationLifecyclePending = false;
 const fullscreenToggle = document.getElementById("fullscreenToggle");
 const thumbsToggle = document.getElementById("thumbsToggle");
 const thumbs = document.getElementById("thumbs");
+let trackedActiveThumb = null;
+let thumbScrollFrame = null;
+function followActiveThumb(state) {
+  const index = Number(state?.presenterSlideIndex ?? state?.slideIndex);
+  const activeThumb = Number.isInteger(index) ? thumbs?.children?.[index] : null;
+  if (!activeThumb || activeThumb === trackedActiveThumb) return;
+  trackedActiveThumb = activeThumb;
+  if (thumbScrollFrame) cancelAnimationFrame(thumbScrollFrame);
+  thumbScrollFrame = requestAnimationFrame(() => {
+    thumbScrollFrame = null;
+    const centeredLeft = activeThumb.offsetLeft - ((thumbs.clientWidth - activeThumb.offsetWidth) / 2);
+    thumbs.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+  });
+}
 const deckNotice = document.getElementById("deckNotice");
 let qnaAvailable = planAllows("qna.run");
 let qnaQuestionsOpen = false;
@@ -148,10 +161,7 @@ function publishAudienceQr(visible) {
   renderPresenterQr(currentState);
   socket.emit("overlay_update", { overlays: { showAudienceQr: visible, qrVisible: visible, audienceUrl } });
 }
-function reactionsEnabled(state) { return Boolean(state?.overlays?.showReactions ?? state?.overlays?.reactionsOnScreen ?? true); }
-function updateReactionToggle(state) { if (!localReactions) return; localReactions.checked = reactionsEnabled(state); }
-function publishReactionsEnabled(enabled) { socket.emit("overlay_update", { overlays: { showReactions: enabled, reactionsOnScreen: enabled } }); }
-
+function updateReactionToggle() {}
 function getFullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 function isFullscreen() { return Boolean(getFullscreenElement()); }
 function updateFullscreenButton() {
@@ -183,7 +193,7 @@ async function toggleFullscreen() {
       else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
       return;
     }
-    const target = document.documentElement;
+    const target = presenterShell || document.documentElement;
     if (target.requestFullscreen) await target.requestFullscreen();
     else if (target.webkitRequestFullscreen) await target.webkitRequestFullscreen();
   } catch (_error) {
@@ -417,7 +427,8 @@ function renderAudiovisualPanel(force = false) {
   const playlists = isFxTab ? [] : buildLocalPlaylistCards(localItems);
   const localSingles = localItems.filter((item) => !item.playlist?.id);
   const remote = audiovisualResources.filter(matchesTab);
-  const tabs = ["audio", "video", "fx"].map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
+  const tabTypes = audioReactState.available ? ["audio", "video", "fx", "react"] : ["audio", "video", "fx"];
+  const tabs = tabTypes.map((tab) => { const isReact = tab === "react"; const label = tab === "audio" ? "Audio" : tab === "video" ? "Video" : tab === "fx" ? "FX" : "React"; const channel = audiovisualChannel(tab === "fx" ? "video" : tab); const live = !isReact && ["playing", "fading"].includes(channel.status) && (channel.resource?.category === "fx") === (tab === "fx"); const selected = audiovisualTab === tab && (!isReact || audioReactState.enabled); return '<button class="audiovisual-tab ' + (selected ? 'is-selected' : '') + (live ? ' is-playing' : '') + (isReact && audioReactState.enabled ? ' is-reacting' : '') + '" data-av-tab="' + tab + '" title="' + label + '">' + audiovisualTabIcon(tab) + '<span>' + label + '</span>' + (isReact ? '<b class="audio-react-tab-status">' + (audioReactState.enabled ? "On" : "Off") + '</b>' : "") + '</button>'; }).join("");
   let body = "";
   if (audiovisualTab === "react") {
     const selected = Math.max(0, Math.min(11, Number(audioReactState.reaction) || 0));
@@ -643,7 +654,7 @@ function renderImmersaTimePanel() {
       '<button class="time-launch-card ' + (mode === "stopwatch" ? "is-active" : "") + '" data-time-start="stopwatch" type="button"><b>Cronómetro</b><span>00:00:00</span></button>' +
       '<button class="time-launch-card ' + (mode === "clock" ? "is-active" : "") + '" data-time-start="clock" type="button"><b>Hora actual</b><span>12 horas</span></button>' +
     '</div>' +
-    '<div class="time-countdown-form ' + (mode === "countdown" ? "is-active" : "") + '"><div class="time-countdown-copy"><b>Temporizador</b><span>Cuenta regresiva</span></div><div class="time-countdown-inputs"><label><input data-time-hours type="number" min="0" max="99" value="0" aria-label="Horas"><em>H</em></label><label><input data-time-minutes type="number" min="0" max="59" value="15" aria-label="Minutos"><em>M</em></label><label><input data-time-seconds type="number" min="0" max="59" value="0" aria-label="Segundos"><em>S</em></label></div><button data-time-start-countdown type="button">Iniciar</button></div>' +
+    '<div class="time-countdown-form ' + (mode === "countdown" ? "is-active" : "") + '"><div class="time-countdown-copy"><b>Temporizador</b><span>Cuenta regresiva</span></div><div class="time-countdown-inputs"><label><input data-time-hours type="number" min="0" max="99" value="0" aria-label="Horas"><em>H</em></label><label><input data-time-minutes type="number" min="0" max="59" value="15" aria-label="Minutos"><em>M</em></label><label><input data-time-seconds type="number" min="0" max="59" value="0" aria-label="Segundos"><em>S</em></label></div><div class="time-countdown-actions"><div class="time-shortcuts" aria-label="Temporizadores rápidos"><button data-time-shortcut="5" type="button">5 min</button><button data-time-shortcut="10" type="button">10 min</button><button data-time-shortcut="30" type="button">30 min</button></div><button data-time-start-countdown type="button">Iniciar</button></div></div>' +
     modeSummary;
   panel.querySelector("[data-time-close]")?.addEventListener("click", closeImmersaTimePanel);
   panel.querySelectorAll("[data-time-start]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: "start", mode: button.dataset.timeStart })));
@@ -653,6 +664,16 @@ function renderImmersaTimePanel() {
     const seconds = panel.querySelector("[data-time-seconds]")?.value;
     socket.emit("time:control", { target: "screen", action: "start", mode: "countdown", hours, minutes, seconds });
   });
+  panel.querySelectorAll("[data-time-shortcut]").forEach((button) => button.addEventListener("click", () => {
+    const minutes = Number(button.dataset.timeShortcut) || 0;
+    const hoursInput = panel.querySelector("[data-time-hours]");
+    const minutesInput = panel.querySelector("[data-time-minutes]");
+    const secondsInput = panel.querySelector("[data-time-seconds]");
+    if (hoursInput) hoursInput.value = "0";
+    if (minutesInput) minutesInput.value = String(minutes);
+    if (secondsInput) secondsInput.value = "0";
+    socket.emit("time:control", { target: "screen", action: "start", mode: "countdown", hours: 0, minutes, seconds: 0 });
+  }));
   panel.querySelectorAll("[data-time-screen-action]").forEach((button) => button.addEventListener("click", () => socket.emit("time:control", { target: "screen", action: button.dataset.timeScreenAction })));
 }
 function toggleSpeakerTimer() {
@@ -767,14 +788,13 @@ function applySlideOrientation(container, item, src) { const portrait = item?.or
 function presenterNavigationLocked(state = currentState) { return Boolean(state?.transmissionPaused && state?.transmissionPausedBy !== "presenter"); }
 function renderThumbs() { thumbs.innerHTML = ""; manifest.slides.forEach((item, index) => { const slideNumber = index + 1; const hasVideo = videoSlideIds.has(slideIdentity(item, index)); const button = document.createElement("button"); button.type = "button"; button.className = "thumb" + (hasVideo ? " has-video" : ""); button.setAttribute("aria-label", "Ir a lámina " + slideNumber + (item.title ? ": " + item.title : "") + (hasVideo ? " · contiene video" : "")); button.title = (item.title ? "Lámina " + slideNumber + " · " + item.title : "Lámina " + slideNumber) + (hasVideo ? " · Video" : ""); button.innerHTML = '<span class="thumb-number">' + slideNumber + '</span><img alt="" src="' + assetSrc(item, "thumb") + '">' + (hasVideo ? videoThumbMark(index) : ""); button.addEventListener("click", () => { if (presenterNavigationLocked()) return; socket.emit("slide_go", { slideIndex: index }); closeThumbsPanel(); }); thumbs.appendChild(button); }); }
 function render(state) { currentState = state; const nextLocale = state.operationalLocale === 'en' && englishManifest ? 'en' : 'es'; if (nextLocale !== operationalLocale) { operationalLocale = nextLocale; window.ImmersaI18n?.setLocale(operationalLocale); manifest = operationalLocale === 'en' ? { ...baseManifest, slides: englishManifest.slides } : baseManifest; renderThumbs(); hidePrompter(); } const index = state.presenterSlideIndex ?? state.slideIndex; const previousIndex = currentSlideIndex; const changed = index !== previousIndex; currentSlideIndex = index; const item = manifest.slides[index]; const src = slideSrc(index); if (changed && window.ImmersaSlideTransitions?.swap) window.ImmersaSlideTransitions.swap(slide, src, manifest.slideTransition, index - previousIndex); else slide.src = src; window.ImmersaSlideTransitions?.preload([index - 1, index + 1].filter((slideIndex) => manifest.slides[slideIndex]).map(slideSrc)); applySlideOrientation(streamArea, item, src); window.ImmersaDemoPlanBadge?.update(streamArea, item, manifest); drawingOverlay?.refresh(); current.textContent = index + 1; audience.textContent = state.audienceCount || 0; playPause.innerHTML = state.transmissionPaused ? playIcon : pauseIcon; playPause.classList.toggle("is-paused", state.transmissionPaused); playPause.title = window.ImmersaI18n?.t(state.transmissionPaused ? 'live.resume' : 'live.pause') || (state.transmissionPaused ? 'Reanudar transmisión' : 'Pausar transmisión'); playPause.setAttribute("aria-label", playPause.title); const navigationLocked = presenterNavigationLocked(state); prevSlide.disabled = navigationLocked || index <= 0; nextSlide.disabled = navigationLocked || index >= manifest.slides.length - 1; updateAudienceQrButton(state); renderPresenterQr(state); updateReactionToggle(state); liveTextControl?.sync(state.overlays || {}); document.querySelectorAll(".thumb").forEach((node, i) => { node.disabled = navigationLocked; node.classList.toggle("active", i === index); node.classList.toggle("live", i === state.liveSlideIndex); }); }
-function popReaction(emoji) { if (!localReactions.checked) return; const node = document.createElement("span"); node.className = "reaction"; node.textContent = emoji; node.style.left = Math.round(20 + Math.random() * 60) + "%"; node.style.setProperty("--x", Math.round(Math.random() * 240 - 120) + "px"); document.getElementById("reactions").appendChild(node); setTimeout(() => node.remove(), 2900); }
 function updateDrawingMode() { if (!drawToggle) return; drawToggle.classList.toggle("is-active", drawingMode); drawToggle.classList.toggle("active", drawingMode); drawToggle.setAttribute("aria-pressed", String(drawingMode)); drawToggle.title = drawingMode ? "Desactivar dibujo" : "Dibujar sobre slide"; streamArea.classList.toggle("is-drawing", drawingMode); drawingOverlay?.setInteractive(drawingMode); }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: streamArea, slide, getSlideIndex: () => currentSlideIndex, emitStroke: (stroke) => socket.emit("drawing_stroke", stroke), zIndex: 2 }); drawingOverlay.setInteractive(drawingMode); }
 function ensureInteractionPanel() {
   if (interactionPanel) return interactionPanel;
   interactionPanel = document.createElement("section");
   interactionPanel.className = "interaction-panel";
-  interactionPanel.setAttribute("aria-label", "Interacciones");
+  interactionPanel.setAttribute("aria-label", window.ImmersaI18n.t("shell.activities"));
   interactionShellMount = document.createElement("div");
   interactionShellMount.className = "interactions-shell-mount";
   interactionPanel.appendChild(interactionShellMount);
@@ -792,8 +812,7 @@ function ensureInteractionsShell() {
       qna: planAllows("qna.run"),
       assessments: planAllows("assessments.run"),
       raffles: planAllows("raffles.run"),
-      contests: planAllows("trivia.run"),
-      games: !isPublishedDemo && planAllows("games.run")
+      contests: planAllows("trivia.run")
     },
     categoryVisibility: {
       selfie: true,
@@ -881,12 +900,17 @@ function syncInteractionShellState() {
 }
 function renderSelfiePanel() {
   if (!selfieRenderer) return;
-  selfieRenderer.innerHTML = '<div class="interaction-panel-heading"><h2>Selfie</h2><p>' + (selfieActive ? 'Pide al público que muestre sus celulares. Después puede imitar la imagen que le tocó.' : 'Cada participante recibirá una imagen de la colección de este Deck. Puedes cambiarla en Home → Deck → Selfie.') + '</p></div><p>Cuando estén listos, reproduce el disparo de PING desde Audiovisual.</p><div class="interaction-panel-actions"><button class="primary" data-selfie-action>' + (selfieActive ? 'Cerrar Selfie' : 'Lanzar Selfie') + '</button></div><p data-selfie-status role="status"></p>';
+  const { t } = window.ImmersaI18n;
+  selfieRenderer.innerHTML = '<div class="interaction-panel-heading"><h2></h2><p></p></div><div class="interaction-panel-actions"><button type="button" class="primary" data-selfie-action></button></div><p data-selfie-status role="status"></p>';
+  selfieRenderer.querySelector('h2').textContent = t('shell.selfie');
+  selfieRenderer.querySelector('.interaction-panel-heading p').textContent = t(selfieActive ? 'cards.active' : 'cards.ready');
+  selfieRenderer.querySelector('[data-selfie-action]').textContent = t(selfieActive ? 'cards.close' : 'cards.launch');
   selfieRenderer.querySelector('[data-selfie-action]').addEventListener('click', event => {
     event.currentTarget.disabled = true;
     socket.emit(selfieActive ? 'selfie:close' : 'selfie:start');
   });
 }
+window.addEventListener('immersa:locale-change', renderSelfiePanel);
 socket.on('selfie:state', state => {
   const wasActive = selfieActive;
   selfieActive = Boolean(state?.active);
@@ -898,7 +922,7 @@ socket.on('selfie:state', state => {
 socket.on('selfie:rejected', state => {
   renderSelfiePanel();
   const status = selfieRenderer?.querySelector('[data-selfie-status]');
-  if (status) status.textContent = state.reason === 'active_interaction_exists' ? 'Cierra la interacción activa antes de lanzar Selfie.' : 'No se pudo iniciar Selfie. Intenta de nuevo.';
+  if (status) status.textContent = window.ImmersaI18n.t(state?.reason === 'active_interaction_exists' ? 'cards.busy' : 'cards.error');
 });
 function renderRafflePanel() {
   const shell = ensureInteractionsShell();
@@ -918,6 +942,11 @@ function setInteractionPanelOpen(open) {
   if (!open) resetInactiveRaffleDraft();
   interactionPanelOpen = Boolean(open);
   presenterShell?.classList.toggle("interaction-panel-open", interactionPanelOpen);
+  if (interactionPanelOpen) {
+    audiovisualPanel?.classList.remove("is-open");
+    closeImmersaTimePanel();
+    syncAudiovisualToggle();
+  }
   syncInteractionToggleVisualState();
   if (interactionPanelOpen) renderInteractionPanel();
 }
@@ -928,7 +957,8 @@ function syncInteractionToggleVisualState() {
     interactionToggle.classList.toggle("is-special-active", visuallyActive);
     interactionToggle.setAttribute("aria-expanded", String(interactionPanelOpen));
     interactionToggle.setAttribute("aria-pressed", String(visuallyActive));
-    interactionToggle.title = interactionPanelOpen ? "Cerrar interacciones" : qnaQuestionsOpen ? "Interacciones · Preguntas abiertas" : "Interacciones";
+    const { t } = window.ImmersaI18n;
+    interactionToggle.title = t(interactionPanelOpen ? "shell.closeActivities" : qnaQuestionsOpen ? "shell.activitiesQuestionsOpen" : "shell.activities");
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
   }
 }
@@ -939,15 +969,14 @@ function ensureInteractionToggle() {
     interactionToggle.disabled = true;
     interactionToggle.classList.add("is-plan-locked");
     interactionToggle.setAttribute("aria-disabled", "true");
-    interactionToggle.title = "Interacciones · Disponible en planes de pago";
+    interactionToggle.title = window.ImmersaI18n.t("shell.activitiesLocked");
     interactionToggle.setAttribute("aria-label", interactionToggle.title);
     return interactionToggle;
   }
   interactionToggle.addEventListener("click", toggleInteractionPanel);
   interactionToggle.setAttribute("aria-expanded", "false");
   interactionToggle.setAttribute("aria-pressed", "false");
-  interactionToggle.title = "Interacciones";
-  interactionToggle.setAttribute("aria-label", "Interacciones");
+  syncInteractionToggleVisualState();
   return interactionToggle;
 }
 function responseCountText(results) { const total = results?.totalResponses || 0; return total + " respuesta" + (total === 1 ? "" : "s"); }
@@ -1011,7 +1040,6 @@ prevSlide.addEventListener("click", () => { if (!presenterNavigationLocked()) so
 nextSlide.addEventListener("click", () => { if (!presenterNavigationLocked()) socket.emit("slide_next"); });
 playPause.addEventListener("click", () => socket.emit(currentState?.transmissionPaused ? "transmission_play" : "transmission_pause"));
 audienceQr.addEventListener("click", () => publishAudienceQr(!audienceQrVisible(currentState)));
-if (localReactions) localReactions.addEventListener("change", () => publishReactionsEnabled(localReactions.checked));
 if (drawToggle) drawToggle.addEventListener("click", () => { drawingMode = !drawingMode; if(drawingMode)hidePrompter(); updateDrawingMode(); });
 if (audiovisualToggle) audiovisualToggle.addEventListener("click", toggleAudiovisualPanel);
 if (timeToggle) timeToggle.addEventListener("click", toggleImmersaTimePanel);
@@ -1025,23 +1053,33 @@ else if (compactLandscapeQuery?.addListener) compactLandscapeQuery.addListener(s
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && interactionPanelOpen && !hasActiveInteractionShellLock()) closeInteractionPanelRequest(); });
-socket.on("presentation_state", (state) => { if (manifest) render(state); });
+socket.on("presentation_state", (state) => {
+  if (!manifest) return;
+  render(state);
+  followActiveThumb(state);
+});
 socket.on("overlay_update", (overlays) => {
   currentState = { ...(currentState || {}), overlays: { ...(currentState?.overlays || {}), ...overlays } };
   updateAudienceQrButton({ overlays });
   renderPresenterQr(currentState);
-  updateReactionToggle({ overlays });
   liveTextControl?.sync(overlays);
 });
 socket.on("audience_count", (count) => { audience.textContent = count; });
 socket.on("audiovisual:state", applyAudiovisualState);
-socket.on("audio-react:state", (next = {}) => { audioReactState = { enabled: false, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) }; renderAudiovisualPanel(true); });
+socket.on("audio-react:state", (next = {}) => {
+  const available = next.available === true;
+  audioReactState = { available, enabled: available && next.enabled === true, reaction: Math.max(0, Math.min(11, Number(next.reaction) || 0)) };
+  if (!available && audiovisualTab === "react") audiovisualTab = "audio";
+  renderAudiovisualPanel(true);
+});
 socket.on("time:state", applyImmersaTime);
 socket.on("presentation:lifecycle:state", applyPresentationLifecycle);
 socket.on("presentation:lifecycle:rejected", rejectPresentationLifecycle);
 socket.on("plan:features", applyPresentationLifecycleFeature);
+socket.on("plan:feature_locked", (payload = {}) => {
+  if (payload.feature === "metrics.basic" && presentationLifecyclePending) rejectPresentationLifecycle(payload);
+});
 socket.on("local-library:updated", (payload = {}) => { localAudiovisualResources = Array.isArray(payload.resources) ? payload.resources : []; warmAudiovisualDurations(localAudiovisualResources); renderAudiovisualPanel(); });
-socket.on("reaction", ({ emoji, target }) => { if (target === "presenter") popReaction(emoji); });
 socket.on("interaction:state", (state) => { activeInteraction = state?.active || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResultsVisible = Boolean(state?.resultsVisible); if (!activeInteraction) interactionResults = null; renderInteractionPanel(); });
 socket.on("interaction:active", (interaction) => { activeInteraction = interaction || null; if (activeInteraction?.id) selectedInteractionId = String(activeInteraction.id); interactionResults = null; interactionResultsVisible = false; renderInteractionPanel(); });
 socket.on("interaction:results_updated", (results) => { interactionResults = results || null; renderInteractionPanel(); });
