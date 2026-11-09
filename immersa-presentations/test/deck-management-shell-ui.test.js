@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=31/);
+  assert.match(html, /deck-management-shell\.css\?v=32/);
   assert.match(html, /deck-management-shell\.js\?v=19/);
   const primaryTabs = html.match(/<nav class="deck-detail-tabs"[\s\S]*?<\/nav>/)?.[0];
   assert.deepEqual([...primaryTabs.matchAll(/data-deck-tab="([^"]+)"/g)].map((match) => match[1]), ["links", "experience", "av", "metrics"]);
@@ -147,18 +147,15 @@ test("Deck detail provides visual slide navigation and direct prompter editing w
   assert.match(source, /detailSlidesRequestId/);
   assert.doesNotMatch(source, /slide_go|socket\.emit/);
   assert.match(css, /\.deck-detail-slide-strip[\s\S]+overflow-x: auto/);
-  assert.match(css, /\.deck-detail-slide-strip[\s\S]+position: absolute[\s\S]+bottom: 0/);
-  assert.match(css, /\.deck-detail-slide-strip[\s\S]+gap: 5px/);
-  assert.match(css, /\.deck-detail-slide-strip[\s\S]+padding: 5px/);
+  assert.match(source, /immersa:deck-prompter-slide-change/);
+  assert.match(source, /detailSlideStrip\.scrollTo/);
   assert.match(css, /\.deck-detail-slide-thumb[\s\S]+flex: 0 0 88px[\s\S]+width: 88px/);
-  assert.match(css, /\.deck-detail-slide-strip[\s\S]+background: rgba\(10, 10, 30, \.58\)/);
-  assert.match(css, /\.deck-detail-slide-strip[\s\S]+backdrop-filter: blur\(12px\)/);
   assert.match(css, /\.deck-detail-slide-thumb \{[\s\S]+padding: 1px[\s\S]+background: rgba\(255, 255, 255, \.3\)/);
   assert.match(css, /\.deck-detail-slide-thumb\.is-active[\s\S]+padding: 2px[\s\S]+background: var\(--grad\)/);
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=31/);
+  assert.match(html, /deck-management-shell\.css\?v=32/);
 });
 
 test("Deck Home starts in Enlaces and keeps the preview controls together", () => {
@@ -167,9 +164,10 @@ test("Deck Home starts in Enlaces and keeps the preview controls together", () =
   const shell = read("public/home/deck-management-shell.js");
 
   assert.match(shell, /immersa:deck-detail-open[\s\S]*?setPreviewExpanded\(false\)[\s\S]*?activateTab\("links"\)/);
-  assert.match(html, /id="deckPreviewContent"[\s\S]*?id="detailThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"[\s\S]*?id="deckTransitionSettings"/);
+  assert.match(html, /id="deckPreviewContent"[\s\S]*?id="detailThumb"[\s\S]*?id="deckTransitionSettings"[\s\S]*?id="detailSlideStrip"[\s\S]*?id="detailVideoAction"[\s\S]*?id="deckPrompter"/);
   assert.match(html, /id="deckFileMenu"[\s\S]*?id="detailRename"[\s\S]*?id="detailReplace"[\s\S]*?id="detailLanguage"/);
-  assert.doesNotMatch(html, /deckTabsMore/);
+  assert.doesNotMatch(html, /deckTabsMore|id="prompterModal"/);
+  assert.match(shellCss, /\.deck-detail-preview \.deck-transition-settings \{[^}]*position: absolute;[^}]*right: 10px;[^}]*bottom: 10px;/);
   assert.match(shellCss, /#deckDetailModal \{ inset: 0; padding: 0; \}/);
   assert.match(shellCss, /height: 100dvh/);
 });

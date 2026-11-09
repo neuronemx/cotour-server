@@ -1,107 +1,157 @@
 (function () {
-  function bindBackdropDismissal(backdrop, onDismiss) {
-    if (!backdrop) return;
-    let startedOnBackdrop = false;
-    let endedOnBackdrop = false;
-    let pointerId = null;
-    function reset() {
-      startedOnBackdrop = false;
-      endedOnBackdrop = false;
-      pointerId = null;
-    }
-    // Capture the full gesture, including fields moved into Deck Home panels.
-    document.addEventListener("pointerdown", (event) => {
-      reset();
-      if (event.button !== 0 || event.isPrimary === false) return;
-      startedOnBackdrop = event.target === backdrop;
-      pointerId = event.pointerId;
-    }, true);
-    document.addEventListener("pointerup", (event) => {
-      if (event.pointerId !== pointerId) return;
-      endedOnBackdrop = event.target === backdrop;
-    }, true);
-    document.addEventListener("pointercancel", reset, true);
-    window.addEventListener("blur", reset);
-    backdrop.addEventListener("click", (event) => {
-      const dismiss = startedOnBackdrop && endedOnBackdrop && event.target === backdrop;
-      reset();
-      if (dismiss) onDismiss();
-    });
+  const panel = document.getElementById("deckPrompter");
+  const toggle = document.getElementById("detailVideoAction");
+  const esField = document.getElementById("deckPrompterText");
+  const enField = document.getElementById("deckPrompterEnglish");
+  const enWrapper = document.getElementById("deckPrompterEnglishField");
+  const status = document.getElementById("deckPrompterStatus");
+  const count = document.getElementById("deckPrompterCount");
+  const save = document.getElementById("deckPrompterSave");
+  const clear = document.getElementById("deckPrompterDelete");
+  const drafts = new Map();
+  let deck;
+  let slide;
+  let notes = null;
+  let canManageEnglish = false;
+  let busy = false;
+  let openVersion = 0;
+  let deckVersion = 0;
+
+  const words = value => value.trim().split(/\s+/).filter(Boolean).length;
+  const endpoint = deckId => "/api/decks/" + encodeURIComponent(deckId) + "/interactions";
+
+  function updateCount() {
+    count.textContent = words(esField.value) + " palabras ES"
+      + (enWrapper.hidden ? "" : " · " + words(enField.value) + " palabras EN");
   }
 
-  const modal = document.getElementById('prompterModal');
-  const esField = document.getElementById('prompterModalText');
-  const enField = document.getElementById('prompterModalEnglish');
-  const enWrapper = document.getElementById('prompterModalEnglishField');
-  const status = document.getElementById('prompterModalStatus');
-  const count = document.getElementById('prompterModalCount');
-  let deck;
-  let data;
-  let slide;
-  let bilingual = false;
-  let canManageEnglish = false;
-  let currentDeck = null;
   function syncEnglish() {
-    bilingual = canManageEnglish && Number(currentDeck?.locales?.en?.slides || 0) > 0;
-    enWrapper.hidden = !bilingual;
+    enWrapper.hidden = !(canManageEnglish && Number(deck?.locales?.en?.slides || 0) > 0);
     updateCount();
   }
-  const words = (value) => String(value || '').trim().split(/\s+/).filter(Boolean).length;
-  function updateCount() { count.textContent = words(esField.value) + ' palabras ES' + (bilingual ? ' · ' + words(enField.value) + ' palabras EN' : ''); }
-  function close() { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); }
-  async function open(request) {
-    deck = request.deck;
-    currentDeck = deck;
-    syncEnglish();
+
+  function syncControls() {
+    esField.disabled = enField.disabled = save.disabled = clear.disabled = busy || !notes;
+  }
+
+  function renderSlide() {
+    if (!slide) return;
+    const saved = drafts.get(slide.slideId) ?? notes?.[slide.slideId];
+    esField.value = typeof saved === "object" && saved ? saved.es || "" : saved || "";
+    enField.value = typeof saved === "object" && saved ? saved.en || "" : "";
+    status.textContent = notes ? (drafts.has(slide.slideId) ? "Cambios sin guardar." : "") : "Cargando…";
+    updateCount();
+    syncControls();
+  }
+
+  function setOpen(open) {
+    panel.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+  }
+
+  function reset() {
+    openVersion++;
+    deckVersion++;
+    notes = null;
+    slide = null;
+    busy = false;
+    drafts.clear();
+    setOpen(false);
+  }
+
+  async function readConfiguration(deckId) {
+    const response = await fetch(endpoint(deckId), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo cargar el Apuntador.");
+    return data;
+  }
+
+  async function toggleEditor(request) {
+    const version = ++openVersion;
+    if (!panel.hidden) return setOpen(false);
     slide = request;
-    modal.hidden = false;
-    modal.setAttribute('aria-hidden', 'false');
-    document.getElementById('prompterModalSlide').textContent = 'Slide ' + (slide.slideIndex + 1);
-    const response = await fetch('/api/decks/' + encodeURIComponent(deck.deckId) + '/interactions');
-    data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el Apuntador.');
-    const saved = data.prompter?.[slide.slideId];
-    esField.value = typeof saved === 'object' && saved ? saved.es || '' : saved || '';
-    enField.value = typeof saved === 'object' && saved ? saved.en || '' : '';
-    enWrapper.hidden = !bilingual;
-    status.textContent = '';
-    updateCount();
-    esField.focus();
+    setOpen(true);
+    syncEnglish();
+    renderSlide();
+    if (notes) return esField.focus({ preventScroll: true });
+    try {
+      const loaded = await readConfiguration(deck.deckId);
+      if (version !== openVersion) return;
+      notes = loaded.prompter || {};
+      renderSlide();
+      esField.focus({ preventScroll: true });
+    } catch (error) {
+      if (version === openVersion) status.textContent = error.message;
+    }
   }
+
   async function persist(remove) {
-    if (!data || !deck || !slide) return;
-    const prompter = { ...(data.prompter || {}) };
-    const old = prompter[slide.slideId];
-    const previousEnglish = typeof old === 'object' && old ? String(old.en || '') : '';
-    const es = remove ? '' : esField.value.trim();
-    const en = bilingual ? (remove ? '' : enField.value.trim()) : previousEnglish;
-    if (!es && !en) delete prompter[slide.slideId];
-    else prompter[slide.slideId] = en || bilingual ? { es, en } : es;
-    const response = await fetch('/api/decks/' + encodeURIComponent(deck.deckId) + '/interactions', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ interactions: data.interactions || [], prompter })
-    });
-    const result = await response.json();
-    if (!response.ok) return void (status.textContent = result.error || 'No se pudo guardar.');
-    data = result;
-    if (remove) { esField.value = ''; if (bilingual) enField.value = ''; status.textContent = 'Apuntador borrado.'; updateCount(); }
-    else close();
+    if (!notes || !deck || !slide || busy) return;
+    const version = deckVersion;
+    const { deckId } = deck;
+    const { slideId } = slide;
+    const es = remove ? "" : esField.value.trim();
+    const bilingual = !enWrapper.hidden;
+    const en = remove ? "" : enField.value.trim();
+    busy = true;
+    syncControls();
+    status.textContent = "Guardando…";
+    try {
+      const config = await readConfiguration(deckId);
+      const latest = config.prompter || {};
+      const english = bilingual ? en : latest[slideId]?.en || "";
+      if (!es && !english) delete latest[slideId];
+      else latest[slideId] = english || bilingual ? { es, en: english } : es;
+      const response = await fetch(endpoint(deckId), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interactions: config.interactions || [], prompter: latest })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "No se pudo guardar el Apuntador.");
+      if (version !== deckVersion) return;
+      notes = result.prompter || latest;
+      drafts.delete(slideId);
+      if (slide?.slideId === slideId) {
+        renderSlide();
+        status.textContent = remove ? "Apuntador borrado." : "Apuntador guardado.";
+      }
+    } catch (error) {
+      if (version === deckVersion && slide?.slideId === slideId) status.textContent = error.message;
+    } finally {
+      if (version === deckVersion) {
+        busy = false;
+        syncControls();
+      }
+    }
   }
-  document.addEventListener('immersa:deck-detail-open', (event) => {
-    canManageEnglish = event.detail?.capabilities?.['multilanguage.manage'] === true;
-    currentDeck = event.detail?.deck || null;
+
+  function rememberDraft() {
+    drafts.set(slide.slideId, { es: esField.value, en: enField.value });
+    status.textContent = "Cambios sin guardar.";
+    updateCount();
+  }
+
+  document.addEventListener("immersa:deck-detail-open", event => {
+    reset();
+    deck = event.detail?.deck || null;
+    canManageEnglish = event.detail?.capabilities?.["multilanguage.manage"] === true;
     syncEnglish();
   });
-  document.addEventListener('immersa:deck-locale-updated', (event) => {
-    if (String(currentDeck?.deckId) !== String(event.detail?.deckId)) return;
-    currentDeck.locales = { ...(currentDeck.locales || {}), en: event.detail.variant };
+  document.addEventListener("immersa:deck-detail-close", reset);
+  document.addEventListener("immersa:deck-locale-updated", event => {
+    if (String(deck?.deckId) !== String(event.detail?.deckId)) return;
+    deck.locales = { ...(deck.locales || {}), en: event.detail.variant };
     syncEnglish();
   });
-  document.addEventListener('immersa:deck-prompter-slide-request', (event) => open(event.detail).catch((error) => { status.textContent = error.message; }));
-  esField?.addEventListener('input', updateCount);
-  enField?.addEventListener('input', updateCount);
-  document.getElementById('prompterModalSave')?.addEventListener('click', () => persist(false));
-  document.getElementById('prompterModalDelete')?.addEventListener('click', () => persist(true));
-  document.getElementById('prompterModalClose')?.addEventListener('click', close);
-  bindBackdropDismissal(modal, close);
+  document.addEventListener("immersa:deck-prompter-slide-request", event => toggleEditor(event.detail));
+  document.addEventListener("immersa:deck-prompter-slide-change", event => {
+    if (panel.hidden || slide?.slideId === event.detail.slideId) return;
+    slide = event.detail;
+    renderSlide();
+  });
+  esField.addEventListener("input", rememberDraft);
+  enField.addEventListener("input", rememberDraft);
+  save.addEventListener("click", () => persist(false));
+  clear.addEventListener("click", () => persist(true));
 })();

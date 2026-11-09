@@ -15,7 +15,6 @@ test("Home modals dismiss only when the pointer began on their backdrop", () => 
     "public/home/event-invitations.js",
     "public/home/interactions-editor.js",
     "public/home/video-editor.js",
-    "public/home/prompter-editor.js",
     "public/home/brand-mentions-editor.js",
     "public/home/locales-editor.js"
   ];
@@ -31,7 +30,7 @@ test("Home modals dismiss only when the pointer began on their backdrop", () => 
 
 
 test("every Home modal rejects text-selection drags and canceled gestures but accepts real outside clicks", () => {
-  for (const name of ["home", "billing", "profile-editor", "event-invitations", "interactions-editor", "video-editor", "prompter-editor", "brand-mentions-editor", "locales-editor"]) {
+  for (const name of ["home", "billing", "profile-editor", "event-invitations", "interactions-editor", "video-editor", "brand-mentions-editor", "locales-editor"]) {
     const source = read(`public/home/${name}.js`);
     const start = source.indexOf("function bindBackdropDismissal(");
     const end = source.indexOf(name === "home" ? "\n}" : "\n  }", start);

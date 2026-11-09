@@ -825,6 +825,11 @@ function syncDemoAdminControls() {
   if (detailDemoPlan) detailDemoPlan.value = String(slide?.planLevel || "");
 }
 
+function detailPrompterSlide(navigation) {
+  const { deck, index, slides } = navigation;
+  return { deck, slideId: detailSlideId(slides[index], index), slideIndex: index };
+}
+
 function selectDetailSlide(index, options = {}) {
   const navigation = detailSlideNavigation;
   if (!navigation?.slides.length || detailDeck?.deckId !== navigation.deck.deckId) return;
@@ -846,7 +851,14 @@ function selectDetailSlide(index, options = {}) {
   }
   syncDetailVideoControls();
   syncDemoAdminControls();
-  if (options.scroll !== false) navigation.buttons[nextIndex]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  document.dispatchEvent(new CustomEvent("immersa:deck-prompter-slide-change", {
+    detail: detailPrompterSlide(navigation)
+  }));
+  if (options.scroll !== false) {
+    const button = navigation.buttons[nextIndex];
+    const offset = button.getBoundingClientRect().left - detailSlideStrip.getBoundingClientRect().left;
+    detailSlideStrip.scrollTo({ left: detailSlideStrip.scrollLeft + offset - (detailSlideStrip.clientWidth - button.offsetWidth) / 2, behavior: "smooth" });
+  }
 }
 
 async function loadDetailSlideNavigation(deck) {
@@ -1374,7 +1386,7 @@ detailVideoAction?.addEventListener("click", () => {
   const navigation = detailSlideNavigation;
   if (!navigation || navigation.index < 0) return;
   document.dispatchEvent(new CustomEvent("immersa:deck-prompter-slide-request", {
-    detail: { deck: navigation.deck, slide: navigation.slides[navigation.index], slideId: detailSlideId(navigation.slides[navigation.index], navigation.index), slideIndex: navigation.index }
+    detail: detailPrompterSlide(navigation)
   }));
 });
 detailSlideStrip?.addEventListener("wheel", (event) => {
