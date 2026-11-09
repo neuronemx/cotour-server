@@ -264,7 +264,7 @@ body.stage-actions-open .interaction-slide-scrim {
   flex: none;
 }
 .interaction-result-bar {
-  height: 7px;
+  height: 21px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255,255,255,.12);
@@ -328,6 +328,8 @@ body.stage-actions-open .interaction-slide-scrim {
   top: 50%;
   transform: translate(-50%, -50%);
   width: min(760px, 82vw);
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
   display: grid;
   gap: 18px;
   padding: clamp(22px, 3vw, 34px);
@@ -351,7 +353,7 @@ body.stage-actions-open .interaction-slide-scrim {
   color: rgba(248,244,234,.95);
 }
 .interaction-results-overlay .interaction-result-bar {
-  height: 13px;
+  height: 39px;
   background: rgba(255,255,255,.16);
 }
 

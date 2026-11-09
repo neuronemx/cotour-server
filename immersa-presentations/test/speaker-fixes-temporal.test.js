@@ -75,7 +75,7 @@ test("Interaction groups retain a visible divider", () => {
   const presenterHtml = read("public/presenter/index.html");
 
   assert.match(css, /\.interactions-shell-group-divider \{[\s\S]*?width: 100%;[\s\S]*?height: 2px;[\s\S]*?background: rgba\(255, 255, 255, \.42\);/);
-  assert.match(presenterHtml, /\/shared\/interactions\.css\?v=5/);
+  assert.match(presenterHtml, /\/shared\/interactions\.css\?v=6/);
 });
 
 test("Speaker controls suppress transient touch rectangles while preserving keyboard focus", () => {
