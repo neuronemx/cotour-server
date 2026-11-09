@@ -11,8 +11,6 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   const css = read("public/shared/tutorials/tutorial-engine.css");
   const home = read("public/home/index.html");
   const homeScript = read("public/home/home.js");
-  const shell = read("public/home/deck-management-shell.js");
-  const homeCss = read("public/home/home.css");
 
   assert.match(engine, /const preview = new URLSearchParams\(window\.location\.search\)\.get\("tutorial"\) === "1"/);
   assert.match(engine, /if \(!saved\[definition\.id\]\?\.completed\) this\.render\(\)/);
@@ -27,7 +25,7 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.doesNotMatch(engine, /socket\.emit|fetch\(/);
   assert.match(definitions, /openDemo/);
   assert.match(definitions, /#detailSlideStrip[\s\S]*?Aquí recorres los slides de tu Deck de forma visual y compruebas que están completos/);
-  assert.match(definitions, /#deckTabVideo[\s\S]*?#deckTabParticipation/);
+  assert.match(definitions, /#deckTabAV[\s\S]*?#deckTabExperience/);
   assert.match(definitions, /Asistente te apoya mientras presentas/);
   assert.doesNotMatch(definitions, /advanceWhen|nextContext/);
   assert.match(css, /backdrop-filter:blur\(7px\)/);
@@ -39,8 +37,5 @@ test("Tutorial HOME stays isolated, locked, and tied to real HOME elements", () 
   assert.match(home, /data-tutorial-context="home"/);
   assert.match(homeScript, /const roles = \["screen", "speaker", "audience", "stage"\]/);
   assert.match(homeScript, /stage: "Asistente"/);
-  assert.match(shell, /const enabled = name !== "links"/);
-  assert.match(shell, /activateTab\("links", true\)/);
-  assert.match(homeCss, /#deckDetailModal \{ inset:68px 0 0; align-items:center; padding:20px; \}/);
-  assert.match(homeCss, /@media \(max-width: 700px\) \{ #deckDetailModal \{ inset:54px 0 0; padding:12px; \} \}/);
+  assert.match(definitions, /#detailSlideStrip[\s\S]*?prepare: expandPreview/);
 });

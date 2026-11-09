@@ -71,7 +71,10 @@
   function closeModal() {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
-    if (!document.getElementById('deckDetailModal')?.hidden) trigger.focus();
+    if (!document.getElementById('deckDetailModal')?.hidden) {
+      const focusTarget = trigger.closest('details')?.querySelector('summary') || trigger;
+      focusTarget.focus();
+    }
   }
   async function jsonResponse(response) {
     const data = await response.json().catch(() => ({}));

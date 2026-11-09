@@ -10,40 +10,6 @@
   let preview = null;
   let activeAudioButton = null;
   let saving = false;
-  let selectorObserver = null;
-  let categorySelectorOffset = 0;
-
-  function syncCategorySelector() {
-    const selector = host.querySelector('.av-library-tools .av2-tabs');
-    const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
-    if (!selector || !libraryTab) return;
-    // Always measure from the grid position, never from a previous correction.
-    selector.style.transform = 'none';
-    const selectorRect = selector.getBoundingClientRect();
-    const tabRect = libraryTab.getBoundingClientRect();
-    if (!selectorRect.width || !tabRect.width) return;
-    const delta = Math.round(
-      (tabRect.left + (tabRect.width / 2)) -
-      (selectorRect.left + (selectorRect.width / 2))
-    );
-    categorySelectorOffset = Math.max(-80, Math.min(80, delta));
-    selector.style.transform = 'translateX(' + categorySelectorOffset + 'px)';
-  }
-
-  function queueCategorySelectorSync() {
-    requestAnimationFrame(() => requestAnimationFrame(syncCategorySelector));
-  }
-
-  function watchCategorySelectorLayout() {
-    if (!('ResizeObserver' in window)) return;
-    const libraryTab = document.querySelector('[data-deck-tab="audiovisual"]');
-    const deckModal = document.querySelector('#deckDetailModal .deck-detail-modal');
-    if (!libraryTab || !deckModal) return;
-    if (!selectorObserver) selectorObserver = new ResizeObserver(queueCategorySelectorSync);
-    selectorObserver.disconnect();
-    selectorObserver.observe(libraryTab);
-    selectorObserver.observe(deckModal);
-  }
 
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -179,7 +145,7 @@
 
     host.innerHTML =
       '<section class="av2">' +
-        '<div class="av-library-tools"><div class="av2-tabs" role="tablist" style="transform:translateX(' + categorySelectorOffset + 'px)">' +
+        '<div class="av-library-tools"><div class="av2-tabs" role="tablist">' +
           '<button data-tab="audio" class="' + (type === 'audio' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'audio') + '">Audio</button>' +
           '<button data-tab="video" class="' + (type === 'video' ? 'is-active' : '') + '" role="tab" aria-selected="' + (type === 'video') + '">Video</button>' +
         '</div></div>' +
@@ -235,9 +201,6 @@
       });
     });
     host.querySelector('[data-save]').addEventListener('click', save);
-    queueCategorySelectorSync();
-    watchCategorySelectorLayout();
-    window.setTimeout(syncCategorySelector, 180);
   }
 
   function resetSaveState() {
@@ -309,7 +272,5 @@
   });
   document.addEventListener('immersa:audiovisual-library-visible', () => {
     resetSaveState();
-    queueCategorySelectorSync();
   });
-  window.addEventListener('resize', queueCategorySelectorSync);
 })();

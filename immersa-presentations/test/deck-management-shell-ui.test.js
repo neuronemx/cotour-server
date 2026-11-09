@@ -9,9 +9,13 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=30/);
-  assert.match(html, /deck-management-shell\.js\?v=18/);
-  assert.match(html, /data-deck-tab="links">[\s\S]*?<span>Enlaces<\/span>[\s\S]*?data-deck-tab="video">[\s\S]*?<span>Videos<\/span>[\s\S]*?data-deck-tab="participation"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Participación<\/span>[\s\S]*?data-deck-tab="metrics"[^>]+disabled[^>]+aria-disabled="true"[\s\S]*?<span>Métricas<\/span>/);
+  assert.match(html, /deck-management-shell\.css\?v=31/);
+  assert.match(html, /deck-management-shell\.js\?v=19/);
+  const primaryTabs = html.match(/<nav class="deck-detail-tabs"[\s\S]*?<\/nav>/)?.[0];
+  assert.deepEqual([...primaryTabs.matchAll(/data-deck-tab="([^"]+)"/g)].map((match) => match[1]), ["links", "experience", "av", "metrics"]);
+  assert.match(primaryTabs, /<span>A V<\/span>/);
+  assert.match(html, /data-deck-section="experience"[\s\S]*?data-deck-tab="participation"[\s\S]*?data-deck-tab="selfie"[\s\S]*?data-deck-tab="speakers"[\s\S]*?data-deck-tab="brands"/);
+  assert.match(html, /data-deck-section="av"[\s\S]*?data-deck-tab="video"[\s\S]*?data-deck-tab="audiovisual"/);
   assert.match(html, /data-deck-editor-host="participation"/);
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
@@ -32,12 +36,12 @@ test("Deck detail exposes the approved management sections", () => {
   assert.match(read("public/assets/icons/Interacciones_cohete.svg"), /M 463\.19 589\.25/);
 });
 
-test("Deck detail scrolls as one surface when viewport height is constrained", () => {
+test("Deck navigation stays visible while section content scrolls", () => {
   const css = read("public/home/deck-management-shell.css");
 
-  assert.match(css, /\.deck-detail-modal\s*\{[^}]*display:\s*block;[^}]*overflow-y:\s*auto;/s);
-  assert.match(css, /\.deck-detail-modal \.deck-detail-content\s*\{[^}]*overflow:\s*visible;/s);
-  assert.doesNotMatch(css, /\.deck-detail-modal\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/s);
+  assert.match(css, /grid-template-areas: "preview header" "preview tabs" "preview content"/);
+  assert.match(css, /\.deck-detail-modal \.deck-detail-content\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s);
+  assert.match(css, /grid-template-areas: "header" "tabs" "preview" "content"/);
 });
 
 test("Deck management shell reuses existing actions without parallel state", () => {
@@ -57,15 +61,13 @@ test("Deck management shell reuses existing actions without parallel state", () 
   assert.match(source, /immersa:deck-detail-open/);
   assert.match(source, /ArrowLeft/);
   assert.match(source, /ArrowRight/);
-  assert.match(source, /tabs\.filter\(\(item\) => !item\.disabled\)/);
-  assert.match(source, /if \(!targetTab \|\| targetTab\.disabled\) return/);
+  assert.match(source, /tablist\.contains\(item\) && !item\.disabled && !item\.hidden/);
+  assert.match(source, /if \(!targetTab \|\| targetTab\.disabled \|\| targetTab\.hidden\) return/);
   assert.match(source, /deck\?\.demoRole === "master" && !deck\?\.missing/);
   assert.match(source, /participationTab\.disabled = !enabled/);
   assert.match(source, /participationTab\.setAttribute\("aria-disabled", String\(!enabled\)\)/);
   assert.match(source, /syncDemoMasterTabs\(event\.detail\?\.deck\)/);
   assert.match(source, /const shell = modal\?\.querySelector\("\.deck-detail-modal"\)/);
-  assert.match(source, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
-  assert.doesNotMatch(source, /modal\.classList\.toggle\("is-compact-header"/);
   assert.doesNotMatch(source, /MutationObserver|setInterval|setTimeout/);
 });
 
@@ -76,30 +78,20 @@ test("Deck shell uses Immersa tokens, responsive layout, and reduced motion", ()
   assert.match(css, /background: var\(--grad\)/);
   assert.match(css, /background: var\(--grad-soft\)/);
   assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.deck-detail-header[\s\S]+grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /\.deck-detail-header \.deck-detail-thumb[\s\S]+width: 100%/);
   assert.match(css, /\.deck-detail-editor-host \.is-deck-inline/);
   assert.match(css, /\.deck-detail-tab svg/);
   assert.match(css, /justify-content: space-between/);
   assert.match(css, /\.deck-detail-modal \.deck-detail-actions[\s\S]+grid-auto-rows: 51px/);
   assert.match(css, /\.deck-detail-panel\[data-deck-panel="links"\][\s\S]+align-content: start/);
   assert.match(css, /\.deck-detail-modal \.detail-role-action[\s\S]+height: 51px/);
-  assert.match(css, /\.deck-detail-modal\.is-compact-header \.deck-detail-header/);
-  assert.match(css, /\.deck-detail-modal\.is-compact-header \.deck-detail-slide-strip[\s\S]+display: none/);
   assert.match(css, /\.interactions-status:empty \{ display: none; \}/);
   assert.match(css, /\.interactions-header,[\s\S]+display: none/);
   assert.match(css, /max-height: none/);
-  assert.match(css, /@media \(max-width: 700px\)/);
-  assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(css, /\.deck-detail-header \.deck-detail-close[\s\S]+min-width: 34px[\s\S]+max-width: 34px[\s\S]+-webkit-appearance: none/);
   assert.match(html, /id="closeDeckDetail"[\s\S]*?<svg[\s\S]*?<path d="M6 6l12 12M18 6 6 18"/);
   assert.doesNotMatch(html, /id="closeDeckDetail"[^>]*>×<\/button>/);
   assert.match(css, /\.deck-detail-header \.deck-detail-close svg[\s\S]+width: 14px[\s\S]+height: 14px/);
-  assert.match(css, /@media \(max-width: 700px\)[\s\S]+\.deck-detail-modal \{[\s\S]+width: 100%;[\s\S]+min-width: 0;/);
-  assert.doesNotMatch(css, /width: calc\(100vw - 16px\)/);
   assert.match(css, /\.deck-detail-tab:disabled/);
-  assert.doesNotMatch(css, /linear-gradient\(/);
 });
 
 test("Deck cards use a geometrically centered delete icon on iPhone", () => {
@@ -119,8 +111,6 @@ test("Home uses the compact IMMERSA mark in portrait mobile", () => {
   const html = read("public/home/index.html");
   const css = read("public/home/home.css");
 
-  assert.match(html, /source media="\(max-width: 700px\) and \(orientation: portrait\)" srcset="\/presenter\/immersa-mark\.png"/);
-  assert.match(css, /@media \(max-width: 700px\) and \(orientation: portrait\) \{[\s\S]*?\.brand-logo-full \{[^}]*width: 44px;[^}]*height: 44px;[^}]*object-fit: contain;/);
   assert.match(css, /\.account-pill \{ max-width: calc\(100% - 56px\); \}/);
 });
 
@@ -168,25 +158,20 @@ test("Deck detail provides visual slide navigation and direct prompter editing w
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=30/);
+  assert.match(html, /deck-management-shell\.css\?v=31/);
 });
 
-test("Deck Home restores the full Enlaces cover and centers below the persistent header", () => {
+test("Deck Home starts in Enlaces and keeps the preview controls together", () => {
   const html = read("public/home/index.html");
-  const homeCss = read("public/home/home.css");
   const shellCss = read("public/home/deck-management-shell.css");
   const shell = read("public/home/deck-management-shell.js");
 
-  assert.match(shell, /shell\.classList\.toggle\("is-compact-header", name !== "links"\)/);
-  assert.match(html, /class="deck-detail-hero"[\s\S]*?id="detailThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"[\s\S]*?class="deck-detail-copy"/);
-  assert.doesNotMatch(html, /deck-links-hero|detailLinksThumb/);
-  assert.match(homeCss, /#deckDetailModal \{ inset:68px 0 0; align-items:center; padding:20px; \}/);
-  assert.match(homeCss, /@media \(max-width: 700px\) \{ #deckDetailModal \{ inset:54px 0 0; padding:12px; \} \}/);
-  assert.match(homeCss, /#deckDetailModal \.deck-detail-modal \{ max-height:calc\(100dvh - 110px\); \}/);
-  assert.match(shellCss, /height:min\(calc\(100dvh - 108px\),900px\)/);
-  assert.match(shellCss, /height:calc\(100dvh - 110px\)/);
-  assert.match(shellCss, /has-audiovisual-library > \.deck-detail-tabs\{[\s\S]*flex:0 0 auto;/);
-  assert.match(html, /home\.css\?v=71&ui=3/);
+  assert.match(shell, /immersa:deck-detail-open[\s\S]*?setPreviewExpanded\(false\)[\s\S]*?activateTab\("links"\)/);
+  assert.match(html, /id="deckPreviewContent"[\s\S]*?id="detailThumb"[\s\S]*?id="detailVideoAction"[\s\S]*?id="detailSlideStrip"[\s\S]*?id="deckTransitionSettings"/);
+  assert.match(html, /id="deckFileMenu"[\s\S]*?id="detailRename"[\s\S]*?id="detailReplace"[\s\S]*?id="detailLanguage"/);
+  assert.doesNotMatch(html, /deckTabsMore/);
+  assert.match(shellCss, /#deckDetailModal \{ inset: 0; padding: 0; \}/);
+  assert.match(shellCss, /height: 100dvh/);
 });
 
 test("Direct video action reuses the current editor with the selected slide", () => {

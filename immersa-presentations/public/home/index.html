@@ -27,13 +27,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/home/home.css?v=71&ui=3">
+  <link rel="stylesheet" href="/home/home.css?v=72&ui=3">
   <link rel="stylesheet" href="/home/billing.css?v=10">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=9">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
   <link rel="stylesheet" href="/home/basic-metrics.css?v=2">
   <link rel="stylesheet" href="/home/video-editor.css?v=109">
-  <link rel="stylesheet" href="/home/audiovisual-editor.css?v=25">
+  <link rel="stylesheet" href="/home/audiovisual-editor.css?v=26">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
   <link rel="stylesheet" href="/home/profile-editor.css?v=5">
   <style>
@@ -49,7 +49,7 @@
     .deck-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail-role-action{position:relative;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--line);background:#fff;color:#0a0d28;font-family:var(--font-display);font-size:13.5px;font-weight:700;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.detail-role-action::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--purple)}.detail-role-action.role-audience::before{background:var(--blue)}.detail-role-action.role-screen::before{background:#029b71}.detail-role-action.role-stage::before{background:var(--pink)}.detail-role-action:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:rgba(67,104,246,.28)}.detail-role-action.copied{border-color:rgba(35,196,127,.4);color:var(--green)}.detail-role-action.copied::before{background:var(--green)}
     @media(max-width:700px){.deck-detail-content{padding:18px;gap:16px}.deck-detail-copy h2{font-size:20px}}
   </style>
-  <link rel="stylesheet" href="/home/deck-management-shell.css?v=30">
+  <link rel="stylesheet" href="/home/deck-management-shell.css?v=31">
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
   <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=2">
   <link rel="stylesheet" href="/shared/selfie.css?v=4">
@@ -119,26 +119,19 @@
   <div id="deckDetailModal" class="modal-backdrop" hidden aria-hidden="true">
     <section class="deck-detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <header class="deck-detail-header">
-        <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><button id="detailPreviousSlide" class="deck-detail-slide-arrow is-previous" type="button" aria-label="Ver slide anterior" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button id="detailNextSlide" class="deck-detail-slide-arrow is-next" type="button" aria-label="Ver slide siguiente" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button id="detailVideoAction" class="deck-detail-video-action" type="button" hidden><svg viewBox="0 0 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20.5H6z"/><path d="M15 3.5v3h3M9 11h6M9 14.5h6"/></svg><span>Apuntador</span></button><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
-        <div class="deck-detail-copy"><div class="deck-detail-title-block"><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><div class="deck-file-actions" aria-label="Administrar presentación"><button id="detailRename" class="deck-file-action" type="button"><img src="/home/assets/renombrar.png" alt=""><span>Renombrar</span></button><button id="detailReplace" class="deck-file-action" type="button"><img src="/home/assets/reemplazar.png" alt=""><span>Reemplazar</span></button><button id="detailLanguage" class="deck-file-action" type="button"><img src="/home/assets/idioma.png" alt=""><span>Idioma</span></button></div><input id="replacementFile" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden></div>
-        <div id="detailDemoAdmin" class="deck-demo-admin" hidden><label for="detailDemoPlan">Nivel de esta slide</label><select id="detailDemoPlan"><option value="">Asignar nivel</option><option value="FREE">FREE</option><option value="SPEAKER">SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select><button id="detailDemoPublish" type="button">Publicar Demo</button></div>
+        <div class="deck-detail-copy"><div class="deck-detail-title-block"><h2 id="detailTitle">Presentación</h2><div class="deck-detail-meta"><span id="detailDate">Convertida: fecha no disponible</span><span id="detailSlides">0 slides</span></div></div><details id="deckFileMenu" class="deck-file-menu"><summary aria-label="Administrar presentación" title="Administrar presentación">⋯</summary><div class="deck-file-actions"><button id="detailRename" class="deck-file-action" type="button"><img src="/home/assets/renombrar.png" alt=""><span>Renombrar</span></button><button id="detailReplace" class="deck-file-action" type="button"><img src="/home/assets/reemplazar.png" alt=""><span>Reemplazar</span></button><button id="detailLanguage" class="deck-file-action" type="button"><img src="/home/assets/idioma.png" alt=""><span>Idioma</span></button></div></details><input id="replacementFile" type="file" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden></div>
         <button id="closeDeckDetail" class="deck-detail-close" type="button" aria-label="Cerrar detalle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </header>
       <nav class="deck-detail-tabs" role="tablist" aria-label="Administración del deck">
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
-        <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
-        <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
-        <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
-        <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
-        <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
-        <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Marcas</span></button>
+        <button id="deckTabExperience" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckSectionExperience" data-deck-tab="experience"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9zM19 14v6m-3-3h6"/></svg><span>Experiencia</span></button>
+        <button id="deckTabAV" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckSectionAV" data-deck-tab="av"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg><span>A V</span></button>
         <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
       </nav>
-      <button id="deckTabsMore" class="deck-tabs-more" type="button" aria-label="Más secciones del deck" title="Más secciones" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
-      <div class="deck-detail-content">
-        <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
-        <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links">
-          <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
+      <aside class="deck-detail-preview" aria-label="Vista previa del Deck">
+        <button id="deckPreviewToggle" class="deck-preview-toggle" type="button" aria-expanded="false" aria-controls="deckPreviewContent"><span>Vista previa</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div id="deckPreviewContent" class="deck-preview-content">
+          <div class="deck-detail-hero"><div id="detailThumb" class="deck-detail-thumb-wrap"></div><button id="detailPreviousSlide" class="deck-detail-slide-arrow is-previous" type="button" aria-label="Ver slide anterior" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button id="detailNextSlide" class="deck-detail-slide-arrow is-next" type="button" aria-label="Ver slide siguiente" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button id="detailVideoAction" class="deck-detail-video-action" type="button" hidden><svg viewBox="0 0 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20.5H6z"/><path d="M15 3.5v3h3M9 11h6M9 14.5h6"/></svg><span>Apuntador</span></button><div id="detailSlideStrip" class="deck-detail-slide-strip" aria-label="Miniaturas del deck" hidden></div></div>
           <section id="deckTransitionSettings" class="deck-transition-settings" aria-labelledby="deckTransitionTitle">
             <div class="deck-transition-row"><label id="deckTransitionTitle" for="deckTransitionOptions">Transición slides</label><select id="deckTransitionOptions" aria-label="Transición global del Deck">
               <option value="none" data-deck-transition="none">Sin transición</option>
@@ -148,64 +141,85 @@
             </select></div>
             <p id="deckTransitionStatus" class="deck-transition-status" role="status" aria-live="polite"></p>
           </section>
+          <div id="detailDemoAdmin" class="deck-demo-admin" hidden><label for="detailDemoPlan">Nivel de esta slide</label><select id="detailDemoPlan"><option value="">Asignar nivel</option><option value="FREE">FREE</option><option value="SPEAKER">SPEAKER</option><option value="SPEAKER_PRO">SPEAKER PRO</option></select><button id="detailDemoPublish" type="button">Publicar Demo</button></div>
+        </div>
+      </aside>
+      <div class="deck-detail-content">
+        <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
+        <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links" data-deck-section="links">
+          <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
         </section>
-        <section id="deckPanelParticipation" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabParticipation" data-deck-panel="participation" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="participation"></div>
-        </section>
-        <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
-        </section>
-        <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
-          <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
-        </section>
-        <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
-        <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
-          <div id="selfieEditor" class="selfie-editor">
-            <h3>Tarjetas</h3><p data-selfie-source></p>
-            <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
-            <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
-            <div class="selfie-editor-grid" data-selfie-images></div>
-            <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button></div>
-            <p role="status" aria-live="polite"></p>
-          </div>
-          <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
-            <summary>Administrar colección PING · IMMERSA</summary>
-            <div id="pingSelfieEditor" class="selfie-editor">
-              <h3>Colección predeterminada de PING</h3>
-              <p>Los cambios se aplican a todos los Decks que usan PING, en la próxima ronda de Tarjetas. Las colecciones propias de cada Deck se conservan.</p>
-              <p data-selfie-source></p>
-              <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
-              <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
+        <section id="deckSectionExperience" class="deck-detail-group" role="tabpanel" aria-labelledby="deckTabExperience" data-deck-section="experience" hidden>
+          <nav class="deck-detail-subtabs" role="tablist" aria-label="Experiencia">
+            <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
+            <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
+            <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
+            <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Marcas</span></button>
+          </nav>
+          <section id="deckPanelParticipation" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabParticipation" data-deck-panel="participation" hidden>
+            <div class="deck-detail-editor-host" data-deck-editor-host="participation"></div>
+          </section>
+          <section id="deckPanelSelfie" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSelfie" data-deck-panel="selfie" hidden>
+            <div id="selfieEditor" class="selfie-editor">
+              <h3>Tarjetas</h3><p data-selfie-source></p>
+              <label class="selfie-upload">Agregar imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+              <p class="selfie-hint">Hasta 20 imágenes · JPG, PNG o WebP · máximo 5 MB cada una. Recomendado: 1080 × 1920 px.</p>
               <div class="selfie-editor-grid" data-selfie-images></div>
-              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button></div>
+              <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Eliminar mis imágenes</button></div>
               <p role="status" aria-live="polite"></p>
             </div>
-          </details>
+            <details id="pingSelfieAdmin" class="selfie-ping-admin" hidden>
+              <summary>Administrar colección PING · IMMERSA</summary>
+              <div id="pingSelfieEditor" class="selfie-editor">
+                <h3>Colección predeterminada de PING</h3>
+                <p>Los cambios se aplican a todos los Decks que usan PING, en la próxima ronda de Tarjetas. Las colecciones propias de cada Deck se conservan.</p>
+                <p data-selfie-source></p>
+                <label class="selfie-upload">Agregar imágenes de PING<input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+                <p class="selfie-hint">Sube varias imágenes y agrega más cuando quieras. Hasta 20 imágenes de máximo 5 MB cada una.</p>
+                <div class="selfie-editor-grid" data-selfie-images></div>
+                <div class="selfie-editor-actions"><button type="button" data-selfie-reset hidden>Restaurar provisionales</button></div>
+                <p role="status" aria-live="polite"></p>
+              </div>
+            </details>
+          </section>
+          <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
+            <div id="deckSpeakersEditor" class="deck-speakers-editor">
+              <label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label>
+              <p data-speakers-summary>Agrega, ordena y enciende los perfiles que quieres mostrar.</p>
+              <p data-speakers-status role="status" aria-live="polite"></p>
+              <div data-speakers-list></div>
+              <p><button type="button" data-speakers-new>Agregar ponente</button></p>
+              <form>
+                <h3 class="deck-speakers-wide" data-speakers-heading>Nuevo ponente</h3>
+                <label>Nombre completo<input name="displayName" maxlength="120" required autocomplete="off"></label>
+                <label>Etiqueta pública<select name="publicTitle"><option>Speaker</option></select></label>
+                <label>Cargo<input name="roleTitle" maxlength="120"></label>
+                <label>Empresa u organización<input name="company" maxlength="120"></label>
+                <label class="deck-speakers-wide">Acerca de<textarea name="bio" maxlength="600"></textarea></label>
+                <label>Sitio web (HTTPS)<input name="websiteUrl" maxlength="500" placeholder="https://ejemplo.com"></label>
+                <label>LinkedIn (HTTPS)<input name="linkedinUrl" maxlength="500" placeholder="https://linkedin.com/in/…"></label>
+                <label>Instagram (HTTPS)<input name="instagramUrl" maxlength="500" placeholder="https://instagram.com/…"></label>
+                <label>Foto<input name="photo" type="file" accept="image/png,image/jpeg,image/webp"><span data-speakers-photo-hint>Guarda el perfil para agregar su foto. Se creará apagado.</span><img data-speakers-photo alt="" hidden></label>
+                <div class="deck-speakers-wide"><button type="submit">Guardar perfil</button></div>
+              </form>
+              <p>Los perfiles encendidos aparecen como tarjetas deslizables. Puedes cambiar el orden y encenderlos o apagarlos durante la presentación; Público recibe los cambios sin recargar.</p>
+            </div>
+          </section>
+          <section id="deckPanelBrands" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabBrands" data-deck-panel="brands" hidden>
+            <div class="deck-detail-editor-host" data-deck-editor-host="brands"></div>
+          </section>
         </section>
-        <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
-          <div id="deckSpeakersEditor" class="deck-speakers-editor">
-            <label class="deck-speakers-mode"><input name="enabled" type="checkbox"> Usar perfiles de este Deck</label>
-            <p data-speakers-summary>Agrega, ordena y enciende los perfiles que quieres mostrar.</p>
-            <p data-speakers-status role="status" aria-live="polite"></p>
-            <div data-speakers-list></div>
-            <p><button type="button" data-speakers-new>Agregar ponente</button></p>
-            <form>
-              <h3 class="deck-speakers-wide" data-speakers-heading>Nuevo ponente</h3>
-              <label>Nombre completo<input name="displayName" maxlength="120" required autocomplete="off"></label>
-              <label>Etiqueta pública<select name="publicTitle"><option>Speaker</option></select></label>
-              <label>Cargo<input name="roleTitle" maxlength="120"></label>
-              <label>Empresa u organización<input name="company" maxlength="120"></label>
-              <label class="deck-speakers-wide">Acerca de<textarea name="bio" maxlength="600"></textarea></label>
-              <label>Sitio web (HTTPS)<input name="websiteUrl" maxlength="500" placeholder="https://ejemplo.com"></label>
-              <label>LinkedIn (HTTPS)<input name="linkedinUrl" maxlength="500" placeholder="https://linkedin.com/in/…"></label>
-              <label>Instagram (HTTPS)<input name="instagramUrl" maxlength="500" placeholder="https://instagram.com/…"></label>
-              <label>Foto<input name="photo" type="file" accept="image/png,image/jpeg,image/webp"><span data-speakers-photo-hint>Guarda el perfil para agregar su foto. Se creará apagado.</span><img data-speakers-photo alt="" hidden></label>
-              <div class="deck-speakers-wide"><button type="submit">Guardar perfil</button></div>
-            </form>
-            <p>Los perfiles encendidos aparecen como tarjetas deslizables. Puedes cambiar el orden y encenderlos o apagarlos durante la presentación; Público recibe los cambios sin recargar.</p>
-          </div>
+        <section id="deckSectionAV" class="deck-detail-group" role="tabpanel" aria-labelledby="deckTabAV" data-deck-section="av" hidden>
+          <nav class="deck-detail-subtabs" role="tablist" aria-label="Audiovisual">
+            <button id="deckTabVideo" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelVideo" data-deck-tab="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 9 4-2v10l-4-2"/></svg><span>Videos</span></button>
+            <button id="deckTabAudiovisual" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelAudiovisual" data-deck-tab="audiovisual"><span aria-hidden="true">♫</span><span>Librería</span></button>
+          </nav>
+          <section id="deckPanelVideo" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabVideo" data-deck-panel="video" hidden>
+            <div class="deck-detail-editor-host" data-deck-editor-host="video"></div>
+          </section>
+          <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         </section>
-        <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" hidden>
+        <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" data-deck-section="metrics" hidden>
           <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
           <section id="basicMetrics" class="basic-metrics" aria-labelledby="basicMetricsTitle" hidden>
             <div class="basic-metrics-head"><div><h4 id="basicMetricsTitle">Sesiones registradas</h4><p id="basicMetricsStatus" role="status" aria-live="polite">Entra a Métricas para consultar tus resultados.</p></div><button id="basicMetricsRefresh" type="button">Actualizar</button></div>
@@ -328,23 +342,23 @@
   <script src="/home/event-invitations.js?v=8"></script>
   <script src="/home/billing.js?v=16"></script>
   <script src="/home/profile-editor.js?v=8"></script>
-  <script src="/home/home.js?v=77&ui=3"></script>
+  <script src="/home/home.js?v=78&ui=3"></script>
   <script src="/home/basic-metrics.js?v=2"></script>
   <script src="/home/qna-history.js?v=2"></script>
   <script src="/home/knowledge-activity-history.js?v=1"></script>
   <script src="/home/interactions-editor.js?v=12"></script>
   <script src="/home/video-editor.js?v=115"></script>
-  <script src="/home/audiovisual-editor.js?v=24"></script>
+  <script src="/home/audiovisual-editor.js?v=25"></script>
   <link rel="stylesheet" href="/home/prompter-editor.css?v=2">
   <script src="/home/prompter-editor.js?v=5"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=6"></script>
-  <script src="/home/deck-management-shell.js?v=18"></script>
+  <script src="/home/deck-management-shell.js?v=19"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
-  <script src="/home/locales-editor.js?v=4"></script>
+  <script src="/home/locales-editor.js?v=5"></script>
   <script src="/home/deck-speakers-editor.js?v=2"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
-  <script src="/shared/tutorials/tutorial-definitions.js?v=7"></script>
+  <script src="/shared/tutorials/tutorial-definitions.js?v=8"></script>
   <script src="/home/selfie-editor.js?v=4"></script>
 </body>
 </html>

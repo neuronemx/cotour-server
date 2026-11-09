@@ -2,34 +2,39 @@
   const modal = document.getElementById("deckDetailModal");
   const actionSource = document.getElementById("detailActions");
   const launchers = document.getElementById("deckEditorLaunchers");
-  const thumbnail = document.getElementById("detailThumb");
   const shell = modal?.querySelector(".deck-detail-modal");
   const tabs = Array.from(modal?.querySelectorAll("[data-deck-tab]") || []);
   const panels = Array.from(modal?.querySelectorAll("[data-deck-panel]") || []);
+  const sections = Array.from(modal?.querySelectorAll("[data-deck-section]") || []);
+  const content = modal?.querySelector(".deck-detail-content");
+  const previewToggle = document.getElementById("deckPreviewToggle");
+  const fileMenu = document.getElementById("deckFileMenu");
   const participationTab = tabs.find((tab) => tab.dataset.deckTab === "participation");
   const brandsTab = tabs.find((tab) => tab.dataset.deckTab === "brands");
   if (!modal || !shell || !actionSource || !launchers || !tabs.length || !panels.length) return;
 
-  const rail = modal.querySelector('.deck-detail-tabs');
-  const more = document.getElementById('deckTabsMore');
-  function syncMore() {
-    if (!rail || !more) return;
-    const mobile = window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
-    more.hidden = !mobile || rail.scrollWidth <= rail.clientWidth + 1;
-    more.style.top = (Math.max(rail.offsetTop, shell.scrollTop) + (rail.offsetHeight - 34) / 2) + 'px';
-    const returning = rail.scrollLeft > 2;
-    more.classList.toggle('is-returning', returning);
-    more.setAttribute('aria-label', returning ? 'Volver a las primeras secciones' : 'Más secciones del deck');
-    more.title = returning ? 'Regresar' : 'Más secciones';
+  function setPreviewExpanded(expanded) {
+    previewToggle.setAttribute("aria-expanded", String(expanded));
   }
-  more?.addEventListener('click', () => {
-    rail.scrollTo({ left: rail.scrollLeft > 2 ? 0 : rail.scrollWidth, behavior: 'smooth' });
+
+  previewToggle.addEventListener("click", () => {
+    setPreviewExpanded(previewToggle.getAttribute("aria-expanded") !== "true");
   });
-  rail?.addEventListener('scroll', syncMore, { passive: true });
-  shell.addEventListener('scroll', syncMore, { passive: true });
-  window.addEventListener('resize', syncMore);
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMore).observe(rail);
-  document.addEventListener('immersa:deck-detail-open', () => requestAnimationFrame(syncMore));
+
+  fileMenu.addEventListener("click", (event) => {
+    if (event.target.closest(".deck-file-action")) fileMenu.open = false;
+  });
+
+  document.addEventListener("click", (event) => {
+    if (fileMenu.open && !fileMenu.contains(event.target)) fileMenu.open = false;
+  });
+
+  fileMenu.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !fileMenu.open) return;
+    event.preventDefault();
+    fileMenu.open = false;
+    fileMenu.querySelector("summary").focus();
+  });
 
   const moduleDetails = {
     participation: {
@@ -52,48 +57,41 @@
     }
   };
 
-  function syncDeckHomeLink(name) {
-    const enabled = name !== "links";
-    if (!thumbnail) return;
-    thumbnail.classList.toggle("is-deck-home-link", enabled);
-    thumbnail.style.cursor = enabled ? "pointer" : "";
-    if (enabled) {
-      thumbnail.setAttribute("role", "link");
-      thumbnail.tabIndex = 0;
-      thumbnail.setAttribute("aria-label", "Regresar a Enlaces del Deck");
-    } else {
-      thumbnail.removeAttribute("role");
-      thumbnail.removeAttribute("tabindex");
-      thumbnail.removeAttribute("aria-label");
-    }
-  }
-
   function activateTab(name, focus = false) {
     const targetTab = tabs.find((tab) => tab.dataset.deckTab === name);
-    if (!targetTab || targetTab.disabled) return;
-    shell.classList.toggle("is-compact-header", name !== "links");
-    shell.classList.toggle("has-audiovisual-library", name === "audiovisual");
-    modal.dataset.activeDeckTab = name;
-    syncDeckHomeLink(name);
+    if (!targetTab || targetTab.disabled || targetTab.hidden) return;
+    const section = targetTab.closest("[data-deck-section]")
+      || sections.find((item) => item.dataset.deckSection === name);
+    if (!section) return;
+    const group = section.dataset.deckSection;
+    const choices = Array.from(section.querySelectorAll("[data-deck-tab]"))
+      .filter((tab) => !tab.disabled && !tab.hidden);
+    const selectedTab = choices.includes(targetTab) ? targetTab
+      : choices.find((tab) => tab.getAttribute("aria-selected") === "true") || choices[0] || targetTab;
+    const activePanel = selectedTab.dataset.deckTab;
+
+    if (modal.dataset.activeDeckTab !== activePanel) content.scrollTop = 0;
+    modal.dataset.activeDeckTab = activePanel;
+    shell.classList.toggle("has-audiovisual-library", activePanel === "audiovisual");
+    sections.forEach((item) => { item.hidden = item !== section; });
     tabs.forEach((tab) => {
-      const selected = tab.dataset.deckTab === name;
+      const isMainTab = !tab.closest("[data-deck-section]");
+      if (!isMainTab && !section.contains(tab)) return;
+      const selected = isMainTab ? tab.dataset.deckTab === group : tab === selectedTab;
       tab.classList.toggle("is-active", selected);
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;
-      if (selected && focus) tab.focus();
     });
     panels.forEach((panel) => {
-      const selected = panel.dataset.deckPanel === name;
+      const selected = panel.dataset.deckPanel === activePanel;
       panel.hidden = !selected;
       panel.classList.toggle("is-active", selected);
     });
-    if (name === "audiovisual") {
-      requestAnimationFrame(() => {
-        document.dispatchEvent(new CustomEvent("immersa:audiovisual-library-visible"));
-      });
+    if (focus) targetTab.focus();
+    if (activePanel === "audiovisual") {
+      document.dispatchEvent(new CustomEvent("immersa:audiovisual-library-visible"));
     }
-    if (moduleDetails[name]) mountEditor(name);
-    requestAnimationFrame(syncMore);
+    if (moduleDetails[activePanel]) mountEditor(activePanel);
   }
 
   function syncDemoMasterTabs(deck) {
@@ -172,34 +170,30 @@
     window.renderDetailActions.__deckManagementShellPatched = true;
   }
 
-  thumbnail?.addEventListener("click", () => {
-    if (thumbnail.classList.contains("is-deck-home-link")) activateTab("links", true);
-  });
-  thumbnail?.addEventListener("keydown", (event) => {
-    if (!thumbnail.classList.contains("is-deck-home-link") || (event.key !== "Enter" && event.key !== " ")) return;
-    event.preventDefault();
-    activateTab("links", true);
-  });
-
-  tabs.forEach((tab, index) => {
+  tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       if (!tab.disabled) activateTab(tab.dataset.deckTab);
     });
     tab.addEventListener("keydown", (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const availableTabs = tabs.filter((item) => !item.disabled);
+      const tablist = tab.closest('[role="tablist"]');
+      const availableTabs = tabs.filter((item) => tablist.contains(item) && !item.disabled && !item.hidden);
       const availableIndex = Math.max(0, availableTabs.indexOf(tab));
       let nextIndex = availableIndex;
       if (event.key === "ArrowLeft") nextIndex = (availableIndex - 1 + availableTabs.length) % availableTabs.length;
       if (event.key === "ArrowRight") nextIndex = (availableIndex + 1) % availableTabs.length;
       if (event.key === "Home") nextIndex = 0;
       if (event.key === "End") nextIndex = availableTabs.length - 1;
-      activateTab(availableTabs[nextIndex].dataset.deckTab, true);
+      availableTabs[nextIndex].click();
+      availableTabs[nextIndex].focus();
     });
   });
 
   document.addEventListener("immersa:deck-detail-open", (event) => {
+    setPreviewExpanded(false);
+    fileMenu.open = false;
+    fileMenu.hidden = !Array.from(fileMenu.querySelectorAll(".deck-file-action")).some((button) => !button.hidden);
     syncDemoMasterTabs(event.detail?.deck);
     activateTab("links");
   });

@@ -1468,9 +1468,10 @@ if (replacementReviewed) {
 }
 
 document.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented) return;
   if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && deckDetailModal && !deckDetailModal.hidden && deckDetailModal.dataset.activeDeckTab === "links") {
     if (event.target.closest?.("input, textarea, select, [contenteditable='true']")) return;
-    if (!detailSlideNavigation?.slides.length) return;
+    if (!detailSlideNavigation?.slides.length || !detailThumb?.getClientRects().length) return;
     event.preventDefault();
     selectDetailSlide(detailSlideNavigation.index + (event.key === "ArrowRight" ? 1 : -1));
     return;
