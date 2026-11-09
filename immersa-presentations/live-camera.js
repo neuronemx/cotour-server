@@ -1,13 +1,18 @@
 const { createHmac, randomUUID } = require("node:crypto");
+const { isSystemDemoDeckId } = require("./system-demo-deck");
 
 const ROLES = ["speaker", "screen", "stage"];
 const DEMO_ROLES = ["speaker", "screen"];
 const DEMO_NAMESPACE = "/live-camera-demo";
+const WORK_DECK_ENVIRONMENTS = new Map([
+  ["9ae7d5ba-2954-4c96-818a-ee918310e20d", ["beta", "immersa-presentations", "https://beta.immersalive.com"]],
+  ["7c782d5a-b07f-4340-849a-063dd22d016f", ["ensayo-beta-unificada", "immersa-ensayo", "https://immersa-ensayo-ensayo-beta-unificada.up.railway.app"]]
+]);
 const LEASE_MS = 3500;
 const START_TIMEOUT_MS = 15000;
 const ACCESS_TOKEN = /^a_[a-z0-9]{10}$/;
 
-function readLiveCameraConfig(json, turnSecret, demo) {
+function readLiveCameraConfig(json, turnSecret, demo, workDecks = false) {
   if (!json) return null;
   try {
     const pilot = JSON.parse(json);
@@ -18,7 +23,7 @@ function readLiveCameraConfig(json, turnSecret, demo) {
     const hasDeckId = typeof pilot.deckId === "string" && Boolean(pilot.deckId.trim());
     const hasDeckTitle = typeof pilot.deckTitle === "string" && Boolean(pilot.deckTitle.trim());
     if ((!local && origin.protocol !== "https:") || origin.origin !== pilot.origin
-      || (demo ? hasDeckId === hasDeckTitle : !hasDeckId)
+      || (!workDecks && (demo ? hasDeckId === hasDeckTitle : !hasDeckId))
       || !Array.isArray(stunUrls) || !stunUrls.every(url => typeof url === "string" && /^stuns?:\S+$/.test(url))
       || !Array.isArray(turnUrls) || !turnUrls.every(url => typeof url === "string" && /^turns?:\S+$/.test(url))
       || ((turnUrls.length || pilot.forceRelay) && (!turnUrls.length || !turnSecret))) return null;
@@ -27,7 +32,7 @@ function readLiveCameraConfig(json, turnSecret, demo) {
       || !ROLES.every(role => ACCESS_TOKEN.test(pilot.links?.[role] || ""))
       || new Set(ROLES.map(role => pilot.links[role])).size !== ROLES.length
     )) return null;
-    return { ...pilot, stunUrls, turnUrls, turnSecret, demo };
+    return { ...pilot, stunUrls, turnUrls, turnSecret, demo, workDecks };
   } catch {
     return null;
   }
@@ -41,8 +46,20 @@ function readLiveCameraDemo(env = process.env) {
   return readLiveCameraConfig(env.IMMERSA_LIVE_CAMERA_DEMO, env.IMMERSA_LIVE_CAMERA_TURN_SECRET, true);
 }
 
+function readLiveCameraWorkDecks(env = process.env) {
+  const scope = WORK_DECK_ENVIRONMENTS.get(env.RAILWAY_ENVIRONMENT_ID);
+  if (!scope || env.IMMERSA_LIVE_CAMERA_ENABLED === "false") return null;
+  const [environment, service, origin] = scope;
+  if (env.RAILWAY_ENVIRONMENT_NAME !== environment || env.RAILWAY_SERVICE_NAME !== service) return null;
+  const stunUrls = ["stun:stun.l.google.com:19302"];
+  const turnUrls = env.IMMERSA_LIVE_CAMERA_SETUP_TURN_URLS?.trim().split(/\s*,\s*/).filter(Boolean) || [];
+  return readLiveCameraConfig(JSON.stringify({ origin, stunUrls, turnUrls }), env.IMMERSA_LIVE_CAMERA_TURN_SECRET, true, true)
+    || readLiveCameraConfig(JSON.stringify({ origin, stunUrls }), undefined, true, true);
+}
+
 function matchesLiveCameraLink(pilot, accessLink, deck, isEventLink) {
-  if (!pilot || !accessLink || deck?.deckId !== pilot.deckId) return false;
+  if (!pilot || !accessLink || !deck?.deckId) return false;
+  if (pilot.workDecks ? isSystemDemoDeckId(deck.deckId) : deck.deckId !== pilot.deckId) return false;
   if (pilot.demo) {
     return DEMO_ROLES.includes(accessLink.role)
       && Boolean(accessLink.session_id) && accessLink.session_id === deck.session_id
@@ -56,7 +73,7 @@ function matchesLiveCameraLink(pilot, accessLink, deck, isEventLink) {
 function liveCameraPageAssets(pilot, { req, accessLink, deck }, isEventLink = () => false) {
   if (!matchesLiveCameraLink(pilot, accessLink, deck, isEventLink)) return null;
   if (req.query.session && req.query.session !== accessLink.session_id) return null;
-  if (req.query.deck && req.query.deck !== pilot.deckId) return null;
+  if (req.query.deck && req.query.deck !== deck.deckId) return null;
   if (req.query.eventActivityId && (pilot.demo || req.query.eventActivityId !== pilot.activityId)) return null;
   const namespace = pilot.demo ? ` data-live-camera-namespace="${DEMO_NAMESPACE}"` : "";
   return `<link rel="stylesheet" href="/live-camera/pilot.css?v=5"><script src="/live-camera/pilot.js?v=8"${namespace} defer></script>`;
@@ -94,6 +111,69 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   if (!pilot || (!pilot.demo && !eventHub)) return;
   const roles = pilot.demo ? DEMO_ROLES : ROLES;
   const channel = io.of(pilot.demo ? DEMO_NAMESPACE : "/live-camera");
+  async function resolveAuthorizedLink(socket, role) {
+    const token = socket.handshake.auth?.accessToken;
+    if (pilot.demo ? !ACCESS_TOKEN.test(token || "") : token !== pilot.links[role]) return null;
+    const resolved = await accessLinks.resolveRoleLink(token, role);
+    return matchesLiveCameraLink(pilot, resolved?.accessLink, resolved?.deck, isEventLink)
+      ? resolved : null;
+  }
+
+  channel.use(async (socket, next) => {
+    const role = socket.handshake.auth?.role;
+    const denied = new Error("LIVE no disponible");
+    try {
+      if (!roles.includes(role) || socket.handshake.headers.origin !== pilot.origin) return next(denied);
+      const resolved = await resolveAuthorizedLink(socket, role);
+      if (!resolved) return next(denied);
+      if (role === "stage") {
+        const control = await eventHub.getStageControlForDeck(pilot.deckId, pilot.activityId);
+        if (control?.eventWorkspaceId !== pilot.eventWorkspaceId) return next(denied);
+        await eventHub.authorizeStageOperation({ eventStageId: control.stageId, accessSecret: pilot.links.stage });
+      }
+      socket.data.liveCameraRole = role;
+      socket.data.liveCameraDeckId = resolved.deck.deckId;
+      socket.data.liveCameraSessionId = resolved.accessLink.session_id;
+      return next();
+    } catch {
+      return next(denied);
+    }
+  });
+
+  const rooms = new Map();
+  const fixedRoom = pilot.workDecks ? null : createLiveCameraRoom({
+    pilot, eventHub, canProject,
+    authorizedLink: async (socket, role) => (await resolveAuthorizedLink(socket, role))?.accessLink,
+    publish: status => channel.emit("live:status", status)
+  });
+
+  channel.on("connection", socket => {
+    if (fixedRoom) return fixedRoom(socket);
+    const deckId = socket.data.liveCameraDeckId;
+    const sessionId = socket.data.liveCameraSessionId;
+    const key = JSON.stringify([deckId, sessionId]);
+    let connect = rooms.get(key);
+    if (!connect) {
+      connect = createLiveCameraRoom({
+        pilot, eventHub,
+        canProject: id => canProject(id, deckId),
+        authorizedLink: async (peer, role) => {
+          const resolved = await resolveAuthorizedLink(peer, role);
+          if (resolved?.deck.deckId === deckId && resolved.accessLink.session_id === sessionId) return resolved.accessLink;
+          return null;
+        },
+        publish: status => channel.to(key).emit("live:status", status),
+        onEmpty: () => rooms.delete(key)
+      });
+      rooms.set(key, connect);
+    }
+    socket.join(key);
+    connect(socket);
+  });
+}
+
+function createLiveCameraRoom({ pilot, eventHub, canProject, authorizedLink, publish, onEmpty }) {
+  let peers = 0;
   let screen = null;
   let active = null;
   let pending = null;
@@ -103,7 +183,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   }
 
   function publishStatus(reason) {
-    channel.emit("live:status", { ...status(), reason });
+    publish({ ...status(), reason });
   }
 
   function stop(attempt, reason) {
@@ -122,14 +202,6 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     return live.status === "LIVE" && live.event_workspace_id === pilot.eventWorkspaceId
       && live.event_activity_id === pilot.activityId && live.event_stage_id === control.stageId
       && live.deck_id === pilot.deckId ? live : null;
-  }
-
-  async function authorizedLink(socket, role) {
-    const token = socket.handshake.auth?.accessToken;
-    if (pilot.demo ? !ACCESS_TOKEN.test(token || "") : token !== pilot.links[role]) return null;
-    const resolved = await accessLinks.resolveRoleLink(token, role);
-    return matchesLiveCameraLink(pilot, resolved?.accessLink, resolved?.deck, isEventLink)
-      ? resolved.accessLink : null;
   }
 
   async function renew(attempt) {
@@ -155,29 +227,13 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     }
   }
 
-  channel.use(async (socket, next) => {
-    const role = socket.handshake.auth?.role;
-    const denied = new Error("LIVE no disponible");
-    try {
-      if (!roles.includes(role) || socket.handshake.headers.origin !== pilot.origin || !await authorizedLink(socket, role)) return next(denied);
-      if (role === "stage") {
-        const control = await eventHub.getStageControlForDeck(pilot.deckId, pilot.activityId);
-        if (control?.eventWorkspaceId !== pilot.eventWorkspaceId) return next(denied);
-        await eventHub.authorizeStageOperation({ eventStageId: control.stageId, accessSecret: pilot.links.stage });
-      }
-      socket.data.liveCameraRole = role;
-      return next();
-    } catch {
-      return next(denied);
-    }
-  });
-
-  channel.on("connection", socket => {
+  return socket => {
     const role = socket.data.liveCameraRole;
     if (role === "screen") {
       if (screen) return socket.disconnect();
       screen = socket;
     }
+    peers++;
     publishStatus();
 
     socket.on("live:start", async ack => {
@@ -278,8 +334,9 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
       if (wasScreen) screen = null;
       if (active && (active.screen === socket || active.speaker === socket)) stop(active, "signal");
       else if (wasScreen) publishStatus();
+      if (--peers === 0) onEmpty?.();
     });
-  });
+  };
 }
 
-module.exports = { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera };
+module.exports = { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera };
