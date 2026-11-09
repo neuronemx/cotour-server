@@ -7,7 +7,6 @@
   const key = "immersa:audience-welcome:" + config.path;
   const form = document.getElementById("audienceWelcomeForm");
   const nameField = document.getElementById("audienceWelcomeName");
-  const alerts = document.getElementById("audienceWelcomeAlerts");
   const status = document.getElementById("audienceWelcomeStatus");
   const title = document.getElementById("audienceWelcomeTitle");
   const english = {
@@ -16,7 +15,6 @@
     audienceWelcomeNameLabel: "What’s your name?",
     audienceWelcomeInfo: "Your name is saved in this tab only for the presentation.",
     audienceWelcomeEnter: "Enter the presentation",
-    audienceWelcomeAlertsLabel: "I’d like push alerts for this presentation when available",
     audienceWelcomeBookmarks: "Save to bookmarks",
     audienceWelcomeBookmarkMobile: "On your phone, open your browser menu and choose Add Bookmark or Favorites.",
     audienceWelcomeBookmarkDesktop: "On a computer, use Ctrl+D (Windows) or ⌘+D (Mac)."
@@ -55,7 +53,6 @@
           name = value.slice(0, 80);
           try {
             sessionStorage.setItem(key, name);
-            sessionStorage.setItem(key + ":push-opt-in", String(alerts.checked));
           } catch (_error) {}
           form.removeEventListener("submit", submit);
           dialog.close();
