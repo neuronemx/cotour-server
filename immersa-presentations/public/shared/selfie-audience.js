@@ -1,10 +1,15 @@
 (function (root) {
   root.ImmersaSelfieAudience = {
-    create({ socket, viewport, download }) {
+    create({ socket, viewport, download, attachImageZoom }) {
       const overlay = document.createElement('section');
       overlay.className = 'selfie-audience';
       overlay.hidden = true;
+      const canvas = document.createElement('div');
+      canvas.className = 'selfie-audience-zoom';
       const image = document.createElement('img');
+      image.draggable = false;
+      canvas.appendChild(image);
+      const resetZoom = attachImageZoom?.(canvas, image, { doubleTapScale: 2 });
       const status = document.createElement('p');
       status.setAttribute('role', 'status');
       const retry = document.createElement('button');
@@ -12,7 +17,7 @@
       retry.textContent = '↻';
       retry.setAttribute('aria-label', 'Volver a cargar imagen');
       retry.hidden = true;
-      overlay.append(image, status, retry);
+      overlay.append(canvas, status, retry);
       viewport.appendChild(overlay);
       const localize = () => {
         overlay.setAttribute('aria-label', root.ImmersaI18n?.t('shell.selfie') || 'Tarjetas');
@@ -31,6 +36,7 @@
       }
       function load() {
         loading = true;
+        resetZoom?.();
         clearDownload();
         image.hidden = true;
         status.hidden = false;
@@ -63,6 +69,7 @@
       socket.on('selfie:state', state => {
         overlay.hidden = !state?.active;
         if (!state?.active) {
+          resetZoom?.();
           url = '';
           roundId = '';
           loading = false;

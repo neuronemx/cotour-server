@@ -14,15 +14,6 @@ let latestPresentationState = null;
 const localePreferenceKey = 'immersa:locale:' + sessionId;
 const tr = (key) => window.ImmersaI18n?.t(key) || key;
 let currentSlideIndex = 0;
-let zoom = 1;
-let panX = 0;
-let panY = 0;
-let lastTapAt = 0;
-let startZoom = 1;
-let startPanX = 0;
-let startPanY = 0;
-let startDistance = 0;
-let startCenter = null;
 let drawingOverlay = null;
 let activeInteraction = null;
 let interactionResponse = null;
@@ -34,7 +25,6 @@ let qnaConfirmationTimer = null;
 let qnaCooldownTimer = null;
 let qnaCooldownUntil = 0;
 let audienceAccessMessage = "";
-const pointers = new Map();
 const viewer = document.getElementById("viewer");
 function createRaffleViewportRuntime({ viewer, window, document }) {
   let baseline = window.visualViewport?.height || window.innerHeight;
@@ -107,7 +97,10 @@ const raffleViewportRuntime = createRaffleViewportRuntime({ viewer, window, docu
 
 const viewport = document.getElementById("slideViewport");
 const slide = document.getElementById("slide");
-window.ImmersaSelfieAudience?.create({ socket, viewport, download: document.getElementById("cardDownload") });
+const resetZoom = attachImageZoom(viewport, slide, { onChange: () => drawingOverlay?.refresh() });
+window.ImmersaSelfieAudience?.create({
+  socket, viewport, download: document.getElementById("cardDownload"), attachImageZoom
+});
 const brandMark = viewer.querySelector(".brand-mark");
 if (brandMark) {
   const retryBrandMark = () => {
@@ -256,8 +249,6 @@ function setAudienceLocale(locale) {
 audienceLocaleToggle?.addEventListener('click', () => setAudienceLocale(currentLocale === 'en' ? 'es' : 'en'));
 function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; viewport.classList.toggle("portrait-slide", portrait); if (portrait) viewport.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else viewport.style.removeProperty("--slide-bg"); }
 function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
-function applyTransform() { slide.style.setProperty("--zoom", zoom); slide.style.setProperty("--pan-x", panX + "px"); slide.style.setProperty("--pan-y", panY + "px"); drawingOverlay?.refresh(); }
-function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
 function liveMessageUrl(text) {
   const match = String(text || "").match(/(?:https?:\/\/|www\.)[^\s<>"']+/i);
   if (!match) return "";
@@ -299,11 +290,76 @@ function popReaction(emoji) { const node = document.createElement("span"); node.
 function takeSnapshot() { if (!manifest || snapshot?.disabled) return; const url = slideUrl(currentSlideIndex); const filename = "immersa-slide-" + (currentSlideIndex + 1) + ".jpg"; if ("download" in HTMLAnchorElement.prototype) { const link = document.createElement("a"); link.href = url; link.download = filename; link.rel = "noopener"; document.body.appendChild(link); link.click(); link.remove(); return; } window.open(url, "_blank", "noopener"); }
 function distance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
 function center(a, b) { return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
-function pointerList() { return Array.from(pointers.values()); }
-function beginGesture() { const active = pointerList(); startZoom = zoom; startPanX = panX; startPanY = panY; if (active.length >= 2) { startDistance = distance(active[0], active[1]); startCenter = center(active[0], active[1]); } else { startDistance = 0; startCenter = active[0] ? { x: active[0].clientX, y: active[0].clientY } : null; } }
-function handlePointerDown(event) { viewport.setPointerCapture(event.pointerId); pointers.set(event.pointerId, event); beginGesture(); }
-function handlePointerMove(event) { if (!pointers.has(event.pointerId)) return; pointers.set(event.pointerId, event); const active = pointerList(); if (active.length >= 2 && startDistance > 0) { const nextCenter = center(active[0], active[1]); zoom = clamp(startZoom * (distance(active[0], active[1]) / startDistance), 1, 3); panX = startPanX + (nextCenter.x - startCenter.x); panY = startPanY + (nextCenter.y - startCenter.y); if (zoom === 1) { panX = 0; panY = 0; } applyTransform(); return; } if (active.length === 1 && zoom > 1 && startCenter) { panX = startPanX + (active[0].clientX - startCenter.x); panY = startPanY + (active[0].clientY - startCenter.y); applyTransform(); } }
-function handlePointerUp(event) { pointers.delete(event.pointerId); if (pointers.size) beginGesture(); const now = Date.now(); if (now - lastTapAt < 280) { resetZoom(); lastTapAt = 0; } else { lastTapAt = now; } }
+function attachImageZoom(surface, image, { onChange, doubleTapScale = 1 } = {}) {
+  const pointers = new Map();
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  let gesture;
+  let tapStart = null;
+  let lastTap = null;
+
+  function setTransform(scale, x = 0, y = 0) {
+    zoom = scale;
+    panX = scale > 1 ? x : 0;
+    panY = scale > 1 ? y : 0;
+    image.style.setProperty("--zoom", zoom);
+    image.style.setProperty("--pan-x", panX + "px");
+    image.style.setProperty("--pan-y", panY + "px");
+    onChange?.();
+  }
+
+  function beginGesture() {
+    const [first, second = first] = pointers.values();
+    gesture = first && { zoom, panX, panY, center: center(first, second), distance: distance(first, second) };
+  }
+
+  surface.addEventListener("pointerdown", event => {
+    if (event.button !== 0 || image.hidden) return;
+    event.stopPropagation();
+    surface.setPointerCapture(event.pointerId);
+    tapStart = pointers.size ? null : event;
+    pointers.set(event.pointerId, event);
+    beginGesture();
+  });
+  surface.addEventListener("pointermove", event => {
+    if (!pointers.has(event.pointerId)) return;
+    if (tapStart && distance(tapStart, event) > 8) tapStart = null;
+    pointers.set(event.pointerId, event);
+    const [first, second = first] = pointers.values();
+    const midpoint = center(first, second);
+    const scale = gesture.distance > 0
+      ? clamp(gesture.zoom * distance(first, second) / gesture.distance, 1, 3)
+      : gesture.zoom;
+    if (scale === 1 && zoom === 1) return;
+    setTransform(scale, gesture.panX + midpoint.x - gesture.center.x, gesture.panY + midpoint.y - gesture.center.y);
+  });
+  function endGesture(event) {
+    if (!pointers.delete(event.pointerId)) return;
+    const tap = event.type === "pointerup" && tapStart && distance(tapStart, event) <= 8;
+    tapStart = null;
+    beginGesture();
+    if (tap && lastTap && event.timeStamp - lastTap.timeStamp < 280 && distance(lastTap, event) <= 32) {
+      setTransform(zoom > 1 ? 1 : doubleTapScale);
+      lastTap = null;
+    } else {
+      lastTap = tap ? event : null;
+    }
+  }
+  surface.addEventListener("pointerup", endGesture);
+  surface.addEventListener("pointercancel", endGesture);
+  surface.addEventListener("lostpointercapture", endGesture);
+
+  return () => {
+    for (const id of pointers.keys()) {
+      if (surface.hasPointerCapture(id)) surface.releasePointerCapture(id);
+    }
+    pointers.clear();
+    beginGesture();
+    tapStart = lastTap = null;
+    setTransform(1);
+  };
+}
 function fullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 async function toggleFullscreen() {
   try {
@@ -417,10 +473,6 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-viewport.addEventListener("pointerdown", handlePointerDown);
-viewport.addEventListener("pointermove", handlePointerMove);
-viewport.addEventListener("pointerup", handlePointerUp);
-viewport.addEventListener("pointercancel", handlePointerUp);
 socket.on("connect", () => { audienceAccessMessage = ""; setConnectionNotice(false); joinAudience(); });
 socket.on("plan:audience_limit", (payload = {}) => {
   audienceAccessMessage = tr('audience.connection.limit');
@@ -465,5 +517,5 @@ socket.on("qna:rejected", ({ event, reason }) => {
   }
   if (reason === "QNA_CLOSED") renderQnaState({ ...qnaState, questionsOpen: false });
 });
-applyTransform();
+resetZoom();
 loadDeck().then(() => { initDrawingOverlay(); joinAudience(); });

@@ -40,7 +40,7 @@ test("Público recognizes http, https, and www links without HTML injection", ()
   assert.match(css, /\.live-message-go \{[\s\S]*?position: static;[\s\S]*?width: auto;[\s\S]*?min-height: 24px;[\s\S]*?font: 800 10px\/1[\s\S]*?pointer-events: auto;/);
   assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\)[\s\S]*?\.live-message\.has-link \{ padding: 8px 8px 8px 12px; \}[\s\S]*?\.live-message-go \{ min-height: 22px;/);
   assert.match(html, /audience\.css\?v=30/);
-  assert.match(html, /audience\.js\?v=2026110702/);
+  assert.match(html, /audience\.js\?v=2026110901/);
 });
 
 test("A running Speaker audiovisual video cannot intercept the Tiempo modal", () => {
