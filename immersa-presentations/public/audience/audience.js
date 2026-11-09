@@ -132,6 +132,7 @@ const qnaFormStatus = document.getElementById("qnaFormStatus");
 const qnaSubmit = document.getElementById("qnaSubmit");
 const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
+let audienceReady = !window.ImmersaAudienceWelcome?.required || Boolean(eventLiveReturn());
 let audienceQrReady = false;
 let eventLiveReturnChecking = false;
 function eventLiveReturn() {
@@ -199,6 +200,7 @@ knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
   socket,
   root: document.getElementById("knowledgeActivityAudience"),
   getLocale: () => currentLocale,
+  getAudienceName: () => window.ImmersaAudienceWelcome?.name || "",
   onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed
 });
 function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
@@ -387,7 +389,18 @@ function setConnectionNotice(visible) {
   connectionNotice.classList.toggle("hidden", !visible);
 }
 function closeQnaComposer() { qnaComposer?.classList.add("hidden"); qnaComposer?.setAttribute("aria-hidden", "true"); qnaFormStatus.textContent = ""; }
-function openQnaComposer() { if (!qnaState.questionsOpen || qnaState.hasSubmitted) return; qnaComposer?.classList.remove("hidden"); qnaComposer?.setAttribute("aria-hidden", "false"); qnaFormStatus.textContent = ""; window.setTimeout(() => qnaQuestion?.focus(), 20); }
+function openQnaComposer() {
+  if (!qnaState.questionsOpen || qnaState.hasSubmitted) return;
+  const registeredName = window.ImmersaAudienceWelcome?.name;
+  if (qnaName && !qnaName.value && registeredName) {
+    qnaName.value = registeredName;
+    if (qnaAllowName) qnaAllowName.checked = false;
+  }
+  qnaComposer?.classList.remove("hidden");
+  qnaComposer?.setAttribute("aria-hidden", "false");
+  qnaFormStatus.textContent = "";
+  window.setTimeout(() => qnaQuestion?.focus(), 20);
+}
 function scheduleQnaCooldown(remainingMs) {
   window.clearTimeout(qnaCooldownTimer);
   const delay = Math.max(0, Number(remainingMs) || 0);
@@ -448,7 +461,7 @@ function submitQna(event) {
   });
 }
 function joinAudience() {
-  if (!manifest) return;
+  if (!manifest || !audienceReady || !socket.connected) return;
   socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, locale: currentLocale });
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
@@ -519,3 +532,9 @@ socket.on("qna:rejected", ({ event, reason }) => {
 });
 resetZoom();
 loadDeck().then(() => { initDrawingOverlay(); joinAudience(); });
+if (!audienceReady) {
+  window.ImmersaAudienceWelcome.start().then(() => {
+    audienceReady = true;
+    joinAudience();
+  });
+}

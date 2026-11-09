@@ -14,6 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/audience/audience.css?v=30">
+  <link rel="stylesheet" href="/audience/welcome.css?v=1">
   <link rel="stylesheet" href="/shared/slide-transitions.css?v=2">
   <link rel="stylesheet" href="/audience/brand-mention.css?v=7">
   <link rel="stylesheet" href="/audience/speaker-profile.css?v=4">
@@ -94,6 +95,20 @@
     </section>
     <div id="qnaConfirmation" class="qna-confirmation hidden" role="status" aria-live="polite"></div>
   </main>
+  <dialog id="audienceWelcome" class="audience-welcome" aria-labelledby="audienceWelcomeTitle" aria-describedby="audienceWelcomeInfo">
+    <form id="audienceWelcomeForm">
+      <header><img src="/audience/immersa-mark.png" alt="IMMERSA"><span id="audienceWelcomeKicker">ACCESO DE PÚBLICO</span></header>
+      <h1 id="audienceWelcomeTitle" tabindex="-1" autofocus>Bienvenido</h1>
+      <p id="audienceWelcomeDeck" class="audience-welcome-deck"></p>
+      <label for="audienceWelcomeName" id="audienceWelcomeNameLabel">¿Cómo te llamas?</label>
+      <input id="audienceWelcomeName" name="name" autocomplete="name" maxlength="80" required>
+      <p id="audienceWelcomeInfo">Tu nombre se guarda en esta pestaña y se rellena cuando una actividad lo pide. Tú decides si participas.</p>
+      <button type="submit" id="audienceWelcomeEnter">Entrar a la presentación</button>
+      <button type="button" id="audienceWelcomeCopy">Copiar enlace de acceso</button>
+      <input id="audienceWelcomeLink" type="url" readonly hidden aria-label="Enlace de acceso">
+      <p id="audienceWelcomeStatus" role="status"></p>
+    </form>
+  </dialog>
   <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=2"></script><script src="/shared/raffle-public-ui.js?v=7"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/i18n.js?v=2026110702"></script><script src="/shared/knowledge-activities.js?v=27"></script><script src="/shared/poll-locale.js?v=1"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/shared/selfie-audience.js?v=5"></script><script src="/audience/audience.js?v=2026110901"></script><script src="/shared/speaker-profile-cards.js?v=1"></script><script src="/audience/speaker-profile.js?v=3"></script><script src="/audience/brand-mention.js?v=5"></script><script src="/shared/video-deck-config-bridge.js?v=118"></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=2"></script><script src="/shared/raffle-public-ui.js?v=8"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/i18n.js?v=2026110702"></script><script src="/shared/knowledge-activities.js?v=28"></script><script src="/shared/poll-locale.js?v=1"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/shared/selfie-audience.js?v=5"></script><script src="/audience/welcome.js?v=1"></script><script src="/audience/audience.js?v=2026110902"></script><script src="/shared/speaker-profile-cards.js?v=1"></script><script src="/audience/speaker-profile.js?v=3"></script><script src="/audience/brand-mention.js?v=5"></script><script src="/shared/video-deck-config-bridge.js?v=118"></script>
 </body></html>

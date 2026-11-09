@@ -335,18 +335,19 @@ function serializeCookie(name, value, req) {
   return parts.join('; ');
 }
 
-function injectPublicAudienceContext(html, accessLink, deck, presentationSessionId = '') {
+function injectPublicAudienceContext(html, accessLink, deck, presentationSessionId = '', welcome = false) {
   const context = JSON.stringify({
     session: accessLink.session_id,
     deck: deck.deckId,
-    presentation_session_id: presentationSessionId
+    presentation_session_id: presentationSessionId,
+    ...(welcome ? { welcome: { title: deck.title, path: '/' + accessLink.public_id } } : {})
   }).replace(/</g, '\\u003c');
   const script = '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
   if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, rolePageAssets = null, privateRoleTokens = null }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, rolePageAssets = null, privateRoleTokens = null, audienceWelcome = false }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
@@ -586,7 +587,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
       const presentationSessionId = latestPresentationSessionId(accessLinks, result.accessLink.session_id);
       const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
       res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName('audience'), createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
-      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId));
+      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId, audienceWelcome));
     } catch (error) {
       console.error('Unable to open public audience link', error);
       return res.status(500).json({ error: 'Unable to open public audience link' });

@@ -283,7 +283,7 @@
       populateWinnerConfetti(overlay);
       bindOverlay(overlay);
       const nameInput = overlay.querySelector?.('[data-raffle-name]');
-      if (nameInput && pendingName) nameInput.value = pendingName;
+      if (nameInput) nameInput.value = pendingName || root.ImmersaAudienceWelcome?.name || "";
     }
 
     function applyState(payload) {

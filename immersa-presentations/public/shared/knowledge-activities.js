@@ -420,7 +420,7 @@
     };
   }
 
-  function createAudience({ socket, root, onSnapshotAvailabilityChange, getLocale = () => 'es' } = {}) {
+  function createAudience({ socket, root, onSnapshotAvailabilityChange, getLocale = () => 'es', getAudienceName = () => '' } = {}) {
     if (!socket?.on || !root) throw new Error("A socket and root are required");
     const tr = (key) => global.ImmersaI18n?.t(key) || key;
     const currentTabId = tabId();
@@ -739,7 +739,12 @@
         return;
       }
       root.hidden = false;
-      if (!state.participant) root.innerHTML = registrationMarkup();
+      if (!state.participant) {
+        const draftName = root.querySelector("[data-knowledge-name]")?.value;
+        root.innerHTML = registrationMarkup();
+        const input = root.querySelector("[data-knowledge-name]");
+        if (input) input.value = draftName ?? getAudienceName();
+      }
       else if (state.participant.activeTabId && state.participant.activeTabId !== currentTabId) {
         root.innerHTML = '<div class="knowledge-audience-card"><h2>' + tr('knowledge.otherTab') + '</h2><button class="primary" data-knowledge-claim>' + tr('knowledge.useTab') + '</button></div>';
       } else root.innerHTML = state.category === "contest" ? contestMarkup() : assessmentMarkup();
