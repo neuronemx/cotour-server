@@ -16,7 +16,10 @@ function createQnaHistoryHandlers({ runtime, logger = console } = {}) {
     }
     try {
       const sessions = await runtime.listHistory({ deckId: req.params.deckId });
-      return res.json({ deckId: req.params.deckId, sessions });
+      const sessionId = req.query?.presentationSessionId;
+      return res.json({ deckId: req.params.deckId,
+        sessions: sessionId ? sessions.filter((session) => session.presentationSessionId === sessionId) : sessions
+      });
     } catch (error) {
       logger.error("Unable to list Q&A history", error);
       return res.status(503).json({ error: "Q&A history is not available" });
@@ -32,7 +35,9 @@ function createQnaHistoryHandlers({ runtime, logger = console } = {}) {
       return res.status(403).json({ error: "Access token required" });
     }
     try {
-      const result = await runtime.exportDeckCsv({ deckId: access.deck.deckId });
+      const scope = { deckId: access.deck.deckId };
+      if (req.query?.presentationSessionId) scope.presentationSessionId = req.query.presentationSessionId;
+      const result = await runtime.exportDeckCsv(scope);
       const filename = ["immersa-qna", safeFilenamePart(result.deckId)].join("-") + ".csv";
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);

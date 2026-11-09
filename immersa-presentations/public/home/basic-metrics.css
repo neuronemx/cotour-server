@@ -11,7 +11,7 @@
 .basic-metrics-empty p, .basic-metrics-error { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .basic-metrics-session { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; }
 .basic-metrics-session.is-expanded { border-color: rgba(94, 80, 255, .32); box-shadow: 0 8px 26px rgba(28, 34, 80, .07); }
-.basic-metrics-session-toggle { width: 100%; display: grid; grid-template-columns: minmax(135px, 1fr) minmax(210px, 1.2fr) 14px; align-items: center; gap: 12px; padding: 13px 14px; color: inherit; background: transparent; text-align: left; }
+.basic-metrics-session-toggle { width: 100%; display: grid; grid-template-columns: minmax(135px, 1fr) minmax(210px, 1.2fr); align-items: center; gap: 12px; padding: 13px 14px; color: inherit; background: transparent; text-align: left; }
 .basic-metrics-session-identity { display: grid; gap: 3px; min-width: 0; }
 .basic-metrics-session-identity strong { overflow: hidden; color: #0a0d28; font-family: var(--font-display); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .basic-metrics-session-identity small { color: var(--muted); font-size: 10px; }
@@ -40,9 +40,26 @@
 .basic-metrics-option > i > b { display: block; height: 100%; border-radius: inherit; background: var(--grad); }
 .basic-metrics-inline-empty { margin: 0; color: var(--muted); font-size: 11px; }
 @media (max-width: 700px) {
-  .basic-metrics-session-toggle { grid-template-columns: minmax(0, 1fr) 14px; }
+  .basic-metrics-session-toggle { grid-template-columns: minmax(0, 1fr); }
   .basic-metrics-session-overview { grid-column: 1 / -1; grid-row: 2; }
   .basic-metrics-chevron { grid-column: 2; grid-row: 1; }
   .basic-metrics-detail-stats { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .basic-metrics-chevron { transition: none; } }
+
+#basicMetricsSessionChoice:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#basicMetricsSessionSelect {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+.basic-metrics-session-toggle:not(button) { cursor: default; }

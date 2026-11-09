@@ -5,13 +5,10 @@
   const list = document.getElementById("qnaHistoryList");
   const summary = document.getElementById("qnaHistorySummary");
   const exportButton = document.getElementById("qnaHistoryExport");
-  const deleteButton = document.getElementById("qnaHistoryDelete");
-  const confirmation = document.getElementById("qnaHistoryConfirm");
-  const cancelDelete = document.getElementById("qnaHistoryCancelDelete");
-  const confirmDelete = document.getElementById("qnaHistoryConfirmDelete");
-  if (!section || !toggle || !body || !list || !summary || !exportButton || !deleteButton || !confirmation || !cancelDelete || !confirmDelete) return;
+  if (!section || !toggle || !body || !list || !summary || !exportButton) return;
 
   let activeDeck = null;
+  let selectedSessionId = "";
   let historyLoaded = false;
   let requestVersion = 0;
 
@@ -37,7 +34,6 @@
     toggle.setAttribute("aria-expanded", String(expanded));
     body.hidden = !expanded;
     section.classList.toggle("is-expanded", expanded);
-    if (!expanded) confirmation.hidden = true;
   }
 
   function renderSessions(sessions) {
@@ -49,7 +45,7 @@
 
     if (!sessions.length) {
       list.classList.add("is-empty");
-      setSummary("Todavía no hay ejecuciones de Q&A para esta presentación.");
+      setSummary("No hay preguntas en esta sesión.");
       return;
     }
 
@@ -85,7 +81,7 @@
     exportButton.disabled = true;
     setSummary("Cargando historial…");
     try {
-      const response = await fetch(`/api/decks/${encodeURIComponent(deck.deckId)}/qna/history`, { headers: { Accept: "application/json" } });
+      const response = await fetch(`/api/decks/${encodeURIComponent(deck.deckId)}/qna/history?presentationSessionId=${encodeURIComponent(selectedSessionId)}`, { headers: { Accept: "application/json" } });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "No se pudo cargar el historial.");
       if (version !== requestVersion) return;
@@ -132,12 +128,14 @@
 
   exportButton.addEventListener("click", async () => {
     if (!activeDeck || exportButton.disabled) return;
+    const version = requestVersion;
+    const sessionId = selectedSessionId;
     const originalLabel = exportButton.textContent;
     exportButton.disabled = true;
     exportButton.textContent = "Preparando…";
     try {
       const accessToken = await createSpeakerAccessToken(activeDeck);
-      const response = await fetch(`/api/qna/export/${encodeURIComponent(accessToken)}`);
+      const response = await fetch(`/api/qna/export/${encodeURIComponent(accessToken)}?presentationSessionId=${encodeURIComponent(sessionId)}`);
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error || "No se pudo descargar el CSV.");
@@ -145,47 +143,26 @@
       const disposition = response.headers.get("Content-Disposition") || "";
       const filename = disposition.match(/filename="([^"]+)"/)?.[1] || "immersa-qna.csv";
       downloadBlob(await response.blob(), filename);
-      deleteButton.hidden = false;
-      setSummary("CSV descargado. Ya puedes borrar permanentemente el historial.", "success");
+      if (version === requestVersion) setSummary("CSV descargado.", "success");
     } catch (error) {
-      setSummary(error.message || "No se pudo descargar el CSV.", "error");
+      if (version === requestVersion) setSummary(error.message || "No se pudo descargar el CSV.", "error");
     } finally {
-      exportButton.disabled = false;
-      exportButton.textContent = originalLabel;
+      if (version === requestVersion) {
+        exportButton.disabled = false;
+        exportButton.textContent = originalLabel;
+      }
     }
   });
 
-  deleteButton.addEventListener("click", () => {
-    confirmation.hidden = false;
-    confirmDelete.focus();
-  });
-  cancelDelete.addEventListener("click", () => {
-    confirmation.hidden = true;
-    deleteButton.focus();
-  });
-
-  confirmDelete.addEventListener("click", async () => {
-    if (!activeDeck || confirmDelete.disabled) return;
-    confirmDelete.disabled = true;
-    cancelDelete.disabled = true;
-    confirmDelete.textContent = "Borrando…";
-    try {
-      const accessToken = await createSpeakerAccessToken(activeDeck);
-      const response = await fetch(`/api/qna/history/${encodeURIComponent(accessToken)}`, { method: "DELETE" });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.error || "No se pudo borrar el historial.");
-      confirmation.hidden = true;
-      deleteButton.hidden = true;
-      historyLoaded = false;
-      await loadHistory(activeDeck);
-      setSummary("Historial borrado permanentemente.", "success");
-    } catch (error) {
-      confirmation.hidden = true;
-      setSummary(error.message || "No se pudo borrar el historial.", "error");
-    } finally {
-      confirmDelete.disabled = false;
-      cancelDelete.disabled = false;
-      confirmDelete.textContent = "Borrar definitivamente";
+  document.addEventListener("immersa:metrics-session-selected", (event) => {
+    selectedSessionId = event.detail.id;
+    requestVersion += 1;
+    historyLoaded = false;
+    exportButton.textContent = "Descargar CSV";
+    section.hidden = !activeDeck || !selectedSessionId;
+    if (!section.hidden) {
+      setExpanded(true);
+      loadHistory(activeDeck);
     }
   });
 
@@ -200,9 +177,7 @@
     requestVersion += 1;
     activeDeck = deck;
     historyLoaded = false;
-    section.hidden = false;
-    deleteButton.hidden = true;
-    confirmation.hidden = true;
+    section.hidden = true;
     setExpanded(false);
   });
 

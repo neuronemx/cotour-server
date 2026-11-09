@@ -78,8 +78,9 @@ function createQnaRuntime(options = {}) {
     async listHistory({ deckId }) {
       return repository.listPresentationSessions(deckId);
     },
-    async exportDeckCsv({ deckId }) {
-      const rows = await repository.listExportQuestionsByDeck(deckId);
+    async exportDeckCsv({ deckId, presentationSessionId }) {
+      const history = await repository.listExportQuestionsByDeck(deckId);
+      const rows = presentationSessionId ? history.filter((row) => row.presentationSessionId === presentationSessionId) : history;
       return {
         csv: buildQnaCsv(rows),
         deckId,

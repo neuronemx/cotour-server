@@ -92,9 +92,10 @@ function createKnowledgeActivityHistoryHandlers({ runtime, logger = console } = 
     if (!runtime.enabled) return res.status(404).json({ error: "Activity history is not available" });
     try {
       const executions = await runtime.listHistory({ deckId: req.params.deckId });
+      const sessionId = req.query?.presentationSessionId;
       return res.json({
         deckId: req.params.deckId,
-        executions: executions.map(historySummary)
+        executions: (sessionId ? executions.filter((execution) => execution.presentationSessionId === sessionId) : executions).map(historySummary)
       });
     } catch (error) {
       logger.error("Unable to list activity history", error);

@@ -6,6 +6,10 @@
   const metricsTab = document.getElementById("deckTabMetrics");
   if (!section || !status || !sessionsHost || !refreshButton || !metricsTab) return;
 
+  const choice = document.getElementById("basicMetricsSessionChoice");
+  const select = document.getElementById("basicMetricsSessionSelect");
+  let sessions = [];
+
   let activeDeck = null;
   let loaded = false;
   let loading = false;
@@ -92,19 +96,13 @@
     return article;
   }
 
-  function renderSession(session, index) {
+  function renderSession(session) {
     const pollResponses = (session.polls || []).reduce((sum, poll) => sum + (Number(poll.totalResponses) || 0), 0);
     const activity = pollResponses + (Number(session.qna?.received) || 0);
     const article = document.createElement("article");
     article.className = "basic-metrics-session";
-    const headingId = `basicMetricsSession${index}`;
-    const bodyId = `${headingId}Body`;
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "basic-metrics-session-toggle";
-    toggle.id = headingId;
-    toggle.setAttribute("aria-controls", bodyId);
-    toggle.setAttribute("aria-expanded", String(index === 0));
+    const heading = document.createElement("div");
+    heading.className = "basic-metrics-session-toggle";
 
     const identity = document.createElement("span");
     identity.className = "basic-metrics-session-identity";
@@ -120,17 +118,10 @@
       metric("Asistencia", Number(session.participants?.connected) || 0),
       metric("Actividad", activity)
     );
-    const arrow = document.createElement("span");
-    arrow.className = "basic-metrics-chevron";
-    arrow.setAttribute("aria-hidden", "true");
-    toggle.append(identity, overview, arrow);
+    heading.append(identity, overview);
 
     const body = document.createElement("div");
     body.className = "basic-metrics-session-body";
-    body.id = bodyId;
-    body.setAttribute("role", "region");
-    body.setAttribute("aria-labelledby", headingId);
-    body.hidden = index !== 0;
     const stats = document.createElement("div");
     stats.className = "basic-metrics-detail-stats";
     stats.append(
@@ -151,19 +142,26 @@
       empty.textContent = "No se lanzaron encuestas en esta sesión.";
       body.appendChild(empty);
     }
-    toggle.addEventListener("click", () => {
-      const expanded = toggle.getAttribute("aria-expanded") === "true";
-      toggle.setAttribute("aria-expanded", String(!expanded));
-      body.hidden = expanded;
-      article.classList.toggle("is-expanded", !expanded);
-    });
-    article.classList.toggle("is-expanded", index === 0);
-    article.append(toggle, body);
+    article.classList.add("is-expanded");
+    article.append(heading, body);
     return article;
   }
 
-  function render(sessions) {
-    sessionsHost.replaceChildren();
+  function selectSession() {
+    const session = sessions.find((item) => item.id === select.value);
+    sessionsHost.replaceChildren(...(session ? [renderSession(session)] : []));
+    document.dispatchEvent(new CustomEvent("immersa:metrics-session-selected", { detail: { id: session?.id || "" } }));
+  }
+
+  function render(results) {
+    const previousId = select.value;
+    sessions = results;
+    choice.hidden = !sessions.length;
+    select.replaceChildren(...sessions.map((session) => new Option(
+      `${formatDate(session.startedAt)} · ${session.id.slice(-8)}`, session.id
+    )));
+    if (sessions.some((session) => session.id === previousId)) select.value = previousId;
+    selectSession();
     if (!sessions.length) {
       status.textContent = "Todavía no hay sesiones registradas.";
       const empty = document.createElement("div");
@@ -177,7 +175,7 @@
       return;
     }
     status.textContent = quantity(sessions.length, "sesión registrada", "sesiones registradas");
-    sessions.forEach((session, index) => sessionsHost.appendChild(renderSession(session, index)));
+
   }
 
   async function loadMetrics(force = false) {
@@ -186,7 +184,9 @@
     loading = true;
     refreshButton.disabled = true;
     status.textContent = "Cargando sesiones…";
+    select.disabled = true;
     sessionsHost.replaceChildren();
+    document.dispatchEvent(new CustomEvent("immersa:metrics-session-selected", { detail: { id: "" } }));
     try {
       const response = await fetch(`/api/decks/${encodeURIComponent(activeDeck.deckId)}/metrics/basic`, {
         headers: { Accept: "application/json" }, cache: "no-store"
@@ -199,6 +199,7 @@
     } catch (error) {
       if (version !== requestVersion) return;
       status.textContent = error.message || "No se pudieron cargar las métricas.";
+      choice.hidden = true;
       const retry = document.createElement("p");
       retry.className = "basic-metrics-error";
       retry.textContent = "Intenta actualizar en unos momentos.";
@@ -207,10 +208,12 @@
       if (version === requestVersion) {
         loading = false;
         refreshButton.disabled = false;
+        select.disabled = false;
       }
     }
   }
 
+  select.addEventListener("change", selectSession);
   metricsTab.addEventListener("click", () => loadMetrics());
   refreshButton.addEventListener("click", () => loadMetrics(true));
   document.addEventListener("immersa:deck-detail-open", (event) => {
@@ -218,6 +221,9 @@
     activeDeck = null;
     loaded = false;
     loading = false;
+    sessions = [];
+    select.replaceChildren();
+    choice.hidden = true;
     sessionsHost.replaceChildren();
     const deck = event.detail?.deck;
     const enabled = event.detail?.capabilities?.["metrics.basic"] === true;

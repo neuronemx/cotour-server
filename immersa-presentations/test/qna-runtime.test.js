@@ -212,6 +212,10 @@ test("enabled runtime lists history and exports every deck execution", async () 
         name: "Ana",
         answered: true,
         createdAt: new Date("2026-07-19T06:00:00.000Z")
+      }, {
+        presentationSessionId: "presentation-session-2",
+        deckId, roundNumber: 1, question: "De otra sesión",
+        createdAt: new Date("2026-07-19T07:00:00.000Z")
       }];
     },
     async clearDeckHistory(deckId) {
@@ -240,15 +244,19 @@ test("enabled runtime lists history and exports every deck execution", async () 
 
   const history = await runtime.listHistory({ deckId: "deck-a" });
   const result = await runtime.exportDeckCsv({ deckId: "deck-a" });
+  const scoped = await runtime.exportDeckCsv({ deckId: "deck-a", presentationSessionId: "presentation-session-1" });
+  assert.equal(scoped.questionCount, 1);
+  assert.doesNotMatch(scoped.csv, /De otra sesión/);
   const cleared = await runtime.clearHistory({ deckId: "deck-a" });
   assert.equal(history[0].presentationSessionId, "presentation-session-1");
-  assert.equal(result.questionCount, 1);
+  assert.equal(result.questionCount, 2);
   assert.match(result.csv, /^\uFEFF/);
   assert.match(result.csv, /"Respondida"/);
   assert.match(result.csv, /"Sí"/);
   assert.equal(cleared.deletedQuestionCount, 3);
   assert.deepEqual(calls, [
     { method: "listPresentationSessions", deckId: "deck-a" },
+    { method: "listExportQuestionsByDeck", deckId: "deck-a" },
     { method: "listExportQuestionsByDeck", deckId: "deck-a" },
     { method: "clearDeckHistory", deckId: "deck-a" }
   ]);

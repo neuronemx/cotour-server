@@ -7,6 +7,7 @@
   if (!section || !toggle || !body || !list || !summary) return;
 
   let activeDeck = null;
+  let selectedSessionId = "";
   let loaded = false;
   let requestVersion = 0;
 
@@ -47,6 +48,7 @@
   }
 
   async function downloadExecution(execution, button) {
+    const version = requestVersion;
     button.disabled = true;
     const original = button.textContent;
     button.textContent = "Preparando…";
@@ -60,9 +62,11 @@
       const disposition = response.headers.get("Content-Disposition") || "";
       const filename = disposition.match(/filename="([^"]+)"/)?.[1] || "immersa-resultados.csv";
       downloadBlob(await response.blob(), filename);
+      if (version !== requestVersion) return;
       summary.textContent = "CSV descargado.";
       summary.className = "qna-history-summary success";
     } catch (error) {
+      if (version !== requestVersion) return;
       summary.textContent = error.message;
       summary.className = "qna-history-summary error";
     } finally {
@@ -108,16 +112,18 @@
   async function loadHistory() {
     if (!activeDeck) return;
     const version = ++requestVersion;
+    list.replaceChildren();
+    summary.className = "qna-history-summary";
     summary.textContent = "Cargando historial…";
     try {
-      const response = await fetch("/api/decks/" + encodeURIComponent(activeDeck.deckId) + "/knowledge-activities/history");
+      const response = await fetch("/api/decks/" + encodeURIComponent(activeDeck.deckId) + "/knowledge-activities/history?presentationSessionId=" + encodeURIComponent(selectedSessionId));
       const data = await response.json().catch(() => null);
+      if (version !== requestVersion) return;
       if (response.status === 404) {
         section.hidden = true;
         return;
       }
       if (!response.ok) throw new Error(data?.error || "No se pudo cargar el historial.");
-      if (version !== requestVersion) return;
       loaded = true;
       render(Array.isArray(data?.executions) ? data.executions : []);
     } catch (error) {
@@ -135,6 +141,19 @@
     if (!expanded && !loaded) loadHistory();
   });
 
+  document.addEventListener("immersa:metrics-session-selected", (event) => {
+    selectedSessionId = event.detail.id;
+    requestVersion += 1;
+    loaded = false;
+    section.hidden = !activeDeck || !selectedSessionId;
+    if (!section.hidden) {
+      toggle.setAttribute("aria-expanded", "true");
+      body.hidden = false;
+      section.classList.add("is-expanded");
+      loadHistory();
+    }
+  });
+
   document.addEventListener("immersa:deck-detail-open", (event) => {
     const deck = event.detail?.deck;
     const hasDetailedHistory = event.detail?.capabilities?.["metrics.export"] === true;
@@ -146,7 +165,7 @@
     requestVersion += 1;
     activeDeck = deck;
     loaded = false;
-    section.hidden = false;
+    section.hidden = true;
     toggle.setAttribute("aria-expanded", "false");
     body.hidden = true;
   });
