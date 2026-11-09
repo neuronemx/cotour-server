@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
-  assert.match(html, /deck-management-shell\.css\?v=33/);
+  assert.match(html, /deck-management-shell\.css\?v=34/);
   assert.match(html, /deck-management-shell\.js\?v=19/);
   const primaryTabs = html.match(/<nav class="deck-detail-tabs"[\s\S]*?<\/nav>/)?.[0];
   assert.deepEqual([...primaryTabs.matchAll(/data-deck-tab="([^"]+)"/g)].map((match) => match[1]), ["links", "experience", "av", "metrics"]);
@@ -155,7 +155,7 @@ test("Deck detail provides visual slide navigation and direct prompter editing w
   assert.match(css, /\.deck-detail-slide-arrow/);
   assert.match(css, /\.deck-detail-video-action/);
   assert.match(css, /\.deck-detail-slide-video-mark/);
-  assert.match(html, /deck-management-shell\.css\?v=33/);
+  assert.match(html, /deck-management-shell\.css\?v=34/);
 });
 
 test("Deck Home starts in Enlaces and keeps the preview controls together", () => {
