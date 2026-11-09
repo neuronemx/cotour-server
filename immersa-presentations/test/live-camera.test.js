@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createHmac } = require("node:crypto");
-const { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera } = require("../live-camera");
+const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("../live-camera");
 
 const config = {
   origin: "https://beta.example.test", eventWorkspaceId: "event-a", activityId: "activity-a",
@@ -33,10 +33,16 @@ test("camera assets are gated by the pilot and the exact role link", () => {
 
 function testChannel(t, namespaceName) {
   const broadcasts = [];
+  const rooms = new Map();
   const channel = {
     use(fn) { this.authorize = fn; },
     on(_event, fn) { this.connect = fn; },
-    emit(event, payload) { broadcasts.push([event, payload]); }
+    emit(event, payload) { broadcasts.push([event, payload]); },
+    to(key) {
+      return { emit: (event, payload) => {
+        for (const socket of rooms.get(key) || []) socket.emit(event, payload);
+      } };
+    }
   };
   const namespace = { of: name => { assert.equal(name, namespaceName); return channel; } };
   async function open(role, accessToken = config.links[role], origin = config.origin) {
@@ -46,7 +52,17 @@ function testChannel(t, namespaceName) {
       on: (event, handler) => handlers.set(event, handler),
       emit(event, payload) { this.messages.push([event, payload]); },
       receive: (event, payload) => handlers.get(event)(payload),
-      disconnect() { this.connected = false; handlers.get("disconnect")?.(); }
+      join(key) {
+        if (!rooms.has(key)) rooms.set(key, new Set());
+        rooms.get(key).add(this);
+        this.room = key;
+      },
+      disconnect() {
+        if (!this.connected) return;
+        this.connected = false;
+        rooms.get(this.room)?.delete(this);
+        handlers.get("disconnect")?.();
+      }
     };
     const error = await new Promise(resolve => channel.authorize(socket, resolve));
     if (error) return error;
@@ -111,6 +127,90 @@ test("a demo Deck uses its normal Speaker and Screen links without Event Hub", a
   assert.equal(broadcasts.at(-1)[1].phase, "live");
   await speaker.receive("live:stop", { id });
   assert.equal(broadcasts.at(-1)[1].phase, "idle");
+});
+
+test("ordinary Beta Decks get LIVE automatically and use separate camera rooms", async t => {
+  const beta = {
+    RAILWAY_ENVIRONMENT_ID: "9ae7d5ba-2954-4c96-818a-ee918310e20d",
+    RAILWAY_ENVIRONMENT_NAME: "beta",
+    RAILWAY_SERVICE_NAME: "immersa-presentations"
+  };
+  const workDecks = readLiveCameraWorkDecks(beta);
+  assert.equal(workDecks.origin, "https://beta.immersalive.com");
+  assert.equal(readLiveCameraWorkDecks({ ...beta, RAILWAY_ENVIRONMENT_NAME: "production" }), null);
+  assert.equal(readLiveCameraWorkDecks({ ...beta, RAILWAY_SERVICE_NAME: "cotour-server" }), null);
+  assert.equal(readLiveCameraWorkDecks({ ...beta, IMMERSA_LIVE_CAMERA_ENABLED: "false" }), null);
+
+  const access = new Map([
+    ["a_speaker001", ["speaker", "deck-a"]],
+    ["a_screen0001", ["screen", "deck-a"]],
+    ["a_speaker002", ["speaker", "deck-b"]],
+    ["a_screen0002", ["screen", "deck-b"]],
+    ["a_speaker003", ["speaker", "immersa-demo-master"]],
+    ["a_speaker004", ["speaker", "immersa-demo"]]
+  ].map(([token, [role, deckId]]) => {
+    const resolved = roleAccess(role, token);
+    resolved.deck.deckId = deckId;
+    return [token, resolved];
+  }));
+  const page = (token, query = {}) => ({ req: { query }, ...access.get(token) });
+  assert.match(liveCameraPageAssets(workDecks, page("a_speaker001")), /live-camera-demo/);
+  assert.match(liveCameraPageAssets(workDecks, page("a_screen0002")), /live-camera-demo/);
+  assert.equal(liveCameraPageAssets(workDecks, page("a_speaker001", { deck: "deck-b" })), null);
+  assert.equal(liveCameraPageAssets(workDecks, page("a_speaker001", { eventActivityId: "event-activity" })), null);
+  assert.equal(liveCameraPageAssets(workDecks, page("a_speaker003")), null);
+  assert.equal(liveCameraPageAssets(workDecks, page("a_speaker004")), null);
+
+  const { namespace, open } = testChannel(t, "/live-camera-demo");
+  let blockedDeck;
+  attachLiveCamera(namespace, {
+    pilot: workDecks,
+    accessLinks: { resolveRoleLink: async (token, role) => {
+      const resolved = access.get(token);
+      return resolved?.accessLink.role === role ? resolved : null;
+    } },
+    canProject: (sessionId, deckId) => {
+      assert.equal(sessionId, config.sessionId);
+      return deckId !== blockedDeck;
+    }
+  });
+
+  const connect = (role, token) => open(role, token, workDecks.origin);
+  const start = socket => new Promise(resolve => socket.receive("live:start", resolve));
+  const prepared = socket => socket.messages.find(([event]) => event === "live:prepare")?.[1].id;
+  const phase = socket => socket.messages.filter(([event]) => event === "live:status").at(-1)?.[1].phase;
+  assert.ok(await connect("speaker", "a_speaker003") instanceof Error);
+  assert.ok(await connect("screen", "a_speaker001") instanceof Error);
+  const speakerA = await connect("speaker", "a_speaker001");
+  const speakerB = await connect("speaker", "a_speaker002");
+  const screenA = await connect("screen", "a_screen0001");
+  assert.deepEqual(await start(speakerB), { ok: false, reason: "busy" });
+  const screenB = await connect("screen", "a_screen0002");
+
+  assert.deepEqual(await start(speakerA), { ok: true });
+  const idA = prepared(screenA);
+  assert.equal(prepared(screenB), undefined);
+  screenB.receive("live:ready", idA);
+  assert.equal(phase(speakerA), "starting");
+  screenA.receive("live:ready", idA);
+  assert.equal(phase(speakerA), "live");
+  assert.equal(phase(speakerB), "idle");
+
+  blockedDeck = "deck-b";
+  assert.deepEqual(await start(speakerB), { ok: false, reason: "production" });
+  blockedDeck = undefined;
+  assert.deepEqual(await start(speakerB), { ok: true });
+  const idB = prepared(screenB);
+  assert.notEqual(idA, idB);
+  screenB.receive("live:ready", idB);
+  await speakerA.receive("live:stop", { id: idA });
+  assert.equal(phase(speakerA), "idle");
+  assert.equal(phase(speakerB), "live");
+
+  await speakerB.receive("live:stop", { id: idB });
+  speakerA.disconnect();
+  screenA.disconnect();
+  assert.equal((await connect("screen", "a_screen0001")).connected, true);
 });
 
 test("only authenticated participants in the configured live event can negotiate one video source", async t => {

@@ -10,7 +10,7 @@ const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
-const { readLiveCameraPilot, readLiveCameraDemo, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -305,7 +305,7 @@ const liveCameraEnabled = process.env.IMMERSA_LIVE_CAMERA_ENABLED !== "false";
 const manualLiveCameraPilot = eventHubRepository ? readLiveCameraPilot() : null;
 const liveCameraSetup = manualLiveCameraPilot ? null : createLiveCameraSetup({ env: process.env, dataDir: DATA_DIR, eventHub: eventHubRepository });
 let liveCameraPilot = null;
-let liveCameraDemo = null;
+let liveCameraDemo = readLiveCameraWorkDecks();
 const privateLiveCameraTokens = new Set();
 const isEventLiveCameraLink = token => Object.values(liveCameraPilot?.links || {}).includes(token);
 const accessLinkHandlers = createAccessLinkHandlers({
@@ -326,8 +326,8 @@ function attachDeckLiveCamera(pilot) {
     accessLinks: accessLinkHandlers,
     eventHub: eventHubRepository,
     isEventLink: isEventLiveCameraLink,
-    canProject: sessionId => {
-      const room = getRoomKey(sessionId, pilot.deckId);
+    canProject: (sessionId, deckId = pilot.deckId) => {
+      const room = getRoomKey(sessionId, deckId);
       const video = getSessionByRoomKey(room)?.audiovisual?.video;
       return !video?.resource || video.status === "stopped";
     }
@@ -358,7 +358,9 @@ async function enableLiveCameraDemo(config) {
   attachDeckLiveCamera(liveCameraDemo);
   console.log("[live-camera] Demo enabled for Deck", deckId);
 }
-if (liveCameraEnabled) {
+if (liveCameraDemo) {
+  attachDeckLiveCamera(liveCameraDemo);
+} else if (liveCameraEnabled) {
   enableLiveCameraDemo(readLiveCameraDemo()).catch(error => console.error("[live-camera] Unable to enable demo", error.code || error.name));
 }
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
