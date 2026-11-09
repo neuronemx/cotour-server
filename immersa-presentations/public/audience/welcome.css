@@ -26,9 +26,13 @@ body:has(.audience-welcome[open]) { touch-action: pan-y; }
 .audience-welcome p { margin: 0; overflow-wrap: anywhere; color: #d1c8df; font-size: 13px; }
 .audience-welcome .audience-welcome-deck { color: #fff; font-size: 17px; font-weight: 700; }
 .audience-welcome label { margin-top: 8px; font-weight: 700; }
-.audience-welcome input { min-width: 0; min-height: 46px; border: 1px solid #756789; border-radius: 10px; background: #0f1222; color: #fff; padding: 0 12px; font: inherit; font-size: 16px; }
+.audience-welcome input:not([type="checkbox"]) { min-width: 0; min-height: 46px; border: 1px solid #756789; border-radius: 10px; background: #0f1222; color: #fff; padding: 0 12px; font: inherit; font-size: 16px; }
 .audience-welcome button { min-height: 46px; border: 0; border-radius: 10px; padding: 0 10px; color: #fff; font: 750 15px system-ui, sans-serif; cursor: pointer; }
 #audienceWelcomeEnter { background: #7134bc; }
-#audienceWelcomeCopy { background: #ffffff13; }
+.audience-welcome .audience-welcome-alerts { display: flex; align-items: center; gap: 9px; margin: 0; min-height: 44px; font-size: 14px; font-weight: 600; }
+.audience-welcome-alerts input { flex: none; width: 19px; height: 19px; margin: 0; accent-color: #b980ff; }
+.audience-welcome-bookmarks { color: #d9c8ff; font-size: 13px; }
+.audience-welcome-bookmarks summary { cursor: pointer; width: fit-content; }
+.audience-welcome-bookmarks p { margin-top: 6px; }
 #audienceWelcomeStatus:empty { display: none; }
 .audience-welcome :focus-visible { outline: 2px solid #c4a8ff; outline-offset: 3px; }
