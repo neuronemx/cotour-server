@@ -5,6 +5,7 @@
   if (!config || !/^\/p_[a-z0-9]+$/.test(config.path) || typeof dialog?.showModal !== "function") return;
 
   const key = "immersa:audience-welcome:" + config.path;
+  const nameLifetimeMs = 24 * 60 * 60 * 1000;
   const form = document.getElementById("audienceWelcomeForm");
   const nameField = document.getElementById("audienceWelcomeName");
   const status = document.getElementById("audienceWelcomeStatus");
@@ -13,16 +14,51 @@
     audienceWelcomeKicker: "AUDIENCE ACCESS",
     audienceWelcomeTitle: "Welcome",
     audienceWelcomeNameLabel: "What’s your name?",
-    audienceWelcomeInfo: "Your name is saved in this tab only for the presentation.",
-    audienceWelcomeEnter: "Enter the presentation",
-    audienceWelcomeBookmarks: "Save to bookmarks",
-    audienceWelcomeBookmarkMobile: "On your phone, open your browser menu and choose Add Bookmark or Favorites.",
-    audienceWelcomeBookmarkDesktop: "On a computer, use Ctrl+D (Windows) or ⌘+D (Mac)."
+    audienceWelcomeInfo: "Your name is saved in this browser only for the presentation.",
+    audienceWelcomeEnter: "Enter the presentation"
   };
   let name = "";
   let locale = "es";
+
+  function rememberName(value) {
+    const record = JSON.stringify({ name: value, expiresAt: Date.now() + nameLifetimeMs });
+    try {
+      sessionStorage.setItem(key, record);
+    } catch (_error) {}
+    try {
+      localStorage.setItem(key, record);
+    } catch (_error) {}
+  }
+
+  function readName(storage, allowLegacy = false) {
+    const saved = storage.getItem(key);
+    if (!saved) return "";
+    let record;
+    try {
+      record = JSON.parse(saved);
+    } catch (_error) {}
+    if (Number.isFinite(record?.expiresAt)) {
+      if (record.expiresAt > Date.now() && typeof record.name === "string") {
+        return record.name.trim().slice(0, 80);
+      }
+      storage.removeItem(key);
+    } else if (allowLegacy) {
+      const legacyName = saved.trim().slice(0, 80);
+      if (legacyName) rememberName(legacyName);
+      return legacyName;
+    }
+    return "";
+  }
+
   try {
-    name = String(sessionStorage.getItem(key) || "").trim().slice(0, 80);
+    name = readName(localStorage);
+  } catch (_error) {}
+  if (!name) {
+    try {
+      name = readName(sessionStorage, true);
+    } catch (_error) {}
+  }
+  try {
     locale = localStorage.getItem("immersa:locale:" + context.session) === "en" ? "en" : "es";
   } catch (_error) {
     // Público can still continue if the browser blocks storage.
@@ -51,9 +87,7 @@
             return;
           }
           name = value.slice(0, 80);
-          try {
-            sessionStorage.setItem(key, name);
-          } catch (_error) {}
+          rememberName(name);
           form.removeEventListener("submit", submit);
           dialog.close();
           resolve();
