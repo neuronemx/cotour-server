@@ -6,6 +6,7 @@
   const enabled = panel.querySelector('[name="enabled"]'), form = panel.querySelector('form');
   const photo = panel.querySelector('[name="photo"]'), preview = panel.querySelector('[data-speakers-photo]');
   const heading = panel.querySelector('[data-speakers-heading]'), fields = ['displayName','publicTitle','roleTitle','company','bio','websiteUrl','linkedinUrl','instagramUrl'];
+  const bio = window.ImmersaProfileBioEditor.create(form.elements.bio);
   let allowed = false, deckId = '', config = null, selectedId = null, busy = false, epoch = 0, readEpoch = 0;
   const message = (text, error = false) => { status.textContent = text; status.dataset.error = String(error); };
   const base = () => '/api/decks/' + encodeURIComponent(deckId) + '/speakers';
@@ -17,6 +18,7 @@
   }
   function controls() {
     panel.querySelectorAll('button, input, select, textarea').forEach(node => { node.disabled = busy || !config; });
+    bio.disable(busy || !config);
     photo.disabled = busy || !config || !selectedId;
     list.querySelectorAll('[data-boundary="true"]').forEach(node => { node.disabled = true; });
     panel.setAttribute('aria-busy', String(busy));
@@ -26,6 +28,7 @@
     const profile = config?.profiles.find(p => p.id === id);
     form.reset();
     for (const field of fields) form.elements[field].value = profile?.[field] || (field === 'publicTitle' ? 'Speaker' : '');
+    bio.load(profile);
     photo.value = ''; preview.hidden = !profile?.photoUrl;
     if (profile?.photoUrl) { preview.src = profile.photoUrl; preview.alt = 'Foto de ' + profile.displayName; } else preview.removeAttribute('src');
     heading.textContent = profile ? 'Editar ponente' : 'Nuevo ponente';
@@ -100,7 +103,13 @@
   panel.querySelector('[data-speakers-new]').addEventListener('click', () => { resetForm(); form.elements.displayName.focus(); });
   form.addEventListener('submit', event => {
     event.preventDefault(); if (!config || !form.reportValidity()) return;
-    const body = Object.fromEntries(fields.map(field => [field, form.elements[field].value]));
+    const bioFields = bio.read();
+    if (bioFields.bio.length > window.ImmersaProfileBioEditor.limit) {
+      message('Acerca de puede tener máximo 600 caracteres.', true);
+      bio.editor.focus();
+      return;
+    }
+    const body = {...Object.fromEntries(fields.map(field => [field, form.elements[field].value])), ...bioFields};
     body.active = selectedId ? config.profiles.find(p => p.id === selectedId)?.active === true : false;
     const before = new Set(config.profiles.map(p => p.id));
     mutate(selectedId ? '/' + selectedId : '', selectedId ? 'PUT' : 'POST', body, data => {
@@ -133,7 +142,7 @@
   document.addEventListener('immersa:deck-detail-open', event => {
     epoch++; readEpoch++; busy = false; config = null; selectedId = null;
     deckId = event.detail?.deck?.missing ? '' : String(event.detail?.deck?.deckId || '');
-    list.replaceChildren(); form.reset(); preview.hidden = true; controls();
+    list.replaceChildren(); form.reset(); bio.load(); preview.hidden = true; controls();
     heading.textContent = 'Nuevo ponente';
     panel.querySelector('[data-speakers-photo-hint]').textContent = 'Guarda el perfil para agregar su foto. Se creará apagado.';
     if (allowed && deckId) load();

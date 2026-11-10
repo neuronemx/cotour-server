@@ -74,13 +74,33 @@ function normalizePublicTitle(value) {
   return normalized;
 }
 
+function normalizeBioBold(value, length, leading = 0, trimmedEnd = length) {
+  if (!Array.isArray(value) || value.length > PROFILE_LIMITS.bio) return [];
+  const ranges = [];
+  let previousEnd = 0;
+  for (const pair of value) {
+    if (!Array.isArray(pair) || pair.length !== 2 || !pair.every(Number.isSafeInteger)) return [];
+    const [start, end] = pair;
+    if (start < previousEnd || end <= start || end > length) return [];
+    previousEnd = end;
+    if (Math.min(end, trimmedEnd) > Math.max(start, leading)) {
+      ranges.push([Math.max(0, start - leading), Math.min(end, trimmedEnd) - leading]);
+    }
+  }
+  return ranges;
+}
+
 function normalizeProfileInput(input = {}) {
+  const rawBio = String(input.bio || "");
+  const bio = normalizeText(rawBio, "bio", PROFILE_LIMITS.bio);
+  const leading = rawBio.length - rawBio.trimStart().length;
   return {
     displayName: normalizeText(input.displayName, "display_name", PROFILE_LIMITS.displayName, { required: true }),
     publicTitle: normalizePublicTitle(input.publicTitle),
     roleTitle: normalizeText(input.roleTitle, "role_title", PROFILE_LIMITS.roleTitle),
     company: normalizeText(input.company, "company", PROFILE_LIMITS.company),
-    bio: normalizeText(input.bio, "bio", PROFILE_LIMITS.bio),
+    bio,
+    bioBold: normalizeBioBold(input.bioBold, rawBio.length, leading, rawBio.trimEnd().length),
     websiteUrl: normalizeProfileUrl(input.websiteUrl, "website_url"),
     linkedinUrl: normalizeProfileUrl(input.linkedinUrl, "linkedin_url"),
     instagramUrl: normalizeProfileUrl(input.instagramUrl, "instagram_url")
@@ -98,12 +118,18 @@ function publicPhotoUrl(photoKey, fallbackImage = "") {
 
 function mapProfileRow(row) {
   if (!row) return null;
+  let bold = row.bio_bold;
+  if (typeof bold === "string") {
+    try { bold = JSON.parse(bold); } catch (_) { bold = null; }
+  }
+  const bio = String(row.bio || "").trim();
   return {
     displayName: String(row.display_name || row.auth_name || "").trim(),
     publicTitle: PUBLIC_TITLE_SET.has(String(row.public_title || "").trim()) ? String(row.public_title).trim() : "Speaker",
     roleTitle: String(row.role_title || "").trim(),
     company: String(row.company || "").trim(),
-    bio: String(row.bio || "").trim(),
+    bio,
+    bioBold: normalizeBioBold(bold, bio.length),
     websiteUrl: String(row.website_url || "").trim(),
     linkedinUrl: String(row.linkedin_url || "").trim(),
     instagramUrl: String(row.instagram_url || "").trim(),
@@ -121,7 +147,7 @@ class ProfileRepository {
   async getAccountProfile(userId) {
     const [rows] = await this.pool.execute(
       `SELECT u.name AS auth_name, u.image AS auth_image,
-              p.display_name, p.public_title, p.role_title, p.company, p.bio,
+              p.display_name, p.public_title, p.role_title, p.company, p.bio, p.bio_bold,
               p.website_url, p.linkedin_url, p.instagram_url, p.photo_key
        FROM \`user\` u
        LEFT JOIN user_profiles p ON p.user_id = u.id
@@ -136,14 +162,15 @@ class ProfileRepository {
     const profile = normalizeProfileInput(input);
     await this.pool.execute(
       `INSERT INTO user_profiles
-         (user_id, display_name, public_title, role_title, company, bio, website_url, linkedin_url, instagram_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (user_id, display_name, public_title, role_title, company, bio, bio_bold, website_url, linkedin_url, instagram_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          display_name = VALUES(display_name),
          public_title = VALUES(public_title),
          role_title = VALUES(role_title),
          company = VALUES(company),
          bio = VALUES(bio),
+         bio_bold = VALUES(bio_bold),
          website_url = VALUES(website_url),
          linkedin_url = VALUES(linkedin_url),
          instagram_url = VALUES(instagram_url)`,
@@ -154,6 +181,7 @@ class ProfileRepository {
         profile.roleTitle,
         profile.company,
         profile.bio,
+        JSON.stringify(profile.bioBold),
         profile.websiteUrl,
         profile.linkedinUrl,
         profile.instagramUrl
@@ -186,7 +214,7 @@ class ProfileRepository {
   async getDeckSpeakerProfile(deckId) {
     const [rows] = await this.pool.execute(
       `SELECT u.name AS auth_name, u.image AS auth_image,
-              p.display_name, p.public_title, p.role_title, p.company, p.bio,
+              p.display_name, p.public_title, p.role_title, p.company, p.bio, p.bio_bold,
               p.website_url, p.linkedin_url, p.instagram_url, p.photo_key
        FROM decks d
        INNER JOIN workspaces w ON w.id = d.workspace_id

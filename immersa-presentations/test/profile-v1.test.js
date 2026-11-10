@@ -52,6 +52,25 @@ test("Profile input trims fields, normalizes HTTPS links, and enforces the appro
   assert.throws(() => normalizePublicTitle("Instructor"), /forma válida/);
 });
 
+test("Profile biographies keep plain text and validated bold ranges through account storage", async () => {
+  const bio = "Primero\n\nSegundo";
+  const input = { displayName: "Ana", bio: "  " + bio + "  ", bioBold: [[0, 9]] };
+  const repository = new ProfileRepository({
+    async execute(sql, params) {
+      if (sql.includes("INSERT")) {
+        assert.equal(params[5], bio);
+        assert.equal(params[6], "[[0,7]]");
+        return [];
+      }
+      return [[{ auth_name: "Ana", bio, bio_bold: "[[0,7]]" }]];
+    }
+  });
+  const saved = await repository.saveAccountProfile("account", input);
+  assert.equal(saved.bio, bio);
+  assert.deepEqual(saved.bioBold, [[0, 7]]);
+  assert.deepEqual(normalizeProfileInput({ ...input, bioBold: [[2, 999]] }).bioBold, []);
+});
+
 test("Deck public profile resolves through the owning personal workspace and omits account-only identity", async () => {
   const calls = [];
   const repository = new ProfileRepository({
@@ -142,7 +161,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
   const home = read("public/home/index.html");
   const source = read("public/home/home.js");
 
-  assert.match(home, /profile-editor\.js\?v=8/);
+  assert.match(home, /profile-editor\.js\?v=9/);
   assert.match(home, /home\.js\?v=\d+/);
   assert.match(home, /id="planAccountIdentity"/);
   assert.match(home, /id="planUsage"[^>]*>[\s\S]*?id="planAccountIdentity"[\s\S]*?class="plan-usage-head"/);
@@ -167,7 +186,7 @@ test("Deck Speaker access follows the public title selected in Profile without c
 test("Speaker profile is included only in Público, not Screen", () => {
   const audience = read("public/audience/index.html");
   const screen = read("public/screen/index.html");
-  assert.match(audience, /speaker-profile\.css\?v=4/);
-  assert.match(audience, /speaker-profile\.js\?v=3/);
+  assert.match(audience, /speaker-profile\.css\?v=5/);
+  assert.match(audience, /speaker-profile\.js\?v=4/);
   assert.doesNotMatch(screen, /speaker-profile|Mi perfil|Acerca de/);
 });

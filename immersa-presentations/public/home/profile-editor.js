@@ -60,6 +60,9 @@
 
   if (!modal || !form || !openButton) return;
 
+  const bio = window.ImmersaProfileBioEditor.create(fields.bio);
+  bio.disable(false);
+
   function setStatus(message = "", kind = "") {
     status.textContent = message;
     status.className = "profile-status" + (kind ? ` is-${kind}` : "");
@@ -71,7 +74,7 @@
   }
 
   function updateCounter() {
-    counter.textContent = `${fields.bio.value.length}/600`;
+    counter.textContent = `${bio.read().bio.length}/600`;
   }
 
   function revokePreview() {
@@ -94,6 +97,7 @@
   function applyProfile(profile) {
     currentProfile = profile || {};
     Object.entries(fields).forEach(([key, input]) => { input.value = String(currentProfile[key] || ""); });
+    bio.load(currentProfile);
     if (accountName && currentProfile.displayName) accountName.textContent = currentProfile.displayName;
     const publicTitle = String(currentProfile.publicTitle || "Speaker").trim() || "Speaker";
     window.IMMERSA_PROFILE_PUBLIC_TITLE = publicTitle;
@@ -148,7 +152,7 @@
   }
 
   function profilePayload() {
-    return Object.fromEntries(Object.entries(fields).map(([key, input]) => [key, input.value.trim()]));
+    return { ...Object.fromEntries(Object.entries(fields).map(([key, input]) => [key, input.value.trim()])), ...bio.read() };
   }
 
   async function saveTextProfile() {
@@ -173,6 +177,12 @@
   async function submitProfile(event) {
     event.preventDefault();
     if (!form.reportValidity()) return;
+    if (bio.read().bio.length > window.ImmersaProfileBioEditor.limit) {
+      setStatus("Acerca de puede tener máximo 600 caracteres.", "error");
+      bio.editor.focus();
+      return;
+    }
+    bio.disable(true);
     saveButton.disabled = true;
     cancelButton.disabled = true;
     closeButton.disabled = true;
@@ -189,6 +199,7 @@
       if (/^(?:PHOTO_|INVALID_PHOTO)/.test(error.code || "")) setPhotoStatus(error.message);
       setStatus(error.message, "error");
     } finally {
+      bio.disable(false);
       saveButton.disabled = false;
       cancelButton.disabled = false;
       closeButton.disabled = false;
@@ -229,7 +240,7 @@
   closeButton.addEventListener("click", closeProfile);
   cancelButton.addEventListener("click", closeProfile);
   form.addEventListener("submit", submitProfile);
-  fields.bio.addEventListener("input", updateCounter);
+  bio.editor.addEventListener("input", updateCounter);
   photoSelect.addEventListener("click", selectPhoto);
   avatarButton.addEventListener("click", selectPhoto);
   photoInput.addEventListener("change", previewPhoto);

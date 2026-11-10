@@ -58,6 +58,7 @@
     company.querySelector("span").textContent = companyName;
     company.hidden = !companyName;
     const hasBio = setOptionalText(bio, profile.bio);
+    window.ImmersaProfileBio?.render(bio, profile.bio, profile.bioBold);
     bioBlock.hidden = !hasBio;
     divider.hidden = !(hasRole || companyName || hasBio);
     const hasWebsite = setLink(website, profile.websiteUrl, displayDomain(profile.websiteUrl));

@@ -91,7 +91,7 @@ class DeckSpeakersStore {
     return this.change(id, input.expectedRevision, config => { config.enabled = input.enabled; });
   }
   save(id, pid, input) {
-    fields(input, ['displayName','publicTitle','roleTitle','company','bio','websiteUrl','linkedinUrl','instagramUrl','active','expectedRevision']);
+    fields(input, ['displayName','publicTitle','roleTitle','company','bio','bioBold','websiteUrl','linkedinUrl','instagramUrl','active','expectedRevision']);
     const profile = normalized(input); if (pid !== null && !profileId(pid)) fail('PROFILE_NOT_FOUND','Perfil no encontrado.',404);
     return this.change(id, input.expectedRevision, config => {
       if (pid === null) config.profiles.push({...profile, id:crypto.randomUUID(), photoKey:''});
