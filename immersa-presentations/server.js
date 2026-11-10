@@ -317,7 +317,8 @@ const accessLinkHandlers = createAccessLinkHandlers({
   resolveDeckFeatureAccess: getStageFeatureAccess,
   rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context)
     || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
-  audienceWelcome: process.env.RAILWAY_ENVIRONMENT_ID === "7c782d5a-b07f-4340-849a-063dd22d016f",
+  audienceWelcome: ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
+    .includes(process.env.RAILWAY_ENVIRONMENT_ID),
   privateRoleTokens: privateLiveCameraTokens
 });
 function attachDeckLiveCamera(pilot) {
