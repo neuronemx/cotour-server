@@ -31,8 +31,8 @@ test("Speaker completion shows the promised basic summary and Metrics CTA", () =
   assert.match(read("public/home/home.js"), /requestedTab === "metrics"/);
 });
 
-test("Público completion invites registration and signup opens create mode", () => {
-  assert.match(read("public/completion/audience.html"), /\/auth\?mode=signup/);
+test("Público completion links to the Immersa website and auth still supports signup mode", () => {
+  assert.match(read("public/completion/audience.html"), /href="https:\/\/www\.immersalive\.com\/">Crear mi cuenta gratis<\/a>/);
   assert.match(read("public/auth/auth.js"), /mode"\) === "signup"\) setCreateMode\(true\)/);
 });
 
