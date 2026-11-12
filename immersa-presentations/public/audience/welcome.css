@@ -31,3 +31,10 @@ body:has(.audience-welcome[open]) { touch-action: pan-y; }
 #audienceWelcomeEnter { background: #7134bc; }
 #audienceWelcomeStatus:empty { display: none; }
 .audience-welcome :focus-visible { outline: 2px solid #c4a8ff; outline-offset: 3px; }
+
+.audience-welcome fieldset { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.audience-welcome [hidden] { display: none !important; }
+.audience-welcome .audience-welcome-consent { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; font-weight: 500; }
+.audience-welcome input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; margin: 0; flex: 0 0 auto; }
+.audience-welcome a { color: #d9b9ff; text-decoration: underline; }
+#audienceWelcomeSkip { background: transparent; border: 1px solid #756789; }

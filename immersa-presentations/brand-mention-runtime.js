@@ -1,3 +1,4 @@
+const { randomUUID } = require("node:crypto");
 const { constants } = require("./brand-mentions-api");
 
 class BrandMentionRuntime {
@@ -10,6 +11,7 @@ class BrandMentionRuntime {
     setTimeoutFn = setTimeout,
     clearTimeoutFn = clearTimeout,
     intervalMs = constants.BRAND_MENTION_INTERVAL_SECONDS * 1000,
+    recordEvent = null,
     displayMs = constants.BRAND_MENTION_DISPLAY_SECONDS * 1000
   }) {
     this.io = io;
@@ -21,6 +23,7 @@ class BrandMentionRuntime {
     this.clearTimeoutFn = clearTimeoutFn;
     this.intervalMs = intervalMs;
     this.displayMs = displayMs;
+    this.recordEvent = recordEvent;
     this.sessions = new Map();
     this.unsubscribeActivity = coordinator?.subscribeActivity?.((snapshot) => this.handleActivityChange(snapshot)) || null;
   }
@@ -38,6 +41,7 @@ class BrandMentionRuntime {
   publicMention(brand, shownAt) {
     return {
       id: brand.id,
+      display_id: randomUUID(),
       name: brand.name,
       pitch: brand.pitch,
       target_url: brand.target_url,
@@ -62,6 +66,7 @@ class BrandMentionRuntime {
         blocked: false,
         lastBrandId: "",
         mention: null,
+        recent: new Map(),
         nextTimer: null,
         hideTimer: null,
         generation: 0
@@ -162,6 +167,10 @@ class BrandMentionRuntime {
     const shownAt = this.now();
     state.lastBrandId = brand.id;
     state.mention = this.publicMention(brand, shownAt);
+    for (const [id, mention] of state.recent) {
+      if (mention.visible_until < shownAt - 120000) state.recent.delete(id);
+    }
+    state.recent.set(state.mention.display_id, state.mention);
     this.io.to(this.audienceRoom(state.roomKey)).emit("brand_mention:show", state.mention);
     state.hideTimer = this.setTimeoutFn(() => this.hide(state), this.displayMs);
     state.hideTimer?.unref?.();
@@ -189,6 +198,15 @@ class BrandMentionRuntime {
     if (!state?.mention || state.mention.visible_until <= this.now() || state.blocked) return false;
     socket.emit("brand_mention:show", state.mention);
     return true;
+  }
+
+  async recordAudienceEvent(context, payload) {
+    if (context?.role !== "audience" || !context.audienceId || !this.recordEvent) return false;
+    if (!["view", "click"].includes(payload?.kind) || !/^[a-f0-9-]{36}$/i.test(String(payload?.eventId || ""))) return false;
+    const state = this.sessions.get(context.roomKey);
+    const mention = state?.recent.get(payload.displayId);
+    if (!mention || this.now() > mention.visible_until + 120000) return false;
+    return this.recordEvent(context, mention, payload.kind, payload.eventId);
   }
 
   close() {

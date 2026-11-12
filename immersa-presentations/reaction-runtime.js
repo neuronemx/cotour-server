@@ -19,7 +19,7 @@ class ReactionRuntime {
 
   resetCounts(presentationSessionId) {
     if (this.bucket) this.bucket.retired = true;
-    this.bucket = { collectorId: randomUUID(), presentationSessionId, counts: { "❤️": 0, "👏": 0, "🔥": 0 }, version: 0, saved: 0 };
+    this.bucket = { collectorId: randomUUID(), presentationSessionId, counts: { "❤️": 0, "👏": 0, "🔥": 0 }, audience: new Map(), version: 0, saved: 0 };
   }
 
   setRecording(presentationSessionId) {
@@ -40,6 +40,9 @@ class ReactionRuntime {
     if (tokens < 1) return false;
     this.limiters.set(audienceId, { tokens: tokens - 1, at: now });
     this.bucket.counts[emoji] += 1;
+    const counts = this.bucket.audience.get(audienceId) || {};
+    counts[emoji] = (counts[emoji] || 0) + 1;
+    this.bucket.audience.set(audienceId, counts);
     this.bucket.version += 1;
     socket.emit("reaction", { emoji, target: "audience", at: now });
     this.visibleUntil = this.visibleUntil.filter((until) => until > now);
@@ -61,7 +64,11 @@ class ReactionRuntime {
       if (!presentationSessionId && !bucket.presentationSessionId && bucket.retired) return;
       const version = bucket.version;
       const counts = { ...bucket.counts };
-      if (id) await repository.recordReactionSnapshot({ presentationSessionId: id, collectorId: bucket.collectorId, counts });
+      const audience = Array.from(bucket.audience, ([id, counts]) => [id, { ...counts }]);
+      if (id) {
+        await repository.recordReactionSnapshot({ presentationSessionId: id, collectorId: bucket.collectorId, counts });
+        await repository.recordAudienceReactions?.({ presentationSessionId: id, collectorId: bucket.collectorId, audience });
+      }
       bucket.saved = version;
     });
     this.pending = operation.finally(() => { this.inFlight -= 1; });

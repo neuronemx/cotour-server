@@ -102,7 +102,7 @@ test("mentions rotate in active order after 120 seconds and hide after 8 seconds
   assert.equal(events[0].event, "brand_mention:show");
   assert.equal(events[0].payload.id, "a");
   assert.equal(events[0].payload.visible_until, 128000);
-  assert.deepEqual(Object.keys(events[0].payload).sort(), ["display_domain", "id", "logo_src", "name", "pitch", "shown_at", "target_url", "visible_until"]);
+  assert.deepEqual(Object.keys(events[0].payload).sort(), ["display_domain", "display_id", "id", "logo_src", "name", "pitch", "shown_at", "target_url", "visible_until"]);
   await clock.advance(8000);
   assert.equal(events[1].event, "brand_mention:hide");
   await clock.advance(112000);
@@ -187,7 +187,7 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
 
   assert.match(audienceHtml, /brand-mention\.css\?v=7/);
-  assert.match(audienceHtml, /brand-mention\.js\?v=5/);
+  assert.match(audienceHtml, /brand-mention\.js\?v=6/);
   assert.doesNotMatch(screenHtml, /brand-mention/i);
   assert.match(client, /target = "_blank"/);
   assert.match(client, /rel = "noopener noreferrer"/);

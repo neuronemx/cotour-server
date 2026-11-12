@@ -15,6 +15,34 @@
     let hideTimer = null;
     let concealTimer = null;
     let generation = 0;
+    let pendingMention = null;
+    const viewed = new Set();
+    let visibilityTimer = null;
+
+    function report(mention, kind) {
+      if (!mention?.display_id || !root.crypto?.randomUUID) return;
+      const event = { kind, displayId: mention.display_id, eventId: root.crypto.randomUUID() };
+      const send = (attempt = 0) => {
+        if (attempt > 3) return;
+        socket.timeout?.(4000).emit("brand_mention:engagement", event, (error, result) => {
+          if (error && socket.connected) setTimeoutFn(() => send(attempt + 1), 1500);
+        });
+      };
+      send();
+    }
+
+    function scheduleView() {
+      if (visibilityTimer) clearTimeoutFn(visibilityTimer);
+      const mention = pendingMention;
+      if (!mention || document.visibilityState === "hidden" || viewed.has(mention.display_id)) return;
+      visibilityTimer = setTimeoutFn(() => {
+        if (pendingMention !== mention || host?.hidden || document.visibilityState === "hidden" || now() >= mention.visible_until) return;
+        viewed.add(mention.display_id);
+        if (viewed.size > 300) viewed.delete(viewed.values().next().value);
+        report(mention, "view");
+      }, 1000);
+    }
+    document.addEventListener?.("visibilitychange", scheduleView);
 
     function ensureHost() {
       if (host) return host;
@@ -28,6 +56,8 @@
     }
 
     function clearTimers() {
+      if (visibilityTimer) clearTimeoutFn(visibilityTimer);
+      visibilityTimer = null;
       if (hideTimer) clearTimeoutFn(hideTimer);
       if (concealTimer) clearTimeoutFn(concealTimer);
       hideTimer = null;
@@ -70,6 +100,7 @@
     }
 
     function hide() {
+      pendingMention = null;
       generation += 1;
       clearTimers();
       if (!host || host.hidden) return;
@@ -105,6 +136,9 @@
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.setAttribute("aria-label", "Abrir sitio de " + mention.name);
+      const click = () => report(mention, "click");
+      link.addEventListener("click", click);
+      link.addEventListener("auxclick", event => { if (event.button === 1) click(); });
 
       const sponsor = document.createElement("span");
       sponsor.className = "brand-mention-sponsor-label";
@@ -147,6 +181,8 @@
       });
       if (!root.requestAnimationFrame) container.classList.add("is-visible");
       hideTimer = setTimeoutFn(hide, remaining);
+      pendingMention = mention;
+      scheduleView();
     }
 
     socket.on("brand_mention:show", show);

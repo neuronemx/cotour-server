@@ -132,7 +132,8 @@ const qnaFormStatus = document.getElementById("qnaFormStatus");
 const qnaSubmit = document.getElementById("qnaSubmit");
 const qnaConfirmation = document.getElementById("qnaConfirmation");
 const audienceId = getAudienceId();
-let audienceReady = !window.ImmersaAudienceWelcome?.required || Boolean(eventLiveReturn());
+let audienceReady = !window.ImmersaAudienceWelcome?.required || Boolean(eventLiveReturn()) &&
+  (!publicOpenContext.welcome?.registration || publicOpenContext.welcome.registration.mode === "name");
 let audienceQrReady = false;
 let eventLiveReturnChecking = false;
 function eventLiveReturn() {
@@ -203,7 +204,7 @@ knowledgeActivityAudience = window.ImmersaKnowledgeActivities?.createAudience({
   getAudienceName: () => window.ImmersaAudienceWelcome?.name || "",
   onSnapshotAvailabilityChange: setKnowledgeSnapshotAllowed
 });
-function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (existing) return existing; const value = "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
+function getAudienceId() { const key = "immersa:audience_id"; try { const existing = localStorage.getItem(key); if (/^[a-z0-9_-]{8,191}$/i.test(existing || "")) return existing; const value = "aud_" + (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)); localStorage.setItem(key, value); return value; } catch (_error) { return "aud_" + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 async function loadDeck() {
   const res = await fetch("/decks/" + deckId + "/manifest.json");
   baseManifest = await res.json();
@@ -462,7 +463,7 @@ function submitQna(event) {
 }
 function joinAudience() {
   if (!manifest || !audienceReady || !socket.connected) return;
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, locale: currentLocale });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, audienceName: window.ImmersaAudienceWelcome?.name || "", registrationToken: window.ImmersaAudienceWelcome?.token || "", locale: currentLocale });
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionCard() { if (interactionCard) return interactionCard; interactionCard = document.createElement("section"); interactionCard.className = "interaction-card interaction-hidden"; interactionCard.setAttribute("aria-label", "Interacción activa"); viewer.appendChild(interactionCard); return interactionCard; }
@@ -486,6 +487,16 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+socket.on("audience:registration_required", payload => {
+  window.ImmersaAudienceWelcome?.clear();
+  connectionNotice.textContent = payload.message;
+  connectionNotice.classList.remove("hidden");
+  if (window.IMMERSA_PUBLIC_OPEN?.welcome) location.reload();
+});
+socket.on("audience:registration_unavailable", payload => {
+  connectionNotice.textContent = payload.message;
+  connectionNotice.classList.remove("hidden");
+});
 socket.on("connect", () => { audienceAccessMessage = ""; setConnectionNotice(false); joinAudience(); });
 socket.on("plan:audience_limit", (payload = {}) => {
   audienceAccessMessage = tr('audience.connection.limit');

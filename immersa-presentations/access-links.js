@@ -335,19 +335,19 @@ function serializeCookie(name, value, req) {
   return parts.join('; ');
 }
 
-function injectPublicAudienceContext(html, accessLink, deck, presentationSessionId = '', welcome = false) {
+function injectPublicAudienceContext(html, accessLink, deck, presentationSessionId = '', welcome = false, registration = null) {
   const context = JSON.stringify({
     session: accessLink.session_id,
     deck: deck.deckId,
     presentation_session_id: presentationSessionId,
-    ...(welcome ? { welcome: { title: deck.title, path: '/' + accessLink.public_id } } : {})
+    ...(welcome ? { welcome: { title: deck.title, path: '/' + accessLink.public_id, registration } } : {})
   }).replace(/</g, '\\u003c');
   const script = '<script>window.IMMERSA_PUBLIC_OPEN = ' + context + ';</script>';
   if (html.includes('</head>')) return html.replace('</head>', '  ' + script + '\n</head>');
   return script + '\n' + html;
 }
 
-function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, rolePageAssets = null, privateRoleTokens = null, audienceWelcome = false }) {
+function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publicDir, startScreenExecution = null, resolveDeckFeatureAccess = null, rolePageAssets = null, privateRoleTokens = null, audienceWelcome = false, audienceRegistration = null }) {
   const storePath = path.join(dataDir, 'access-links.json');
   const deckDirs = [dataDecksDir, staticDecksDir];
   const audienceIndexPath = publicDir ? path.join(publicDir, 'audience', 'index.html') : null;
@@ -571,6 +571,23 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     };
   }
 
+  async function registerPublicAudience(req, res) {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!audienceRegistration) return res.status(404).json({ error: 'Registro no disponible.' });
+    const publicId = String(req.params.public_id || '');
+    if (!PUBLIC_ID_PATTERN.test(publicId)) return res.status(404).json({ error: 'Enlace no encontrado.' });
+    try {
+      const result = await findActivePublicAudienceLink(publicId);
+      if (result.error) return res.status(result.status).json({ error: result.error });
+      const deck = await findDeckForAccessLink(result.accessLink, deckDirs);
+      if (!deck) return res.status(404).json({ error: 'Presentación no encontrada.' });
+      return res.json(await audienceRegistration.register(deck.deckId, req.body || {}));
+    } catch (error) {
+      if (!error.statusCode) console.error('Unable to register audience', error);
+      return res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : 'No se pudo guardar el registro.' });
+    }
+  }
+
   async function openPublicAudience(req, res, next) {
     const publicId = String(req.params.public_id || '').trim();
     if (!PUBLIC_ID_PATTERN.test(publicId)) return next();
@@ -585,9 +602,11 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
 
       const accessLinks = await loadAccessLinks(storePath);
       const presentationSessionId = latestPresentationSessionId(accessLinks, result.accessLink.session_id);
+      const registration = await audienceRegistration?.config(deck.deckId);
       const html = await fs.promises.readFile(audienceIndexPath, 'utf8');
       res.setHeader('Set-Cookie', serializeCookie(roleAccessCookieName('audience'), createRoleAccessValue({ accessLink: result.accessLink, deck, route: 'audience' }), req));
-      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId, audienceWelcome));
+      res.setHeader('Cache-Control', 'no-store');
+      return res.type('html').send(injectPublicAudienceContext(html, result.accessLink, deck, presentationSessionId, audienceWelcome, registration));
     } catch (error) {
       console.error('Unable to open public audience link', error);
       return res.status(500).json({ error: 'Unable to open public audience link' });
@@ -697,7 +716,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink };
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, registerPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink };
 }
 
 module.exports = {

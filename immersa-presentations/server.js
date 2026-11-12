@@ -1,3 +1,5 @@
+const { AudienceRegistrationRepository, registrationHandlers } = require("./audience-registration");
+const { AudienceEngagementRepository, createEngagementHandler } = require("./audience-engagement");
 const {DeckSpeakersStore, DeckSpeakerError}=require('./deck-speakers');
 const {createDeckSpeakersHttp}=require('./deck-speakers-http');
 const { createSelfieRuntime } = require('./selfie-runtime');
@@ -178,6 +180,11 @@ const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
+const audienceRegistrationEnabled = ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
+  .includes(process.env.RAILWAY_ENVIRONMENT_ID);
+const audienceRegistrationRepository = lifecyclePool && audienceRegistrationEnabled ? new AudienceRegistrationRepository(lifecyclePool) : null;
+const audienceRegistrationHandlers = audienceRegistrationRepository ? registrationHandlers(audienceRegistrationRepository) : null;
+const audienceEngagementRepository = lifecyclePool ? new AudienceEngagementRepository(lifecyclePool) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
   ? createPresentationMetricsHandlers(presentationMetricsRepository)
   : null;
@@ -233,7 +240,7 @@ const presentationLifecycleRuntime = lifecyclePool
         const liveSession = getSessionByRoomKey(context.roomKey);
         await presentationMetricsRepository?.recordAudienceSnapshot({
           presentationSessionId: state.presentationSessionId,
-          audience: getConnectedAudience(context.roomKey),
+          audience: getMetricsAudience(context.roomKey),
           connectedCount: liveSession?.audience?.size || 0
         });
         await interactionSockets.persistMetricsForPresentation?.(context, state.presentationSessionId);
@@ -317,6 +324,7 @@ const accessLinkHandlers = createAccessLinkHandlers({
   resolveDeckFeatureAccess: getStageFeatureAccess,
   rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context)
     || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
+  audienceRegistration: audienceRegistrationRepository,
   audienceWelcome: ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
     .includes(process.env.RAILWAY_ENVIRONMENT_ID),
   privateRoleTokens: privateLiveCameraTokens
@@ -380,6 +388,7 @@ const eventBrandMentionHandlers = createBrandMentionHandlers({
   store: eventBrandMentionStore
 });
 const brandMentionRuntime = new BrandMentionRuntime({
+  recordEvent: (...args) => presentationMetricsRepository?.recordBannerEvent(...args),
   io,
   store: {
     read: (sourceId) => {
@@ -991,6 +1000,13 @@ function getConnectedAudience(roomKey) {
     name: audience.name || "",
     label: audience.label || audience.name || "",
     locale: audience.locale || "es"
+  }));
+}
+
+function getMetricsAudience(roomKey) {
+  const session = getSessionByRoomKey(roomKey);
+  return getConnectedAudience(roomKey).map(audience => ({
+    ...audience, ...session?.audience.get(audience.audienceId)?.registration
   }));
 }
 
@@ -1972,6 +1988,11 @@ app.get("/api/decks/:deckId/audiovisual-library", deckInteractionHandlers.getDec
 app.put("/api/decks/:deckId/interactions", requireAccountOrControllerDeck, requireAccountAdjustmentCleared, requireDeckConfigurationWrite, deckInteractionHandlers.putInteractions);
 app.get("/api/audiovisual-library", (_req, res) => res.json({ resources: listAudiovisualResources() }));
 app.post("/api/decks/:deckId/knowledge-questions/:questionId/image", ...requireDeckAccount, requireAccountAdjustmentCleared, requireDeckFeature(CAPABILITIES.TRIVIA_RUN), deckInteractionHandlers.uploadQuestionImage);
+if (audienceRegistrationHandlers) {
+  app.get("/api/decks/:deckId/audience-registration", ...requireDeckAccount, audienceRegistrationHandlers.read);
+  app.put("/api/decks/:deckId/audience-registration", ...requireDeckAccount, requireAccountAdjustmentCleared, audienceRegistrationHandlers.save);
+}
+app.post("/api/audience/:public_id/registration", accessLinkHandlers.registerPublicAudience);
 app.get("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, brandMentionHandlers.getConfig);
 app.post("/api/decks/:deckId/brand-mentions", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.createBrand);
 app.put("/api/decks/:deckId/brand-mentions/order", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.reorderBrands);
@@ -1980,6 +2001,8 @@ app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, 
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_EXPORT), knowledgeActivityHistoryHandlers.listHistory);
 if (presentationMetricsHandlers) {
+  app.get("/api/decks/:deckId/metrics/sessions/:sessionId/engagement", ...requireDeckAccount,
+    requireDeckFeature(CAPABILITIES.METRICS_BASIC), createEngagementHandler(audienceEngagementRepository));
   app.get("/api/decks/:deckId/metrics/basic", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), presentationMetricsHandlers.listDeckSessions);
 }
 app.post(
@@ -2229,7 +2252,7 @@ io.on("connection", (socket) => {
   presentationLifecycleRuntime.attach(socket, () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? lifecycleContext() : null);
   nonRecordingLifecycleRuntime.attach(socket, () => !canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) && canUseFeature(currentFeatureAccess, CAPABILITIES.PRESENTATION_LIFECYCLE) ? lifecycleContext() : null);
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, label, locale }) => {
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, registrationToken, label, locale }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -2294,6 +2317,21 @@ io.on("connection", (socket) => {
     }
     const slideCount = await refreshSessionDeck(session, joinedDeckId);
     if (role === "presenter") console.log("[session]", joinedSessionId, "deck", session.deckId, "room", currentRoomKey, "slideCount", slideCount);
+    let registration = null;
+    if (role === "audience" && audienceRegistrationRepository) {
+      try {
+        const config = await audienceRegistrationRepository.config(joinedDeckId);
+        registration = await audienceRegistrationRepository.verify(joinedDeckId, audienceId, registrationToken);
+        if (config.mode === "required" && !registration) {
+          socket.emit("audience:registration_required", { message: "Completa el registro para entrar a esta presentación." });
+          return socket.disconnect(true);
+        }
+      } catch (error) {
+        console.error("Unable to validate audience registration", error);
+        socket.emit("audience:registration_unavailable", { message: "No se pudo verificar tu registro. Intenta entrar de nuevo." });
+        return socket.disconnect(true);
+      }
+    }
     socket.join(currentRoomKey);
     socket.join(getRoleRoomKey(currentRoomKey, role));
 
@@ -2325,10 +2363,11 @@ io.on("connection", (socket) => {
       currentAudienceId = registerAudience(session, {
         audienceId: requestedAudienceId,
         socketId: socket.id,
-        audienceName,
+        audienceName: String(registration?.name || audienceName || "").slice(0, 120),
         label,
         locale: locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es"
       });
+      session.audience.get(currentAudienceId).registration = registration;
       socket.join(getRoleRoomKey(currentRoomKey, "audience:" + currentAudienceId));
     }
     const joinedContext = {
@@ -2364,7 +2403,7 @@ io.on("connection", (socket) => {
     } else if (role === "audience" && canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC)) {
       void presentationMetricsRepository?.recordAudienceConnection(
         joinedContext,
-        { audienceId: currentAudienceId, locale: session.audience.get(currentAudienceId)?.locale },
+        getMetricsAudience(currentRoomKey).find(audience => audience.audienceId === currentAudienceId),
         session.audience.size
       ).catch((error) => console.error("Unable to persist presentation attendance", error));
     }
@@ -2659,9 +2698,25 @@ io.on("connection", (socket) => {
     audience.locale = locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es";
     void presentationMetricsRepository?.recordAudienceConnection(
       { deckId: currentDeckId, sessionId: currentSessionId },
-      { audienceId: currentAudienceId, locale: audience.locale },
+      getMetricsAudience(currentRoomKey).find(item => item.audienceId === currentAudienceId),
       session.audience.size
     ).catch((error) => console.error("Unable to persist audience locale", error));
+  });
+
+  socket.on("brand_mention:engagement", async (payload, acknowledge) => {
+    const respond = typeof acknowledge === "function" ? acknowledge : () => {};
+    if (currentRole !== "audience" || !currentAudienceId) return respond({ ok: false });
+    const session = getSessionByRoomKey(currentRoomKey);
+    if (session?.audience.get(currentAudienceId)?.socketId !== socket.id) return respond({ ok: false });
+    try {
+      const ok = await brandMentionRuntime.recordAudienceEvent({
+        roomKey: currentRoomKey, role: currentRole, deckId: currentDeckId, sessionId: currentSessionId, audienceId: currentAudienceId
+      }, payload);
+      respond({ ok: Boolean(ok) });
+    } catch (error) {
+      console.error("Unable to persist banner engagement", error);
+      // A timeout lets the client retry the same event ID without duplicating it.
+    }
   });
 
   socket.on("reaction", (payload) => {

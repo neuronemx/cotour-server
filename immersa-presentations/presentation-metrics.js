@@ -49,9 +49,20 @@ class PresentationMetricsRepository {
         [...attendees].flatMap(([audienceId, locale]) => [sessionId, audienceId, locale])
       );
     }
+    for (const attendee of audience || []) {
+      if (!attendee?.audienceId || !attendee.name) continue;
+      await this.pool.execute(
+        `UPDATE presentation_session_attendance
+         SET display_name = ?, email = ?, phone = ?, company = ?, terms_url = ?, terms_accepted_at = ?
+         WHERE presentation_session_id = ? AND audience_id = ?`,
+        [String(attendee.name).slice(0, 120), attendee.email || "", attendee.phone || "", attendee.company || "",
+          attendee.termsUrl || null, attendee.termsAcceptedAt || null, sessionId, attendee.audienceId]
+      );
+    }
     await this.pool.execute(
       `UPDATE presentation_sessions
-       SET audience_peak_count = GREATEST(audience_peak_count, ?)
+       SET audience_peak_count = GREATEST(audience_peak_count, ?),
+           engagement_started_at = COALESCE(engagement_started_at, CURRENT_TIMESTAMP(3))
        WHERE id = ?`,
       [Math.max(Number(connectedCount) || 0, attendees.size), sessionId]
     );
@@ -85,6 +96,45 @@ class PresentationMetricsRepository {
        ON DUPLICATE KEY UPDATE reaction_count = GREATEST(reaction_count, VALUES(reaction_count))`,
       ["❤️", "👏", "🔥"].flatMap((emoji) => [text(presentationSessionId), text(collectorId), emoji, Math.max(0, Number(counts[emoji]) || 0)])
     );
+  }
+
+  async recordAudienceReactions({ presentationSessionId, collectorId, audience }) {
+    if (!audience.length) return;
+    const values = audience.flatMap(([audienceId, counts]) => Object.entries(counts).map(([emoji, count]) =>
+      [presentationSessionId, collectorId, audienceId, emoji, count]));
+    for (let offset = 0; offset < values.length; offset += 300) {
+      const batch = values.slice(offset, offset + 300);
+      await this.pool.execute(
+        `INSERT INTO presentation_audience_reactions
+           (presentation_session_id, collector_id, audience_id, emoji, reaction_count)
+         VALUES ${batch.map(() => "(?, ?, ?, ?, ?)").join(",")}
+         ON DUPLICATE KEY UPDATE reaction_count = GREATEST(reaction_count, VALUES(reaction_count))`, batch.flat()
+      );
+    }
+  }
+
+  async recordBannerEvent(context, mention, kind, eventId) {
+    const [sessions] = await this.pool.execute(
+      `SELECT id FROM presentation_sessions WHERE deck_id = ? AND source_session_id = ?
+       AND recording_started_at <= ? AND ended_at IS NULL ORDER BY recording_started_at DESC LIMIT 1`,
+      [context.deckId, context.sessionId, new Date(mention.shown_at)]
+    );
+    const id = sessions[0]?.id;
+    if (!id) return false;
+    await this.pool.execute(
+      `INSERT IGNORE INTO presentation_banner_views
+       (presentation_session_id, display_id, audience_id, brand_id, brand_name, target_url)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, mention.display_id, context.audienceId, mention.id, mention.name, mention.target_url]
+    );
+    if (kind === "click") {
+      await this.pool.execute(
+        `INSERT IGNORE INTO presentation_banner_clicks
+         (presentation_session_id, event_id, display_id, audience_id) VALUES (?, ?, ?, ?)`,
+        [id, eventId, mention.display_id, context.audienceId]
+      );
+    }
+    return true;
   }
 
   async recordPollSnapshot({ presentationSessionId, snapshot, closedAt = null }) {
