@@ -53,7 +53,9 @@ class PresentationMetricsRepository {
       if (!attendee?.audienceId || !attendee.name) continue;
       await this.pool.execute(
         `UPDATE presentation_session_attendance
-         SET display_name = ?, email = ?, phone = ?, company = ?, terms_url = ?, terms_accepted_at = ?
+         SET display_name = ?, email = COALESCE(NULLIF(?, ''), email), phone = COALESCE(NULLIF(?, ''), phone),
+             company = COALESCE(NULLIF(?, ''), company), terms_url = COALESCE(?, terms_url),
+             terms_accepted_at = COALESCE(?, terms_accepted_at)
          WHERE presentation_session_id = ? AND audience_id = ?`,
         [String(attendee.name).slice(0, 120), attendee.email || "", attendee.phone || "", attendee.company || "",
           attendee.termsUrl || null, attendee.termsAcceptedAt || null, sessionId, attendee.audienceId]
