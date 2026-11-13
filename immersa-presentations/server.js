@@ -16,6 +16,7 @@ const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUp
 const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { createLiveGuests } = require("./live-guests");
+const { createGuestSlideReader } = require("./live-guest-slides");
 const { createLiveProjection } = require("./live-projection");
 const { createCloudflareTurn } = require("./cloudflare-turn");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
@@ -409,6 +410,11 @@ liveGuests = createLiveGuests({
   origin: liveCameraDemo?.origin,
   enabled: Boolean(liveCameraDemo?.workDecks && cloudflareTurn) && process.env.IMMERSA_LIVE_GUESTS_ENABLED === "true",
   getRtcConfiguration: cloudflareTurn,
+  getPresentationSlide: createGuestSlideReader({
+    getSession: (sessionId, deckId) => getSessionByRoomKey(getRoomKey(sessionId, deckId)),
+    readManifest,
+    readEnglishManifest: async deckId => JSON.parse(await fs.promises.readFile(path.join(await findDeckDir(deckId), "locales", "en", "manifest.json"), "utf8"))
+  }),
   projection: liveProjection,
   authorizeRole: async (role, token) => {
     const resolved = await accessLinkHandlers.resolveRoleLink(token, role);
@@ -1100,6 +1106,10 @@ function publicState(session) {
 function emitState(roomKey, session) {
   io.to(roomKey).emit("presentation_state", publicState(session));
   io.to(roomKey).emit("audience_count", session.audience.size);
+  liveGuests?.updatePresentation({
+    deckId: session.deckId, sessionId: session.sessionId,
+    liveSlideIndex: session.liveSlideIndex, operationalLocale: session.operationalLocale
+  });
 }
 
 function emitImmersaTimeState(roomKey, session) {

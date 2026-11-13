@@ -6,9 +6,9 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=1"><script src="/live-guests/client.js?v=2" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=2"><script src="/live-guests/client.js?v=3" defer></script>';
 
-function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject }) {
+function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide }) {
   const rooms = new Map();
   const directory = path.join(dataDir, "live-guests");
   const scopeKey = (deckId, sessionId) => createHash("sha256").update(JSON.stringify([deckId, sessionId])).digest("hex");
@@ -54,7 +54,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     }
   }
 
-  if (!enabled) return { pageAssets, openGuest, endSession: async () => {} };
+  if (!enabled) return { pageAssets, openGuest, endSession: async () => {}, updatePresentation() {} };
   const namespace = io.of("/live-guests");
 
   namespace.use(async (socket, next) => {
@@ -121,6 +121,30 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     return resolved?.deck.deckId === record.deckId && resolved.accessLink.session_id === record.sessionId;
   }
 
+  async function sendSlide(room, snapshot) {
+    const guest = room.peers.guest;
+    if (!getPresentationSlide || !guest?.data.mediaReady || room.invite?.endedAt) return;
+    const revision = room.slideRevision = (room.slideRevision || 0) + 1;
+    let slide = null;
+    try {
+      if (await stillAuthorized(guest)) {
+        slide = await getPresentationSlide(room, snapshot);
+        if (!await stillAuthorized(guest)) slide = null;
+      }
+    } catch { /* Keep the call running when a slide cannot be loaded. */ }
+    if (revision === room.slideRevision && room.peers.guest === guest
+      && guest.connected && guest.data.mediaReady && !room.invite?.endedAt) guest.emit("guest:slide", slide);
+  }
+
+  function updatePresentation(snapshot) {
+    const room = rooms.get(scopeKey(snapshot.deckId, snapshot.sessionId));
+    if (!room) return;
+    const key = JSON.stringify([snapshot.liveSlideIndex ?? snapshot.slideIndex ?? 0, snapshot.operationalLocale || "es"]);
+    if (room.presentationKey === key) return;
+    room.presentationKey = key;
+    return sendSlide(room, snapshot);
+  }
+
   async function renew(room, call) {
     if (room.call !== call || call.checking) return;
     if (Date.now() > call.deadline) return clearCall(room, "signal");
@@ -178,7 +202,13 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
 
     socket.on("guest:media-ready", value => {
       socket.data.mediaReady = value !== false;
+      let slideUpdate;
+      if (role === "guest") {
+        if (socket.data.mediaReady) slideUpdate = sendSlide(room);
+        else room.slideRevision = (room.slideRevision || 0) + 1;
+      }
       publish(room);
+      return slideUpdate;
     });
 
     socket.on("guest:connect", async ack => {
@@ -316,7 +346,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     }
   }
 
-  return { pageAssets, openGuest, endSession };
+  return { pageAssets, openGuest, endSession, updatePresentation };
 }
 
 module.exports = { createLiveGuests };

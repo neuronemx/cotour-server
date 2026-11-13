@@ -27,6 +27,8 @@
   let returnInput;
   let link;
   let guestName;
+  let slideVersion = 0;
+  let slideSource = "";
   let audioUnlocked = false;
   let busy = false;
   let taking = false;
@@ -52,7 +54,37 @@
     for (const stream of new Set([capture, productionAudio, stageAudio])) stream?.getTracks().forEach(track => track.stop());
     capture = productionAudio = stageAudio = null;
     if (hadMedia && socket.connected) socket.emit("guest:media-ready", false);
-    if (role === "guest") video.srcObject = null;
+    if (role === "guest") { video.srcObject = null; clearGuestSlide(); }
+  }
+
+  function clearGuestSlide() {
+    if (role !== "guest") return;
+    slideVersion++;
+    slideSource = "";
+    const image = document.getElementById("guestSlide");
+    image.hidden = true;
+    image.removeAttribute("src");
+    document.getElementById("guestSlidePlaceholder").hidden = false;
+  }
+
+  function receiveGuestSlide(slide) {
+    if (role !== "guest" || !capture || !socket.connected || state.phase === "ended") return;
+    if (typeof slide?.src !== "string" || !slide.src.startsWith("/decks/") || slide.src.includes("\\")) return clearGuestSlide();
+    if (slide.src === slideSource) return;
+    const version = ++slideVersion;
+    slideSource = slide.src;
+    const next = new Image();
+    next.onload = () => {
+      if (version !== slideVersion || !capture || !socket.connected || state.phase === "ended") return;
+      const image = document.getElementById("guestSlide");
+      image.src = slide.src;
+      image.alt = slide.title || "Slide en curso";
+      image.dataset.slideIndex = String(slide.index);
+      image.hidden = false;
+      document.getElementById("guestSlidePlaceholder").hidden = true;
+    };
+    next.onerror = () => { if (version === slideVersion) clearGuestSlide(); };
+    next.src = slide.src;
   }
 
   function clearPeers() {
@@ -96,6 +128,10 @@
       return;
     }
     if (role === "guest") {
+      const showingPresentation = Boolean(capture) && state.phase !== "ended";
+      document.getElementById("guestVisual").hidden = state.phase === "ended";
+      document.getElementById("guestVisual").classList.toggle("has-presentation", showingPresentation);
+      document.getElementById("guestSlideView").hidden = !showingPresentation;
       phaseLabel.textContent = state.phase === "ended" ? "ENLACE TERMINADO" : state.phase === "live" ? "EN VIVO" : "EN ESPERA";
       phaseLabel.parentElement.classList.toggle("is-live", state.phase === "live");
       message.textContent = state.phase === "ended" ? "Gracias por acompañarnos."
@@ -415,6 +451,7 @@
   }
 
   socket.on("guest:prepare", setup => { void prepare(setup).catch(() => fail(setup.id)); });
+  socket.on("guest:slide", receiveGuestSlide);
   socket.on("guest:signal", body => {
     const peer = peers.get(body.channel);
     if (!peer || peer.id !== body.id) return;
@@ -437,6 +474,7 @@
     render();
   });
   socket.on("disconnect", () => {
+    clearGuestSlide();
     fail();
     if (state.phase === "ended") return render();
     state = { ...state, id: null, phase: "waiting" };

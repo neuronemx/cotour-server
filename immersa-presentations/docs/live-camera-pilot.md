@@ -58,7 +58,7 @@ Para validar el relay, usar `IMMERSA_LIVE_CAMERA_FORCE_RELAY=true`. Para probar 
 
 Activar `IMMERSA_LIVE_GUESTS_ENABLED=true` en Beta para habilitar un invitado por Deck y sesión en los enlaces normales de Stage y Pantalla. Requiere Cloudflare TURN. La función está apagada por defecto y depende del entorno permitido para LIVE de Decks de trabajo.
 
-En Stage, abrir **Invitados LIVE**, escribir el nombre y crear el enlace. Cada enlace dura 24 horas y sustituye el anterior de ese Deck y sesión. El invitado abre el enlace y pulsa **Entrar** para autorizar cámara, micrófono y sonido. Desde ese momento solo ve su monitor y los estados **EN ESPERA**, **EN VIVO** y **ENLACE TERMINADO**.
+En Stage, abrir **Invitados LIVE**, escribir el nombre y crear el enlace. Cada enlace dura 24 horas y sustituye el anterior de ese Deck y sesión. El invitado abre el enlace y pulsa **Entrar** para autorizar cámara, micrófono y sonido. Desde ese momento ve el slide vigente, una miniatura de su cámara y los estados **EN ESPERA**, **EN VIVO** y **ENLACE TERMINADO**. El slide sigue el índice transmitido a Pantalla y su idioma operativo, incluso en espera. Durante una pausa de transmisión conserva el slide público mientras producción navega en privado. No recibe controles, apuntador, enlaces de rol ni el manifiesto del Deck. Al reconectar recupera el slide vigente; al terminar se retiran la presentación y la cámara.
 
 Para el ensayo, usar Stage con audífonos en un equipo distinto al de Pantalla. En Stage, seleccionar **Micrófono de producción** y **Audio del escenario**, y pulsar **Activar / actualizar audio**. La entrada del escenario debe ser el retorno de consola que excluye la voz del invitado. En Pantalla, activar el audio una vez con el botón compartido de sonido. El audio de Pantalla sale por el sistema del evento.
 
@@ -68,4 +68,4 @@ El invitado envía una señal de audio y video a Stage. Stage la reenvía a Pant
 
 El estado al aire es efímero. Los enlaces se guardan mediante escritura atómica en `data/live-guests/`. Al finalizar la presentación, el enlace conectado se marca terminado. Para repetir una intervención finalizada se crea un enlace nuevo. Para desactivar el piloto, fijar `IMMERSA_LIVE_GUESTS_ENABLED=false` y desplegar.
 
-La primera validación cubre un invitado, producción y Pantalla. La vista del slide, las reacciones y las preguntas seleccionadas para el invitado corresponden al siguiente hito.
+La validación cubre un invitado, producción, Pantalla y el slide vigente para el invitado. Las reacciones y las preguntas seleccionadas para el invitado corresponden a los siguientes hitos.

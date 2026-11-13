@@ -5,8 +5,17 @@ const os = require("node:os");
 const path = require("node:path");
 const { createLiveGuests } = require("../live-guests");
 const { createLiveProjection } = require("../live-projection");
+const { setTimeout: pause } = require("node:timers/promises");
 
-async function setup(t) {
+async function waitFor(check) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (check()) return;
+    await pause(5);
+  }
+  assert.fail("Slide read did not start");
+}
+
+async function setup(t, options = {}) {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "live-guests-test-"));
   t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
   let authorize, connected;
@@ -21,7 +30,7 @@ async function setup(t) {
     dataDir, publicDir: "public", origin: "https://beta.test", enabled: true,
     authorizeRole: async (role, token) => { const grant = grants.get(token); return grant?.accessLink.role === role ? grant : null; },
     getRtcConfiguration: async () => ({ iceServers: [], iceTransportPolicy: "all" }),
-    projection, canProject: () => true
+    projection, canProject: () => true, ...options
   });
   async function open(role, token, origin = "https://beta.test") {
     const handlers = new Map();
@@ -143,4 +152,74 @@ test("finished invitations remain terminal on reconnect and expired links are re
   record.expiresAt = Date.now() - 1;
   await fs.writeFile(filename, JSON.stringify(record));
   assert.ok(await open("guest", newToken) instanceof Error);
+});
+
+test("the current slide is sent after entry and follows only its Deck/session in waiting and live", async t => {
+  const current = { index: 2, src: "/decks/deck/slides/3.jpg", locale: "es", title: "Actual" };
+  let reads = 0;
+  const { open, stage, screen, runtime } = await setup(t, {
+    getPresentationSlide: async (scope, snapshot) => {
+      reads++;
+      assert.equal(scope.deckId, "deck");
+      assert.equal(scope.sessionId, "session");
+      return snapshot ? { ...current, index: snapshot.liveSlideIndex } : current;
+    }
+  });
+  const created = await stage.request("guest:invite", {});
+  const guest = await open("guest", created.url.split("/").pop());
+  const slides = () => guest.messages.filter(([event]) => event === "guest:slide").map(([, payload]) => payload);
+  assert.equal(reads, 0);
+  await guest.receive("guest:media-ready");
+  assert.deepEqual(slides(), [current]);
+  await runtime.updatePresentation({ deckId: "other", sessionId: "session", liveSlideIndex: 5 });
+  await runtime.updatePresentation({ deckId: "deck", sessionId: "other", liveSlideIndex: 5 });
+  assert.equal(reads, 1);
+  await runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 3 });
+  assert.equal(slides().at(-1).index, 3);
+  await runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 3 });
+  assert.equal(reads, 2);
+  stage.receive("guest:media-ready");
+  screen.receive("guest:media-ready");
+  await stage.request("guest:connect");
+  const { id } = guest.messages.find(([event]) => event === "guest:prepare")[1];
+  stage.receive("guest:ready", { id, channel: "monitor" });
+  await stage.request("guest:take");
+  screen.receive("guest:ready", { id, channel: "program" });
+  await runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 4, operationalLocale: "en" });
+  assert.equal(slides().at(-1).index, 4);
+  const count = slides().length;
+  await stage.request("guest:end");
+  await runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 5 });
+  assert.equal(slides().length, count);
+});
+
+test("slow reads cannot overwrite newer slides or send content after replacement or revocation", async t => {
+  const pending = [];
+  const { open, stage, runtime, grants } = await setup(t, {
+    getPresentationSlide: () => new Promise(resolve => pending.push(resolve))
+  });
+  const created = await stage.request("guest:invite", {});
+  const guest = await open("guest", created.url.split("/").pop());
+  const slides = () => guest.messages.filter(([event]) => event === "guest:slide");
+  const initial = guest.receive("guest:media-ready");
+  await waitFor(() => pending.length === 1);
+  const newerSlide = runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 1 });
+  await waitFor(() => pending.length === 2);
+  pending[1]({ index: 1 });
+  await newerSlide;
+  pending[0]({ index: 0 });
+  await initial;
+  assert.deepEqual(slides().map(([, slide]) => slide.index), [1]);
+  const replaced = runtime.updatePresentation({ deckId: "deck", sessionId: "session", liveSlideIndex: 2 });
+  await waitFor(() => pending.length === 3);
+  await stage.request("guest:invite", {});
+  pending[2]({ index: 2 });
+  await replaced;
+  assert.equal(slides().length, 1);
+  const newer = await stage.request("guest:invite", {});
+  const nextGuest = await open("guest", newer.url.split("/").pop());
+  grants.delete("a_stage00001");
+  await nextGuest.receive("guest:media-ready");
+  assert.equal(pending.length, 3);
+  assert.equal(nextGuest.messages.filter(([event]) => event === "guest:slide").at(-1)[1], null);
 });

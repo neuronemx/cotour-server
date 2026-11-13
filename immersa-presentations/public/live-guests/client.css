@@ -1,9 +1,15 @@
 .guest-page { margin:0; background:#090d14; color:#fff; font-family:Inter,system-ui,sans-serif; }
-.guest-experience { height:100dvh; min-height:400px; display:flex; flex-direction:column; box-sizing:border-box; padding:20px; gap:16px; }
+.guest-experience { height:100dvh; min-height:0; display:flex; flex-direction:column; box-sizing:border-box; padding:20px; gap:16px; }
 .guest-experience header { display:flex; justify-content:space-between; align-items:center; letter-spacing:.12em; font-size:17px; }
 .guest-experience header span { color:#ff415d; font-weight:800; }
-.guest-monitor { flex:1; min-height:0; background:#111827; border-radius:20px; overflow:hidden; }
+.guest-visual { flex:1; min-height:0; position:relative; background:#111827; border-radius:20px; overflow:hidden; }
+.guest-monitor { height:100%; overflow:hidden; }
 .guest-monitor video { display:block; width:100%; height:100%; object-fit:contain; }
+.guest-slide-view { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.guest-slide-view img { display:block; width:100%; height:100%; object-fit:contain; }
+.guest-slide-view p { margin:24px; color:#c2cad9; text-align:center; font-size:15px; }
+.guest-visual.has-presentation .guest-monitor { position:absolute; bottom:12px; right:12px; width:clamp(84px,20%,170px); height:24%; max-height:170px; border-radius:12px; background:#090d14; box-shadow:0 3px 16px #0008; }
+.guest-slide-view[hidden], .guest-slide-view [hidden], .guest-visual[hidden] { display:none!important; }
 .guest-caption { text-align:center; padding:4px 12px max(8px,env(safe-area-inset-bottom)); }
 .guest-caption h1 { margin:0; font-size:clamp(24px,5vw,38px); letter-spacing:.04em; }
 .guest-caption p { margin:8px 0; color:#c2cad9; font-size:15px; }
