@@ -1,3 +1,5 @@
+const { SessionDataRepository } = require("./session-data");
+const { createSessionDataHandlers } = require("./session-export");
 const { AudienceRegistrationRepository, registrationHandlers } = require("./audience-registration");
 const { AudienceEngagementRepository, createEngagementHandler } = require("./audience-engagement");
 const {DeckSpeakersStore, DeckSpeakerError}=require('./deck-speakers');
@@ -114,6 +116,7 @@ const selfieRuntime = createSelfieRuntime({ io, coordinator: activeInteractionCo
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 let presentationMetricsRepository = null;
+let sessionDataRepository = null;
 let eventHubRepository = null;
 const gameQueueSockets = createGameQueueSocketHandlers({
   io,
@@ -134,6 +137,7 @@ const interactionSockets = createInteractionSocketHandlers({
   )
 });
 const raffleSockets = createRaffleSocketHandlers({
+  onChanged: (context, raffle) => context && sessionDataRepository?.captureRaffle({...context, presentationSessionId:getSessionByRoomKey(context.roomKey)?.recordingPresentationId}, raffle),
   io,
   store: raffleStore,
   getRoleRoomKey,
@@ -185,6 +189,8 @@ const audienceRegistrationEnabled = ["7c782d5a-b07f-4340-849a-063dd22d016f", "9a
 const audienceRegistrationRepository = lifecyclePool && audienceRegistrationEnabled ? new AudienceRegistrationRepository(lifecyclePool) : null;
 const audienceRegistrationHandlers = audienceRegistrationRepository ? registrationHandlers(audienceRegistrationRepository) : null;
 const audienceEngagementRepository = lifecyclePool ? new AudienceEngagementRepository(lifecyclePool) : null;
+sessionDataRepository = lifecyclePool ? new SessionDataRepository(lifecyclePool, presentationMetricsRepository, audienceEngagementRepository) : null;
+const sessionDataHandlers = sessionDataRepository ? createSessionDataHandlers(sessionDataRepository) : null;
 const presentationMetricsHandlers = presentationMetricsRepository
   ? createPresentationMetricsHandlers(presentationMetricsRepository)
   : null;
@@ -217,7 +223,9 @@ const presentationLifecycleRuntime = lifecyclePool
       repository: new PresentationLifecycleRepository(lifecyclePool),
       getRoleRoomKey,
       onState: (context, state) => {
-        const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
+        const liveSession = getSessionByRoomKey(context.roomKey);
+        if (liveSession) liveSession.recordingPresentationId = state.mode === "live" ? state.presentationSessionId : null;
+        const reactions = liveSession?.reactions;
         if (state.mode === "live") reactions?.setRecording(state.presentationSessionId);
         else reactions?.resetCounts(null);
       },
@@ -243,9 +251,13 @@ const presentationLifecycleRuntime = lifecyclePool
           audience: getMetricsAudience(context.roomKey),
           connectedCount: liveSession?.audience?.size || 0
         });
+        const raffle = raffleStore.getControllerState(context.sessionId).active;
+        if (raffle) sessionDataRepository?.captureRaffle({...context, presentationSessionId:state.presentationSessionId}, raffle);
+        await sessionDataRepository?.flushRaffles();
         await interactionSockets.persistMetricsForPresentation?.(context, state.presentationSessionId);
       },
       beforeFinish: async (context) => {
+        await sessionDataRepository?.flushRaffles();
         if (activeInteractionCoordinator.hasAnyActive(context.sessionId)) {
           return {
             ok: false,
@@ -260,6 +272,7 @@ const presentationLifecycleRuntime = lifecyclePool
         return { ok: true };
       },
       afterFinish: async (context, state) => {
+        sessionDataRepository?.releaseSession(context);
         const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
         if (reactions) {
           reactions.accepting = false;
@@ -1173,6 +1186,7 @@ const audiovisualGlobalRuntime = createAudiovisualGlobalRuntime({
 });
 
 const reactionMetricsSweep = setInterval(() => {
+  void sessionDataRepository?.flushRaffles().catch(error => console.error("Unable to persist raffle metrics", error));
   for (const session of sessions.values()) {
     void session.reactions.flush(presentationMetricsRepository, { deckId: session.deckId, sessionId: session.sessionId })
       .catch((error) => console.error("Unable to persist reactions", error));
@@ -2000,6 +2014,12 @@ app.put("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, req
 app.delete("/api/decks/:deckId/brand-mentions/:brandId", ...requireDeckAccount, requireAccountAdjustmentCleared, brandMentionHandlers.deleteBrand);
 app.get("/api/decks/:deckId/qna/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.listHistory);
 app.get("/api/decks/:deckId/knowledge-activities/history", ...requireDeckAccount, requireDeckFeature(CAPABILITIES.METRICS_EXPORT), knowledgeActivityHistoryHandlers.listHistory);
+if (sessionDataHandlers) {
+  app.get("/api/decks/:deckId/metrics/sessions/:sessionId/summary", ...requireDeckAccount,
+    requireDeckFeature(CAPABILITIES.METRICS_BASIC), sessionDataHandlers.summary);
+  app.get("/api/decks/:deckId/metrics/sessions/:sessionId/export", ...requireDeckAccount,
+    requireDeckFeature(CAPABILITIES.METRICS_EXPORT), sessionDataHandlers.export);
+}
 if (presentationMetricsHandlers) {
   app.get("/api/decks/:deckId/metrics/sessions/:sessionId/engagement", ...requireDeckAccount,
     requireDeckFeature(CAPABILITIES.METRICS_BASIC), createEngagementHandler(audienceEngagementRepository));

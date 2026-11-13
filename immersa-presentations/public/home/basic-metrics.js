@@ -3,12 +3,15 @@
   const status = document.getElementById("basicMetricsStatus");
   const sessionsHost = document.getElementById("basicMetricsSessions");
   const refreshButton = document.getElementById("basicMetricsRefresh");
-  const metricsTab = document.getElementById("deckTabMetrics");
+  const metricsTab = document.getElementById("deckTabSessions");
   if (!section || !status || !sessionsHost || !refreshButton || !metricsTab) return;
 
   const choice = document.getElementById("basicMetricsSessionChoice");
   const select = document.getElementById("basicMetricsSessionSelect");
   let sessions = [];
+  const exportButton = document.getElementById("sessionExport");
+  let detailVersion = 0;
+  let canExport = false;
 
   let activeDeck = null;
   let loaded = false;
@@ -147,11 +150,87 @@
     return article;
   }
 
-  function selectSession() {
-    const session = sessions.find((item) => item.id === select.value);
-    sessionsHost.replaceChildren(...(session ? [renderSession(session)] : []));
-    document.dispatchEvent(new CustomEvent("immersa:metrics-session-selected", { detail: { id: session?.id || "" } }));
+  async function selectSession() {
+    const mine = ++detailVersion;
+    const session = sessions.find(item => item.id === select.value);
+    exportButton.disabled = !session || !canExport;
+    sessionsHost.replaceChildren();
+    if (!session || !activeDeck) return;
+    const card = renderSession(session);
+    sessionsHost.append(card);
+    const body = card.querySelector(".basic-metrics-session-body");
+    try {
+      const response = await fetch("/api/decks/" + encodeURIComponent(activeDeck.deckId) + "/metrics/sessions/" + encodeURIComponent(session.id) + "/summary", {cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo cargar el resumen.");
+      if (mine !== detailVersion) return;
+      const activity = data.polls.reduce((n, p) => n + p.totalResponses, 0) + data.qna.received + data.reactions.total +
+        data.knowledge.reduce((n, k) => n + k.answers, 0) + data.raffles.entries + data.brands.reduce((n, b) => n + b.clicks, 0);
+      card.querySelector(".basic-metrics-session-overview").lastElementChild.querySelector("strong").textContent = activity;
+      const stats = body.querySelector(".basic-metrics-detail-stats");
+      const knowledge = data.knowledge || [];
+      stats.append(
+        metric("Participación", data.participation.percentage + "%", data.participation.active + " asistentes activos"),
+        metric("Trivias", knowledge.find(k => k.category === "contest")?.executions || 0, (knowledge.find(k => k.category === "contest")?.answers || 0) + " respuestas"),
+        metric("Evaluaciones", knowledge.find(k => k.category === "assessment")?.executions || 0, (knowledge.find(k => k.category === "assessment")?.answers || 0) + " respuestas"),
+        metric("Sorteos", data.raffles.total, data.raffles.entries + " participaciones · " + data.raffles.winners + " ganadores")
+      );
+      const brands = document.createElement("section");
+      brands.className = "basic-metrics-brands";
+      const heading = document.createElement("h4");
+      heading.textContent = "Marcas";
+      brands.append(heading);
+      if (!data.brands.length) {
+        const empty = document.createElement("p");
+        empty.className = "basic-metrics-inline-empty";
+        empty.textContent = "Sin vistas de banners registradas en esta sesión.";
+        brands.append(empty);
+      }
+      for (const brand of data.brands) {
+        const article = document.createElement("article");
+        article.className = "basic-metrics-poll";
+        const name = document.createElement("strong");
+        name.textContent = brand.name;
+        const grid = document.createElement("div");
+        grid.className = "basic-metrics-detail-stats";
+        grid.append(metric("Despliegues", brand.displays), metric("Vistas", brand.impressions, brand.viewers + " espectadores únicos"),
+          metric("Clics", brand.clicks), metric("Personas con clic", brand.clickers));
+        article.append(name, grid);
+        brands.append(article);
+      }
+      body.append(brands);
+    } catch (error) {
+      if (mine !== detailVersion) return;
+      const message = document.createElement("p");
+      message.className = "basic-metrics-error";
+      message.textContent = error.message;
+      body.append(message);
+    }
   }
+  exportButton.addEventListener("click", async () => {
+    if (!activeDeck || !select.value || exportButton.disabled) return;
+    const deck = activeDeck.deckId, id = select.value;
+    exportButton.disabled = true;
+    const mine = requestVersion;
+    try {
+      const response = await fetch("/api/decks/" + encodeURIComponent(deck) + "/metrics/sessions/" + encodeURIComponent(id) + "/export", {cache:"no-store"});
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "No se pudo exportar la sesión.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "IMMERSA-sesion-" + id + ".xlsx";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      if (mine === requestVersion) status.textContent = error.message;
+    } finally {
+      if (mine === requestVersion) exportButton.disabled = !select.value || !canExport;
+    }
+  });
 
   function render(results) {
     const previousId = select.value;
@@ -215,9 +294,11 @@
 
   select.addEventListener("change", selectSession);
   metricsTab.addEventListener("click", () => loadMetrics());
+  document.addEventListener("immersa:deck-panel-visible", event => { if (event.detail?.panel === "metrics") loadMetrics(); });
   refreshButton.addEventListener("click", () => loadMetrics(true));
   document.addEventListener("immersa:deck-detail-open", (event) => {
     requestVersion += 1;
+    detailVersion += 1;
     activeDeck = null;
     loaded = false;
     loading = false;
@@ -225,6 +306,8 @@
     select.replaceChildren();
     choice.hidden = true;
     sessionsHost.replaceChildren();
+    canExport = event.detail?.capabilities?.["metrics.export"] === true;
+    exportButton.title = canExport ? "Descargar Excel de la sesión" : "Exportación disponible en Speaker Pro";
     const deck = event.detail?.deck;
     const enabled = event.detail?.capabilities?.["metrics.basic"] === true;
     section.hidden = !deck?.deckId || !enabled;
@@ -236,6 +319,7 @@
   });
   document.addEventListener("immersa:deck-detail-close", () => {
     requestVersion += 1;
+    detailVersion += 1;
     activeDeck = null;
     loaded = false;
     loading = false;

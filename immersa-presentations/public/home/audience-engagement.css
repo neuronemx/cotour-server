@@ -1,15 +1,14 @@
-.audience-engagement { display: grid; gap: 14px; margin-top: 24px; color: var(--ink, #24223d); }
-.audience-engagement h3 { margin: 0; }
-.audience-engagement p { margin: 8px 0; overflow-wrap: anywhere; }
-.engagement-brands, .engagement-people { display: grid; gap: 10px; }
-.engagement-brand, .engagement-person { padding: 14px; border: 1px solid #dfdbea; border-radius: 12px; background: #fff; min-width: 0; }
-.engagement-person summary { cursor: pointer; font-weight: 700; overflow-wrap: anywhere; }
-.engagement-answer { margin-top: 12px; padding: 10px; border-radius: 8px; background: #f4f2f9; }
-.engagement-pages { display: flex; gap: 12px; }
-.audience-registration-form { display: grid; gap: 12px; margin-top: 20px; padding: 16px; border: 1px solid #dfdbea; border-radius: 12px; }
+.audience-registration-form { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; }
 .audience-registration-form[hidden], .audience-registration-form [hidden] { display: none !important; }
-.audience-registration-form h3 { margin: 0; }
-.audience-registration-form label { display: grid; gap: 6px; }
-.audience-registration-form input, .audience-registration-form select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #d6d0e0; border-radius: 8px; font: inherit; }
-.audience-registration-form p { margin: 0; font-size: 13px; }
-.audience-registration-form button, .audience-engagement button { min-height: 40px; padding: 8px 12px; border: 1px solid #c9bcdf; border-radius: 8px; background: #f5f0ff; color: #55299b; font: inherit; cursor: pointer; }
+.audience-registration-form h3 { margin: 0; color: var(--ink); font: 700 15px var(--font-display); }
+.audience-registration-form label { display: grid; gap: 7px; color: var(--ink); font: 600 12px var(--font-display); }
+.audience-registration-form input, .audience-registration-form select { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: #fff; font: 400 12px var(--font-body, Inter, sans-serif); }
+.audience-registration-form input:focus, .audience-registration-form select:focus { outline: 2px solid var(--blue); outline-offset: 2px; }
+.audience-registration-form p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.audience-registration-form button { min-height: 38px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--blue); background: var(--grad-soft); font: 700 12px var(--font-display); cursor: pointer; }
+.basic-metrics-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.basic-metrics-brands { display: grid; gap: 10px; }
+.basic-metrics-brands h4 { margin: 0; color: var(--ink); font: 700 13px var(--font-display); }
+.basic-metrics-brands .basic-metrics-poll > strong { font: 700 12px var(--font-display); color: var(--ink); }
+.basic-metrics-brands .basic-metrics-detail-stats { padding-top: 0; }
+@media (max-width: 480px) { .basic-metrics-head { flex-wrap: wrap; } .basic-metrics-actions { justify-content: flex-start; } }

@@ -183,8 +183,10 @@ function syncPlanTabs() {
     deckTabParticipation.setAttribute("aria-disabled", String(!participationEnabled));
   }
   if (deckTabMetrics) {
-    deckTabMetrics.disabled = !metricsEnabled;
-    deckTabMetrics.setAttribute("aria-disabled", String(!metricsEnabled));
+    deckTabMetrics.disabled = false;
+    const sessionsTab = document.getElementById("deckTabSessions");
+    if (sessionsTab) sessionsTab.disabled = !metricsEnabled;
+    deckTabMetrics.setAttribute("aria-disabled", "false");
   }
 }
 
@@ -1638,5 +1640,5 @@ Promise.all([loadDecks(), loadPlanUsage()]).then(() => {
   const requestedDeck = decks.find((deck) => deck.deckId === requestedDeckId);
   if (!requestedDeck) return;
   openDeckModal(requestedDeck);
-  if (requestedTab === "metrics") window.setTimeout(() => deckTabMetrics?.click(), 0);
+  if (requestedTab === "metrics") window.setTimeout(() => { deckTabMetrics?.click(); document.getElementById("deckTabSessions")?.click(); }, 0);
 });

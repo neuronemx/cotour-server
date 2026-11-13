@@ -92,6 +92,7 @@
       document.dispatchEvent(new CustomEvent("immersa:audiovisual-library-visible"));
     }
     if (moduleDetails[activePanel]) mountEditor(activePanel);
+    document.dispatchEvent(new CustomEvent("immersa:deck-panel-visible", {detail:{panel:activePanel}}));
   }
 
   function syncDemoMasterTabs(deck) {

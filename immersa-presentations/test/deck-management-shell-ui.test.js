@@ -10,9 +10,9 @@ test("Deck detail exposes the approved management sections", () => {
   const html = read("public/home/index.html");
 
   assert.match(html, /deck-management-shell\.css\?v=35/);
-  assert.match(html, /deck-management-shell\.js\?v=19/);
+  assert.match(html, /deck-management-shell\.js\?v=20/);
   const primaryTabs = html.match(/<nav class="deck-detail-tabs"[\s\S]*?<\/nav>/)?.[0];
-  assert.deepEqual([...primaryTabs.matchAll(/data-deck-tab="([^"]+)"/g)].map((match) => match[1]), ["links", "experience", "av", "metrics"]);
+  assert.deepEqual([...primaryTabs.matchAll(/data-deck-tab="([^"]+)"/g)].map((match) => match[1]), ["links", "experience", "av", "data"]);
   assert.match(primaryTabs, /<span>A V<\/span>/);
   assert.match(html, /data-deck-section="experience"[\s\S]*?data-deck-tab="participation"[\s\S]*?data-deck-tab="selfie"[\s\S]*?data-deck-tab="speakers"[\s\S]*?data-deck-tab="brands"/);
   assert.match(html, /data-deck-section="av"[\s\S]*?data-deck-tab="video"[\s\S]*?data-deck-tab="audiovisual"/);
@@ -20,10 +20,10 @@ test("Deck detail exposes the approved management sections", () => {
   assert.match(html, /data-deck-editor-host="video"/);
   assert.match(html, /id="deckEditorLaunchers" hidden/);
   assert.doesNotMatch(html, /id="detailDelete"/);
-  assert.match(html, /data-deck-panel="metrics"[\s\S]+id="qnaHistory"/);
+  assert.match(html, /data-deck-section="data"[\s\S]+data-deck-tab="registration"[\s\S]+data-deck-tab="metrics"/);
   assert.match(html, /aria-controls="deckPanelBrands" data-deck-tab="brands"[^>]*>[\s\S]*?<span>Marcas<\/span>/);
   assert.match(html, /id="deckPanelBrands"[^>]*aria-labelledby="deckTabBrands" data-deck-panel="brands"[^>]*>[\s\S]*?data-deck-editor-host="brands"/);
-  assert.match(html, /data-deck-panel="metrics"[\s\S]*?<h3>Métricas<\/h3>[\s\S]*?Consulta la participación y los resultados de esta presentación\./);
+  assert.match(html, /data-deck-panel="metrics"[\s\S]*?id="sessionExport"/);
   assert.doesNotMatch(html, /deck-detail-kicker/);
   assert.doesNotMatch(html, /Enlaces de presentación/);
   assert.doesNotMatch(html, />Business</);

@@ -31,8 +31,8 @@
   <link rel="stylesheet" href="/home/billing.css?v=10">
   <link rel="stylesheet" href="/home/interactions-editor.css?v=9">
   <link rel="stylesheet" href="/home/qna-history.css?v=2">
-  <link rel="stylesheet" href="/home/audience-engagement.css?v=1">
-  <link rel="stylesheet" href="/home/basic-metrics.css?v=4">
+  <link rel="stylesheet" href="/home/audience-engagement.css?v=2">
+  <link rel="stylesheet" href="/home/basic-metrics.css?v=5">
   <link rel="stylesheet" href="/home/video-editor.css?v=109">
   <link rel="stylesheet" href="/home/audiovisual-editor.css?v=26">
   <link rel="stylesheet" href="/home/brand-mentions-editor.css?v=5">
@@ -127,7 +127,7 @@
         <button id="deckTabLinks" class="deck-detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="deckPanelLinks" data-deck-tab="links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"/></svg><span>Enlaces</span></button>
         <button id="deckTabExperience" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckSectionExperience" data-deck-tab="experience"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9zM19 14v6m-3-3h6"/></svg><span>Experiencia</span></button>
         <button id="deckTabAV" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckSectionAV" data-deck-tab="av"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg><span>A V</span></button>
-        <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Métricas</span></button>
+        <button id="deckTabMetrics" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckSectionData" data-deck-tab="data" disabled aria-disabled="true" title="Disponible en otros planes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg><span>Data</span></button>
       </nav>
       <aside class="deck-detail-preview" aria-label="Vista previa del Deck">
         <button id="deckPreviewToggle" class="deck-preview-toggle" type="button" aria-expanded="false" aria-controls="deckPreviewContent"><span>Vista previa</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -168,14 +168,7 @@
         <aside id="replacementReview" class="replacement-review" role="status" hidden><div><strong>Revisa las asociaciones</strong><p>La estructura cambió. Tus Interacciones y Videos se conservaron; confirma que sigan vinculados a la slide correcta.</p></div><button id="replacementReviewed" type="button">Ya las revisé</button></aside>
         <section id="deckPanelLinks" class="deck-detail-panel is-active" role="tabpanel" aria-labelledby="deckTabLinks" data-deck-panel="links" data-deck-section="links">
           <div id="detailActions" class="deck-detail-actions" aria-label="Acciones de la presentación"></div>
-          <form id="audienceRegistrationForm" class="audience-registration-form" hidden>
-            <h3>Registro de Público</h3>
-            <label>Acceso<select name="mode"><option value="name">Solo nombre</option><option value="optional">Registro opcional</option><option value="required">Registro obligatorio</option></select></label>
-            <p>El registro solicita nombre, correo, teléfono y empresa, con aceptación de términos y condiciones.</p>
-            <label hidden>Enlace de términos y condiciones<input name="termsUrl" type="url" maxlength="1000" placeholder="https://"></label>
-            <button type="submit">Guardar registro</button>
-            <p role="status" aria-live="polite"></p>
-          </form>
+
         </section>
         <section id="deckSectionExperience" class="deck-detail-group" role="tabpanel" aria-labelledby="deckTabExperience" data-deck-section="experience" hidden>
           <nav class="deck-detail-subtabs" role="tablist" aria-label="Experiencia">
@@ -247,15 +240,30 @@
           </section>
           <section id="deckPanelAudiovisual" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabAudiovisual" data-deck-panel="audiovisual" hidden><div id="audiovisualDeckEditor"></div></section>
         </section>
-        <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-panel="metrics" data-deck-section="metrics" hidden>
-          <div class="deck-detail-panel-heading"><div><h3>Métricas</h3><p>Consulta la participación y los resultados de esta presentación.</p></div></div>
+        <section id="deckSectionData" class="deck-detail-group" role="tabpanel" aria-labelledby="deckTabMetrics" data-deck-section="data" hidden>
+          <nav class="deck-detail-subtabs" role="tablist" aria-label="Data">
+            <button id="deckTabRegistration" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelRegistration" data-deck-tab="registration">Registro</button>
+            <button id="deckTabSessions" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelMetrics" data-deck-tab="metrics">Sesiones</button>
+          </nav>
+          <section id="deckPanelRegistration" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabRegistration" data-deck-panel="registration" hidden>
+          <form id="audienceRegistrationForm" class="audience-registration-form" hidden>
+            <h3>Registro de Público</h3>
+            <label>Acceso<select name="mode"><option value="name">Solo nombre</option><option value="optional">Registro opcional</option><option value="required">Registro obligatorio</option></select></label>
+            <p>El registro solicita nombre, correo, teléfono y empresa, con aceptación de términos y condiciones.</p>
+            <label hidden>Enlace de términos y condiciones<input name="termsUrl" type="url" maxlength="1000" placeholder="https://"></label>
+            <button type="submit">Guardar registro</button>
+            <p role="status" aria-live="polite"></p>
+          </form>
+          </section>
+          <section id="deckPanelMetrics" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSessions" data-deck-panel="metrics" hidden>
           <section id="basicMetrics" class="basic-metrics" aria-labelledby="basicMetricsTitle" hidden>
-            <div class="basic-metrics-head"><div><h4 id="basicMetricsTitle">Sesiones registradas</h4><p id="basicMetricsStatus" role="status" aria-live="polite">Entra a Métricas para consultar tus resultados.</p></div><button id="basicMetricsRefresh" type="button">Actualizar</button></div>
+            <div class="basic-metrics-head"><div><h4 id="basicMetricsTitle">Sesiones registradas</h4><p id="basicMetricsStatus" role="status" aria-live="polite">Selecciona una sesión para consultar sus resultados.</p></div><div class="basic-metrics-actions"><button id="sessionExport" type="button" disabled>Exportar sesión</button><button id="basicMetricsRefresh" type="button">Actualizar</button></div></div>
             <div id="basicMetricsSessionChoice" hidden><label for="basicMetricsSessionSelect">Sesión</label><select id="basicMetricsSessionSelect"></select></div>
             <div id="basicMetricsSessions" class="basic-metrics-sessions"></div>
           </section>
-          <section id="qnaHistory" class="qna-history" aria-labelledby="qnaHistoryTitle" hidden><button id="qnaHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="qnaHistoryBody"><span id="qnaHistoryTitle">Preguntas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="qnaHistoryBody" class="qna-history-body" hidden><div class="qna-history-head"><p id="qnaHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div class="qna-history-actions"><button id="qnaHistoryExport" class="qna-history-export" type="button" hidden>Descargar CSV</button></div></div><div id="qnaHistoryList" class="qna-history-list"></div></div></section>
-          <section id="knowledgeActivityHistory" class="qna-history" aria-labelledby="knowledgeActivityHistoryTitle" hidden><button id="knowledgeActivityHistoryToggle" class="qna-history-toggle" type="button" aria-expanded="false" aria-controls="knowledgeActivityHistoryBody"><span id="knowledgeActivityHistoryTitle">Trivias y evaluaciones</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="knowledgeActivityHistoryBody" class="qna-history-body" hidden><p id="knowledgeActivityHistorySummary" class="qna-history-summary" aria-live="polite">Cargando historial…</p><div id="knowledgeActivityHistoryList" class="qna-history-list"></div></div></section>
+
+
+        </section>
         </section>
       </div>
       <div id="deckEditorLaunchers" hidden aria-hidden="true"></div>
@@ -372,12 +380,9 @@
   <script src="/shared/profile-bio.js?v=1"></script>
   <script src="/home/profile-bio-editor.js?v=2"></script>
   <script src="/home/profile-editor.js?v=9"></script>
-  <script src="/home/home.js?v=80&ui=3"></script>
-  <script src="/home/audience-engagement.js?v=1"></script>
+  <script src="/home/home.js?v=81&ui=3"></script>
   <script src="/home/audience-registration.js?v=1"></script>
-  <script src="/home/basic-metrics.js?v=3"></script>
-  <script src="/home/qna-history.js?v=3"></script>
-  <script src="/home/knowledge-activity-history.js?v=2"></script>
+  <script src="/home/basic-metrics.js?v=4"></script>
   <script src="/home/interactions-editor.js?v=12"></script>
   <script src="/home/video-editor.js?v=115"></script>
   <script src="/home/audiovisual-editor.js?v=25"></script>
@@ -385,7 +390,7 @@
   <script src="/home/prompter-editor.js?v=7"></script>
   <script src="/home/video-slide-labels.js?v=106"></script>
   <script src="/home/brand-mentions-editor.js?v=6"></script>
-  <script src="/home/deck-management-shell.js?v=19"></script>
+  <script src="/home/deck-management-shell.js?v=20"></script>
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=5"></script>
   <script src="/home/deck-speakers-editor.js?v=3"></script>
