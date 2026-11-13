@@ -261,7 +261,7 @@
     sessions = results;
     choice.hidden = !sessions.length;
     select.replaceChildren(...sessions.map((session) => new Option(
-      formatDate(session.startedAt), session.id
+      `${formatDate(session.startedAt)} · ${session.supplement?.durationSeconds ? "≈ " : ""}${formatDuration(session.durationSeconds)}`, session.id
     )));
     if (sessions.some((session) => session.id === previousId)) select.value = previousId;
     selectSession();
