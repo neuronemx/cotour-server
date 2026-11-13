@@ -43,3 +43,12 @@ Para ensayarlo con una selección explícita en un entorno autorizado, configura
 5. Repetir en iPhone/Safari y Android/Chrome, en la red del recinto y con TURN forzado. Confirmar también el acceso de una sesión Individual y de otro evento.
 
 Si Pantalla muestra video ligado, Audiovisual o FX, LIVE cede la proyección. Timer y reacciones conservan sus capas. La imagen de cámara ocupa el área de proyección respetando su proporción. La sesión LIVE es efímera. Para desactivar LIVE, fijar `IMMERSA_LIVE_CAMERA_ENABLED=false` y reiniciar la instancia. La configuración guardada y sus enlaces quedan disponibles para reactivarlo. No requiere migraciones.
+
+
+## Cloudflare TURN en Beta
+
+Configurar `IMMERSA_CLOUDFLARE_TURN_KEY_ID` y `IMMERSA_CLOUDFLARE_TURN_API_TOKEN` en el servicio de Beta. Con esas variables, el servidor solicita credenciales temporales a Cloudflare antes de cada intento autorizado de LIVE. La clave de API permanece en el servidor. Las credenciales temporales duran 24 horas para cubrir una intervención prolongada.
+
+Sin estas variables se conserva el transporte anterior. Si se configura solo una, o Cloudflare rechaza la solicitud, el inicio falla con el aviso de servicio y libera la reserva para reintentar. Al arrancar, el servidor comprueba la generación de credenciales y registra únicamente el resultado, sin secretos. Esa comprobación verifica la API, no la entrega de video.
+
+Para validar el relay, usar `IMMERSA_LIVE_CAMERA_FORCE_RELAY=true`. Para probar exclusivamente TURN sobre TLS/443, usar `IMMERSA_LIVE_CAMERA_TURN_TLS_ONLY=true`, que también fuerza relay. Reiniciar el servicio al cambiar estas variables. Con ambos navegadores recargados, transmitir video y verificar el corte, cambio de cámara y regreso al slide. Probar luego entre redes diferentes. Tras validar, fijar ambas variables en `false` para que WebRTC elija automáticamente la ruta directa o TURN.

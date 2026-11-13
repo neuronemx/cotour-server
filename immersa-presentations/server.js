@@ -15,6 +15,7 @@ const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { createCloudflareTurn } = require("./cloudflare-turn");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
 const { InteractionStore, createInteractionSocketHandlers } = require("./interaction-store");
@@ -342,11 +343,20 @@ const accessLinkHandlers = createAccessLinkHandlers({
     .includes(process.env.RAILWAY_ENVIRONMENT_ID),
   privateRoleTokens: privateLiveCameraTokens
 });
+const cloudflareTurn = createCloudflareTurn();
+if (cloudflareTurn && (liveCameraDemo || liveCameraPilot)) {
+  cloudflareTurn().then(() => {
+    console.log("[live-camera] Cloudflare TURN credentials verified; configuration includes TLS/443");
+  }).catch(() => {
+    console.error("[live-camera] Cloudflare TURN credentials unavailable; check Beta TURN configuration");
+  });
+}
 function attachDeckLiveCamera(pilot) {
   if (!pilot) return;
   attachLiveCamera(io, {
     pilot,
     accessLinks: accessLinkHandlers,
+    getRtcConfiguration: cloudflareTurn || undefined,
     eventHub: eventHubRepository,
     isEventLink: isEventLiveCameraLink,
     canProject: (sessionId, deckId = pilot.deckId) => {

@@ -332,3 +332,35 @@ test("only authenticated participants in the configured live event can negotiate
   await new Promise(setImmediate);
   assert.equal(broadcasts.at(-1)[1].reason, "event");
 });
+
+test("asynchronous TURN failures release the camera reservation and discard a disconnected screen", async t => {
+  const { namespace, open, broadcasts } = testChannel(t, "/live-camera-demo");
+  const pilot = readLiveCameraDemo({ IMMERSA_LIVE_CAMERA_DEMO: JSON.stringify({ origin: config.origin, deckId: config.deckId }) });
+  let configure = async () => { throw new Error("provider failure"); };
+  attachLiveCamera(namespace, {
+    pilot,
+    getRtcConfiguration: () => configure(),
+    accessLinks: { resolveRoleLink: async (token, role) => token === config.links[role] ? roleAccess(role) : null }
+  });
+  const screen = await open("screen");
+  const speaker = await open("speaker");
+  const start = () => new Promise(resolve => speaker.receive("live:start", resolve));
+  assert.deepEqual(await start(), { ok: false, reason: "service" });
+  let finish;
+  configure = () => new Promise(resolve => { finish = resolve; });
+  const starting = start();
+  while (!finish) await new Promise(setImmediate);
+  assert.deepEqual(await start(), { ok: false, reason: "busy" });
+  screen.disconnect();
+  finish({ iceServers: [], iceTransportPolicy: "all" });
+  assert.deepEqual(await starting, { ok: false, reason: "busy" });
+  assert.equal(speaker.messages.some(([event]) => event === "live:prepare"), false);
+  const newScreen = await open("screen");
+  configure = async () => ({ iceServers: [], iceTransportPolicy: "relay" });
+  assert.deepEqual(await start(), { ok: true });
+  assert.equal(newScreen.messages.find(([event]) => event === "live:prepare")[1].rtc.iceTransportPolicy, "relay");
+  const id = broadcasts.at(-1)[1].id;
+  newScreen.receive("live:ready", id);
+  await speaker.receive("live:stop", { id });
+  assert.equal(broadcasts.at(-1)[1].phase, "idle");
+});
