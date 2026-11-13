@@ -1,3 +1,4 @@
+const { dataTimeZone, formatDataDate } = require("./data-time");
 const ExcelJS = require("exceljs");
 
 function sheet(workbook, name, columns) {
@@ -11,7 +12,8 @@ function sheet(workbook, name, columns) {
   return page;
 }
 
-async function writeSessionWorkbook(repository, summary, stream) {
+async function writeSessionWorkbook(repository, summary, stream, options = {}) {
+  const timeZone = dataTimeZone(options.timeZone);
   const book = new ExcelJS.stream.xlsx.WorkbookWriter({ stream, useStyles: true });
   const common = [["Sesión", "sessionId", 38], ["Deck", "deckId", 28]];
   const sheets = {
@@ -24,20 +26,28 @@ async function writeSessionWorkbook(repository, summary, stream) {
     reactions: sheet(book, "Reacciones", [...common, ["ID asistente", "id", 38], ["Tipo", "emoji", 12], ["Cantidad", "count", 12]]),
     raffles: sheet(book, "Sorteos", [...common, ["ID sorteo", "raffleId", 38], ["Sorteo", "title"], ["Estado", "state"], ["ID asistente", "id", 38], ["Nombre", "name"],
       ["Boleto", "ticket", 12], ["Opción", "option"], ["Ingreso", "enteredAt"], ["Ganador", "winner", 12], ["Fecha ganador", "winnerAt", 40], ["Veces ganador", "wins", 16]]),
-    brands: sheet(book, "Marcas", [...common, ["ID marca", "id", 38], ["Marca", "name"], ["Despliegues", "displays", 16], ["Vistas", "impressions", 12], ["Espectadores únicos", "viewers", 22], ["Clics", "clicks", 12], ["Personas con clic", "clickers", 20]]),
+    brands: sheet(book, "Marcas", [...common, ["ID marca", "id", 38], ["Marca", "name"], ["Despliegues", "displays", 16], ["Vistas", "impressions", 12], ["Espectadores únicos", "viewers", 22], ["Clics", "clicks", 12], ["Personas con clic", "clickers", 20], ["Impresiones globales estimadas", "estimatedImpressions", 28]]),
     events: sheet(book, "Actividad de marcas", [...common, ["ID asistente", "id", 38], ["ID marca", "brandId", 38], ["Marca", "name"], ["ID despliegue", "displayId", 38], ["Tipo", "kind"], ["Fecha", "at"], ["Destino", "url", 48]])
   };
   const base = { sessionId: summary.id, deckId: summary.deckId };
   const rowCounts = new Map();
+  const dateColumns = new Set(["joinedAt", "termsAcceptedAt", "at", "projectedAt", "enteredAt"]);
+  const summaryDates = new Set(["Inicio", "Fin", "Exportado", "Cobertura individual desde"]);
   function add(page, data) {
     const count = rowCounts.get(page.name) || 1;
     if (count >= 1048576) throw new Error("La sesión supera el límite de filas de Excel.");
-    const values = Object.fromEntries(Object.entries({...base, ...data}).map(([key,value]) => [key,value instanceof Date ? value.toISOString() : value]));
+    const values = Object.fromEntries(Object.entries({...base, ...data}).map(([key, value]) => {
+      if (key === "winnerAt" && value) return [key, String(value).split(" · ").map(date => formatDataDate(date, timeZone)).join(" · ")];
+      if (value instanceof Date || dateColumns.has(key) || key === "value" && summaryDates.has(data.metric)) {
+        return [key, formatDataDate(value, timeZone)];
+      }
+      return [key, value];
+    }));
     page.addRow(values).commit();
     rowCounts.set(page.name, count + 1);
   }
   const pollAnswers = summary.polls.reduce((n, p) => n + p.totalResponses, 0);
-  const metrics = { "Inicio": summary.startedAt, "Fin": summary.endedAt, "Duración en segundos": summary.durationSeconds,
+  const metrics = { "Zona horaria": timeZone, "Inicio": summary.startedAt, "Fin": summary.endedAt, "Duración en segundos": summary.durationSeconds,
     "Duración originalmente registrada (s)": summary.recordedDurationSeconds ?? summary.durationSeconds,
     "Asistentes": summary.participants.connected, "Pico de conexiones": summary.participants.peak, "Asistentes ES": summary.participants.locales?.es || 0, "Asistentes EN": summary.participants.locales?.en || 0,
     [summary.participation.estimated ? "Activos con actividad registrada" : "Participantes activos"]: summary.participation.active,
@@ -50,6 +60,12 @@ async function writeSessionWorkbook(repository, summary, stream) {
     metrics["Origen del complemento"] = summary.supplement.source;
     metrics["Notas de reconstrucción"] = summary.supplement.note;
     metrics["Marcas reportadas"] = summary.supplement.brandCount;
+    if (summary.supplement.brandEstimate) {
+      const estimate = summary.supplement.brandEstimate;
+      metrics["Permanencia media estimada (min)"] = estimate.averageConnectedMinutes;
+      metrics["Impresiones globales estimadas"] = estimate.globalImpressions;
+      metrics["Cálculo de impresiones estimadas"] = estimate.explanation;
+    }
     if (summary.participation.estimated) {
       metrics["Participantes activos estimados (mínimo)"] = summary.participation.minimum;
       metrics["Participantes activos estimados (máximo)"] = summary.participation.maximum;
@@ -76,18 +92,7 @@ async function writeSessionWorkbook(repository, summary, stream) {
       add(sheets.people, { ...person, raffles: raffleCount, wins, actions: person.actions + raffleCount, answers: person.answers.length, questions: person.questions.length, reactions: person.reactions.total });
       for (const answer of person.answers) add(sheets.answers, { id: person.id, ...answer });
       for (const question of person.questions) add(sheets.questions, { id: person.id, ...question });
-      if (summary.supplement) {
-    metrics["Origen del complemento"] = summary.supplement.source;
-    metrics["Notas de reconstrucción"] = summary.supplement.note;
-    metrics["Marcas reportadas"] = summary.supplement.brandCount;
-    if (summary.participation.estimated) {
-      metrics["Participantes activos estimados (mínimo)"] = summary.participation.minimum;
-      metrics["Participantes activos estimados (máximo)"] = summary.participation.maximum;
-      metrics["Participación estimada mínima (%)"] = summary.participation.percentageMinimum;
-      metrics["Participación estimada máxima (%)"] = summary.participation.percentageMaximum;
-    }
-  }
-  for (const [emoji, count] of Object.entries(person.reactions.byEmoji)) add(sheets.reactions, { id: person.id, emoji, count });
+      for (const [emoji, count] of Object.entries(person.reactions.byEmoji)) add(sheets.reactions, { id: person.id, emoji, count });
     }
     if (offset * 100 >= data.total) break;
     if (stream.destroyed) throw new Error("Exportación cancelada.");
@@ -107,7 +112,7 @@ async function writeSessionWorkbook(repository, summary, stream) {
     state: "Reconstrucción reportada", name: summary.raffles.winnerName, winner: true, wins: 1
   });
   if (!summary.brands.length && summary.supplement?.brandCount) {
-    add(sheets.brands, { name: summary.supplement.brandCount + " marcas reportadas · vistas y clics sin registro" });
+    add(sheets.brands, { name: summary.supplement.brandCount + " marcas reportadas · estimación global", estimatedImpressions: summary.supplement.brandEstimate?.globalImpressions });
   }
   for (const brand of summary.brands) add(sheets.brands, brand);
   for (let offset = 0;; offset += 1000) {
@@ -146,16 +151,17 @@ function createSessionDataHandlers(repository) {
     },
     async export(req, res) {
       try {
+        const timeZone = dataTimeZone(req.query?.timeZone);
         const summary = await repository.summary(req.params.deckId, req.params.sessionId);
         if (!summary) return res.status(404).json({ error: "Sesión no encontrada." });
         res.set("Cache-Control", "no-store");
         res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.attachment("IMMERSA-sesion-" + summary.id.replace(/[^a-z0-9-]/gi, "") + ".xlsx");
-        await writeSessionWorkbook(repository, summary, res);
+        await writeSessionWorkbook(repository, summary, res, { timeZone });
       } catch (error) {
         console.error("Unable to export session", error);
         if (res.headersSent) return res.destroy(error);
-        res.status(500).json({ error: "No se pudo exportar la sesión." });
+        res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "No se pudo exportar la sesión." });
       }
     }
   };

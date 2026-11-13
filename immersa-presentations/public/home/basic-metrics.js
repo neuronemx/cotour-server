@@ -9,6 +9,8 @@
   const choice = document.getElementById("basicMetricsSessionChoice");
   const select = document.getElementById("basicMetricsSessionSelect");
   let sessions = [];
+  const dataTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Mexico_City";
+  select.title = "Zona horaria · " + dataTimeZone;
   const exportButton = document.getElementById("sessionExport");
   let detailVersion = 0;
   let canExport = false;
@@ -24,10 +26,11 @@
   }
 
   function formatDate(value) {
-    const date = new Date(value);
+    const normalized = typeof value === "string" && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(value) ? value.replace(" ", "T") + "Z" : value;
+    const date = new Date(normalized);
     if (!value || Number.isNaN(date.getTime())) return "Fecha no disponible";
     return new Intl.DateTimeFormat("es-MX", {
-      day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
+      timeZone: dataTimeZone, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
     }).format(date).replace(",", " ·");
   }
 
@@ -38,11 +41,6 @@
     const hours = Math.floor(minutes / 60);
     const remainder = minutes % 60;
     return remainder ? `${hours} h ${String(remainder).padStart(2, "0")} min` : `${hours} h`;
-  }
-
-  function sessionLabel(session) {
-    const source = String(session.sourceSessionId || session.id || "").trim();
-    return source ? `Sesión ${source.slice(-8)}` : "Sesión";
   }
 
   function metric(label, value, hint) {
@@ -112,7 +110,7 @@
     const label = document.createElement("strong");
     label.textContent = formatDate(session.startedAt);
     const meta = document.createElement("small");
-    meta.textContent = `${sessionLabel(session)} · ${session.endedAt ? "Finalizada" : "En curso"}`;
+    meta.textContent = session.endedAt ? "Finalizada" : "En curso";
     identity.append(label, meta);
     if (session.supplement) {
       const provenance = document.createElement("small");
@@ -137,7 +135,7 @@
       metric("Asistencia", quantity(session.participants?.connected, "persona", "personas"), `Pico de ${Number(session.participants?.peak) || 0} conectadas`),
       metric("Encuestas", quantity((session.polls || []).length, "encuesta", "encuestas"), quantity(pollResponses, "respuesta", "respuestas")),
       metric("Q&A", quantity(session.qna?.received, "recibida", "recibidas"), `${Number(session.qna?.projected) || 0} proyectada${Number(session.qna?.projected) === 1 ? "" : "s"}`),
-      metric("Reacciones", Number(session.reactions?.total) || 0, ["❤️", "👏", "🔥"].map((emoji) => `${emoji} ${Number(session.reactions?.byEmoji?.[emoji]) || 0}`).join(" · "))
+
     );
     body.appendChild(stats);
     if ((session.polls || []).length) {
@@ -175,30 +173,41 @@
       card.querySelector(".basic-metrics-session-overview").lastElementChild.querySelector("strong").textContent = (data.raffles.estimated ? "≈ " : "") + activity;
       const stats = body.querySelector(".basic-metrics-detail-stats");
       const knowledge = data.knowledge || [];
+      const raffleMetric = metric("Sorteos", data.raffles.total, (data.raffles.estimated ? "≈ " : "") + data.raffles.entries + " participaciones · " + data.raffles.winners + " ganadores");
       stats.append(
+        raffleMetric,
         metric("Participación", data.participation.estimated
           ? data.participation.percentageMinimum + "–" + data.participation.percentageMaximum + "%"
           : data.participation.percentage + "%", data.participation.estimated
           ? "Entre " + data.participation.minimum + " y " + data.participation.maximum + " activos · estimado"
           : data.participation.active + " asistentes activos"),
+        metric("Reacciones", Number(data.reactions?.total) || 0, ["❤️", "👏", "🔥"].map(emoji => emoji + " " + (Number(data.reactions?.byEmoji?.[emoji]) || 0)).join(" · ")),
         metric("Trivias", knowledge.find(k => k.category === "contest")?.executions || 0, (knowledge.find(k => k.category === "contest")?.answers || 0) + " respuestas"),
-        metric("Evaluaciones", knowledge.find(k => k.category === "assessment")?.executions || 0, (knowledge.find(k => k.category === "assessment")?.answers || 0) + " respuestas"),
-        metric("Sorteos", data.raffles.total, (data.raffles.estimated ? "≈ " : "") + data.raffles.entries + " participaciones · " + data.raffles.winners + " ganadores")
+        metric("Evaluaciones", knowledge.find(k => k.category === "assessment")?.executions || 0, (knowledge.find(k => k.category === "assessment")?.answers || 0) + " respuestas")
       );
       if (data.raffles.winnerName) {
         const winner = document.createElement("small");
         winner.textContent = "Ganadora · " + data.raffles.winnerName;
-        stats.lastElementChild.append(winner);
+        raffleMetric.append(winner);
       }
       const brands = document.createElement("section");
       brands.className = "basic-metrics-brands";
       const heading = document.createElement("h4");
       heading.textContent = "Marcas" + (data.supplement?.brandCount ? " · " + data.supplement.brandCount + " reportadas" : "");
       brands.append(heading);
+      const totals = document.createElement("div");
+      totals.className = "basic-metrics-detail-stats";
+      const estimate = data.supplement?.brandEstimate;
+      const impressions = data.brands.reduce((sum, brand) => sum + brand.impressions, 0);
+      totals.append(metric("Marcas", data.supplement?.brandCount || data.brands.length),
+        metric("Impresiones globales", estimate ? "≈ " + estimate.globalImpressions : impressions,
+          estimate ? "Permanencia media estimada · " + estimate.averageConnectedMinutes + " min" : "Vistas registradas de todos los banners"));
+      if (estimate) totals.title = estimate.explanation;
+      brands.append(totals);
       if (!data.brands.length) {
         const empty = document.createElement("p");
         empty.className = "basic-metrics-inline-empty";
-        empty.textContent = data.supplement?.brandCount ? "Vistas y clics sin registro histórico." : "Sin vistas de banners registradas en esta sesión.";
+        empty.textContent = data.supplement?.brandEstimate ? "Impresiones estimadas · clics sin registro histórico." : data.supplement?.brandCount ? "Vistas y clics sin registro histórico." : "Sin vistas de banners registradas en esta sesión.";
         brands.append(empty);
       }
       for (const brand of data.brands) {
@@ -228,7 +237,7 @@
     exportButton.disabled = true;
     const mine = requestVersion;
     try {
-      const response = await fetch("/api/decks/" + encodeURIComponent(deck) + "/metrics/sessions/" + encodeURIComponent(id) + "/export", {cache:"no-store"});
+      const response = await fetch("/api/decks/" + encodeURIComponent(deck) + "/metrics/sessions/" + encodeURIComponent(id) + "/export?timeZone=" + encodeURIComponent(dataTimeZone), {cache:"no-store"});
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || "No se pudo exportar la sesión.");
@@ -252,7 +261,7 @@
     sessions = results;
     choice.hidden = !sessions.length;
     select.replaceChildren(...sessions.map((session) => new Option(
-      `${formatDate(session.startedAt)} · ${session.id.slice(-8)}`, session.id
+      formatDate(session.startedAt), session.id
     )));
     if (sessions.some((session) => session.id === previousId)) select.value = previousId;
     selectSession();

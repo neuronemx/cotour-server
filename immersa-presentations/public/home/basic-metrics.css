@@ -3,8 +3,8 @@
 .basic-metrics-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .basic-metrics-head h4 { margin: 0; color: #0a0d28; font-family: var(--font-display); font-size: 15px; }
 .basic-metrics-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-.basic-metrics-head button { flex: none; min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--blue); background: #fff; font: 700 11px var(--font-display); }
-.basic-metrics-head button:disabled { opacity: .5; cursor: wait; }
+.basic-metrics-head button, #sessionExport { flex: none; min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--blue); background: #fff; font: 700 11px var(--font-display); }
+.basic-metrics-head button:disabled, #sessionExport:disabled { opacity: .5; cursor: wait; }
 .basic-metrics-sessions { display: grid; gap: 10px; }
 .basic-metrics-empty, .basic-metrics-error { padding: 20px; border: 1px dashed rgba(94, 80, 255, .24); border-radius: var(--radius-md); background: var(--grad-soft); text-align: center; }
 .basic-metrics-empty strong { color: #0a0d28; font-family: var(--font-display); font-size: 14px; }
@@ -63,3 +63,6 @@
   font: inherit;
 }
 .basic-metrics-session-toggle:not(button) { cursor: default; }
+
+#basicMetricsSessionSelect { flex: 1; width: 0; }
+#basicMetricsSessionChoice > label, #sessionExport { flex: none; }
