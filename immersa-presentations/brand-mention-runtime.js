@@ -5,7 +5,6 @@ class BrandMentionRuntime {
   constructor({
     io,
     store,
-    coordinator,
     getRoleRoomKey,
     now = Date.now,
     setTimeoutFn = setTimeout,
@@ -16,7 +15,6 @@ class BrandMentionRuntime {
   }) {
     this.io = io;
     this.store = store;
-    this.coordinator = coordinator;
     this.getRoleRoomKey = getRoleRoomKey;
     this.now = now;
     this.setTimeoutFn = setTimeoutFn;
@@ -25,7 +23,6 @@ class BrandMentionRuntime {
     this.displayMs = displayMs;
     this.recordEvent = recordEvent;
     this.sessions = new Map();
-    this.unsubscribeActivity = coordinator?.subscribeActivity?.((snapshot) => this.handleActivityChange(snapshot)) || null;
   }
 
   audienceRoom(roomKey) {
@@ -63,7 +60,6 @@ class BrandMentionRuntime {
         deckId: String(context.deckId || ""),
         brandSourceId: String(context.brandSourceId || context.deckId || ""),
         running: false,
-        blocked: false,
         lastBrandId: "",
         mention: null,
         recent: new Map(),
@@ -90,7 +86,7 @@ class BrandMentionRuntime {
   }
 
   schedule(state) {
-    if (!state?.running || state.blocked || state.nextTimer) return false;
+    if (!state?.running || state.nextTimer) return false;
     state.nextTimer = this.setTimeoutFn(() => this.showNext(state), this.intervalMs);
     state.nextTimer?.unref?.();
     return true;
@@ -112,14 +108,12 @@ class BrandMentionRuntime {
     state.deckId = String(context.deckId || state.deckId);
     state.brandSourceId = String(context.brandSourceId || state.brandSourceId || state.deckId);
     if (state.running) {
-      if (!state.blocked && !state.nextTimer && !state.mention && await this.hasActiveBrands(state.brandSourceId)) this.schedule(state);
+      if (!state.nextTimer && !state.mention && await this.hasActiveBrands(state.brandSourceId)) this.schedule(state);
       return true;
     }
     state.running = true;
     state.generation += 1;
     const generation = state.generation;
-    state.blocked = Boolean(this.coordinator?.hasAnyActive?.(state.sessionId));
-    if (state.blocked) return true;
     await this.hasActiveBrands(state.brandSourceId);
     if (!state.running || state.generation !== generation) return false;
     return this.schedule(state);
@@ -145,11 +139,6 @@ class BrandMentionRuntime {
   async showNext(state) {
     this.clearTimer(state, "nextTimer");
     if (!state.running) return false;
-    if (this.coordinator?.hasAnyActive?.(state.sessionId)) {
-      state.blocked = true;
-      this.hide(state);
-      return false;
-    }
     let brands;
     try {
       brands = this.activeBrands(await this.store.read(state.brandSourceId));
@@ -158,7 +147,7 @@ class BrandMentionRuntime {
       this.schedule(state);
       return false;
     }
-    if (!state.running || state.blocked) return false;
+    if (!state.running) return false;
     if (!brands.length) {
       this.schedule(state);
       return false;
@@ -178,24 +167,10 @@ class BrandMentionRuntime {
     return true;
   }
 
-  async handleActivityChange({ sessionId, active }) {
-    const matches = Array.from(this.sessions.values()).filter((state) => state.sessionId === String(sessionId || "") && state.running);
-    for (const state of matches) {
-      this.clearTimer(state, "nextTimer");
-      if (active) {
-        state.blocked = true;
-        this.hide(state);
-        continue;
-      }
-      state.blocked = false;
-      if (await this.hasActiveBrands(state.brandSourceId)) this.schedule(state);
-    }
-  }
-
   sendCurrentState(socket, context) {
     if (context?.role !== "audience") return false;
     const state = this.sessions.get(String(context.roomKey || ""));
-    if (!state?.mention || state.mention.visible_until <= this.now() || state.blocked) return false;
+    if (!state?.mention || state.mention.visible_until <= this.now()) return false;
     socket.emit("brand_mention:show", state.mention);
     return true;
   }
@@ -211,7 +186,6 @@ class BrandMentionRuntime {
 
   close() {
     for (const roomKey of Array.from(this.sessions.keys())) this.stop(roomKey);
-    this.unsubscribeActivity?.();
   }
 }
 

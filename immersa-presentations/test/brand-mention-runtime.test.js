@@ -111,21 +111,24 @@ test("mentions rotate in active order after 120 seconds and hide after 8 seconds
   assert.equal(events.every((entry) => entry.room.endsWith("::audience")), true);
 });
 
-test("an active interaction hides the current mention and restarts a full interval after closing", async () => {
+test("activities neither hide banners nor reset the two-minute rotation", async () => {
   const { clock, coordinator, events, runtime, context } = fixture();
+  await coordinator.setActive("session-a", true);
   await runtime.start(context);
   await clock.advance(120000);
   assert.equal(events.at(-1).event, "brand_mention:show");
-  await coordinator.setActive("session-a", true);
-  assert.equal(events.at(-1).event, "brand_mention:hide");
-  await clock.advance(60000);
-  assert.equal(events.filter((entry) => entry.event === "brand_mention:show").length, 1);
   await coordinator.setActive("session-a", false);
-  await clock.advance(119999);
-  assert.equal(events.filter((entry) => entry.event === "brand_mention:show").length, 1);
-  await clock.advance(1);
+  await coordinator.setActive("session-a", true);
   assert.equal(events.at(-1).event, "brand_mention:show");
-  assert.equal(events.at(-1).payload.id, "b");
+  const late = [];
+  assert.equal(runtime.sendCurrentState({emit: (...args) => late.push(args)}, context), true);
+  await clock.advance(8000);
+  assert.equal(events.at(-1).event, "brand_mention:hide");
+  await clock.advance(100000);
+  await coordinator.setActive("session-a", false);
+  await clock.advance(12000);
+  const shows = events.filter(event => event.event === "brand_mention:show");
+  assert.deepEqual(shows.map(event => [event.at, event.payload.id]), [[120000, "a"], [240000, "b"]]);
 });
 
 test("late Público receives the one current mention while other roles receive nothing", async () => {
@@ -186,8 +189,8 @@ test("Público loads a clickable reduced-motion card and Screen stays untouched"
   const linkIcon = path.join(__dirname, "..", "public/audience/external-link.png");
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
 
-  assert.match(audienceHtml, /brand-mention\.css\?v=7/);
-  assert.match(audienceHtml, /brand-mention\.js\?v=6/);
+  assert.match(audienceHtml, /brand-mention\.css\?v=8/);
+  assert.match(audienceHtml, /brand-mention\.js\?v=7/);
   assert.doesNotMatch(screenHtml, /brand-mention/i);
   assert.match(client, /target = "_blank"/);
   assert.match(client, /rel = "noopener noreferrer"/);

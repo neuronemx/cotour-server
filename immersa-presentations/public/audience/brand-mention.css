@@ -236,3 +236,50 @@
     scroll-behavior: auto;
   }
 }
+
+/* During activities, reserve a footer for the brand beneath the controls. */
+.brand-mention-host.is-activity-docked {
+  top: auto;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  max-height: 30dvh;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.has-brand-activity .interaction-card {
+  top: calc((100dvh - var(--brand-mention-space)) / 2) !important;
+  max-height: calc(100dvh - var(--brand-mention-space) - 32px) !important;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.has-brand-activity .knowledge-audience-overlay,
+.has-brand-activity .raffle-public-overlay,
+.has-brand-activity .pong-ui-host,
+.has-brand-activity .breakout-ui-host,
+.has-brand-activity .selfie-audience {
+  bottom: var(--brand-mention-space) !important;
+}
+.has-brand-activity .knowledge-audience-card {
+  max-height: calc(100dvh - var(--brand-mention-space) - 64px);
+  box-sizing: border-box;
+}
+.has-brand-activity .raffle-public-overlay {
+  height: auto !important;
+  min-height: 0 !important;
+}
+.has-brand-activity .raffle-public-card {
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow-y: auto;
+}
+.has-brand-activity .breakout-audience {
+  height: calc(100dvh - var(--brand-mention-space)) !important;
+}
+.has-brand-activity .reaction-bar {
+  bottom: calc(var(--brand-mention-space) + 9px);
+}
+.brand-mention-host.is-activity-docked:not(.is-visible):not(.is-exiting) {
+  transform: translate3d(-50%, calc(100% + 24px), 0);
+}
+.has-brand-activity .pong-audience {
+  min-height: calc(100dvh - var(--brand-mention-space));
+}

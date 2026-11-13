@@ -19,6 +19,31 @@
     const viewed = new Set();
     let visibilityTimer = null;
 
+    const activitySelector = ".interaction-card:not(.interaction-hidden), .raffle-public-overlay:not([hidden]), .knowledge-audience-overlay:not([hidden]), .selfie-audience:not([hidden]), .pong-ui-host:not([hidden]), .breakout-ui-host:not([hidden])";
+    let layoutFrame = null;
+    function updateLayout() {
+      layoutFrame = null;
+      if (!host || !document.documentElement) return;
+      const active = Boolean((pendingMention || host.classList.contains("is-exiting")) && !host.hidden && [...document.querySelectorAll(activitySelector)]
+        .some(element => element.children.length && element.getClientRects().length && root.getComputedStyle(element).visibility !== "hidden"));
+      if (host.classList.contains("is-activity-docked") !== active) host.classList.toggle("is-activity-docked", active);
+      if (document.documentElement.classList.contains("has-brand-activity") !== active) document.documentElement.classList.toggle("has-brand-activity", active);
+      const space = active ? Math.ceil(host.getBoundingClientRect().height + (parseFloat(root.getComputedStyle(host).bottom) || 8)) + 8 : 0;
+      const value = space + "px";
+      if (document.documentElement.style.getPropertyValue("--brand-mention-space") !== value) {
+        document.documentElement.style.setProperty("--brand-mention-space", value);
+      }
+    }
+    function scheduleLayout() {
+      if (layoutFrame !== null) return;
+      layoutFrame = root.requestAnimationFrame(updateLayout);
+    }
+    if (root.MutationObserver) new root.MutationObserver(scheduleLayout).observe(document.body, {
+      subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class"]
+    });
+    root.addEventListener?.("resize", scheduleLayout);
+    root.visualViewport?.addEventListener("resize", scheduleLayout);
+
     function report(mention, kind) {
       if (!mention?.display_id || !root.crypto?.randomUUID) return;
       const event = { kind, displayId: mention.display_id, eventId: root.crypto.randomUUID() };
@@ -47,6 +72,7 @@
     function ensureHost() {
       if (host) return host;
       host = document.createElement("aside");
+      if (root.ResizeObserver) new root.ResizeObserver(scheduleLayout).observe(host);
       host.className = "brand-mention-host";
       host.hidden = true;
       host.setAttribute("aria-live", "polite");
@@ -108,6 +134,7 @@
       host.classList.remove("is-visible");
       if (reducedMotion?.matches) {
         host.hidden = true;
+        updateLayout();
         host.classList.remove("is-exiting");
         host.replaceChildren();
         return;
@@ -116,6 +143,7 @@
       concealTimer = setTimeoutFn(() => {
         if (generation !== currentGeneration) return;
         host.hidden = true;
+        updateLayout();
         host.classList.remove("is-exiting");
         host.replaceChildren();
       }, 760);
@@ -182,6 +210,7 @@
       if (!root.requestAnimationFrame) container.classList.add("is-visible");
       hideTimer = setTimeoutFn(hide, remaining);
       pendingMention = mention;
+      updateLayout();
       scheduleView();
     }
 
