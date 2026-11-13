@@ -60,7 +60,7 @@ Activar `IMMERSA_LIVE_GUESTS_ENABLED=true` en Beta para habilitar un invitado po
 
 En Stage, abrir **Invitados LIVE**, escribir el nombre y crear el enlace. Cada enlace dura 24 horas y sustituye el anterior de ese Deck y sesión. El invitado abre el enlace y pulsa **Entrar** para autorizar cámara, micrófono y sonido. Desde ese momento solo ve su monitor y los estados **EN ESPERA**, **EN VIVO** y **ENLACE TERMINADO**.
 
-Para el ensayo, usar Stage con audífonos en un equipo distinto al de Pantalla. En Stage, seleccionar **Micrófono de producción** y **Audio del escenario**, y pulsar **Activar / actualizar audio**. La entrada del escenario debe ser el retorno de consola que excluye la voz del invitado. En Pantalla, pulsar **Activar audio de Invitados LIVE** una vez. El audio de Pantalla sale por el sistema del evento.
+Para el ensayo, usar Stage con audífonos en un equipo distinto al de Pantalla. En Stage, seleccionar **Micrófono de producción** y **Audio del escenario**, y pulsar **Activar / actualizar audio**. La entrada del escenario debe ser el retorno de consola que excluye la voz del invitado. En Pantalla, activar el audio una vez con el botón compartido de sonido. El audio de Pantalla sale por el sistema del evento.
 
 Con el invitado conectado, pulsar **Preparar conexión**. Stage recibe el monitor y conversa en privado con el invitado. **Enviar a Pantalla** prepara la salida y espera a que Pantalla decodifique video y reciba audio antes de ponerla al aire. El retorno al invitado cambia del micrófono de producción al audio del escenario. Stage puede silenciar y terminar el enlace. Al terminar, se detiene la cámara del invitado y Pantalla recupera el contenido vigente.
 

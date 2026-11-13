@@ -262,18 +262,48 @@
     screenHost.append(overlay);
     video = overlay.querySelector("video");
     video.addEventListener("resize", render);
-    const unlock = document.createElement("button");
-    unlock.className = "guest-audio-unlock";
-    unlock.textContent = "Activar audio de Invitados LIVE";
-    document.body.append(unlock);
-    unlock.onclick = async () => {
+    let unlock;
+    function ensureSharedUnlock() {
+      if (audioUnlocked) return;
+      const shared = [...document.querySelectorAll("[data-immersa-media-unlock]:not([hidden])")]
+        .some(button => button !== unlock);
+      if (shared) { unlock?.remove(); return; }
+      if (!unlock) {
+        unlock = document.createElement("button");
+        unlock.type = "button";
+        unlock.className = "guest-audio-unlock";
+        unlock.dataset.immersaMediaUnlock = "1";
+        unlock.textContent = "Activar audio";
+      }
+      if (!unlock.isConnected) screenHost.append(unlock);
+    }
+    const unlockObserver = new MutationObserver(ensureSharedUnlock);
+    unlockObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+    async function unlockGuestAudio() {
       try {
         await initAudio();
-        audioUnlocked = true;
-        socket.emit("guest:media-ready");
-        unlock.hidden = true;
-      } catch { unlock.textContent = "Reintentar audio de Invitados LIVE"; }
-    };
+        if (!audioUnlocked) {
+          audioUnlocked = true;
+          socket.emit("guest:media-ready");
+        }
+        unlockObserver.disconnect();
+        unlock?.remove();
+        const first = !window.__immersaMediaUnlocked;
+        window.__immersaMediaUnlocked = true;
+        if (first) document.dispatchEvent(new Event("immersa:media-unlocked"));
+      } catch {
+        ensureSharedUnlock();
+        if (unlock?.isConnected) unlock.textContent = "Reintentar audio";
+      }
+    }
+    document.addEventListener("click", event => {
+      if (event.target.closest?.("[data-immersa-media-unlock]")) void unlockGuestAudio();
+    }, true);
+    document.addEventListener("immersa:media-unlocked", () => {
+      if (!audioUnlocked) void unlockGuestAudio();
+    });
+    if (window.__immersaMediaUnlocked) void unlockGuestAudio();
+    else ensureSharedUnlock();
   }
 
   function fail(id) {
