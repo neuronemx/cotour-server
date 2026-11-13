@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <title>Invitado LIVE · IMMERSA</title>
+  <link rel="stylesheet" href="/live-guests/client.css?v=1">
+  <script src="/socket.io/socket.io.js" defer></script>
+  <script src="/live-guests/client.js?v=1" defer></script>
+</head>
+<body class="guest-page" data-live-guest="true">
+  <main class="guest-experience">
+    <header><strong>IMMERSA</strong><span>LIVE</span></header>
+    <div class="guest-monitor"><video id="guestPreview" autoplay muted playsinline aria-label="Tu cámara"></video></div>
+    <section class="guest-caption" aria-live="polite">
+      <h1 id="guestState">EN ESPERA</h1>
+      <p id="guestMessage">Entra para que producción prepare tu participación.</p>
+      <button id="guestEnter" type="button">Entrar</button>
+    </section>
+  </main>
+</body>
+</html>

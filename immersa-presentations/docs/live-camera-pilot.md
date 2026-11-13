@@ -52,3 +52,20 @@ Configurar `IMMERSA_CLOUDFLARE_TURN_KEY_ID` y `IMMERSA_CLOUDFLARE_TURN_API_TOKEN
 Sin estas variables se conserva el transporte anterior. Si se configura solo una, o Cloudflare rechaza la solicitud, el inicio falla con el aviso de servicio y libera la reserva para reintentar. Al arrancar, el servidor comprueba la generación de credenciales y registra únicamente el resultado, sin secretos. Esa comprobación verifica la API, no la entrega de video.
 
 Para validar el relay, usar `IMMERSA_LIVE_CAMERA_FORCE_RELAY=true`. Para probar exclusivamente TURN sobre TLS/443, usar `IMMERSA_LIVE_CAMERA_TURN_TLS_ONLY=true`, que también fuerza relay. Reiniciar el servicio al cambiar estas variables. Con ambos navegadores recargados, transmitir video y verificar el corte, cambio de cámara y regreso al slide. Probar luego entre redes diferentes. Tras validar, fijar ambas variables en `false` para que WebRTC elija automáticamente la ruta directa o TURN.
+
+
+## Invitados LIVE, primer hito en Beta
+
+Activar `IMMERSA_LIVE_GUESTS_ENABLED=true` en Beta para habilitar un invitado por Deck y sesión en los enlaces normales de Stage y Pantalla. Requiere Cloudflare TURN. La función está apagada por defecto y depende del entorno permitido para LIVE de Decks de trabajo.
+
+En Stage, abrir **Invitados LIVE**, escribir el nombre y crear el enlace. Cada enlace dura 24 horas y sustituye el anterior de ese Deck y sesión. El invitado abre el enlace y pulsa **Entrar** para autorizar cámara, micrófono y sonido. Desde ese momento solo ve su monitor y los estados **EN ESPERA**, **EN VIVO** y **ENLACE TERMINADO**.
+
+Para el ensayo, usar Stage con audífonos en un equipo distinto al de Pantalla. En Stage, seleccionar **Micrófono de producción** y **Audio del escenario**, y pulsar **Activar / actualizar audio**. La entrada del escenario debe ser el retorno de consola que excluye la voz del invitado. En Pantalla, pulsar **Activar audio de Invitados LIVE** una vez. El audio de Pantalla sale por el sistema del evento.
+
+Con el invitado conectado, pulsar **Preparar conexión**. Stage recibe el monitor y conversa en privado con el invitado. **Enviar a Pantalla** prepara la salida y espera a que Pantalla decodifique video y reciba audio antes de ponerla al aire. El retorno al invitado cambia del micrófono de producción al audio del escenario. Stage puede silenciar y terminar el enlace. Al terminar, se detiene la cámara del invitado y Pantalla recupera el contenido vigente.
+
+El invitado envía una señal de audio y video a Stage. Stage la reenvía a Pantalla por una segunda conexión WebRTC. Stage debe permanecer abierto durante la intervención. Cerrar su panel permite seguir operando el Deck. Una reserva compartida evita la simultaneidad con LIVE del Speaker. La pérdida de un participante corta la salida y exige preparar y dar entrada de nuevo. La autorización se revalida periódicamente y Pantalla mantiene un temporizador local para retirar video y audio si dejan de llegar renovaciones o fotogramas.
+
+El estado al aire es efímero. Los enlaces se guardan mediante escritura atómica en `data/live-guests/`. Al finalizar la presentación, el enlace conectado se marca terminado. Para repetir una intervención finalizada se crea un enlace nuevo. Para desactivar el piloto, fijar `IMMERSA_LIVE_GUESTS_ENABLED=false` y desplegar.
+
+La primera validación cubre un invitado, producción y Pantalla. La vista del slide, las reacciones y las preguntas seleccionadas para el invitado corresponden al siguiente hito.

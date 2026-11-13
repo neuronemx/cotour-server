@@ -1,4 +1,5 @@
 const { createHmac, randomUUID } = require("node:crypto");
+const { createLiveProjection } = require("./live-projection");
 const { isSystemDemoDeckId } = require("./system-demo-deck");
 
 const ROLES = ["speaker", "screen", "stage"];
@@ -76,7 +77,7 @@ function liveCameraPageAssets(pilot, { req, accessLink, deck }, isEventLink = ()
   if (req.query.deck && req.query.deck !== deck.deckId) return null;
   if (req.query.eventActivityId && (pilot.demo || req.query.eventActivityId !== pilot.activityId)) return null;
   const namespace = pilot.demo ? ` data-live-camera-namespace="${DEMO_NAMESPACE}"` : "";
-  return `<link rel="stylesheet" href="/live-camera/pilot.css?v=5"><script src="/live-camera/pilot.js?v=8"${namespace} defer></script>`;
+  return `<link rel="stylesheet" href="/live-camera/pilot.css?v=6"><script src="/live-camera/pilot.js?v=8"${namespace} defer></script>`;
 }
 
 function rtcConfiguration(pilot) {
@@ -107,7 +108,7 @@ function signalBody(role, message) {
   return null;
 }
 
-function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () => true, isEventLink = () => false, getRtcConfiguration = rtcConfiguration }) {
+function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () => true, isEventLink = () => false, getRtcConfiguration = rtcConfiguration, projection = createLiveProjection() }) {
   if (!pilot || (!pilot.demo && !eventHub)) return;
   const roles = pilot.demo ? DEMO_ROLES : ROLES;
   const channel = io.of(pilot.demo ? DEMO_NAMESPACE : "/live-camera");
@@ -142,7 +143,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
 
   const rooms = new Map();
   const fixedRoom = pilot.workDecks ? null : createLiveCameraRoom({
-    pilot, eventHub, canProject, getRtcConfiguration,
+    pilot, eventHub, canProject, getRtcConfiguration, projection,
     authorizedLink: async (socket, role) => (await resolveAuthorizedLink(socket, role))?.accessLink,
     publish: status => channel.emit("live:status", status)
   });
@@ -155,7 +156,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
     let connect = rooms.get(key);
     if (!connect) {
       connect = createLiveCameraRoom({
-        pilot, eventHub, getRtcConfiguration,
+        pilot: { ...pilot, deckId }, eventHub, getRtcConfiguration, projection,
         canProject: id => canProject(id, deckId),
         authorizedLink: async (peer, role) => {
           const resolved = await resolveAuthorizedLink(peer, role);
@@ -172,7 +173,7 @@ function attachLiveCamera(io, { pilot, accessLinks, eventHub, canProject = () =>
   });
 }
 
-function createLiveCameraRoom({ pilot, eventHub, canProject, getRtcConfiguration, authorizedLink, publish, onEmpty }) {
+function createLiveCameraRoom({ pilot, eventHub, canProject, getRtcConfiguration, projection, authorizedLink, publish, onEmpty }) {
   let peers = 0;
   let screen = null;
   let active = null;
@@ -189,6 +190,7 @@ function createLiveCameraRoom({ pilot, eventHub, canProject, getRtcConfiguration
   function stop(attempt, reason) {
     if (active !== attempt) return;
     active = null;
+    projection.release(attempt.sessionId, pilot.deckId, attempt.id);
     clearTimeout(attempt.startTimeout);
     clearInterval(attempt.leaseTimer);
     publishStatus(reason);
@@ -267,6 +269,7 @@ function createLiveCameraRoom({ pilot, eventHub, canProject, getRtcConfiguration
           phase: "starting", expiresAt: Date.now() + LEASE_MS,
           speaker: socket, screen: receiver, signalCounts: { speaker: 0, screen: 0 }
         };
+        if (!projection.acquire(attempt.sessionId, pilot.deckId, attempt.id)) return ack({ ok: false, reason: "busy" });
         active = attempt;
         attempt.startTimeout = setTimeout(() => stop(attempt, attempt.screenConnected ? "video" : "network"), START_TIMEOUT_MS);
         attempt.leaseTimer = setInterval(() => void renew(attempt), 1000);

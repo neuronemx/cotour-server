@@ -15,6 +15,8 @@ const { Server } = require("socket.io");
 const { createUploadHandler, createDeckReplacementHandler, createLocaleVariantUploadHandler, createLocaleVariantMutationHandler } = require("./pdf-upload-support");
 const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
+const { createLiveGuests } = require("./live-guests");
+const { createLiveProjection } = require("./live-projection");
 const { createCloudflareTurn } = require("./cloudflare-turn");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
 const { generateUniqueSessionId, manifestSessionId } = require("./session-id");
@@ -99,6 +101,8 @@ const DATA_TMP_DIR = path.join(DATA_DIR, "tmp");
 const DATA_PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const DATA_EVENT_HUBS_DIR = path.join(DATA_DIR, "event-hubs");
 const sessions = new Map();
+let liveGuests = null;
+const liveProjection = createLiveProjection();
 const sessionShutdowns = new Map();
 const demoSessionVisibilityStore = createDemoSessionVisibilityStore();
 const deckSlideCounts = { demo: 3 };
@@ -273,6 +277,7 @@ const presentationLifecycleRuntime = lifecyclePool
         return { ok: true };
       },
       afterFinish: async (context, state) => {
+        await liveGuests?.endSession(context);
         sessionDataRepository?.releaseSession(context);
         const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
         if (reactions) {
@@ -319,7 +324,7 @@ async function getStageFeatureAccess(deckId) {
 const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   io, getRoleRoomKey,
   getSession: ({ deckId, sourceSessionId }) => getSessionByRoomKey(getRoomKey(sourceSessionId, deckId)),
-  onFinish: context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); }
+  onFinish: async context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); await liveGuests?.endSession(context); }
 });
 
 const liveCameraEnabled = process.env.IMMERSA_LIVE_CAMERA_ENABLED !== "false";
@@ -336,8 +341,10 @@ const accessLinkHandlers = createAccessLinkHandlers({
   publicDir: PUBLIC_DIR,
   startScreenExecution: qnaRuntime.startScreenExecution,
   resolveDeckFeatureAccess: getStageFeatureAccess,
-  rolePageAssets: context => liveCameraPageAssets(liveCameraPilot, context)
-    || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
+  rolePageAssets: context => [
+    liveCameraPageAssets(liveCameraPilot, context) || liveCameraPageAssets(liveCameraDemo, context, isEventLiveCameraLink),
+    liveGuests?.pageAssets(context)
+  ].filter(Boolean).join(""),
   audienceRegistration: audienceRegistrationRepository,
   audienceWelcome: ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
     .includes(process.env.RAILWAY_ENVIRONMENT_ID),
@@ -357,6 +364,7 @@ function attachDeckLiveCamera(pilot) {
     pilot,
     accessLinks: accessLinkHandlers,
     getRtcConfiguration: cloudflareTurn || undefined,
+    projection: liveProjection,
     eventHub: eventHubRepository,
     isEventLink: isEventLiveCameraLink,
     canProject: (sessionId, deckId = pilot.deckId) => {
@@ -396,6 +404,26 @@ if (liveCameraDemo) {
 } else if (liveCameraEnabled) {
   enableLiveCameraDemo(readLiveCameraDemo()).catch(error => console.error("[live-camera] Unable to enable demo", error.code || error.name));
 }
+liveGuests = createLiveGuests({
+  io, dataDir: DATA_DIR, publicDir: PUBLIC_DIR,
+  origin: liveCameraDemo?.origin,
+  enabled: Boolean(liveCameraDemo?.workDecks && cloudflareTurn) && process.env.IMMERSA_LIVE_GUESTS_ENABLED === "true",
+  getRtcConfiguration: cloudflareTurn,
+  projection: liveProjection,
+  authorizeRole: async (role, token) => {
+    const resolved = await accessLinkHandlers.resolveRoleLink(token, role);
+    if (!resolved || isSystemDemoDeckId(resolved.deck.deckId)) return null;
+    if (role === "stage") {
+      const access = await getStageFeatureAccess(resolved.deck.deckId);
+      if (access.capabilities?.[CAPABILITIES.ACCESS_BACKSTAGE] !== true) return null;
+    }
+    return resolved;
+  },
+  canProject: (sessionId, deckId) => {
+    const video = getSessionByRoomKey(getRoomKey(sessionId, deckId))?.audiovisual?.video;
+    return !video?.resource || video.status === "stopped";
+  }
+});
 const qnaHistoryHandlers = createQnaHistoryHandlers({ runtime: qnaRuntime });
 const knowledgeActivityHistoryHandlers = createKnowledgeActivityHistoryHandlers({
   runtime: knowledgeActivityRuntime
@@ -1095,6 +1123,7 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
     role: "system"
   };
   const shutdown = (async () => {
+    await liveGuests?.endSession(context);
     context.finishReason = "INACTIVITY";
     const access = await getStageFeatureAccess(context.deckId);
     if (!canUseFeature(access, CAPABILITIES.METRICS_BASIC)) {
@@ -2154,6 +2183,7 @@ app.get(
   knowledgeActivityHistoryHandlers.exportExecution
 );
 app.delete("/api/qna/history/:access_token", accessLinkHandlers.guardAccessRoles(["speaker"]), requireDeckFeature(CAPABILITIES.METRICS_BASIC), qnaHistoryHandlers.clearHistory);
+app.get("/guest/:token", liveGuests.openGuest);
 app.get("/speaker/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/presenter/:access_token", accessLinkHandlers.openRole("speaker", "presenter"));
 app.get("/stage/:access_token", accessLinkHandlers.openRole("stage", "stage"));
