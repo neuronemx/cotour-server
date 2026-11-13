@@ -38,12 +38,25 @@ async function writeSessionWorkbook(repository, summary, stream) {
   }
   const pollAnswers = summary.polls.reduce((n, p) => n + p.totalResponses, 0);
   const metrics = { "Inicio": summary.startedAt, "Fin": summary.endedAt, "Duración en segundos": summary.durationSeconds,
+    "Duración originalmente registrada (s)": summary.recordedDurationSeconds ?? summary.durationSeconds,
     "Asistentes": summary.participants.connected, "Pico de conexiones": summary.participants.peak, "Asistentes ES": summary.participants.locales?.es || 0, "Asistentes EN": summary.participants.locales?.en || 0,
-    "Participantes activos": summary.participation.active, "Participación (%)": summary.participation.percentage,
+    [summary.participation.estimated ? "Activos con actividad registrada" : "Participantes activos"]: summary.participation.active,
+    [summary.participation.estimated ? "Participación registrada (%)" : "Participación (%)"]: summary.participation.percentage,
     "Encuestas": summary.polls.length, "Respuestas a encuestas": pollAnswers, "Preguntas recibidas": summary.qna.received,
     "Preguntas proyectadas": summary.qna.projected, "Reacciones": summary.reactions.total,
     "Sorteos": summary.raffles.total, "Participaciones en sorteos": summary.raffles.entries, "Ganadores": summary.raffles.winners,
     "Cobertura individual desde": summary.recordedSince || "", "Exportado": new Date().toISOString() };
+  if (summary.supplement) {
+    metrics["Origen del complemento"] = summary.supplement.source;
+    metrics["Notas de reconstrucción"] = summary.supplement.note;
+    metrics["Marcas reportadas"] = summary.supplement.brandCount;
+    if (summary.participation.estimated) {
+      metrics["Participantes activos estimados (mínimo)"] = summary.participation.minimum;
+      metrics["Participantes activos estimados (máximo)"] = summary.participation.maximum;
+      metrics["Participación estimada mínima (%)"] = summary.participation.percentageMinimum;
+      metrics["Participación estimada máxima (%)"] = summary.participation.percentageMaximum;
+    }
+  }
   for (const [emoji, count] of Object.entries(summary.reactions.byEmoji || {})) metrics["Reacciones " + emoji] = count;
   for (const k of summary.knowledge) {
     metrics[k.category === "contest" ? "Trivias" : "Evaluaciones"] = k.executions;
@@ -63,7 +76,18 @@ async function writeSessionWorkbook(repository, summary, stream) {
       add(sheets.people, { ...person, raffles: raffleCount, wins, actions: person.actions + raffleCount, answers: person.answers.length, questions: person.questions.length, reactions: person.reactions.total });
       for (const answer of person.answers) add(sheets.answers, { id: person.id, ...answer });
       for (const question of person.questions) add(sheets.questions, { id: person.id, ...question });
-      for (const [emoji, count] of Object.entries(person.reactions.byEmoji)) add(sheets.reactions, { id: person.id, emoji, count });
+      if (summary.supplement) {
+    metrics["Origen del complemento"] = summary.supplement.source;
+    metrics["Notas de reconstrucción"] = summary.supplement.note;
+    metrics["Marcas reportadas"] = summary.supplement.brandCount;
+    if (summary.participation.estimated) {
+      metrics["Participantes activos estimados (mínimo)"] = summary.participation.minimum;
+      metrics["Participantes activos estimados (máximo)"] = summary.participation.maximum;
+      metrics["Participación estimada mínima (%)"] = summary.participation.percentageMinimum;
+      metrics["Participación estimada máxima (%)"] = summary.participation.percentageMaximum;
+    }
+  }
+  for (const [emoji, count] of Object.entries(person.reactions.byEmoji)) add(sheets.reactions, { id: person.id, emoji, count });
     }
     if (offset * 100 >= data.total) break;
     if (stream.destroyed) throw new Error("Exportación cancelada.");
@@ -77,6 +101,13 @@ async function writeSessionWorkbook(repository, summary, stream) {
       wins: (raffle.winners || []).filter(w => w.audienceId === entry.audienceId).length,
       winnerAt: (raffle.winners || []).filter(w => w.audienceId === entry.audienceId).map(w => w.selectedAt || raffle.winnerSelectedAt || "").join(" · ")
     });
+  }
+  if (summary.raffles.estimated) add(sheets.raffles, {
+    title: "Sorteo reconstruido · ≈ " + summary.raffles.entries + " participantes",
+    state: "Reconstrucción reportada", name: summary.raffles.winnerName, winner: true, wins: 1
+  });
+  if (!summary.brands.length && summary.supplement?.brandCount) {
+    add(sheets.brands, { name: summary.supplement.brandCount + " marcas reportadas · vistas y clics sin registro" });
   }
   for (const brand of summary.brands) add(sheets.brands, brand);
   for (let offset = 0;; offset += 1000) {

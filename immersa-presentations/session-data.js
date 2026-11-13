@@ -91,11 +91,17 @@ class SessionDataRepository {
     );
     const ids = new Set(engaged.map(row => row.audience_id));
     for (const raffle of raffles) for (const entry of raffle.entries || []) ids.add(entry.audienceId);
+    const supplement = session.supplement;
+    const estimatedRaffle = !raffles.length ? supplement?.raffle : null;
+    const minimum = estimatedRaffle ? Math.max(ids.size, estimatedRaffle.participantsEstimate) : ids.size;
+    const maximum = estimatedRaffle ? Math.min(session.participants.connected, ids.size + estimatedRaffle.participantsEstimate) : ids.size;
     return {
       ...session, deckId, recordedSince: (await this.engagement.session(deckId, sessionId))?.engagement_started_at,
-      participation: { active: ids.size, percentage: session.participants.connected ? Math.round(ids.size / session.participants.connected * 100) : 0 },
+      participation: { active: ids.size, percentage: session.participants.connected ? Math.round(ids.size / session.participants.connected * 100) : 0,
+        ...(estimatedRaffle ? { estimated: true, minimum, maximum, percentageMinimum: Math.round(minimum / session.participants.connected * 100),
+          percentageMaximum: Math.round(maximum / session.participants.connected * 100) } : {}) },
       knowledge: knowledge.map(row => ({ category: row.category, executions: Number(row.executions), answers: Number(row.answers) })),
-      raffles: { total: raffles.length, entries: raffles.reduce((n, r) => n + (r.entries || []).length, 0), winners: raffles.reduce((n, r) => n + (r.winners || []).length, 0) },
+      raffles: estimatedRaffle ? { total: estimatedRaffle.total, entries: estimatedRaffle.participantsEstimate, winners: 1, estimated: true, winnerName: estimatedRaffle.winnerName } : { total: raffles.length, entries: raffles.reduce((n, r) => n + (r.entries || []).length, 0), winners: raffles.reduce((n, r) => n + (r.winners || []).length, 0) },
       brands: views.map(v => {
         const click = clicks.find(c => c.brand_id === v.id);
         return { id: v.id, name: v.name, displays: Number(v.displays), impressions: Number(v.impressions), viewers: Number(v.viewers),

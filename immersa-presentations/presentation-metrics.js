@@ -201,6 +201,13 @@ class PresentationMetricsRepository {
     if (!sessionRows.length) return [];
     const sessionIds = sessionRows.map((row) => String(row.id));
     const placeholders = sessionIds.map(() => "?").join(",");
+    const [supplementRows] = await this.pool.execute(
+      `SELECT presentation_session_id, details FROM presentation_session_supplements
+       WHERE presentation_session_id IN (${placeholders})`, sessionIds
+    );
+    const supplements = new Map((supplementRows || []).map(row => [
+      String(row.presentation_session_id), typeof row.details === "string" ? JSON.parse(row.details) : row.details
+    ]));
     const [pollRows] = await this.pool.execute(
       `SELECT pe.id, pe.presentation_session_id, pe.interaction_id, pe.title, pe.prompt,
               pe.launched_at, pe.closed_at, po.option_id, po.label, po.sort_order,
@@ -270,7 +277,9 @@ class PresentationMetricsRepository {
       sourceSessionId: String(row.source_session_id),
       startedAt: row.recording_started_at,
       endedAt: row.ended_at,
-      durationSeconds: Number(row.duration_seconds || 0),
+      durationSeconds: Number(supplements.get(String(row.id))?.durationSeconds || row.duration_seconds || 0),
+      recordedDurationSeconds: Number(row.duration_seconds || 0),
+      supplement: supplements.get(String(row.id)) || null,
       participants: {
         connected: Number(row.participant_count || 0),
         peak: Number(row.audience_peak_count || 0),

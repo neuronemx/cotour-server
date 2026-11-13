@@ -93,11 +93,12 @@ test("basic metrics combine session, attendance, polls and Q&A", async () => {
         ended_at: "2026-08-14T05:30:00.000Z", duration_seconds: 1800, audience_peak_count: 8, participant_count: 10,
         participant_count_es: 6, participant_count_en: 4
       }]];
-      if (query === 2) return [[
+      if (query === 2) return [[]];
+      if (query === 3) return [[
         { id: "run-1", presentation_session_id: "session-1", interaction_id: "poll-1", title: "Encuesta", prompt: "¿A?", launched_at: "2026-08-14T05:10:00.000Z", closed_at: "2026-08-14T05:12:00.000Z", option_id: "a", label: "A", sort_order: 0, response_count: 6 },
         { id: "run-1", presentation_session_id: "session-1", interaction_id: "poll-1", title: "Encuesta", prompt: "¿A?", launched_at: "2026-08-14T05:10:00.000Z", closed_at: "2026-08-14T05:12:00.000Z", option_id: "b", label: "B", sort_order: 1, response_count: 4 }
       ]];
-      if (query === 3) return [[{ presentation_session_id: "session-1", questions_received: 7, questions_projected: 3 }]];
+      if (query === 4) return [[{ presentation_session_id: "session-1", questions_received: 7, questions_projected: 3 }]];
       return [[{ presentation_session_id: "session-1", emoji: "❤️", reaction_count: 85 }]];
     }
   };

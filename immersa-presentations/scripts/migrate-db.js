@@ -7,6 +7,7 @@ async function main() {
     const result = await runMigrations(pool);
     if (result.executed.length) console.log("Applied Immersa migrations:", result.executed.join(", "));
     else console.log("Immersa database schema is up to date.");
+    await require("./apply-session-supplements").applySessionSupplements(pool);
   } finally {
     await pool.end();
   }

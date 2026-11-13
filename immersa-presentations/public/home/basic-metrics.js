@@ -114,10 +114,16 @@
     const meta = document.createElement("small");
     meta.textContent = `${sessionLabel(session)} · ${session.endedAt ? "Finalizada" : "En curso"}`;
     identity.append(label, meta);
+    if (session.supplement) {
+      const provenance = document.createElement("small");
+      provenance.textContent = "Incluye datos reconstruidos";
+      provenance.title = session.supplement.note;
+      identity.append(provenance);
+    }
     const overview = document.createElement("span");
     overview.className = "basic-metrics-session-overview";
     overview.append(
-      metric("Tiempo", formatDuration(session.durationSeconds)),
+      metric("Tiempo", (session.supplement?.durationSeconds ? "≈ " : "") + formatDuration(session.durationSeconds)),
       metric("Asistencia", Number(session.participants?.connected) || 0),
       metric("Actividad", activity)
     );
@@ -166,24 +172,33 @@
       if (mine !== detailVersion) return;
       const activity = data.polls.reduce((n, p) => n + p.totalResponses, 0) + data.qna.received + data.reactions.total +
         data.knowledge.reduce((n, k) => n + k.answers, 0) + data.raffles.entries + data.brands.reduce((n, b) => n + b.clicks, 0);
-      card.querySelector(".basic-metrics-session-overview").lastElementChild.querySelector("strong").textContent = activity;
+      card.querySelector(".basic-metrics-session-overview").lastElementChild.querySelector("strong").textContent = (data.raffles.estimated ? "≈ " : "") + activity;
       const stats = body.querySelector(".basic-metrics-detail-stats");
       const knowledge = data.knowledge || [];
       stats.append(
-        metric("Participación", data.participation.percentage + "%", data.participation.active + " asistentes activos"),
+        metric("Participación", data.participation.estimated
+          ? data.participation.percentageMinimum + "–" + data.participation.percentageMaximum + "%"
+          : data.participation.percentage + "%", data.participation.estimated
+          ? "Entre " + data.participation.minimum + " y " + data.participation.maximum + " activos · estimado"
+          : data.participation.active + " asistentes activos"),
         metric("Trivias", knowledge.find(k => k.category === "contest")?.executions || 0, (knowledge.find(k => k.category === "contest")?.answers || 0) + " respuestas"),
         metric("Evaluaciones", knowledge.find(k => k.category === "assessment")?.executions || 0, (knowledge.find(k => k.category === "assessment")?.answers || 0) + " respuestas"),
-        metric("Sorteos", data.raffles.total, data.raffles.entries + " participaciones · " + data.raffles.winners + " ganadores")
+        metric("Sorteos", data.raffles.total, (data.raffles.estimated ? "≈ " : "") + data.raffles.entries + " participaciones · " + data.raffles.winners + " ganadores")
       );
+      if (data.raffles.winnerName) {
+        const winner = document.createElement("small");
+        winner.textContent = "Ganadora · " + data.raffles.winnerName;
+        stats.lastElementChild.append(winner);
+      }
       const brands = document.createElement("section");
       brands.className = "basic-metrics-brands";
       const heading = document.createElement("h4");
-      heading.textContent = "Marcas";
+      heading.textContent = "Marcas" + (data.supplement?.brandCount ? " · " + data.supplement.brandCount + " reportadas" : "");
       brands.append(heading);
       if (!data.brands.length) {
         const empty = document.createElement("p");
         empty.className = "basic-metrics-inline-empty";
-        empty.textContent = "Sin vistas de banners registradas en esta sesión.";
+        empty.textContent = data.supplement?.brandCount ? "Vistas y clics sin registro histórico." : "Sin vistas de banners registradas en esta sesión.";
         brands.append(empty);
       }
       for (const brand of data.brands) {
