@@ -38,10 +38,16 @@ function mount() {
 
 test("the guest sees synchronized slides in waiting and live after a single entry, with no new controls", async () => {
   const app = mount();
+  assert.equal(app.element("guestWelcome").hidden, false);
+  assert.equal(app.element("guestVisual").hidden, true);
+  assert.equal(app.element("guestCountdown").hidden, true);
   app.receive("guest:slide", { src: "/decks/deck/slides/1.jpg", index: 0 });
   assert.equal(app.images.length, 0);
   await app.enter();
   assert.equal(app.element("guestEnter").hidden, true);
+  assert.equal(app.element("guestWelcome").hidden, true);
+  assert.equal(app.element("guestVisual").hidden, false);
+  assert.ok(app.element("guestMessage").textContent.includes("Estás en la SALA DE ESPERA."));
   assert.equal(app.element("guestSlideView").hidden, false);
   app.receive("guest:slide", { src: "/decks/deck/slides/1.jpg", index: 0, title: "Primero" });
   app.images[0].onload();
@@ -49,8 +55,27 @@ test("the guest sees synchronized slides in waiting and live after a single entr
   assert.equal(app.element("guestSlide").alt, "Primero");
   app.receive("guest:state", { phase: "live", id: null });
   assert.equal(app.element("guestState").textContent, "LIVE");
+  assert.equal(app.element("guestLiveSticker").hidden, false);
   assert.equal(app.element("guestSlide").hidden, false);
   assert.equal(app.element("guestPreview").srcObject.getTracks()[0].readyState, "live");
+});
+
+test("countdown covers the camera only during entry and LIVE clears it; waiting removes the sticker", async () => {
+  const app = mount();
+  await app.enter();
+  for (const countdown of [3, 2, 1]) {
+    app.receive("guest:state", { phase: "countdown", countdown, id: null });
+    assert.equal(app.element("guestCountdown").hidden, false);
+    assert.equal(app.element("guestState").textContent, String(countdown));
+    assert.equal(app.element("guestLiveSticker").hidden, true);
+  }
+  app.receive("guest:state", { phase: "live", id: null });
+  assert.equal(app.element("guestCountdown").hidden, true);
+  assert.equal(app.element("guestLiveSticker").hidden, false);
+  app.receive("guest:state", { phase: "ready", id: null });
+  assert.equal(app.element("guestCountdown").hidden, true);
+  assert.equal(app.element("guestLiveSticker").hidden, true);
+  assert.ok(app.element("guestMessage").textContent.includes("SALA DE ESPERA"));
 });
 
 test("rapid navigation, failed images, disconnection and ending cannot reveal an outdated slide", async () => {

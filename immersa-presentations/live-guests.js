@@ -6,7 +6,11 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=3"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=4" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=4"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=5" defer></script>';
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
 
 function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide }) {
   const rooms = new Map();
@@ -35,7 +39,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual) || record.expiresAt <= Date.now()) return null;
     const stage = await authorizeRole("stage", record.stageToken);
     if (!stage || stage.deck.deckId !== record.deckId || stage.accessLink.session_id !== record.sessionId) return null;
-    return record;
+    return { ...record, deckTitle: String(stage.deck.title || "Presentación").slice(0, 200) };
   }
 
   function pageAssets({ accessLink, deck }) {
@@ -48,7 +52,9 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       const record = await resolveGuest(req.params.token);
       if (!record) return res.status(404).send("Este enlace de invitado ya no está disponible.");
       res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
-      return res.sendFile(path.join(publicDir, "live-guests", "guest.html"));
+      const html = await fs.readFile(path.join(publicDir, "live-guests", "guest.html"), "utf8");
+      return res.type("html").send(html.replace(/\{\{(GUEST_NAME|DECK_TITLE)\}\}/g, (_, field) =>
+        escapeHtml(field === "GUEST_NAME" ? record.name || "Invitado" : record.deckTitle)));
     } catch {
       return res.status(503).send("No se pudo comprobar el enlace. Intenta nuevamente.");
     }

@@ -5,24 +5,33 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Invitado LIVE · IMMERSA</title>
-  <link rel="stylesheet" href="/live-guests/client.css?v=3">
+  <link rel="stylesheet" href="/live-guests/client.css?v=4">
   <script src="/socket.io/socket.io.js" defer></script>
-  <script src="/live-guests/client.js?v=4" defer></script>
+  <script src="/live-guests/client.js?v=5" defer></script>
 </head>
 <body class="guest-page" data-live-guest="true">
   <main class="guest-experience">
-    <header><strong>IMMERSA</strong><span>LIVE</span></header>
-    <div class="guest-visual" id="guestVisual">
+    <header><img class="guest-brand" src="/live-guests/immersa-logo.png" alt="IMMERSA"></header>
+    <section class="guest-welcome" id="guestWelcome">
+      <h1>Bienvenid@ <span id="guestWelcomeName">{{GUEST_NAME}}</span><br><span class="guest-welcome-context">al En VIVO de</span><br><span id="guestDeckTitle">{{DECK_TITLE}}</span></h1>
+      <p>Entra para que producción prepare tu participación.</p>
+      <button id="guestEnter" type="button">Entrar a la sala de espera</button>
+      <p id="guestEntryNotice" role="status"></p>
+    </section>
+    <div class="guest-visual" id="guestVisual" hidden>
       <div class="guest-slide-view" id="guestSlideView" hidden>
         <img id="guestSlide" alt="Slide en curso" hidden>
         <p id="guestSlidePlaceholder">La presentación aparecerá aquí.</p>
       </div>
-      <div class="guest-monitor"><video id="guestPreview" autoplay muted playsinline aria-label="Tu cámara"></video></div>
+      <section class="guest-caption" aria-live="polite"><p id="guestMessage"></p></section>
+      <div class="guest-monitor" id="guestMonitor">
+        <video id="guestPreview" autoplay muted playsinline aria-label="Tu cámara"></video>
+        <div class="guest-countdown-overlay" id="guestCountdown" hidden aria-live="assertive"><strong id="guestState"></strong></div>
+        <img class="guest-camera-live" id="guestLiveSticker" src="/live-guests/live-badge.png" alt="LIVE" hidden>
+      </div>
     </div>
-    <section class="guest-caption" aria-live="polite">
-      <h1 id="guestState">EN ESPERA</h1>
-      <p id="guestMessage">Entra para que producción prepare tu participación.</p>
-      <button id="guestEnter" type="button">Entrar</button>
+    <section class="guest-ended" id="guestEnded" hidden>
+      <h1>ENLACE TERMINADO</h1><p>Gracias por acompañarnos.</p>
     </section>
   </main>
 </body>

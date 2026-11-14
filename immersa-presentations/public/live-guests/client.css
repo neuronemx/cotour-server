@@ -1,23 +1,31 @@
 .guest-page { margin:0; background:#090d14; color:#fff; font-family:Inter,system-ui,sans-serif; }
-.guest-experience { height:100dvh; min-height:0; display:flex; flex-direction:column; box-sizing:border-box; padding:20px; gap:16px; }
-.guest-experience header { display:flex; justify-content:space-between; align-items:center; letter-spacing:.12em; font-size:17px; }
-.guest-experience header span { color:#ff415d; font-weight:800; }
-.guest-visual { flex:1; min-height:0; position:relative; background:#111827; border-radius:20px; overflow:hidden; }
-.guest-monitor { height:100%; overflow:hidden; }
-.guest-monitor video { display:block; width:100%; height:100%; object-fit:contain; }
-.guest-slide-view { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.guest-experience { min-height:100dvh; width:min(100%,1120px); margin:auto; display:flex; flex-direction:column; box-sizing:border-box; padding:24px; gap:18px; }
+.guest-experience header { display:flex; align-items:center; min-height:42px; }
+.guest-brand { display:block; width:190px; max-width:48vw; height:auto; }
+.guest-welcome, .guest-ended { flex:1; min-height:calc(100dvh - 130px); display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:20px; padding:24px 12px; box-sizing:border-box; }
+.guest-welcome h1 { margin:0; max-width:880px; font-size:clamp(28px,4.5vw,46px); line-height:1.3; font-weight:650; overflow-wrap:anywhere; }
+.guest-welcome-context { font-size:.64em; color:#bec6d8; font-weight:400; }
+.guest-welcome p { color:#c2cad9; margin:0; line-height:1.55; }
+#guestEntryNotice:empty { display:none; }
+.guest-visual { display:grid; grid-template-rows:minmax(100px,28dvh) auto minmax(220px,1fr); gap:16px; min-height:calc(100dvh - 110px); }
+.guest-slide-view { width:min(100%,600px); justify-self:center; min-height:0; background:#111827; border-radius:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
 .guest-slide-view img { display:block; width:100%; height:100%; object-fit:contain; }
 .guest-slide-view p { margin:24px; color:#c2cad9; text-align:center; font-size:15px; }
-.guest-visual.has-presentation .guest-monitor { position:absolute; bottom:12px; right:12px; width:clamp(84px,20%,170px); height:24%; max-height:170px; border-radius:12px; background:#090d14; box-shadow:0 3px 16px #0008; }
-.guest-slide-view[hidden], .guest-slide-view [hidden], .guest-visual[hidden] { display:none!important; }
-.guest-caption { text-align:center; padding:4px 12px max(8px,env(safe-area-inset-bottom)); }
-.guest-caption h1 { margin:0; font-size:clamp(24px,5vw,38px); letter-spacing:.04em; }
-.guest-caption h1.is-countdown { font-size:clamp(110px,28vmin,240px); line-height:1; color:#fff; }
+.guest-monitor { position:relative; width:min(100%,680px); min-height:220px; justify-self:center; background:#111827; border:5px solid transparent; box-sizing:border-box; border-radius:18px; overflow:hidden; }
+.guest-monitor video { display:block; width:100%; height:100%; max-height:55dvh; min-height:220px; object-fit:contain; }
+.guest-monitor.is-live { border-color:#f20d22; }
+.guest-countdown-overlay { position:absolute; inset:0; display:grid; place-items:center; background:#080c1266; pointer-events:none; }
+.guest-countdown-overlay strong { font-size:clamp(160px,45vmin,420px); line-height:1; font-weight:850; color:#fff; text-shadow:0 4px 30px #0009; }
+.guest-camera-live { position:absolute; top:12px; right:12px; width:114px; height:43px; object-fit:contain; }
+.guest-caption { text-align:center; padding:0 12px; }
+.guest-caption p { margin:0; color:#c2cad9; font-size:clamp(14px,1.6vw,17px); line-height:1.5; white-space:pre-line; }
+.guest-caption:has(p:empty) { display:none; }
+.guest-page [hidden], .guest-stage-panel[hidden], .guest-stage-compact [hidden] { display:none!important; }
 .guest-event-audio { position:fixed; bottom:18px; left:18px; z-index:9999; padding:9px 14px; border:1px solid #555; border-radius:10px; background:#111d; color:#fff; cursor:pointer; }
 .guest-production input[type="checkbox"] { width:auto; }
 .guest-caption p { margin:8px 0; color:#c2cad9; font-size:15px; }
 .guest-caption.is-live h1 { color:#ff415d; }
-.guest-caption button, .guest-production button, .guest-audio-unlock, .guest-open {
+.guest-welcome button, .guest-stage-compact button, .guest-caption button, .guest-production button, .guest-audio-unlock, .guest-open {
   border:0; border-radius:10px; background:#7845e8; color:#fff; padding:11px 16px; font:600 14px Inter,system-ui,sans-serif; cursor:pointer;
 }
 .guest-open { padding:7px 11px; font-size:12px; }
@@ -43,3 +51,16 @@
 @media(max-width:650px) { .guest-production .guest-grid { grid-template-columns:1fr; } .guest-experience { padding:12px; gap:10px; } }
 
 .screen:not(.ui-visible) .guest-event-audio:not(:focus-visible) { opacity:0; pointer-events:none; }
+
+.guest-stage-top { grid-row:1; grid-column:1; display:grid; gap:7px; min-width:0; }
+.guest-stage-compact { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 12px; border:1px solid #43495a; border-radius:12px; background:#111723; font:600 12px Inter,system-ui,sans-serif; min-width:0; }
+.guest-stage-compact>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guest-stage-compact>div { display:flex; gap:6px; flex-wrap:wrap; }
+.guest-stage-compact button { padding:6px 9px; font-size:11px; }
+.guest-stage-compact button:disabled { opacity:.45; }
+.guest-stage-panel { position:fixed; z-index:150; top:85px; right:14px; bottom:14px; width:min(380px,calc(100vw - 28px)); max-height:none; margin:0; box-sizing:border-box; box-shadow:0 16px 60px #0009; }
+.guest-stage-panel .guest-grid { grid-template-columns:minmax(0,1fr); }
+.guest-stage-panel header { position:sticky; top:-20px; background:#111723; padding:10px 0; z-index:1; }
+@media(min-width:1100px) { body.guest-panel-open .stage-shell { padding-right:410px; } }
+@media(max-width:650px) { .guest-experience { padding:14px; } .guest-stage-compact { align-items:flex-start; flex-direction:column; gap:7px; } .guest-stage-compact>span { max-width:100%; } .guest-camera-live { width:96px; height:36px; top:9px; right:9px; } }
+@media(max-height:500px) and (orientation:landscape) { .guest-visual { grid-template-rows:minmax(100px,38dvh) auto minmax(240px,1fr); } }

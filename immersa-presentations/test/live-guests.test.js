@@ -35,7 +35,7 @@ async function setup(t, options = {}) {
   ]);
   const runtime = createLiveGuests({
     io: { of(name) { assert.equal(name, "/live-guests"); return { use(fn) { authorize = fn; }, on(event, fn) { connected = fn; } }; } },
-    dataDir, publicDir: "public", origin: "https://beta.test", enabled: true,
+    dataDir, publicDir: path.resolve(__dirname, "../public"), origin: "https://beta.test", enabled: true,
     authorizeRole: async (role, token) => { const grant = grants.get(token); return grant?.accessLink.role === role ? grant : null; },
     getRtcConfiguration: async () => ({ iceServers: [], iceTransportPolicy: "all" }),
     projection, canProject: () => true, ...options
@@ -265,4 +265,18 @@ test("countdown waits for picture and return, can be cancelled to private waitin
   assert.deepEqual(guest.messages.filter(([event, value]) => event === "guest:state" && value.phase === "countdown").slice(-3).map(([, value]) => value.countdown), [3, 2, 1]);
   assert.equal((await stage.request("guest:wait")).ok, true);
   assert.equal(guest.messages.at(-1)[1].phase, "ready");
+});
+
+test("the guest welcome uses the current Deck title and safely escapes personalized names", async t => {
+  const { stage, runtime, grants } = await setup(t);
+  grants.get("a_stage00001").deck.title = 'Deck <script>alert(1)</script>';
+  const invitation = await stage.request("guest:invite", { name: '<img src=x onerror=alert(1)>' });
+  let html;
+  const response = { set() {}, type(value) { assert.equal(value, "html"); return this; }, send(value) { html = value; } };
+  await runtime.openGuest({ params: { token: invitation.url.split("/").pop() } }, response);
+  assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(html.includes('Deck &lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.ok(!html.includes('a_stage00001'));
+  assert.ok(!html.includes('{{GUEST_NAME}}'));
+  assert.ok(html.includes('Entrar a la sala de espera'));
 });

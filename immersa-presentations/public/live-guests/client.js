@@ -27,6 +27,19 @@
   let returnInput;
   let wait;
   let eventMixer;
+  let stagePanelToggle;
+  let compactStatus;
+  let compactWait;
+  let compactMute;
+  let compactEnd;
+  let previousPhase = "waiting";
+
+  function foldStagePanel(folded) {
+    if (role !== "stage") return;
+    dialog.hidden = folded;
+    document.body.classList.toggle("guest-panel-open", !folded);
+    stagePanelToggle.setAttribute("aria-expanded", String(!folded));
+  }
   let link;
   let guestName;
   let slideVersion = 0;
@@ -132,15 +145,21 @@
     }
     if (role === "guest") {
       const showingPresentation = Boolean(capture) && state.phase !== "ended";
-      document.getElementById("guestVisual").hidden = state.phase === "ended";
+      document.getElementById("guestWelcome").hidden = Boolean(capture) || state.phase === "ended";
+      document.getElementById("guestEnded").hidden = state.phase !== "ended";
+      document.getElementById("guestVisual").hidden = !showingPresentation;
       document.getElementById("guestVisual").classList.toggle("has-presentation", showingPresentation);
       document.getElementById("guestSlideView").hidden = !showingPresentation;
       phaseLabel.classList.toggle("is-countdown", state.phase === "countdown");
       phaseLabel.textContent = state.phase === "countdown" ? String(state.countdown || "") : state.phase === "ended" ? "ENLACE TERMINADO" : state.phase === "live" ? "LIVE" : "EN ESPERA";
-      phaseLabel.parentElement.classList.toggle("is-live", state.phase === "live");
+      document.getElementById("guestCountdown").hidden = state.phase !== "countdown";
+      document.getElementById("guestMonitor").classList.toggle("is-live", state.phase === "live");
+      document.getElementById("guestLiveSticker").hidden = state.phase !== "live";
+      document.getElementById("guestEntryNotice").textContent = notice;
       message.textContent = state.phase === "ended" ? "Gracias por acompañarnos."
-        : state.phase === "live" ? "Estás participando en el evento."
-        : notice || (capture ? "Producción te dará la indicación de entrada." : "Entra para que producción prepare tu participación.");
+        : state.phase === "live" ? ""
+        : state.phase === "countdown" ? "Tu entrada está por comenzar."
+        : notice || "Estás en la SALA DE ESPERA.\nProducción está en vivo contigo por voz, recomendamos usar audífonos";
       enter.hidden = Boolean(capture) || state.phase === "ended";
       enter.disabled = busy || !socket.connected;
       return;
@@ -151,6 +170,14 @@
       starting: "Preparando Pantalla y retorno…", countdown: "Entrada en " + state.countdown + "…", live: "EN VIVO", ended: "ENLACE TERMINADO"
     };
     message.textContent = notice || descriptions[state.phase] || "En espera";
+    compactStatus.textContent = (state.guestName || "Invitado") + " · " + (state.phase === "live" ? "LIVE" : state.phase === "countdown" ? String(state.countdown) : state.phase === "ended" ? "ENLACE TERMINADO" : "EN ESPERA");
+    compactWait.hidden = !["starting", "countdown", "live"].includes(state.phase);
+    compactWait.disabled = compactMute.disabled = compactEnd.disabled = busy || !socket.connected;
+    compactMute.hidden = state.phase !== "live";
+    compactMute.textContent = state.muted ? "Abrir audio" : "Silenciar";
+    compactEnd.hidden = !state.id && !state.guestConnected;
+    if (state.phase === "live" && previousPhase !== "live") foldStagePanel(true);
+    previousPhase = state.phase;
     invite.disabled = busy || Boolean(state.id) || !socket.connected;
     startAudio.disabled = busy;
     microphone.disabled = busy;
@@ -239,9 +266,15 @@
     button.className = "guest-open";
     button.textContent = "Invitados LIVE";
     document.querySelector(".stage-toolbar").append(button);
-    dialog = document.createElement("dialog");
-    dialog.className = "guest-production";
-    dialog.innerHTML = `<header><h2>Invitados LIVE</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header>
+    stagePanelToggle = button;
+    button.setAttribute("aria-controls", "guestStagePanel");
+    button.setAttribute("aria-expanded", "false");
+    dialog = document.createElement("aside");
+    dialog.id = "guestStagePanel";
+    dialog.hidden = true;
+    dialog.className = "guest-production guest-stage-panel";
+    dialog.setAttribute("aria-label", "Invitados LIVE");
+    dialog.innerHTML = `<header><h2>Invitados LIVE</h2><button type="button" data-close aria-label="Plegar panel">Plegar</button></header>
       <div class="guest-grid"><section>
         <label>Invitado<input data-name placeholder="Nombre del invitado" maxlength="100"></label>
         <button type="button" data-invite>Crear enlace</button>
@@ -260,8 +293,25 @@
         <button type="button" class="guest-cut" data-end>Terminar enlace</button></div>
       </section></div>`;
     document.body.append(dialog);
-    button.onclick = () => dialog.showModal();
-    dialog.querySelector("[data-close]").onclick = () => dialog.close();
+    button.onclick = () => foldStagePanel(!dialog.hidden);
+    dialog.querySelector("[data-close]").onclick = () => foldStagePanel(true);
+    const compact = document.createElement("section");
+    compact.className = "guest-stage-compact";
+    compact.setAttribute("aria-label", "Control del invitado");
+    compact.innerHTML = '<span data-status role="status"></span><div><button type="button" data-expand>Invitado</button><button type="button" data-wait hidden>Volver a espera</button><button type="button" data-mute hidden>Silenciar</button><button type="button" data-end hidden>Terminar enlace</button></div>';
+    const toolbar = document.querySelector(".stage-toolbar");
+    const top = document.createElement("div");
+    top.className = "guest-stage-top";
+    toolbar.before(top);
+    top.append(toolbar, compact);
+    compactStatus = compact.querySelector("[data-status]");
+    compactWait = compact.querySelector("[data-wait]");
+    compactMute = compact.querySelector("[data-mute]");
+    compactEnd = compact.querySelector("[data-end]");
+    compact.querySelector("[data-expand]").onclick = () => foldStagePanel(!dialog.hidden);
+    compactWait.onclick = () => void command("guest:wait", []);
+    compactMute.onclick = () => socket.emit("guest:mute", !state.muted);
+    compactEnd.onclick = () => void command("guest:end", []);
     const find = selector => dialog.querySelector(selector);
     video = find("video");
     message = find("[data-status]");
