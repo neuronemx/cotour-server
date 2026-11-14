@@ -6,13 +6,13 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=6"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=6" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=7"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=7" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide }) {
+function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide, getPublicResults }) {
   const rooms = new Map();
   const directory = path.join(dataDir, "live-guests");
   const scopeKey = (deckId, sessionId) => createHash("sha256").update(JSON.stringify([deckId, sessionId])).digest("hex");
@@ -60,7 +60,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     }
   }
 
-  if (!enabled) return { pageAssets, openGuest, endSession: async () => {}, updatePresentation() {} };
+  if (!enabled) return { pageAssets, openGuest, endSession: async () => {}, updatePresentation() {}, updateContent() {}, reaction() {} };
   const namespace = io.of("/live-guests");
 
   namespace.use(async (socket, next) => {
@@ -151,7 +151,43 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     const key = JSON.stringify([snapshot.liveSlideIndex ?? snapshot.slideIndex ?? 0, snapshot.operationalLocale || "es"]);
     if (room.presentationKey === key) return;
     room.presentationKey = key;
+    updateContent(snapshot);
     return sendSlide(room, snapshot);
+  }
+
+  async function sendContent(room) {
+    const guest = room.peers.guest;
+    if (!getPublicResults || !guest?.data.mediaReady || room.invite?.endedAt) return;
+    const revision = room.contentRevision = (room.contentRevision || 0) + 1;
+    let results = null;
+    try {
+      if (await stillAuthorized(guest)) {
+        results = await getPublicResults(room);
+        if (!await stillAuthorized(guest)) results = null;
+      }
+    } catch { /* A missing poll must not interrupt a LIVE connection. */ }
+    if (revision === room.contentRevision && room.peers.guest === guest && guest.connected
+      && guest.data.mediaReady && !room.invite?.endedAt) guest.emit("guest:content", { results });
+  }
+
+  function updateContent(scope) {
+    const room = rooms.get(scopeKey(scope.deckId, scope.sessionId));
+    if (!room?.peers.guest?.data.mediaReady || room.contentTimer) return;
+    // A burst of votes needs one current aggregate, not one message per vote.
+    room.contentTimer = setTimeout(() => { room.contentTimer = null; void sendContent(room); }, 75);
+  }
+
+  async function reaction(scope, payload) {
+    if (!["❤️", "👏", "🔥"].includes(payload?.emoji)) return;
+    const room = rooms.get(scopeKey(scope.deckId, scope.sessionId));
+    const guest = room?.peers.guest;
+    if (!guest?.data.mediaReady || room.invite?.endedAt) return;
+    try {
+      if (!await stillAuthorized(guest)) return;
+      if (room.peers.guest === guest && guest.connected && guest.data.mediaReady && !room.invite?.endedAt) {
+        guest.emit("guest:reaction", { emoji: payload.emoji });
+      }
+    } catch { /* Reactions are optional and never affect the call. */ }
   }
 
   async function renew(room, call) {
@@ -228,8 +264,11 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       socket.data.mediaReady = value !== false;
       let slideUpdate;
       if (role === "guest") {
-        if (socket.data.mediaReady) slideUpdate = sendSlide(room);
-        else room.slideRevision = (room.slideRevision || 0) + 1;
+        if (socket.data.mediaReady) slideUpdate = Promise.all([sendSlide(room), sendContent(room)]);
+        else {
+          room.slideRevision = (room.slideRevision || 0) + 1;
+          room.contentRevision = (room.contentRevision || 0) + 1;
+        }
       }
       publish(room);
       return slideUpdate;
@@ -380,7 +419,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       delete room.peers[role];
       if (role === "stage" || role === "guest" || room.call?.screenReady || ["starting", "countdown", "live"].includes(room.call?.phase)) clearCall(room, "signal");
       else publish(room);
-      if (!Object.keys(room.peers).length) rooms.delete(room.key);
+      if (!Object.keys(room.peers).length) { clearTimeout(room.contentTimer); rooms.delete(room.key); }
     });
   });
 
@@ -396,7 +435,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     }
   }
 
-  return { pageAssets, openGuest, endSession, updatePresentation };
+  return { pageAssets, openGuest, endSession, updatePresentation, updateContent, reaction };
 }
 
 module.exports = { createLiveGuests };

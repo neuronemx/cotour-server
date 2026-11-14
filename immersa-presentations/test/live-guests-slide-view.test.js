@@ -6,7 +6,7 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount() {
+function mount(contentApi) {
   const elements = new Map();
   const handlers = new Map();
   const images = [];
@@ -26,7 +26,7 @@ function mount() {
   }
   const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit() {} };
   runInNewContext(client, {
-    window: { AudioContext: class { async resume() {} }, addEventListener() {} },
+    window: { AudioContext: class { async resume() {} }, addEventListener() {}, ImmersaGuestContent: contentApi ? { create: () => contentApi } : undefined },
     document: { body: { dataset: { liveGuest: "true" }, classList: { toggle() {} } }, getElementById: element },
     location: { pathname: "/guest/test" },
     navigator: { mediaDevices: { async getUserMedia() { return stream; } } },
@@ -90,6 +90,35 @@ test("a guest can mute for a cough and resume without stopping camera or resetti
   app.receive("guest:state", { phase: "ended", id: null });
   assert.equal(button.hidden, true);
   assert.equal(app.element("guestHeader").hidden, false);
+});
+
+test("polls and reactions render only after entry and are cleared on disconnection or end", async () => {
+  const polls = [], reactions = [];
+  let cleared = 0;
+  const app = mount({ setResults: value => polls.push(value), react: value => reactions.push(value), clear: () => cleared++ });
+  const results = { title: "Results" };
+  app.receive("guest:content", { results });
+  app.receive("guest:reaction", { emoji: "❤️" });
+  assert.equal(polls.length, 0);
+  assert.equal(reactions.length, 0);
+  await app.enter();
+  app.receive("guest:content", { results });
+  app.receive("guest:reaction", { emoji: "❤️" });
+  assert.equal(polls[0], results);
+  assert.equal(reactions.length, 1);
+  app.socket.connected = false;
+  app.receive("disconnect");
+  assert.equal(cleared, 1);
+  app.receive("guest:content", { results });
+  assert.equal(polls.length, 1);
+  app.socket.connected = true;
+  app.receive("connect");
+  app.receive("guest:content", { results: null });
+  assert.equal(polls.at(-1), null);
+  app.receive("guest:state", { phase: "ended", id: null });
+  assert.equal(cleared, 2);
+  app.receive("guest:reaction", { emoji: "🔥" });
+  assert.equal(reactions.length, 1);
 });
 
 test("countdown covers the camera only during entry and LIVE clears it; waiting removes the sticker", async () => {

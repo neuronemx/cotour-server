@@ -8,6 +8,7 @@
   let state = { phase: "waiting" };
   let capture;
   let selfMuted = false;
+  let guestContent;
   let productionAudio;
   let stageAudio;
   let audioContext;
@@ -70,7 +71,7 @@
     for (const stream of new Set([capture, productionAudio, stageAudio])) stream?.getTracks().forEach(track => track.stop());
     capture = productionAudio = stageAudio = null;
     if (hadMedia && socket.connected) socket.emit("guest:media-ready", false);
-    if (role === "guest") { selfMuted = false; video.srcObject = null; clearGuestSlide(); }
+    if (role === "guest") { selfMuted = false; video.srcObject = null; clearGuestSlide(); guestContent?.clear(); }
   }
 
   function clearGuestSlide() {
@@ -264,6 +265,8 @@
   }
 
   if (role === "guest") {
+    guestContent = window.ImmersaGuestContent?.create({ document,
+      resultsHost: document.getElementById("guestPollResults"), reactionsHost: document.getElementById("guestReactions") });
     video = document.getElementById("guestPreview");
     message = document.getElementById("guestMessage");
     phaseLabel = document.getElementById("guestState");
@@ -576,6 +579,12 @@
 
   socket.on("guest:prepare", setup => { void prepare(setup).catch(() => fail(setup.id)); });
   socket.on("guest:slide", receiveGuestSlide);
+  socket.on("guest:content", payload => {
+    if (role === "guest" && capture && socket.connected && state.phase !== "ended") guestContent?.setResults(payload?.results || null);
+  });
+  socket.on("guest:reaction", payload => {
+    if (role === "guest" && capture && socket.connected && state.phase !== "ended") guestContent?.react(payload);
+  });
   socket.on("guest:signal", body => {
     const peer = peers.get(body.channel);
     if (!peer || peer.id !== body.id) return;
@@ -605,6 +614,7 @@
   });
   socket.on("disconnect", () => {
     clearGuestSlide();
+    guestContent?.clear();
     fail();
     if (state.phase === "ended") return render();
     state = { ...state, id: null, phase: "waiting" };

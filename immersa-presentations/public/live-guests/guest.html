@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Invitado LIVE · IMMERSA</title>
-  <link rel="stylesheet" href="/live-guests/client.css?v=6">
+  <link rel="stylesheet" href="/live-guests/client.css?v=7">
   <script src="/socket.io/socket.io.js" defer></script>
-  <script src="/live-guests/client.js?v=6" defer></script>
+  <script src="/live-guests/content.js?v=1" defer></script>
+  <script src="/live-guests/client.js?v=7" defer></script>
 </head>
 <body class="guest-page" data-live-guest="true">
   <main class="guest-experience">
@@ -22,10 +23,12 @@
       <div class="guest-slide-view" id="guestSlideView" hidden>
         <img id="guestSlide" alt="Slide en curso" hidden>
         <p id="guestSlidePlaceholder">La presentación aparecerá aquí.</p>
+        <section class="guest-poll-results" id="guestPollResults" aria-label="Resultados de la encuesta" hidden></section>
       </div>
       <section class="guest-caption" aria-live="polite"><p id="guestMessage"></p></section>
       <div class="guest-monitor" id="guestMonitor">
         <video id="guestPreview" autoplay muted playsinline aria-label="Tu cámara"></video>
+        <div class="guest-reactions" id="guestReactions" aria-hidden="true"></div>
         <div class="guest-countdown-overlay" id="guestCountdown" hidden aria-live="assertive"><strong id="guestState"></strong></div>
         <img class="guest-camera-live" id="guestLiveSticker" src="/live-guests/live-badge.png" alt="LIVE" hidden>
         <button class="guest-self-mute" id="guestSelfMute" type="button" aria-pressed="false" hidden>Silenciar micrófono</button>

@@ -214,7 +214,8 @@ function createInteractionSocketHandlers({
   breakoutStore = new BreakoutStore(),
   pongStore = new PongStore(),
   onGameFinished = null,
-  onPollChanged = null
+  onPollChanged = null,
+  onPublicResultsChanged = null
 }) {
   const timeSyncSockets = createTimeSyncSocketHandlers({ io, store: timeSyncStore, getRoleRoomKey });
   const breakoutSockets = createBreakoutSocketHandlers({ io, store: breakoutStore, coordinator, onFinished: onGameFinished });
@@ -252,16 +253,19 @@ function createInteractionSocketHandlers({
     io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:results_updated", results);
     io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:results_updated", results);
     if (store.getSession(sessionId).resultsVisible) io.to(getRoleRoomKey(roomKey, "screen")).emit("interaction:show_results", results);
+    onPublicResultsChanged?.(roomKey, sessionId);
   }
 
   function emitStateToRoom(roomKey, sessionId) {
     io.to(roomKey).emit("interaction:state", store.getState(sessionId));
+    onPublicResultsChanged?.(roomKey, sessionId);
   }
 
   function emitStateToControlRoles(roomKey, sessionId) {
     const state = store.getState(sessionId);
     io.to(getRoleRoomKey(roomKey, "presenter")).emit("interaction:state", state);
     io.to(getRoleRoomKey(roomKey, "stage")).emit("interaction:state", state);
+    onPublicResultsChanged?.(roomKey, sessionId);
   }
 
   async function sendCurrentState(socket, context) {
@@ -283,6 +287,7 @@ function createInteractionSocketHandlers({
     pongSockets.resetSession?.(context);
     const previous = store.getSession(context.sessionId).active;
     store.reset(context.sessionId);
+    onPublicResultsChanged?.(context.roomKey, context.sessionId);
     io.to(context.roomKey).emit("interaction:closed", { interactionId: previous?.id || "" });
     io.to(context.roomKey).emit("interaction:state", store.getState(context.sessionId));
     io.to(getRoleRoomKey(context.roomKey, "screen")).emit("interaction:hide_results", {
@@ -350,6 +355,7 @@ function createInteractionSocketHandlers({
       const context = getContext();
       if (!context?.roomKey || !context?.sessionId || !canControlInteractions(context)) return;
       const closed = store.close(context.sessionId);
+      onPublicResultsChanged?.(context.roomKey, context.sessionId);
       const remembered = store.getMetricsSnapshots(context.sessionId).find((item) => (
         item.snapshot?.active?.launchedAt === closed?.launchedAt
       ));

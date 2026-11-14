@@ -72,4 +72,8 @@ El invitado envía una señal de audio y video a Stage. Stage la reenvía a Pant
 
 El estado al aire es efímero. Los enlaces se guardan mediante escritura atómica en `data/live-guests/`. Al finalizar la presentación, el enlace conectado se marca terminado. Para repetir una intervención finalizada se crea un enlace nuevo. Para desactivar el piloto, fijar `IMMERSA_LIVE_GUESTS_ENABLED=false` y desplegar.
 
-La validación cubre un invitado, producción, Pantalla y el slide vigente para el invitado. Las reacciones y las preguntas seleccionadas para el invitado corresponden a los siguientes hitos.
+El invitado recibe las reacciones admitidas para Pantalla (❤️, 👏, 🔥), con un máximo local de 12 animaciones simultáneas sobre su cámara. Se respeta la visibilidad de reacciones del escenario y se vacían al desconectar o terminar.
+
+Los resultados públicos de encuestas aparecen en el área superior del slide mientras estén visibles en Pantalla. Las respuestas actualizan los porcentajes sin enviar identidades ni respuestas individuales al invitado. Las actualizaciones se agrupan cada 75 ms para no enviar un mensaje por voto. Ocultar, cerrar o reiniciar la encuesta retira ese panel; al reconectar se obtiene el estado actual. Sigue el idioma operativo con respaldo ES si faltan traducciones EN. El panel de resultados tiene desplazamiento propio para encuestas largas; no reduce el área de cámara ni añade controles para votar.
+
+La validación cubre un invitado, producción, Pantalla, el slide vigente, reacciones y resultados públicos de encuestas. Las preguntas seleccionadas para el invitado corresponden al siguiente hito. El retorno de audio en el móvil de prueba del usuario queda pendiente de confirmar; los cambios visuales de este hito no validan su reproducción.

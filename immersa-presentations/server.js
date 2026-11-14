@@ -17,6 +17,7 @@ const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { createLiveGuests } = require("./live-guests");
 const { createGuestSlideReader } = require("./live-guest-slides");
+const { guestPollResults } = require("./live-guest-content");
 const { createLiveProjection } = require("./live-projection");
 const { createCloudflareTurn } = require("./cloudflare-turn");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
@@ -136,6 +137,10 @@ const interactionSockets = createInteractionSocketHandlers({
   getRoleRoomKey,
   coordinator: activeInteractionCoordinator,
   onGameFinished: gameQueueSockets.handleGameFinished,
+  onPublicResultsChanged: roomKey => {
+    const session = getSessionByRoomKey(roomKey);
+    if (session) liveGuests?.updateContent({ deckId: session.deckId, sessionId: session.sessionId });
+  },
   onPollChanged: (context, snapshot, closedAt, presentationSessionId = null) => (
     presentationSessionId
       ? presentationMetricsRepository?.recordPollSnapshot({ presentationSessionId, snapshot, closedAt })
@@ -410,6 +415,11 @@ liveGuests = createLiveGuests({
   origin: liveCameraDemo?.origin,
   enabled: Boolean(liveCameraDemo?.workDecks && cloudflareTurn) && process.env.IMMERSA_LIVE_GUESTS_ENABLED === "true",
   getRtcConfiguration: cloudflareTurn,
+  getPublicResults: ({ deckId, sessionId }) => {
+    const session = getSessionByRoomKey(getRoomKey(sessionId, deckId));
+    if (!session || !interactionStore.getSession(sessionId).resultsVisible) return null;
+    return guestPollResults(interactionStore.getResults(sessionId), session.operationalLocale);
+  },
   getPresentationSlide: createGuestSlideReader({
     getSession: (sessionId, deckId) => getSessionByRoomKey(getRoomKey(sessionId, deckId)),
     readManifest,
@@ -983,7 +993,10 @@ function createSession(sessionId, deckId, slideCount = deckSlideCounts[deckId] |
     lastActivityAt: Date.now(),
     inactivityShutdownAt: null,
     audience: new Map(),
-    reactions: new ReactionRuntime({ emitScreen: (payload) => io.to(getRoleRoomKey(getRoomKey(sessionId, deckId), "screen")).emit("reaction", payload) }),
+    reactions: new ReactionRuntime({ emitScreen: (payload) => {
+      io.to(getRoleRoomKey(getRoomKey(sessionId, deckId), "screen")).emit("reaction", payload);
+      void liveGuests?.reaction({ deckId, sessionId }, payload);
+    } }),
     audiovisual: createAudiovisualChannels(),
     audioReact: createAudioReactState(),
     time: createImmersaTimeState(),
