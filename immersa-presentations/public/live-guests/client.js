@@ -25,6 +25,8 @@
   let startAudio;
   let microphone;
   let returnInput;
+  let wait;
+  let eventMixer;
   let link;
   let guestName;
   let slideVersion = 0;
@@ -101,7 +103,7 @@
 
   function audioGain(peer) {
     if (!peer.gain) return;
-    const audible = role === "guest" || (role === "stage" && state.phase !== "live")
+    const audible = role === "guest" || (role === "stage" && peer.channel === "monitor" && state.phase !== "live")
       || (role === "screen" && state.phase === "live" && !state.muted);
     peer.gain.gain.value = audible && socket.connected ? 1 : 0;
   }
@@ -109,7 +111,7 @@
   async function updateReturn() {
     const peer = peers.get("monitor");
     if (role !== "stage" || !peer?.sender) return;
-    const stream = taking || ["starting", "live"].includes(state.phase) ? stageAudio : productionAudio;
+    const stream = state.phase === "live" ? peers.get("program")?.remote : productionAudio;
     const track = stream?.getAudioTracks()[0];
     if (peer.sender.track !== track) await peer.sender.replaceTrack(track || null);
   }
@@ -117,7 +119,8 @@
   function render() {
     for (const peer of peers.values()) audioGain(peer);
     if (role === "screen") {
-      const projecting = state.phase === "live" && Boolean(peers.get("program")?.ready);
+      const mediaOnScreen = document.querySelector(".audiovisual-screen-layer.is-video, .immersa-video-slide:not([hidden]), .immersa-youtube-slide:not([hidden])");
+      const projecting = state.phase === "live" && Boolean(peers.get("program")?.ready) && !mediaOnScreen;
       overlay.hidden = !projecting;
       overlay.classList.toggle("is-live", projecting);
       const portrait = projecting && video.videoWidth > 0 && video.videoHeight > video.videoWidth;
@@ -132,7 +135,8 @@
       document.getElementById("guestVisual").hidden = state.phase === "ended";
       document.getElementById("guestVisual").classList.toggle("has-presentation", showingPresentation);
       document.getElementById("guestSlideView").hidden = !showingPresentation;
-      phaseLabel.textContent = state.phase === "ended" ? "ENLACE TERMINADO" : state.phase === "live" ? "EN VIVO" : "EN ESPERA";
+      phaseLabel.classList.toggle("is-countdown", state.phase === "countdown");
+      phaseLabel.textContent = state.phase === "countdown" ? String(state.countdown || "") : state.phase === "ended" ? "ENLACE TERMINADO" : state.phase === "live" ? "LIVE" : "EN ESPERA";
       phaseLabel.parentElement.classList.toggle("is-live", state.phase === "live");
       message.textContent = state.phase === "ended" ? "Gracias por acompañarnos."
         : state.phase === "live" ? "Estás participando en el evento."
@@ -144,14 +148,16 @@
     const descriptions = {
       waiting: state.guestConnected ? "Invitado conectado · En espera" : "Esperando al invitado",
       preparing: "Conectando con el invitado…", ready: "En espera · Comunicación privada con producción",
-      starting: "Enviando a Pantalla…", live: "EN VIVO", ended: "ENLACE TERMINADO"
+      starting: "Preparando Pantalla y retorno…", countdown: "Entrada en " + state.countdown + "…", live: "EN VIVO", ended: "ENLACE TERMINADO"
     };
     message.textContent = notice || descriptions[state.phase] || "En espera";
     invite.disabled = busy || Boolean(state.id) || !socket.connected;
-    startAudio.disabled = busy || Boolean(state.id);
-    microphone.disabled = returnInput.disabled = busy || Boolean(state.id);
+    startAudio.disabled = busy;
+    microphone.disabled = busy;
     connect.disabled = busy || Boolean(state.id) || !state.stageReady || !state.guestConnected;
-    take.disabled = busy || state.phase !== "ready" || !state.screenReady;
+    take.disabled = busy || state.phase !== "ready" || !state.screenReady || !state.returnReady;
+    wait.hidden = !["starting", "countdown", "live"].includes(state.phase);
+    wait.disabled = busy;
     end.disabled = busy || (!state.id && !state.guestConnected);
     mute.hidden = state.phase !== "live";
     mute.textContent = state.muted ? "Abrir audio del invitado" : "Silenciar invitado";
@@ -202,15 +208,15 @@
     render();
     try {
       await initAudio();
-      stopStreams();
-      productionAudio = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioOptions(microphone) });
-      stageAudio = microphone.value === returnInput.value ? productionAudio
-        : await navigator.mediaDevices.getUserMedia({ video: false, audio: { ...audioOptions(returnInput), echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      for (const stream of new Set([productionAudio, stageAudio])) {
-        stream.getTracks()[0].onended = () => { fail(state.id); stopStreams(); };
-      }
+      const next = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioOptions(microphone) });
+      const previous = productionAudio;
+      productionAudio = next;
+      try { await updateReturn(); }
+      catch (error) { productionAudio = previous; next.getTracks().forEach(track => track.stop()); throw error; }
+      previous?.getTracks().forEach(track => track.stop());
+      next.getAudioTracks()[0].onended = () => { fail(state.id); stopStreams(); };
       const devices = await navigator.mediaDevices.enumerateDevices();
-      for (const select of [microphone, returnInput]) {
+      for (const select of [microphone]) {
         const current = select.value;
         select.replaceChildren(new Option("Predeterminado", ""));
         for (const device of devices.filter(item => item.kind === "audioinput")) select.add(new Option(device.label || "Entrada de audio", device.deviceId));
@@ -218,7 +224,7 @@
       }
       audioUnlocked = true;
       socket.emit("guest:media-ready");
-    } catch { notice = "Permite el micrófono y comprueba las entradas de audio."; stopStreams(); }
+    } catch { notice = "No se pudo cambiar el micrófono. Se conserva la entrada anterior."; }
     finally { busy = false; render(); }
   }
 
@@ -242,14 +248,14 @@
         <label>Enlace del invitado<input data-link readonly placeholder="Crea el enlace para compartirlo"></label>
         <button type="button" data-copy>Copiar enlace</button>
         <hr><label>Micrófono de producción<select data-microphone><option value="">Predeterminado</option></select></label>
-        <label>Audio del escenario<select data-return><option value="">Predeterminado</option></select></label>
         <button type="button" data-audio>Activar / actualizar audio</button>
-        <p class="guest-note">Usa Stage con audífonos en un equipo distinto al de Pantalla. Conecta el retorno de consola sin la voz del invitado en «Audio del escenario».</p>
+        <p class="guest-note">Micrófono para conversar en espera. El retorno del evento se configura en Pantalla. Usa audífonos para la comunicación privada.</p>
       </section><section>
         <video autoplay muted playsinline aria-label="Monitor privado del invitado"></video>
         <p class="guest-status" data-status aria-live="polite"></p>
         <div class="guest-actions"><button type="button" data-connect>Preparar conexión</button>
         <button type="button" data-take>Enviar a Pantalla</button>
+        <button type="button" data-wait hidden>Volver a espera</button>
         <button type="button" data-mute hidden>Silenciar invitado</button>
         <button type="button" class="guest-cut" data-end>Terminar enlace</button></div>
       </section></div>`;
@@ -261,7 +267,8 @@
     message = find("[data-status]");
     guestName = find("[data-name]");
     microphone = find("[data-microphone]");
-    returnInput = find("[data-return]");
+    wait = find("[data-wait]");
+    wait.onclick = () => void command("guest:wait", []);
     link = find("[data-link]");
     invite = find("[data-invite]");
     startAudio = find("[data-audio]");
@@ -298,6 +305,42 @@
     screenHost.append(overlay);
     video = overlay.querySelector("video");
     video.addEventListener("resize", render);
+    const settings = document.createElement("button");
+    settings.className = "guest-event-audio";
+    settings.textContent = "Audio del evento";
+    settings.type = "button";
+    screenHost.append(settings);
+    const audioDialog = document.createElement("dialog");
+    audioDialog.className = "guest-production";
+    audioDialog.innerHTML = `<header><h2>Audio hacia el invitado</h2><button type="button" data-close>×</button></header>
+      <label>Entrada del escenario<select data-input><option value="">Predeterminado</option></select></label>
+      <label><span><input type="checkbox" data-media checked> Incluir audios y videos de IMMERSA</span></label>
+      <p class="guest-note">La entrada de consola debe excluir la voz del invitado. Si ya incluye los medios de IMMERSA, desmarca la casilla para evitar duplicarlos. Los videos de YouTube requieren retorno de consola.</p>
+      <button type="button" data-apply>Activar / actualizar entrada</button><p data-status aria-live="polite"></p>`;
+    document.body.append(audioDialog);
+    settings.onclick = () => audioDialog.showModal();
+    audioDialog.querySelector("[data-close]").onclick = () => audioDialog.close();
+    const eventInput = audioDialog.querySelector("[data-input]");
+    const includeMedia = audioDialog.querySelector("[data-media]");
+    includeMedia.onchange = () => eventMixer?.setIncludeMedia(includeMedia.checked);
+    audioDialog.querySelector("[data-apply]").onclick = async () => {
+      const apply = audioDialog.querySelector("[data-apply]");
+      const status = audioDialog.querySelector("[data-status]");
+      apply.disabled = true;
+      try {
+        await initAudio();
+        if (!eventMixer) eventMixer = window.ImmersaGuestEventAudio.create({ context: audioContext, document, onLost: () => socket.emit("guest:return-ready", false) });
+        await eventMixer.setInput(eventInput.value);
+        eventMixer.setIncludeMedia(includeMedia.checked);
+        const current = eventInput.value;
+        eventInput.replaceChildren(new Option("Predeterminado", ""));
+        for (const device of (await navigator.mediaDevices.enumerateDevices()).filter(item => item.kind === "audioinput")) eventInput.add(new Option(device.label || "Entrada de audio", device.deviceId));
+        eventInput.value = current;
+        socket.emit("guest:return-ready", true);
+        status.textContent = "Entrada lista. Puedes corregirla durante el enlace.";
+      } catch { status.textContent = "No se pudo activar la entrada. Comprueba el permiso de micrófono y el dispositivo."; }
+      finally { apply.disabled = false; }
+    };
     let unlock;
     function ensureSharedUnlock() {
       if (audioUnlocked) return;
@@ -374,9 +417,14 @@
   }
 
   async function prepare(setup) {
-    if (peers.has(setup.channel)) return;
+    if (peers.has(setup.channel)) {
+      const existing = peers.get(setup.channel);
+      if (existing.ready) socket.emit("guest:ready", { id: setup.id, channel: setup.channel });
+      return;
+    }
     if (role === "guest" && !capture) return fail(setup.id);
     if (role !== "guest" && !audioUnlocked) return fail(setup.id);
+    if (role === "screen" && !eventMixer?.ready) return fail(setup.id);
     const connection = new RTCPeerConnection(setup.rtc);
     const peer = {
       connection, id: setup.id, channel: setup.channel, remote: new MediaStream(), candidates: [],
@@ -395,11 +443,22 @@
       if (peers.get(peer.channel) !== peer) return;
       peer.remote.addTrack(track);
       if (track.kind === "video") peer.receiver = receiver;
-      if (role !== "guest" && video.srcObject !== peer.remote) {
+      if (role === "screen" || (role === "stage" && peer.channel === "monitor")) if (video.srcObject !== peer.remote) {
         video.srcObject = peer.remote;
         void video.play().catch(() => fail(peer.id));
       }
       if (track.kind === "audio") {
+        if (role === "stage" && peer.channel === "program") {
+          track.onended = () => fail(peer.id);
+          const ready = () => {
+            if (peers.get(peer.channel) !== peer || track.muted) return;
+            peer.ready = true;
+            socket.emit("guest:ready", { id: peer.id, channel: peer.channel });
+          };
+          track.onunmute = ready;
+          ready();
+          return;
+        }
         peer.source = audioContext.createMediaStreamSource(new MediaStream([track]));
         peer.gain = audioContext.createGain();
         peer.gain.gain.value = 0;
@@ -410,8 +469,8 @@
     peer.watchdog = setInterval(() => {
       if (peers.get(peer.channel) !== peer) return;
       if (performance.now() >= peer.deadline) return fail(peer.id);
-      if (role === "screen" && document.querySelector(".audiovisual-screen-layer.is-video, .immersa-video-slide:not([hidden]), .immersa-youtube-slide:not([hidden])")) return fail(peer.id);
-      if (role === "guest") return;
+      if (role === "screen") render();
+      if (role === "guest" || (role === "stage" && peer.channel === "program")) return;
       if (!peer.checkingFrames) void checkFrames(peer);
       if (peer.ready && performance.now() - peer.lastFrame > 3000) fail(peer.id);
     }, 250);
@@ -419,7 +478,7 @@
       const stream = role === "guest" ? capture : peers.get("monitor")?.remote;
       if (!stream?.getAudioTracks().length || !stream.getVideoTracks().length) return fail(peer.id);
       for (const track of stream.getTracks()) connection.addTransceiver(track, {
-        direction: role === "guest" && track.kind === "audio" ? "sendrecv" : "sendonly",
+        direction: track.kind === "audio" ? "sendrecv" : "sendonly",
         streams: [stream], sendEncodings: track.kind === "video" ? [{ maxBitrate: 1800000 }] : undefined
       });
       await connection.setLocalDescription(await connection.createOffer());
@@ -439,10 +498,10 @@
     if (body.description.type === "offer") {
       for (const transceiver of connection.getTransceivers()) {
         transceiver.direction = "recvonly";
-        if (role === "stage" && transceiver.receiver.track.kind === "audio") {
+        if (["stage", "screen"].includes(role) && transceiver.receiver.track.kind === "audio") {
           transceiver.direction = "sendrecv";
           peer.sender = transceiver.sender;
-          await peer.sender.replaceTrack(productionAudio.getAudioTracks()[0]);
+          await peer.sender.replaceTrack((role === "screen" ? eventMixer?.stream : productionAudio)?.getAudioTracks()[0] || null);
         }
       }
       await connection.setLocalDescription(await connection.createAnswer());
@@ -466,11 +525,16 @@
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
     if (next.phase === "ended" && role === "guest") stopStreams();
+    if (next.phase === "ended" && role === "screen" && eventMixer) {
+      eventMixer?.stop(); eventMixer = null;
+      socket.emit("guest:return-ready", false);
+    }
     void updateReturn().catch(() => fail(state.id));
     render();
   });
   socket.on("connect", () => {
     if (capture || (role !== "guest" && audioUnlocked && (role === "screen" || productionAudio))) socket.emit("guest:media-ready");
+    if (role === "screen" && eventMixer?.ready) socket.emit("guest:return-ready", true);
     render();
   });
   socket.on("disconnect", () => {
@@ -487,6 +551,6 @@
     notice = "Este enlace no está disponible. Solicita a producción un enlace nuevo.";
     render();
   });
-  window.addEventListener("pagehide", () => { socket.disconnect(); fail(); stopStreams(); });
+  window.addEventListener("pagehide", () => { socket.disconnect(); fail(); stopStreams(); eventMixer?.stop(); });
   render();
 })();

@@ -48,7 +48,7 @@ test("the guest sees synchronized slides in waiting and live after a single entr
   assert.equal(app.element("guestSlide").src, "/decks/deck/slides/1.jpg");
   assert.equal(app.element("guestSlide").alt, "Primero");
   app.receive("guest:state", { phase: "live", id: null });
-  assert.equal(app.element("guestState").textContent, "EN VIVO");
+  assert.equal(app.element("guestState").textContent, "LIVE");
   assert.equal(app.element("guestSlide").hidden, false);
   assert.equal(app.element("guestPreview").srcObject.getTracks()[0].readyState, "live");
 });

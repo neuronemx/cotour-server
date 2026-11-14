@@ -15,6 +15,14 @@ async function waitFor(check) {
   assert.fail("Slide read did not start");
 }
 
+async function waitForLive(stage) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (stage.messages.at(-1)?.[1].phase === "live") return;
+    await pause(50);
+  }
+  assert.fail("Countdown did not finish");
+}
+
 async function setup(t, options = {}) {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "live-guests-test-"));
   t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
@@ -49,6 +57,7 @@ async function setup(t, options = {}) {
   }
   const stage = await open("stage", "a_stage00001");
   const screen = await open("screen", "a_screen0001");
+  screen.receive("guest:return-ready", true);
   const makeRequest = (socket, event, ...args) => new Promise(resolve => socket.receive(event, ...args, resolve));
   stage.request = makeRequest.bind(null, stage);
   return { open, stage, screen, runtime, projection, grants, dataDir };
@@ -99,9 +108,11 @@ test("only Stage can put a prepared guest on air, with one shared LIVE program o
   projection.release("session", "deck", "speaker-live");
   assert.deepEqual(await stage.request("guest:take"), { ok: true });
   assert.equal(other.messages.some(([event]) => event === "guest:prepare"), false);
-  stage.receive("guest:ready", { id: prepared.id, channel: "program" });
   assert.equal(stage.messages.at(-1)[1].phase, "starting");
+  stage.receive("guest:ready", { id: prepared.id, channel: "program" });
   screen.receive("guest:ready", { id: prepared.id, channel: "program" });
+  assert.equal(stage.messages.at(-1)[1].phase, "countdown");
+  await waitForLive(stage);
   assert.equal(stage.messages.at(-1)[1].phase, "live");
   assert.equal(projection.acquire("session", "deck", "speaker-live"), false);
   guest.receive("guest:mute", true);
@@ -222,4 +233,36 @@ test("slow reads cannot overwrite newer slides or send content after replacement
   await nextGuest.receive("guest:media-ready");
   assert.equal(pending.length, 3);
   assert.equal(nextGuest.messages.filter(([event]) => event === "guest:slide").at(-1)[1], null);
+});
+
+test("countdown waits for picture and return, can be cancelled to private waiting and retaken", async t => {
+  const { stage, screen, open, projection } = await setup(t);
+  const created = await stage.request("guest:invite", {});
+  const guest = await open("guest", created.url.split("/").pop());
+  for (const peer of [stage, screen, guest]) await peer.receive("guest:media-ready");
+  await stage.request("guest:connect");
+  const { id } = guest.messages.find(([event]) => event === "guest:prepare")[1];
+  stage.receive("guest:ready", { id, channel: "monitor" });
+  screen.receive("guest:return-ready", false);
+  assert.equal((await stage.request("guest:take")).ok, false);
+  screen.receive("guest:return-ready", true);
+  assert.equal((await stage.request("guest:take")).ok, true);
+  screen.receive("guest:ready", { id, channel: "program" });
+  assert.equal(stage.messages.at(-1)[1].phase, "starting");
+  stage.receive("guest:ready", { id, channel: "program" });
+  assert.equal(guest.messages.at(-1)[1].countdown, 3);
+  assert.equal((await stage.request("guest:wait")).ok, true);
+  assert.equal(guest.messages.at(-1)[1].phase, "ready");
+  assert.equal(guest.connected, true);
+  assert.equal(projection.acquire("session", "deck", "other"), true);
+  projection.release("session", "deck", "other");
+  await pause(1100);
+  assert.equal(guest.messages.at(-1)[1].phase, "ready");
+  assert.equal((await stage.request("guest:take")).ok, true);
+  stage.receive("guest:ready", { id, channel: "program" });
+  screen.receive("guest:ready", { id, channel: "program" });
+  await waitForLive(stage);
+  assert.deepEqual(guest.messages.filter(([event, value]) => event === "guest:state" && value.phase === "countdown").slice(-3).map(([, value]) => value.countdown), [3, 2, 1]);
+  assert.equal((await stage.request("guest:wait")).ok, true);
+  assert.equal(guest.messages.at(-1)[1].phase, "ready");
 });

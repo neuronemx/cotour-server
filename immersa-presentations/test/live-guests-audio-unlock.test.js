@@ -36,9 +36,10 @@ function mount({ shared = false, unlocked = false } = {}) {
   };
   const original = shared ? addShared() : null;
   const document = {
-    body: { dataset: {} },
+    body: { dataset: {}, append() {} },
     getElementById: () => host,
     createElement: element,
+    querySelector: () => null,
     querySelectorAll: () => nodes.filter(node => node.isConnected && node.dataset.immersaMediaUnlock && !node.hidden),
     addEventListener(event, handler) {
       if (!listeners.has(event)) listeners.set(event, []);
