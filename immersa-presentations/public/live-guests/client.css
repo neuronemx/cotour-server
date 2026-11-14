@@ -8,16 +8,16 @@
 .guest-welcome p { color:#c2cad9; margin:0; line-height:1.55; }
 #guestEntryNotice:empty { display:none; }
 .guest-visual { display:grid; grid-template-rows:minmax(100px,28dvh) auto minmax(220px,1fr); gap:16px; min-height:calc(100dvh - 110px); }
-.guest-slide-view { width:min(100%,600px); justify-self:center; min-height:0; background:#111827; border-radius:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.guest-slide-view { grid-row:1; width:min(100%,600px); justify-self:center; min-height:0; background:#111827; border-radius:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
 .guest-slide-view img { display:block; width:100%; height:100%; object-fit:contain; }
 .guest-slide-view p { margin:24px; color:#c2cad9; text-align:center; font-size:15px; }
-.guest-monitor { position:relative; width:min(100%,680px); min-height:220px; justify-self:center; background:#111827; border:4px solid transparent; box-sizing:border-box; border-radius:18px; overflow:hidden; }
+.guest-monitor { grid-row:3; position:relative; width:min(100%,680px); min-height:220px; justify-self:center; background:#111827; border:4px solid transparent; box-sizing:border-box; border-radius:18px; overflow:hidden; }
 .guest-monitor video { display:block; width:100%; height:100%; max-height:55dvh; min-height:220px; object-fit:contain; }
 .guest-monitor.is-live { border-color:#f20d22; }
 .guest-countdown-overlay { position:absolute; inset:0; display:grid; place-items:center; background:#080c1266; pointer-events:none; }
 .guest-countdown-overlay strong { font-size:clamp(160px,45vmin,420px); line-height:1; font-weight:850; color:#fff; text-shadow:0 4px 30px #0009; }
 .guest-camera-live { position:absolute; top:12px; right:12px; width:85.5px; height:32.25px; object-fit:contain; }
-.guest-caption { text-align:center; padding:0 12px; }
+.guest-caption { grid-row:2; text-align:center; padding:0 12px; }
 .guest-caption p { margin:0; color:#c2cad9; font-size:clamp(14px,1.6vw,17px); line-height:1.5; white-space:pre-line; }
 .guest-caption:has(p:empty) { display:none; }
 .guest-page [hidden], .guest-stage-panel[hidden], .guest-stage-compact [hidden] { display:none!important; }
