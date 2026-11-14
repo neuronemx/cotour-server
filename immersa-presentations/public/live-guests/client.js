@@ -7,6 +7,7 @@
   const peers = new Map();
   let state = { phase: "waiting" };
   let capture;
+  let selfMuted = false;
   let productionAudio;
   let stageAudio;
   let audioContext;
@@ -69,7 +70,7 @@
     for (const stream of new Set([capture, productionAudio, stageAudio])) stream?.getTracks().forEach(track => track.stop());
     capture = productionAudio = stageAudio = null;
     if (hadMedia && socket.connected) socket.emit("guest:media-ready", false);
-    if (role === "guest") { video.srcObject = null; clearGuestSlide(); }
+    if (role === "guest") { selfMuted = false; video.srcObject = null; clearGuestSlide(); }
   }
 
   function clearGuestSlide() {
@@ -124,7 +125,7 @@
   async function updateReturn() {
     const peer = peers.get("monitor");
     if (role !== "stage" || !peer?.sender) return;
-    const stream = state.phase === "live" ? peers.get("program")?.remote : productionAudio;
+    const stream = taking || ["starting", "countdown", "live"].includes(state.phase) ? peers.get("program")?.remote : productionAudio;
     const track = stream?.getAudioTracks()[0];
     if (peer.sender.track !== track) await peer.sender.replaceTrack(track || null);
   }
@@ -145,6 +146,13 @@
     }
     if (role === "guest") {
       const showingPresentation = Boolean(capture) && state.phase !== "ended";
+      document.body.classList.toggle("guest-in-session", showingPresentation);
+      document.getElementById("guestHeader").hidden = showingPresentation;
+      const selfMute = document.getElementById("guestSelfMute");
+      selfMute.hidden = !showingPresentation || (state.phase !== "live" && !selfMuted);
+      selfMute.disabled = !socket.connected;
+      selfMute.setAttribute("aria-pressed", String(selfMuted));
+      selfMute.textContent = selfMuted ? "Activar micrófono" : "Silenciar micrófono";
       document.getElementById("guestWelcome").hidden = Boolean(capture) || state.phase === "ended";
       document.getElementById("guestEnded").hidden = state.phase !== "ended";
       document.getElementById("guestVisual").hidden = !showingPresentation;
@@ -261,6 +269,12 @@
     phaseLabel = document.getElementById("guestState");
     enter = document.getElementById("guestEnter");
     enter.addEventListener("click", () => void startGuest());
+    document.getElementById("guestSelfMute").addEventListener("click", () => {
+      if (!capture || state.phase === "ended" || !socket.connected) return;
+      selfMuted = !selfMuted;
+      for (const track of capture.getAudioTracks()) track.enabled = !selfMuted;
+      render();
+    });
   } else if (role === "stage") {
     const button = document.createElement("button");
     button.className = "guest-open";
@@ -504,6 +518,7 @@
             if (peers.get(peer.channel) !== peer || track.muted) return;
             peer.ready = true;
             socket.emit("guest:ready", { id: peer.id, channel: peer.channel });
+            void updateReturn().catch(() => fail(peer.id));
           };
           track.onunmute = ready;
           ready();
@@ -572,6 +587,7 @@
   socket.on("guest:state", next => {
     const changed = state.id !== next.id;
     state = next;
+    if (["ready", "waiting", "ended"].includes(next.phase)) taking = false;
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
     if (next.phase === "ended" && role === "guest") stopStreams();

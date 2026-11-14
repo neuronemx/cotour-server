@@ -10,14 +10,15 @@ function mount() {
   const elements = new Map();
   const handlers = new Map();
   const images = [];
-  const tracks = [{ readyState: "live", stop() { this.readyState = "ended"; } }];
-  const stream = { getTracks: () => tracks };
+  const tracks = [{ readyState: "live", enabled: true, stop() { this.readyState = "ended"; } }];
+  const stream = { getTracks: () => tracks, getAudioTracks: () => tracks };
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
       hidden: false, dataset: {}, events: new Map(),
       parentElement: { classList: { toggle() {} } },
       classList: { toggle() {} },
       addEventListener(name, fn) { this.events.set(name, fn); },
+      setAttribute(name, value) { this[name] = value; },
       removeAttribute(name) { delete this[name]; },
       async play() {}
     });
@@ -26,7 +27,7 @@ function mount() {
   const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit() {} };
   runInNewContext(client, {
     window: { AudioContext: class { async resume() {} }, addEventListener() {} },
-    document: { body: { dataset: { liveGuest: "true" } }, getElementById: element },
+    document: { body: { dataset: { liveGuest: "true" }, classList: { toggle() {} } }, getElementById: element },
     location: { pathname: "/guest/test" },
     navigator: { mediaDevices: { async getUserMedia() { return stream; } } },
     io: () => socket,
@@ -36,7 +37,7 @@ function mount() {
     async enter() { element("guestEnter").events.get("click")(); await flush(); } };
 }
 
-test("the guest sees synchronized slides in waiting and live after a single entry, with no new controls", async () => {
+test("the guest sees synchronized slides in waiting and live after a single entry", async () => {
   const app = mount();
   assert.equal(app.element("guestWelcome").hidden, false);
   assert.equal(app.element("guestVisual").hidden, true);
@@ -47,6 +48,7 @@ test("the guest sees synchronized slides in waiting and live after a single entr
   assert.equal(app.element("guestEnter").hidden, true);
   assert.equal(app.element("guestWelcome").hidden, true);
   assert.equal(app.element("guestVisual").hidden, false);
+  assert.equal(app.element("guestHeader").hidden, true);
   assert.ok(app.element("guestMessage").textContent.includes("Estás en la SALA DE ESPERA."));
   assert.equal(app.element("guestSlideView").hidden, false);
   app.receive("guest:slide", { src: "/decks/deck/slides/1.jpg", index: 0, title: "Primero" });
@@ -58,6 +60,36 @@ test("the guest sees synchronized slides in waiting and live after a single entr
   assert.equal(app.element("guestLiveSticker").hidden, false);
   assert.equal(app.element("guestSlide").hidden, false);
   assert.equal(app.element("guestPreview").srcObject.getTracks()[0].readyState, "live");
+});
+
+test("a guest can mute for a cough and resume without stopping camera or resetting on state updates", async () => {
+  const app = mount();
+  await app.enter();
+  const button = app.element("guestSelfMute");
+  assert.equal(button.hidden, true);
+  app.receive("guest:state", { phase: "live", id: null });
+  assert.equal(button.hidden, false);
+  button.events.get("click")();
+  assert.equal(app.tracks[0].enabled, false);
+  assert.equal(app.tracks[0].readyState, "live");
+  assert.equal(button.textContent, "Activar micrófono");
+  assert.equal(button["aria-pressed"], "true");
+  app.receive("guest:state", { phase: "live", id: null, muted: true });
+  assert.equal(app.tracks[0].enabled, false);
+  button.events.get("click")();
+  assert.equal(app.tracks[0].enabled, true);
+  assert.equal(button["aria-pressed"], "false");
+  assert.equal(app.element("guestPreview").srcObject.getTracks()[0].readyState, "live");
+  button.events.get("click")();
+  app.receive("guest:state", { phase: "ready", id: null });
+  assert.equal(button.hidden, false);
+  assert.equal(app.tracks[0].enabled, false);
+  button.events.get("click")();
+  assert.equal(app.tracks[0].enabled, true);
+  assert.equal(button.hidden, true);
+  app.receive("guest:state", { phase: "ended", id: null });
+  assert.equal(button.hidden, true);
+  assert.equal(app.element("guestHeader").hidden, false);
 });
 
 test("countdown covers the camera only during entry and LIVE clears it; waiting removes the sticker", async () => {

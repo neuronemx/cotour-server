@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Invitado LIVE · IMMERSA</title>
-  <link rel="stylesheet" href="/live-guests/client.css?v=4">
+  <link rel="stylesheet" href="/live-guests/client.css?v=5">
   <script src="/socket.io/socket.io.js" defer></script>
-  <script src="/live-guests/client.js?v=5" defer></script>
+  <script src="/live-guests/client.js?v=6" defer></script>
 </head>
 <body class="guest-page" data-live-guest="true">
   <main class="guest-experience">
-    <header><img class="guest-brand" src="/live-guests/immersa-logo.png" alt="IMMERSA"></header>
+    <header id="guestHeader"><img class="guest-brand" src="/live-guests/immersa-logo.png" alt="IMMERSA"></header>
     <section class="guest-welcome" id="guestWelcome">
-      <h1>Bienvenid@ <span id="guestWelcomeName">{{GUEST_NAME}}</span><br><span class="guest-welcome-context">al En VIVO de</span><br><span id="guestDeckTitle">{{DECK_TITLE}}</span></h1>
+      <h1>Bienvenid@ <span id="guestWelcomeName">{{GUEST_NAME}}</span><br><span class="guest-welcome-context">al EN VIVO de</span><br><span id="guestDeckTitle">{{DECK_TITLE}}</span></h1>
       <p>Entra para que producción prepare tu participación.</p>
       <button id="guestEnter" type="button">Entrar a la sala de espera</button>
       <p id="guestEntryNotice" role="status"></p>
@@ -28,10 +28,12 @@
         <video id="guestPreview" autoplay muted playsinline aria-label="Tu cámara"></video>
         <div class="guest-countdown-overlay" id="guestCountdown" hidden aria-live="assertive"><strong id="guestState"></strong></div>
         <img class="guest-camera-live" id="guestLiveSticker" src="/live-guests/live-badge.png" alt="LIVE" hidden>
+        <button class="guest-self-mute" id="guestSelfMute" type="button" aria-pressed="false" hidden>Silenciar micrófono</button>
       </div>
     </div>
     <section class="guest-ended" id="guestEnded" hidden>
       <h1>ENLACE TERMINADO</h1><p>Gracias por acompañarnos.</p>
+      <a href="https://www.immersalive.com/" target="_blank" rel="noopener noreferrer">www.immersalive.com</a>
     </section>
   </main>
 </body>
