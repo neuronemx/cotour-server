@@ -39,6 +39,9 @@ test("Screen return keeps one output track, replaces inputs safely and excludes 
   mixer.setIncludeMedia(true);
   assert.equal(captures, 1);
   assert.equal(guestCaptures, 0);
+  sources.at(-1).value.getAudioTracks()[0].stop();
+  mixer.setIncludeMedia(true);
+  assert.equal(captures, 2);
   mixer.setIncludeMedia(false);
   assert.ok(sources.at(-1).disconnected);
   inputs[1].getAudioTracks()[0].onended();

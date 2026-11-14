@@ -7,7 +7,7 @@
       const active = new Set([...document.querySelectorAll("audio,video")].filter(element =>
         !element.closest(".guest-program") && !element.paused && !element.ended && !element.muted));
       for (const [element, entry] of media) {
-        if (!active.has(element) || !include) {
+        if (!active.has(element) || !include || !entry.stream.getAudioTracks().some(track => track.readyState === "live")) {
           entry.source.disconnect();
           entry.gain.disconnect();
           entry.stream.getTracks().forEach(track => track.stop());
