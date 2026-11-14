@@ -41,3 +41,5 @@
 .guest-audio-unlock { position:fixed; bottom:18px; right:18px; z-index:9999; }
 .guest-program[hidden], .guest-caption [hidden], .guest-production [hidden], .guest-audio-unlock[hidden] { display:none!important; }
 @media(max-width:650px) { .guest-production .guest-grid { grid-template-columns:1fr; } .guest-experience { padding:12px; gap:10px; } }
+
+.screen:not(.ui-visible) .guest-event-audio:not(:focus-visible) { opacity:0; pointer-events:none; }
