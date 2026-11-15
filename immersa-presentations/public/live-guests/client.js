@@ -97,6 +97,7 @@
     next.onload = () => {
       if (version !== slideVersion || !capture || !socket.connected || state.phase === "ended") return;
       const image = document.getElementById("guestSlide");
+      guestZoom?.reset();
       image.src = slide.src;
       image.alt = slide.title || "Slide en curso";
       image.dataset.slideIndex = String(slide.index);

@@ -158,8 +158,10 @@ test("slide zoom resets on a new slide, public overlay or disconnect, and keeps 
   assert.equal(resets, 2);
   app.receive("guest:slide", { src: "/decks/deck/slides/2.jpg", index: 1 });
   assert.equal(resets, 3);
-  app.receive("disconnect");
+  app.images[1].onload();
   assert.equal(resets, 4);
+  app.receive("disconnect");
+  assert.equal(resets, 5);
 });
 
 test("rapid navigation, failed images, disconnection and ending cannot reveal an outdated slide", async () => {
