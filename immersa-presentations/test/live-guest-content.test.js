@@ -26,9 +26,10 @@ test("poll rendering treats text literally, clamps bars and clears without addin
   const content = create({ document: { createElement: node }, resultsHost, reactionsHost });
   content.setResults({ title: '<script>alert(1)</script>', prompt: '<img onerror=alert(1)>', totalResponses: 3,
     options: [{ label: '<button>Click</button>', percentage: 300 }] });
-  assert.equal(resultsHost.children[0].textContent, '<script>alert(1)</script>');
-  assert.equal(resultsHost.children[3].children[0].children[0].textContent, '<button>Click</button>');
-  assert.equal(resultsHost.children[3].children[1].children[0].style.width, "100%");
+  assert.equal(resultsHost.children[0].textContent, '<img onerror=alert(1)>');
+  assert.equal(resultsHost.children.some(node => node.tag === "h2"), false);
+  assert.equal(resultsHost.children[2].children[0].children[0].textContent, '<button>Click</button>');
+  assert.equal(resultsHost.children[2].children[1].children[0].style.width, "100%");
   content.setResults(null);
   assert.equal(resultsHost.hidden, true);
   assert.equal(resultsHost.children.length, 0);

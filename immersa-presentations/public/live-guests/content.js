@@ -5,10 +5,9 @@
       resultsHost.replaceChildren();
       resultsHost.hidden = !results;
       if (!results) return;
-      const title = document.createElement("h2"); title.textContent = results.title || "Resultados";
       const prompt = document.createElement("p"); prompt.textContent = results.prompt || "";
       const total = document.createElement("small"); total.textContent = String(results.totalResponses || 0) + " respuestas";
-      resultsHost.append(title, prompt, total);
+      resultsHost.append(prompt, total);
       for (const option of (results.options || []).slice(0, 50)) {
         const row = document.createElement("div"); row.className = "guest-poll-row";
         const heading = document.createElement("div"); heading.className = "guest-poll-label";

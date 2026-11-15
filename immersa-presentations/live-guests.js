@@ -6,7 +6,7 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=7"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=7" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=8"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=7" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);

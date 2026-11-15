@@ -58,7 +58,7 @@
 .guest-stage-compact>div { display:flex; gap:6px; flex-wrap:wrap; }
 .guest-stage-compact button { padding:6px 9px; font-size:11px; }
 .guest-stage-compact button:disabled { opacity:.45; }
-.guest-stage-panel { position:fixed; z-index:150; top:85px; right:14px; bottom:14px; width:min(380px,calc(100vw - 28px)); max-height:none; margin:0; box-sizing:border-box; box-shadow:0 16px 60px #0009; }
+.guest-stage-panel { position:fixed; z-index:150; top:12px; right:14px; bottom:14px; width:min(380px,calc(100vw - 28px)); max-height:none; margin:0; box-sizing:border-box; box-shadow:0 16px 60px #0009; }
 .guest-stage-panel .guest-grid { grid-template-columns:minmax(0,1fr); }
 .guest-stage-panel header { position:sticky; top:-20px; background:#111723; padding:10px 0; z-index:1; }
 @media(min-width:1100px) { body.guest-panel-open .stage-shell { padding-right:410px; } }
