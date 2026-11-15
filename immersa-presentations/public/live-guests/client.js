@@ -9,6 +9,7 @@
   let capture;
   let selfMuted = false;
   let guestContent;
+  let guestZoom;
   let productionAudio;
   let stageAudio;
   let audioContext;
@@ -76,6 +77,7 @@
 
   function clearGuestSlide() {
     if (role !== "guest") return;
+    guestZoom?.reset();
     slideVersion++;
     slideSource = "";
     const image = document.getElementById("guestSlide");
@@ -88,6 +90,7 @@
     if (role !== "guest" || !capture || !socket.connected || state.phase === "ended") return;
     if (typeof slide?.src !== "string" || !slide.src.startsWith("/decks/") || slide.src.includes("\\")) return clearGuestSlide();
     if (slide.src === slideSource) return;
+    guestZoom?.reset();
     const version = ++slideVersion;
     slideSource = slide.src;
     const next = new Image();
@@ -265,6 +268,9 @@
   }
 
   if (role === "guest") {
+    guestZoom = window.ImmersaGuestSlideZoom?.create({
+      surface: document.getElementById("guestSlideView"), image: document.getElementById("guestSlide"), view: window
+    });
     guestContent = window.ImmersaGuestContent?.create({ document,
       questionHost: document.getElementById("guestQuestion"), slideHost: document.getElementById("guestSlideView"),
       resultsHost: document.getElementById("guestPollResults"), reactionsHost: document.getElementById("guestReactions") });
@@ -582,6 +588,7 @@
   socket.on("guest:slide", receiveGuestSlide);
   socket.on("guest:content", payload => {
     if (role === "guest" && capture && socket.connected && state.phase !== "ended") {
+      if (payload?.results || payload?.question) guestZoom?.reset();
       guestContent?.setResults(payload?.results || null);
       guestContent?.setQuestion?.(payload?.question || null);
     }
@@ -631,6 +638,6 @@
     notice = "Este enlace no está disponible. Solicita a producción un enlace nuevo.";
     render();
   });
-  window.addEventListener("pagehide", () => { socket.disconnect(); fail(); stopStreams(); eventMixer?.stop(); });
+  window.addEventListener("pagehide", () => { socket.disconnect(); fail(); stopStreams(); eventMixer?.stop(); guestZoom?.destroy(); });
   render();
 })();

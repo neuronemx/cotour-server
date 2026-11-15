@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Invitado LIVE · IMMERSA</title>
-  <link rel="stylesheet" href="/live-guests/client.css?v=9">
+  <link rel="stylesheet" href="/live-guests/client.css?v=10">
   <script src="/socket.io/socket.io.js" defer></script>
   <script src="/live-guests/content.js?v=3" defer></script>
-  <script src="/live-guests/client.js?v=8" defer></script>
+  <script src="/live-guests/slide-zoom.js?v=1" defer></script>
+  <script src="/live-guests/client.js?v=9" defer></script>
 </head>
 <body class="guest-page" data-live-guest="true">
   <main class="guest-experience">
@@ -21,7 +22,7 @@
     </section>
     <div class="guest-visual" id="guestVisual" hidden>
       <div class="guest-slide-view" id="guestSlideView" hidden>
-        <img id="guestSlide" alt="Slide en curso" hidden>
+        <img id="guestSlide" alt="Slide en curso" draggable="false" tabindex="0" aria-keyshortcuts="+ - 0" title="Pellizca o usa la rueda para ampliar. Doble toque para acercar o restablecer." hidden>
         <p id="guestSlidePlaceholder">La presentación aparecerá aquí.</p>
         <section class="guest-poll-results" id="guestPollResults" aria-label="Resultados de la encuesta" hidden></section>
         <section class="guest-question" id="guestQuestion" aria-label="Pregunta del público" aria-live="polite" hidden></section>

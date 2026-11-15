@@ -6,7 +6,7 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount(contentApi) {
+function mount(contentApi, zoomApi) {
   const elements = new Map();
   const handlers = new Map();
   const images = [];
@@ -26,7 +26,8 @@ function mount(contentApi) {
   }
   const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit() {} };
   runInNewContext(client, {
-    window: { AudioContext: class { async resume() {} }, addEventListener() {}, ImmersaGuestContent: contentApi ? { create: () => contentApi } : undefined },
+    window: { AudioContext: class { async resume() {} }, addEventListener() {}, ImmersaGuestContent: contentApi ? { create: () => contentApi } : undefined,
+      ImmersaGuestSlideZoom: zoomApi ? { create: () => zoomApi } : undefined },
     document: { body: { dataset: { liveGuest: "true" }, classList: { toggle() {} } }, getElementById: element },
     location: { pathname: "/guest/test" },
     navigator: { mediaDevices: { async getUserMedia() { return stream; } } },
@@ -140,6 +141,25 @@ test("countdown covers the camera only during entry and LIVE clears it; waiting 
   assert.equal(app.element("guestCountdown").hidden, true);
   assert.equal(app.element("guestLiveSticker").hidden, true);
   assert.ok(app.element("guestMessage").textContent.includes("SALA DE ESPERA"));
+});
+
+test("slide zoom resets on a new slide, public overlay or disconnect, and keeps same-slide zoom", async () => {
+  let resets = 0;
+  const app = mount(undefined, { reset: () => resets++ });
+  await app.enter();
+  const slide = { src: "/decks/deck/slides/1.jpg", index: 0 };
+  app.receive("guest:slide", slide);
+  assert.equal(resets, 1);
+  app.receive("guest:slide", slide);
+  assert.equal(resets, 1);
+  app.receive("guest:content", { results: null, question: null });
+  assert.equal(resets, 1);
+  app.receive("guest:content", { question: { text: "Question" } });
+  assert.equal(resets, 2);
+  app.receive("guest:slide", { src: "/decks/deck/slides/2.jpg", index: 1 });
+  assert.equal(resets, 3);
+  app.receive("disconnect");
+  assert.equal(resets, 4);
 });
 
 test("rapid navigation, failed images, disconnection and ending cannot reveal an outdated slide", async () => {

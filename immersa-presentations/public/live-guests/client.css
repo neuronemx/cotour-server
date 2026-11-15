@@ -97,3 +97,6 @@
 .guest-question { position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; box-sizing:border-box; padding:16px 20px; background:#111827; border:1px solid #a474ff66; border-radius:inherit; display:flex; flex-direction:column; justify-content:safe center; text-align:center; }
 .guest-question p { margin:0; color:#fff; font-size:clamp(17px,2.2vw,25px); line-height:1.4; overflow-wrap:anywhere; }
 .guest-question small { display:block; margin-top:10px; color:#c8b7ef; font-size:13px; overflow-wrap:anywhere; }
+
+#guestSlide { touch-action:none; user-select:none; -webkit-user-drag:none; transform:translate3d(var(--guest-pan-x,0px),var(--guest-pan-y,0px),0) scale(var(--guest-zoom,1)); transform-origin:center center; }
+#guestSlide:focus-visible { outline:2px solid #a474ff; outline-offset:-3px; }
