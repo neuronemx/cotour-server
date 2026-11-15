@@ -266,6 +266,7 @@
 
   if (role === "guest") {
     guestContent = window.ImmersaGuestContent?.create({ document,
+      questionHost: document.getElementById("guestQuestion"), slideHost: document.getElementById("guestSlideView"),
       resultsHost: document.getElementById("guestPollResults"), reactionsHost: document.getElementById("guestReactions") });
     video = document.getElementById("guestPreview");
     message = document.getElementById("guestMessage");
@@ -580,7 +581,10 @@
   socket.on("guest:prepare", setup => { void prepare(setup).catch(() => fail(setup.id)); });
   socket.on("guest:slide", receiveGuestSlide);
   socket.on("guest:content", payload => {
-    if (role === "guest" && capture && socket.connected && state.phase !== "ended") guestContent?.setResults(payload?.results || null);
+    if (role === "guest" && capture && socket.connected && state.phase !== "ended") {
+      guestContent?.setResults(payload?.results || null);
+      guestContent?.setQuestion?.(payload?.question || null);
+    }
   });
   socket.on("guest:reaction", payload => {
     if (role === "guest" && capture && socket.connected && state.phase !== "ended") guestContent?.react(payload);

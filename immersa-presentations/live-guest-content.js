@@ -1,4 +1,4 @@
-// Public, aggregated poll data only. Never include individual responses or role tokens.
+// Public guest monitor data only. Never include individual responses or role tokens.
 function guestPollResults(results, locale = "es") {
   if (!results || results.type !== "poll" || !Array.isArray(results.options)) return null;
   const labels = results.en?.options || {};
@@ -17,4 +17,11 @@ function guestPollResults(results, locale = "es") {
   };
 }
 
-module.exports = { guestPollResults };
+function guestQuestion(payload) {
+  const question = payload?.visible ? payload.question : null;
+  const text = String(question?.text || "").trim().slice(0, 4000);
+  if (!text) return null;
+  return { text, name: String(question.name || "").trim().slice(0, 200) };
+}
+
+module.exports = { guestPollResults, guestQuestion };

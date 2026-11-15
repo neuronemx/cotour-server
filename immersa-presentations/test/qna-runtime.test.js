@@ -261,3 +261,15 @@ test("enabled runtime lists history and exports every deck execution", async () 
     { method: "clearDeckHistory", deckId: "deck-a" }
   ]);
 });
+
+test("guest question reads never create a presentation execution", async () => {
+  let created = 0;
+  const runtime = createQnaRuntime({
+    env: { IMMERSA_QNA_ENABLED: "true" }, pool: { async end() {} }, io: fakeIo(),
+    getRoleRoomKey: (room, role) => room + role,
+    repository: { async getActivePresentationSession() { return null; } },
+    executionCoordinator: { async ensureExecution() { created++; return { presentationSessionId: "new" }; } }
+  });
+  assert.equal(await runtime.getPublicScreenState({ deckId: "deck", sessionId: "session", role: "stage" }), null);
+  assert.equal(created, 0);
+});

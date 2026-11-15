@@ -6,13 +6,13 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=8"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=7" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=9"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=8" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide, getPublicResults }) {
+function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRole, getRtcConfiguration, projection, canProject, getPresentationSlide, getPublicResults, getPublicQuestion }) {
   const rooms = new Map();
   const directory = path.join(dataDir, "live-guests");
   const scopeKey = (deckId, sessionId) => createHash("sha256").update(JSON.stringify([deckId, sessionId])).digest("hex");
@@ -157,17 +157,21 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
 
   async function sendContent(room) {
     const guest = room.peers.guest;
-    if (!getPublicResults || !guest?.data.mediaReady || room.invite?.endedAt) return;
+    if ((!getPublicResults && !getPublicQuestion) || !guest?.data.mediaReady || room.invite?.endedAt) return;
     const revision = room.contentRevision = (room.contentRevision || 0) + 1;
     let results = null;
+    let question = null;
     try {
       if (await stillAuthorized(guest)) {
-        results = await getPublicResults(room);
-        if (!await stillAuthorized(guest)) results = null;
+        [results, question] = await Promise.all([
+          Promise.resolve().then(() => getPublicResults?.(room) || null).catch(() => null),
+          Promise.resolve().then(() => getPublicQuestion?.(room) || null).catch(() => null)
+        ]);
+        if (!await stillAuthorized(guest)) { results = null; question = null; }
       }
-    } catch { /* A missing poll must not interrupt a LIVE connection. */ }
+    } catch { results = null; question = null; /* Fail closed without interrupting the call. */ }
     if (revision === room.contentRevision && room.peers.guest === guest && guest.connected
-      && guest.data.mediaReady && !room.invite?.endedAt) guest.emit("guest:content", { results });
+      && guest.data.mediaReady && !room.invite?.endedAt) guest.emit("guest:content", { results, ...(getPublicQuestion ? { question } : {}) });
   }
 
   function updateContent(scope) {

@@ -75,6 +75,7 @@ function setup(role = "presenter", options = {}) {
   const repository = options.repository || repositoryStub();
   const context = {
     roomKey: "room-a",
+    deckId: "deck-a",
     sessionId: "source-session-1",
     role,
     audienceId: role === "audience" ? "audience-1" : null
@@ -83,8 +84,9 @@ function setup(role = "presenter", options = {}) {
     io,
     repository,
     getRoleRoomKey: (room, targetRole) => `${room}::${targetRole}`,
-    resolvePresentationSessionId: async () => "presentation-session-1",
-    getConnectedAudience: () => [{ audienceId: "audience-1" }]
+    resolvePresentationSessionId: options.resolvePresentationSessionId || (async () => "presentation-session-1"),
+    getConnectedAudience: () => [{ audienceId: "audience-1" }],
+    onScreenChanged: options.onScreenChanged
   });
   handlers.attach(socket, () => context);
   return { socket, io, repository, context, handlers };
@@ -240,4 +242,30 @@ test("domain errors are returned with stable public reasons", async () => {
     event: "qna:rejected",
     payload: { event: "qna:delete", reason: "QNA_ALREADY_PROJECTED" }
   });
+});
+
+test("guest snapshots follow projection, respect name consent and stay cleared after panel close", async () => {
+  const notifications = [], roles = [];
+  const { socket, handlers, context } = setup("stage", {
+    onScreenChanged: value => notifications.push(value),
+    resolvePresentationSessionId: async value => { roles.push(value.role); return "presentation-session-1"; }
+  });
+  const read = () => handlers.getPublicScreenState(context);
+  assert.deepEqual(await read(), { visible: false, question: null });
+  await socket.trigger("qna:project", { questionId: "q-1" });
+  assert.equal((await read()).question.name, "Ana");
+  await socket.trigger("qna:select", { questionId: "q-2" });
+  assert.equal((await read()).question.id, "q-1");
+  await socket.trigger("qna:project", { questionId: "q-2" });
+  assert.deepEqual((await read()).question, { id: "q-2", text: "¿Segunda?", name: "" });
+  await socket.trigger("qna:panel_close");
+  assert.deepEqual(await read(), { visible: false, question: null });
+  await socket.trigger("qna:panel_open");
+  assert.deepEqual(await read(), { visible: false, question: null });
+  await socket.trigger("qna:project", { questionId: "q-1" });
+  await socket.trigger("qna:new_round");
+  assert.deepEqual(await read(), { visible: false, question: null });
+  assert.equal(roles.at(-1), "viewer");
+  assert.ok(notifications.length >= 6);
+  assert.equal(notifications.every(value => value.deckId === "deck-a" && value.sessionId === "source-session-1"), true);
 });

@@ -55,6 +55,7 @@ function createQnaRuntime(options = {}) {
     getRoleRoomKey: options.getRoleRoomKey,
     getRoomKey: options.getRoomKey,
     getConnectedAudience: options.getConnectedAudience,
+    onScreenChanged: options.onScreenChanged,
     resolvePresentationSessionId
   });
 
@@ -124,6 +125,7 @@ function createQnaRuntime(options = {}) {
       if (pool?.end) await pool.end();
     },
     repository,
+    getPublicScreenState: sockets.getPublicScreenState,
     pool
   };
 }

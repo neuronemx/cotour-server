@@ -319,3 +319,50 @@ test("public poll results and reactions stay scoped, recover after entry and sto
   await pause(100);
   assert.equal(reconnect.messages.length, endedCount);
 });
+
+test("guest questions recover on reconnect, stay scoped and disappear after hide or end", async t => {
+  let question = { text: "Public question", name: "" };
+  const { open, stage, runtime } = await setup(t, {
+    getPublicQuestion: async scope => { assert.equal(scope.deckId, "deck"); assert.equal(scope.sessionId, "session"); return question; }
+  });
+  const invite = await stage.request("guest:invite", {});
+  const token = invite.url.split("/").pop();
+  const guest = await open("guest", token);
+  const messages = socket => socket.messages.filter(([event]) => event === "guest:content");
+  assert.equal(messages(guest).length, 0);
+  await guest.receive("guest:media-ready");
+  assert.deepEqual(messages(guest).at(-1)[1], { results: null, question });
+  const count = messages(guest).length;
+  runtime.updateContent({ deckId: "other", sessionId: "session" });
+  await pause(100);
+  assert.equal(messages(guest).length, count);
+  guest.disconnect();
+  const reconnect = await open("guest", token);
+  await reconnect.receive("guest:media-ready");
+  assert.deepEqual(messages(reconnect).at(-1)[1].question, question);
+  question = null;
+  const previous = messages(reconnect).length;
+  runtime.updateContent({ deckId: "deck", sessionId: "session" });
+  await waitFor(() => messages(reconnect).length > previous);
+  assert.equal(messages(reconnect).at(-1)[1].question, null);
+  await stage.request("guest:end");
+  const endedCount = messages(reconnect).length;
+  runtime.updateContent({ deckId: "deck", sessionId: "session" });
+  await pause(100);
+  assert.equal(messages(reconnect).length, endedCount);
+});
+
+test("a failed authorization recheck clears the question snapshot instead of exposing it", async t => {
+  let unavailable = false;
+  const { stage, open } = await setup(t, {
+    authorizeRole: async role => {
+      if (unavailable) throw Error("service unavailable");
+      return { deck: { deckId: "deck" }, accessLink: { session_id: "session", role } };
+    },
+    getPublicQuestion: async () => { unavailable = true; return { text: "Stale question", name: "" }; }
+  });
+  const invitation = await stage.request("guest:invite", {});
+  const guest = await open("guest", invitation.url.split("/").pop());
+  await guest.receive("guest:media-ready");
+  assert.deepEqual(guest.messages.filter(([event]) => event === "guest:content").at(-1)[1], { results: null, question: null });
+});

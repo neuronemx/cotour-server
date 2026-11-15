@@ -17,7 +17,7 @@ const { createAccessLinkHandlers } = require("./access-links");
 const { readLiveCameraPilot, readLiveCameraDemo, readLiveCameraWorkDecks, liveCameraPageAssets, attachLiveCamera } = require("./live-camera");
 const { createLiveGuests } = require("./live-guests");
 const { createGuestSlideReader } = require("./live-guest-slides");
-const { guestPollResults } = require("./live-guest-content");
+const { guestPollResults, guestQuestion } = require("./live-guest-content");
 const { createLiveProjection } = require("./live-projection");
 const { createCloudflareTurn } = require("./cloudflare-turn");
 const { createLiveCameraSetup, pilotRoleUrls } = require("./event-hub/live-camera-setup");
@@ -163,7 +163,8 @@ const qnaRuntime = createQnaRuntime({
   io,
   getRoleRoomKey,
   getRoomKey,
-  getConnectedAudience
+  getConnectedAudience,
+  onScreenChanged: context => liveGuests?.updateContent({ deckId: context.deckId, sessionId: context.sessionId })
 });
 const knowledgeActivityRuntime = createKnowledgeActivityRuntime({
   io,
@@ -415,6 +416,9 @@ liveGuests = createLiveGuests({
   origin: liveCameraDemo?.origin,
   enabled: Boolean(liveCameraDemo?.workDecks && cloudflareTurn) && process.env.IMMERSA_LIVE_GUESTS_ENABLED === "true",
   getRtcConfiguration: cloudflareTurn,
+  getPublicQuestion: async ({ deckId, sessionId }) => guestQuestion(await qnaRuntime.getPublicScreenState?.({
+    deckId, sessionId, roomKey: getRoomKey(sessionId, deckId)
+  })),
   getPublicResults: ({ deckId, sessionId }) => {
     const session = getSessionByRoomKey(getRoomKey(sessionId, deckId));
     if (!session || !interactionStore.getSession(sessionId).resultsVisible) return null;

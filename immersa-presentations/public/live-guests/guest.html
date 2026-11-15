@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Invitado LIVE · IMMERSA</title>
-  <link rel="stylesheet" href="/live-guests/client.css?v=8">
+  <link rel="stylesheet" href="/live-guests/client.css?v=9">
   <script src="/socket.io/socket.io.js" defer></script>
-  <script src="/live-guests/content.js?v=2" defer></script>
-  <script src="/live-guests/client.js?v=7" defer></script>
+  <script src="/live-guests/content.js?v=3" defer></script>
+  <script src="/live-guests/client.js?v=8" defer></script>
 </head>
 <body class="guest-page" data-live-guest="true">
   <main class="guest-experience">
@@ -24,6 +24,7 @@
         <img id="guestSlide" alt="Slide en curso" hidden>
         <p id="guestSlidePlaceholder">La presentación aparecerá aquí.</p>
         <section class="guest-poll-results" id="guestPollResults" aria-label="Resultados de la encuesta" hidden></section>
+        <section class="guest-question" id="guestQuestion" aria-label="Pregunta del público" aria-live="polite" hidden></section>
       </div>
       <section class="guest-caption" aria-live="polite"><p id="guestMessage"></p></section>
       <div class="guest-monitor" id="guestMonitor">

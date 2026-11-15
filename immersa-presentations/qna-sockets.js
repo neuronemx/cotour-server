@@ -8,7 +8,8 @@ function createQnaSocketHandlers({
   getRoleRoomKey,
   getRoomKey = (sessionId, deckId) => `${sessionId}::${deckId}`,
   resolvePresentationSessionId,
-  getConnectedAudience = () => []
+  getConnectedAudience = () => [],
+  onScreenChanged = null
 }) {
   if (!io?.to || !repository || !getRoleRoomKey || !resolvePresentationSessionId) {
     throw new Error("Q&A socket dependencies are required");
@@ -78,6 +79,7 @@ function createQnaSocketHandlers({
     const payload = screenPayload(state, context.presentationSessionId);
     io.to(getRoleRoomKey(context.roomKey, "screen")).emit("qna:screen", payload);
     io.to(getRoleRoomKey(context.roomKey, "viewer")).emit("qna:screen", payload);
+    onScreenChanged?.(context);
   }
 
   async function audiencePayload(context, audienceId) {
@@ -218,6 +220,15 @@ function createQnaSocketHandlers({
     }
   }
 
+  async function getPublicScreenState(rawContext) {
+    if (!rawContext?.deckId || !rawContext.sessionId) return null;
+    // Read-only role: never create an execution just to populate a guest monitor.
+    const presentationSessionId = await resolvePresentationSessionId({ ...rawContext, role: "viewer" });
+    if (!presentationSessionId) return null;
+    const state = await repository.getActiveState(presentationSessionId);
+    return screenPayload(state, presentationSessionId);
+  }
+
   async function resetAfterHistoryDelete({ deckId, sourceSessionId, presentationSessionId }) {
     if (!deckId || !sourceSessionId || !presentationSessionId) return;
     const roomKey = getRoomKey(sourceSessionId, deckId);
@@ -226,7 +237,7 @@ function createQnaSocketHandlers({
     await emitAllStates(context);
   }
 
-  return { attach, sendCurrentState, resetAfterHistoryDelete };
+  return { attach, sendCurrentState, resetAfterHistoryDelete, getPublicScreenState };
 }
 
 module.exports = { CONTROL_ROLES, createQnaSocketHandlers };
