@@ -11,13 +11,13 @@ test("Screen return keeps one output track, replaces inputs safely and excludes 
   const output = stream();
   let fail = false, lost = 0, guestCaptures = 0, captures = 0;
   const inputs = [];
-  const sources = [];
-  const node = () => ({ connect() { return this; }, disconnect() { this.disconnected = true; } });
+  const sources = [], gains = [];
+  const node = () => ({ connect(target) { this.target = target; return this; }, disconnect() { this.disconnected = true; } });
   const mixer = create({
     context: {
       createMediaStreamDestination: () => ({ stream: output }),
       createMediaStreamSource(value) { const n = { ...node(), value }; sources.push(n); return n; },
-      createGain: () => ({ ...node(), gain: { value: 0 } })
+      createGain: () => { const gain = { ...node(), gain: { value: 0 } }; gains.push(gain); return gain; }
     },
     document: { querySelectorAll: () => [
       { paused: false, muted: false, volume: .6, closest: () => null, captureStream() { captures++; return stream(); } },
@@ -27,6 +27,18 @@ test("Screen return keeps one output track, replaces inputs safely and excludes 
     onLost: () => lost++
   });
   t.after(() => mixer.stop());
+  assert.equal(mixer.ready, false);
+  mixer.setSpeakerMode(true);
+  assert.equal(mixer.ready, true);
+  assert.equal(inputs.length, 0);
+  assert.equal(gains[0].gain.value, 0);
+  assert.equal(gains[1].gain.value, 1);
+  mixer.setRemoteVoice(stream());
+  assert.equal(sources.at(-1).target, gains[1]);
+  mixer.setSpeakerMode(false);
+  assert.equal(gains[0].gain.value, 1);
+  assert.equal(gains[1].gain.value, 0);
+  assert.equal(mixer.ready, false);
   await mixer.setInput("mic");
   const stable = mixer.stream.getAudioTracks()[0];
   fail = true;

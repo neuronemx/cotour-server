@@ -6,7 +6,7 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount() {
+function mount(role = "stage") {
   const created = [], handlers = new Map(), sent = [];
   function element(tag = "div") {
     const children = new Map();
@@ -24,13 +24,16 @@ function mount() {
   const body = element(); body.dataset = {};
   const socket = { connected: true, on: (name, fn) => handlers.set(name, fn), emit: (...args) => sent.push(args),
     timeout() { return this; }, async emitWithAck(...args) { sent.push(args); return { ok: true }; } };
-  const window = { IMMERSA_ROLE_OPEN: { role: "stage", access_token: "a_stage00001" }, addEventListener() {} };
+  const track = { readyState: "live", stop() { this.readyState = "ended"; } };
+  const stream = { getTracks: () => [track], getAudioTracks: () => [track] };
+  const window = { IMMERSA_ROLE_OPEN: { role, access_token: "a_stage00001" }, AudioContext: class { async resume() {} }, addEventListener() {} };
   const instrumented = client.replace("  render();\n})();", `  window.audioTest = { peers, updateReturn, setProduction(stream) { productionAudio = stream; }, setTaking(value) { taking = value; } };\n  render();\n})();`);
   runInNewContext(instrumented, {
     window,
-    document: { body, createElement: element, querySelector: () => toolbar }, io: () => socket
+    document: { body, createElement: element, querySelector: () => toolbar }, io: () => socket,
+    navigator: { mediaDevices: { async getUserMedia(options) { assert.equal(options.video, false); return stream; } } }
   });
-  return { created, toolbar, handlers, sent, audio: window.audioTest };
+  return { created, toolbar, handlers, sent, audio: window.audioTest, track, socket };
 }
 
 test("Stage uses a nonmodal folding panel, retains its video and keeps live actions accessible", async () => {
@@ -94,4 +97,21 @@ test("event return starts on take, follows preparation/countdown and restores pr
   audio.setTaking(false);
   await audio.updateReturn();
   assert.equal(sender.track, production);
+});
+
+
+test("Speaker activates only audio and can stop standby mic without cutting a console-sourced guest", async () => {
+  const { toolbar, handlers, sent, track, socket } = mount("presenter");
+  const button = toolbar.children[0];
+  await button.onclick();
+  assert.equal(button.attributes["aria-pressed"], "true");
+  assert.ok(sent.some(([event]) => event === "guest:media-ready"));
+  handlers.get("guest:state")({ id: "call", phase: "live", audioSource: "screen" });
+  socket.connected = false;
+  handlers.get("disconnect")();
+  assert.equal(button.disabled, false);
+  await button.onclick();
+  assert.equal(track.readyState, "ended");
+  assert.equal(button.attributes["aria-pressed"], "false");
+  assert.equal(sent.some(([event]) => event === "guest:failed"), false);
 });

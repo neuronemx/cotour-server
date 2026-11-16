@@ -1,7 +1,7 @@
 (() => {
   const context = window.IMMERSA_ROLE_OPEN;
   const role = document.body.dataset.liveGuest ? "guest" : context?.role;
-  if (!["guest", "stage", "screen"].includes(role)) return;
+  if (!["guest", "stage", "screen", "presenter"].includes(role)) return;
   const token = role === "guest" ? location.pathname.split("/").pop() : context.access_token;
   const socket = io("/live-guests", { auth: { role, token }, transports: ["websocket"], forceNew: true });
   const peers = new Map();
@@ -10,6 +10,7 @@
   let selfMuted = false;
   let guestContent;
   let guestZoom;
+  let sourceSelect, speakerButton, lastReturnReady, screenInput, screenApply, screenSourceNote;
   let productionAudio;
   let stageAudio;
   let audioContext;
@@ -109,6 +110,7 @@
   }
 
   function clearPeers() {
+    if (role === "screen") eventMixer?.setRemoteVoice(null);
     for (const peer of peers.values()) {
       clearInterval(peer.watchdog);
       if (peer.frameRequest != null) video.cancelVideoFrameCallback?.(peer.frameRequest);
@@ -117,7 +119,7 @@
       peer.gain?.disconnect();
     }
     peers.clear();
-    if (role !== "guest") video.srcObject = null;
+    if (role !== "guest" && video) video.srcObject = null;
   }
 
   function audioGain(peer) {
@@ -135,9 +137,31 @@
     if (peer.sender.track !== track) await peer.sender.replaceTrack(track || null);
   }
 
+  function screenMixer() {
+    if (!eventMixer && window.ImmersaGuestEventAudio && audioContext) eventMixer = window.ImmersaGuestEventAudio.create({ context: audioContext, document, onLost: () => {
+      if (state.audioSource !== "speaker") { lastReturnReady = false; socket.emit("guest:return-ready", false); }
+    } });
+    eventMixer?.setSpeakerMode(state.audioSource === "speaker");
+    if (screenInput) {
+      const speaker = state.audioSource === "speaker";
+      screenInput.disabled = screenApply.disabled = speaker;
+      screenSourceNote.textContent = speaker ? "Voz desde Speaker. No necesitas activar una entrada de consola; los medios de IMMERSA siguen disponibles." : "Voz desde esta entrada de Pantalla. La consola debe excluir la voz del invitado.";
+    }
+    const ready = Boolean(eventMixer?.ready);
+    if (ready !== lastReturnReady && eventMixer && socket.connected) { lastReturnReady = ready; socket.emit("guest:return-ready", ready); }
+    return eventMixer;
+  }
+
   function render() {
+    if (role === "presenter") {
+      speakerButton.textContent = productionAudio ? "Apagar voz al invitado" : "Activar voz al invitado";
+      speakerButton.disabled = busy || (!socket.connected && !productionAudio);
+      speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
+      return;
+    }
     for (const peer of peers.values()) audioGain(peer);
     if (role === "screen") {
+      if (audioUnlocked && state.phase !== "ended") screenMixer();
       const mediaOnScreen = document.querySelector(".audiovisual-screen-layer.is-video, .immersa-video-slide:not([hidden]), .immersa-youtube-slide:not([hidden])");
       const projecting = state.phase === "live" && Boolean(peers.get("program")?.ready) && !mediaOnScreen;
       overlay.hidden = !projecting;
@@ -191,11 +215,13 @@
     compactEnd.hidden = !state.id && !state.guestConnected;
     if (state.phase === "live" && previousPhase !== "live") foldStagePanel(true);
     previousPhase = state.phase;
+    sourceSelect.value = state.audioSource || "screen";
+    sourceSelect.disabled = busy || Boolean(state.id && state.phase !== "ready");
     invite.disabled = busy || Boolean(state.id) || !socket.connected;
     startAudio.disabled = busy;
     microphone.disabled = busy;
-    connect.disabled = busy || Boolean(state.id) || !state.stageReady || !state.guestConnected;
-    take.disabled = busy || state.phase !== "ready" || !state.screenReady || !state.returnReady;
+    connect.disabled = busy || Boolean(state.id) || !state.stageReady || !state.guestConnected || (state.audioSource === "speaker" && (!state.speakerConnected || !state.screenReady));
+    take.disabled = busy || state.phase !== "ready" || !state.screenReady || !state.returnReady || (state.audioSource === "speaker" && !state.speakerReady);
     wait.hidden = !["starting", "countdown", "live"].includes(state.phase);
     wait.disabled = busy;
     end.disabled = busy || (!state.id && !state.guestConnected);
@@ -286,6 +312,22 @@
       for (const track of capture.getAudioTracks()) track.enabled = !selfMuted;
       render();
     });
+  } else if (role === "presenter") {
+    speakerButton = document.createElement("button");
+    speakerButton.type = "button"; speakerButton.className = "guest-open guest-speaker-voice";
+    document.querySelector(".main-controls").append(speakerButton);
+    speakerButton.onclick = async () => {
+      if (productionAudio) { fail(state.audioSource === "speaker" ? state.id : null); stopStreams(); return render(); }
+      busy = true; render();
+      try {
+        await initAudio();
+        productionAudio = await navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } });
+        productionAudio.getAudioTracks()[0].onended = () => { fail(state.audioSource === "speaker" ? state.id : null); stopStreams(); render(); };
+        audioUnlocked = true;
+        socket.emit("guest:media-ready");
+      } catch { stopStreams(); speakerButton.title = "Permite el micrófono para enviar tu voz al invitado."; }
+      finally { busy = false; render(); }
+    };
   } else if (role === "stage") {
     const button = document.createElement("button");
     button.className = "guest-open";
@@ -305,7 +347,7 @@
         <button type="button" data-invite>Crear enlace</button>
         <label>Enlace del invitado<input data-link readonly placeholder="Crea el enlace para compartirlo"></label>
         <button type="button" data-copy>Copiar enlace</button>
-        <hr><label>Micrófono de producción<select data-microphone><option value="">Predeterminado</option></select></label>
+        <hr><label>Voz del evento<select data-source><option value="screen">Entrada de Pantalla / consola</option><option value="speaker">Micrófono de Speaker</option></select></label><p class="guest-note">Speaker debe activar «Voz al invitado». Para cambiar la fuente durante LIVE, vuelve a espera; después prepara la conexión nuevamente.</p><label>Micrófono de producción<select data-microphone><option value="">Predeterminado</option></select></label>
         <button type="button" data-audio>Activar / actualizar audio</button>
         <p class="guest-note">Micrófono para conversar en espera. El retorno del evento se configura en Pantalla. Usa audífonos para la comunicación privada.</p>
       </section><section>
@@ -342,6 +384,8 @@
     message = find("[data-status]");
     guestName = find("[data-name]");
     microphone = find("[data-microphone]");
+    sourceSelect = find("[data-source]");
+    sourceSelect.onchange = () => void command("guest:source", [sourceSelect.value]);
     wait = find("[data-wait]");
     wait.onclick = () => void command("guest:wait", []);
     link = find("[data-link]");
@@ -388,7 +432,7 @@
     const audioDialog = document.createElement("dialog");
     audioDialog.className = "guest-production";
     audioDialog.innerHTML = `<header><h2>Audio hacia el invitado</h2><button type="button" data-close>×</button></header>
-      <label>Entrada del escenario<select data-input><option value="">Predeterminado</option></select></label>
+      <p class="guest-note" data-source-note></p><label>Entrada del escenario<select data-input><option value="">Predeterminado</option></select></label>
       <label><span><input type="checkbox" data-media checked> Incluir audios y videos de IMMERSA</span></label>
       <p class="guest-note">La entrada de consola debe excluir la voz del invitado. Si ya incluye los medios de IMMERSA, desmarca la casilla para evitar duplicarlos. Los videos de YouTube requieren retorno de consola.</p>
       <button type="button" data-apply>Activar / actualizar entrada</button><p data-status aria-live="polite"></p>`;
@@ -396,6 +440,7 @@
     settings.onclick = () => audioDialog.showModal();
     audioDialog.querySelector("[data-close]").onclick = () => audioDialog.close();
     const eventInput = audioDialog.querySelector("[data-input]");
+    screenInput = eventInput; screenApply = audioDialog.querySelector("[data-apply]"); screenSourceNote = audioDialog.querySelector("[data-source-note]");
     const includeMedia = audioDialog.querySelector("[data-media]");
     includeMedia.onchange = () => eventMixer?.setIncludeMedia(includeMedia.checked);
     audioDialog.querySelector("[data-apply]").onclick = async () => {
@@ -404,14 +449,14 @@
       apply.disabled = true;
       try {
         await initAudio();
-        if (!eventMixer) eventMixer = window.ImmersaGuestEventAudio.create({ context: audioContext, document, onLost: () => socket.emit("guest:return-ready", false) });
+        screenMixer();
         await eventMixer.setInput(eventInput.value);
         eventMixer.setIncludeMedia(includeMedia.checked);
         const current = eventInput.value;
         eventInput.replaceChildren(new Option("Predeterminado", ""));
         for (const device of (await navigator.mediaDevices.enumerateDevices()).filter(item => item.kind === "audioinput")) eventInput.add(new Option(device.label || "Entrada de audio", device.deviceId));
         eventInput.value = current;
-        socket.emit("guest:return-ready", true);
+        lastReturnReady = true; socket.emit("guest:return-ready", true);
         status.textContent = "Entrada lista. Puedes corregirla durante el enlace.";
       } catch { status.textContent = "No se pudo activar la entrada. Comprueba el permiso de micrófono y el dispositivo."; }
       finally { apply.disabled = false; }
@@ -518,6 +563,14 @@
       if (peers.get(peer.channel) !== peer) return;
       peer.remote.addTrack(track);
       if (track.kind === "video") peer.receiver = receiver;
+      if (peer.channel === "speaker" && role === "screen") {
+        if (track.kind !== "audio") return fail(peer.id);
+        screenMixer()?.setRemoteVoice(peer.remote);
+        track.onended = () => fail(peer.id);
+        const ready = () => { if (peers.get(peer.channel) === peer && !track.muted) { peer.ready = true; socket.emit("guest:ready", { id: peer.id, channel: peer.channel }); } };
+        track.onmute = () => { if (peer.ready) fail(peer.id); };
+        track.onunmute = ready; ready(); return;
+      }
       if (role === "screen" || (role === "stage" && peer.channel === "monitor")) if (video.srcObject !== peer.remote) {
         video.srcObject = peer.remote;
         void video.play().catch(() => fail(peer.id));
@@ -546,15 +599,16 @@
       if (peers.get(peer.channel) !== peer) return;
       if (performance.now() >= peer.deadline) return fail(peer.id);
       if (role === "screen") render();
+      if (peer.channel === "speaker") return;
       if (role === "guest" || (role === "stage" && peer.channel === "program")) return;
       if (!peer.checkingFrames) void checkFrames(peer);
       if (peer.ready && performance.now() - peer.lastFrame > 3000) fail(peer.id);
     }, 250);
     if (setup.offer) {
-      const stream = role === "guest" ? capture : peers.get("monitor")?.remote;
-      if (!stream?.getAudioTracks().length || !stream.getVideoTracks().length) return fail(peer.id);
+      const stream = role === "presenter" ? productionAudio : role === "guest" ? capture : peers.get("monitor")?.remote;
+      if (!stream?.getAudioTracks().length || (setup.channel !== "speaker" && !stream.getVideoTracks().length)) return fail(peer.id);
       for (const track of stream.getTracks()) connection.addTransceiver(track, {
-        direction: track.kind === "audio" ? "sendrecv" : "sendonly",
+        direction: track.kind === "audio" && setup.channel !== "speaker" ? "sendrecv" : "sendonly",
         streams: [stream], sendEncodings: track.kind === "video" ? [{ maxBitrate: 1800000 }] : undefined
       });
       await connection.setLocalDescription(await connection.createOffer());
@@ -574,7 +628,7 @@
     if (body.description.type === "offer") {
       for (const transceiver of connection.getTransceivers()) {
         transceiver.direction = "recvonly";
-        if (["stage", "screen"].includes(role) && transceiver.receiver.track.kind === "audio") {
+        if (peer.channel !== "speaker" && ["stage", "screen"].includes(role) && transceiver.receiver.track.kind === "audio") {
           transceiver.direction = "sendrecv";
           peer.sender = transceiver.sender;
           await peer.sender.replaceTrack((role === "screen" ? eventMixer?.stream : productionAudio)?.getAudioTracks()[0] || null);
@@ -611,9 +665,9 @@
     if (["ready", "waiting", "ended"].includes(next.phase)) taking = false;
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
-    if (next.phase === "ended" && role === "guest") stopStreams();
+    if (next.phase === "ended" && ["guest", "presenter"].includes(role)) stopStreams();
     if (next.phase === "ended" && role === "screen" && eventMixer) {
-      eventMixer?.stop(); eventMixer = null;
+      eventMixer?.stop(); eventMixer = null; lastReturnReady = false;
       socket.emit("guest:return-ready", false);
     }
     void updateReturn().catch(() => fail(state.id));
@@ -621,7 +675,7 @@
   });
   socket.on("connect", () => {
     if (capture || (role !== "guest" && audioUnlocked && (role === "screen" || productionAudio))) socket.emit("guest:media-ready");
-    if (role === "screen" && eventMixer?.ready) socket.emit("guest:return-ready", true);
+    if (role === "screen" && eventMixer?.ready) { lastReturnReady = true; socket.emit("guest:return-ready", true); }
     render();
   });
   socket.on("disconnect", () => {

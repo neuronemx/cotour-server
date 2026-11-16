@@ -29,6 +29,7 @@ async function setup(t, options = {}) {
   let authorize, connected;
   const projection = createLiveProjection();
   const grants = new Map([
+    ["a_speaker001", { accessLink: { role: "presenter", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_stage00001", { accessLink: { role: "stage", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_screen0001", { accessLink: { role: "screen", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_screen0002", { accessLink: { role: "screen", session_id: "session" }, deck: { deckId: "other" } }]
@@ -365,4 +366,57 @@ test("a failed authorization recheck clears the question snapshot instead of exp
   const guest = await open("guest", invitation.url.split("/").pop());
   await guest.receive("guest:media-ready");
   assert.deepEqual(guest.messages.filter(([event]) => event === "guest:content").at(-1)[1], { results: null, question: null });
+});
+
+test("Stage can choose Speaker, only Screen receives its audio and LIVE requires that voice to arrive", async t => {
+  const { stage, screen, open } = await setup(t);
+  const speaker = await open("presenter", "a_speaker001");
+  const invite = await stage.request("guest:invite", {});
+  const guest = await open("guest", invite.url.split("/").pop());
+  let unauthorized = false;
+  guest.receive("guest:source", "speaker", () => { unauthorized = true; });
+  assert.equal(unauthorized, false);
+  assert.equal((await stage.request("guest:source", "speaker")).ok, true);
+  for (const peer of [stage, screen, guest]) await peer.receive("guest:media-ready");
+  assert.equal((await stage.request("guest:connect")).ok, false);
+  speaker.receive("guest:media-ready");
+  assert.equal((await stage.request("guest:connect")).ok, true);
+  const voice = speaker.messages.find(([event, value]) => event === "guest:prepare" && value.channel === "speaker")[1];
+  assert.equal(voice.offer, true);
+  assert.equal(guest.messages.some(([event, value]) => event === "guest:prepare" && value.channel === "speaker"), false);
+  stage.receive("guest:ready", { id: voice.id, channel: "monitor" });
+  assert.equal((await stage.request("guest:take")).ok, false);
+  const signal = { id: voice.id, channel: "speaker", description: { type: "offer", sdp: "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n" } };
+  speaker.receive("guest:signal", signal);
+  assert.equal(screen.messages.at(-1)[0], "guest:signal");
+  const signals = screen.messages.filter(([event]) => event === "guest:signal").length;
+  speaker.receive("guest:signal", { ...signal, description: { ...signal.description, sdp: signal.description.sdp + "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n" } });
+  assert.equal(screen.messages.filter(([event]) => event === "guest:signal").length, signals);
+  screen.receive("guest:ready", { id: voice.id, channel: "speaker" });
+  assert.equal((await stage.request("guest:take")).ok, true);
+  assert.equal((await stage.request("guest:source", "screen")).ok, false);
+  screen.receive("guest:ready", { id: voice.id, channel: "program" });
+  stage.receive("guest:ready", { id: voice.id, channel: "program" });
+  await waitForLive(stage);
+  speaker.disconnect();
+  assert.equal(guest.messages.at(-1)[1].phase, "waiting");
+  assert.equal(guest.connected, true);
+});
+
+test("changing the source in private waiting resets preparation without ending the invitation", async t => {
+  const { stage, screen, open } = await setup(t);
+  const invite = await stage.request("guest:invite", {});
+  const guest = await open("guest", invite.url.split("/").pop());
+  const speaker = await open("presenter", "a_speaker001");
+  for (const peer of [stage, screen, guest, speaker]) await peer.receive("guest:media-ready");
+  await stage.request("guest:connect");
+  const { id } = guest.messages.find(([event]) => event === "guest:prepare")[1];
+  stage.receive("guest:ready", { id, channel: "monitor" });
+  speaker.receive("guest:failed", { id });
+  speaker.disconnect();
+  assert.equal(stage.messages.at(-1)[1].phase, "ready");
+  assert.equal((await stage.request("guest:source", "speaker")).ok, true);
+  assert.equal(guest.messages.at(-1)[1].phase, "waiting");
+  assert.equal(guest.messages.at(-1)[1].audioSource, "speaker");
+  assert.equal(guest.connected, true);
 });

@@ -100,3 +100,6 @@
 
 #guestSlide { touch-action:none; user-select:none; -webkit-user-drag:none; transform:translate3d(var(--guest-pan-x,0px),var(--guest-pan-y,0px),0) scale(var(--guest-zoom,1)); transform-origin:center center; }
 #guestSlide:focus-visible { outline:2px solid #a474ff; outline-offset:-3px; }
+
+.guest-speaker-voice { position:absolute; top:12px; right:12px; max-width:170px; white-space:normal; line-height:1.3; }
+.guest-speaker-voice[aria-pressed="true"] { background:#216754; }

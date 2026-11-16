@@ -6,7 +6,7 @@ const { isSystemDemoDeckId } = require("./system-demo-deck");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=10"><script src="/live-guests/event-audio.js?v=1" defer></script><script src="/live-guests/client.js?v=9" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=11"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/client.js?v=10" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
@@ -43,7 +43,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
   }
 
   function pageAssets({ accessLink, deck }) {
-    return enabled && !isSystemDemoDeckId(deck?.deckId) && ["stage", "screen"].includes(accessLink.role) ? ASSETS : null;
+    return enabled && !isSystemDemoDeckId(deck?.deckId) && ["stage", "screen", "presenter"].includes(accessLink.role) ? ASSETS : null;
   }
 
   async function openGuest(req, res) {
@@ -69,7 +69,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       if (socket.handshake.headers.origin !== origin) throw new Error();
       let record;
       if (role === "guest") record = await resolveGuest(token);
-      else if (["stage", "screen"].includes(role) && ROLE_TOKEN.test(token || "")) {
+      else if (["stage", "screen", "presenter"].includes(role) && ROLE_TOKEN.test(token || "")) {
         const resolved = await authorizeRole(role, token);
         if (resolved) record = { deckId: resolved.deck.deckId, sessionId: resolved.accessLink.session_id };
       }
@@ -97,7 +97,10 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       screenReady: Boolean(room.peers.screen?.data.mediaReady),
       muted: Boolean(room.call?.muted),
       countdown: room.call?.countdown || null,
-      returnReady: Boolean(room.peers.screen?.data.returnReady)
+      returnReady: Boolean(room.peers.screen?.data.returnReady),
+      audioSource: room.audioSource || "screen",
+      speakerConnected: Boolean(room.peers.presenter?.data.mediaReady),
+      speakerReady: Boolean(room.call?.speakerReady)
     };
   }
 
@@ -200,6 +203,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     call.checking = true;
     try {
       const peers = [room.peers.stage, room.peers.guest];
+      if (room.audioSource === "speaker") peers.push(room.peers.presenter, room.peers.screen);
       if (["starting", "countdown", "live"].includes(call.phase)) peers.push(room.peers.screen);
       const checks = await Promise.all(peers.map(stillAuthorized));
       if (room.call !== call) return;
@@ -213,14 +217,14 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
   }
 
   function sendPrepare(room, channel, rtc) {
-    const roles = channel === "monitor" ? ["guest", "stage"] : ["stage", "screen"];
+    const roles = channel === "speaker" ? ["presenter", "screen"] : channel === "monitor" ? ["guest", "stage"] : ["stage", "screen"];
     for (const role of roles) room.peers[role].emit("guest:prepare", {
       id: room.call.id, channel, rtc, duration: LEASE_MS, offer: role === roles[0]
     });
   }
 
   function countdown(room, call) {
-    if (room.call !== call || call.phase !== "starting" || !call.screenReady || !call.returnReady) return;
+    if (room.call !== call || call.phase !== "starting" || !call.screenReady || !call.returnReady || (room.audioSource === "speaker" && !call.speakerReady)) return;
     clearTimeout(call.timeout);
     call.phase = "countdown";
     call.countdown = 3;
@@ -242,6 +246,19 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     if (role === "guest") room.invite = record;
     room.peers[role] = socket;
     publish(room);
+
+    socket.on("guest:source", async (source, ack) => {
+      if (role !== "stage" || typeof ack !== "function") return;
+      if (!["speaker", "screen"].includes(source) || room.creating || (room.call && (room.call.phase !== "ready" || room.call.preparingProgram))) return ack({ ok: false, reason: "busy" });
+      room.creating = true;
+      try {
+        if (!await stillAuthorized(socket)) return ack({ ok: false, reason: "access" });
+        if (room.audioSource !== source) { clearCall(room, ""); room.audioSource = source; }
+        publish(room);
+        ack({ ok: true });
+      } catch { ack({ ok: false, reason: "service" }); }
+      finally { room.creating = false; }
+    });
 
     socket.on("guest:invite", async (input, ack) => {
       if (role !== "stage" || typeof ack !== "function") return;
@@ -266,6 +283,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
 
     socket.on("guest:media-ready", value => {
       socket.data.mediaReady = value !== false;
+      if (role === "presenter" && value === false && room.audioSource === "speaker" && room.call) clearCall(room, "signal");
       let slideUpdate;
       if (role === "guest") {
         if (socket.data.mediaReady) slideUpdate = Promise.all([sendSlide(room), sendContent(room)]);
@@ -301,7 +319,8 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
 
     socket.on("guest:connect", async ack => {
       if (role !== "stage" || typeof ack !== "function") return;
-      if (room.call || room.creating || !room.peers.guest?.data.mediaReady || !socket.data.mediaReady) {
+      if (room.call || room.creating || !room.peers.guest?.data.mediaReady || !socket.data.mediaReady
+        || (room.audioSource === "speaker" && (!room.peers.presenter?.data.mediaReady || !room.peers.screen?.data.mediaReady))) {
         return ack({ ok: false, reason: "busy" });
       }
       const call = { id: randomUUID(), phase: "preparing", deadline: Date.now() + LEASE_MS, counts: {}, preparingProgram: false };
@@ -311,13 +330,14 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       try {
         const rtc = await getRtcConfiguration();
         if (room.call !== call) return ack({ ok: false, reason: "signal" });
-        if (!(await Promise.all([socket, room.peers.guest].map(stillAuthorized))).every(Boolean)) {
+        if (!(await Promise.all([socket, room.peers.guest, ...(room.audioSource === "speaker" ? [room.peers.presenter, room.peers.screen] : [])].map(stillAuthorized))).every(Boolean)) {
           clearCall(room, "access");
           return ack({ ok: false, reason: "access" });
         }
         if (room.call !== call) return ack({ ok: false, reason: "signal" });
         call.timer = setInterval(() => void renew(room, call), 2000);
         sendPrepare(room, "monitor", rtc);
+        if (room.audioSource === "speaker") sendPrepare(room, "speaker", rtc);
         ack({ ok: true });
       } catch {
         if (room.call === call) clearCall(room, "service");
@@ -328,13 +348,13 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     socket.on("guest:take", async ack => {
       if (role !== "stage" || typeof ack !== "function") return;
       const call = room.call;
-      if (call?.phase !== "ready" || call.preparingProgram || !room.peers.screen?.data.mediaReady || !room.peers.screen?.data.returnReady) return ack({ ok: false, reason: "busy" });
+      if (call?.phase !== "ready" || call.preparingProgram || !room.peers.screen?.data.mediaReady || !room.peers.screen?.data.returnReady || (room.audioSource === "speaker" && !call?.speakerReady)) return ack({ ok: false, reason: "busy" });
       call.preparingProgram = true;
       const guest = room.peers.guest;
       const screen = room.peers.screen;
       try {
         const rtc = await getRtcConfiguration();
-        const valid = await Promise.all([socket, guest, screen].map(stillAuthorized));
+        const valid = await Promise.all([socket, guest, screen, ...(room.audioSource === "speaker" ? [room.peers.presenter] : [])].map(stillAuthorized));
         if (room.call !== call) return ack({ ok: false, reason: "signal" });
         if (!valid.every(Boolean) || !socket.connected || !guest?.connected || !screen?.connected
           || room.peers.guest !== guest || room.peers.screen !== screen
@@ -355,6 +375,11 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     socket.on("guest:ready", message => {
       const call = room.call;
       if (!call || message?.id !== call.id) return;
+      if (message.channel === "speaker" && role === "screen" && room.audioSource === "speaker" && ["preparing", "ready"].includes(call.phase)) {
+        call.speakerReady = true;
+        if (call.phase === "ready") clearTimeout(call.timeout);
+        return publish(room);
+      }
       if (message.channel === "monitor" && role === "stage" && call.phase === "preparing") {
         call.phase = "ready";
       } else if (message.channel === "program" && role === "screen" && call.phase === "starting") {
@@ -365,14 +390,15 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
         call.returnReady = true;
         return countdown(room, call);
       } else return;
-      clearTimeout(call.timeout);
+      if (room.audioSource !== "speaker" || call.speakerReady) clearTimeout(call.timeout);
       publish(room);
     });
 
     socket.on("guest:signal", message => {
       const call = room.call;
-      if (!call || message?.id !== call.id || !["monitor", "program"].includes(message.channel)) return;
-      const roles = message.channel === "monitor" ? ["guest", "stage"] : ["stage", "screen"];
+      if (!call || message?.id !== call.id || !["monitor", "program", "speaker"].includes(message.channel)) return;
+      if (message.channel === "speaker" && room.audioSource !== "speaker") return;
+      const roles = message.channel === "speaker" ? ["presenter", "screen"] : message.channel === "monitor" ? ["guest", "stage"] : ["stage", "screen"];
       if (!roles.includes(role) || (message.channel === "program" && !["ready", "starting", "countdown", "live"].includes(call.phase))) return;
       const counter = role + message.channel;
       call.counts[counter] = (call.counts[counter] || 0) + 1;
@@ -383,11 +409,11 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
         if (type !== (role === roles[0] ? "offer" : "answer") || typeof sdp !== "string" || sdp.length > 64000
           || /^m=(?!audio\s|video\s)/m.test(sdp)
           || (sdp.match(/^m=audio\s/gm) || []).length !== 1
-          || (sdp.match(/^m=video\s/gm) || []).length !== 1) return;
+          || (sdp.match(/^m=video\s/gm) || []).length !== (message.channel === "speaker" ? 0 : 1)) return;
         body = { description: { type, sdp } };
       } else if (typeof message.candidate?.candidate === "string" && message.candidate.candidate.length <= 2048
         && (message.candidate.sdpMid == null || (typeof message.candidate.sdpMid === "string" && message.candidate.sdpMid.length <= 64))
-        && (message.candidate.sdpMLineIndex == null || [0, 1].includes(message.candidate.sdpMLineIndex))) {
+        && (message.candidate.sdpMLineIndex == null || (message.channel === "speaker" ? [0] : [0, 1]).includes(message.candidate.sdpMLineIndex))) {
         body = { candidate: { candidate: message.candidate.candidate, sdpMid: message.candidate.sdpMid, sdpMLineIndex: message.candidate.sdpMLineIndex } };
       }
       if (body) room.peers[roles.find(value => value !== role)]?.emit("guest:signal", { id: call.id, channel: message.channel, ...body });
@@ -415,13 +441,14 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     });
 
     socket.on("guest:failed", message => {
+      if (role === "presenter" && room.audioSource !== "speaker") return;
       if (room.call?.id === message?.id) clearCall(room, "signal");
     });
 
     socket.on("disconnect", () => {
       if (room.peers[role] !== socket) return;
       delete room.peers[role];
-      if (role === "stage" || role === "guest" || room.call?.screenReady || ["starting", "countdown", "live"].includes(room.call?.phase)) clearCall(room, "signal");
+      if ((role === "presenter" && room.audioSource === "speaker") || (role !== "presenter" && (role === "stage" || role === "guest" || room.call?.screenReady || ["starting", "countdown", "live"].includes(room.call?.phase)))) clearCall(room, "signal");
       else publish(room);
       if (!Object.keys(room.peers).length) { clearTimeout(room.contentTimer); rooms.delete(room.key); }
     });

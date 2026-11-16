@@ -6,7 +6,7 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount({ shared = false, unlocked = false } = {}) {
+function mount({ shared = false, unlocked = false, eventAudio } = {}) {
   const nodes = [];
   const listeners = new Map();
   const handlers = new Map();
@@ -50,6 +50,7 @@ function mount({ shared = false, unlocked = false } = {}) {
   const window = {
     IMMERSA_ROLE_OPEN: { role: "screen", access_token: "a_screen0001" },
     __immersaMediaUnlocked: unlocked,
+    ImmersaGuestEventAudio: eventAudio,
     AudioContext: class { async resume() { resumes++; } },
     addEventListener() {}
   };
@@ -60,6 +61,7 @@ function mount({ shared = false, unlocked = false } = {}) {
     Event: class { constructor(type) { this.type = type; } }
   });
   return { original, host, addShared, window, sent, observe: () => observe(), resumes: () => resumes,
+    receive: (event, payload) => handlers.get(event)(payload),
     buttons: () => document.querySelectorAll(),
     click: button => document.dispatchEvent({ type: "click", target: button }) };
 }
@@ -100,4 +102,23 @@ test("the fallback unlocks shared audio and guests together, and prior activatio
   await flush();
   assert.equal(active.buttons().length, 0);
   assert.equal(active.sent.filter(([event]) => event === "guest:media-ready").length, 1);
+});
+
+
+test("Screen releases the Speaker return at end without recreating it, and reactivates on a new invitation", async () => {
+  let creates = 0, stops = 0;
+  const app = mount({ shared: true, eventAudio: { create() {
+    creates++;
+    return { ready: false, setSpeakerMode(value) { this.ready = value; }, setRemoteVoice() {}, stop() { stops++; } };
+  } } });
+  app.click(app.original);
+  await flush();
+  app.receive("guest:state", { id: null, phase: "waiting", audioSource: "speaker" });
+  assert.equal(creates, 1);
+  app.receive("guest:state", { id: null, phase: "ended", audioSource: "speaker" });
+  assert.equal(stops, 1);
+  assert.equal(creates, 1);
+  app.receive("guest:state", { id: null, phase: "waiting", audioSource: "speaker" });
+  assert.equal(creates, 2);
+  assert.equal(app.sent.filter(([event, ready]) => event === "guest:return-ready" && ready).length, 2);
 });

@@ -2,7 +2,10 @@
   function create({ context, document, onLost, mediaDevices = navigator.mediaDevices }) {
     const destination = context.createMediaStreamDestination();
     const media = new Map();
-    let input, source, include = true, version = 0;
+    let input, source, remote, include = true, version = 0, speakerMode = false;
+    const inputGain = context.createGain(), remoteGain = context.createGain();
+    inputGain.gain.value = 1; remoteGain.gain.value = 0;
+    inputGain.connect(destination); remoteGain.connect(destination);
     function sync() {
       const active = new Set([...document.querySelectorAll("audio,video")].filter(element =>
         !element.closest(".guest-program") && !element.paused && !element.ended && !element.muted));
@@ -35,7 +38,16 @@
     const timer = setInterval(sync, 200);
     return {
       stream: destination.stream,
-      get ready() { return Boolean(input?.getAudioTracks().some(track => track.readyState === "live")); },
+      get ready() { return speakerMode || Boolean(input?.getAudioTracks().some(track => track.readyState === "live")); },
+      setSpeakerMode(value) {
+        speakerMode = Boolean(value);
+        inputGain.gain.value = speakerMode ? 0 : 1;
+        remoteGain.gain.value = speakerMode ? 1 : 0;
+      },
+      setRemoteVoice(stream) {
+        remote?.disconnect(); remote = null;
+        if (stream?.getAudioTracks().length) { remote = context.createMediaStreamSource(stream); remote.connect(remoteGain); }
+      },
       setIncludeMedia(value) { include = Boolean(value); sync(); },
       async setInput(deviceId) {
         const requested = ++version;
@@ -45,7 +57,7 @@
         } });
         if (requested !== version) { next.getTracks().forEach(track => track.stop()); return; }
         let node;
-        try { node = context.createMediaStreamSource(next); node.connect(destination); }
+        try { node = context.createMediaStreamSource(next); node.connect(inputGain); }
         catch (error) { next.getTracks().forEach(track => track.stop()); throw error; }
         source?.disconnect();
         input?.getTracks().forEach(track => track.stop());
@@ -55,7 +67,7 @@
       stop() {
         version++;
         clearInterval(timer);
-        source?.disconnect(); input?.getTracks().forEach(track => track.stop());
+        source?.disconnect(); remote?.disconnect(); inputGain.disconnect(); remoteGain.disconnect(); input?.getTracks().forEach(track => track.stop());
         for (const entry of media.values()) { entry.source.disconnect(); entry.gain.disconnect(); entry.stream.getTracks().forEach(track => track.stop()); }
         media.clear();
         destination.stream.getTracks().forEach(track => track.stop());
