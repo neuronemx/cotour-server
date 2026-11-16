@@ -116,6 +116,7 @@
       }
     };
     toggle.addEventListener("click", () => {
+      if (window.__immersaGuestVoiceMode) return;
       if (!panel.hidden) return finishLocal("stopped", true);
       setMonitorOpen(true);
       void capture();
@@ -194,7 +195,7 @@
   function render() {
     if (role === "speaker") {
       const onAir = isOnAir();
-      toggle.hidden = !socket.connected;
+      toggle.hidden = !socket.connected || Boolean(window.__immersaGuestVoiceMode);
       toggle.textContent = onAir ? "Cortar LIVE" : panel.hidden ? "LIVE" : "CERRAR";
       toggle.classList.toggle("is-live", onAir);
       label.textContent = onAir ? "" : notice || (attempt || sending ? "Conectando con Pantalla…"
@@ -495,6 +496,10 @@
     else render();
   });
   if (role === "speaker") {
+    window.addEventListener("immersa:guest-voice-mode", () => {
+      if (window.__immersaGuestVoiceMode) finishLocal("", true);
+      else render();
+    });
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && !panel.hidden) finishLocal("camera", true);
     });

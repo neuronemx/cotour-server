@@ -77,7 +77,7 @@ function liveCameraPageAssets(pilot, { req, accessLink, deck }, isEventLink = ()
   if (req.query.deck && req.query.deck !== deck.deckId) return null;
   if (req.query.eventActivityId && (pilot.demo || req.query.eventActivityId !== pilot.activityId)) return null;
   const namespace = pilot.demo ? ` data-live-camera-namespace="${DEMO_NAMESPACE}"` : "";
-  return `<link rel="stylesheet" href="/live-camera/pilot.css?v=6"><script src="/live-camera/pilot.js?v=8"${namespace} defer></script>`;
+  return `<link rel="stylesheet" href="/live-camera/pilot.css?v=6"><script src="/live-camera/pilot.js?v=9"${namespace} defer></script>`;
 }
 
 function rtcConfiguration(pilot) {

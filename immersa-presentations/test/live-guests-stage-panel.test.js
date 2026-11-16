@@ -6,7 +6,8 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount(role = "stage", getUserMedia) {
+function mount(role = "stage", getUserMedia, camera = false) {
+  const listeners = new Map();
   const created = [], handlers = new Map(), sent = [];
   function element(tag = "div") {
     const children = new Map();
@@ -14,25 +15,35 @@ function mount(role = "stage", getUserMedia) {
       setAttribute(name, value) { this.attributes[name] = value; },
       querySelector(selector) { if (!children.has(selector)) children.set(selector, element(selector)); return children.get(selector); },
       append(...nodes) { this.children.push(...nodes); },
+      prepend(...nodes) { this.children.unshift(...nodes); },
+      closest(selector) { return selector === ".stream-area" ? streamArea : shell; },
+      querySelectorAll() { return []; },
+      insertBefore(node) { node.parentElement = this; },
       before(node) { this.insertedBefore = node; },
       addEventListener() {}
     };
     created.push(node);
     return node;
   }
+  const streamArea = element(), shell = element();
   const toolbar = element();
   const body = element(); body.dataset = {};
   const socket = { connected: true, on: (name, fn) => handlers.set(name, fn), emit: (...args) => sent.push(args),
     timeout() { return this; }, async emitWithAck(...args) { sent.push(args); return { ok: true }; } };
   const track = { readyState: "live", stop() { this.readyState = "ended"; } };
   const stream = { getTracks: () => [track], getAudioTracks: () => [track] };
-  const window = { IMMERSA_ROLE_OPEN: { role, access_token: "a_stage00001" }, AudioContext: class { async resume() {} }, addEventListener() {} };
+  const window = { IMMERSA_ROLE_OPEN: { role, access_token: "a_stage00001" }, AudioContext: class { async resume() {} },
+    addEventListener(name, handler) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(handler); },
+    dispatchEvent(event) { for (const handler of listeners.get(event.type) || []) handler(event); } };
   const instrumented = client.replace("  render();\n})();", `  window.audioTest = { peers, updateReturn, setProduction(stream) { productionAudio = stream; }, setTaking(value) { taking = value; } };\n  render();\n})();`);
-  runInNewContext(instrumented, {
+  const environment = {
     window,
-    document: { body, createElement: element, querySelector: () => toolbar }, io: () => socket,
+    document: { body, createElement: element, querySelector: () => toolbar, addEventListener() {} }, io: () => socket,
+    Event: class { constructor(type) { this.type = type; } },
     navigator: { mediaDevices: { async getUserMedia(options) { assert.equal(options.video, false); return getUserMedia ? getUserMedia(stream) : stream; } } }
-  });
+  };
+  if (camera) runInNewContext(readFileSync(resolve(__dirname, "../public/live-camera/pilot.js"), "utf8"), environment);
+  runInNewContext(instrumented, environment);
   return { created, toolbar, handlers, sent, audio: window.audioTest, track, socket };
 }
 
@@ -199,4 +210,26 @@ test("a delayed microphone permission cannot start hidden Speaker capture after 
   assert.equal(track.readyState, "ended");
   assert.equal(button.hidden, true);
   assert.equal(sent.some(([event]) => event === "guest:media-ready"), false);
+});
+
+test("Speaker swaps LIVE and guest voice in one toolbar slot, then restores LIVE with its microphone off", async () => {
+  const { toolbar, handlers, track } = mount("speaker", undefined, true);
+  const camera = toolbar.children.find(node => node.className === "live-camera-toggle");
+  const voice = toolbar.children.find(node => node.className === "guest-open guest-speaker-voice");
+  assert.ok(camera);
+  assert.equal(camera.hidden, false);
+  assert.equal(voice.hidden, true);
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  assert.equal(camera.hidden, true);
+  assert.equal(voice.hidden, false);
+  await voice.onclick();
+  handlers.get("live:status")({ phase: "idle", screenReady: true });
+  assert.equal(camera.hidden, true, "a camera status refresh must not reveal a second button");
+  handlers.get("guest:state")({ phase: "live", audioSource: "speaker", guestConnected: true });
+  assert.equal(camera.hidden, true);
+  assert.equal(voice.hidden, false);
+  handlers.get("guest:state")({ phase: "ended", audioSource: "speaker", guestConnected: true });
+  assert.equal(voice.hidden, true);
+  assert.equal(camera.hidden, false);
+  assert.equal(track.readyState, "ended");
 });

@@ -170,6 +170,11 @@
     if (role === "speaker") {
       const waiting = ["waiting", "preparing", "ready"].includes(state.phase);
       speakerButton.hidden = !(state.audioSource === "speaker" && state.guestConnected && (waiting || productionAudio));
+      const voiceMode = !speakerButton.hidden;
+      if (window.__immersaGuestVoiceMode !== voiceMode) {
+        window.__immersaGuestVoiceMode = voiceMode;
+        window.dispatchEvent(new Event("immersa:guest-voice-mode"));
+      }
       speakerButton.textContent = productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
       speakerButton.disabled = busy || (!socket.connected && !productionAudio);
       speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
@@ -331,7 +336,7 @@
   } else if (role === "speaker") {
     speakerButton = document.createElement("button");
     speakerButton.type = "button"; speakerButton.className = "guest-open guest-speaker-voice";
-    document.querySelector(".main-controls").append(speakerButton);
+    document.querySelector(".top-actions").prepend(speakerButton);
     speakerButton.onclick = async () => {
       if (!productionAudio && speakerButton.hidden) return;
       if (productionAudio) { fail(state.audioSource === "speaker" ? state.id : null); stopStreams(); return render(); }
