@@ -103,3 +103,5 @@
 
 .guest-speaker-voice { position:absolute; top:calc(var(--live-camera-header-height,58px) + 24px); right:14px; max-width:170px; white-space:normal; line-height:1.3; }
 .guest-speaker-voice[aria-pressed="true"] { background:#216754; }
+
+.guest-speaker-voice[hidden] { display:none!important; }

@@ -51,6 +51,7 @@
   let audioUnlocked = false;
   let busy = false;
   let taking = false;
+  let takePending = false;
   let captureVersion = 0;
   let notice = "";
   const errors = {
@@ -122,19 +123,32 @@
     if (role !== "guest" && video) video.srcObject = null;
   }
 
+  function usesEventReturn() {
+    return taking || ["starting", "countdown", "live"].includes(state.phase);
+  }
+
   function audioGain(peer) {
     if (!peer.gain) return;
-    const audible = role === "guest" || (role === "stage" && peer.channel === "monitor" && state.phase !== "live")
+    const audible = role === "guest" || (role === "stage" && peer.channel === "monitor" && !usesEventReturn())
       || (role === "screen" && state.phase === "live" && !state.muted);
     peer.gain.gain.value = audible && socket.connected ? 1 : 0;
   }
 
   async function updateReturn() {
+    if (role !== "stage") return;
+    // Close the private mic immediately, even while replaceTrack or the event return is pending.
+    for (const track of productionAudio?.getAudioTracks() || []) track.enabled = !usesEventReturn();
     const peer = peers.get("monitor");
-    if (role !== "stage" || !peer?.sender) return;
-    const stream = taking || ["starting", "countdown", "live"].includes(state.phase) ? peers.get("program")?.remote : productionAudio;
-    const track = stream?.getAudioTracks()[0];
-    if (peer.sender.track !== track) await peer.sender.replaceTrack(track || null);
+    if (!peer?.sender) return;
+    audioGain(peer);
+    // Recheck current intent when each operation runs; an older async update must never restore Stage.
+    peer.returnQueue = (peer.returnQueue || Promise.resolve()).then(async () => {
+      if (peers.get("monitor") !== peer) return;
+      const stream = usesEventReturn() ? peers.get("program")?.remote : productionAudio;
+      const track = stream?.getAudioTracks()[0] || null;
+      if (peer.sender.track !== track) await peer.sender.replaceTrack(track);
+    });
+    await peer.returnQueue;
   }
 
   function screenMixer() {
@@ -154,6 +168,8 @@
 
   function render() {
     if (role === "speaker") {
+      const waiting = ["waiting", "preparing", "ready"].includes(state.phase);
+      speakerButton.hidden = !(state.audioSource === "speaker" && state.guestConnected && (waiting || productionAudio));
       speakerButton.textContent = productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
       speakerButton.disabled = busy || (!socket.connected && !productionAudio);
       speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
@@ -317,11 +333,17 @@
     speakerButton.type = "button"; speakerButton.className = "guest-open guest-speaker-voice";
     document.querySelector(".main-controls").append(speakerButton);
     speakerButton.onclick = async () => {
+      if (!productionAudio && speakerButton.hidden) return;
       if (productionAudio) { fail(state.audioSource === "speaker" ? state.id : null); stopStreams(); return render(); }
+      const version = ++captureVersion;
       busy = true; render();
       try {
         await initAudio();
-        productionAudio = await navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } });
+        const next = await navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } });
+        if (version !== captureVersion || state.audioSource !== "speaker" || !state.guestConnected || state.phase === "ended") {
+          next.getTracks().forEach(track => track.stop()); return;
+        }
+        productionAudio = next;
         productionAudio.getAudioTracks()[0].onended = () => { fail(state.audioSource === "speaker" ? state.id : null); stopStreams(); render(); };
         audioUnlocked = true;
         socket.emit("guest:media-ready");
@@ -408,10 +430,12 @@
     connect.onclick = () => void command("guest:connect", []);
     take.onclick = async () => {
       taking = true;
+      takePending = true;
       try {
         await updateReturn();
         if (!await command("guest:take", [])) { taking = false; await updateReturn(); }
       } catch { taking = false; fail(state.id); }
+      finally { takePending = false; }
     };
     end.onclick = () => void command("guest:end", []);
     mute.onclick = () => socket.emit("guest:mute", !state.muted);
@@ -631,7 +655,8 @@
         if (peer.channel !== "speaker" && ["stage", "screen"].includes(role) && transceiver.receiver.track.kind === "audio") {
           transceiver.direction = "sendrecv";
           peer.sender = transceiver.sender;
-          await peer.sender.replaceTrack((role === "screen" ? eventMixer?.stream : productionAudio)?.getAudioTracks()[0] || null);
+          if (role === "stage") await updateReturn();
+          else await peer.sender.replaceTrack(eventMixer?.stream.getAudioTracks()[0] || null);
         }
       }
       await connection.setLocalDescription(await connection.createAnswer());
@@ -662,10 +687,10 @@
   socket.on("guest:state", next => {
     const changed = state.id !== next.id;
     state = next;
-    if (["ready", "waiting", "ended"].includes(next.phase)) taking = false;
+    if (["ready", "waiting", "ended"].includes(next.phase) && !takePending) taking = false;
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
-    if (next.phase === "ended" && ["guest", "speaker"].includes(role)) stopStreams();
+    if ((next.phase === "ended" && role === "guest") || (role === "speaker" && (next.phase === "ended" || next.audioSource !== "speaker" || !next.guestConnected))) stopStreams();
     if (next.phase === "ended" && role === "screen" && eventMixer) {
       eventMixer?.stop(); eventMixer = null; lastReturnReady = false;
       socket.emit("guest:return-ready", false);
