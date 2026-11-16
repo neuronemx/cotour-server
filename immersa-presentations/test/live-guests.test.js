@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { createLiveGuests } = require("../live-guests");
 const { createLiveProjection } = require("../live-projection");
+const { createAccessLinkHandlers } = require("../access-links");
 const { setTimeout: pause } = require("node:timers/promises");
 
 async function waitFor(check) {
@@ -29,7 +30,7 @@ async function setup(t, options = {}) {
   let authorize, connected;
   const projection = createLiveProjection();
   const grants = new Map([
-    ["a_speaker001", { accessLink: { role: "presenter", session_id: "session" }, deck: { deckId: "deck" } }],
+    ["a_speaker001", { accessLink: { role: "speaker", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_stage00001", { accessLink: { role: "stage", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_screen0001", { accessLink: { role: "screen", session_id: "session" }, deck: { deckId: "deck" } }],
     ["a_screen0002", { accessLink: { role: "screen", session_id: "session" }, deck: { deckId: "other" } }]
@@ -84,6 +85,10 @@ test("guest links are scoped, persisted and invalidated on replacement or revoca
   grants.delete("a_stage00001");
   assert.ok(await open("guest", replacement.url.split("/").pop()) instanceof Error);
   assert.ok(runtime.pageAssets({ accessLink: { role: "stage" } }));
+  assert.ok(runtime.pageAssets({ accessLink: { role: "speaker" } }));
+  assert.equal(runtime.pageAssets({ accessLink: { role: "presenter" } }), null);
+  assert.ok(await open("speaker", "a_stage00001") instanceof Error);
+  assert.ok(await open("presenter", "a_speaker001") instanceof Error);
   assert.equal(runtime.pageAssets({ accessLink: { role: "audience" } }), null);
 });
 
@@ -370,7 +375,7 @@ test("a failed authorization recheck clears the question snapshot instead of exp
 
 test("Stage can choose Speaker, only Screen receives its audio and LIVE requires that voice to arrive", async t => {
   const { stage, screen, open } = await setup(t);
-  const speaker = await open("presenter", "a_speaker001");
+  const speaker = await open("speaker", "a_speaker001");
   const invite = await stage.request("guest:invite", {});
   const guest = await open("guest", invite.url.split("/").pop());
   let unauthorized = false;
@@ -407,7 +412,7 @@ test("changing the source in private waiting resets preparation without ending t
   const { stage, screen, open } = await setup(t);
   const invite = await stage.request("guest:invite", {});
   const guest = await open("guest", invite.url.split("/").pop());
-  const speaker = await open("presenter", "a_speaker001");
+  const speaker = await open("speaker", "a_speaker001");
   for (const peer of [stage, screen, guest, speaker]) await peer.receive("guest:media-ready");
   await stage.request("guest:connect");
   const { id } = guest.messages.find(([event]) => event === "guest:prepare")[1];
@@ -419,4 +424,21 @@ test("changing the source in private waiting resets preparation without ending t
   assert.equal(guest.messages.at(-1)[1].phase, "waiting");
   assert.equal(guest.messages.at(-1)[1].audioSource, "speaker");
   assert.equal(guest.connected, true);
+});
+
+// Exercise the real role route: Speaker URLs store "speaker", while their HTML lives in /presenter.
+test("the real Speaker access page includes guest voice assets with its stored role", async t => {
+  const { runtime, dataDir } = await setup(t);
+  const dataDecksDir = path.join(dataDir, "decks");
+  await fs.mkdir(path.join(dataDecksDir, "deck"), { recursive: true });
+  await fs.writeFile(path.join(dataDecksDir, "deck", "manifest.json"), JSON.stringify({ deckId: "deck", title: "Demo", session_id: "session", slides: [] }));
+  await fs.writeFile(path.join(dataDir, "access-links.json"), JSON.stringify([{ access_token: "a_speaker001", session_id: "session", role: "speaker", active: true }]));
+  const handlers = createAccessLinkHandlers({ dataDir, dataDecksDir, staticDecksDir: path.join(dataDir, "static"), publicDir: path.resolve(__dirname, "../public"), rolePageAssets: runtime.pageAssets });
+  const res = { setHeader() {}, type() { return this; }, send(html) { this.html = html; }, status(code) { assert.fail("Speaker route status " + code); } };
+  await handlers.openRole("speaker", "presenter")({ params: { access_token: "a_speaker001" }, secure: true, headers: {}, get: () => "beta.test" }, res, () => assert.fail("Speaker route must resolve"));
+  assert.match(res.html, /"role":"speaker"/);
+  assert.match(res.html, /live-guests\/client.js\?v=/);
+  const resolved = await handlers.resolveRoleLink("a_speaker001", "speaker");
+  assert.equal(resolved.accessLink.role, "speaker");
+  assert.equal(resolved.deck.deckId, "deck");
 });

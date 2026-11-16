@@ -101,9 +101,11 @@ test("event return starts on take, follows preparation/countdown and restores pr
 
 
 test("Speaker activates only audio and can stop standby mic without cutting a console-sourced guest", async () => {
-  const { toolbar, handlers, sent, track, socket } = mount("presenter");
+  const { toolbar, handlers, sent, track, socket } = mount("speaker");
   const button = toolbar.children[0];
+  assert.equal(button.textContent, "Activar voz invitado");
   await button.onclick();
+  assert.equal(button.textContent, "Apagar voz invitado");
   assert.equal(button.attributes["aria-pressed"], "true");
   assert.ok(sent.some(([event]) => event === "guest:media-ready"));
   handlers.get("guest:state")({ id: "call", phase: "live", audioSource: "screen" });

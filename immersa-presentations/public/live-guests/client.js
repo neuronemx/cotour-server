@@ -1,7 +1,7 @@
 (() => {
   const context = window.IMMERSA_ROLE_OPEN;
   const role = document.body.dataset.liveGuest ? "guest" : context?.role;
-  if (!["guest", "stage", "screen", "presenter"].includes(role)) return;
+  if (!["guest", "stage", "screen", "speaker"].includes(role)) return;
   const token = role === "guest" ? location.pathname.split("/").pop() : context.access_token;
   const socket = io("/live-guests", { auth: { role, token }, transports: ["websocket"], forceNew: true });
   const peers = new Map();
@@ -153,8 +153,8 @@
   }
 
   function render() {
-    if (role === "presenter") {
-      speakerButton.textContent = productionAudio ? "Apagar voz al invitado" : "Activar voz al invitado";
+    if (role === "speaker") {
+      speakerButton.textContent = productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
       speakerButton.disabled = busy || (!socket.connected && !productionAudio);
       speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
       return;
@@ -312,7 +312,7 @@
       for (const track of capture.getAudioTracks()) track.enabled = !selfMuted;
       render();
     });
-  } else if (role === "presenter") {
+  } else if (role === "speaker") {
     speakerButton = document.createElement("button");
     speakerButton.type = "button"; speakerButton.className = "guest-open guest-speaker-voice";
     document.querySelector(".main-controls").append(speakerButton);
@@ -605,7 +605,7 @@
       if (peer.ready && performance.now() - peer.lastFrame > 3000) fail(peer.id);
     }, 250);
     if (setup.offer) {
-      const stream = role === "presenter" ? productionAudio : role === "guest" ? capture : peers.get("monitor")?.remote;
+      const stream = role === "speaker" ? productionAudio : role === "guest" ? capture : peers.get("monitor")?.remote;
       if (!stream?.getAudioTracks().length || (setup.channel !== "speaker" && !stream.getVideoTracks().length)) return fail(peer.id);
       for (const track of stream.getTracks()) connection.addTransceiver(track, {
         direction: track.kind === "audio" && setup.channel !== "speaker" ? "sendrecv" : "sendonly",
@@ -665,7 +665,7 @@
     if (["ready", "waiting", "ended"].includes(next.phase)) taking = false;
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
-    if (next.phase === "ended" && ["guest", "presenter"].includes(role)) stopStreams();
+    if (next.phase === "ended" && ["guest", "speaker"].includes(role)) stopStreams();
     if (next.phase === "ended" && role === "screen" && eventMixer) {
       eventMixer?.stop(); eventMixer = null; lastReturnReady = false;
       socket.emit("guest:return-ready", false);
