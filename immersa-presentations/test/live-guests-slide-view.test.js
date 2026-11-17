@@ -14,7 +14,7 @@ function mount(contentApi, zoomApi) {
   const stream = { getTracks: () => tracks, getAudioTracks: () => tracks };
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
-      hidden: false, dataset: {}, events: new Map(),
+      hidden: false, dataset: {}, style: {}, events: new Map(),
       parentElement: { classList: { toggle() {} } },
       classList: { toggle() {} },
       addEventListener(name, fn) { this.events.set(name, fn); },
@@ -194,4 +194,21 @@ test("rapid navigation, failed images, disconnection and ending cannot reveal an
   assert.equal(app.element("guestState").textContent, "ENLACE TERMINADO");
   assert.equal(app.element("guestPreview").srcObject, null);
   assert.equal(app.tracks[0].readyState, "ended");
+});
+
+// Native dimensions can arrive after play() or change when the phone rotates.
+test("guest preview follows a late camera aspect change without restarting the live capture", async () => {
+  const app = mount();
+  await app.enter();
+  app.receive("guest:state", { phase: "live", id: null });
+  const preview = app.element("guestPreview"), stream = preview.srcObject;
+  preview.videoWidth = 360; preview.videoHeight = 640;
+  preview.events.get("resize")();
+  assert.equal(app.element("guestMonitor").style.aspectRatio, "360 / 640");
+  preview.videoWidth = 640; preview.videoHeight = 360;
+  preview.events.get("resize")();
+  assert.equal(app.element("guestMonitor").style.aspectRatio, "640 / 360");
+  assert.equal(preview.srcObject, stream);
+  assert.equal(app.tracks[0].readyState, "live");
+  assert.equal(app.element("guestSelfMute").hidden, false);
 });

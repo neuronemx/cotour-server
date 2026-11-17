@@ -137,7 +137,10 @@
       remote.setAttribute('aria-label', 'Cámara del Speaker');
       remoteTile = document.createElement('section'); remoteTile.className = 'guest-speaker-tile'; remoteTile.hidden = true;
       remoteTile.setAttribute('aria-label', 'Speaker');
-      remoteTile.append(remote);
+      const badge = document.createElement('img');
+      badge.className = role === 'screen' ? 'guest-live-label' : 'guest-camera-live';
+      badge.src = '/live-guests/live-badge.png'; badge.alt = 'LIVE';
+      remoteTile.append(remote, badge);
       (role === 'screen' ? document.querySelector('.guest-program') : document.getElementById('guestVisual')).append(remoteTile);
     }
     async function prepare(setup) {

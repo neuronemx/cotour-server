@@ -16,7 +16,7 @@
 .guest-monitor.is-live { border-color:#f20d22; }
 .guest-countdown-overlay { position:absolute; inset:0; display:grid; place-items:center; background:#080c1266; pointer-events:none; }
 .guest-countdown-overlay strong { font-size:clamp(160px,45vmin,420px); line-height:1; font-weight:850; color:#fff; text-shadow:0 4px 30px #0009; }
-.guest-camera-live { position:absolute; top:12px; right:12px; width:85.5px; height:32.25px; object-fit:contain; }
+.guest-camera-live { position:absolute; top:12px; right:12px; width:68.4px; height:25.8px; object-fit:contain; }
 .guest-caption { grid-row:2; text-align:center; padding:0 12px; }
 .guest-caption p { margin:0; color:#c2cad9; font-size:clamp(14px,1.6vw,17px); line-height:1.5; white-space:pre-line; }
 .guest-caption:has(p:empty) { display:none; }
@@ -45,7 +45,7 @@
 .guest-program { position:absolute; inset:0; z-index:11; background:#080c12; pointer-events:none; }
 .guest-program video { width:100%; height:100%; object-fit:contain; display:block; }
 .guest-program .guest-name { position:absolute; bottom:24px; left:24px; padding:9px 16px; border-radius:9px; background:#111b; color:#fff; font:600 22px Inter,system-ui,sans-serif; }
-.guest-program .guest-live-label { position:absolute; top:14px; right:14px; width:114px; height:43px; object-fit:contain; }
+.guest-program .guest-live-label { position:absolute; top:14px; right:14px; width:91.2px; height:34.4px; object-fit:contain; }
 .guest-audio-unlock { position:fixed; bottom:18px; right:18px; z-index:9999; }
 .guest-program[hidden], .guest-caption [hidden], .guest-production [hidden], .guest-audio-unlock[hidden] { display:none!important; }
 @media(max-width:650px) { .guest-production .guest-grid { grid-template-columns:1fr; } .guest-experience { padding:12px; gap:10px; } }
@@ -62,14 +62,14 @@
 .guest-stage-panel .guest-grid { grid-template-columns:minmax(0,1fr); }
 .guest-stage-panel header { position:sticky; top:-20px; background:#111723; padding:10px 0; z-index:1; }
 @media(min-width:1100px) { body.guest-panel-open .stage-shell { padding-right:410px; } }
-@media(max-width:650px) { .guest-experience { padding:14px; } .guest-stage-compact { align-items:flex-start; flex-direction:column; gap:7px; } .guest-stage-compact>span { max-width:100%; } .guest-camera-live { width:72px; height:27px; top:9px; right:9px; } }
+@media(max-width:650px) { .guest-experience { padding:14px; } .guest-stage-compact { align-items:flex-start; flex-direction:column; gap:7px; } .guest-stage-compact>span { max-width:100%; } .guest-camera-live { width:57.6px; height:21.6px; top:9px; right:9px; } }
 @media(max-height:500px) and (orientation:landscape) { .guest-visual { grid-template-rows:minmax(100px,38dvh) auto minmax(240px,1fr); } }
 
 .guest-ended a { color:#ba9aff; text-underline-offset:4px; }
 .guest-page.guest-in-session .guest-experience { height:100dvh; min-height:0; padding:12px; gap:0; }
 .guest-in-session .guest-visual { flex:1; min-height:0; min-width:0; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,25%) auto minmax(0,1fr); gap:10px; }
-.guest-in-session .guest-monitor { min-height:0; }
-.guest-in-session .guest-monitor video { position:absolute; inset:0; width:100%; height:100%; min-height:0; max-height:none; }
+.guest-in-session .guest-monitor { min-height:0; height:auto; max-height:100%; align-self:start; aspect-ratio:9 / 16; }
+.guest-in-session .guest-monitor video { position:absolute; inset:0; width:100%; height:100%; min-height:0; max-height:none; object-fit:cover; }
 .guest-self-mute { position:absolute; z-index:2; bottom:12px; left:50%; transform:translateX(-50%); border:1px solid #ffffff66; border-radius:999px; background:#101624e6; color:#fff; padding:10px 16px; font:600 14px Inter,system-ui,sans-serif; cursor:pointer; white-space:nowrap; }
 .guest-self-mute[aria-pressed="true"] { background:#b52035; border-color:#ff7b89; }
 @media(max-height:500px) { .guest-in-session .guest-visual { grid-template-rows:minmax(0,21%) auto minmax(0,1fr); gap:6px; } .guest-in-session .guest-caption p { font-size:12px; margin:0; } .guest-self-mute { padding:7px 12px; bottom:7px; } }
@@ -114,48 +114,50 @@
 .guest-speaker-tile > video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
 .guest-slide-view, .guest-caption { grid-column:1 / -1; }
 .guest-visual.has-speaker-camera { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.guest-visual > .guest-speaker-tile { grid-row:3; grid-column:1; align-self:stretch; aspect-ratio:auto!important; }
+.guest-visual > .guest-speaker-tile { grid-row:3; grid-column:1; align-self:start; width:100%; height:auto; max-height:100%; aspect-ratio:9 / 16; }
+.guest-visual > .guest-speaker-tile > video { object-fit:cover; }
 .guest-visual.has-speaker-camera .guest-monitor { grid-column:2; width:100%; min-width:0; justify-self:stretch; }
 .guest-visual.has-speaker-camera .guest-self-mute { max-width:calc(100% - 12px); box-sizing:border-box; padding:8px 10px; font-size:clamp(10px,2.8vw,14px); }
 
 .guest-program-guest { position:relative; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }
 .guest-program-guest > video { position:absolute; inset:0; }
 
-/* Two cameras share the right rail, leaving the presentation visible on the left. */
+/* Speaker and Guest frame the centered slide in two full-height side columns. */
 #screen:has(> .guest-program.has-speaker-camera:not([hidden])) {
   --guest-composition-gap:clamp(8px,1.25vw,28px);
-  --guest-camera-rail:36vw;
-  --guest-slide-space:calc(100vw - var(--guest-camera-rail) - 3 * var(--guest-composition-gap));
+  --guest-camera-column:calc((100vw - 4 * var(--guest-composition-gap)) * .3);
+  --guest-slide-space:calc((100vw - 4 * var(--guest-composition-gap)) * .4);
   background:radial-gradient(ellipse at 70% 50%,#171f2d,#090d14 76%);
 }
 #screen:has(> .guest-program.has-speaker-camera:not([hidden]))::before { opacity:0; }
 #screen:has(> .guest-program.has-speaker-camera:not([hidden])) > #slide,
 #screen:has(> .guest-program.has-speaker-camera:not([hidden])) > .immersa-slide-outgoing {
   position:absolute;
-  inset:var(--guest-composition-gap) auto auto var(--guest-composition-gap)!important;
+  inset:var(--guest-composition-gap) auto auto calc(var(--guest-camera-column) + 2 * var(--guest-composition-gap))!important;
   width:var(--guest-slide-space)!important;
   height:calc(100vh - 2 * var(--guest-composition-gap))!important;
   object-fit:contain;
   clip-path:none;
 }
 #screen:has(> .guest-program.has-speaker-camera:not([hidden])) > .guest-program {
-  inset:var(--guest-composition-gap) var(--guest-composition-gap) auto auto;
-  width:var(--guest-camera-rail);
+  inset:var(--guest-composition-gap);
+  width:calc(100vw - 2 * var(--guest-composition-gap));
   height:calc(100vh - 2 * var(--guest-composition-gap));
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:var(--guest-camera-column) var(--guest-slide-space) var(--guest-camera-column);
   grid-template-rows:minmax(0,1fr);
-  align-items:center;
+  align-items:stretch;
   gap:var(--guest-composition-gap);
   background:transparent;
   border-radius:0;
   box-shadow:none;
 }
 .guest-program.has-speaker-camera > .guest-speaker-tile,
-.guest-program.has-speaker-camera > .guest-program-guest { width:100%; height:auto; max-height:100%; aspect-ratio:9 / 16; border-radius:14px; }
+.guest-program.has-speaker-camera > .guest-program-guest { width:100%; height:100%; max-height:100%; border-radius:14px; }
 .guest-program.has-speaker-camera > .guest-speaker-tile { grid-column:1; grid-row:1; }
-.guest-program.has-speaker-camera > .guest-program-guest { grid-column:2; grid-row:1; background:#111827; }
-.guest-program.has-speaker-camera .guest-live-label { width:clamp(50px,5vw,85.5px); height:auto; top:10px; right:10px; }
+.guest-program.has-speaker-camera > .guest-program-guest { grid-column:3; grid-row:1; background:#111827; }
+.guest-program.has-speaker-camera > section > video { object-fit:cover; }
+.guest-program.has-speaker-camera .guest-live-label { width:clamp(40px,4vw,68.4px); height:auto; top:10px; right:10px; }
 .guest-program.has-speaker-camera .guest-name { bottom:12px; left:12px; right:12px; padding:7px 10px; font-size:clamp(12px,1.1vw,20px); overflow-wrap:anywhere; }
 .guest-speaker-dialog video { width:100%; max-height:45dvh; object-fit:contain; background:#080c12; border-radius:12px; }
 .guest-speaker-dialog .guest-actions { display:flex; flex-wrap:wrap; gap:8px; }

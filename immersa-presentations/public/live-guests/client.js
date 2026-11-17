@@ -201,6 +201,7 @@
       const showingPresentation = Boolean(capture) && state.phase !== "ended";
       document.body.classList.toggle("guest-in-session", showingPresentation);
       document.getElementById("guestHeader").hidden = showingPresentation;
+      if (video.videoWidth > 0 && video.videoHeight > 0) document.getElementById("guestMonitor").style.aspectRatio = video.videoWidth + " / " + video.videoHeight;
       const selfMute = document.getElementById("guestSelfMute");
       selfMute.hidden = !showingPresentation || (state.phase !== "live" && !selfMuted);
       selfMute.disabled = !socket.connected;
@@ -327,6 +328,7 @@
       questionHost: document.getElementById("guestQuestion"), slideHost: document.getElementById("guestSlideView"),
       resultsHost: document.getElementById("guestPollResults"), reactionsHost: document.getElementById("guestReactions") });
     video = document.getElementById("guestPreview");
+    video.addEventListener("resize", render);
     message = document.getElementById("guestMessage");
     phaseLabel = document.getElementById("guestState");
     enter = document.getElementById("guestEnter");
