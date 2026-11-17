@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>IMMERSA · Prueba sintética de conexión</title>
+<style>body{background:#101624;color:#fff;font:16px system-ui;padding:24px}button{padding:12px}iframe{width:30%;height:380px;border:1px solid #678;border-radius:12px}pre{white-space:pre-wrap}</style>
+<h1>Prueba sintética de conexión</h1><p>Sin cámara, micrófono ni enlaces reales. Usa el cliente de cámara de Beta con video generado.</p><button id="start">Probar cámara en tres roles</button><pre id="result">Lista para probar.</pre><div id="frames"></div>
+<script>
+const output=document.getElementById('result');const sockets={};const frames={};let camera=null;let serial=0;
+function log(text){output.textContent+='\n'+text;}
+function publish(){for(const s of Object.values(sockets))s.state={phase:'live',audioSource:'screen',camera:camera?{id:camera.id,ready:camera.ready}:null};for(const f of Object.values(frames))f.contentWindow.cameraApi?.render();}
+function emit(role,event,...args){
+ if(event==='guest-camera:signal'){const m=args[0];if(camera?.id===m.id)sockets[role==='speaker'?m.target:'speaker']?.receive(event,m);}
+ if(event==='guest-camera:ready'){const m=args[0];if(camera?.id===m.id){camera.receivers.add(role);camera.ready=camera.receivers.size===2;log(role+': video decodificado');publish();if(camera.ready)log('PASS: video recibido en Invitado y Pantalla.');}}
+ if(event==='guest-camera:stop'){log(role+': cámara detenida '+JSON.stringify(args[0]));camera=null;publish();}
+}
+async function request(role,event){if(event!=='guest-camera:start')return {ok:false};camera={id:'synthetic-'+(++serial),ready:false,receivers:new Set()};publish();for(const target of ['screen','guest'])for(const r of ['speaker',target])sockets[r].receive('guest-camera:prepare',{id:camera.id,target,offer:r==='speaker',rtc:{iceServers:[]},duration:30000});return {ok:true,id:camera.id};}
+window.registerRole=(role,frame)=>{const handlers=new Map();const s=sockets[role]={state:{phase:'live',audioSource:'screen',camera:null},connected:true,on:(name,fn)=>handlers.set(name,fn),receive:(name,value)=>handlers.get(name)?.(value),emit:(name,...args)=>emit(role,name,...args),timeout(){return this},emitWithAck:name=>request(role,name)};return s;};
+for(const role of ['speaker','screen','guest']){
+ const f=document.createElement('iframe');frames[role]=f;f.title=role;document.getElementById('frames').append(f);
+ f.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="/live-guests/client.css?v=15"></head><body style="background:#111827;color:white"><h2>${role}</h2><button id="live">LIVE</button><div class="guest-program" style="position:relative;height:150px;opacity:1"></div><div id="guestVisual"></div><script src="/live-guests/camera.js?v=3"><\/script><script>
+ window.addEventListener('error',e=>parent.document.getElementById('result').textContent+='\\n${role} ERROR: '+e.message);
+ window.addEventListener('unhandledrejection',e=>parent.document.getElementById('result').textContent+='\\n${role} REJECTION: '+e.reason);
+ const socket=parent.registerRole('${role}');
+ Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d');let n=0;setInterval(()=>{ctx.fillStyle='hsl('+(n++%360)+',70%,35%)';ctx.fillRect(0,0,640,360);ctx.fillStyle='white';ctx.font='32px sans-serif';ctx.fillText('IMMERSA '+n,50,120);},66);return c.captureStream(15);}});
+ window.cameraApi=ImmersaGuestCamera.create({role:'${role}',socket,getState:()=>socket.state,button:document.getElementById('live'),toggleVoice:async()=>{},voiceActive:()=>true});
+ cameraApi.render();<\/script></body></html>`;
+}
+document.getElementById('start').onclick=()=>{output.textContent='Iniciando prueba con video sintético…';const d=frames.speaker.contentDocument;d.getElementById('live').click();d.querySelector('[data-video]').click();};
+setInterval(()=>{if(camera)for(const s of Object.values(sockets))s.receive('guest-camera:lease',{id:camera.id,duration:30000});const p=frames.speaker.contentDocument?.querySelector('[data-status]');if(p&&p.textContent!==window.lastNotice){window.lastNotice=p.textContent;log('Speaker: '+p.textContent);}},1000);
+</script></html>
