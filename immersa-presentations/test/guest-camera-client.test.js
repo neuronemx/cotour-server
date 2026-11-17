@@ -62,3 +62,20 @@ test('console audio mode never opens a second microphone and ended camera state 
   app.state.phase = 'ended'; app.state.camera = null; app.api.render();
   assert.equal(app.tracks[0].readyState, 'ended');
 });
+
+test('Stage, Screen and Guest can remain on air with no optional camera, including older snapshots without that field', () => {
+  for (const role of ['stage', 'screen', 'guest']) {
+    let state;
+    const element = () => ({ hidden: true, style: {}, classList: { remove() {}, toggle() {} }, setAttribute() {}, append() {} });
+    const host = element();
+    const window = { addEventListener() {} };
+    runInNewContext(code, { window, document: { createElement: element, body: { append() {} }, querySelector: () => host, getElementById: () => host }, clearInterval() {} });
+    const camera = window.ImmersaGuestCamera.create({ role, socket: { connected: true, on() {} }, getState: () => state });
+    for (const phase of ['waiting', 'preparing', 'ready', 'starting', 'countdown', 'live', 'ended']) {
+      for (const value of [undefined, null, { id: 'pending-camera', ready: false }]) {
+        state = { phase, ...(value === undefined ? {} : { camera: value }) };
+        assert.doesNotThrow(() => camera.render(), role + ' ' + phase);
+      }
+    }
+  }
+});

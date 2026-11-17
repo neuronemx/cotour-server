@@ -229,7 +229,8 @@
       preparing: "Conectando con el invitado…", ready: "En espera · Comunicación privada con producción",
       starting: "Preparando Pantalla y retorno…", countdown: "Entrada en " + state.countdown + "…", live: "EN VIVO", ended: "ENLACE TERMINADO"
     };
-    message.textContent = notice || descriptions[state.phase] || "En espera";
+    const missingVoice = state.audioSource === "speaker" && state.guestConnected && !state.speakerConnected;
+    message.textContent = notice || (missingVoice ? "Speaker: abre LIVE y pulsa Solo audio para activar tu voz." : descriptions[state.phase]) || "En espera";
     compactStatus.textContent = (state.guestName || "Invitado") + " · " + (state.phase === "live" ? "LIVE" : state.phase === "countdown" ? String(state.countdown) : state.phase === "ended" ? "ENLACE TERMINADO" : "EN ESPERA");
     compactWait.hidden = !["starting", "countdown", "live"].includes(state.phase);
     compactWait.disabled = compactMute.disabled = compactEnd.disabled = busy || !socket.connected;

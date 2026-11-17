@@ -28,11 +28,12 @@
         switchButton.disabled = busy || !stream;
         preview.hidden = !stream;
         status.textContent = notice || (state.audioSource === 'speaker'
-          ? (state.phase === 'live' ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Activa tu voz. La cámara estará disponible cuando el Invitado salga al aire.')
+          ? (state.phase === 'live' ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Pulsa Solo audio para activar tu voz y habilitar Preparar conexión en Stage. La cámara estará disponible cuando el Invitado salga al aire.')
           : 'El audio viene de Pantalla / consola. Comparte tu cámara sin duplicar tu voz.');
         return;
       }
-      const ready = state.phase === 'live' && state.camera?.id === id && state.camera.ready && [...peers.values()].some(peer => peer.ready);
+      if (role === 'stage') return;
+      const ready = Boolean(id) && state.phase === 'live' && state.camera?.id === id && state.camera?.ready && [...peers.values()].some(peer => peer.ready);
       if (remote) { remote.hidden = !id; remote.style.visibility = ready ? 'visible' : 'hidden'; }
       document.querySelector('.guest-program')?.classList.toggle('has-speaker-camera', Boolean(ready));
       document.getElementById('guestVisual')?.classList.toggle('has-speaker-camera', Boolean(ready));

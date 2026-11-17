@@ -6,12 +6,12 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount(role = "stage", getUserMedia, camera = false) {
+function mount(role = "stage", getUserMedia, camera = false, guestCamera = false) {
   const listeners = new Map();
   const created = [], handlers = new Map(), sent = [];
   function element(tag = "div") {
     const children = new Map();
-    const node = { tag, hidden: false, attributes: {}, children: [], classList: { toggle() {} },
+    const node = { tag, hidden: false, attributes: {}, children: [], classList: { toggle() {}, remove() {} },
       setAttribute(name, value) { this.attributes[name] = value; },
       querySelector(selector) { if (!children.has(selector)) children.set(selector, element(selector)); return children.get(selector); },
       append(...nodes) { this.children.push(...nodes); },
@@ -20,7 +20,7 @@ function mount(role = "stage", getUserMedia, camera = false) {
       querySelectorAll() { return []; },
       insertBefore(node) { node.parentElement = this; },
       before(node) { this.insertedBefore = node; },
-      addEventListener() {}
+      addEventListener() {}, showModal() {}, close() {}
     };
     created.push(node);
     return node;
@@ -38,11 +38,12 @@ function mount(role = "stage", getUserMedia, camera = false) {
   const instrumented = client.replace("  render();\n})();", `  window.audioTest = { peers, updateReturn, setProduction(stream) { productionAudio = stream; }, setTaking(value) { taking = value; } };\n  render();\n})();`);
   const environment = {
     window,
-    document: { body, createElement: element, querySelector: () => toolbar, addEventListener() {} }, io: () => socket,
+    document: { body, createElement: element, querySelector: () => toolbar, getElementById: () => null, addEventListener() {} }, io: () => socket,
     Event: class { constructor(type) { this.type = type; } },
     navigator: { mediaDevices: { async getUserMedia(options) { assert.equal(options.video, false); return getUserMedia ? getUserMedia(stream) : stream; } } }
   };
   if (camera) runInNewContext(readFileSync(resolve(__dirname, "../public/live-camera/pilot.js"), "utf8"), environment);
+  if (guestCamera) runInNewContext(readFileSync(resolve(__dirname, "../public/live-guests/camera.js"), "utf8"), environment);
   runInNewContext(instrumented, environment);
   return { created, toolbar, handlers, sent, audio: window.audioTest, track, socket };
 }
@@ -232,4 +233,25 @@ test("Speaker swaps LIVE and guest voice in one toolbar slot, then restores LIVE
   assert.equal(voice.hidden, true);
   assert.equal(camera.hidden, false);
   assert.equal(track.readyState, "ended");
+});
+
+test("the real guest camera panel activates Speaker voice in waiting before Stage can prepare", async () => {
+  const speaker = mount("speaker", undefined, false, true);
+  speaker.handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  const panel = speaker.created.find(node => node.tag === "dialog");
+  assert.ok(panel);
+  panel.querySelector("[data-audio]").onclick();
+  await flush(); await flush();
+  assert.ok(speaker.sent.some(([event, value]) => event === "guest:media-ready" && value !== false));
+  assert.equal(speaker.track.readyState, "live");
+  const stage = mount("stage", undefined, false, true);
+  const controls = stage.created.find(node => node.tag === "aside");
+  const waiting = { phase: "waiting", audioSource: "speaker", guestConnected: true, stageReady: true, screenReady: true };
+  stage.handlers.get("guest:state")(waiting);
+  assert.equal(controls.querySelector("[data-connect]").disabled, true);
+  assert.match(controls.querySelector("[data-status]").textContent, /Solo audio/);
+  stage.handlers.get("guest:state")({ ...waiting, speakerConnected: true });
+  assert.equal(controls.querySelector("[data-connect]").disabled, false);
+  assert.doesNotThrow(() => stage.handlers.get("guest:state")({ ...waiting, phase: "live", speakerConnected: true, camera: null }));
+  assert.equal(controls.querySelector("[data-status]").textContent, "EN VIVO");
 });
