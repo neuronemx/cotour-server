@@ -62,3 +62,13 @@ test('camera signaling is video only, scoped to its target, and expires independ
   room.peers.speaker.connected = false;
   assert.equal((await start()).ok, false);
 });
+
+test('receiver failure reaches Speaker with its source and leaves the guest call active', async () => {
+  const { room, start } = fixture();
+  const { id } = await start();
+  room.peers.screen.receive('guest-camera:stop', { id, reason: 'playback:NotAllowedError' });
+  const ended = room.peers.speaker.messages.find(([event]) => event === 'guest-camera:ended');
+  assert.deepEqual(ended[1], { id, reason: 'screen:playback:NotAllowedError' });
+  assert.equal(room.call.phase, 'live');
+  assert.equal(room.camera, null);
+});

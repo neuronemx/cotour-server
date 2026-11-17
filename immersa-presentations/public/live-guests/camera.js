@@ -3,7 +3,7 @@
     const peers = new Map();
     let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, status;
     let audioOnly, audioVideo, switchButton, notice = ''; 
-    function stop(notify = true) {
+    function stop(notify = true, reason) {
       const previous = id || getState().camera?.id;
       localVersion++;
       id = null;
@@ -14,11 +14,20 @@
       if (remote) { remote.srcObject = null; remote.hidden = true; }
       document.querySelector('.guest-program')?.classList.remove('has-speaker-camera');
       document.getElementById('guestVisual')?.classList.remove('has-speaker-camera');
-      if (notify && previous && socket.connected) socket.emit('guest-camera:stop', { id: previous });
+      if (notify && previous && socket.connected) socket.emit('guest-camera:stop', { id: previous, ...(reason ? { reason } : {}) });
+    }
+    function failure(stage, error, expectedId) {
+      if (expectedId && id !== expectedId) return;
+      const name = /^[A-Za-z]{1,40}$/.test(error?.name || '') ? ':' + error.name : '';
+      notice = 'No se pudo compartir la cámara. ' + ({ speaker: 'Speaker', screen: 'Pantalla', guest: 'Invitado' }[role] || role) + ': ' + stage + name + '. El audio continúa.';
+      stop(true, stage + name); render();
     }
     function render() {
       const state = getState();
-      if (id && (state.camera?.id !== id || state.phase !== 'live')) stop(false);
+      if (id && (state.camera?.id !== id || state.phase !== 'live')) {
+        if (role === 'speaker' && !notice) notice = state.phase !== 'live' ? 'La cámara se retiró porque el enlace del Invitado dejó de estar EN VIVO.' : 'La conexión retiró la cámara. Puedes intentar Audio y video nuevamente.';
+        stop(false);
+      }
       if (role === 'speaker') {
         if (state.phase === 'ended') dialog.close();
         button.textContent = 'LIVE';
@@ -28,7 +37,7 @@
         switchButton.disabled = busy || !stream;
         preview.hidden = !stream;
         status.textContent = notice || (state.audioSource === 'speaker'
-          ? (state.phase === 'live' ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Pulsa Solo audio para activar tu voz y habilitar Preparar conexión en Stage. La cámara estará disponible cuando el Invitado salga al aire.')
+          ? (state.phase === 'live' ? (stream ? (state.camera?.ready ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Conectando tu cámara con Invitado y Pantalla…') : 'Pulsa Audio y video para compartir tu cámara.') : 'Pulsa Solo audio para activar tu voz y habilitar Preparar conexión en Stage. La cámara estará disponible cuando el Invitado salga al aire.')
           : 'El audio viene de Pantalla / consola. Comparte tu cámara sin duplicar tu voz.');
         return;
       }
@@ -48,22 +57,29 @@
       if (version !== localVersion || getState().phase !== 'live' || !socket.connected) { next.getTracks().forEach(track => track.stop()); return false; }
       stream = next;
       const track = stream.getVideoTracks()[0];
-      track.onended = () => { if (stream === next) { stop(); render(); } };
-      preview.srcObject = next; await preview.play();
+      track.onended = () => { if (stream === next) failure('capture-ended', null, id); };
+      preview.srcObject = next; preview.hidden = false; await preview.play();
       for (const peer of peers.values()) if (peer.sender) await peer.sender.replaceTrack(track);
       return true;
     }
     async function activate(withVideo) {
       busy = true; notice = ''; render();
+      let step = 'voice';
       try {
         if (getState().audioSource === 'speaker' && !voiceActive()) await toggleVoice();
         if (getState().audioSource === 'speaker' && !voiceActive()) return;
         if (!withVideo) return stop();
         if (stream) return;
+        step = 'capture';
         if (!await capture()) return;
+        const version = localVersion;
+        step = 'request';
         const result = await socket.timeout(15000).emitWithAck('guest-camera:start');
-        if (!result?.ok || id !== result.id || getState().phase !== 'live') throw Error('camera');
-      } catch { stop(); notice = 'No se pudo compartir la cámara. El enlace de audio continúa.'; }
+        if (!result?.ok) throw Object.assign(new Error(), { name: result?.reason === 'service' ? 'ServiceUnavailable' : result?.reason === 'access' ? 'AccessDenied' : 'NotReady' });
+        if (version !== localVersion || (id && id !== result.id)) return;
+        if (getState().phase !== 'live') { stop(); return; }
+        id = result.id;
+      } catch (error) { failure(step, error); }
       finally { busy = false; render(); }
     }
     if (role === 'speaker') {
@@ -100,7 +116,7 @@
       pc.onicecandidate = ({ candidate }) => {
         if (candidate && id === setup.id) socket.emit('guest-camera:signal', { id, target: setup.target, candidate: candidate.toJSON() });
       };
-      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { stop(); render(); } };
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') failure('connection', null, setup.id); };
       pc.ontrack = ({ track, receiver }) => {
         if (track.kind !== 'video' || id !== setup.id) return;
         peer.receiver = receiver;
@@ -108,12 +124,12 @@
         // Decode while private; reveal only after both receivers have fresh frames.
         remote.hidden = false;
         remote.style.visibility = 'hidden';
-        void remote.play().catch(() => { stop(); render(); });
+        void remote.play().catch(error => failure('playback', error, setup.id));
       };
       peer.timer = setInterval(async () => {
         if (id !== setup.id) return;
         const now = performance.now();
-        if (now > peer.deadline) { stop(); render(); return; }
+        if (now > peer.deadline) { failure('lease', null, setup.id); return; }
         if (!peer.receiver || peer.checking) return;
         peer.checking = true;
         try {
@@ -123,9 +139,9 @@
             peer.frames = report.framesDecoded; peer.lastFrame = now;
             if (!peer.ready) { peer.ready = true; socket.emit('guest-camera:ready', { id, target: setup.target }); }
           }
-          if (now - (peer.lastFrame || peer.created) > (peer.ready ? 4000 : 12000)) { stop(); render(); }
+          if (now - (peer.lastFrame || peer.created) > (peer.ready ? 4000 : 12000)) { failure('frames', null, setup.id); }
           else render();
-        } catch { stop(); render(); }
+        } catch (error) { failure('stats', error, setup.id); }
         finally { peer.checking = false; }
       }, 250);
       if (setup.offer) {
@@ -134,7 +150,7 @@
         socket.emit('guest-camera:signal', { id, target: setup.target, description: pc.localDescription.toJSON() });
       }
     }
-    socket.on('guest-camera:prepare', setup => { void prepare(setup).catch(() => { stop(); render(); }); });
+    socket.on('guest-camera:prepare', setup => { void prepare(setup).catch(error => failure('prepare', error, setup.id)); });
     socket.on('guest-camera:signal', body => {
       const peer = peers.get(body.target);
       if (!peer || body.id !== id) return;
@@ -151,7 +167,12 @@
           await peer.pc.setLocalDescription(await peer.pc.createAnswer());
           socket.emit('guest-camera:signal', { id, target: body.target, description: peer.pc.localDescription.toJSON() });
         }
-      }).catch(() => { stop(); render(); });
+      }).catch(error => failure('signal', error, body.id));
+    });
+    socket.on('guest-camera:ended', value => {
+      if (role !== 'speaker' || (id && value.id !== id)) return;
+      notice = 'Cámara detenida: ' + String(value.reason || '').slice(0, 100) + '. El audio continúa.';
+      stop(false); render();
     });
     socket.on('guest-camera:lease', value => { if (value.id === id) for (const peer of peers.values()) peer.deadline = performance.now() + value.duration; });
     socket.on('disconnect', () => { stop(false); dialog?.close(); });

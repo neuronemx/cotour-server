@@ -5,7 +5,7 @@ const { runInNewContext } = require('node:vm');
 const { setImmediate: flush } = require('node:timers/promises');
 const code = readFileSync(require('node:path').resolve(__dirname, '../public/live-guests/camera.js'), 'utf8');
 
-function mount(source = 'speaker') {
+function mount(source = 'speaker', options = {}) {
   const handlers = new Map(), nodes = [], sent = [], tracks = [], senders = [];
   let state = { phase: 'live', audioSource: source }, voice = false;
   function element() {
@@ -18,7 +18,8 @@ function mount(source = 'speaker') {
   const socket = { connected: true, on: (event, fn) => handlers.set(event, fn), emit: (...args) => sent.push(args), timeout() { return this; },
     async emitWithAck() {
       state.camera = { id: 'camera', ready: false };
-      for (const target of ['screen', 'guest']) handlers.get('guest-camera:prepare')({ id: 'camera', target, offer: true, rtc: {}, duration: 8000 });
+      const prepare = () => { for (const target of ['screen', 'guest']) handlers.get('guest-camera:prepare')({ id: 'camera', target, offer: true, rtc: {}, duration: 8000 }); };
+      if (options.delayedPrepare) setImmediate(prepare); else prepare();
       return { ok: true, id: 'camera' };
     }
   };
@@ -31,6 +32,7 @@ function mount(source = 'speaker') {
     } } },
     performance: { now: () => 0 }, setInterval: () => 1, clearInterval() {},
     RTCPeerConnection: class {
+      constructor() { if (options.peerError) throw Object.assign(new Error(), { name: 'NotSupportedError' }); }
       close() {} addTransceiver(track) { const sender = { track, async replaceTrack(next) { this.track = next; } }; senders.push(sender); return { sender }; }
       async createOffer() { return {}; } async setLocalDescription() { this.localDescription = { toJSON: () => ({}) }; }
     }
@@ -78,4 +80,22 @@ test('Stage, Screen and Guest can remain on air with no optional camera, includi
       }
     }
   }
+});
+
+test('a start acknowledgment arriving before preparation keeps the captured camera alive', async () => {
+  const app = mount('speaker', { delayedPrepare: true });
+  app.panel.querySelector('[data-video]').onclick();
+  await flush(); await flush();
+  assert.equal(app.tracks[0].readyState, 'live');
+  assert.equal(app.senders.length, 2);
+  assert.equal(app.sent.some(([event]) => event === 'guest-camera:stop'), false);
+});
+
+test('a failed browser peer reports its stage and error without stopping the microphone', async () => {
+  const app = mount('speaker', { peerError: true });
+  app.panel.querySelector('[data-video]').onclick();
+  await flush(); await flush();
+  assert.equal(app.tracks[0].readyState, 'ended');
+  assert.equal(app.voice(), true);
+  assert.match(app.panel.querySelector('[data-status]').textContent, /prepare:NotSupportedError/);
 });

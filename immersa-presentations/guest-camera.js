@@ -2,22 +2,24 @@ const { randomUUID } = require('node:crypto');
 
 // Optional video only. Its lifetime never owns the guest's audio or program reservation.
 function createGuestCamera({ authorize, rtc, publish }) {
-  function stop(room) {
+  function stop(room, reason) {
     if (!room.camera) return;
+    const id = room.camera.id;
     room.camera = null;
+    if (reason) room.peers.speaker?.emit("guest-camera:ended", { id, reason });
     publish(room);
   }
   function renew(room) {
     const camera = room.camera;
     if (!camera) return;
-    if (!camera.ready && Date.now() > camera.created + 15000) return stop(room);
+    if (!camera.ready && Date.now() > camera.created + 15000) return stop(room, "server:frames");
     for (const peer of Object.values(room.peers)) peer.emit('guest-camera:lease', { id: camera.id, duration: 8000 });
   }
   function attach(socket, room) {
     const role = socket.data.guestRole;
     socket.on('guest-camera:start', async ack => {
       if (role !== 'speaker' || typeof ack !== 'function') return;
-      if (room.call?.phase !== 'live' || room.camera || room.cameraStarting) return ack({ ok: false });
+      if (room.call?.phase !== 'live' || room.camera || room.cameraStarting) return ack({ ok: false, reason: "busy" });
       const call = room.call;
       room.cameraStarting = true;
       try {
@@ -25,18 +27,18 @@ function createGuestCamera({ authorize, rtc, publish }) {
         const valid = await Promise.all(peers.map(authorize));
         const configuration = await rtc();
         if (!valid.every(Boolean) || room.call !== call || call.phase !== 'live'
-          || peers.some((peer, i) => room.peers[['speaker', 'screen', 'guest'][i]] !== peer || !peer?.connected)) return ack({ ok: false });
+          || peers.some((peer, i) => room.peers[['speaker', 'screen', 'guest'][i]] !== peer || !peer?.connected)) return ack({ ok: false, reason: "access" });
         const camera = room.camera = { id: randomUUID(), created: Date.now(), ready: false, receivers: new Set(), counts: {} };
         publish(room);
         for (const target of ['screen', 'guest']) for (const participant of ['speaker', target]) room.peers[participant].emit('guest-camera:prepare', {
           id: camera.id, target, rtc: configuration, duration: 8000, offer: participant === 'speaker'
         });
         ack({ ok: true, id: camera.id });
-      } catch { ack({ ok: false }); }
+      } catch { ack({ ok: false, reason: "service" }); }
       finally { room.cameraStarting = false; }
     });
     socket.on('guest-camera:stop', message => {
-      if (['speaker', 'screen', 'guest'].includes(role) && room.camera?.id === message?.id) stop(room);
+      if (['speaker', 'screen', 'guest'].includes(role) && room.camera?.id === message?.id) stop(room, typeof message.reason === 'string' && message.reason.length <= 64 && /^[a-z-]+(?::[A-Za-z]+)?$/.test(message.reason) ? role + ':' + message.reason : undefined);
     });
     socket.on('guest-camera:ready', message => {
       const camera = room.camera;
