@@ -10,6 +10,7 @@
   let selfMuted = false;
   let guestContent;
   let guestZoom;
+  let guestCamera;
   let sourceSelect, speakerButton, lastReturnReady, screenInput, screenApply, screenSourceNote;
   let productionAudio;
   let stageAudio;
@@ -167,15 +168,16 @@
   }
 
   function render() {
+    guestCamera?.render();
     if (role === "speaker") {
       const waiting = ["waiting", "preparing", "ready"].includes(state.phase);
-      speakerButton.hidden = !(state.audioSource === "speaker" && state.guestConnected && (waiting || productionAudio));
+      speakerButton.hidden = guestCamera ? !(state.guestConnected && state.phase !== "ended") : !(state.audioSource === "speaker" && state.guestConnected && (waiting || productionAudio));
       const voiceMode = !speakerButton.hidden;
       if (window.__immersaGuestVoiceMode !== voiceMode) {
         window.__immersaGuestVoiceMode = voiceMode;
         window.dispatchEvent(new Event("immersa:guest-voice-mode"));
       }
-      speakerButton.textContent = productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
+      speakerButton.textContent = guestCamera ? "LIVE" : productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
       speakerButton.disabled = busy || (!socket.connected && !productionAudio);
       speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
       return;
@@ -187,7 +189,7 @@
       const projecting = state.phase === "live" && Boolean(peers.get("program")?.ready) && !mediaOnScreen;
       overlay.hidden = !projecting;
       overlay.classList.toggle("is-live", projecting);
-      const portrait = projecting && video.videoWidth > 0 && video.videoHeight > video.videoWidth;
+      const portrait = projecting && !state.camera?.ready && video.videoWidth > 0 && video.videoHeight > video.videoWidth;
       screenHost.classList.toggle("guest-camera-portrait", portrait);
       if (portrait) screenHost.style.setProperty("--guest-camera-aspect", video.videoWidth / video.videoHeight);
       else screenHost.style.removeProperty("--guest-camera-aspect");
@@ -668,6 +670,10 @@
       socket.emit("guest:signal", { id: peer.id, channel: peer.channel, description: connection.localDescription.toJSON() });
     }
   }
+
+  const speakerVoiceAction = speakerButton?.onclick;
+  guestCamera = window.ImmersaGuestCamera?.create({ role, socket, getState: () => state, button: speakerButton,
+    toggleVoice: () => speakerVoiceAction(), voiceActive: () => Boolean(productionAudio) });
 
   socket.on("guest:prepare", setup => { void prepare(setup).catch(() => fail(setup.id)); });
   socket.on("guest:slide", receiveGuestSlide);

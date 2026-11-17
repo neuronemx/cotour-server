@@ -3,10 +3,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { isSystemDemoDeckId } = require("./system-demo-deck");
 
+const { createGuestCamera } = require("./guest-camera");
+
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=14"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/client.js?v=13" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=15"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=1" defer></script><script src="/live-guests/client.js?v=14" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
@@ -100,7 +102,8 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       returnReady: Boolean(room.peers.screen?.data.returnReady),
       audioSource: room.audioSource || "screen",
       speakerConnected: Boolean(room.peers.speaker?.data.mediaReady),
-      speakerReady: Boolean(room.call?.speakerReady)
+      speakerReady: Boolean(room.call?.speakerReady),
+      camera: room.camera ? { id: room.camera.id, ready: room.camera.ready } : null
     };
   }
 
@@ -109,7 +112,10 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     for (const peer of Object.values(room.peers)) peer.emit("guest:state", payload);
   }
 
+  const camera = createGuestCamera({ authorize: stillAuthorized, rtc: getRtcConfiguration, publish });
+
   function clearCall(room, reason) {
+    camera.stop(room);
     const call = room.call;
     if (call) {
       clearInterval(call.timer);
@@ -210,6 +216,8 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       if (checks.some(valid => !valid)) {
         return clearCall(room, "signal");
       }
+      if (room.camera && !await stillAuthorized(room.peers.speaker)) camera.stop(room);
+      camera.renew(room);
       call.deadline = Date.now() + LEASE_MS;
       for (const peer of Object.values(room.peers)) peer.emit("guest:lease", { id: call.id, duration: LEASE_MS });
     } catch { if (room.call === call) clearCall(room, "service"); }
@@ -245,6 +253,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     if (room.peers[role]) return socket.disconnect(true);
     if (role === "guest") room.invite = record;
     room.peers[role] = socket;
+    camera.attach(socket, room);
     publish(room);
 
     socket.on("guest:source", async (source, ack) => {
@@ -311,6 +320,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       clearTimeout(call.timeout);
       clearInterval(call.countdownTimer);
       projection.release(room.sessionId, room.deckId, call.id);
+      camera.stop(room);
       call.phase = "ready";
       call.countdown = null;
       publish(room);

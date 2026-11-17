@@ -107,3 +107,13 @@
 .guest-speaker-voice[hidden] { display:none!important; }
 
 @media(max-width:760px) { .guest-speaker-voice { max-width:104px; padding:.4rem .5rem; font-size:.7rem; } }
+
+.guest-speaker-feed[hidden] { display:none!important; }
+.guest-program.has-speaker-camera { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:center; }
+.guest-program.has-speaker-camera > video { min-width:0; width:100%; height:100%; object-fit:contain; }
+.guest-visual > .guest-speaker-feed { grid-row:3; grid-column:1; justify-self:end; align-self:stretch; width:calc(50% - 5px); height:100%; min-height:0; object-fit:contain; background:#111827; border-radius:14px; }
+.guest-visual.has-speaker-camera .guest-monitor { grid-column:1; width:calc(50% - 5px); justify-self:start; }
+.guest-speaker-dialog video { width:100%; max-height:45dvh; object-fit:contain; background:#080c12; border-radius:12px; }
+.guest-speaker-dialog .guest-actions { display:flex; flex-wrap:wrap; gap:8px; }
+
+.guest-monitor { grid-column:1; }

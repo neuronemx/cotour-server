@@ -1,0 +1,161 @@
+(() => {
+  function create({ role, socket, getState, button, toggleVoice, voiceActive }) {
+    const peers = new Map();
+    let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, status;
+    let audioOnly, audioVideo, switchButton, notice = ''; 
+    function stop(notify = true) {
+      const previous = id || getState().camera?.id;
+      localVersion++;
+      id = null;
+      for (const peer of peers.values()) { clearInterval(peer.timer); peer.pc.close(); }
+      peers.clear();
+      stream?.getTracks().forEach(track => track.stop()); stream = null;
+      if (preview) preview.srcObject = null;
+      if (remote) { remote.srcObject = null; remote.hidden = true; }
+      document.querySelector('.guest-program')?.classList.remove('has-speaker-camera');
+      document.getElementById('guestVisual')?.classList.remove('has-speaker-camera');
+      if (notify && previous && socket.connected) socket.emit('guest-camera:stop', { id: previous });
+    }
+    function render() {
+      const state = getState();
+      if (id && (state.camera?.id !== id || state.phase !== 'live')) stop(false);
+      if (role === 'speaker') {
+        if (state.phase === 'ended') dialog.close();
+        button.textContent = 'LIVE';
+        button.setAttribute('aria-pressed', String(Boolean(stream || voiceActive())));
+        audioOnly.disabled = busy;
+        audioVideo.disabled = busy || state.phase !== 'live' || !socket.connected;
+        switchButton.disabled = busy || !stream;
+        preview.hidden = !stream;
+        status.textContent = notice || (state.audioSource === 'speaker'
+          ? (state.phase === 'live' ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Activa tu voz. La cámara estará disponible cuando el Invitado salga al aire.')
+          : 'El audio viene de Pantalla / consola. Comparte tu cámara sin duplicar tu voz.');
+        return;
+      }
+      const ready = state.phase === 'live' && state.camera?.id === id && state.camera.ready && [...peers.values()].some(peer => peer.ready);
+      if (remote) { remote.hidden = !id; remote.style.visibility = ready ? 'visible' : 'hidden'; }
+      document.querySelector('.guest-program')?.classList.toggle('has-speaker-camera', Boolean(ready));
+      document.getElementById('guestVisual')?.classList.toggle('has-speaker-camera', Boolean(ready));
+    }
+    async function capture() {
+      const version = ++localVersion;
+      // Stop the old lens first on phones, while keeping the independent microphone alive.
+      stream?.getTracks().forEach(track => track.stop()); stream = null;
+      const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
+        facingMode: { ideal: facing }, width: { ideal: 640, max: 640 }, height: { ideal: 360, max: 360 }, frameRate: { ideal: 15, max: 15 }
+      } });
+      if (version !== localVersion || getState().phase !== 'live' || !socket.connected) { next.getTracks().forEach(track => track.stop()); return false; }
+      stream = next;
+      const track = stream.getVideoTracks()[0];
+      track.onended = () => { if (stream === next) { stop(); render(); } };
+      preview.srcObject = next; await preview.play();
+      for (const peer of peers.values()) if (peer.sender) await peer.sender.replaceTrack(track);
+      return true;
+    }
+    async function activate(withVideo) {
+      busy = true; notice = ''; render();
+      try {
+        if (getState().audioSource === 'speaker' && !voiceActive()) await toggleVoice();
+        if (getState().audioSource === 'speaker' && !voiceActive()) return;
+        if (!withVideo) return stop();
+        if (stream) return;
+        if (!await capture()) return;
+        const result = await socket.timeout(15000).emitWithAck('guest-camera:start');
+        if (!result?.ok || id !== result.id || getState().phase !== 'live') throw Error('camera');
+      } catch { stop(); notice = 'No se pudo compartir la cámara. El enlace de audio continúa.'; }
+      finally { busy = false; render(); }
+    }
+    if (role === 'speaker') {
+      dialog = document.createElement('dialog'); dialog.className = 'guest-production guest-speaker-dialog';
+      dialog.innerHTML = '<header><h2>LIVE con Invitado</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header><p class="guest-note" data-status></p><video muted autoplay playsinline aria-label="Tu cámara"></video><div class="guest-actions"><button type="button" data-audio>Solo audio</button><button type="button" data-video>Audio y video</button><button type="button" data-lens>Cambiar cámara</button></div>';
+      document.body.append(dialog);
+      preview = dialog.querySelector('video'); status = dialog.querySelector('[data-status]');
+      audioOnly = dialog.querySelector('[data-audio]'); audioVideo = dialog.querySelector('[data-video]');
+      switchButton = dialog.querySelector('[data-lens]');
+      button.onclick = () => { render(); dialog.showModal(); };
+      dialog.querySelector('[data-close]').onclick = () => dialog.close();
+      audioOnly.onclick = () => void activate(false);
+      audioVideo.onclick = () => void activate(true);
+      switchButton.onclick = async () => {
+        busy = true; facing = facing === 'user' ? 'environment' : 'user'; render();
+        try { await capture(); } catch { stop(); }
+        finally { busy = false; render(); }
+      };
+    } else if (['screen', 'guest'].includes(role)) {
+      remote = document.createElement('video'); remote.className = 'guest-speaker-feed';
+      remote.autoplay = true; remote.muted = true; remote.playsInline = true; remote.hidden = true;
+      remote.setAttribute('aria-label', 'Cámara del Speaker');
+      (role === 'screen' ? document.querySelector('.guest-program') : document.getElementById('guestVisual')).append(remote);
+    }
+    async function prepare(setup) {
+      if (!['speaker', setup.target].includes(role) || !['screen', 'guest'].includes(setup.target)) return;
+      if (id && id !== setup.id) stop(false);
+      if (role === 'speaker' && !stream) { socket.emit('guest-camera:stop', { id: setup.id }); return; }
+      id = setup.id;
+      if (peers.has(setup.target)) return;
+      const pc = new RTCPeerConnection(setup.rtc);
+      const peer = { pc, queue: Promise.resolve(), candidates: [], deadline: performance.now() + setup.duration, created: performance.now() };
+      peers.set(setup.target, peer);
+      pc.onicecandidate = ({ candidate }) => {
+        if (candidate && id === setup.id) socket.emit('guest-camera:signal', { id, target: setup.target, candidate: candidate.toJSON() });
+      };
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { stop(); render(); } };
+      pc.ontrack = ({ track, receiver }) => {
+        if (track.kind !== 'video' || id !== setup.id) return;
+        peer.receiver = receiver;
+        remote.srcObject = new MediaStream([track]);
+        // Decode while private; reveal only after both receivers have fresh frames.
+        remote.hidden = false;
+        remote.style.visibility = 'hidden';
+        void remote.play().catch(() => { stop(); render(); });
+      };
+      peer.timer = setInterval(async () => {
+        if (id !== setup.id) return;
+        const now = performance.now();
+        if (now > peer.deadline) { stop(); render(); return; }
+        if (!peer.receiver || peer.checking) return;
+        peer.checking = true;
+        try {
+          const stats = await peer.receiver.getStats();
+          if (id !== setup.id) return;
+          for (const report of stats.values()) if (report.type === 'inbound-rtp' && report.framesDecoded > (peer.frames || 0)) {
+            peer.frames = report.framesDecoded; peer.lastFrame = now;
+            if (!peer.ready) { peer.ready = true; socket.emit('guest-camera:ready', { id, target: setup.target }); }
+          }
+          if (now - (peer.lastFrame || peer.created) > (peer.ready ? 4000 : 12000)) { stop(); render(); }
+          else render();
+        } catch { stop(); render(); }
+        finally { peer.checking = false; }
+      }, 250);
+      if (setup.offer) {
+        peer.sender = pc.addTransceiver(stream.getVideoTracks()[0], { direction: 'sendonly', streams: [stream], sendEncodings: [{ maxBitrate: 500000, maxFramerate: 15 }] }).sender;
+        await pc.setLocalDescription(await pc.createOffer());
+        socket.emit('guest-camera:signal', { id, target: setup.target, description: pc.localDescription.toJSON() });
+      }
+    }
+    socket.on('guest-camera:prepare', setup => { void prepare(setup).catch(() => { stop(); render(); }); });
+    socket.on('guest-camera:signal', body => {
+      const peer = peers.get(body.target);
+      if (!peer || body.id !== id) return;
+      peer.queue = peer.queue.then(async () => {
+        if (body.id !== id) return;
+        if (body.candidate) {
+          if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(body.candidate); else peer.candidates.push(body.candidate);
+          return;
+        }
+        await peer.pc.setRemoteDescription(body.description);
+        for (const candidate of peer.candidates.splice(0)) await peer.pc.addIceCandidate(candidate);
+        if (body.description.type === 'offer') {
+          for (const transceiver of peer.pc.getTransceivers()) transceiver.direction = 'recvonly';
+          await peer.pc.setLocalDescription(await peer.pc.createAnswer());
+          socket.emit('guest-camera:signal', { id, target: body.target, description: peer.pc.localDescription.toJSON() });
+        }
+      }).catch(() => { stop(); render(); });
+    });
+    socket.on('guest-camera:lease', value => { if (value.id === id) for (const peer of peers.values()) peer.deadline = performance.now() + value.duration; });
+    socket.on('disconnect', () => { stop(false); dialog?.close(); });
+    window.addEventListener('pagehide', () => stop());
+    return { render, stop };
+  }
+  window.ImmersaGuestCamera = { create };
+})();

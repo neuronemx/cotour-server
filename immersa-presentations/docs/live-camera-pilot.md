@@ -91,3 +91,12 @@ La validación cubre un invitado, producción, Pantalla, el slide vigente, reacc
 El botón **Activar voz invitado** en Speaker aparece al elegir **Micrófono de Speaker** en Stage y cuando el invitado ya entró a sala de espera. Se conserva accesible durante LIVE si la voz está activada. Al cambiar de fuente o desconectarse el invitado, se detiene esa captura. Desde el clic en **Enviar a Pantalla**, se silencia el micrófono privado de Stage y su escucha del invitado, incluyendo preparación y conteo. Las sustituciones de pista se procesan en orden con la intención vigente; al volver a espera se restaura la conversación privada.
 
 En Speaker, el control de voz del invitado ocupa el lugar de LIVE en la barra superior. Al entrar en modo invitado se cierra cualquier cámara local abierta; no se reabre automáticamente. Al terminar el enlace, desconectarse el invitado o dejar de elegir Speaker, se apaga el micrófono de voz y vuelve el botón LIVE.
+
+
+## LIVE del Speaker durante el enlace del Invitado
+
+El control superior se mantiene como un único botón LIVE. Abre un panel con Solo audio, Audio y video y Cambiar cámara. Primero se conecta el Invitado y Stage lo envía a Pantalla. Speaker puede activar voz en espera; la cámara adicional queda disponible una vez que el Invitado está al aire. Si la voz del evento viene de consola, se captura solo video para no duplicar el micrófono.
+
+La cámara se captura a 640×360, hasta 15 fps, con un máximo de 500 kbps de video por destino: dos envíos, uno a Invitado y otro a Pantalla (aproximadamente 1 Mbps de video como techo conjunto, más transporte). Ambas vistas muestran los videos lado a lado; se conservan slide e interacciones en Invitado. Se espera video decodificado en ambos receptores antes de revelar la cámara. Los canales de cámara son video-only, separados de audio y del enlace principal. Solo audio detiene esa cámara y conserva el micrófono. Cambiar lente reemplaza su pista sin reiniciar el enlace. Una falla, cierre o vencimiento de la cámara la retira de ambos destinos y conserva el enlace principal; volver a espera o terminar también retira la cámara.
+
+Validación: pruebas de autorización, señalización sin audio, dos destinos, cambio de lente, cierre a solo audio, captura sin micrófono en modo consola y regresión del enlace existente. La prueba de WebRTC real en tres navegadores no pudo ejecutarse: Chromium abortó por socket() no permitido en el entorno de ejecución. Queda pendiente probar reproducción y permisos en dispositivos reales, especialmente móviles y redes con TURN.
