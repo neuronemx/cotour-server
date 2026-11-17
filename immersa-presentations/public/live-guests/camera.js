@@ -7,7 +7,7 @@
       const previous = id || getState().camera?.id;
       localVersion++;
       id = null;
-      for (const peer of peers.values()) { clearInterval(peer.timer); peer.pc.close(); }
+      for (const peer of peers.values()) { clearInterval(peer.timer); peer.cleanupPlayback?.(); peer.pc.close(); }
       peers.clear();
       stream?.getTracks().forEach(track => track.stop()); stream = null;
       if (preview) preview.srcObject = null;
@@ -21,6 +21,31 @@
       const name = /^[A-Za-z]{1,40}$/.test(error?.name || '') ? ':' + error.name : '';
       notice = 'No se pudo compartir la cámara. ' + ({ speaker: 'Speaker', screen: 'Pantalla', guest: 'Invitado' }[role] || role) + ': ' + stage + name + '. El audio continúa.';
       stop(true, stage + name); render();
+    }
+    function playReceiver(peer, setup) {
+      const media = peer.media;
+      const version = peer.mediaVersion;
+      const current = () => id === setup.id && peers.get(setup.target) === peer
+        && peer.mediaVersion === version && remote?.srcObject === media;
+      if (!media || !current() || peer.playPending || performance.now() < (peer.retryPlaybackAt || 0)) return;
+      if (!remote.paused && remote.readyState >= 2) return;
+      peer.playPending = true;
+      const interrupted = error => {
+        if (!current()) return;
+        if (error?.name === 'AbortError') {
+          // Loading/pausing a video may interrupt play without ending its WebRTC track.
+          // Retry against the same current stream; the frame watchdog remains authoritative.
+          peer.retryPlaybackAt = performance.now() + 200;
+          return;
+        }
+        failure('playback', error, setup.id);
+      };
+      let request;
+      try { request = remote.play(); }
+      catch (error) { peer.playPending = false; interrupted(error); return; }
+      Promise.resolve(request).catch(interrupted).finally(() => {
+        if (peer.mediaVersion === version) peer.playPending = false;
+      });
     }
     function render() {
       const state = getState();
@@ -123,17 +148,34 @@
       pc.ontrack = ({ track, receiver }) => {
         if (track.kind !== 'video' || id !== setup.id) return;
         peer.receiver = receiver;
-        remote.srcObject = new MediaStream([track]);
+        if (peer.videoTrack === track) return playReceiver(peer, setup);
+        peer.cleanupPlayback?.();
+        peer.videoTrack = track;
+        peer.media = new MediaStream([track]);
+        peer.mediaVersion = (peer.mediaVersion || 0) + 1;
+        peer.playPending = false;
+        peer.retryPlaybackAt = 0;
+        remote.srcObject = peer.media;
         remote.hidden = false;
         remote.style.visibility = 'visible';
         render();
-        void remote.play().catch(error => failure('playback', error, setup.id));
+        const retry = () => playReceiver(peer, setup);
+        remote.addEventListener?.('loadedmetadata', retry);
+        remote.addEventListener?.('canplay', retry);
+        document.addEventListener?.('visibilitychange', retry);
+        peer.cleanupPlayback = () => {
+          remote.removeEventListener?.('loadedmetadata', retry);
+          remote.removeEventListener?.('canplay', retry);
+          document.removeEventListener?.('visibilitychange', retry);
+        };
+        retry();
       };
       peer.timer = setInterval(async () => {
         if (id !== setup.id) return;
         const now = performance.now();
         if (now > peer.deadline) { failure('lease', null, setup.id); return; }
         if (!peer.receiver || peer.checking) return;
+        playReceiver(peer, setup);
         peer.checking = true;
         try {
           const stats = await peer.receiver.getStats();

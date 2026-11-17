@@ -8,7 +8,7 @@ const { createGuestCamera } = require("./guest-camera");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=15"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=4" defer></script><script src="/live-guests/client.js?v=15" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=15"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=5" defer></script><script src="/live-guests/client.js?v=15" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
