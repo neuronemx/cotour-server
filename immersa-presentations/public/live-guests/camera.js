@@ -42,10 +42,13 @@
         return;
       }
       if (role === 'stage') return;
-      const ready = Boolean(id) && state.phase === 'live' && state.camera?.id === id && state.camera?.ready && [...peers.values()].some(peer => peer.ready);
-      if (remote) { remote.hidden = !id; remote.style.visibility = ready ? 'visible' : 'hidden'; }
-      document.querySelector('.guest-program')?.classList.toggle('has-speaker-camera', Boolean(ready));
-      document.getElementById('guestVisual')?.classList.toggle('has-speaker-camera', Boolean(ready));
+      // A video must be visible to let the browser request/decode frames. Do not wait for
+      // framesDecoded before revealing it: that creates a circular readiness dependency.
+      const receiving = Boolean(id) && state.phase === 'live' && state.camera?.id === id
+        && [...peers.values()].some(peer => peer.receiver);
+      if (remote) { remote.hidden = !receiving; remote.style.visibility = 'visible'; }
+      document.querySelector('.guest-program')?.classList.toggle('has-speaker-camera', Boolean(receiving));
+      document.getElementById('guestVisual')?.classList.toggle('has-speaker-camera', Boolean(receiving));
     }
     async function capture() {
       const version = ++localVersion;
@@ -121,9 +124,9 @@
         if (track.kind !== 'video' || id !== setup.id) return;
         peer.receiver = receiver;
         remote.srcObject = new MediaStream([track]);
-        // Decode while private; reveal only after both receivers have fresh frames.
         remote.hidden = false;
-        remote.style.visibility = 'hidden';
+        remote.style.visibility = 'visible';
+        render();
         void remote.play().catch(error => failure('playback', error, setup.id));
       };
       peer.timer = setInterval(async () => {

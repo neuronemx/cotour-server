@@ -14,7 +14,7 @@ async function request(role,event){if(event!=='guest-camera:start')return {ok:fa
 window.registerRole=(role,frame)=>{const handlers=new Map();const s=sockets[role]={state:{phase:'live',audioSource:'screen',camera:null},connected:true,on:(name,fn)=>handlers.set(name,fn),receive:(name,value)=>handlers.get(name)?.(value),emit:(name,...args)=>emit(role,name,...args),timeout(){return this},emitWithAck:name=>request(role,name)};return s;};
 for(const role of ['speaker','screen','guest']){
  const f=document.createElement('iframe');frames[role]=f;f.title=role;document.getElementById('frames').append(f);
- f.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="/live-guests/client.css?v=15"></head><body style="background:#111827;color:white"><h2>${role}</h2><button id="live">LIVE</button><div class="guest-program" style="position:relative;height:150px;opacity:1"></div><div id="guestVisual"></div><script src="/live-guests/camera.js?v=3"><\/script><script>
+ f.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="/live-guests/client.css?v=15"></head><body style="background:#111827;color:white"><h2>${role}</h2><button id="live">LIVE</button><div class="guest-program" style="position:relative;height:150px;opacity:1"></div><div id="guestVisual"></div><script src="/live-guests/camera.js?v=4"><\/script><script>
  window.addEventListener('error',e=>parent.document.getElementById('result').textContent+='\\n${role} ERROR: '+e.message);
  window.addEventListener('unhandledrejection',e=>parent.document.getElementById('result').textContent+='\\n${role} REJECTION: '+e.reason);
  const socket=parent.registerRole('${role}');
