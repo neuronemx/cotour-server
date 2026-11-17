@@ -116,7 +116,7 @@ function mountReceiver({ alwaysAbort = false, deferred = false } = {}) {
   const state = { phase: 'live', camera: { id: 'receiver-camera', ready: false } };
   const window = { addEventListener() {} };
   const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit: (...args) => sent.push(args) };
-  runInNewContext(code, { window, document: { createElement: () => video, querySelector: () => host, getElementById: () => host },
+  runInNewContext(code, { window, document: { createElement: tag => tag === 'video' ? video : { style: {}, setAttribute() {}, append() {} }, querySelector: () => host, getElementById: () => host },
     performance: { now: () => clock }, setInterval(fn) { timers.push(fn); return timers.length; }, clearInterval() {},
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } },
     RTCPeerConnection: class { constructor() { connection = this; } close() {} }

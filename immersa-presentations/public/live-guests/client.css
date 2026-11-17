@@ -67,7 +67,7 @@
 
 .guest-ended a { color:#ba9aff; text-underline-offset:4px; }
 .guest-page.guest-in-session .guest-experience { height:100dvh; min-height:0; padding:12px; gap:0; }
-.guest-in-session .guest-visual { height:100%; min-height:0; grid-template-rows:minmax(0,25%) auto minmax(0,1fr); gap:10px; }
+.guest-in-session .guest-visual { flex:1; min-height:0; min-width:0; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,25%) auto minmax(0,1fr); gap:10px; }
 .guest-in-session .guest-monitor { min-height:0; }
 .guest-in-session .guest-monitor video { position:absolute; inset:0; width:100%; height:100%; min-height:0; max-height:none; }
 .guest-self-mute { position:absolute; z-index:2; bottom:12px; left:50%; transform:translateX(-50%); border:1px solid #ffffff66; border-radius:999px; background:#101624e6; color:#fff; padding:10px 16px; font:600 14px Inter,system-ui,sans-serif; cursor:pointer; white-space:nowrap; }
@@ -108,11 +108,55 @@
 
 @media(max-width:760px) { .guest-speaker-voice { max-width:104px; padding:.4rem .5rem; font-size:.7rem; } }
 
-.guest-speaker-feed[hidden] { display:none!important; }
-.guest-program.has-speaker-camera { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:center; }
-.guest-program.has-speaker-camera > video { min-width:0; width:100%; height:100%; object-fit:contain; }
-.guest-visual > .guest-speaker-feed { grid-row:3; grid-column:1; justify-self:end; align-self:stretch; width:calc(50% - 5px); height:100%; min-height:0; object-fit:contain; background:#111827; border-radius:14px; }
-.guest-visual.has-speaker-camera .guest-monitor { grid-column:1; width:calc(50% - 5px); justify-self:start; }
+/* Keep intrinsic video dimensions out of grid sizing (including mobile Safari). */
+.guest-speaker-tile { position:relative; min-width:0; min-height:0; overflow:hidden; background:#111827; border-radius:14px; }
+.guest-speaker-tile[hidden], .guest-speaker-feed[hidden] { display:none!important; }
+.guest-speaker-tile > video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+.guest-slide-view, .guest-caption { grid-column:1 / -1; }
+.guest-visual.has-speaker-camera { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.guest-visual > .guest-speaker-tile { grid-row:3; grid-column:1; align-self:stretch; aspect-ratio:auto!important; }
+.guest-visual.has-speaker-camera .guest-monitor { grid-column:2; width:100%; min-width:0; justify-self:stretch; }
+.guest-visual.has-speaker-camera .guest-self-mute { max-width:calc(100% - 12px); box-sizing:border-box; padding:8px 10px; font-size:clamp(10px,2.8vw,14px); }
+
+.guest-program-guest { position:relative; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }
+.guest-program-guest > video { position:absolute; inset:0; }
+
+/* Two cameras share the right rail, leaving the presentation visible on the left. */
+#screen:has(> .guest-program.has-speaker-camera:not([hidden])) {
+  --guest-composition-gap:clamp(8px,1.25vw,28px);
+  --guest-camera-rail:36vw;
+  --guest-slide-space:calc(100vw - var(--guest-camera-rail) - 3 * var(--guest-composition-gap));
+  background:radial-gradient(ellipse at 70% 50%,#171f2d,#090d14 76%);
+}
+#screen:has(> .guest-program.has-speaker-camera:not([hidden]))::before { opacity:0; }
+#screen:has(> .guest-program.has-speaker-camera:not([hidden])) > #slide,
+#screen:has(> .guest-program.has-speaker-camera:not([hidden])) > .immersa-slide-outgoing {
+  position:absolute;
+  inset:var(--guest-composition-gap) auto auto var(--guest-composition-gap)!important;
+  width:var(--guest-slide-space)!important;
+  height:calc(100vh - 2 * var(--guest-composition-gap))!important;
+  object-fit:contain;
+  clip-path:none;
+}
+#screen:has(> .guest-program.has-speaker-camera:not([hidden])) > .guest-program {
+  inset:var(--guest-composition-gap) var(--guest-composition-gap) auto auto;
+  width:var(--guest-camera-rail);
+  height:calc(100vh - 2 * var(--guest-composition-gap));
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr);
+  align-items:center;
+  gap:var(--guest-composition-gap);
+  background:transparent;
+  border-radius:0;
+  box-shadow:none;
+}
+.guest-program.has-speaker-camera > .guest-speaker-tile,
+.guest-program.has-speaker-camera > .guest-program-guest { width:100%; height:auto; max-height:100%; aspect-ratio:9 / 16; border-radius:14px; }
+.guest-program.has-speaker-camera > .guest-speaker-tile { grid-column:1; grid-row:1; }
+.guest-program.has-speaker-camera > .guest-program-guest { grid-column:2; grid-row:1; background:#111827; }
+.guest-program.has-speaker-camera .guest-live-label { width:clamp(50px,5vw,85.5px); height:auto; top:10px; right:10px; }
+.guest-program.has-speaker-camera .guest-name { bottom:12px; left:12px; right:12px; padding:7px 10px; font-size:clamp(12px,1.1vw,20px); overflow-wrap:anywhere; }
 .guest-speaker-dialog video { width:100%; max-height:45dvh; object-fit:contain; background:#080c12; border-radius:12px; }
 .guest-speaker-dialog .guest-actions { display:flex; flex-wrap:wrap; gap:8px; }
 

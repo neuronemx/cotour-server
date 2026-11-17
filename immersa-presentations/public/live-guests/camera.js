@@ -1,7 +1,7 @@
 (() => {
   function create({ role, socket, getState, button, toggleVoice, voiceActive }) {
     const peers = new Map();
-    let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, status;
+    let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, remoteTile, status;
     let audioOnly, audioVideo, switchButton, notice = ''; 
     function stop(notify = true, reason) {
       const previous = id || getState().camera?.id;
@@ -12,6 +12,7 @@
       stream?.getTracks().forEach(track => track.stop()); stream = null;
       if (preview) preview.srcObject = null;
       if (remote) { remote.srcObject = null; remote.hidden = true; }
+      if (remoteTile) remoteTile.hidden = true;
       document.querySelector('.guest-program')?.classList.remove('has-speaker-camera');
       document.getElementById('guestVisual')?.classList.remove('has-speaker-camera');
       if (notify && previous && socket.connected) socket.emit('guest-camera:stop', { id: previous, ...(reason ? { reason } : {}) });
@@ -72,6 +73,10 @@
       const receiving = Boolean(id) && state.phase === 'live' && state.camera?.id === id
         && [...peers.values()].some(peer => peer.receiver);
       if (remote) { remote.hidden = !receiving; remote.style.visibility = 'visible'; }
+      if (remoteTile) {
+        remoteTile.hidden = !receiving;
+        if (remote.videoWidth > 0 && remote.videoHeight > 0) remoteTile.style.aspectRatio = remote.videoWidth + ' / ' + remote.videoHeight;
+      }
       document.querySelector('.guest-program')?.classList.toggle('has-speaker-camera', Boolean(receiving));
       document.getElementById('guestVisual')?.classList.toggle('has-speaker-camera', Boolean(receiving));
     }
@@ -130,7 +135,10 @@
       remote = document.createElement('video'); remote.className = 'guest-speaker-feed';
       remote.autoplay = true; remote.muted = true; remote.playsInline = true; remote.hidden = true;
       remote.setAttribute('aria-label', 'Cámara del Speaker');
-      (role === 'screen' ? document.querySelector('.guest-program') : document.getElementById('guestVisual')).append(remote);
+      remoteTile = document.createElement('section'); remoteTile.className = 'guest-speaker-tile'; remoteTile.hidden = true;
+      remoteTile.setAttribute('aria-label', 'Speaker');
+      remoteTile.append(remote);
+      (role === 'screen' ? document.querySelector('.guest-program') : document.getElementById('guestVisual')).append(remoteTile);
     }
     async function prepare(setup) {
       if (!['speaker', setup.target].includes(role) || !['screen', 'guest'].includes(setup.target)) return;

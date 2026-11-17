@@ -193,6 +193,7 @@
       screenHost.classList.toggle("guest-camera-portrait", portrait);
       if (portrait) screenHost.style.setProperty("--guest-camera-aspect", video.videoWidth / video.videoHeight);
       else screenHost.style.removeProperty("--guest-camera-aspect");
+      if (video.videoWidth > 0 && video.videoHeight > 0) overlay.querySelector(".guest-program-guest").style.aspectRatio = video.videoWidth + " / " + video.videoHeight;
       overlay.querySelector(".guest-name").textContent = state.guestName || "Invitado";
       return;
     }
@@ -452,7 +453,7 @@
     overlay = document.createElement("div");
     overlay.className = "guest-program live-camera-program";
     overlay.hidden = true;
-    overlay.innerHTML = '<video autoplay muted playsinline aria-label="Invitado LIVE"></video><img class="guest-live-label" src="/live-camera/live-sticker.png" alt="LIVE"><span class="guest-name"></span>';
+    overlay.innerHTML = '<section class="guest-program-guest" aria-label="Invitado"><video autoplay muted playsinline aria-label="Invitado LIVE"></video><img class="guest-live-label" src="/live-camera/live-sticker.png" alt="LIVE"><span class="guest-name"></span></section>';
     screenHost.append(overlay);
     video = overlay.querySelector("video");
     video.addEventListener("resize", render);
