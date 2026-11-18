@@ -170,3 +170,14 @@
 .guest-speaker-voice.guest-waiting-alert { animation:guest-waiting-pulse 1.4s ease-in-out infinite; border:2px solid #f5b83d; }
 @keyframes guest-waiting-pulse { 0%,100% { background:#7845e8; box-shadow:0 0 0 0 #f5b83d22; } 50% { background:#a342bd; box-shadow:0 0 0 5px #f5b83d66; } }
 @media(prefers-reduced-motion:reduce) { .guest-speaker-voice.guest-waiting-alert { animation:none; background:#a342bd; box-shadow:0 0 0 3px #f5b83d66; } }
+
+/* A wide camera borrows only the middle column; the vertical peer keeps its place. */
+#screen:has(> .guest-program.has-speaker-camera:not([hidden]) > .is-landscape) > #slide,
+#screen:has(> .guest-program.has-speaker-camera:not([hidden]) > .is-landscape) > .immersa-slide-outgoing { visibility:hidden; }
+.guest-program.has-speaker-camera > .guest-speaker-tile.is-landscape { grid-column:1 / 3; }
+.guest-program.has-speaker-camera > .guest-program-guest.is-landscape { grid-column:2 / 4; }
+.guest-program.has-speaker-camera > .is-landscape { align-self:center; height:auto; aspect-ratio:16 / 9; }
+.guest-program.has-speaker-camera > .is-landscape > video { object-fit:contain; }
+#screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+#screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) > .guest-speaker-tile { grid-column:1; }
+#screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) > .guest-program-guest { grid-column:2; }

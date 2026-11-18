@@ -201,7 +201,11 @@
       screenHost.classList.toggle("guest-camera-portrait", portrait);
       if (portrait) screenHost.style.setProperty("--guest-camera-aspect", video.videoWidth / video.videoHeight);
       else screenHost.style.removeProperty("--guest-camera-aspect");
-      if (video.videoWidth > 0 && video.videoHeight > 0) overlay.querySelector(".guest-program-guest").style.aspectRatio = video.videoWidth + " / " + video.videoHeight;
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        const tile = overlay.querySelector(".guest-program-guest");
+        tile.style.aspectRatio = video.videoWidth + " / " + video.videoHeight;
+        tile.classList.toggle("is-landscape", video.videoWidth > video.videoHeight);
+      }
       overlay.querySelector(".guest-name").textContent = state.guestName || "Invitado";
       return;
     }

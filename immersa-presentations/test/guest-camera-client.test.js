@@ -10,7 +10,7 @@ function mount(source = 'speaker', options = {}) {
   let state = { phase: 'live', audioSource: source }, voice = false;
   function element() {
     const children = new Map();
-    const node = { hidden: false, style: {}, classList: { remove() {}, toggle() {} }, setAttribute() {}, append() {}, showModal() {}, close() {}, async play() {},
+    const node = { hidden: false, style: {}, classList: { remove() {}, toggle() {} }, addEventListener() {}, setAttribute() {}, append() {}, showModal() {}, close() {}, async play() {},
       querySelector(key) { if (!children.has(key)) children.set(key, element()); return children.get(key); } };
     nodes.push(node); return node;
   }
@@ -68,7 +68,7 @@ test('console audio mode never opens a second microphone and ended camera state 
 test('Stage, Screen and Guest can remain on air with no optional camera, including older snapshots without that field', () => {
   for (const role of ['stage', 'screen', 'guest']) {
     let state;
-    const element = () => ({ hidden: true, style: {}, classList: { remove() {}, toggle() {} }, setAttribute() {}, append() {} });
+    const element = () => ({ hidden: true, style: {}, classList: { remove() {}, toggle() {} }, addEventListener() {}, setAttribute() {}, append() {} });
     const host = element();
     const window = { addEventListener() {} };
     runInNewContext(code, { window, document: { createElement: element, body: { append() {} }, querySelector: () => host, getElementById: () => host }, clearInterval() {} });
@@ -104,8 +104,10 @@ function mountReceiver({ alwaysAbort = false, deferred = false } = {}) {
   const handlers = new Map(), sent = [], timers = [];
   let connection, clock = 100, plays = 0, rejectPending;
   const host = { append() {}, classList: { remove() {}, toggle() {} } };
+  const events = new Map(), classes = new Set();
+  const tile = { style: {}, setAttribute() {}, append() {}, classList: { toggle(k,v) { if(v) classes.add(k); else classes.delete(k); }, remove(k) { classes.delete(k); } } };
   const video = { hidden: true, paused: true, readyState: 0, style: {}, setAttribute() {},
-    addEventListener() {}, removeEventListener() {},
+    addEventListener(name, fn) { events.set(name, fn); }, removeEventListener() {},
     play() {
       plays++;
       if (deferred) return new Promise((resolve, reject) => { rejectPending = reject; });
@@ -116,7 +118,7 @@ function mountReceiver({ alwaysAbort = false, deferred = false } = {}) {
   const state = { phase: 'live', camera: { id: 'receiver-camera', ready: false } };
   const window = { addEventListener() {} };
   const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit: (...args) => sent.push(args) };
-  runInNewContext(code, { window, document: { createElement: tag => tag === 'video' ? video : { style: {}, setAttribute() {}, append() {} }, querySelector: () => host, getElementById: () => host },
+  runInNewContext(code, { window, document: { createElement: tag => tag === 'video' ? video : tag === 'section' ? tile : { setAttribute() {} }, querySelector: () => host, getElementById: () => host },
     performance: { now: () => clock }, setInterval(fn) { timers.push(fn); return timers.length; }, clearInterval() {},
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } },
     RTCPeerConnection: class { constructor() { connection = this; } close() {} }
@@ -125,7 +127,7 @@ function mountReceiver({ alwaysAbort = false, deferred = false } = {}) {
   handlers.get('guest-camera:prepare')({ id: 'receiver-camera', target: 'guest', offer: false, rtc: {}, duration: 30000 });
   const track = { kind: 'video' };
   connection.ontrack({ track, receiver: { async getStats() { return new Map([['video', { type: 'inbound-rtp', framesDecoded: video.paused ? 0 : 1 }]]); } } });
-  return { api, sent, video, state, plays: () => plays, advance: async ms => { clock += ms; for (const timer of timers) await timer(); }, rejectPending: () => rejectPending(Object.assign(new Error(), { name: 'AbortError' })) };
+  return { api, sent, video, state, tile, classes, events, plays: () => plays, advance: async ms => { clock += ms; for (const timer of timers) await timer(); }, rejectPending: () => rejectPending(Object.assign(new Error(), { name: 'AbortError' })) };
 }
 
 test('Guest retries an interrupted play without cancelling camera, and still confirms decoded frames', async () => {
@@ -151,4 +153,18 @@ test('an interrupted old play cannot cancel a camera that has already been stopp
   app.api.stop(false);
   app.rejectPending(); await flush();
   assert.equal(app.sent.some(([event]) => event === 'guest-camera:stop'), false);
+});
+
+test('received camera orientation follows live dimensions and clears on stop without replacing media', () => {
+  const app = mountReceiver(), media = app.video.srcObject;
+  for (const [width,height,wide] of [[360,640,false],[640,360,true],[360,640,false]]) {
+    app.video.videoWidth=width; app.video.videoHeight=height;
+    app.events.get('resize')();
+    assert.equal(app.classes.has('is-landscape'),wide);
+    assert.equal(app.tile.style.aspectRatio,width+' / '+height);
+    assert.equal(app.video.srcObject,media);
+    assert.equal(app.sent.some(([event])=>event==='guest-camera:stop'),false);
+  }
+  app.api.stop(false);
+  assert.equal(app.classes.has('is-landscape'),false);
 });
