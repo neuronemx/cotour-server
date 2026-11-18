@@ -383,9 +383,15 @@ test("Stage can choose Speaker, only Screen receives its audio and LIVE requires
   assert.equal(unauthorized, false);
   assert.equal((await stage.request("guest:source", "speaker")).ok, true);
   for (const peer of [stage, screen, guest]) await peer.receive("guest:media-ready");
-  assert.equal((await stage.request("guest:connect")).ok, false);
-  speaker.receive("guest:media-ready");
   assert.equal((await stage.request("guest:connect")).ok, true);
+  const monitor = guest.messages.find(([event, value]) => event === "guest:prepare" && value.channel === "monitor")[1];
+  stage.receive("guest:ready", { id: monitor.id, channel: "monitor" });
+  assert.equal(stage.messages.at(-1)[1].phase, "ready");
+  assert.equal((await stage.request("guest:take")).ok, false);
+  assert.equal(speaker.messages.some(([event]) => event === "guest:prepare"), false);
+  await new Promise(resolve => setTimeout(resolve, 2100));
+  assert.equal(stage.messages.filter(([event]) => event === "guest:state").at(-1)[1].id, monitor.id);
+  await speaker.receive("guest:media-ready");
   const voice = speaker.messages.find(([event, value]) => event === "guest:prepare" && value.channel === "speaker")[1];
   assert.equal(voice.offer, true);
   assert.equal(guest.messages.some(([event, value]) => event === "guest:prepare" && value.channel === "speaker"), false);

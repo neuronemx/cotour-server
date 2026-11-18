@@ -166,3 +166,7 @@
 .guest-speaker-dialog .guest-actions { display:flex; flex-wrap:wrap; gap:8px; }
 
 .guest-monitor { grid-column:1; }
+
+.guest-speaker-voice.guest-waiting-alert { animation:guest-waiting-pulse 1.4s ease-in-out infinite; border:2px solid #f5b83d; }
+@keyframes guest-waiting-pulse { 0%,100% { background:#7845e8; box-shadow:0 0 0 0 #f5b83d22; } 50% { background:#a342bd; box-shadow:0 0 0 5px #f5b83d66; } }
+@media(prefers-reduced-motion:reduce) { .guest-speaker-voice.guest-waiting-alert { animation:none; background:#a342bd; box-shadow:0 0 0 3px #f5b83d66; } }

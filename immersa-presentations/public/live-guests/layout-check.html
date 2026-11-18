@@ -13,7 +13,7 @@ function portrait(label,color,wide=false){const w=wide?640:360,h=wide?360:640;re
 const slide=encode('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="1920" height="1080" fill="#075de8"/><text x="120" y="150" fill="white" font-size="52" font-family="sans-serif">IMMERSA · EN VIVO</text><text x="120" y="520" fill="white" font-size="105" font-family="sans-serif">El evento sigue</text><text x="120" y="660" fill="white" font-size="105" font-family="sans-serif">en pantalla.</text></svg>');
 const video=(name,color,wide=false)=>`<video autoplay muted playsinline aria-label="${name}" poster="${portrait(name,color,wide)}"></video>`;
 const badge=cls=>`<img class="${cls}" src="/live-guests/live-badge.png" alt="LIVE">`;
-const css='<link rel="stylesheet" href="/live-guests/client.css?v=18">';
+const css='<link rel="stylesheet" href="/live-guests/client.css?v=19">';
 const speaker=(screen,wide)=>`<section class="guest-speaker-tile" aria-label="Speaker" style="aspect-ratio:${wide?'16 / 9':'9 / 16'}">${video('Speaker','#313359',wide)}${badge(screen?'guest-live-label':'guest-camera-live')}</section>`;
 function render(mode='both'){
  const dual=mode!=='single',wide=mode==='landscape';

@@ -8,7 +8,7 @@ const { createGuestCamera } = require("./guest-camera");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=18"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=7" defer></script><script src="/live-guests/client.js?v=17" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=19"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=8" defer></script><script src="/live-guests/client.js?v=18" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
@@ -209,7 +209,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     call.checking = true;
     try {
       const peers = [room.peers.stage, room.peers.guest];
-      if (room.audioSource === "speaker") peers.push(room.peers.speaker, room.peers.screen);
+      if (room.audioSource === "speaker" && call.speakerStarted) peers.push(room.peers.speaker, room.peers.screen);
       if (["starting", "countdown", "live"].includes(call.phase)) peers.push(room.peers.screen);
       const checks = await Promise.all(peers.map(stillAuthorized));
       if (room.call !== call) return;
@@ -229,6 +229,23 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     for (const role of roles) room.peers[role].emit("guest:prepare", {
       id: room.call.id, channel, rtc, duration: LEASE_MS, offer: role === roles[0]
     });
+  }
+
+  async function prepareSpeaker(room) {
+    const call = room.call;
+    if (!call || room.audioSource !== "speaker" || call.speakerStarted || call.preparingSpeaker
+      || !["preparing", "ready"].includes(call.phase) || !room.peers.speaker?.data.mediaReady || !room.peers.screen?.data.mediaReady) return;
+    call.preparingSpeaker = true;
+    const speaker = room.peers.speaker, screen = room.peers.screen;
+    try {
+      const rtc = await getRtcConfiguration();
+      const authorized = await Promise.all([speaker, screen].map(stillAuthorized));
+      if (room.call !== call || room.audioSource !== "speaker" || room.peers.speaker !== speaker || room.peers.screen !== screen
+        || !speaker.data.mediaReady || !screen.data.mediaReady || !authorized.every(Boolean)) return;
+      call.speakerStarted = true;
+      sendPrepare(room, "speaker", rtc);
+    } catch { if (room.call === call) clearCall(room, "service"); }
+    finally { call.preparingSpeaker = false; }
   }
 
   function countdown(room, call) {
@@ -290,7 +307,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       finally { room.creating = false; }
     });
 
-    socket.on("guest:media-ready", value => {
+    socket.on("guest:media-ready", async value => {
       socket.data.mediaReady = value !== false;
       if (role === "speaker" && value === false && room.audioSource === "speaker" && room.call) clearCall(room, "signal");
       let slideUpdate;
@@ -302,6 +319,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
         }
       }
       publish(room);
+      await prepareSpeaker(room);
       return slideUpdate;
     });
 
@@ -329,8 +347,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
 
     socket.on("guest:connect", async ack => {
       if (role !== "stage" || typeof ack !== "function") return;
-      if (room.call || room.creating || !room.peers.guest?.data.mediaReady || !socket.data.mediaReady
-        || (room.audioSource === "speaker" && (!room.peers.speaker?.data.mediaReady || !room.peers.screen?.data.mediaReady))) {
+      if (room.call || room.creating || !room.peers.guest?.data.mediaReady || !socket.data.mediaReady) {
         return ack({ ok: false, reason: "busy" });
       }
       const call = { id: randomUUID(), phase: "preparing", deadline: Date.now() + LEASE_MS, counts: {}, preparingProgram: false };
@@ -340,14 +357,14 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       try {
         const rtc = await getRtcConfiguration();
         if (room.call !== call) return ack({ ok: false, reason: "signal" });
-        if (!(await Promise.all([socket, room.peers.guest, ...(room.audioSource === "speaker" ? [room.peers.speaker, room.peers.screen] : [])].map(stillAuthorized))).every(Boolean)) {
+        if (!(await Promise.all([socket, room.peers.guest].map(stillAuthorized))).every(Boolean)) {
           clearCall(room, "access");
           return ack({ ok: false, reason: "access" });
         }
         if (room.call !== call) return ack({ ok: false, reason: "signal" });
         call.timer = setInterval(() => void renew(room, call), 2000);
         sendPrepare(room, "monitor", rtc);
-        if (room.audioSource === "speaker") sendPrepare(room, "speaker", rtc);
+        await prepareSpeaker(room);
         ack({ ok: true });
       } catch {
         if (room.call === call) clearCall(room, "service");
@@ -400,7 +417,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
         call.returnReady = true;
         return countdown(room, call);
       } else return;
-      if (room.audioSource !== "speaker" || call.speakerReady) clearTimeout(call.timeout);
+      clearTimeout(call.timeout);
       publish(room);
     });
 
@@ -458,7 +475,7 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     socket.on("disconnect", () => {
       if (room.peers[role] !== socket) return;
       delete room.peers[role];
-      if ((role === "speaker" && room.audioSource === "speaker") || (role !== "speaker" && (role === "stage" || role === "guest" || room.call?.screenReady || ["starting", "countdown", "live"].includes(room.call?.phase)))) clearCall(room, "signal");
+      if ((role === "speaker" && room.audioSource === "speaker" && room.call?.speakerStarted) || (role !== "speaker" && (role === "stage" || role === "guest" || room.call?.screenReady || ["starting", "countdown", "live"].includes(room.call?.phase)))) clearCall(room, "signal");
       else publish(room);
       if (!Object.keys(room.peers).length) { clearTimeout(room.contentTimer); rooms.delete(room.key); }
     });

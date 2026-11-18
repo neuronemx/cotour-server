@@ -171,13 +171,21 @@
     guestCamera?.render();
     if (role === "speaker") {
       const waiting = ["waiting", "preparing", "ready"].includes(state.phase);
-      speakerButton.hidden = guestCamera ? !(state.guestConnected && state.phase !== "ended") : !(state.audioSource === "speaker" && state.guestConnected && (waiting || productionAudio));
+      speakerButton.hidden = !(state.audioSource === "speaker" || (state.guestConnected && state.phase !== "ended"));
       const voiceMode = !speakerButton.hidden;
       if (window.__immersaGuestVoiceMode !== voiceMode) {
         window.__immersaGuestVoiceMode = voiceMode;
         window.dispatchEvent(new Event("immersa:guest-voice-mode"));
       }
-      speakerButton.textContent = guestCamera ? "LIVE" : productionAudio ? "Apagar voz invitado" : "Activar voz invitado";
+      const inWaiting = state.guestConnected && waiting;
+      speakerButton.classList.toggle("guest-waiting-alert", Boolean(inWaiting));
+      speakerButton.textContent = inWaiting ? "Invitado en sala de espera"
+        : state.phase === "countdown" ? "EN VIVO en " + state.countdown
+        : state.phase === "starting" ? "Preparando enlace…"
+        : state.phase === "live" ? "EN VIVO"
+        : productionAudio ? "Voz preparada" : "Activar voz invitado";
+      speakerButton.title = state.audioSource === "speaker" && !productionAudio ? "Activa tu voz para dar salida al Invitado. Puede entrar a la sala de espera mientras tanto." : "Abrir controles de voz y cámara del Invitado";
+      if (productionAudio) for (const track of productionAudio.getAudioTracks()) track.enabled = socket.connected && usesEventReturn();
       speakerButton.disabled = busy || (!socket.connected && !productionAudio);
       speakerButton.setAttribute("aria-pressed", String(Boolean(productionAudio)));
       return;
@@ -232,7 +240,7 @@
       starting: "Preparando Pantalla y retorno…", countdown: "Entrada en " + state.countdown + "…", live: "EN VIVO", ended: "ENLACE TERMINADO"
     };
     const missingVoice = state.audioSource === "speaker" && state.guestConnected && !state.speakerConnected;
-    message.textContent = notice || (missingVoice ? "Speaker: abre LIVE y pulsa Solo audio para activar tu voz." : descriptions[state.phase]) || "En espera";
+    message.textContent = notice || (missingVoice ? "Falta activar voz de Speaker. Puedes preparar la sala de espera." : descriptions[state.phase]) || "En espera";
     compactStatus.textContent = (state.guestName || "Invitado") + " · " + (state.phase === "live" ? "LIVE" : state.phase === "countdown" ? String(state.countdown) : state.phase === "ended" ? "ENLACE TERMINADO" : "EN ESPERA");
     compactWait.hidden = !["starting", "countdown", "live"].includes(state.phase);
     compactWait.disabled = compactMute.disabled = compactEnd.disabled = busy || !socket.connected;
@@ -246,7 +254,7 @@
     invite.disabled = busy || Boolean(state.id) || !socket.connected;
     startAudio.disabled = busy;
     microphone.disabled = busy;
-    connect.disabled = busy || Boolean(state.id) || !state.stageReady || !state.guestConnected || (state.audioSource === "speaker" && (!state.speakerConnected || !state.screenReady));
+    connect.disabled = busy || Boolean(state.id) || !state.stageReady || !state.guestConnected;
     take.disabled = busy || state.phase !== "ready" || !state.screenReady || !state.returnReady || (state.audioSource === "speaker" && !state.speakerReady);
     wait.hidden = !["starting", "countdown", "live"].includes(state.phase);
     wait.disabled = busy;
@@ -351,7 +359,7 @@
       try {
         await initAudio();
         const next = await navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } });
-        if (version !== captureVersion || state.audioSource !== "speaker" || !state.guestConnected || state.phase === "ended") {
+        if (version !== captureVersion || state.audioSource !== "speaker") {
           next.getTracks().forEach(track => track.stop()); return;
         }
         productionAudio = next;
@@ -380,7 +388,7 @@
         <button type="button" data-invite>Crear enlace</button>
         <label>Enlace del invitado<input data-link readonly placeholder="Crea el enlace para compartirlo"></label>
         <button type="button" data-copy>Copiar enlace</button>
-        <hr><label>Voz del evento<select data-source><option value="screen">Entrada de Pantalla / consola</option><option value="speaker">Micrófono de Speaker</option></select></label><p class="guest-note">Speaker debe activar «Voz al invitado». Para cambiar la fuente durante LIVE, vuelve a espera; después prepara la conexión nuevamente.</p><label>Micrófono de producción<select data-microphone><option value="">Predeterminado</option></select></label>
+        <hr><label>Voz del evento<select data-source><option value="screen">Entrada de Pantalla / consola</option><option value="speaker">Micrófono de Speaker</option></select></label><p class="guest-note">Speaker puede preparar su voz antes de que llegue el Invitado. La sala de espera no depende de esa activación. Para cambiar la fuente durante LIVE, vuelve a espera; después prepara la conexión nuevamente.</p><label>Micrófono de producción<select data-microphone><option value="">Predeterminado</option></select></label>
         <button type="button" data-audio>Activar / actualizar audio</button>
         <p class="guest-note">Micrófono para conversar en espera. El retorno del evento se configura en Pantalla. Usa audífonos para la comunicación privada.</p>
       </section><section>
@@ -705,7 +713,7 @@
     if (["ready", "waiting", "ended"].includes(next.phase) && !takePending) taking = false;
     notice = errors[next.reason] || "";
     if (changed) { clearPeers(); taking = false; }
-    if ((next.phase === "ended" && role === "guest") || (role === "speaker" && (next.phase === "ended" || next.audioSource !== "speaker" || !next.guestConnected))) stopStreams();
+    if ((next.phase === "ended" && role === "guest") || (role === "speaker" && (next.audioSource !== "speaker"))) stopStreams();
     if (next.phase === "ended" && role === "screen" && eventMixer) {
       eventMixer?.stop(); eventMixer = null; lastReturnReady = false;
       socket.emit("guest:return-ready", false);

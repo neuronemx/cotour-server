@@ -2,7 +2,7 @@
   function create({ role, socket, getState, button, toggleVoice, voiceActive }) {
     const peers = new Map();
     let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, remoteTile, status;
-    let audioOnly, audioVideo, switchButton, notice = ''; 
+    let audioOnly, audioVideo, voiceOff, switchButton, notice = '';
     function stop(notify = true, reason) {
       const previous = id || getState().camera?.id;
       localVersion++;
@@ -56,14 +56,15 @@
       }
       if (role === 'speaker') {
         if (state.phase === 'ended') dialog.close();
-        button.textContent = 'LIVE';
         button.setAttribute('aria-pressed', String(Boolean(stream || voiceActive())));
-        audioOnly.disabled = busy;
+        audioOnly.disabled = busy || state.audioSource !== 'speaker';
+        voiceOff.hidden = !voiceActive();
+        voiceOff.disabled = busy;
         audioVideo.disabled = busy || state.phase !== 'live' || !socket.connected;
         switchButton.disabled = busy || !stream;
         preview.hidden = !stream;
         status.textContent = notice || (state.audioSource === 'speaker'
-          ? (state.phase === 'live' ? (stream ? (state.camera?.ready ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Conectando tu cámara con Invitado y Pantalla…') : 'Pulsa Audio y video para compartir tu cámara.') : 'Pulsa Solo audio para activar tu voz y habilitar Preparar conexión en Stage. La cámara estará disponible cuando el Invitado salga al aire.')
+          ? (state.phase === 'live' ? (stream ? (state.camera?.ready ? 'Tu cámara se comparte con Invitado y Pantalla.' : 'Conectando tu cámara con Invitado y Pantalla…') : 'Pulsa Audio y video para compartir tu cámara.') : (voiceActive() ? 'Tu voz está preparada. Se enviará al Invitado desde el conteo de entrada.' : 'Pulsa Solo audio para preparar tu voz. El Invitado puede entrar a la sala de espera mientras tanto.'))
           : 'El audio viene de Pantalla / consola. Comparte tu cámara sin duplicar tu voz.');
         return;
       }
@@ -117,10 +118,12 @@
     }
     if (role === 'speaker') {
       dialog = document.createElement('dialog'); dialog.className = 'guest-production guest-speaker-dialog';
-      dialog.innerHTML = '<header><h2>LIVE con Invitado</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header><p class="guest-note" data-status></p><video muted autoplay playsinline aria-label="Tu cámara"></video><div class="guest-actions"><button type="button" data-audio>Solo audio</button><button type="button" data-video>Audio y video</button><button type="button" data-lens>Cambiar cámara</button></div>';
+      dialog.innerHTML = '<header><h2>LIVE con Invitado</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header><p class="guest-note" data-status></p><video muted autoplay playsinline aria-label="Tu cámara"></video><div class="guest-actions"><button type="button" data-audio>Solo audio</button><button type="button" data-video>Audio y video</button><button type="button" data-lens>Cambiar cámara</button><button type="button" data-voice-off>Apagar voz invitado</button></div>';
       document.body.append(dialog);
       preview = dialog.querySelector('video'); status = dialog.querySelector('[data-status]');
       audioOnly = dialog.querySelector('[data-audio]'); audioVideo = dialog.querySelector('[data-video]');
+      voiceOff = dialog.querySelector('[data-voice-off]');
+      voiceOff.onclick = async () => { if (voiceActive()) await toggleVoice(); stop(); render(); };
       switchButton = dialog.querySelector('[data-lens]');
       button.onclick = () => { render(); dialog.showModal(); };
       dialog.querySelector('[data-close]').onclick = () => dialog.close();
