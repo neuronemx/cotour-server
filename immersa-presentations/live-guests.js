@@ -8,7 +8,7 @@ const { createGuestCamera } = require("./guest-camera");
 const INVITE = /^[a-f0-9]{64}\.[a-f0-9]{64}$/;
 const ROLE_TOKEN = /^a_[a-z0-9]{10}$/;
 const LEASE_MS = 8000;
-const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=20"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=9" defer></script><script src="/live-guests/client.js?v=19" defer></script>';
+const ASSETS = '<link rel="stylesheet" href="/live-guests/client.css?v=20"><script src="/live-guests/event-audio.js?v=2" defer></script><script src="/live-guests/camera.js?v=9" defer></script><script src="/live-guests/client.js?v=20" defer></script>';
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
@@ -95,6 +95,9 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
       id: room.call?.id || null,
       guestName: room.invite?.name || "Invitado",
       guestConnected: Boolean(room.peers.guest?.data.mediaReady),
+      guestInWaitingRoom: Boolean(room.peers.guest?.connected && room.peers.guest.data.enteredWaiting
+        && room.peers.guest.data.mediaReady && room.invite && !room.invite.endedAt
+        && room.peers.guest.handshake.auth.token === room.invite.token),
       stageReady: Boolean(room.peers.stage?.data.mediaReady),
       screenReady: Boolean(room.peers.screen?.data.mediaReady),
       muted: Boolean(room.call?.muted),
@@ -308,6 +311,10 @@ function createLiveGuests({ io, dataDir, publicDir, origin, enabled, authorizeRo
     });
 
     socket.on("guest:media-ready", async value => {
+      if (role === "guest") {
+        if (value === false) socket.data.enteredWaiting = false;
+        else if (value?.entered === true && room.peers.guest === socket && !room.invite?.endedAt) socket.data.enteredWaiting = true;
+      }
       socket.data.mediaReady = value !== false;
       if (role === "speaker" && value === false && room.audioSource === "speaker" && room.call) clearCall(room, "signal");
       let slideUpdate;

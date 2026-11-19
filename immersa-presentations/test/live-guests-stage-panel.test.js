@@ -123,9 +123,9 @@ test("Speaker can arm voice before a guest arrives and receives waiting and coun
   assert.equal(button.textContent, "Activar voz invitado");
   handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: false });
   assert.equal(button.hidden, false);
-  handlers.get("guest:state")({ phase: "waiting", audioSource: "screen", guestConnected: true });
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "screen", guestConnected: true, guestInWaitingRoom: true });
   assert.equal(button.hidden, false);
-  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   assert.equal(button.hidden, false);
   await button.onclick();
   assert.equal(button.textContent, "Invitado en sala de espera");
@@ -134,7 +134,7 @@ test("Speaker can arm voice before a guest arrives and receives waiting and coun
   assert.equal(button.attributes["aria-pressed"], "true");
   assert.ok(sent.some(([event]) => event === "guest:media-ready"));
   for (const phase of ["preparing", "ready", "starting", "countdown", "live"]) {
-    handlers.get("guest:state")({ phase, audioSource: "speaker", guestConnected: true });
+    handlers.get("guest:state")({ phase, audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
     assert.equal(button.hidden, false, phase);
     assert.equal(track.readyState, "live", phase);
   }
@@ -147,10 +147,10 @@ test("Speaker can arm voice before a guest arrives and receives waiting and coun
 });
 
 test("Speaker capture stops only when its source is deselected", async () => {
-  for (const next of [{ audioSource: "screen", guestConnected: true }]) {
+  for (const next of [{ audioSource: "screen", guestConnected: true, guestInWaitingRoom: true }]) {
     const { toolbar, handlers, sent, track } = mount("speaker");
     const button = toolbar.children[0];
-    handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+    handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
     await button.onclick();
     handlers.get("guest:state")({ phase: "waiting", ...next });
     assert.equal(button.hidden, false);
@@ -203,11 +203,11 @@ test("sending to Screen silences private audio immediately despite delayed repla
 test("a delayed microphone permission cannot start hidden Speaker capture after the source changed", async () => {
   let allow;
   const { toolbar, handlers, track, sent } = mount("speaker", stream => new Promise(resolve => { allow = () => resolve(stream); }));
-  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   const button = toolbar.children[0];
   const entering = button.onclick();
   await flush();
-  handlers.get("guest:state")({ phase: "waiting", audioSource: "screen", guestConnected: true });
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "screen", guestConnected: true, guestInWaitingRoom: true });
   allow();
   await entering;
   assert.equal(track.readyState, "ended");
@@ -222,16 +222,16 @@ test("Speaker keeps one toolbar slot and retains armed voice after an invitation
   assert.ok(camera);
   assert.equal(camera.hidden, false);
   assert.equal(voice.hidden, true);
-  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   assert.equal(camera.hidden, true);
   assert.equal(voice.hidden, false);
   await voice.onclick();
   handlers.get("live:status")({ phase: "idle", screenReady: true });
   assert.equal(camera.hidden, true, "a camera status refresh must not reveal a second button");
-  handlers.get("guest:state")({ phase: "live", audioSource: "speaker", guestConnected: true });
+  handlers.get("guest:state")({ phase: "live", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   assert.equal(camera.hidden, true);
   assert.equal(voice.hidden, false);
-  handlers.get("guest:state")({ phase: "ended", audioSource: "speaker", guestConnected: true });
+  handlers.get("guest:state")({ phase: "ended", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   assert.equal(voice.hidden, false);
   assert.equal(camera.hidden, true);
   assert.equal(track.readyState, "live");
@@ -241,7 +241,7 @@ test("Speaker keeps one toolbar slot and retains armed voice after an invitation
 
 test("the real guest camera panel arms voice while Stage can prepare waiting independently", async () => {
   const speaker = mount("speaker", undefined, false, true);
-  speaker.handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true });
+  speaker.handlers.get("guest:state")({ phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true });
   const panel = speaker.created.find(node => node.tag === "dialog");
   assert.ok(panel);
   panel.querySelector("[data-audio]").onclick();
@@ -250,7 +250,7 @@ test("the real guest camera panel arms voice while Stage can prepare waiting ind
   assert.equal(speaker.track.readyState, "live");
   const stage = mount("stage", undefined, false, true);
   const controls = stage.created.find(node => node.tag === "aside");
-  const waiting = { phase: "waiting", audioSource: "speaker", guestConnected: true, stageReady: true, screenReady: true };
+  const waiting = { phase: "waiting", audioSource: "speaker", guestConnected: true, guestInWaitingRoom: true, stageReady: true, screenReady: true };
   stage.handlers.get("guest:state")(waiting);
   assert.equal(controls.querySelector("[data-connect]").disabled, false);
   assert.match(controls.querySelector("[data-status]").textContent, /Falta activar voz/);
@@ -268,10 +268,24 @@ test("armed Speaker voice survives guest replacement, pulses only in waiting and
   assert.equal(track.enabled,false);
   for (const phase of ["waiting","ready","countdown","live","ended","waiting"]) {
     const connected=phase!=="ended";
-    handlers.get("guest:state")({ phase, audioSource:"speaker", guestConnected:connected, countdown:3 });
+    handlers.get("guest:state")({ phase, audioSource:"speaker", guestConnected:connected, guestInWaitingRoom:connected, countdown:3 });
     assert.equal(track.readyState,"live");
     assert.equal(track.enabled,["countdown","live"].includes(phase));
     assert.equal(button.classList.values.has("guest-waiting-alert"),connected&&["waiting","ready"].includes(phase));
     if(phase==="countdown") assert.equal(button.textContent,"EN VIVO en 3");
   }
+});
+
+test("the waiting alert requires explicit entry and clears on disconnect", () => {
+  const { toolbar, handlers } = mount("speaker");
+  const button=toolbar.children[0];
+  for (const value of [undefined,false]) {
+    handlers.get("guest:state")({ phase:"waiting",audioSource:"speaker",guestConnected:true,guestInWaitingRoom:value });
+    assert.equal(button.classList.values.has("guest-waiting-alert"),false);
+    assert.notEqual(button.textContent,"Invitado en sala de espera");
+  }
+  handlers.get("guest:state")({ phase:"waiting",audioSource:"speaker",guestConnected:true,guestInWaitingRoom:true });
+  assert.equal(button.classList.values.has("guest-waiting-alert"),true);
+  handlers.get("disconnect")();
+  assert.equal(button.classList.values.has("guest-waiting-alert"),false);
 });

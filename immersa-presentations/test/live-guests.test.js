@@ -448,3 +448,21 @@ test("the real Speaker access page includes guest voice assets with its stored r
   assert.equal(resolved.accessLink.role, "speaker");
   assert.equal(resolved.deck.deckId, "deck");
 });
+
+test("opening a guest link or reporting media does not announce waiting-room entry", async t => {
+  const { stage,open } = await setup(t);
+  const speaker=await open("speaker","a_speaker001");
+  const invite=await stage.request("guest:invite",{});
+  const guest=await open("guest",invite.url.split("/").pop());
+  const latest=()=>speaker.messages.filter(([event])=>event==="guest:state").at(-1)[1];
+  assert.equal(latest().guestInWaitingRoom,false);
+  await guest.receive("guest:media-ready");
+  assert.equal(latest().guestConnected,true);
+  assert.equal(latest().guestInWaitingRoom,false);
+  await guest.receive("guest:media-ready",{entered:true});
+  assert.equal(latest().guestInWaitingRoom,true);
+  await stage.request("guest:end");
+  assert.equal(latest().guestInWaitingRoom,false);
+  await guest.receive("guest:media-ready",{entered:true});
+  assert.equal(latest().guestInWaitingRoom,false);
+});

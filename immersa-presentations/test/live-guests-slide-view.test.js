@@ -6,10 +6,10 @@ const { runInNewContext } = require("node:vm");
 const { setImmediate: flush } = require("node:timers/promises");
 const client = readFileSync(resolve(__dirname, "../public/live-guests/client.js"), "utf8");
 
-function mount(contentApi, zoomApi) {
+function mount(contentApi, zoomApi, mediaFactory) {
   const elements = new Map();
   const handlers = new Map();
-  const images = [];
+  const images = [], sent = [];
   const tracks = [{ readyState: "live", enabled: true, stop() { this.readyState = "ended"; } }];
   const stream = { getTracks: () => tracks, getAudioTracks: () => tracks };
   function element(id) {
@@ -24,17 +24,17 @@ function mount(contentApi, zoomApi) {
     });
     return elements.get(id);
   }
-  const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit() {} };
+  const socket = { connected: true, on: (name, handler) => handlers.set(name, handler), emit: (...args) => sent.push(args) };
   runInNewContext(client, {
     window: { AudioContext: class { async resume() {} }, addEventListener() {}, ImmersaGuestContent: contentApi ? { create: () => contentApi } : undefined,
       ImmersaGuestSlideZoom: zoomApi ? { create: () => zoomApi } : undefined },
     document: { body: { dataset: { liveGuest: "true" }, classList: { toggle() {} } }, getElementById: element },
     location: { pathname: "/guest/test" },
-    navigator: { mediaDevices: { async getUserMedia() { return stream; } } },
+    navigator: { mediaDevices: { async getUserMedia() { return mediaFactory ? mediaFactory(stream) : stream; } } },
     io: () => socket,
     Image: class { constructor() { images.push(this); } }
   });
-  return { element, socket, images, tracks, receive: (name, payload) => handlers.get(name)(payload),
+  return { element, socket, images, tracks, sent, receive: (name, payload) => handlers.get(name)(payload),
     async enter() { element("guestEnter").events.get("click")(); await flush(); } };
 }
 
@@ -211,4 +211,16 @@ test("guest preview follows a late camera aspect change without restarting the l
   assert.equal(preview.srcObject, stream);
   assert.equal(app.tracks[0].readyState, "live");
   assert.equal(app.element("guestSelfMute").hidden, false);
+});
+
+test("waiting-room entry is announced only after the Guest clicks and camera preparation completes", async () => {
+  let allow;
+  const app=mount(undefined,undefined,stream=>new Promise(resolve=>{allow=()=>resolve(stream);}));
+  assert.equal(app.sent.length,0);
+  await app.enter();
+  assert.equal(app.sent.length,0,"permission still pending");
+  allow(); await flush(); await flush();
+  assert.deepEqual(app.sent.filter(([event])=>event==="guest:media-ready").map(([,value])=>JSON.parse(JSON.stringify(value))),[{entered:true}]);
+  app.receive("connect");
+  assert.equal(app.sent.at(-1)[1].entered,true);
 });

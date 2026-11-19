@@ -7,6 +7,7 @@
   const peers = new Map();
   let state = { phase: "waiting" };
   let capture;
+  let guestEnteredWaiting = false;
   let selfMuted = false;
   let guestContent;
   let guestZoom;
@@ -75,7 +76,7 @@
     for (const stream of new Set([capture, productionAudio, stageAudio])) stream?.getTracks().forEach(track => track.stop());
     capture = productionAudio = stageAudio = null;
     if (hadMedia && socket.connected) socket.emit("guest:media-ready", false);
-    if (role === "guest") { selfMuted = false; video.srcObject = null; clearGuestSlide(); guestContent?.clear(); }
+    if (role === "guest") { guestEnteredWaiting = false; selfMuted = false; video.srcObject = null; clearGuestSlide(); guestContent?.clear(); }
   }
 
   function clearGuestSlide() {
@@ -177,7 +178,7 @@
         window.__immersaGuestVoiceMode = voiceMode;
         window.dispatchEvent(new Event("immersa:guest-voice-mode"));
       }
-      const inWaiting = state.guestConnected && waiting;
+      const inWaiting = socket.connected && state.guestInWaitingRoom === true && waiting;
       speakerButton.classList.toggle("guest-waiting-alert", Boolean(inWaiting));
       speakerButton.textContent = inWaiting ? "Invitado en sala de espera"
         : state.phase === "countdown" ? "EN VIVO en " + state.countdown
@@ -296,8 +297,10 @@
       capture = stream;
       video.srcObject = capture;
       await video.play();
+      if (version !== captureVersion || state.phase === "ended") return;
+      guestEnteredWaiting = true;
       for (const track of stream.getTracks()) track.onended = () => fail(state.id);
-      socket.emit("guest:media-ready");
+      socket.emit("guest:media-ready", { entered: true });
     } catch { notice = "Permite la cámara y el micrófono para entrar."; stopStreams(); }
     finally { busy = false; render(); }
   }
@@ -726,7 +729,8 @@
     render();
   });
   socket.on("connect", () => {
-    if (capture || (role !== "guest" && audioUnlocked && (role === "screen" || productionAudio))) socket.emit("guest:media-ready");
+    if (role === "guest" && capture && guestEnteredWaiting) socket.emit("guest:media-ready", { entered: true });
+    else if (role !== "guest" && audioUnlocked && (role === "screen" || productionAudio)) socket.emit("guest:media-ready");
     if (role === "screen" && eventMixer?.ready) { lastReturnReady = true; socket.emit("guest:return-ready", true); }
     render();
   });
@@ -735,7 +739,7 @@
     guestContent?.clear();
     fail();
     if (state.phase === "ended") return render();
-    state = { ...state, id: null, phase: "waiting" };
+    state = { ...state, id: null, phase: "waiting", guestConnected: false, guestInWaitingRoom: false };
     notice = "Reconectando con producción…";
     render();
   });
