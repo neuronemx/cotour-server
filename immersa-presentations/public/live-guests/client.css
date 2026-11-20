@@ -193,3 +193,5 @@
   z-index:0;
 }
 #screen.portrait-slide:not(.has-focus-overlay):has(> .live-camera-program.is-live:not([hidden]))::after { opacity:0; }
+
+#screen > .live-camera-program.is-live { background:transparent; }

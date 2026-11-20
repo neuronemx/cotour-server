@@ -4,7 +4,7 @@
 body{margin:0;padding:24px;background:#090d14;color:#fff;font:15px system-ui}h1{font-size:24px;margin:0 0 8px}h2{font-size:16px}p{color:#bfc9dc}button{border:1px solid #686587;border-radius:8px;padding:8px 12px;background:#25233c;color:#fff;cursor:pointer;margin:0 8px 10px 0}main{display:flex;align-items:flex-start;flex-wrap:wrap;gap:24px}.phone{width:273px;height:518px;overflow:hidden;border:1px solid #43495a;border-radius:12px}#phone{width:390px;height:740px;transform:scale(.7);transform-origin:0 0;border:0}.output{width:864px;height:486px;overflow:hidden;border:1px solid #43495a}#output{width:1920px;height:1080px;transform:scale(.45);transform-origin:0 0;border:0}
 </style>
 <h1>Speaker · Slide · Invitado</h1><p>Revisión de distribución con imágenes de referencia. No utiliza cámara, micrófono ni conexiones de un evento.</p>
-<button id="both">Dos cámaras verticales</button><button id="landscape">Speaker horizontal</button><button id="guestwide">Invitado horizontal</button><button id="bothwide">Ambos horizontales</button><button id="single">Solo Invitado</button><button id="short">Móvil más bajo</button>
+<button id="both">Dos cámaras verticales</button><button id="landscape">Speaker horizontal</button><button id="guestwide">Invitado horizontal</button><button id="bothwide">Ambos horizontales</button><button id="single">Solo Invitado</button><button id="livewide">LIVE Speaker horizontal</button><button id="liveportrait">LIVE Speaker vertical</button><button id="short">Móvil más bajo</button>
 <main><section><h2>Invitado · móvil</h2><div class="phone"><iframe id="phone" title="Invitado móvil"></iframe></div></section><section><h2>Pantalla · 1920 × 1080</h2><div class="output"><iframe id="output" title="Pantalla Full HD"></iframe></div></section></main>
 <script>
 const phone=document.getElementById('phone'),output=document.getElementById('output');
@@ -13,14 +13,19 @@ function portrait(label,color,wide=false){const w=wide?640:360,h=wide?360:640;re
 const slide=encode('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="1920" height="1080" fill="#075de8"/><text x="120" y="150" fill="white" font-size="52" font-family="sans-serif">IMMERSA · EN VIVO</text><text x="120" y="520" fill="white" font-size="105" font-family="sans-serif">El evento sigue</text><text x="120" y="660" fill="white" font-size="105" font-family="sans-serif">en pantalla.</text></svg>');
 const video=(name,color,wide=false)=>`<video autoplay muted playsinline aria-label="${name}" poster="${portrait(name,color,wide)}"></video>`;
 const badge=cls=>`<img class="${cls}" src="/live-guests/live-badge.png" alt="LIVE">`;
-const css='<link rel="stylesheet" href="/live-guests/client.css?v=21">';
+const css='<link rel="stylesheet" href="/live-guests/client.css?v=22">';
 const speaker=(screen,wide)=>`<section class="guest-speaker-tile ${wide?'is-landscape':''}" aria-label="Speaker" style="aspect-ratio:${wide?'16 / 9':'9 / 16'}">${video('Speaker','#313359',wide)}${badge(screen?'guest-live-label':'guest-camera-live')}</section>`;
 function render(mode='both'){
  const dual=mode!=='single',wide=['landscape','bothwide'].includes(mode),guestWide=['guestwide','bothwide'].includes(mode);
  phone.srcdoc=`<!doctype html><html><head>${css}</head><body class="guest-page guest-in-session"><main class="guest-experience"><div id="guestVisual" class="guest-visual ${dual?'has-speaker-camera':''}"><div class="guest-slide-view"><img id="guestSlide" src="${slide}" alt="Slide del evento"></div><section class="guest-caption"><p></p></section><div class="guest-monitor is-live" style="aspect-ratio:9 / 16">${video('Invitado','#155660')}${badge('guest-camera-live')}<button class="guest-self-mute">Silenciar micrófono</button></div>${dual?speaker(false,wide):''}</div></main></body></html>`;
+ if(mode==='livewide'||mode==='liveportrait') {
+   const horizontal=mode==='livewide';
+   output.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="/screen/screen.css"><link rel="stylesheet" href="/live-camera/pilot.css">${css}</head><body><div id="screen" class="screen ${horizontal?'':'live-camera-portrait'}" style="--slide-bg:url('${slide}');--live-camera-aspect:${horizontal?'1.7777778':'.5625'};--live-camera-slide-aspect:1.7777778"><img id="slide" src="${slide}" alt="Slide del evento"><div class="live-camera-program is-live">${video('Speaker','#313359',horizontal)}${badge('live-camera-sticker')}</div></div></body></html>`;
+   return;
+ }
  output.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="/screen/screen.css"><link rel="stylesheet" href="/live-camera/pilot.css">${css}</head><body><div id="screen" class="screen guest-camera-portrait" style="--slide-bg:url('${slide}');--guest-camera-aspect:.5625;--live-camera-slide-aspect:1.7777778"><img id="slide" src="${slide}" alt="Slide del evento"><div class="guest-program live-camera-program is-live ${dual?'has-speaker-camera':''}"><section class="guest-program-guest ${guestWide?'is-landscape':''}" aria-label="Invitado" style="aspect-ratio:${guestWide?'16 / 9':'9 / 16'}">${video('Invitado','#155660',guestWide)}${badge('guest-live-label')}<span class="guest-name">Invitado</span></section>${dual?speaker(true,wide):''}</div></div></body></html>`;
 }
-for(const mode of ['both','landscape','guestwide','bothwide','single'])document.getElementById(mode).onclick=()=>render(mode);
+for(const mode of ['both','landscape','guestwide','bothwide','single','livewide','liveportrait'])document.getElementById(mode).onclick=()=>render(mode);
 document.getElementById('short').onclick=()=>{const short=phone.style.height!=='540px';phone.style.height=short?'540px':'740px';phone.parentElement.style.height=short?'378px':'518px';};
 render();
 </script></html>
