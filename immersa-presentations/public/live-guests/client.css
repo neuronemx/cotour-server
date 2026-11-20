@@ -181,3 +181,15 @@
 #screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) { grid-template-columns:repeat(2,minmax(0,1fr)); }
 #screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) > .guest-speaker-tile { grid-column:1; }
 #screen > .guest-program.has-speaker-camera:has(> .guest-speaker-tile.is-landscape):has(> .guest-program-guest.is-landscape) > .guest-program-guest { grid-column:2; }
+
+/* Reuse the current slide as a soft full-screen backdrop for every LIVE layout. */
+#screen:has(> .live-camera-program.is-live:not([hidden]))::before {
+  background-image:var(--slide-bg);
+  background-size:cover;
+  background-position:center;
+  filter:blur(34px) brightness(.65);
+  transform:scale(1.08);
+  opacity:1;
+  z-index:0;
+}
+#screen.portrait-slide:not(.has-focus-overlay):has(> .live-camera-program.is-live:not([hidden]))::after { opacity:0; }

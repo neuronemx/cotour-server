@@ -634,7 +634,7 @@ function loadDeckWithRetry(attempt = 0) {
     manifestRetryTimer = setTimeout(() => loadDeckWithRetry(attempt + 1), 350 * (attempt + 1));
   });
 }
-function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; screenRoot.classList.toggle("portrait-slide", portrait); if (portrait) screenRoot.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); else screenRoot.style.removeProperty("--slide-bg"); }
+function applySlideOrientation(item, src) { const portrait = item?.orientation === "portrait"; screenRoot.classList.toggle("portrait-slide", portrait); screenRoot.style.setProperty("--slide-bg", "url('" + src.replace(/'/g, "%27") + "')"); }
 function syncScreenFocus() {
   const messageVisible = Boolean(overlays.messageVisible && overlays.messageText);
   const resultsVisible = Boolean(interactionOverlay && !interactionOverlay.classList.contains("interaction-hidden"));
