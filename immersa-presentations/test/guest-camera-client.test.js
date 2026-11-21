@@ -65,6 +65,46 @@ test('console audio mode never opens a second microphone and ended camera state 
   assert.equal(app.tracks[0].readyState, 'ended');
 });
 
+for (const source of ['speaker', 'screen']) {
+  test(`Speaker can remove and rejoin their camera with ${source} audio while Guest stays live`, async () => {
+    const app = mount(source);
+    const cameraOff = app.panel.querySelector('[data-camera-off]');
+    app.api.render();
+    assert.equal(cameraOff.hidden, true);
+    await app.panel.querySelector('[data-video]').onclick(); await flush(); await flush();
+    assert.equal(cameraOff.hidden, false);
+    assert.equal(cameraOff.disabled, false);
+    const voice = app.voice();
+    cameraOff.onclick();
+    assert.equal(app.tracks[0].readyState, 'ended');
+    assert.equal(cameraOff.hidden, true);
+    assert.equal(app.voice(), voice);
+    assert.equal(app.state.phase, 'live');
+    assert.ok(app.sent.some(([event]) => event === 'guest-camera:stop'));
+    assert.equal(app.sent.some(([event]) => ['guest:end', 'guest:failed', 'guest:media-ready'].includes(event)), false);
+    app.state.camera = null; app.api.render();
+    await app.panel.querySelector('[data-video]').onclick(); await flush(); await flush();
+    assert.equal(app.tracks[1].readyState, 'live');
+    assert.equal(app.voice(), voice);
+    assert.equal(app.state.phase, 'live');
+  });
+}
+
+test('Solo audio can remove console-mode video without activating a microphone', async () => {
+  const app = mount('screen');
+  const audioOnly = app.panel.querySelector('[data-audio]');
+  app.api.render();
+  assert.equal(audioOnly.disabled, true);
+  await app.panel.querySelector('[data-video]').onclick(); await flush();
+  assert.equal(audioOnly.disabled, false);
+  // Even if the voice source changes meanwhile, removing video must not enable a microphone.
+  app.state.audioSource = 'speaker';
+  await audioOnly.onclick(); await flush();
+  assert.equal(app.tracks[0].readyState, 'ended');
+  assert.equal(app.voice(), false);
+  assert.equal(app.state.phase, 'live');
+});
+
 test('Stage, Screen and Guest can remain on air with no optional camera, including older snapshots without that field', () => {
   for (const role of ['stage', 'screen', 'guest']) {
     let state;

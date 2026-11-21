@@ -2,7 +2,7 @@
   function create({ role, socket, getState, button, toggleVoice, voiceActive }) {
     const peers = new Map();
     let stream, id, localVersion = 0, busy = false, facing = 'user', dialog, preview, remote, remoteTile, status;
-    let audioOnly, audioVideo, voiceOff, switchButton, notice = '';
+    let audioOnly, audioVideo, cameraOff, voiceOff, switchButton, notice = '';
     function stop(notify = true, reason) {
       const previous = id || getState().camera?.id;
       localVersion++;
@@ -57,7 +57,9 @@
       if (role === 'speaker') {
         if (state.phase === 'ended') dialog.close();
         button.setAttribute('aria-pressed', String(Boolean(stream || voiceActive())));
-        audioOnly.disabled = busy || state.audioSource !== 'speaker';
+        audioOnly.disabled = busy || (state.audioSource !== 'speaker' && !stream);
+        cameraOff.hidden = !stream;
+        cameraOff.disabled = busy;
         voiceOff.hidden = !voiceActive();
         voiceOff.disabled = busy;
         audioVideo.disabled = busy || state.phase !== 'live' || !socket.connected;
@@ -103,6 +105,7 @@
       busy = true; notice = ''; render();
       let step = 'voice';
       try {
+        if (!withVideo && stream) return stop();
         if (getState().audioSource === 'speaker' && !voiceActive()) await toggleVoice();
         if (getState().audioSource === 'speaker' && !voiceActive()) return;
         if (!withVideo) return stop();
@@ -121,10 +124,12 @@
     }
     if (role === 'speaker') {
       dialog = document.createElement('dialog'); dialog.className = 'guest-production guest-speaker-dialog';
-      dialog.innerHTML = '<header><h2>LIVE con Invitado</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header><p class="guest-note" data-status></p><video muted autoplay playsinline aria-label="Tu cámara"></video><div class="guest-actions"><button type="button" data-audio>Solo audio</button><button type="button" data-video>Audio y video</button><button type="button" data-lens>Cambiar cámara</button><button type="button" data-voice-off>Apagar voz invitado</button></div>';
+      dialog.innerHTML = '<header><h2>LIVE con Invitado</h2><button type="button" data-close aria-label="Cerrar panel">×</button></header><p class="guest-note" data-status></p><video muted autoplay playsinline aria-label="Tu cámara"></video><div class="guest-actions"><button type="button" data-audio>Solo audio</button><button type="button" data-video>Audio y video</button><button type="button" data-lens>Cambiar cámara</button><button type="button" data-camera-off>Apagar mi cámara</button><button type="button" data-voice-off>Apagar voz invitado</button></div>';
       document.body.append(dialog);
       preview = dialog.querySelector('video'); status = dialog.querySelector('[data-status]');
       audioOnly = dialog.querySelector('[data-audio]'); audioVideo = dialog.querySelector('[data-video]');
+      cameraOff = dialog.querySelector('[data-camera-off]');
+      cameraOff.onclick = () => { notice = ''; stop(); render(); };
       voiceOff = dialog.querySelector('[data-voice-off]');
       voiceOff.onclick = async () => { if (voiceActive()) await toggleVoice(); stop(); render(); };
       switchButton = dialog.querySelector('[data-lens]');
