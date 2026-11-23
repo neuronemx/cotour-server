@@ -104,3 +104,11 @@ test('video failures offer the same final source in another tab', () => {
   assert.equal(error.hidden, false);
   assert.equal(error.querySelector('a').href, f.video.src);
 });
+
+test('video help uses the supplied icon next to the text with an accessible video label', () => {
+  const f = fixture();
+  assert.match(f.menu.innerHTML, /data-help-video aria-label="Ver video: primeros pasos"/);
+  assert.match(f.menu.innerHTML, /<span>Ver primeros pasos<small>Tu primer Deck · 48 s<\/small><\/span><img/);
+  assert.match(f.menu.innerHTML, /class="home-help-video-icon" src="data:image\/png;base64,/);
+  assert.match(f.menu.innerHTML, /width="50" height="38" alt="" aria-hidden="true"/);
+});
