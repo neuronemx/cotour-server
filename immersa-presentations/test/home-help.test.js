@@ -112,3 +112,13 @@ test('video help uses the supplied icon next to the text with an accessible vide
   assert.match(f.menu.innerHTML, /class="home-help-video-icon" src="data:image\/png;base64,/);
   assert.match(f.menu.innerHTML, /width="50" height="38" alt="" aria-hidden="true"/);
 });
+
+test('video icon is reduced by 15 percent while retaining its aspect and right alignment', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../public/home/home-help.css'), 'utf8');
+  const icon = css.match(/\.home-help-menu \.home-help-video-icon \{([^}]+)\}/)[1];
+  assert.match(icon, /flex: 0 0 42\.5px/);
+  assert.match(icon, /width: 42\.5px/);
+  assert.match(icon, /height: 32\.3px/);
+  assert.match(icon, /object-fit: contain/);
+  assert.match(css, /justify-content: space-between/);
+});
