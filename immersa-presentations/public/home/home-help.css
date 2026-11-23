@@ -81,8 +81,8 @@
 .home-help-menu [data-help-video] > span { min-width: 0; }
 .home-help-menu .home-help-video-icon {
   display: block;
-  flex: 0 0 50px;
-  width: 50px;
-  height: 38px;
+  flex: 0 0 42.5px;
+  width: 42.5px;
+  height: 32.3px;
   object-fit: contain;
 }
