@@ -72,3 +72,17 @@
 .home-help-video-dialog.is-portrait video { aspect-ratio: 9 / 16; }
 .home-help-video-dialog p { font: 14px/1.5 Inter, sans-serif; }
 .home-help-video-dialog a { color: #62e7ff; }
+.home-help-menu [data-help-video] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.home-help-menu [data-help-video] > span { min-width: 0; }
+.home-help-menu .home-help-video-icon {
+  display: block;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 38px;
+  object-fit: contain;
+}
