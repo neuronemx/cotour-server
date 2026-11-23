@@ -17,7 +17,11 @@
       restart.type = "button"; restart.className = "immersa-tutorial-restart"; restart.textContent = "?"; restart.title = "Reiniciar tutorial"; restart.setAttribute("aria-label", "Reiniciar tutorial");
       document.body.appendChild(restart);
       this.nodes = { overlay, card: overlay.querySelector(".immersa-tutorial-card"), spotlight: overlay.querySelector(".immersa-tutorial-spotlight"), restart };
-      restart.addEventListener("click", () => this.restart());
+      if (window.ImmersaHomeHelp) {
+        window.ImmersaHomeHelp.mount(restart, () => this.restart());
+      } else {
+        restart.addEventListener("click", () => this.restart());
+      }
       overlay.querySelector("[data-back]").addEventListener("click", () => this.go(-1));
       overlay.querySelector("[data-next]").addEventListener("click", () => this.go(1));
       overlay.querySelector(".immersa-tutorial-exit").addEventListener("click", () => this.exit());
