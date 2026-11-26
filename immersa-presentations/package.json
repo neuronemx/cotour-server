@@ -13,7 +13,8 @@
     "auth-spike:migrate": "node auth/migrate-compatibility-spike.mjs",
     "backup:decks": "node scripts/backup-decks.js",
     "flush:test-decks": "node scripts/flush-test-decks.js",
-    "flush:decks": "node scripts/flush-decks.js"
+    "flush:decks": "node scripts/flush-decks.js",
+    "local:import-event": "node scripts/import-local-event-package.js"
   },
   "dependencies": {
     "better-auth": "1.6.25",
