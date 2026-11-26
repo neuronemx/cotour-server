@@ -255,7 +255,9 @@
 
     function ensurePresenterControlJoin() {
       if (role !== 'presenter' || presenterControlJoined || !controlSocket) return;
-      controlSocket.emit('join_presentation', { session: sessionId, deck: deckId, role: 'presenter' });
+      controlSocket.emit('join_presentation', {
+        session: sessionId, deck: deckId, role: 'presenter', liveShopToken: roleContext.access_token
+      });
       presenterControlJoined = true;
     }
 

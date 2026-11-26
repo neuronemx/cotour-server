@@ -3,6 +3,7 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
   if (!root) return;
   const get = name => root.querySelector("[data-shop-" + name + "]");
   const tab = root.querySelector(".live-shop-tab");
+  const tabQuantity = tab.querySelector("[data-shop-quantity]");
   const drawer = document.getElementById("liveShopDrawer");
   const views = [...root.querySelectorAll("[data-shop-view]")];
   const scroller = root.querySelector(".live-shop-scroll");
@@ -245,7 +246,10 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     const total = entries.reduce((sum, entry) => sum + entry.product.priceCents * entry.quantity, 0);
     root.classList.toggle("has-cart-items", quantity > 0);
     root.querySelectorAll("[data-shop-quantity]").forEach(label => { label.textContent = String(quantity); });
-    tab.querySelector("[data-shop-quantity]").hidden = quantity === 0;
+    tabQuantity.hidden = quantity === 0;
+    tab.setAttribute("aria-label", quantity
+      ? "Abrir Shop · " + quantity + (quantity === 1 ? " artículo en el carrito" : " artículos en el carrito")
+      : "Abrir Shop");
     for (const [id, button] of productButtons) {
       button.disabled = pending || (cart.get(id) || 0) >= maxQuantity;
     }

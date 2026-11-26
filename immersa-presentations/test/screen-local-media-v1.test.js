@@ -214,7 +214,7 @@ test('Screen loads persistent local multimedia preparation and simplified replac
   assert.doesNotMatch(screen, /screen-local-media-session-sync/);
   assert.match(screen, /video-deck-config-bridge\.js\?v=119/);
   assert.match(audience, /video-deck-config-bridge\.js\?v=118/);
-  assert.match(loader, /video-deck-config-bridge\.js\?v=118/);
+  assert.match(loader, /video-deck-config-bridge\.js\?v=120/);
   assert.match(runtime, /ImmersaLocalMedia/);
   assert.match(runtime, /handleEnded/);
   assert.match(bridgeSource, /Multimedia lista/);

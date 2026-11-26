@@ -81,13 +81,14 @@ test('all roles load the configured video bridge and shared runtime', () => {
 
   assert.match(screen, /video-deck-config-bridge\.js\?v=119/);
   assert.match(audience, /video-deck-config-bridge\.js\?v=118/);
-  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=118/);
+  assert.match(sharedLoader, /video-deck-config-bridge\.js\?v=120/);
   assert.match(sharedLoader, /readyState==='complete'/);
-  assert.match(bridge, /video-slide-runtime\.js\?v=121/);
+  assert.match(bridge, /video-slide-runtime\.js\?v=122/);
   assert.match(runtime, /video-slide-runtime\.css\?v=111/);
   assert.match(runtime, /videoMedia/);
   assert.match(runtime, /overlay_update/);
   assert.match(runtime, /const controlSocket = options\.controlSocket \|\| mainSocket/);
+  assert.match(runtime, /role: 'presenter', liveShopToken: roleContext\.access_token/);
   assert.match(runtime, /role: 'presenter'/);
   assert.doesNotMatch(runtime, /typeof overlaySocket/);
   assert.doesNotMatch(runtime, /join_presentation[^\n]+role: 'stage'/);

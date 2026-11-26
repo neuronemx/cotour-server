@@ -111,7 +111,7 @@
     if (!document || document.querySelector('link[data-video-deck-bridge]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shared/video-deck-config-bridge.css?v=108';
+    link.href = '/shared/video-deck-config-bridge.css?v=109';
     link.dataset.videoDeckBridge = '1';
     document.head.appendChild(link);
   }
@@ -120,7 +120,7 @@
     if (!document || root.ImmersaVideoSlides || root.__immersaVideoSlidesLoading) return;
     root.__immersaVideoSlidesLoading = true;
     const script = document.createElement('script');
-    script.src = '/shared/video-slide-runtime.js?v=121';
+    script.src = '/shared/video-slide-runtime.js?v=122';
     script.defer = true;
     script.onerror = () => { root.__immersaVideoSlidesLoading = false; };
     document.head.appendChild(script);
@@ -133,7 +133,8 @@
     badge.hidden = true;
     badge.setAttribute('role', 'status');
     badge.setAttribute('aria-live', 'polite');
-    document.body.appendChild(badge);
+    const speakerActions = role === 'presenter' && document.querySelector('.presenter-shell .top-actions');
+    (speakerActions || document.body).appendChild(badge);
 
     let total = 0;
     let lastPresentationState = null;

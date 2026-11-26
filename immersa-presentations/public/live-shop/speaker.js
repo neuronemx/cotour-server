@@ -12,7 +12,7 @@ window.ImmersaLiveShopSpeaker = function (socket) {
     if (!state) return;
     toggle.classList.toggle("is-active", state.active);
     panel.classList.toggle("is-active", state.active);
-    toggle.setAttribute("aria-label", "LIVE SHOP " + (state.active ? "activado" : "desactivado"));
+    toggle.setAttribute("aria-label", "SHOP " + (state.active ? "activado" : "desactivado"));
     get("activate").textContent = state.active ? "Desactivar Shop" : "Activar Shop";
     get("state").textContent = state.active ? "Shop visible en Público" : "Shop oculto en Público";
     if (!busy) {
@@ -37,9 +37,9 @@ window.ImmersaLiveShopSpeaker = function (socket) {
     render();
     try {
       const result = await socket.timeout(5000).emitWithAck("live-shop:control", { action, value });
-      if (!result?.ok) get("notice").textContent = result?.message || "No se pudo actualizar LIVE SHOP.";
+      if (!result?.ok) get("notice").textContent = result?.message || "No se pudo actualizar Shop.";
     } catch (_error) {
-      get("notice").textContent = "LIVE SHOP no respondió. Intenta de nuevo.";
+      get("notice").textContent = "Shop no respondió. Intenta de nuevo.";
     } finally {
       busy = false;
       render();
