@@ -11,6 +11,7 @@ window.ImmersaLiveShopSpeaker = function (socket) {
   function render() {
     if (!state) return;
     toggle.classList.toggle("is-active", state.active);
+    panel.classList.toggle("is-active", state.active);
     toggle.setAttribute("aria-label", "LIVE SHOP " + (state.active ? "activado" : "desactivado"));
     get("activate").textContent = state.active ? "Desactivar Shop" : "Activar Shop";
     get("state").textContent = state.active ? "Shop visible en Público" : "Shop oculto en Público";

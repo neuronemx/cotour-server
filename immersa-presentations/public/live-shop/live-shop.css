@@ -48,17 +48,6 @@
 .live-shop-editor .live-shop-visibility input { width: auto; }
 .live-shop-editor-preview { width: 95px; height: 68px; }
 
-.live-shop-speaker-panel button {
-  border: 1px solid rgba(170, 144, 241, .35);
-  border-radius: 10px;
-  background: #241c36;
-  color: #f7f4ff;
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-.live-shop-speaker-panel button:disabled { opacity: .45; cursor: default; }
-
 .live-shop-audience {
   --shop-accent: #087b5e;
   --shop-accent-dark: #056148;
@@ -319,22 +308,60 @@
   display: grid;
   gap: 7px;
   align-content: start;
-  border: 1px solid #7355a0;
+  border: 1px solid #d9e0de;
   border-radius: 15px;
-  padding: 12px;
-  background: #161021;
-  color: #f7f4ff;
+  padding: 14px;
+  background: #f8faf9;
+  color: #1e2928;
+  color-scheme: light;
   font: 13px Inter, sans-serif;
-  box-shadow: 0 16px 35px #0009;
+  box-shadow: 0 12px 32px #0005;
 }
 .live-shop-speaker-panel header { display: flex; align-items: center; justify-content: space-between; }
 .live-shop-speaker-panel h2 { margin: 0; font-size: 15px; }
-.live-shop-speaker-panel p { margin: 0; color: #d5c7eb; }
+.live-shop-speaker-panel p { margin: 0; color: #4a5b57; }
 .live-shop-speaker-panel p:empty { display: none; }
-.live-shop-speaker-panel button { padding: 6px 9px; min-height: 34px; }
-.live-shop-speaker-panel [data-shop-activate] { background: #c4a9ff; color: #130a25; border-color: transparent; }
+.live-shop-speaker-panel button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #d3ddda;
+  border-radius: 9px;
+  background: #fff;
+  color: #263735;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.live-shop-speaker-panel button:disabled { opacity: .45; cursor: default; }
+.live-shop-speaker-panel button:enabled:hover { background: #edf2f0; }
+.live-shop-speaker-panel :focus-visible { outline: 2px solid #087566; outline-offset: 2px; }
+.live-shop-speaker-panel [data-shop-close] { min-width: 34px; padding: 0; font-size: 19px; }
+.live-shop-speaker-panel [data-shop-activate] {
+  background: #087566;
+  border-color: transparent;
+  color: #fff;
+}
+.live-shop-speaker-panel [data-shop-activate]:enabled:hover { background: #065d51; }
+.live-shop-speaker-panel.is-active [data-shop-activate] {
+  background: #e0f4ee;
+  border-color: #bcdfd4;
+  color: #075e50;
+}
+.live-shop-speaker-panel.is-active [data-shop-activate]:enabled:hover { background: #d0ede3; }
+.live-shop-speaker-panel.is-active [data-shop-state] { color: #075e50; }
 .live-shop-speaker-panel label { display: flex; gap: 6px; align-items: center; min-height: 23px; }
-.live-shop-speaker-panel input { accent-color: #bb9cff; }
+.live-shop-speaker-panel input { accent-color: #087566; }
+.live-shop-speaker-panel .live-shop-speaker-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 9px;
+  background: #edf2f0;
+  border-radius: 8px;
+}
+.live-shop-speaker-count strong { color: #1e2928; font-size: 17px; font-variant-numeric: tabular-nums; }
+.live-shop-speaker-panel [data-shop-reset],
+.live-shop-speaker-panel [data-shop-notice] { color: #884d27; }
 .live-shop-speaker-milestones { display: flex; gap: 5px; }
 .live-shop-speaker-milestones button { flex: 1; }
 
