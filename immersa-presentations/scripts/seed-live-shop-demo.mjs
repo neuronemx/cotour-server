@@ -1,26 +1,44 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import shop from "../live-shop-config.js";
 import mysql from "../db/mysql.js";
 import access from "../access-links.js";
 import billing from "../billing/repository.js";
+import sessions from "../session-id.js";
 import { createBetterAuthRuntime } from "../auth/better-auth-runtime.mjs";
 
 const email = "liveshop@example.test";
 const deckId = "live-shop-demo";
-const sessionId = "live-shop-demo-v01";
 const password = process.env.IMMERSA_LIVE_SHOP_DEMO_PASSWORD;
 const dataDir = process.env.IMMERSA_DATA_DIR;
 const fixture = fileURLToPath(new URL("../bootstrap/immersa-demo-master", import.meta.url));
 
+async function readJson(filePath) {
+  try {
+    return JSON.parse(await fs.readFile(filePath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function writeJson(filePath, value) {
+  const temporary = filePath + ".tmp";
+  await fs.writeFile(temporary, JSON.stringify(value, null, 2) + "\n");
+  await fs.rename(temporary, filePath);
+}
+
 async function seedDeck(deckDir) {
   const manifestPath = path.join(deckDir, "manifest.json");
-  try {
-    await fs.access(manifestPath);
-    return;
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+  const existing = await readJson(manifestPath);
+  const validSessionId = sessions.manifestSessionId(existing);
+  if (validSessionId) return validSessionId;
+
+  const sessionId = sessions.generateSessionId();
+  if (existing) {
+    await writeJson(manifestPath, { ...existing, session_id: sessionId });
+    return sessionId;
   }
   const manifest = JSON.parse(await fs.readFile(path.join(fixture, "manifest.json"), "utf8"));
   const slides = manifest.slides.slice(0, 3).map(({ planLevel, ...slide }) => slide);
@@ -39,9 +57,41 @@ async function seedDeck(deckDir) {
     conversion: { status: "completed" },
     source: { sizeBytes: 0 }, createdAt: new Date().toISOString()
   };
-  const tempManifest = manifestPath + ".tmp";
-  await fs.writeFile(tempManifest, JSON.stringify(demo, null, 2) + "\n");
-  await fs.rename(tempManifest, manifestPath);
+  await writeJson(manifestPath, demo);
+  return sessionId;
+}
+
+export async function synchronizeDemoDeck({ database, workspaces, dataDir, userId, workspaceId }) {
+  const dataDecksDir = path.join(dataDir, "decks");
+  const sessionId = await seedDeck(path.join(dataDecksDir, deckId));
+  if (await workspaces.ownsDeck(userId, deckId)) {
+    await database.execute(
+      "UPDATE decks SET session_id = ? WHERE deck_id = ? AND workspace_id = ? AND session_id <> ?",
+      [sessionId, deckId, workspaceId, sessionId]
+    );
+  } else {
+    await workspaces.registerDeck({ userId, workspaceId, deckId, sessionId, sourceSizeBytes: 0 });
+  }
+
+  const storePath = path.join(dataDir, "access-links.json");
+  const stored = await readJson(storePath);
+  const links = Array.isArray(stored) ? stored : stored?.access_links || [];
+  let changed = false;
+  for (const link of links) {
+    if (link.deck_id !== deckId || link.session_id === sessionId) continue;
+    link.session_id = sessionId;
+    delete link.presentation_session_id;
+    changed = true;
+  }
+  if (changed) await writeJson(storePath, links);
+
+  const handlers = access.createAccessLinkHandlers({ dataDir, dataDecksDir, staticDecksDir: dataDecksDir });
+  for (const role of ["speaker", "screen"]) {
+    if (!links.some(link => link.deck_id === deckId && link.role === role && link.active !== false)) {
+      await handlers.createAccessLinkForDeck({ deckId, role });
+    }
+  }
+  return sessionId;
 }
 
 async function accountFor(database, runtime) {
@@ -75,29 +125,18 @@ async function main() {
       });
     }
     await plans.recalculateEntitlement(workspace.id);
-    const dataDecksDir = path.join(dataDir, "decks");
-    await seedDeck(path.join(dataDecksDir, deckId));
-    if (!await runtime.workspaces.ownsDeck(user.id, deckId)) {
-      await runtime.workspaces.registerDeck({ userId: user.id, workspaceId: workspace.id, deckId, sessionId, sourceSizeBytes: 0 });
-    }
-    const storePath = path.join(dataDir, "access-links.json");
-    const handlers = access.createAccessLinkHandlers({ dataDir, dataDecksDir, staticDecksDir: dataDecksDir });
-    for (const role of ["speaker", "screen"]) {
-      const links = await fs.readFile(storePath, "utf8").then(JSON.parse).catch(error => {
-        if (error.code === "ENOENT") return [];
-        throw error;
-      });
-      if (!links.some(link => link.deck_id === deckId && link.role === role && link.active !== false)) {
-        await handlers.createAccessLinkForDeck({ deckId, role });
-      }
-    }
+    await synchronizeDemoDeck({
+      database, workspaces: runtime.workspaces, dataDir, userId: user.id, workspaceId: workspace.id
+    });
     console.log("LIVE SHOP demo account and deck ready");
   } finally {
     await database.end();
   }
 }
 
-main().catch(error => {
-  console.error("LIVE SHOP demo setup failed:", error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
+    console.error("LIVE SHOP demo setup failed:", error.message);
+    process.exitCode = 1;
+  });
+}
