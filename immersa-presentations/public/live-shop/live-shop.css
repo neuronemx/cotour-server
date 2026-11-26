@@ -93,23 +93,20 @@
 .live-shop-audience button.live-shop-tab {
   position: fixed;
   right: 0;
-  top: calc(50% - max(var(--speaker-panel-height), var(--speaker-tab-height) + var(--speaker-tab-offset)) / 2 + var(--speaker-tab-offset));
+  top: calc(50% - max(var(--speaker-panel-height), var(--speaker-tab-height) + var(--speaker-tab-offset)) / 2 + var(--speaker-tab-offset) + var(--speaker-tab-height) / 2);
+  transform: translateY(-50%);
   display: flex;
-  width: 36px;
-  height: var(--speaker-tab-height);
-  flex-direction: column;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 3px;
+  padding: 0 9px;
   border: 1px solid #d8dad5;
   border-right: 0;
   border-radius: 11px 0 0 11px;
   box-shadow: -4px 4px 14px #0002;
-  font-size: 11px;
-  letter-spacing: .06em;
+  font-size: 13px;
 }
-.live-shop-tab > span:nth-child(2) { writing-mode: vertical-rl; }
 .live-shop-tab-quantity,
 [data-shop-cart] [data-shop-quantity] {
   min-width: 1.5em;

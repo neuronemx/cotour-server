@@ -14,7 +14,7 @@ window.ImmersaLiveShopScreen = function (socket) {
   let state = null;
 
   function syncUnlock() {
-    unlock.hidden = !state?.sound || !AudioContext || audio?.state === "running";
+    unlock.hidden = !state?.celebrations || !state.sound || !AudioContext || audio?.state === "running";
   }
 
   unlock.addEventListener("click", async () => {
@@ -22,7 +22,7 @@ window.ImmersaLiveShopScreen = function (socket) {
       if (!audio) {
         audio = new AudioContext();
         output = audio.createGain();
-        output.gain.value = state?.sound ? 1 : 0;
+        output.gain.value = state?.celebrations && state.sound ? 1 : 0;
         output.connect(audio.destination);
         audio.addEventListener("statechange", syncUnlock);
       }
@@ -58,7 +58,7 @@ window.ImmersaLiveShopScreen = function (socket) {
 
   socket.on("live-shop:state", next => {
     state = next;
-    root.hidden = !next.active && next.count === 0;
+    root.hidden = !next.celebrations || (!next.active && next.count === 0);
     count.textContent = next.count + (next.count === 1 ? " compra simulada" : " compras simuladas");
     if (output) output.gain.value = next.sound && next.celebrations ? 1 : 0;
     if (!next.celebrations) clear();
