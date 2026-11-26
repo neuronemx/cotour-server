@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import shop from "../live-shop-config.js";
 import mysql from "../db/mysql.js";
 import access from "../access-links.js";
+import billing from "../billing/repository.js";
 import { createBetterAuthRuntime } from "../auth/better-auth-runtime.mjs";
 
 const email = "liveshop@example.test";
@@ -65,11 +66,15 @@ async function main() {
     const user = await accountFor(database, runtime);
     const workspace = await runtime.workspaces.ensurePersonalWorkspace(user);
     await database.execute("UPDATE `user` SET emailVerified = true WHERE id = ?", [user.id]);
-    if (workspace.plan !== "SPEAKER_PRO") {
-      await runtime.workspaces.changePlan({
-        workspaceId: workspace.id, plan: "SPEAKER_PRO", changedByUserId: user.id, note: "LIVE SHOP demo"
+    const plans = new billing.BillingRepository(database);
+    const grants = await plans.getActiveGrants(workspace.id);
+    if (!grants.some(grant => grant.plan === "SPEAKER_PRO" && grant.origin === "pilot")) {
+      await plans.createPlanGrant({
+        workspaceId: workspace.id, plan: "SPEAKER_PRO", origin: "pilot",
+        actorUserId: user.id, note: "Acceso para la demo LIVE SHOP"
       });
     }
+    await plans.recalculateEntitlement(workspace.id);
     const dataDecksDir = path.join(dataDir, "decks");
     await seedDeck(path.join(dataDecksDir, deckId));
     if (!await runtime.workspaces.ownsDeck(user.id, deckId)) {

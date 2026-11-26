@@ -66,7 +66,7 @@ function harness() {
       join() {}, leave() {}
     };
     if (role === "audience") session.audience.set(audienceId, { name: "Ada", socketId: socket.id });
-    const context = { role, roomKey, deckId: roomKey, audienceId };
+    const context = { role, roomKey, deckId: roomKey, audienceId, audienceName: role === "audience" ? "Ada" : "" };
     await runtime.attach(socket, () => context).join(context, token);
     return {
       session,

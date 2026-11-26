@@ -226,7 +226,7 @@ const eventHubLoadTestFootprint = lifecyclePool ? new EventHubLoadTestFootprint(
 const eventHubAdminInteractions = eventHubRepository ? new EventHubAdminInteractions({ io, repository: eventHubRepository }) : null;
 const billingHandlers = billingRuntime.handlers;
 presentationMetricsRepository = lifecyclePool ? new PresentationMetricsRepository(lifecyclePool) : null;
-const audienceRegistrationEnabled = ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
+const audienceRegistrationEnabled = liveShopEnabled() || ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
   .includes(process.env.RAILWAY_ENVIRONMENT_ID);
 const audienceRegistrationRepository = lifecyclePool && audienceRegistrationEnabled ? new AudienceRegistrationRepository(lifecyclePool) : null;
 const audienceRegistrationHandlers = audienceRegistrationRepository ? registrationHandlers(audienceRegistrationRepository) : null;
@@ -389,8 +389,7 @@ const accessLinkHandlers = createAccessLinkHandlers({
     liveGuests?.pageAssets(context)
   ].filter(Boolean).join(""),
   audienceRegistration: audienceRegistrationRepository,
-  audienceWelcome: ["7c782d5a-b07f-4340-849a-063dd22d016f", "9ae7d5ba-2954-4c96-818a-ee918310e20d"]
-    .includes(process.env.RAILWAY_ENVIRONMENT_ID),
+  audienceWelcome: audienceRegistrationEnabled,
   privateRoleTokens: privateLiveCameraTokens
 });
 const cloudflareTurn = createCloudflareTurn();
@@ -2471,6 +2470,7 @@ io.on("connection", (socket) => {
     }
     if (role === "screen") session.screenConnected = true;
     if (role === "stage") session.stageConnected = true;
+    let joinedAudienceName = "";
     if (role === "audience") {
       const requestedAudienceId = String(audienceId || socket.id);
       let eventStageCapacity = null;
@@ -2490,10 +2490,11 @@ io.on("connection", (socket) => {
         });
         return socket.disconnect(true);
       }
+      joinedAudienceName = String(registration?.name || audienceName || "").slice(0, 120);
       currentAudienceId = registerAudience(session, {
         audienceId: requestedAudienceId,
         socketId: socket.id,
-        audienceName: String(registration?.name || audienceName || "").slice(0, 120),
+        audienceName: joinedAudienceName,
         label,
         locale: locale === "en" && canUseFeature(currentFeatureAccess, CAPABILITIES.MULTILANGUAGE_MANAGE) ? "en" : "es"
       });
@@ -2543,7 +2544,7 @@ io.on("connection", (socket) => {
       ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
       ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
       ["selfie", () => selfieRuntime.sendCurrentState(socket, joinedContext)],
-      ["Live Shop", () => liveShop?.join(joinedContext, liveShopToken)],
+      ["Live Shop", () => liveShop?.join({ ...joinedContext, audienceName: joinedAudienceName }, liveShopToken)],
       ["Q&A", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? qnaRuntime.sendCurrentState(socket, joinedContext) : null],
       ["knowledge activity", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? knowledgeActivityRuntime.sendCurrentState(socket, joinedContext) : null],
       ["presentation lifecycle", () => (canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? presentationLifecycleRuntime : nonRecordingLifecycleRuntime).sendCurrentState(socket, joinedContext)]

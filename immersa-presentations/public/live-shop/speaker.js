@@ -14,8 +14,10 @@ window.ImmersaLiveShopSpeaker = function (socket) {
     toggle.setAttribute("aria-label", "LIVE SHOP " + (state.active ? "activado" : "desactivado"));
     get("activate").textContent = state.active ? "Desactivar Shop" : "Activar Shop";
     get("state").textContent = state.active ? "Shop visible en Público" : "Shop oculto en Público";
-    get("celebrations").checked = state.celebrations;
-    get("sound").checked = state.sound;
+    if (!busy) {
+      get("celebrations").checked = state.celebrations;
+      get("sound").checked = state.sound;
+    }
     get("count").textContent = String(state.count);
     commands.forEach(button => { button.disabled = busy || !socket.connected; });
     milestones.forEach(button => { button.disabled ||= Number(button.dataset.shopMilestone) <= state.count; });

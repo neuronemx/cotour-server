@@ -107,7 +107,10 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
       if (attempt !== pending || !socket.connected || latest.roomKey !== context.roomKey || latest.role !== context.role) return;
       const session = getSession(context.roomKey);
       if (!session) return;
-      binding = { roomKey: context.roomKey, role: context.role, token };
+      binding = {
+        roomKey: context.roomKey, role: context.role, token,
+        audienceId: context.audienceId, audienceName: context.audienceName || ""
+      };
       await socket.join(shopRoom(context.roomKey, context.role));
       socket.emit("live-shop:state", snapshot(stateFor(session), context.role));
       if (context.role === "presenter") socket.emit("live-shop:authorized");
@@ -166,8 +169,9 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
     socket.on("live-shop:purchase", (payload, ack) => {
       if (typeof ack !== "function") return;
       const context = contextFor("audience");
-      const attendee = context?.session.audience.get(context.audienceId);
-      if (!context || attendee?.socketId !== socket.id || !payload) return ack({ ok: false, message: "Vuelve a conectarte para simular la compra." });
+      if (!context?.audienceId || context.audienceId !== binding.audienceId || !payload) {
+        return ack({ ok: false, message: "Vuelve a conectarte para simular la compra." });
+      }
       const { roomKey, state, audienceId } = context;
       const { requestId, instance, lines } = payload;
       if (typeof requestId !== "string" || !purchaseIdPattern.test(requestId) || instance !== state.instance) {
@@ -183,7 +187,7 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
         return ack({ ok: false, message: "El catálogo cambió. Revisa los productos de tu carrito." });
       }
       state.purchases.set(receiptKey, true);
-      celebrate(roomKey, state, attendee.name.trim());
+      celebrate(roomKey, state, binding.audienceName.trim());
       touch(roomKey);
       return ack({ ok: true });
     });
