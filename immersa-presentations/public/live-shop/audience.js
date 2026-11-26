@@ -243,6 +243,7 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     const entries = cartEntries();
     const quantity = [...cart.values()].reduce((sum, value) => sum + value, 0);
     const total = entries.reduce((sum, entry) => sum + entry.product.priceCents * entry.quantity, 0);
+    root.classList.toggle("has-cart-items", quantity > 0);
     root.querySelectorAll("[data-shop-quantity]").forEach(label => { label.textContent = String(quantity); });
     tab.querySelector("[data-shop-quantity]").hidden = quantity === 0;
     for (const [id, button] of productButtons) {
