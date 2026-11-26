@@ -313,7 +313,7 @@ function ensureAudiovisualLayer() {
     if (url) {
       media.src = url;
       media.load();
-      if (audiovisualState.audio.status === "playing") media.play().catch(() => {});
+      if (audiovisualState.audio.status === "playing") playAudiovisual(media);
     }
   });
   screenRoot.appendChild(audiovisualLayer);
@@ -362,10 +362,17 @@ function finishAudiovisualVideoSwap(outgoing, token) {
   outgoing.addEventListener("transitionend", onEnd);
   timer = window.setTimeout(finish, 550);
 }
+function playAudiovisual(media) {
+  media.play().catch((error) => {
+    if (error.name !== "NotAllowedError") return;
+    const control = document.getElementById("screenMediaUnlock");
+    if (control) control.hidden = false;
+  });
+}
 function revealVideoOnFirstFrame(media, reveal) {
   if (typeof media.requestVideoFrameCallback === "function") media.requestVideoFrameCallback(reveal);
   else media.addEventListener("playing", () => requestAnimationFrame(reveal), { once: true });
-  media.play().catch(() => {});
+  playAudiovisual(media);
 }
 function applyVideoState(state) {
   const resource = state?.resource;
@@ -467,7 +474,7 @@ function applyVideoState(state) {
       audiovisualFxMonitors.get(current)?.refresh();
     };
     if (current.classList.contains("is-visible")) {
-      current.play().catch(() => {});
+      playAudiovisual(current);
       onPlaying();
     } else {
       const token = ++videoTransitionToken;
@@ -521,7 +528,7 @@ function applyAudioState(state) {
   media.volume = Math.max(0, Math.min(1, Number(state.volume ?? 1)));
   const shouldSynchronizePosition = state.lastAction === "seek" || state.lastAction === "play" || state.lastAction === "pause";
   if (shouldSynchronizePosition && Number.isFinite(Number(state.position)) && Math.abs(media.currentTime - Number(state.position)) > 1.2) media.currentTime = Number(state.position);
-  if (state.status === "playing") media.play().catch(() => {}); else media.pause();
+  if (state.status === "playing") playAudiovisual(media); else media.pause();
 }
 function applyAudiovisualState(next = {}) {
   audiovisualState = normalizeAudiovisualChannels(next);
@@ -741,6 +748,11 @@ showScreenUi();
 
 socket.on("presentation_state", render);
 socket.on("audiovisual:state", applyAudiovisualState);
+document.addEventListener("immersa:media-unlocked", () => {
+  if (!audiovisualMedia) return;
+  if (audiovisualState.audio.status === "playing" && audiovisualMedia.audio.paused) applyAudioState(audiovisualState.audio);
+  if (audiovisualState.video.status === "playing" && audiovisualMedia.video[activeVideoSlot]?.paused) applyVideoState(audiovisualState.video);
+});
 socket.on("audio-react:state", (next) => { try { window.ImmersaAudioReact?.setState(next || {}); } catch (error) { console.warn("Audio React unavailable.", error); } });
 socket.on("time:state", applyImmersaTime);
 socket.on("overlay_update", applyOverlays);

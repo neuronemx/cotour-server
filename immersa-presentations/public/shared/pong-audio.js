@@ -96,10 +96,11 @@
       context = context || new AudioContext();
       context.resume?.();
     }
+    const wasUnlocked = unlocked;
     unlocked = true;
     root.__immersaMediaUnlocked = true;
     root.document.querySelector("[data-pong-audio-unlock]")?.remove();
-    if (previousState?.status === "ready") playCue("lobby");
+    if (!wasUnlocked && previousState?.status === "ready") playCue("lobby");
     if (first) root.document.dispatchEvent(new Event("immersa:media-unlocked"));
   }
 

@@ -1,7 +1,6 @@
 window.ImmersaLiveShopScreen = function (socket) {
   const root = document.getElementById("liveShopScreen");
-  const unlock = document.getElementById("liveShopUnlock");
-  if (!root || !unlock) return;
+  if (!root) return;
   const card = root.querySelector(".live-shop-celebration");
   const count = root.querySelector("[data-shop-count]");
   const label = root.querySelector("[data-shop-celebration-label]");
@@ -13,22 +12,17 @@ window.ImmersaLiveShopScreen = function (socket) {
   let timer = null;
   let state = null;
 
-  function syncUnlock() {
-    unlock.hidden = !state?.celebrations || !state.sound || !AudioContext || audio?.state === "running";
-  }
-
-  unlock.addEventListener("click", async () => {
+  document.addEventListener("immersa:media-unlocked", () => {
+    if (!AudioContext || audio?.state === "running") return;
     try {
       if (!audio) {
         audio = new AudioContext();
         output = audio.createGain();
         output.gain.value = state?.celebrations && state.sound ? 1 : 0;
         output.connect(audio.destination);
-        audio.addEventListener("statechange", syncUnlock);
       }
-      await audio.resume();
+      void audio.resume().catch(() => {});
     } catch (_error) {}
-    syncUnlock();
   });
 
   function chime(milestone) {
@@ -62,7 +56,6 @@ window.ImmersaLiveShopScreen = function (socket) {
     count.textContent = next.count + (next.count === 1 ? " compra simulada" : " compras simuladas");
     if (output) output.gain.value = next.sound && next.celebrations ? 1 : 0;
     if (!next.celebrations) clear();
-    syncUnlock();
   });
   socket.on("live-shop:celebration", item => {
     if (!state?.celebrations) return;
@@ -84,6 +77,5 @@ window.ImmersaLiveShopScreen = function (socket) {
     state = null;
     root.hidden = true;
     if (output) output.gain.value = 0;
-    syncUnlock();
   });
 };

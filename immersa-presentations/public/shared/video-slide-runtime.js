@@ -455,7 +455,9 @@
       const shouldRemove = ownsUnlockButton || Boolean(resolved);
       unlockButton = null;
       ownsUnlockButton = false;
-      if (shouldRemove) button?.remove();
+      if (button?.id === 'screenMediaUnlock') {
+        if (button.dataset.activated === '1') button.hidden = true;
+      } else if (shouldRemove) button?.remove();
     }
 
     function markMediaUnlocked() {
@@ -465,10 +467,14 @@
     }
 
     async function unlockActiveMedia() {
-      if (isYouTubeSlide(activeItem)) {
-        const player = await ensureYouTube(activeItem, activeIndex);
-        if (!player) return;
-        const media = effectiveMediaState(lastState, activeItem, activeIndex);
+      const item = activeItem;
+      const index = activeIndex;
+      if (!isVideoSlide(item) && !isYouTubeSlide(item)) return;
+      const media = effectiveMediaState(lastState, item, index);
+      if (!media.playing) return;
+      if (isYouTubeSlide(item)) {
+        const player = await ensureYouTube(item, index);
+        if (!player || item !== activeItem || index !== activeIndex) return;
         if (media.muted) player.mute();
         else {
           player.unMute();
@@ -481,12 +487,15 @@
       }
       if (!video) return;
       try {
-        video.muted = Boolean(effectiveMediaState(lastState, activeItem, activeIndex).muted);
+        video.muted = Boolean(media.muted);
         await video.play();
         markMediaUnlocked();
         removeUnlock(true);
       } catch (_error) {
-        if (unlockButton) unlockButton.textContent = 'Toca de nuevo para reproducir';
+        if (unlockButton) {
+          unlockButton.hidden = false;
+          if (unlockButton.id !== 'screenMediaUnlock') unlockButton.textContent = 'Toca de nuevo para reproducir';
+        }
       }
     }
 
@@ -498,15 +507,17 @@
 
     function ensureUnlock(force = false) {
       if (role !== 'screen') return null;
-      if (root.__immersaMediaUnlocked && !force) {
+      const mainControl = document.getElementById('screenMediaUnlock');
+      if (root.__immersaMediaUnlocked && !force && (!mainControl || mainControl.dataset.activated === '1')) {
         removeUnlock(true);
         return null;
       }
-      const sharedButton = document.querySelector('[data-immersa-media-unlock]:not([hidden])');
+      const sharedButton = mainControl || document.querySelector('[data-immersa-media-unlock]:not([hidden])');
       if (sharedButton) {
         if (unlockButton && unlockButton !== sharedButton && ownsUnlockButton) unlockButton.remove();
         unlockButton = sharedButton;
         ownsUnlockButton = false;
+        unlockButton.hidden = false;
         bindUnlock(unlockButton);
         return unlockButton;
       }
@@ -533,6 +544,10 @@
     function showYouTubeError() {
       ensureUnlock();
       if (!unlockButton) return;
+      if (unlockButton.id === 'screenMediaUnlock') {
+        unlockButton.title = 'YouTube no está disponible';
+        return;
+      }
       unlockButton.textContent = 'YouTube no está disponible';
       unlockButton.disabled = true;
     }

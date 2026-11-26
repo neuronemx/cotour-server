@@ -5,8 +5,7 @@
 .live-shop-speaker-toggle[hidden],
 .live-shop-speaker-panel[hidden],
 .live-shop-screen[hidden],
-.live-shop-screen [hidden],
-#liveShopUnlock[hidden] {
+.live-shop-screen [hidden] {
   display: none !important;
 }
 
@@ -49,8 +48,7 @@
 .live-shop-editor .live-shop-visibility input { width: auto; }
 .live-shop-editor-preview { width: 95px; height: 68px; }
 
-.live-shop-speaker-panel button,
-#liveShopUnlock {
+.live-shop-speaker-panel button {
   border: 1px solid rgba(170, 144, 241, .35);
   border-radius: 10px;
   background: #241c36;
@@ -354,7 +352,6 @@
   background: linear-gradient(126deg, #165b62, #282155 72%);
   box-shadow: 0 0 32px #4bf1d567, 0 12px 32px #000a;
 }
-#liveShopUnlock { position: absolute; z-index: 25; left: max(16px, 3vw); top: max(14px, 3vh); padding: 8px 12px; font: 650 13px Inter, sans-serif; }
 @keyframes live-shop-enter {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

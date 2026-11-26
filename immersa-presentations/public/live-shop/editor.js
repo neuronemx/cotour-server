@@ -6,6 +6,7 @@
   const notice = root.querySelector("[data-shop-status]");
   const newProduct = root.querySelector("[data-shop-new]");
   const preview = form.querySelector("img");
+  const imageInput = form.elements.image;
   const money = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", currencyDisplay: "code" });
   let allowed = false;
   let deckId = "";
@@ -13,6 +14,7 @@
   let selectedId = null;
   let deckVersion = 0;
   let busy = false;
+  let previewObjectUrl = null;
 
   function endpoint() {
     return "/api/decks/" + encodeURIComponent(deckId) + "/live-shop";
@@ -37,6 +39,24 @@
     return button;
   }
 
+  function updatePreview() {
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    const image = imageInput.files[0];
+    previewObjectUrl = image ? URL.createObjectURL(image) : null;
+    const savedImage = config?.products.find(product => product.id === selectedId)?.imageUrl;
+    const source = previewObjectUrl || savedImage;
+    preview.hidden = !source;
+    if (source) preview.src = source;
+    else preview.removeAttribute("src");
+  }
+
+  function closeForm() {
+    form.hidden = true;
+    form.reset();
+    selectedId = null;
+    updatePreview();
+  }
+
   function showForm(product = null) {
     selectedId = product?.id || null;
     form.reset();
@@ -45,10 +65,8 @@
     form.elements.description.value = product?.description || "";
     form.elements.price.value = product ? (product.priceCents / 100).toFixed(2) : "";
     form.elements.visible.checked = product?.visible ?? true;
-    form.elements.image.required = !product;
-    preview.hidden = !product;
-    if (product) preview.src = product.imageUrl;
-    else preview.removeAttribute("src");
+    imageInput.required = !product;
+    updatePreview();
     form.hidden = false;
     form.elements.name.focus();
   }
@@ -138,7 +156,7 @@
       const result = await request(endpoint() + suffix, options);
       if (version !== deckVersion) return;
       config = result;
-      form.hidden = true;
+      closeForm();
       notice.textContent = message;
     } catch (error) {
       if (version !== deckVersion) return;
@@ -160,20 +178,21 @@
     }
   }
 
+  imageInput.addEventListener("change", updatePreview);
   form.addEventListener("submit", event => {
     event.preventDefault();
     if (!config) return;
     const data = new FormData(form);
     data.set("visible", String(form.elements.visible.checked));
     data.set("revision", String(config.revision));
-    if (!form.elements.image.files.length) data.delete("image");
+    if (!imageInput.files.length) data.delete("image");
     void mutate(selectedId ? "/" + encodeURIComponent(selectedId) : "", {
       method: selectedId ? "PUT" : "POST", body: data
     }, "Producto guardado.");
   });
   newProduct.addEventListener("click", () => showForm());
   form.querySelector("[data-shop-cancel]").addEventListener("click", () => {
-    form.hidden = true;
+    closeForm();
     newProduct.focus();
   });
 
@@ -183,7 +202,7 @@
     tab.hidden = !allowed || !deckId;
     config = null;
     busy = false;
-    form.hidden = true;
+    closeForm();
     notice.textContent = "";
     render();
   }
