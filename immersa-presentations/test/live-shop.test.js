@@ -126,3 +126,26 @@ test("celebrations are spaced, honor sound and visibility, and show the three mi
   await speaker.control("reset");
   assert.equal(speaker.session.liveShop.count, 0);
 });
+
+test("Shop chooses a product color over the photo backdrop and never uses a white button", () => {
+  const { dominantColor, buttonColors } = require("../public/live-shop/storefront-color");
+  const createPhoto = (backdrop, product) => {
+    const pixels = new Uint8ClampedArray(20 * 20 * 4);
+    for (let y = 0; y < 20; y++) {
+      for (let x = 0; x < 20; x++) {
+        const color = x >= 5 && x < 15 && y >= 5 && y < 15 ? product : backdrop;
+        pixels.set(color, (y * 20 + x) * 4);
+      }
+    }
+    return pixels;
+  };
+  const blue = [27, 97, 179, 255];
+  assert.deepEqual(dominantColor(createPhoto([252, 251, 247, 255], blue), 20, 20), blue.slice(0, 3));
+  assert.deepEqual(dominantColor(createPhoto([238, 163, 68, 255], blue), 20, 20), blue.slice(0, 3));
+  assert.deepEqual(dominantColor(createPhoto([0, 0, 0, 0], blue), 20, 20), blue.slice(0, 3));
+  const white = [255, 255, 255, 255];
+  assert.equal(dominantColor(createPhoto(white, white), 20, 20), null);
+  assert.equal(buttonColors(null).background, "rgb(34, 37, 35)");
+  assert.equal(buttonColors([22, 45, 78]).foreground, "#fff");
+  assert.equal(buttonColors([255, 165, 75]).foreground, "#000");
+});

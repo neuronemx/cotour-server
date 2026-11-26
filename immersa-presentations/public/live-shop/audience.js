@@ -6,9 +6,11 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
   const drawer = document.getElementById("liveShopDrawer");
   const views = [...root.querySelectorAll("[data-shop-view]")];
   const scroller = root.querySelector(".live-shop-scroll");
-  const card = root.querySelector(".live-shop-card");
+  const track = get("track");
+  const template = get("product-template");
   const navigation = root.querySelector(".live-shop-card-nav");
-  const image = get("image");
+  const productButtons = new Map();
+  const sound = get("sound");
   const items = get("items");
   const notice = get("notice");
   const formatter = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", currencyDisplay: "code" });
@@ -18,11 +20,62 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
   let state = null;
   let products = [];
   let cart = new Map();
-  let productIndex = 0;
+  let catalogScroll = 0;
   let currentView = "catalog";
   let pending = false;
   let retry = null;
-  let gesture = null;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const soundPreference = "immersa:live-shop:muted";
+  const soundNotes = { open: [660], add: [784, 1047], success: [740, 932, 1175] };
+  let audio = null;
+  let output = null;
+  let muted = false;
+  try { muted = localStorage.getItem(soundPreference) === "true"; } catch (_error) {}
+  sound.hidden = !AudioContext;
+
+  function updateSound() {
+    sound.setAttribute("aria-pressed", String(muted));
+    sound.setAttribute("aria-label", muted ? "Activar sonidos de Shop" : "Silenciar sonidos de Shop");
+    sound.title = sound.getAttribute("aria-label");
+    if (output) output.gain.value = muted ? 0 : 1;
+  }
+
+  async function playSound(cue) {
+    if (!AudioContext || muted) return;
+    try {
+      if (!audio) {
+        audio = new AudioContext();
+        output = audio.createGain();
+        output.connect(audio.destination);
+      }
+      if (audio.state !== "running") await audio.resume();
+      if (muted || audio.state !== "running" || drawer.hidden) return;
+      soundNotes[cue].forEach((frequency, index) => {
+        const start = audio.currentTime + index * .06;
+        const oscillator = audio.createOscillator();
+        const envelope = audio.createGain();
+        oscillator.frequency.value = frequency;
+        oscillator.connect(envelope);
+        envelope.connect(output);
+        envelope.gain.setValueAtTime(.001, start);
+        envelope.gain.exponentialRampToValueAtTime(cue === "open" ? .035 : .065, start + .012);
+        envelope.gain.exponentialRampToValueAtTime(.001, start + .14);
+        oscillator.start(start);
+        oscillator.stop(start + .15);
+        oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
+      });
+    } catch (_error) {
+      // The storefront stays usable if the browser blocks audio.
+    }
+  }
+
+  sound.addEventListener("click", () => {
+    muted = !muted;
+    try { localStorage.setItem(soundPreference, String(muted)); } catch (_error) {}
+    updateSound();
+    if (!muted) void playSound("open");
+  });
+  updateSound();
 
   function restore(instance) {
     try {
@@ -48,7 +101,10 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     tab.setAttribute("aria-expanded", String(open));
     if (focus && open) get("close").focus();
     if (focus && !open) tab.focus();
-    if (open) render();
+    if (open) {
+      restoreCatalogScroll();
+      render();
+    }
   }
 
   function showView(view, focus = false) {
@@ -56,6 +112,7 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     notice.textContent = "";
     views.forEach(item => { item.hidden = item.dataset.shopView !== view; });
     scroller.scrollTop = 0;
+    restoreCatalogScroll();
     render();
     if (focus) drawer.querySelector('[data-shop-view="' + view + '"] h3[tabindex]')?.focus();
   }
@@ -94,6 +151,9 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     items.replaceChildren();
     for (const { product, quantity } of entries) {
       const row = document.createElement("li");
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = product.imageUrl;
       const copy = document.createElement("div");
       const title = document.createElement("strong");
       title.textContent = product.name;
@@ -113,7 +173,7 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
         lineButton("+", "Aumentar " + product.name, id, "plus", () => changeQuantity(id, quantity + 1), quantity >= maxQuantity),
         lineButton("Eliminar", "Eliminar " + product.name, id, "remove", () => changeQuantity(id, 0))
       );
-      row.append(copy, subtotal, actions);
+      row.append(image, copy, subtotal, actions);
       items.append(row);
     }
     if (focused) {
@@ -123,25 +183,70 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     }
   }
 
+  function cardOffsets() {
+    const origin = track.firstElementChild?.offsetLeft || 0;
+    return Array.from(track.children, card => card.offsetLeft - origin);
+  }
+
+  function syncNavigation() {
+    if (!track.clientWidth) return;
+    const max = track.scrollWidth - track.clientWidth;
+    const left = track.scrollLeft;
+    catalogScroll = left;
+    navigation.hidden = max <= 2;
+    get("prev").disabled = left <= 2;
+    get("next").disabled = left >= max - 2;
+    const offsets = cardOffsets();
+    const first = offsets.findLastIndex(offset => offset <= left + 2);
+    const last = offsets.findLastIndex(offset => offset <= left + track.clientWidth - (track.lastElementChild?.offsetWidth || 0));
+    const start = first + 1;
+    const finish = Math.max(start, last + 1);
+    get("position").textContent = (finish > start ? start + "–" + finish : start) + " de " + products.length;
+  }
+
+  function restoreCatalogScroll() {
+    if (currentView !== "catalog" || drawer.hidden) return;
+    track.scrollLeft = catalogScroll;
+    syncNavigation();
+  }
+
+  function renderCatalog() {
+    productButtons.clear();
+    const cards = products.map(product => {
+      const card = template.content.firstElementChild.cloneNode(true);
+      const image = card.querySelector("[data-shop-image]");
+      const button = card.querySelector("[data-shop-add]");
+      card.querySelector("[data-shop-name]").textContent = product.name;
+      card.querySelector("[data-shop-description]").textContent = product.description;
+      card.querySelector("[data-shop-price]").textContent = money(product.priceCents);
+      image.addEventListener("load", () => window.ImmersaShopImageColor?.(image, button), { once: true });
+      image.src = product.imageUrl;
+      button.setAttribute("aria-label", "Agregar " + product.name + " al carrito");
+      button.addEventListener("click", () => {
+        if (pending) return;
+        changeQuantity(product.id, (cart.get(product.id) || 0) + 1);
+        notice.textContent = "Agregaste " + product.name + " al carrito.";
+        void playSound("add");
+      });
+      productButtons.set(product.id, button);
+      return card;
+    });
+    track.replaceChildren(...cards);
+    track.hidden = !cards.length;
+    track.classList.toggle("has-one", cards.length === 1);
+    get("empty").hidden = Boolean(cards.length);
+    navigation.hidden = cards.length < 2;
+    restoreCatalogScroll();
+  }
+
   function render() {
-    const product = products[productIndex];
     const entries = cartEntries();
     const quantity = [...cart.values()].reduce((sum, value) => sum + value, 0);
     const total = entries.reduce((sum, entry) => sum + entry.product.priceCents * entry.quantity, 0);
     root.querySelectorAll("[data-shop-quantity]").forEach(label => { label.textContent = String(quantity); });
     tab.querySelector("[data-shop-quantity]").hidden = quantity === 0;
-    card.hidden = !product;
-    get("empty").hidden = Boolean(product);
-    navigation.hidden = products.length < 2;
-    if (product) {
-      if (image.getAttribute("src") !== product.imageUrl) image.src = product.imageUrl;
-      get("name").textContent = product.name;
-      get("description").textContent = product.description;
-      get("price").textContent = money(product.priceCents);
-      get("add").disabled = pending || (cart.get(product.id) || 0) >= maxQuantity;
-      get("position").textContent = (productIndex + 1) + " de " + products.length;
-      get("prev").disabled = productIndex === 0;
-      get("next").disabled = productIndex === products.length - 1;
+    for (const [id, button] of productButtons) {
+      button.disabled = pending || (cart.get(id) || 0) >= maxQuantity;
     }
     if (currentView === "cart") renderCart(entries);
     get("cart-summary").hidden = !entries.length;
@@ -153,18 +258,19 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     get("back").disabled = pending;
   }
 
-  function move(offset) {
-    const next = productIndex + offset;
-    if (next < 0 || next >= products.length) return;
-    productIndex = next;
-    notice.textContent = "";
-    render();
+  function move(direction) {
+    const offsets = cardOffsets();
+    const left = track.scrollLeft;
+    const target = direction > 0 ? offsets.find(offset => offset > left + 2) : offsets.findLast(offset => offset < left - 2);
+    if (target === undefined) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    track.scrollTo({ left: target, behavior: reduceMotion ? "instant" : "smooth" });
   }
 
   function update(next) {
     if (!state || state.instance !== next.instance) {
       cart = restore(next.instance);
-      productIndex = 0;
+      catalogScroll = 0;
       pending = false;
       retry = null;
       currentView = "catalog";
@@ -176,9 +282,10 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
       setOpen(false);
       return;
     }
-    const selected = products[productIndex]?.id;
-    products = next.products;
-    productIndex = Math.max(0, products.findIndex(product => product.id === selected));
+    if (JSON.stringify(products) !== JSON.stringify(next.products) || !track.children.length) {
+      products = next.products;
+      renderCatalog();
+    }
     const visible = new Set(products.map(product => product.id));
     const unavailable = [...cart.keys()].filter(id => !visible.has(id));
     if (unavailable.length) {
@@ -214,6 +321,7 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
       retry = null;
       persist();
       showView("success", !drawer.hidden);
+      void playSound("success");
     } catch (_error) {
       if (instance === state.instance) notice.textContent = "No recibimos la confirmación. Vuelve a intentar la simulación.";
     } finally {
@@ -224,17 +332,14 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
     }
   }
 
-  tab.addEventListener("click", () => setOpen(true, true));
+  tab.addEventListener("click", () => {
+    setOpen(true, true);
+    void playSound("open");
+  });
   get("close").addEventListener("click", () => setOpen(false, true));
   get("cart").addEventListener("click", () => showView("cart", true));
   get("prev").addEventListener("click", () => move(-1));
   get("next").addEventListener("click", () => move(1));
-  get("add").addEventListener("click", () => {
-    const product = products[productIndex];
-    if (!product) return;
-    changeQuantity(product.id, (cart.get(product.id) || 0) + 1);
-    notice.textContent = "Agregaste " + product.name + " al carrito.";
-  });
   get("checkout").addEventListener("click", () => showView("confirm", true));
   get("simulate").addEventListener("click", simulate);
   get("back").addEventListener("click", () => showView("cart", true));
@@ -245,17 +350,8 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
       setOpen(false, true);
     }
   });
-  card.addEventListener("touchstart", event => {
-    gesture = event.touches.length === 1 ? event.touches[0] : null;
-  }, { passive: true });
-  card.addEventListener("touchend", event => {
-    if (!gesture) return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - gesture.clientX;
-    const dy = touch.clientY - gesture.clientY;
-    gesture = null;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) move(dx < 0 ? 1 : -1);
-  }, { passive: true });
+  track.addEventListener("scroll", syncNavigation, { passive: true });
+  window.addEventListener("resize", syncNavigation);
   socket.on("live-shop:state", update);
   socket.on("disconnect", render);
 };
