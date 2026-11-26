@@ -55,7 +55,7 @@ export function createBetterAuthOptions(options = {}) {
     },
     emailAndPassword: {
       enabled: true,
-      ...(liveShopConfig.liveShopEnabled(env) ? { disableSignUp: true } : {}),
+      ...(liveShopConfig.liveShopDemoEnabled(env) ? { disableSignUp: true } : {}),
       requireEmailVerification: true,
       ...(emailSender ? {
         sendResetPassword: async ({ user, url }) => emailSender({
@@ -131,8 +131,8 @@ export function createBetterAuthRuntime(options = {}) {
     accountNotifier,
     downgradeNotifier,
     capabilities: {
-      email: Boolean(options.emailSender) || liveShopConfig.liveShopEnabled(options.env),
-      ...(liveShopConfig.liveShopEnabled(options.env) ? { passwordOnly: true } : {}),
+      email: Boolean(options.emailSender) || liveShopConfig.liveShopDemoEnabled(options.env),
+      ...(liveShopConfig.liveShopDemoEnabled(options.env) ? { passwordOnly: true } : {}),
       google: Boolean(String((options.env || process.env).GOOGLE_CLIENT_ID || "").trim())
     },
     handler: toNodeHandler(auth),

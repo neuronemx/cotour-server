@@ -6,13 +6,39 @@ const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { createCatalogStore, productsForClient } = require("../live-shop-catalog");
 const { createLiveShopRuntime } = require("../live-shop-runtime");
-const { liveShopTester } = require("../live-shop-config");
+const { liveShopDemoEnabled, liveShopEnabled, liveShopTester } = require("../live-shop-config");
 
 test("only allowlisted test accounts can manage Shop in the isolated environment", () => {
   const env = { RAILWAY_ENVIRONMENT_ID: "demo", IMMERSA_LIVE_SHOP_ENVIRONMENT_ID: "demo", IMMERSA_LIVE_SHOP_TEST_EMAILS: "test@example.test" };
   assert.equal(liveShopTester({ id: "user", email: "Test@example.test" }, env), true);
   assert.equal(liveShopTester({ id: "other", email: "other@example.test" }, env), false);
   assert.equal(liveShopTester({ id: "user", email: "test@example.test" }, { ...env, RAILWAY_ENVIRONMENT_ID: "beta" }), false);
+});
+
+test("Beta enables Shop only for allowlisted accounts and keeps regular account registration", async () => {
+  const { createBetterAuthOptions } = await import("../auth/better-auth-runtime.mjs");
+  const env = {
+    RAILWAY_ENVIRONMENT_ID: "9ae7d5ba-2954-4c96-818a-ee918310e20d",
+    IMMERSA_LIVE_SHOP_BETA_ENABLED: "true",
+    IMMERSA_LIVE_SHOP_TEST_EMAILS: "test@example.test",
+    BETTER_AUTH_URL: "https://beta.immersalive.com",
+    BETTER_AUTH_SECRET: "test-secret-long-enough-for-better-auth",
+    GOOGLE_CLIENT_ID: "client-id",
+    GOOGLE_CLIENT_SECRET: "client-secret"
+  };
+  assert.equal(liveShopEnabled(env), true);
+  assert.equal(liveShopEnabled({ ...env, IMMERSA_LIVE_SHOP_BETA_ENABLED: "" }), false);
+  for (const otherEnvironment of ["04b64c27-8737-4aae-82d2-1ad5be5d7641", "11fb839f-df6f-4ca8-93e6-3a1405649531"]) {
+    assert.equal(liveShopEnabled({ ...env, RAILWAY_ENVIRONMENT_ID: otherEnvironment }), false);
+  }
+  assert.equal(liveShopDemoEnabled({ ...env, IMMERSA_LIVE_SHOP_ENVIRONMENT_ID: env.RAILWAY_ENVIRONMENT_ID }), false);
+  assert.equal(liveShopTester({ id: "tester", email: "test@example.test" }, env), true);
+  assert.equal(liveShopTester({ id: "other", email: "other@example.test" }, env), false);
+
+  const options = createBetterAuthOptions({ env, database: {}, emailSender: async () => {} });
+  assert.equal(options.emailAndPassword.disableSignUp, undefined);
+  assert.equal(options.emailAndPassword.requireEmailVerification, true);
+  assert.equal(options.socialProviders.google.clientId, env.GOOGLE_CLIENT_ID);
 });
 
 test("the editable catalog persists changes per Deck, protects hidden images and rejects stale saves", async t => {

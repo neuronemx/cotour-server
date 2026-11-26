@@ -103,7 +103,7 @@ async function accountFor(database, runtime) {
 }
 
 async function main() {
-  if (!shop.liveShopEnabled()) throw new Error("The Live Shop bootstrap requires the isolated demo environment");
+  if (!shop.liveShopDemoEnabled()) throw new Error("The Live Shop bootstrap requires the isolated demo environment");
   if (!password || !dataDir || !shop.liveShopTester({ id: "seed", email })) {
     throw new Error("Configure the Live Shop demo account, password and data directory");
   }

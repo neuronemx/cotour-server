@@ -3,6 +3,7 @@
 .live-shop-audience[hidden],
 .live-shop-audience [hidden],
 .live-shop-speaker-toggle[hidden],
+.live-camera-monitor-open .live-shop-speaker-toggle,
 .live-shop-speaker-panel[hidden],
 .live-shop-screen[hidden],
 .live-shop-screen [hidden] {
@@ -428,6 +429,20 @@
   .live-shop-products li .live-shop-editor-actions { grid-column: 1 / -1; }
   .live-shop-speaker-label { font-size: 9px; }
   .live-shop-speaker-toggle { min-height: 32px; padding-inline: 6px; gap: 4px; }
+}
+@media (max-width: 380px) {
+  .presenter-shell:not(.live-camera-monitor-open) .live-camera-speaker-header:has(.live-shop-speaker-toggle:not([hidden])) {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .presenter-shell:not(.live-camera-monitor-open) .live-camera-speaker-header .top-actions:has(.live-shop-speaker-toggle:not([hidden])) {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .presenter-shell:has(.live-camera-speaker-header .live-shop-speaker-toggle:not([hidden])) .live-shop-speaker-panel {
+    top: 100px;
+    max-height: calc(100dvh - 116px);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .live-shop-celebration { animation: none; }
