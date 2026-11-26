@@ -4,6 +4,7 @@ const eventLiveReturnKey = "immersa:event-live-return";
 const sessionId = params.get("session") || publicOpenContext.session || "demo01";
 const deckId = params.get("deck") || publicOpenContext.deck || "demo";
 const socket = io();
+window.ImmersaLiveShopAudience?.({ socket, deckId, sessionId });
 window.ImmersaPresentationCompletion?.create({ socket, role: "audience", context: publicOpenContext });
 let knowledgeActivityAudience = null;
 let manifest = null;
@@ -463,7 +464,7 @@ function submitQna(event) {
 }
 function joinAudience() {
   if (!manifest || !audienceReady || !socket.connected) return;
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, audienceName: window.ImmersaAudienceWelcome?.name || "", registrationToken: window.ImmersaAudienceWelcome?.token || "", locale: currentLocale });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, liveShopToken: publicOpenContext.welcome?.path?.slice(1) || location.pathname.split("/").pop(), audienceName: window.ImmersaAudienceWelcome?.name || "", registrationToken: window.ImmersaAudienceWelcome?.token || "", locale: currentLocale });
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionCard() { if (interactionCard) return interactionCard; interactionCard = document.createElement("section"); interactionCard.className = "interaction-card interaction-hidden"; interactionCard.setAttribute("aria-label", "Interacción activa"); viewer.appendChild(interactionCard); return interactionCard; }

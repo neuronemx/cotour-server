@@ -54,6 +54,7 @@
   <link rel="stylesheet" href="/shared/tutorials/tutorial-engine.css?v=9">
   <link rel="stylesheet" href="/home/deck-speakers-editor.css?v=3">
   <link rel="stylesheet" href="/shared/selfie.css?v=4">
+  <link rel="stylesheet" href="/live-shop/live-shop.css?v=1">
 </head>
 <body data-tutorial-context="home">
   <header class="stage-header">
@@ -174,6 +175,7 @@
           <nav class="deck-detail-subtabs" role="tablist" aria-label="Experiencia">
             <button id="deckTabParticipation" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelParticipation" data-deck-tab="participation" disabled aria-disabled="true" title="Disponible en otros planes"><span class="deck-detail-tab-rocket" aria-hidden="true"></span><span>Participación</span></button>
             <button id="deckTabSelfie" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSelfie" data-deck-tab="selfie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V4h12v13h-3M4 7h13v13H4zM8 15l2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Tarjetas</span></button>
+            <button id="deckTabLiveShop" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelLiveShop" data-deck-tab="live-shop" hidden><span>LIVE SHOP</span></button>
             <button id="deckTabSpeakers" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelSpeakers" data-deck-tab="speakers" hidden disabled aria-disabled="true"><span aria-hidden="true">♙</span><span>Ponentes</span></button>
             <button id="deckTabBrands" class="deck-detail-tab" type="button" role="tab" aria-selected="false" aria-controls="deckPanelBrands" data-deck-tab="brands" disabled aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Marcas</span></button>
           </nav>
@@ -202,6 +204,25 @@
                 <p role="status" aria-live="polite"></p>
               </div>
             </details>
+          </section>
+          <section id="deckPanelLiveShop" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabLiveShop" data-deck-panel="live-shop" hidden>
+            <div id="liveShopEditor" class="live-shop-editor deck-speakers-editor">
+              <header><h3>Catálogo LIVE SHOP</h3><button type="button" data-shop-new>Agregar producto</button></header>
+              <p role="status" data-shop-status></p>
+              <ul class="live-shop-products" data-shop-products aria-label="Productos"></ul>
+              <form hidden>
+                <h3 data-shop-form-title>Nuevo producto</h3>
+                <label>Nombre<input name="name" maxlength="80" required></label>
+                <label>Descripción breve<textarea name="description" maxlength="240" rows="3" required></textarea></label>
+                <div class="live-shop-editor-fields">
+                  <label>Precio (MXN)<input name="price" type="number" min="0.01" max="999999.99" step="0.01" required></label>
+                  <label class="live-shop-visibility"><input name="visible" type="checkbox" checked> Visible en Shop</label>
+                </div>
+                <label>Imagen<input name="image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+                <img class="live-shop-editor-preview" alt="Imagen actual" hidden>
+                <div class="live-shop-editor-actions"><button type="submit">Guardar producto</button><button type="button" data-shop-cancel>Cancelar</button></div>
+              </form>
+            </div>
           </section>
           <section id="deckPanelSpeakers" class="deck-detail-panel" role="tabpanel" aria-labelledby="deckTabSpeakers" data-deck-panel="speakers" hidden>
             <div id="deckSpeakersEditor" class="deck-speakers-editor">
@@ -394,6 +415,7 @@
   <link rel="stylesheet" href="/home/locales-editor.css?v=3">
   <script src="/home/locales-editor.js?v=5"></script>
   <script src="/home/deck-speakers-editor.js?v=3"></script>
+  <script src="/live-shop/editor.js?v=1"></script>
   <script src="/shared/tutorials/tutorial-engine.js?v=6"></script>
   <script src="/shared/tutorials/tutorial-definitions.js?v=8"></script>
   <script src="/home/selfie-editor.js?v=4"></script>

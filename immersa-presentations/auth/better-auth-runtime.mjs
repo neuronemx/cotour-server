@@ -3,6 +3,7 @@ import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import workspaceModule from "./workspace-repository.js";
 import profileModule from "./profile-repository.js";
 import accountActivationModule from "./account-activation-notifier.js";
+import liveShopConfig from "../live-shop-config.js";
 import downgradeNotifierModule from "./downgrade-notifier.js";
 
 const { WorkspaceRepository } = workspaceModule;
@@ -54,6 +55,7 @@ export function createBetterAuthOptions(options = {}) {
     },
     emailAndPassword: {
       enabled: true,
+      ...(liveShopConfig.liveShopEnabled(env) ? { disableSignUp: true } : {}),
       requireEmailVerification: true,
       ...(emailSender ? {
         sendResetPassword: async ({ user, url }) => emailSender({
@@ -129,7 +131,8 @@ export function createBetterAuthRuntime(options = {}) {
     accountNotifier,
     downgradeNotifier,
     capabilities: {
-      email: Boolean(options.emailSender),
+      email: Boolean(options.emailSender) || liveShopConfig.liveShopEnabled(options.env),
+      ...(liveShopConfig.liveShopEnabled(options.env) ? { passwordOnly: true } : {}),
       google: Boolean(String((options.env || process.env).GOOGLE_CLIENT_ID || "").trim())
     },
     handler: toNodeHandler(auth),

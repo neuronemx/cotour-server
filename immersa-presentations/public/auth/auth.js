@@ -213,6 +213,12 @@ async function boot() {
     const capabilities = await fetch("/api/account/capabilities").then((response) => response.json());
     googleButton.hidden = !capabilities.google;
     emailArea.hidden = !capabilities.email;
+    if (capabilities.passwordOnly) {
+      setCreateMode(false);
+      switchMode.closest(".switch-copy").hidden = true;
+      document.getElementById("forgotButton").hidden = true;
+      authSubtitle.textContent = "Acceso para cuentas autorizadas de la demo LIVE SHOP.";
+    }
     if (!capabilities.google && !capabilities.email) authStatus.textContent = "El acceso de IMMERSA aún no está configurado en este entorno.";
   } catch (_error) {
     authStatus.textContent = "No pudimos conectar con el acceso de IMMERSA.";

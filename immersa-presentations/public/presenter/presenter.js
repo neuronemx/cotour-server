@@ -10,6 +10,7 @@ const interactionsFeatureEnabled = roleOpenContext.features?.interactions !== fa
 const planCapabilities = roleOpenContext.capabilities || roleOpenContext.features || {};
 const planAllows = (capability) => planCapabilities[capability] === true;
 const socket = io();
+window.ImmersaLiveShopSpeaker?.(socket);
 window.ImmersaPresentationCompletion?.create({ socket, role: "presenter", context: roleOpenContext });
 const overlaySocket = io();
 const raffleController = window.ImmersaRaffleControls?.createController ? window.ImmersaRaffleControls.createController(socket, { installLegacyIntegration: false, onStateChange: (_state, eventName) => { if (eventName === "raffle:closed") returnInteractionsHome(); else syncInteractionShellState(); } }) : null;
@@ -1090,5 +1091,5 @@ loadDeck().then(() => {
   initDrawingOverlay();
   bindPrompterGesture();
   updateDrawingMode();
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale, liveShopToken: roleOpenContext.access_token });
 });

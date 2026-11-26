@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="/shared/knowledge-activities.css?v=19">
   <link rel="stylesheet" href="/shared/slide-transitions.css?v=2">
   <link rel="stylesheet" href="/shared/slide-loading.css?v=1">
+  <link rel="stylesheet" href="/live-shop/live-shop.css?v=1">
 </head>
 <body data-tutorial-context="speaker">
   <main class="presenter-shell">
@@ -40,6 +41,9 @@
         </div>
       </div>
       <div class="top-actions" aria-label="Estado y vista">
+        <button id="liveShopSpeakerToggle" class="live-shop-speaker-toggle" type="button" aria-expanded="false" aria-controls="liveShopSpeakerPanel" hidden>
+          <span class="live-shop-speaker-dot" aria-hidden="true"></span><span class="live-shop-speaker-label">LIVE SHOP</span>
+        </button>
         <div class="audience-stat" aria-label="Audiencia conectada"><span class="live-dot" aria-hidden="true"></span><span id="audience">0</span><img class="audience-people-icon" src="/presenter/people.svg" alt=""></div>
         <button id="fullscreenToggle" class="floating-action fullscreen-button" type="button" aria-pressed="false" title="Pantalla completa" aria-label="Pantalla completa">
           <svg class="fullscreen-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4"></path><path d="M4 4l5 5"></path><path d="M16 4h4v4"></path><path d="M20 4l-5 5"></path><path d="M8 20H4v-4"></path><path d="M4 20l5-5"></path><path d="M16 20h4v-4"></path><path d="M20 20l-5-5"></path></svg>
@@ -126,6 +130,22 @@
       </form>
     </section>
   </div>
+    <section id="liveShopSpeakerPanel" class="live-shop-speaker-panel" aria-labelledby="liveShopSpeakerTitle" hidden>
+      <header><h2 id="liveShopSpeakerTitle">LIVE SHOP</h2><button type="button" aria-label="Cerrar LIVE SHOP" data-shop-close>×</button></header>
+      <button type="button" data-shop-activate></button>
+      <p data-shop-state></p>
+      <label><input type="checkbox" data-shop-celebrations> Mostrar celebraciones</label>
+      <label><input type="checkbox" data-shop-sound> Sonido en Pantalla</label>
+      <p><strong data-shop-count>0</strong> compras simuladas</p>
+      <button type="button" data-shop-test>Generar compra de prueba</button>
+      <div class="live-shop-speaker-milestones" aria-label="Hitos de prueba">
+        <button type="button" data-shop-milestone="10" aria-label="Alcanzar 10 compras">10</button>
+        <button type="button" data-shop-milestone="50" aria-label="Alcanzar 50 compras">50</button>
+        <button type="button" data-shop-milestone="100" aria-label="Alcanzar 100 compras">100</button>
+      </div>
+      <button type="button" data-shop-reset>Reiniciar contador</button>
+      <p role="status" data-shop-notice></p>
+    </section>
   </main>
 
 
@@ -143,6 +163,7 @@
   <script src="/shared/demo-plan-badge.js?v=2"></script>
   <script src="/shared/immersa-time.js?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="/presenter/presenter.js?v=2026110702"></script>
+  <script src="/live-shop/speaker.js?v=1"></script>
+  <script src="/presenter/presenter.js?v=2026112501"></script>
 </body>
 </html>

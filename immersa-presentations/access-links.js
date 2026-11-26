@@ -412,6 +412,13 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return { accessLink };
   }
 
+  async function resolvePublicAudienceLink(publicId) {
+    const { accessLink } = await findActivePublicAudienceLink(publicId);
+    if (!accessLink) return null;
+    const deck = await findDeckForAccessLink(accessLink, deckDirs);
+    return deck ? { accessLink, deck } : null;
+  }
+
   async function createAccessLink(req, res) {
     const sessionId = String(req.body?.session_id || '').trim();
     const role = String(req.body?.role || '').trim();
@@ -716,7 +723,7 @@ function createAccessLinkHandlers({ dataDir, staticDecksDir, dataDecksDir, publi
     return link ? '/' + link.public_id : null;
   }
 
-  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, registerPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink };
+  return { createAccessLink, createAccessLinkForDeck, resolveAccessLink, openPresentation, openRole, openPublicAudience, registerPublicAudience, guardLegacyRoute, guardAccessRoles, guardDeckRoles, publicAudiencePathForDeck, resolveRoleLink, resolvePublicAudienceLink };
 }
 
 module.exports = {

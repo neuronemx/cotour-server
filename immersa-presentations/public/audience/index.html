@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="/shared/knowledge-activities.css?v=20">
   <link rel="stylesheet" href="/shared/slide-loading.css?v=1">
   <link rel="stylesheet" href="/shared/selfie.css?v=5">
+  <link rel="stylesheet" href="/live-shop/live-shop.css?v=1">
 </head>
 <body>
   <main id="viewer" class="audience">
@@ -79,6 +80,59 @@
       </section>
       <button id="speakerProfileTab" class="speaker-profile-tab" type="button" aria-label="Mostrar perfil de Speaker" aria-expanded="false" aria-controls="speakerProfilePanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg><span>Speaker</span><i aria-hidden="true"></i></button>
     </aside>
+    <aside id="liveShopAudience" class="live-shop-audience" aria-label="LIVE SHOP" hidden>
+      <button class="live-shop-tab" type="button" aria-expanded="false" aria-controls="liveShopDrawer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 12H4L5 8Zm4 1V6a3 3 0 0 1 6 0v3"/></svg>
+        <span>Shop</span><span class="live-shop-tab-quantity" data-shop-quantity hidden></span>
+      </button>
+      <section id="liveShopDrawer" class="live-shop-drawer speaker-profile-panel" aria-labelledby="liveShopTitle" inert hidden>
+        <header class="live-shop-drawer-header">
+          <h2 id="liveShopTitle">Shop</h2>
+          <button type="button" data-shop-cart>Carrito <span data-shop-quantity>0</span></button>
+          <button type="button" class="live-shop-icon" data-shop-close aria-label="Cerrar Shop">×</button>
+        </header>
+        <div class="live-shop-scroll">
+          <section data-shop-view="catalog" aria-label="Catálogo">
+            <p data-shop-empty hidden>Próximamente habrá productos en Shop.</p>
+            <article class="live-shop-card" aria-label="Producto">
+              <img data-shop-image alt="">
+              <div class="live-shop-card-copy">
+                <h3 data-shop-name></h3>
+                <p data-shop-description></p>
+                <strong data-shop-price></strong>
+                <button type="button" data-shop-add class="live-shop-primary">Agregar al carrito</button>
+              </div>
+            </article>
+            <nav class="live-shop-card-nav" aria-label="Navegar catálogo">
+              <button type="button" class="live-shop-icon" data-shop-prev aria-label="Producto anterior">‹</button>
+              <span data-shop-position aria-live="polite"></span>
+              <button type="button" class="live-shop-icon" data-shop-next aria-label="Producto siguiente">›</button>
+            </nav>
+          </section>
+          <section data-shop-view="cart" hidden>
+            <h3 tabindex="-1">Tu carrito</h3>
+            <p data-shop-cart-empty>Tu carrito está vacío.</p>
+            <ul class="live-shop-cart-items" data-shop-items></ul>
+            <div class="live-shop-total" data-shop-cart-summary hidden><span>Total</span><strong data-shop-total></strong></div>
+            <button type="button" data-shop-checkout class="live-shop-primary">Finalizar compra</button>
+            <button type="button" data-shop-catalog>Seguir explorando</button>
+          </section>
+          <section data-shop-view="confirm" hidden>
+            <h3 tabindex="-1">Finalizar compra</h3>
+            <p>Esta es una demostración. No se realizará ningún cobro.</p>
+            <div class="live-shop-total"><span>Total</span><strong data-shop-confirm-total></strong></div>
+            <button type="button" data-shop-simulate class="live-shop-primary">Simular compra</button>
+            <button type="button" data-shop-back>Volver al carrito</button>
+          </section>
+          <section data-shop-view="success" hidden>
+            <h3 tabindex="-1">Compra simulada confirmada</h3>
+            <p>Gracias por participar.</p>
+            <button type="button" data-shop-catalog class="live-shop-primary">Volver al catálogo</button>
+          </section>
+          <p class="live-shop-notice" role="status" data-shop-notice></p>
+        </div>
+      </section>
+    </aside>
     <section id="qnaComposer" class="qna-composer hidden" role="dialog" aria-modal="true" aria-labelledby="qnaTitle">
       <form id="qnaForm" class="qna-card">
         <button id="qnaClose" class="qna-close" type="button" aria-label="Cerrar preguntas">×</button>
@@ -120,5 +174,5 @@
     </form>
   </dialog>
   <section id="knowledgeActivityAudience" class="knowledge-audience-overlay" aria-live="polite" hidden></section>
-  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=2"></script><script src="/shared/raffle-public-ui.js?v=8"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/i18n.js?v=2026110702"></script><script src="/shared/knowledge-activities.js?v=28"></script><script src="/shared/poll-locale.js?v=1"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/shared/selfie-audience.js?v=5"></script><script src="/audience/welcome.js?v=5"></script><script src="/audience/audience.js?v=2026111201"></script><script src="/shared/profile-bio.js?v=1"></script><script src="/shared/speaker-profile-cards.js?v=2"></script><script src="/audience/speaker-profile.js?v=4"></script><script src="/audience/brand-mention.js?v=7"></script><script src="/shared/video-deck-config-bridge.js?v=118"></script>
+  <script src="/socket.io/socket.io.js"></script><script src="/shared/presentation-completion.js?v=2"></script><script src="/shared/raffle-public-ui.js?v=8"></script><script src="/shared/raffle-ux-adjustments.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/shared/drawing-overlay.js"></script><script src="/shared/slide-loading.js?v=1"></script><script src="/shared/slide-transitions.js?v=4"></script><script src="/shared/i18n.js?v=2026110702"></script><script src="/shared/knowledge-activities.js?v=28"></script><script src="/shared/poll-locale.js?v=1"></script><script src="/shared/demo-plan-badge.js?v=2"></script><script src="/shared/selfie-audience.js?v=5"></script><script src="/audience/welcome.js?v=5"></script><script src="/live-shop/audience.js?v=1"></script><script src="/audience/audience.js?v=2026112501"></script><script src="/shared/profile-bio.js?v=1"></script><script src="/shared/speaker-profile-cards.js?v=2"></script><script src="/audience/speaker-profile.js?v=4"></script><script src="/audience/brand-mention.js?v=7"></script><script src="/shared/video-deck-config-bridge.js?v=118"></script>
 </body></html>

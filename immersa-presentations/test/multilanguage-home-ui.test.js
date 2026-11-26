@@ -54,6 +54,6 @@ test('Deck Home chooses the Speaker language before opening and Speaker has no l
   assert.doesNotMatch(presenterHtml, /speakerLocale|speaker-locale/);
   assert.doesNotMatch(presenter, /getElementById\(['"]speakerLocale['"]\)/);
   assert.match(presenter, /params\.get\("locale"\) === "en"/);
-  assert.match(presenter, /join_presentation", \{ session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale \}/);
+  assert.match(presenter, /join_presentation", \{ session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale(?:,| \})/);
   assert.match(server, /role === "presenter" && \["es", "en"\]\.includes\(locale\)/);
 });

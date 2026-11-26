@@ -3,6 +3,7 @@ const roleOpenContext = window.IMMERSA_ROLE_OPEN || {};
 const sessionId = params.get("session") || roleOpenContext.session || roleOpenContext.session_id || "demo01";
 const deckId = params.get("deck") || roleOpenContext.deck || roleOpenContext.deckId || "demo";
 const socket = io();
+window.ImmersaLiveShopScreen?.(socket);
 window.ImmersaPresentationCompletion?.create({ socket, role: "screen", context: roleOpenContext });
 let knowledgeActivityScreen = null;
 try {
@@ -752,11 +753,11 @@ socket.on("interaction:closed", hideInteractionResults);
 socket.on("qna:screen", renderQnaScreen);
 makeQrPattern(activeAudienceUrl);
 socket.on("connect", () => {
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen", liveShopToken: roleOpenContext.access_token });
   if (localLibrary.resources.length) socket.emit("local-library:publish", { resources: localLibrary.resources });
 });
 if (socket.connected) {
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen" });
+  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "screen", liveShopToken: roleOpenContext.access_token });
 }
 loadDeckWithRetry();
 initDrawingOverlay();

@@ -4,6 +4,9 @@ const { AudienceRegistrationRepository, registrationHandlers } = require("./audi
 const { AudienceEngagementRepository, createEngagementHandler } = require("./audience-engagement");
 const {DeckSpeakersStore, DeckSpeakerError}=require('./deck-speakers');
 const {createDeckSpeakersHttp}=require('./deck-speakers-http');
+const { liveShopEnabled, liveShopTester } = require("./live-shop-config");
+const { createCatalogStore, createCatalogRouter } = require("./live-shop-catalog");
+const { createLiveShopRuntime } = require("./live-shop-runtime");
 const { createSelfieRuntime } = require('./selfie-runtime');
 const { createSelfieCollectionStore, createSelfieCollectionHttp } = require('./selfie-collection');
 const path = require("path");
@@ -120,6 +123,33 @@ const pingCollectionStore = createSelfieCollectionStore({
 const selfieCollectionStore = createSelfieCollectionStore({ findDeckDir, defaultStore: pingCollectionStore });
 const selfieRuntime = createSelfieRuntime({ io, coordinator: activeInteractionCoordinator,
   loadCollection: deckId => selfieCollectionStore.read(deckId), getRoleRoomKey, getConnectedAudience });
+const liveShopCatalog = createCatalogStore({
+  root: path.join(DATA_DIR, "live-shop"),
+  onChange: (deckId, catalog) => {
+    for (const [roomKey, session] of sessions) {
+      if (session.deckId === deckId) liveShopRuntime.changeCatalog(roomKey, session, catalog);
+    }
+  }
+});
+const liveShopRuntime = createLiveShopRuntime({
+  io,
+  enabled: liveShopEnabled,
+  store: liveShopCatalog,
+  getSession: getSessionByRoomKey,
+  touch: touchSession,
+  authorize: async (socket, context, token) => {
+    if (typeof token !== "string" || !token) return false;
+    const { role, deckId, sessionId } = context;
+    const linkRole = role === "presenter" ? "speaker" : role;
+    const link = role === "audience" && token.startsWith("p_")
+      ? await accessLinkHandlers.resolvePublicAudienceLink(token)
+      : await accessLinkHandlers.resolveRoleLink(token, linkRole);
+    if (link?.deck.deckId !== deckId || link?.accessLink.session_id !== sessionId) return false;
+    if (role !== "presenter") return true;
+    const user = socket.data.accountSession?.user;
+    return liveShopTester(user) && (await betterAuthCompatibilityBridge.listDeckIdsForUser(user.id)).includes(deckId);
+  }
+});
 const gameQueueStore = new GameQueueStore();
 const betterAuthCompatibilityBridge = createBetterAuthCompatibilityBridge();
 let presentationMetricsRepository = null;
@@ -284,6 +314,7 @@ const presentationLifecycleRuntime = lifecyclePool
         return { ok: true };
       },
       afterFinish: async (context, state) => {
+        liveShopRuntime.resetSession(context);
         await liveGuests?.endSession(context);
         sessionDataRepository?.releaseSession(context);
         const reactions = getSessionByRoomKey(context.roomKey)?.reactions;
@@ -331,7 +362,12 @@ async function getStageFeatureAccess(deckId) {
 const nonRecordingLifecycleRuntime = createNonRecordingLifecycle({
   io, getRoleRoomKey,
   getSession: ({ deckId, sourceSessionId }) => getSessionByRoomKey(getRoomKey(sourceSessionId, deckId)),
-  onFinish: async context => { brandMentionRuntime.stop(context.roomKey); selfieRuntime.resetSession(context); await liveGuests?.endSession(context); }
+  onFinish: async context => {
+    brandMentionRuntime.stop(context.roomKey);
+    selfieRuntime.resetSession(context);
+    liveShopRuntime.resetSession(context);
+    await liveGuests?.endSession(context);
+  }
 });
 
 const liveCameraEnabled = process.env.IMMERSA_LIVE_CAMERA_ENABLED !== "false";
@@ -1155,7 +1191,10 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
     const access = await getStageFeatureAccess(context.deckId);
     if (!canUseFeature(access, CAPABILITIES.METRICS_BASIC)) {
       const closed = await nonRecordingLifecycleRuntime.finishInactive(context);
-      if (!closed) nonRecordingLifecycleRuntime.emitClosed(context, { reason: "INACTIVITY", deckId: context.deckId, presentationSessionId: null, recorded: false });
+      if (!closed) {
+        liveShopRuntime.resetSession(context);
+        nonRecordingLifecycleRuntime.emitClosed(context, { reason: "INACTIVITY", deckId: context.deckId, presentationSessionId: null, recorded: false });
+      }
       brandMentionRuntime.stop(roomKey);
       session.time = createImmersaTimeState();
       session.lastActivityAt = now;
@@ -1194,6 +1233,7 @@ async function shutdownInactiveSession(roomKey, session, now = Date.now()) {
       inactivityMinutes: Math.round(SESSION_INACTIVITY_MS / 60_000)
     });
     if (!lifecycleResult) {
+      liveShopRuntime.resetSession(context);
       presentationLifecycleRuntime.emitClosed(context, await presentationCompletionFor(context, null, "INACTIVITY"));
     }
     if (qnaReplacement?.presentationSessionId) {
@@ -2054,6 +2094,7 @@ app.get("/api/account/profile", requireAccount, profileHandlers.getProfile);
 app.put("/api/account/profile", requireAccount, profileHandlers.saveProfile);
 app.post("/api/account/profile/photo", requireAccount, profileHandlers.uploadPhoto);
 app.delete("/api/account/profile/photo", requireAccount, profileHandlers.deletePhoto);
+app.use(createCatalogRouter({ store: liveShopCatalog, requireAccount, requireOwnedDeck, requireAccountAdjustmentCleared }));
 app.use(createDeckSpeakersHttp({store:deckSpeakersStore,enabled:deckSpeakersEnabled,
   owner:[...requireDeckAccount,requireAccountAdjustmentCleared],account:requireAccount,
   legacyProfile:profileHandlers.getDeckSpeakerProfile}));
@@ -2162,6 +2203,7 @@ app.delete("/api/decks/:deckId", ...requireDeckAccount, async (req, res) => {
     const deckId = await deleteDataDeck(req.params.deckId);
     await betterAuthCompatibilityBridge.unregisterDeck(req, deckId);
     if(deckSpeakersEnabled())await deckSpeakersStore.removeDeck(deckId).catch(error=>console.warn("Unable to remove pilot Deck profiles",error.code||"UNKNOWN"));
+    if (liveShopEnabled()) await liveShopCatalog.removeDeck(deckId).catch(error => console.warn("Unable to remove Live Shop catalog", error.code));
     res.json({ ok: true, deckId });
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -2339,7 +2381,8 @@ io.on("connection", (socket) => {
   presentationLifecycleRuntime.attach(socket, () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? lifecycleContext() : null);
   nonRecordingLifecycleRuntime.attach(socket, () => !canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) && canUseFeature(currentFeatureAccess, CAPABILITIES.PRESENTATION_LIFECYCLE) ? lifecycleContext() : null);
 
-  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, registrationToken, label, locale }) => {
+  const liveShop = liveShopEnabled() ? liveShopRuntime.attach(socket, lifecycleContext) : null;
+  socket.on("join_presentation", async ({ session: sessionId, deck: deckId, role, audienceId, audienceName, registrationToken, label, locale, liveShopToken }) => {
     if (!role) return;
     const joinedSessionId = normalizeSessionId(sessionId);
     const joinedDeckId = normalizeDeckId(deckId);
@@ -2500,6 +2543,7 @@ io.on("connection", (socket) => {
       ["poll", () => interactionSockets.sendCurrentState(socket, joinedContext)],
       ["raffle", () => raffleSockets.sendCurrentState(socket, joinedContext)],
       ["selfie", () => selfieRuntime.sendCurrentState(socket, joinedContext)],
+      ["Live Shop", () => liveShop?.join(joinedContext, liveShopToken)],
       ["Q&A", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? qnaRuntime.sendCurrentState(socket, joinedContext) : null],
       ["knowledge activity", () => canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? knowledgeActivityRuntime.sendCurrentState(socket, joinedContext) : null],
       ["presentation lifecycle", () => (canUseFeature(currentFeatureAccess, CAPABILITIES.METRICS_BASIC) ? presentationLifecycleRuntime : nonRecordingLifecycleRuntime).sendCurrentState(socket, joinedContext)]
