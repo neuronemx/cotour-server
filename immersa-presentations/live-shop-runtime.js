@@ -94,6 +94,11 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
     let binding = null;
     let pending = 0;
 
+    function sendSnapshot(state, role) {
+      socket.emit("live-shop:state", snapshot(state, role));
+      if (role === "presenter") socket.emit("live-shop:authorized");
+    }
+
     async function join(context, token) {
       if (!enabled()) return;
       const attempt = ++pending;
@@ -112,8 +117,7 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
         audienceId: context.audienceId, audienceName: context.audienceName || ""
       };
       await socket.join(shopRoom(context.roomKey, context.role));
-      socket.emit("live-shop:state", snapshot(stateFor(session), context.role));
-      if (context.role === "presenter") socket.emit("live-shop:authorized");
+      sendSnapshot(stateFor(session), context.role);
     }
 
     function contextFor(role) {
@@ -123,6 +127,11 @@ function createLiveShopRuntime({ io, enabled, store, getSession, authorize, touc
       if (!session?.liveShop || session.inactivityShutdownAt) return null;
       return { ...context, session, state: session.liveShop };
     }
+
+    socket.on("live-shop:sync", () => {
+      const context = binding && contextFor(binding.role);
+      if (context) sendSnapshot(context.state, context.role);
+    });
 
     socket.on("live-shop:control", async (payload, ack) => {
       if (typeof ack !== "function") return;

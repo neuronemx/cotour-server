@@ -1087,9 +1087,20 @@ socket.on("interaction:results_updated", (results) => { interactionResults = res
 socket.on("interaction:closed", () => { activeInteraction = null; interactionResults = null; interactionResultsVisible = false; clearSelectedInteraction(); renderInteractionPanel(); returnInteractionsHome(); });
 syncThumbsPanelMode();
 ensureInteractionToggle();
+function getPresentationJoinPayload() {
+  return { session: sessionId, deck: deckId, role: "presenter", liveShopToken: roleOpenContext.access_token };
+}
 loadDeck().then(() => {
   initDrawingOverlay();
   bindPrompterGesture();
   updateDrawingMode();
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "presenter", locale: requestedLocale, liveShopToken: roleOpenContext.access_token });
+  let locale = requestedLocale;
+  function joinPresentation() {
+    socket.emit("join_presentation", { ...getPresentationJoinPayload(), locale });
+    locale = undefined;
+  }
+  socket.on("connect", () => {
+    if (locale || !window.ImmersaPresentationConnectionClient?.isActive()) joinPresentation();
+  });
+  if (socket.connected) joinPresentation();
 });

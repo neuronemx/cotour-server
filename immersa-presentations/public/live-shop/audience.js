@@ -361,5 +361,10 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
   track.addEventListener("scroll", syncNavigation, { passive: true });
   window.addEventListener("resize", syncNavigation);
   socket.on("live-shop:state", update);
+  function syncShop() {
+    if (socket.connected && !document.hidden) socket.emit("live-shop:sync");
+  }
+  document.addEventListener("visibilitychange", syncShop);
+  window.addEventListener("pageshow", event => { if (event.persisted) syncShop(); });
   socket.on("disconnect", render);
 };

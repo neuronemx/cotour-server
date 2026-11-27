@@ -3,6 +3,7 @@
 .live-shop-audience[hidden],
 .live-shop-audience [hidden],
 .live-shop-speaker-toggle[hidden],
+.live-camera-speaker-header .live-camera-toggle[hidden],
 .live-camera-monitor-open .live-shop-speaker-toggle,
 .live-shop-speaker-panel[hidden],
 .live-shop-screen[hidden],
@@ -297,9 +298,11 @@
   .live-shop-drawer { animation: none; }
 }
 
-.live-shop-speaker-toggle {
+.live-shop-speaker-toggle,
+.live-camera-speaker-header .live-camera-toggle:not(.is-live) {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-height: 34px;
   padding: 0 10px;
@@ -312,7 +315,15 @@
   cursor: pointer;
 }
 .live-shop-speaker-toggle.is-active { border-color: #a583fa; background: #302052; }
-.live-shop-speaker-dot { width: 7px; height: 7px; border-radius: 50%; background: #8a8098; }
+.live-camera-speaker-header .live-camera-toggle:not(.is-live)::before { content: ""; }
+.live-shop-speaker-dot,
+.live-camera-speaker-header .live-camera-toggle:not(.is-live)::before {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8a8098;
+}
 .is-active .live-shop-speaker-dot { background: #62e8c4; box-shadow: 0 0 8px #62e8c488; }
 .live-shop-speaker-panel {
   position: fixed;
@@ -446,19 +457,40 @@
   .live-shop-speaker-label { font-size: 9px; }
   .live-shop-speaker-toggle { min-height: 32px; padding-inline: 6px; gap: 4px; }
 }
-@media (max-width: 380px) {
-  .presenter-shell:not(.live-camera-monitor-open) .live-camera-speaker-header:has(.live-shop-speaker-toggle:not([hidden])) {
-    flex-wrap: wrap;
-    row-gap: 4px;
+@media (max-width: 480px) {
+  .presenter-shell .live-camera-speaker-header {
+    --live-camera-gap: 4px;
+    inset-inline: 6px;
   }
-  .presenter-shell:not(.live-camera-monitor-open) .live-camera-speaker-header .top-actions:has(.live-shop-speaker-toggle:not([hidden])) {
-    width: 100%;
-    flex-wrap: wrap;
+  .presenter-shell .live-camera-speaker-header .brand-lockup { width: 34px; height: 34px; padding: 3px; }
+  .presenter-shell .live-camera-speaker-header .brand-mark { width: 26px; height: 26px; }
+  .presenter-shell .live-camera-speaker-header .speaker-timer {
+    min-height: 32px;
+    padding-inline: 6px;
+    gap: 4px;
+    font-size: 12px;
   }
-  .presenter-shell:has(.live-camera-speaker-header .live-shop-speaker-toggle:not([hidden])) .live-shop-speaker-panel {
-    top: 100px;
-    max-height: calc(100dvh - 116px);
+  .live-camera-speaker-header .speaker-timer img { width: 14px; height: 14px; }
+  .live-camera-speaker-header .live-camera-toggle:not(.is-live),
+  .live-camera-speaker-header .live-shop-speaker-toggle { min-height: 32px; padding-inline: 6px; gap: 4px; font-size: 10px; }
+  .live-camera-speaker-header .live-shop-speaker-label { font-size: inherit; }
+  .live-camera-speaker-header .top-actions .audience-stat {
+    min-height: 30px;
+    min-width: 0;
+    padding-inline: 6px;
+    gap: 4px;
   }
+  .live-camera-speaker-header .audience-people-icon { width: 14px; height: 14px; }
+  .live-camera-speaker-header .top-actions .fullscreen-button { width: 32px; min-width: 32px; height: 32px; min-height: 32px; }
+}
+@media (max-width: 360px) {
+  .presenter-shell .live-camera-speaker-header { --live-camera-gap: 3px; inset-inline: 4px; }
+  .presenter-shell .live-camera-speaker-header .brand-lockup { width: 30px; height: 30px; }
+  .presenter-shell .live-camera-speaker-header .brand-mark { width: 22px; height: 22px; }
+  .presenter-shell .live-camera-speaker-header .speaker-timer { padding-inline: 4px; gap: 3px; font-size: 11px; }
+  .live-camera-speaker-header .live-camera-toggle:not(.is-live),
+  .live-camera-speaker-header .live-shop-speaker-toggle { padding-inline: 5px; gap: 3px; }
+  .live-camera-speaker-header .top-actions .audience-stat { padding-inline: 4px; gap: 3px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .live-shop-celebration { animation: none; }

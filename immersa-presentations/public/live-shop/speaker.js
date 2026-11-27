@@ -66,6 +66,11 @@ window.ImmersaLiveShopSpeaker = function (socket) {
     render();
   });
   socket.on("live-shop:authorized", () => { toggle.hidden = false; });
+  function syncShop() {
+    if (socket.connected && !document.hidden) socket.emit("live-shop:sync");
+  }
+  document.addEventListener("visibilitychange", syncShop);
+  window.addEventListener("pageshow", event => { if (event.persisted) syncShop(); });
   socket.on("disconnect", () => {
     toggle.hidden = true;
     setOpen(false);

@@ -462,9 +462,13 @@ function submitQna(event) {
     allowNameOnScreen: Boolean(name && qnaAllowName?.checked)
   });
 }
+function getPresentationJoinPayload() {
+  if (!manifest || !audienceReady) return {};
+  return { session: sessionId, deck: deckId, role: "audience", audienceId, liveShopToken: publicOpenContext.welcome?.path?.slice(1) || location.pathname.split("/").pop(), audienceName: window.ImmersaAudienceWelcome?.name || "", registrationToken: window.ImmersaAudienceWelcome?.token || "", locale: currentLocale };
+}
 function joinAudience() {
-  if (!manifest || !audienceReady || !socket.connected) return;
-  socket.emit("join_presentation", { session: sessionId, deck: deckId, role: "audience", audienceId, liveShopToken: publicOpenContext.welcome?.path?.slice(1) || location.pathname.split("/").pop(), audienceName: window.ImmersaAudienceWelcome?.name || "", registrationToken: window.ImmersaAudienceWelcome?.token || "", locale: currentLocale });
+  const payload = getPresentationJoinPayload();
+  if (payload.role && socket.connected) socket.emit("join_presentation", payload);
 }
 function initDrawingOverlay() { if (drawingOverlay || !window.ImmersaDrawingOverlay) return; drawingOverlay = window.ImmersaDrawingOverlay.create({ root: viewport, slide, getSlideIndex: () => currentSlideIndex, zIndex: 2 }); }
 function ensureInteractionCard() { if (interactionCard) return interactionCard; interactionCard = document.createElement("section"); interactionCard.className = "interaction-card interaction-hidden"; interactionCard.setAttribute("aria-label", "Interacción activa"); viewer.appendChild(interactionCard); return interactionCard; }
@@ -498,13 +502,16 @@ socket.on("audience:registration_unavailable", payload => {
   connectionNotice.textContent = payload.message;
   connectionNotice.classList.remove("hidden");
 });
-socket.on("connect", () => { audienceAccessMessage = ""; setConnectionNotice(false); joinAudience(); });
+socket.on("connect", () => {
+  audienceAccessMessage = "";
+  setConnectionNotice(false);
+  if (!window.ImmersaPresentationConnectionClient?.isActive()) joinAudience();
+});
 socket.on("plan:audience_limit", (payload = {}) => {
   audienceAccessMessage = tr('audience.connection.limit');
   setConnectionNotice(true);
 });
 socket.on("disconnect", () => setConnectionNotice(true));
-socket.io?.on?.("reconnect", () => { setConnectionNotice(false); joinAudience(); });
 socket.io?.on?.("reconnect_error", () => setConnectionNotice(true));
 socket.io?.on?.("reconnect_failed", () => setConnectionNotice(true));
 returnToEventProgramIfClosed();

@@ -244,7 +244,7 @@
 
   function loadPresentationRuntime() {
     if (window.ImmersaPresentationRuntime || document.querySelector('script[data-immersa-time-sync]')) return;
-    const sources = ["/shared/time-sync-client.js", "/shared/presentation-connection.js", "/shared/presentation-runtime.js"];
+    const sources = ["/shared/time-sync-client.js", "/shared/presentation-connection.js", "/shared/presentation-runtime.js?v=2"];
     let index = 0;
     const loadNext = () => {
       if (index >= sources.length) return;

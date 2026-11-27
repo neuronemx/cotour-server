@@ -96,12 +96,36 @@ function harness() {
     await runtime.attach(socket, () => context).join(context, token);
     return {
       session,
+      sync: () => listeners.get("live-shop:sync")(),
       control: (action, value) => new Promise(ack => listeners.get("live-shop:control")({ action, value }, ack)),
       buy: payload => new Promise(ack => listeners.get("live-shop:purchase")(payload, ack))
     };
   }
   return { runtime, sent, client };
 }
+
+test("resuming returns the current Shop state only to roles already authorized in that session", async () => {
+  const h = harness();
+  const speaker = await h.client("presenter");
+  const audience = await h.client("audience");
+  const unauthenticated = await h.client("presenter", "room-a", "wrong-token");
+  const otherAudience = await h.client("audience", "room-b");
+  const instance = audience.session.liveShop.instance;
+
+  await speaker.control("toggle", true);
+  h.sent.length = 0;
+  unauthenticated.sync();
+  assert.equal(h.sent.length, 0);
+  speaker.sync();
+  assert.deepEqual(h.sent.map(message => message.event), ["live-shop:state", "live-shop:authorized"]);
+  assert.equal(h.sent[0].payload.active, true);
+  audience.sync();
+  assert.equal(h.sent.at(-1).payload.instance, instance);
+  assert.equal(h.sent.at(-1).payload.products[0].id, "book");
+  otherAudience.sync();
+  assert.equal(h.sent.at(-1).payload.active, false);
+  assert.deepEqual(h.sent.at(-1).payload.products, []);
+});
 
 test("simulations validate the active session and products and count a retried purchase once", async () => {
   const h = harness();

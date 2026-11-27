@@ -164,6 +164,7 @@
 
     const timeSync = root.ImmersaTimeSync.create(socket, { document: root.document });
     const joinPayload = () => {
+      if (typeof getPresentationJoinPayload === "function") return getPresentationJoinPayload();
       const payload = { session: sessionId, deck: deckId, role };
       if (role === "audience" && typeof audienceId !== "undefined") payload.audienceId = audienceId;
       return payload;
