@@ -96,10 +96,13 @@ window.ImmersaLiveShopAudience = function ({ socket, deckId, sessionId }) {
   }
 
   function setOpen(open, focus = false) {
+    if (!open) drawer.hidePopover?.();
     drawer.hidden = !open;
     drawer.inert = !open;
+    root.classList.toggle("is-open", open);
     tab.hidden = open;
     tab.setAttribute("aria-expanded", String(open));
+    if (open) drawer.showPopover?.();
     if (focus && open) get("close").focus();
     if (focus && !open) tab.focus();
     if (open) {

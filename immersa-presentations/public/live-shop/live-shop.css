@@ -64,6 +64,7 @@
   color-scheme: light;
   font-family: Inter, sans-serif;
 }
+.live-shop-audience.is-open { z-index: 51; }
 .live-shop-audience button {
   border: 1px solid #d9dcd7;
   border-radius: 9px;
@@ -129,8 +130,9 @@
 .live-shop-drawer {
   --shop-gutter: 20px;
   position: fixed;
-  top: 50%;
-  right: 0;
+  inset: 50% 0 auto auto;
+  margin: 0;
+  padding: 0;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
@@ -138,6 +140,7 @@
   width: min(710px, calc(100vw - 12px));
   max-height: min(720px, 86dvh);
   background: #f7f7f4;
+  color: inherit;
   border: 1px solid #e6e6df;
   border-right: 0;
   border-radius: 20px 0 0 20px;
